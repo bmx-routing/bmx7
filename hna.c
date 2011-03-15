@@ -46,12 +46,12 @@ static IPX_T niit_prefix96 = DEF_NIIT_PREFIX;
 
 
 STATIC_FUNC
-void description_event_hook(int32_t cb_id, struct orig_node *on)
+void niit_description_event_hook(int32_t cb_id, struct orig_node *on)
 {
         if (on != &self)
                 return;
 
-        dbgf_sys(DBGT_INFO, "cb_id=%d", cb_id);
+        dbgf_all(DBGT_INFO, "cb_id=%d", cb_id);
 
         if (cb_id == PLUGIN_CB_DESCRIPTION_DESTROY && !initializing)
                 process_description_tlvs(NULL, on, on->desc, TLV_OP_CUSTOM_NIIT6TO4_DEL, BMX_DSC_TLV_UHNA6, NULL);
@@ -64,7 +64,7 @@ void description_event_hook(int32_t cb_id, struct orig_node *on)
 
 
 STATIC_FUNC
-void sys_dev_event_hook(int32_t cb_id, void* unused)
+void niit_dev_event_hook(int32_t cb_id, void* unused)
 {
         struct avl_node *an = NULL;
         struct if_link_node *iln = NULL;
@@ -81,17 +81,17 @@ void sys_dev_event_hook(int32_t cb_id, void* unused)
                         continue;
 
                 if (!strcmp(iln->name.str, DEF_NIIT_6TO4_DEV)) {
-                        dbgf_sys(DBGT_INFO, "%s UP", DEF_NIIT_6TO4_DEV);
+                        dbgf_track(DBGT_INFO, "%s UP", DEF_NIIT_6TO4_DEV);
                         iln_6to4 = iln;
                 }
 
                 if (!strcmp(iln->name.str, DEF_NIIT_4TO6_DEV)) {
 
                         if (avl_find_item(&iln->if_addr_tree, &niit_address)) {
-                                dbgf_sys(DBGT_INFO, "%s UP", DEF_NIIT_4TO6_DEV);
+                                dbgf_track(DBGT_INFO, "%s UP", DEF_NIIT_4TO6_DEV);
                                 iln_4to6 = iln;
                         } else {
-                                dbgf_sys(DBGT_WARN, "%s UP without IP", DEF_NIIT_4TO6_DEV);
+                                dbgf_track(DBGT_WARN, "%s UP without IP", DEF_NIIT_4TO6_DEV);
                         }
                 }
 
@@ -106,7 +106,7 @@ void sys_dev_event_hook(int32_t cb_id, void* unused)
 
         if (niit4to6_dev_idx != niit4to6_new_idx) {
 
-                dbgf_sys(DBGT_INFO, "niit4to6_dev_idx=%d niit4to6_new_idx=%d", niit4to6_dev_idx, niit4to6_new_idx);
+                dbgf_track(DBGT_INFO, "niit4to6_dev_idx=%d niit4to6_new_idx=%d", niit4to6_dev_idx, niit4to6_new_idx);
 
                 for (an = NULL; (on = avl_iterate_item(&orig_tree, &an));) {
 
@@ -125,7 +125,7 @@ void sys_dev_event_hook(int32_t cb_id, void* unused)
 
         if (niit6to4_dev_idx != niit6to4_new_idx) {
 
-                dbgf_sys(DBGT_INFO, "niit6to4_dev_idx=%d niit6to4_new_idx=%d", niit6to4_dev_idx, niit6to4_new_idx);
+                dbgf_track(DBGT_INFO, "niit6to4_dev_idx=%d niit6to4_new_idx=%d", niit6to4_dev_idx, niit6to4_new_idx);
 
                 if (niit6to4_old_idx)
                         process_description_tlvs(NULL, &self, self.desc, TLV_OP_CUSTOM_NIIT6TO4_DEL, BMX_DSC_TLV_UHNA6, NULL);
@@ -214,7 +214,7 @@ IDM_T configure_niit6to4(IDM_T del, struct uhna_key *key)
                 !is_ip_net_equal(&key->glip, &niit_prefix96, 96, AF_INET6))
                 return SUCCESS;
 
-        dbgf_sys(DBGT_INFO, "del=%d %s/%d", del, ipXAsStr(AF_INET6, &key->glip), key->prefixlen);
+        dbgf_track(DBGT_INFO, "del=%d %s/%d", del, ipXAsStr(AF_INET6, &key->glip), key->prefixlen);
 
         // update network routes:
         if (del) {
@@ -354,8 +354,7 @@ int _create_tlv_hna(int family, uint8_t* data, uint16_t max_size, uint16_t pos,
 
         }
 
-        dbgf_sys(DBGT_INFO, "%s %s/%d metric %d",
-                family2Str(family), ipXAsStr(family, ip), prefixlen, metric);
+        dbgf_track(DBGT_INFO, "%s %s/%d metric %d", family2Str(family), ipXAsStr(family, ip), prefixlen, metric);
 
 
         return (pos + msg_size);
@@ -829,9 +828,9 @@ struct plugin *hna_get_plugin( void ) {
         hna_plugin.cb_init = hna_init;
 	hna_plugin.cb_cleanup = hna_cleanup;
         hna_plugin.cb_plugin_handler[PLUGIN_CB_STATUS] = (void (*) (int32_t, void*)) hna_status;
-        hna_plugin.cb_plugin_handler[PLUGIN_CB_SYS_DEV_EVENT] = sys_dev_event_hook;
-        hna_plugin.cb_plugin_handler[PLUGIN_CB_DESCRIPTION_CREATED] = (void (*) (int32_t, void*)) description_event_hook;
-        hna_plugin.cb_plugin_handler[PLUGIN_CB_DESCRIPTION_DESTROY] = (void (*) (int32_t, void*)) description_event_hook;
+        hna_plugin.cb_plugin_handler[PLUGIN_CB_SYS_DEV_EVENT] = niit_dev_event_hook;
+        hna_plugin.cb_plugin_handler[PLUGIN_CB_DESCRIPTION_CREATED] = (void (*) (int32_t, void*)) niit_description_event_hook;
+        hna_plugin.cb_plugin_handler[PLUGIN_CB_DESCRIPTION_DESTROY] = (void (*) (int32_t, void*)) niit_description_event_hook;
 
         return &hna_plugin;
 }

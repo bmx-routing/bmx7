@@ -30,6 +30,18 @@
 #define SIOCGIWNAME    0x8B01          /* get name == wireless protocol */
 #endif
 
+// from <linux/rtnetlink.h>:
+#define RTMGRP_IPV4_RULE	0x80
+#define RTMGRP_IPV6_IFINFO	0x800
+#define RTMGRP_IPV6_PREFIX	0x20000
+
+
+
+
+
+
+
+
 struct ifname {
 	char str[IFNAMSIZ];
 };
@@ -37,63 +49,107 @@ struct ifname {
 typedef struct ifname IFNAME_T;
 
 
+#define ARG_LLOCAL_PREFIX "llocal_prefix"
+#define HLP_LLOCAL_PREFIX "specify link-local prefix for interfaces"
 
-#define ARG_DEV6  		"dev6"
+#define ARG_GLOBAL_PREFIX "global_prefix"
+#define HLP_GLOBAL_PREFIX "specify global prefix for interfaces"
+
+
 
 #define ARG_DEV  		"dev"
+#define HLP_DEV                 "add or change interface device or its configuration"
 
-#define ARG_DEV_IP              "ip"
+#define ARG_DEV_GLOBAL_PREFIX   "global_prefix"
+#define HLP_DEV_GLOBAL_PREFIX   "specify global prefix for interface"
+
+#define ARG_DEV_LLOCAL_PREFIX   "llocal_prefix"
+#define HLP_DEV_LLOCAL_PREFIX   "specify link-local prefix for interface"
+
 #define ARG_DEV_TTL		"ttl"
+#define HLP_DEV_TTL             "set TTL of generated OGMs"
 #define ARG_DEV_CLONE		"clone"
-#define ARG_DEV_LL		"linklayer"
 
 #define ARG_DEV_ANNOUNCE        "announce"
 #define DEF_DEV_ANNOUNCE        YES
+#define HLP_DEV_ANNOUNCE        "disable/enable announcement of interface IP"
+
+#define DEV_LO "lo"
+#define DEV_UNKNOWN "unknown"
+
+#define ARG_DEV_LL		"linklayer"
+#define DEF_DEV_LL              0
+#define MIN_DEV_LL              0
+#define TYP_DEV_LL_LO		0
+#define TYP_DEV_LL_LAN		1
+#define TYP_DEV_LL_WIFI		2
+#define MAX_DEV_LL              2
+#define HLP_DEV_LL              "manually set device type for linklayer specific optimization (1=lan, 2=wlan)"
+
+#define ARG_DEV_CHANNEL		  "channel"
+#define DEF_DEV_CHANNEL           0
+#define MIN_DEV_CHANNEL           0
+#define TYP_DEV_CHANNEL_SHARED    0
+#define TYP_DEV_CHANNEL_WLAN001	  1
+#define TYP_DEV_CHANNEL_WLAN150	  150
+#define TYP_DEV_CHANNEL_EXCLUSIVE 255
+#define MAX_DEV_CHANNEL           255
+
+#define ARG_DEV_BITRATE_MAX       "bitrate_max"
+#define DEF_DEV_BITRATE_MAX         56000000
+#define DEF_DEV_BITRATE_MAX_LAN   1000000000
+#define DEF_DEV_BITRATE_MAX_WIFI    56000000
+#define HLP_DEV_BITRATE_MAX       "set maximum bandwidth as bits/sec of dev"
+
+#define ARG_DEV_BITRATE_MIN       "bitrate_min"
+#define DEF_DEV_BITRATE_MIN          6000000
+#define DEF_DEV_BITRATE_MIN_LAN   1000000000
+#define DEF_DEV_BITRATE_MIN_WIFI     6000000
 
 
-#define ARG_DEV_BANDWIDTH       "bandwidth"
-#define DEF_DEV_BANDWIDTH         50000000
-#define DEF_DEV_BANDWIDTH_LAN    500000000
-#define DEF_DEV_BANDWIDTH_WIFI    50000000
 
+#define ARG_IP "ip_version"
+#define MIN_IP_VERSION 4
+#define MAX_IP_VERSION 6
+#define DEF_IP_VERSION 4
 
-#define ARG_LLOCAL_PREFIX "link_local_prefix"
-#define ARG_GLOBAL_PREFIX "global_prefix"
+#define DEF_IP_POLICY_ROUTING 1
+#define ARG_IP_POLICY_ROUTING "policy_routing"
+
+#define ARG_IP_THROW_RULES "throw_rules"
+#define DEF_IP_THROW_RULES 1
+
+#define ARG_IP_PRIO_RULES "prio_rules"
+#define DEF_IP_PRIO_RULES 1
+
 
 #define DEF_LO_RULE 1
 
-#define ARG_NO_POLICY_RT "no_policy_routing"
+#define RT_PRIO_MAX    -1
+#define RT_PRIO_HOSTS  -1
+#define RT_PRIO_NETS   -2
+#define RT_PRIO_TUNS   -3
+#define RT_PRIO_MIN    -3
 
-#define ARG_THROW_RULES "throw_rules"
-#define DEF_THROW_RULES 1
-
-#define ARG_PRIO_RULES "prio_rules"
-#define DEF_PRIO_RULES 1
-
-#define ARG_RT_PRIO "prio_rules_offset"
-#define MIN_RT_PRIO 3
-#define MAX_RT_PRIO 32765
-#define DEF_RT_PRIO 6240
-#define RT_PRIO_HOSTS     (Rt_prio + 0)
-#define RT_PRIO_NETS      (Rt_prio + 1)
-#define RT_PRIO_TUNS      (Rt_prio + 2)
-extern int32_t Rt_prio;
+#define ARG_IP_RULE_OFFSET "preference"
+#define MIN_IP_RULE_OFFSET 3
+#define MAX_IP_RULE_OFFSET 32765
+#define DEF_IP_RULE_OFFSET 6000 // avoid conflicts with bmxd and others
 
 
-#define ARG_RT_TABLE "rt_table_offset"
-#define DEF_RT_TABLE 62
-#define MIN_RT_TABLE 0
-#define MAX_RT_TABLE 32000
-#define RT_TABLE_HOSTS_OFFS	0
-#define RT_TABLE_NETS_OFFS	1
-#define RT_TABLE_TUNS_OFFS	2
-#define RT_TABLE_MAX_OFFS       2
-extern int32_t Rt_table;
 
-#define RT_TABLE_DEVS  -1
-#define RT_TABLE_HOSTS -2
-#define RT_TABLE_NETS  -3
-#define RT_TABLE_TUNS  -4
+#define RT_TABLE_MAX   -1
+#define RT_TABLE_HOSTS -1
+#define RT_TABLE_NETS  -2
+#define RT_TABLE_TUNS  -3
+#define RT_TABLE_MIN   -3
+
+#define ARG_IP_TABLE_OFFSET "table"
+#define DEF_IP_TABLE_OFFSET 60 //avoid conflicts with bmxd and others
+#define MIN_IP_TABLE_OFFSET 0
+#define MAX_IP_TABLE_OFFSET 32000
+
+
 
 
 extern int32_t base_port;
@@ -102,13 +158,6 @@ extern int32_t base_port;
 #define MIN_BASE_PORT 1025
 #define MAX_BASE_PORT 60000
 
-#define DEV_LO "lo"
-#define DEV_UNKNOWN "unknown"
-
-
-#define VAL_DEV_LL_LO		0
-#define VAL_DEV_LL_LAN		1
-#define VAL_DEV_LL_WLAN		2
 
 
 
@@ -161,8 +210,17 @@ extern const struct ort_data ort_dat[ORT_MAX + 1];
 
 #define AFINET2BMX( fam ) ( ((fam) == AF_INET) ? BMX_AFINET4 : BMX_AFINET6 )
 
+
 extern struct dev_node *primary_dev_cfg;
 extern uint8_t af_cfg;
+extern IDM_T niit_enabled;
+
+extern int32_t ip_throw_rules_cfg;
+extern int32_t ip_policy_rt_cfg;
+extern int32_t policy_routing;
+#define POLICY_RT_UNSET -1
+#define POLICY_RT_DISABLED 0
+#define POLICY_RT_ENABLED 1
 
 extern struct avl_tree if_link_tree;
 
@@ -170,10 +228,10 @@ extern struct avl_tree dev_ip_tree;
 extern struct avl_tree dev_name_tree;
 
 
-extern int32_t prio_rules;
-extern int32_t throw_rules;
+//extern int32_t prio_rules;
+//extern int32_t throw_rules;
 
-extern IDM_T dev_soft_conf_changed; // temporary enabled to trigger changed interface configuration
+//extern IDM_T dev_soft_conf_changed; // temporary enabled to trigger changed interface configuration
 
 
 
@@ -240,29 +298,25 @@ struct dev_node {
 	struct if_link_node *if_link;
 	struct if_addr_node *if_llocal_addr;  // non-zero but might be global for ipv4 or loopback interfaces
 	struct if_addr_node *if_global_addr;  // might be zero for non-primary interfaces
-
-	TIME_T problem_timestamp;
+	void (* tx_task) (void *);
 
 	int8_t hard_conf_changed;
 	int8_t soft_conf_changed;
 	uint8_t active;
-	uint16_t tmp;
+	uint8_t activate_again;
+	uint16_t lndevs_tmp;
 
-	// the manually configurable stuff:
-
-	char *arg_cfg;
+	DEVADV_IDX_T dev_adv_idx;
+	int16_t dev_adv_msg;
 
 	IFNAME_T name_phy_cfg;  //key for dev_name_tree
 	IFNAME_T label_cfg;
 
-
-
-	// the detected stuff:
+	struct link_dev_node dummy_lndev;
 
 	IPX_T llocal_ip_key; // copy of dev->if_llocal_addr->ip_addr;
 	MAC_T mac;
-	TIME_T link_id_timestamp;
-	LINK_ID_T link_id;
+
 
 	char ip_llocal_str[IPX_STR_LEN];
 	char ip_global_str[IPX_STR_LEN];
@@ -278,19 +332,32 @@ struct dev_node {
 	int32_t rx_mcast_sock;
 	int32_t rx_fullbrc_sock;
 
-	HELLO_FLAGS_SQN_T link_hello_sqn;
+	HELLO_SQN_T link_hello_sqn;
 
 	struct list_head tx_task_lists[FRAME_TYPE_ARRSZ]; // scheduled frames and messages
-	struct avl_tree tx_task_tree;
+	struct avl_tree tx_task_interval_tree;
 
 	int8_t announce;
 
 	int8_t linklayer_conf;
 	int8_t linklayer;
 
+	int16_t channel_conf;
+	int16_t channel;
+
+	int8_t umetric_min_conf;
+	UMETRIC_T umetric_min_configured;
+	UMETRIC_T umetric_min;
+
 	int8_t umetric_max_conf;
 	UMETRIC_T umetric_max_configured;
 	UMETRIC_T umetric_max;
+
+	IPX_T global_prefix_conf;
+	int16_t global_prefix_length_conf;
+
+	IPX_T llocal_prefix_conf;
+	int16_t llocal_prefix_length_conf;
 
 	//size of plugin data is defined during intialization and depends on registered PLUGIN_DATA_DEV hooks
 	void *plugin_data[];
@@ -300,10 +367,11 @@ struct dev_node {
 struct track_key {
 	IPX_T net;
 	IFNAME_T iif;
-	uint32_t prio;
-	uint16_t table;
+	int8_t prio_macro;
+	int8_t table_macro;
 	uint8_t family;
 	uint8_t mask;
+	uint32_t metric;
 	uint8_t cmd_type;
 };
 
@@ -320,6 +388,7 @@ enum {
 	IP_RULES,
 	IP_RULE_FLUSH,
 	IP_RULE_DEFAULT,    //basic rules to interfaces, host, and networks routing tables
+	IP_RULE_TEST,
 	IP_RULE_MAX,
 	IP_ROUTES,
 	IP_ROUTE_FLUSH_ALL,
@@ -328,6 +397,7 @@ enum {
 	IP_THROW_MY_NET,
 	IP_ROUTE_HOST,
 	IP_ROUTE_HNA,
+	IP_ROUTE_TUNS,
 	IP_ROUTE_MAX
 };
 
@@ -364,15 +434,15 @@ IDM_T is_ip_net_equal(const IPX_T *netA, const IPX_T *netB, const uint8_t plen, 
 
 // core:
 
-IDM_T ip(uint8_t family, uint8_t cmd, int8_t del, uint8_t quiet, const IPX_T *NET, uint8_t nmask, int32_t table_macro, uint32_t prio, IFNAME_T *iifname, int oif_idx, IPX_T *via, IPX_T *src);
+IDM_T ip(uint8_t family, uint8_t cmd, int8_t del, uint8_t quiet, const IPX_T *NET, uint8_t nmask,
+        int8_t table_macro, int8_t prio_macro, IFNAME_T *iifname, int oif_idx, IPX_T *via, IPX_T *src, uint32_t metric);
 
-IDM_T kernel_if_config(void);
+//static IDM_T kernel_if_config(void);
 
 void sysctl_config(struct dev_node *dev_node);
 
-void dev_check(IDM_T ip_config_changed);
-
-#define DEV_MARK_PROBLEM(dev) (dev)->problem_timestamp = MAX(1, bmx_time)
+//static void dev_check(IDM_T ip_config_changed);
+//static void dev_check2(void);
 
 
 int8_t track_rule_and_proceed(uint32_t network, int16_t mask, uint32_t prio, int16_t rt_table, char* iif,

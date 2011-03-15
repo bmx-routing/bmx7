@@ -66,9 +66,7 @@ IDM_T iid_set_neighIID4x(struct iid_repos *neigh_rep, IID_T neighIID4x, IID_T my
 IID_T iid_new_myIID4x( IID_NODE_T *dhn );
 
 
-IID_NODE_T* _iid_get_node_by_neighIID4x( const char *f, IID_NEIGH_T *nn, IID_T neighIID4x );
-
-#define iid_get_node_by_neighIID4x( nn, neighIID4x ) _iid_get_node_by_neighIID4x( __FUNCTION__, nn, neighIID4x )
+IID_NODE_T* iid_get_node_by_neighIID4x(IID_NEIGH_T *nn, IID_T neighIID4x, IDM_T verbose);
 
 
 IID_NODE_T* iid_get_node_by_myIID4x( IID_T myIID4x );

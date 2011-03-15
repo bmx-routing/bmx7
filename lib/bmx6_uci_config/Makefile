@@ -27,7 +27,7 @@ $(PLUGIN_FULLNAME):	$(OBJS) Makefile
 
 
 clean:
-	rm -f *.o *.so.$(PLUGIN_VER)
+	rm -f *.o *.so
 	
 
 install:	all

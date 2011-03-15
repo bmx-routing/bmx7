@@ -121,7 +121,7 @@ void add_dbgl_node(struct ctrl_node *cn, int dbgl)
         list_add_tail(&dbgl_clients[dbgl], &dn->list);
 	
 	if ( dbgl == DBGL_SYS || dbgl == DBGL_CHANGES ) {
-		dbg( DBGL_CHANGES, DBGT_INFO, "resetting muted dbg history" );
+                dbgf_all(DBGT_INFO, "resetting muted dbg history");
 		memset( dbgl_history, 0, sizeof( dbgl_history ) );
 	}
 	
@@ -155,7 +155,7 @@ static int daemonize()
 	
 	errno=0;
 	if ( chdir( "/" ) < 0 ) {
-		dbg( DBGL_SYS, DBGT_ERR, "could not chdir to /: %s", strerror(errno) );
+		dbg_sys(DBGT_ERR, "could not chdir to /: %s", strerror(errno) );
 	}
 
 	if ( ( fd = open( _PATH_DEVNULL, O_RDWR, 0) ) != -1 ) {
@@ -186,7 +186,7 @@ int update_pid_file(void)
 	
 	if ( (tmp_fd = open( tmp_path, O_CREAT|O_WRONLY|O_TRUNC, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH )) < 0 ) {  //check permissions of generated file
 		
-		dbgf( DBGL_SYS, DBGT_ERR, "could not open %s - %s", tmp_path, strerror(errno) );
+		dbgf_sys(DBGT_ERR, "could not open %s - %s", tmp_path, strerror(errno) );
 		return FAILURE;
 	}
 	
@@ -206,7 +206,7 @@ void activate_debug_system(void)
 		if ( debug_level == -1 ) {
 	
 			if ( daemonize() < 0 ) {
-				dbg( DBGL_SYS, DBGT_ERR, "can't fork to background: %s", strerror(errno) );
+				dbg_sys(DBGT_ERR, "can't fork to background: %s", strerror(errno) );
 				cleanup_all( -500093 );
 			}
 			
@@ -230,7 +230,7 @@ void activate_debug_system(void)
 		
 		dbgf_all( DBGT_INFO, "activated level %d", debug_level);
 
-                dbg(DBGL_CHANGES, DBGT_INFO, "%s-%s (compatibility=%d code=cv%d): %s",
+                dbg_track(DBGT_INFO, "%s-%s (compatibility=%d code=cv%d): %s",
                         BMX_BRANCH, BRANCH_VERSION, COMPATIBILITY_VERSION, CODE_VERSION, init_string);
 		
 	}
@@ -238,7 +238,8 @@ void activate_debug_system(void)
 
 struct ctrl_node *create_ctrl_node(int fd, void (*cn_fd_handler) (struct ctrl_node *), uint8_t authorized)
 {
-	
+        TRACE_FUNCTION_CALL;
+
 	struct ctrl_node *cn = debugMalloc( sizeof(struct ctrl_node), -300010 );
 	memset( cn, 0, sizeof(struct ctrl_node) );
 
@@ -252,7 +253,7 @@ struct ctrl_node *create_ctrl_node(int fd, void (*cn_fd_handler) (struct ctrl_no
 	return cn;
 }
 
-void close_ctrl_node(uint8_t cmd, struct ctrl_node *ctrl_node)
+void close_ctrl_node(uint8_t cmd, struct ctrl_node *cn)
 {
 
 	struct list_node* list_pos, *list_prev, *list_tmp;
@@ -262,25 +263,25 @@ void close_ctrl_node(uint8_t cmd, struct ctrl_node *ctrl_node)
 	
 	list_for_each_safe( list_pos, list_tmp, &ctrl_list ) {
 
-		struct ctrl_node *cn = list_entry(list_pos, struct ctrl_node, list);
+		struct ctrl_node *cn_tmp = list_entry(list_pos, struct ctrl_node, list);
 		
-		if ( ( cmd == CTRL_CLOSE_ERROR || cmd == CTRL_CLOSE_SUCCESS || cmd == CTRL_CLOSE_DELAY )  &&  cn == ctrl_node ) {
+		if ( ( cmd == CTRL_CLOSE_ERROR || cmd == CTRL_CLOSE_SUCCESS || cmd == CTRL_CLOSE_DELAY )  &&  cn_tmp == cn ) {
 			
-			if ( cn->fd > 0  &&  cn->fd != STDOUT_FILENO ) {
+			if ( cn_tmp->fd > 0  &&  cn_tmp->fd != STDOUT_FILENO ) {
 				
-				cn->closing_stamp = MAX(bmx_time,1);
-				remove_dbgl_node( cn );
+				cn_tmp->closing_stamp = MAX(bmx_time,1);
+				remove_dbgl_node( cn_tmp );
 				
 				//leaving this after remove_dbgl_node() prevents debugging via broken -d4 pipe
-				dbgf_all( DBGT_INFO, "closed ctrl node fd %d with cmd %d", cn->fd, cmd );
+                                dbgf_all(DBGT_INFO, "closed ctrl node fd %d with cmd %d", cn_tmp->fd, cmd);
 				
 				
 				if ( cmd == CTRL_CLOSE_SUCCESS )
-					trash=write( cn->fd, CONNECTION_END_STR, strlen(CONNECTION_END_STR) );
+					trash=write( cn_tmp->fd, CONNECTION_END_STR, strlen(CONNECTION_END_STR) );
 				
 				if ( cmd != CTRL_CLOSE_DELAY ) {
-					close( cn->fd );
-					cn->fd = 0;
+					close( cn_tmp->fd );
+					cn_tmp->fd = 0;
 					change_selects();
 				}
 				
@@ -288,28 +289,28 @@ void close_ctrl_node(uint8_t cmd, struct ctrl_node *ctrl_node)
 			
 			return;
 			
-		} else if ( ( cmd == CTRL_CLOSE_STRAIGHT  &&  cn == ctrl_node )  ||  
+		} else if ( ( cmd == CTRL_CLOSE_STRAIGHT  &&  cn_tmp == cn )  ||
 		            ( cmd == CTRL_PURGE_ALL )  ||  
-		            ( cmd == CTRL_CLEANUP  &&  cn->closing_stamp  &&/* cn->fd <= 0  && */
-		              U32_GT( bmx_time, cn->closing_stamp + CTRL_CLOSING_TIMEOUT ) ) )
+		            ( cmd == CTRL_CLEANUP  &&  cn_tmp->closing_stamp  &&/* cn_tmp->fd <= 0  && */
+		              U32_GT( bmx_time, cn_tmp->closing_stamp + CTRL_CLOSING_TIMEOUT ) ) )
 		{
 			
-			if ( cn->fd > 0  &&  cn->fd != STDOUT_FILENO ) {
-				remove_dbgl_node( cn );
+			if ( cn_tmp->fd > 0  &&  cn_tmp->fd != STDOUT_FILENO ) {
+				remove_dbgl_node( cn_tmp );
 				//leaving this after remove_dbgl_node() prevents debugging via broken -d4 pipe
-				dbgf_all( DBGT_INFO, "closed ctrl node fd %d", cn->fd );
+                                dbgf_all(DBGT_INFO, "closed ctrl node fd %d", cn_tmp->fd);
 				
-				close( cn->fd );
-				cn->fd = 0;
+				close( cn_tmp->fd );
+				cn_tmp->fd = 0;
 				change_selects();
 			}
 
                         list_del_next(&ctrl_list, list_prev);
-			debugFree( cn, -300050 );
+			debugFree( cn_tmp, -300050 );
 			
 		} else {
 			
-			list_prev = (struct list_node *)&cn->list;
+			list_prev = (struct list_node *)&cn_tmp->list;
 
 		}
 	}
@@ -317,6 +318,7 @@ void close_ctrl_node(uint8_t cmd, struct ctrl_node *ctrl_node)
 
 void accept_ctrl_node(void)
 {
+
 	
 	struct sockaddr addr;
 	socklen_t addr_size = sizeof(struct sockaddr);
@@ -325,7 +327,7 @@ void accept_ctrl_node(void)
 	int fd = accept( unix_sock, (struct sockaddr *)&addr, &addr_size);
 	
 	if ( fd < 0 ) {
-		dbg( DBGL_SYS, DBGT_ERR, "can't accept unix client: %s", strerror(errno) );
+		dbg_sys(DBGT_ERR, "can't accept unix client: %s", strerror(errno) );
 		return;
 	}
 	
@@ -337,7 +339,7 @@ void accept_ctrl_node(void)
 	
 	change_selects();
 	
-	dbgf_all( DBGT_INFO, "got unix control connection" );
+	dbgf_all( DBGT_INFO, "got unix control connection via fd=%d", fd );
 	
 }
 
@@ -364,7 +366,7 @@ void handle_ctrl_node(struct ctrl_node *cn)
 		     (apply_stream_opts( buff, OPT_APPLY,  NO/*no cfg by default*/, cn ) == FAILURE)  ) 
 		{
 			
-			dbg( DBGL_SYS, DBGT_ERR, "invalid ctrl stream via fd %d, %d bytes, auth %d: %s",
+			dbg_sys(DBGT_ERR, "invalid ctrl stream via fd %d, %d bytes, auth %d: %s",
 			        cn->fd, input, cn->authorized, buff );
 			
 			close_ctrl_node( CTRL_CLOSE_ERROR, cn );
@@ -748,11 +750,11 @@ void free_init_string(void)
 int32_t opt_deprecated(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
 {
 	
-	char c = opt->short_name;
-	
-	if ( cmd == OPT_ADJUST )
-		dbg( DBGL_SYS, DBGT_WARN, "option --%s%s%c%sis DEPRECATED and ignored!", 
-		     opt->long_name, c?", -":"", c?c:' ', c?" ":"" );
+        if (cmd == OPT_ADJUST) {
+                dbg_sys(DBGT_WARN, "option --%s%s%c%sis DEPRECATED and ignored!",
+                        opt->long_name, opt->short_name ? ", -" : "",
+                        opt->short_name ? opt->short_name : ' ', opt->short_name ? " " : "");
+        }
 	
 	return SUCCESS;
 }
@@ -1206,8 +1208,8 @@ void register_option(struct opt_type *opt)
 		
 	} else {
 
-                LIST_INIT_HEAD( opt->d.childs_type_list, struct opt_data, list);
-                LIST_INIT_HEAD( opt->d.parents_instance_list, struct opt_parent, list);
+                LIST_INIT_HEAD( opt->d.childs_type_list, struct opt_data, list, list);
+                LIST_INIT_HEAD( opt->d.parents_instance_list, struct opt_parent, list, list);
 
 		if ( opt->order ) {
 			
@@ -1234,7 +1236,7 @@ void register_option(struct opt_type *opt)
 	
 	if ( opt->call_custom_option  &&  ((opt->call_custom_option)( OPT_REGISTER, 0, opt, 0,0 )) == FAILURE ) {
 		
-		dbgf( DBGL_SYS, DBGT_ERR, "%s failed!", opt->long_name );
+		dbgf_sys(DBGT_ERR, "%s failed!", opt->long_name );
 		goto failure;
 	}
 	
@@ -1243,7 +1245,7 @@ void register_option(struct opt_type *opt)
 	
 failure:
 	
-	dbgf( DBGL_SYS, DBGT_ERR, "invalid data,  tmp_opt: %c %s  - option %c %s",
+	dbgf_sys(DBGT_ERR, "invalid data,  tmp_opt: %c %s  - option %c %s",
 	      (tmp_opt && tmp_opt->short_name)?tmp_opt->short_name:'?',
 	      (tmp_opt && tmp_opt->long_name)?tmp_opt->long_name:"??",
 	      (opt && opt->short_name)?opt->short_name:'?', (opt && opt->long_name) ?opt->long_name:"??" );
@@ -1270,7 +1272,7 @@ void remove_option(struct opt_type *opt)
 			if ( !opt->parent_name  &&  opt->call_custom_option  &&  
 			     ((opt->call_custom_option)( OPT_UNREGISTER, 0, opt, 0,0 )) == FAILURE ) 
 			{
-				dbgf( DBGL_SYS, DBGT_ERR, "%s failed!", opt->long_name );
+				dbgf_sys(DBGT_ERR, "%s failed!", opt->long_name );
 			}
 
                         list_del_next(&opt_list, prev_pos);
@@ -1284,7 +1286,7 @@ void remove_option(struct opt_type *opt)
 		
 	}
 	
-	dbgf( DBGL_SYS, DBGT_ERR, "%s no matching opt found", opt->long_name );
+	dbgf_sys(DBGT_ERR, "%s no matching opt found", opt->long_name );
 }
 
 void register_options_array(struct opt_type *fixed_options, int size)
@@ -1518,7 +1520,7 @@ struct opt_parent *add_opt_parent( struct opt_type *opt )
 	struct opt_parent *p = debugMalloc( sizeof( struct opt_parent ), -300018 );
 	memset( p, 0, sizeof(struct opt_parent) );
 
-	LIST_INIT_HEAD( p->childs_instance_list, struct opt_child, list );
+	LIST_INIT_HEAD( p->childs_instance_list, struct opt_child, list, list );
 
         list_add_tail(&opt->d.parents_instance_list, &p->list);
 	
@@ -1834,7 +1836,7 @@ int32_t _opt_connect(uint8_t cmd, struct opt_type *opt, struct ctrl_node *cn, ch
 		
 		if ( strlen( curr_strm_pos ) + 4 + strlen( ARG_TEST ) > sizeof( unix_buff ) ) {
 			
-			dbg( DBGL_SYS, DBGT_ERR, "message too long: %s", curr_strm_pos );
+			dbg_sys(DBGT_ERR, "message too long: %s", curr_strm_pos );
 			cleanup_all( CLEANUP_FAILURE );
 		}
 		
@@ -1878,9 +1880,8 @@ int32_t _opt_connect(uint8_t cmd, struct opt_type *opt, struct ctrl_node *cn, ch
 			
 			
 			if ( connect ( unix_sock, (struct sockaddr *)&unix_addr, sizeof(struct sockaddr_un) ) < 0 ) {
-				
-				dbg( DBGL_SYS, DBGT_ERR, 
-				     "can't connect to unix socket '%s': %s ! Is bmx6 running on this host ?",
+
+                                dbg_sys(DBGT_ERR, "can't connect to unix socket '%s': %s ! Is bmx6 running on this host ?",
 				     tmp_path, strerror(errno) );
 				
 				cleanup_all( CLEANUP_FAILURE );
@@ -1889,7 +1890,7 @@ int32_t _opt_connect(uint8_t cmd, struct opt_type *opt, struct ctrl_node *cn, ch
 			
 			if ( write( unix_sock, unix_buff, strlen( unix_buff ) ) < 0 ) {
 				
-				dbg( DBGL_SYS, DBGT_ERR, "can't write to unix socket: %s", strerror(errno) );
+				dbg_sys(DBGT_ERR, "can't write to unix socket: %s", strerror(errno) );
 				cleanup_all( CLEANUP_FAILURE );
 				
 			}
@@ -1942,7 +1943,7 @@ int32_t _opt_connect(uint8_t cmd, struct opt_type *opt, struct ctrl_node *cn, ch
 					continue;
 				
 				if ( recv_buff_len < 0 ) {
-					dbgf(DBGL_SYS, DBGT_INFO, "sock returned %d errno %d: %s", 
+					dbgf_sys(DBGT_INFO, "sock returned %d errno %d: %s",
 					     recv_buff_len, errno, strerror(errno) );
 				}
 				
@@ -2001,24 +2002,25 @@ int32_t opt_connect(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt
 			
 		} else {
 			
-			dbg( DBGL_SYS, DBGT_ERR, 
+			dbg_sys(DBGT_ERR,
 			     "%s busy! Probably bmx6 is already running! Use [--%s %s] -c ... to connect to a running bmx6",
 			     tmp_path, ARG_RUN_DIR, run_dir );
 			cleanup_all( CLEANUP_FAILURE );
 			
 		}
-		
+
+                dbgf_all(DBGT_INFO, "opened control socket %d", unix_sock);
 		
 		if ( bind ( unix_sock, (struct sockaddr *)&unix_addr, sizeof (struct sockaddr_un) ) < 0 ) {
 			
-			dbg( DBGL_SYS, DBGT_ERR, "can't bind unix socket '%s': %s", tmp_path, strerror(errno) );
+			dbg_sys(DBGT_ERR, "can't bind unix socket '%s': %s", tmp_path, strerror(errno) );
 			cleanup_all( CLEANUP_FAILURE );
 			
 		}
 		
 		if ( listen( unix_sock, 10 ) < 0 ) {
 			
-			dbg( DBGL_SYS, DBGT_ERR, "can't listen unix socket '%s': %s", tmp_path, strerror(errno) );
+			dbg_sys(DBGT_ERR, "can't listen unix socket '%s': %s", tmp_path, strerror(errno) );
 			cleanup_all( CLEANUP_FAILURE );
 			
 		}
@@ -2083,8 +2085,6 @@ int32_t call_opt_apply(uint8_t cmd, uint8_t save, struct opt_type *opt, struct o
 	} else if ( cmd == OPT_APPLY ) {
 		
 		if ( opt->auth_t == A_ADM ) {
-
-//                        dbg(DBGL_CHANGES, DBGT_INFO, "--%-22s  %-30s", opt->long_name, patch->p_val);
 
 			dbgf_all( DBGT_INFO, "--%-22s  %-30s  (%s order %d)",
 			          opt->long_name, patch->p_val, opt_cmd2str[ cmd ], opt->order );
@@ -2184,6 +2184,8 @@ int32_t track_opt_parent(uint8_t cmd, uint8_t save, struct opt_type *p_opt, stru
 				save_config_cb( DEL, p_opt, p_track->p_ref ? p_track->p_ref : p_track->p_val, NULL, cn );
 			
 			del_opt_parent( p_opt, p_track );
+
+                        dbg_cn(cn, DBGL_CHANGES, DBGT_INFO, "--%-22s -", p_opt->long_name);
 		}
 		
 	} else {
@@ -2192,10 +2194,12 @@ int32_t track_opt_parent(uint8_t cmd, uint8_t save, struct opt_type *p_opt, stru
 		
 		if ( p_patch->p_diff == DEL  &&  !p_track ) {
 			
+/*
 			if ( save ) {
 				dbg_cn( cn, DBGL_SYS, DBGT_ERR, "--%s %s does not exist", p_opt->long_name, p_patch->p_val );
 				return FAILURE;
 			}
+*/
 			
 			return SUCCESS;
 			
@@ -2337,7 +2341,7 @@ int32_t call_option(uint8_t ad, uint8_t cmd, uint8_t save, struct opt_type *opt,
 	
 	if ( ad == DEL  &&  ( /*!on_the_fly this is what concurrent -r and -g configurations do || */
                 /* opt->dyn_t == A_INI this is what conf-reload tries   ||*/  opt->cfg_t == A_ARG ) ) {
-		dbg( DBGL_SYS, DBGT_ERR, "option %s can not be resetted during startup!", opt->long_name );
+		dbg_sys(DBGT_ERR, "option %s can not be resetted during startup!", opt->long_name );
 		return FAILURE;
 	}
 	
@@ -2424,10 +2428,9 @@ call_option_failure:
 	        opt_cmd2str[cmd], opt->opt_t, !initializing, wordlen(in)  );
 	
 	/* This results in too much side effects. And MUST be handled by calling function like apply_stream_opts()
-	if ( !on_the_fly  &&  !pedantic_cmd_check  &&  ( cmd == OPT_PATCH || cmd == OPT_ADJUST || cmd == OPT_CHECK || cmd == OPT_APPLY ) ) {
+        if ( !on_the_fly  &&  !pedantic_cmd_check  &&  ( cmd == OPT_PATCH || cmd == OPT_ADJUST || cmd == OPT_CHECK || cmd == OPT_APPLY ) ) {
 	
-		dbg( DBGL_SYS, DBGT_ERR, 
-		"ignored SYNTAX ERROR in startup configuration due to disabled --%s! FIX YOUR CONFIG NOW !!",
+                dbg_sys(DBGT_ERR, "ignored SYNTAX ERROR in startup config due to disabled --%s! FIX YOUR CONFIG NOW !!",
 		ARG_PEDANTIC_CMDCHECK );
 		
 		return SUCCESS;
@@ -2908,8 +2911,9 @@ int32_t opt_debug(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_p
 			
 			check_apply_parent_option( ADD, OPT_APPLY, 0, get_option( 0, 0, ARG_STATUS ), 0, cn );
 			check_apply_parent_option( ADD, OPT_APPLY, 0, get_option( 0, 0, ARG_INTERFACES ), 0, cn );
-			check_apply_parent_option( ADD, OPT_APPLY, _save, get_option( 0, 0, ARG_LINKS ), 0, cn );
-			check_apply_parent_option( ADD, OPT_APPLY, _save, get_option( 0, 0, ARG_ORIGINATORS ), 0, cn );
+			check_apply_parent_option( ADD, OPT_APPLY, 0, get_option( 0, 0, ARG_LINKS ), 0, cn );
+			check_apply_parent_option( ADD, OPT_APPLY, 0, get_option( 0, 0, ARG_LOCALS ), 0, cn );
+			check_apply_parent_option( ADD, OPT_APPLY, 0, get_option( 0, 0, ARG_ORIGINATORS ), 0, cn );
 /*
 		} else if ( ival == DBGL_SERVICES  ) {
 			
@@ -3065,7 +3069,8 @@ static struct opt_type control_options[]=
 			"	 8  : details\n"
 //			"	 9  : announced networks and interfaces\n"
 //			"	10  : links\n"
-			"	11  : testing" },
+			"	11  : testing"
+                        "       12  : traffic dump"},
 	
 	{ODI,0,ARG_RUN_DIR,		0,  2,A_PS1,A_ADM,A_INI,A_CFA,A_ANY,	0,		0,		0,		0,		opt_run_dir,
 			ARG_DIR_FORM,	"set runtime DIR of pid, socket,... - default: " DEF_RUN_DIR " (must be defined before --" ARG_CONNECT ")."},
@@ -3106,14 +3111,14 @@ void init_control(void)
 		debug_level = strtol(d, NULL , 10);
 
 	for ( i = DBGL_MIN; i <= DBGL_MAX; i++ )
-		LIST_INIT_HEAD( dbgl_clients[i], struct dbgl_node, list );
+		LIST_INIT_HEAD( dbgl_clients[i], struct dbgl_node, list, list );
 	
 	openlog( "bmx6", LOG_PID, LOG_DAEMON );
 	
 	memset( &Patch_opt, 0, sizeof( struct opt_type ) );
 
-        LIST_INIT_HEAD( Patch_opt.d.childs_type_list, struct opt_data, list);
-        LIST_INIT_HEAD( Patch_opt.d.parents_instance_list, struct opt_parent, list);
+        LIST_INIT_HEAD( Patch_opt.d.childs_type_list, struct opt_data, list, list);
+        LIST_INIT_HEAD( Patch_opt.d.parents_instance_list, struct opt_parent, list, list);
 
 	register_options_array( control_options, sizeof( control_options ) );
 	
@@ -3144,7 +3149,7 @@ void cleanup_control(void)
 	
 	unix_sock = 0;
 	
-	close_ctrl_node( CTRL_PURGE_ALL, 0 );
+	close_ctrl_node( CTRL_PURGE_ALL, NULL );
 	
 	for ( i = DBGL_MIN; i <= DBGL_MAX; i++ ) {
 		

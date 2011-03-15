@@ -48,8 +48,6 @@ int32_t dad_to = DEF_DAD_TO;
 int32_t my_ttl = DEF_TTL;
 
 
-static int32_t Asocial_device = DEF_ASOCIAL;
-
 static int32_t ogm_purge_to = DEF_OGM_PURGE_TO;
 
 int32_t my_tx_interval = DEF_TX_INTERVAL;
@@ -61,6 +59,7 @@ static int32_t link_purge_to = DEF_LINK_PURGE_TO;
 
 IDM_T terminating = 0;
 IDM_T initializing = YES;
+IDM_T cleaning_up = NO;
 
 static struct timeval start_time_tv;
 static struct timeval ret_tv, new_tv, diff_tv, acceptable_m_tv, acceptable_p_tv, max_tv = {0,(2000*MAX_SELECT_TIMEOUT_MS)};
@@ -79,13 +78,17 @@ IDM_T my_description_changed = YES;
 
 struct orig_node self;
 
+LOCAL_ID_T my_local_id = LOCAL_ID_INVALID;
+
+TIME_T my_local_id_timestamp = 0;
 
 
-AVL_TREE(link_tree, struct link_node, link_id);
-AVL_TREE(blacklisted_tree, struct black_node, dhash);
 
 AVL_TREE(link_dev_tree, struct link_dev_node, key);
 
+AVL_TREE(link_tree, struct link_node, key);
+
+AVL_TREE(local_tree, struct local_node, local_id);
 AVL_TREE(neigh_tree, struct neigh_node, nnkey);
 
 AVL_TREE(dhash_tree, struct dhash_node, dhash);
@@ -95,7 +98,7 @@ LIST_SIMPEL( dhash_invalid_plist, struct plist_node, list, list );
 AVL_TREE(orig_tree, struct orig_node, id);
 AVL_TREE(blocked_tree, struct orig_node, id);
 
-
+AVL_TREE(blacklisted_tree, struct black_node, dhash);
 
 /***********************************************************
  Data Infrastructure
@@ -103,10 +106,11 @@ AVL_TREE(blocked_tree, struct orig_node, id);
 
 
 
+
 void blacklist_neighbor(struct packet_buff *pb)
 {
         TRACE_FUNCTION_CALL;
-        dbgf(DBGL_SYS, DBGT_ERR, "%s via %s", pb->i.llip_str, pb->i.iif->label_cfg.str);
+        dbgf_sys(DBGT_ERR, "%s via %s", pb->i.llip_str, pb->i.iif->label_cfg.str);
 
         EXITERROR(-500697, (0));
 }
@@ -129,8 +133,7 @@ IDM_T validate_param(int32_t probe, int32_t min, int32_t max, char *name)
 
         if ( probe < min || probe > max ) {
 
-                dbgf( DBGL_SYS, DBGT_ERR, "Illegal %s parameter value %d ( min %d  max %d )",
-                        name, probe, min, max);
+                dbgf_sys(DBGT_ERR, "Illegal %s parameter value %d ( min %d  max %d )", name, probe, min, max);
 
                 return FAILURE;
         }
@@ -138,14 +141,19 @@ IDM_T validate_param(int32_t probe, int32_t min, int32_t max, char *name)
         return SUCCESS;
 }
 
-struct dhash_node *is_described_neigh_dhn( struct packet_buff *pb )
-{
-        assertion(-500730, (pb && pb->i.ln));
-        
-        if (pb->i.ln->neigh && pb->i.ln->neigh->dhn && pb->i.ln->neigh->dhn->on &&
-                pb->i.ln->neigh->dhn == iid_get_node_by_neighIID4x(pb->i.ln->neigh, pb->i.transmittersIID)) {
 
-                return pb->i.ln->neigh->dhn;
+struct neigh_node *is_described_neigh( struct link_node *link, IID_T transmittersIID4x )
+{
+        assertion(-500730, (link));
+        assertion(-500958, (link->local));
+        struct neigh_node *neigh = link->local->neigh;
+
+        if (neigh && neigh->dhn && neigh->dhn->on &&
+                neigh->dhn == iid_get_node_by_neighIID4x(neigh, transmittersIID4x, YES/*verbose*/)) {
+
+                assertion(-500938, (neigh->dhn->neigh == neigh));
+
+                return neigh;
         }
 
         return NULL;
@@ -158,201 +166,7 @@ struct dhash_node *is_described_neigh_dhn( struct packet_buff *pb )
 
 
 
-
 STATIC_FUNC
-void assign_best_rtq_link(struct neigh_node *nn)
-{
-        TRACE_FUNCTION_CALL;
-	struct list_node *lndev_pos;
-        struct link_dev_node *lndev_best = NULL;
-        struct link_node *ln;
-        struct avl_node *an = NULL;
-
-        assertion( -500451, (nn));
-
-        dbgf_all( DBGT_INFO, "%s", nn->dhn->on->id.name);
-
-        while ((ln = avl_iterate_item(&nn->link_tree, &an))) {
-
-                list_for_each(lndev_pos, &ln->lndev_list)
-                {
-                        struct link_dev_node *lndev = list_entry(lndev_pos, struct link_dev_node, list);
-
-                        if (!lndev_best ||
-                                lndev->mr[SQR_RTQ].umetric_final > lndev_best->mr[SQR_RTQ].umetric_final ||
-                                U32_GT(lndev->rtq_time_max, lndev_best->rtq_time_max)
-                                )
-                                lndev_best = lndev;
-
-                }
-
-        }
-        assertion( -500406, (lndev_best));
-
-        nn->best_rtq = lndev_best;
-
-}
-
-
-
-STATIC_FUNC
-void free_neigh_node(struct neigh_node *nn)
-{
-        TRACE_FUNCTION_CALL;
-        paranoia(-500321, (nn->link_tree.items));
-
-        dbgf_all(DBGT_INFO, "freeing %s", nn && nn->dhn && nn->dhn->on ? nn->dhn->on->id.name : "---");
-
-        avl_remove(&neigh_tree, &nn->nnkey, -300196);
-        iid_purge_repos(&nn->neighIID4x_repos);
-        debugFree(nn, -300129);
-}
-
-
-
-STATIC_FUNC
-struct neigh_node *create_neigh_node(struct link_node *ln, struct dhash_node * dhn)
-{
-        TRACE_FUNCTION_CALL;
-        assertion( -500400, ( ln && !ln->neigh && dhn && !dhn->neigh ) );
-
-        struct neigh_node *nn = debugMalloc(sizeof ( struct neigh_node), -300131);
-
-        memset(nn, 0, sizeof ( struct neigh_node));
-
-        AVL_INIT_TREE(nn->link_tree, struct link_node, link_id);
-
-        avl_insert(&nn->link_tree, ln, -300172);
-
-        nn->dhn = dhn;
-
-        nn->nnkey = nn;
-        avl_insert(&neigh_tree, nn, -300141);
-
-        dhn->neigh = ln->neigh = nn;
-
-        return nn;
-}
-
-
-
-IDM_T update_neigh_node(struct link_node *ln, struct dhash_node *dhn, IID_T neighIID4neigh, struct description *dsc)
-{
-        TRACE_FUNCTION_CALL;
-        struct neigh_node *neigh = NULL;
-
-        dbgf_all( DBGT_INFO, "link_id=0x%X  NB=%s neighIID4neigh=%d  dhn->orig=%s",
-                ln->link_id, ipXAsStr(af_cfg, &ln->link_ip), neighIID4neigh, dhn->on->desc->id.name);
-
-        assertion(-500389, (ln && neighIID4neigh > IID_RSVD_MAX));
-        assertion(-500390, (dhn && dhn->on));
-
-        if (ln->neigh) {
-
-                assertion(-500405, (ln->neigh->dhn && ln->neigh->dhn->on ));
-                assertion(-500391, (ln->neigh->dhn->neigh == ln->neigh));
-                ASSERTION(-500392, (avl_find(&ln->neigh->link_tree, &ln->link_id)));
-
-                if (ln->neigh == dhn->neigh) {
-
-                        assertion(-500393, (ln->neigh->dhn == dhn));
-
-                        neigh = ln->neigh;
-                        assertion(-500518, (neigh->dhn != self.dhn));
-
-
-                } else {
-
-                        //neigh = merge_neigh_nodes( ln, dhn); //they are the same!
-                        dbgf(DBGL_SYS, DBGT_ERR,
-                                "Neigh restarted ?!! purging ln %s %jX and dhn %s %jX, neighIID4neigh %d dsc %s",
-                                ln->neigh->dhn->on->desc->id.name, ln->neigh->dhn->on->desc->id.rand.u64[0],
-                                dhn->on->desc->id.name, dhn->on->desc->id.rand.u64[0],
-                                neighIID4neigh, dsc ? "YES" : "NO");
-
-
-                        free_dhash_node( dhn );
-                        free_dhash_node( ln->neigh->dhn );
-
-                        return FAILURE;
-                }
-
-        } else {
-
-                if ( dhn->neigh ) {
-
-                        assertion(-500394, (dhn->neigh->dhn == dhn));
-                        assertion(-500395, (dhn->neigh->link_tree.items));
-                        ASSERTION(-500396, (!avl_find(&dhn->neigh->link_tree, &ln->link_id)));
-
-                        neigh = ln->neigh = dhn->neigh;
-                        avl_insert(&neigh->link_tree, ln, -300173);
-
-                        assertion(-500516, (neigh->dhn != self.dhn));
-
-
-                } else {
-
-                        neigh = create_neigh_node( ln, dhn );
-                        assertion(-500517, (neigh->dhn != self.dhn));
-                }
-        }
-
-        assign_best_rtq_link(neigh);
-
-        assertion(-500510, (neigh->dhn != self.dhn));
-        return SUCCESS;
-}
-
-
-STATIC_FUNC
-struct link_dev_node *get_link_dev_node(struct link_node *ln, struct dev_node *dev)
-{
-        TRACE_FUNCTION_CALL;
-	struct list_node *lndev_pos;
-	struct link_dev_node *lndev;
-
-        assertion(-500607, (dev));
-
-	list_for_each( lndev_pos, &ln->lndev_list ) {
-
-		lndev = list_entry( lndev_pos, struct link_dev_node, list );
-
-		if ( lndev->key.dev == dev )
-			return lndev;
-	}
-
-
-	lndev = debugMalloc( sizeof( struct link_dev_node ), -300023 );
-
-	memset( lndev, 0, sizeof( struct link_dev_node ) );
-
-	lndev->key.dev = dev;
-	lndev->key.link = ln;
-
-        int i;
-        for (i = 0; i < FRAME_TYPE_ARRSZ; i++) {
-                LIST_INIT_HEAD(lndev->tx_task_lists[i], struct tx_task_node, list);
-        }
-
-
-        dbgf(DBGL_CHANGES, DBGT_INFO, "creating new lndev %16s %s", ipXAsStr(af_cfg, &ln->link_ip), dev->name_phy_cfg.str);
-
-        list_add_tail(&ln->lndev_list, &lndev->list);
-
-        ASSERTION( -500489, !avl_find( &link_dev_tree, &lndev->key));
-
-        avl_insert( &link_dev_tree, lndev, -300220 );
-
-        cb_plugin_hooks( PLUGIN_CB_LINKDEV_CREATE, lndev);
-
-	return lndev;
-}
-
-
-
-
-
 struct dhash_node* create_dhash_node(struct description_hash *dhash, struct orig_node *on)
 {
         TRACE_FUNCTION_CALL;
@@ -368,7 +182,7 @@ struct dhash_node* create_dhash_node(struct description_hash *dhash, struct orig
         dhn->on = on;
         on->dhn = dhn;
 
-        dbgf(DBGL_CHANGES, DBGT_INFO, "dhash %8X.. myIID4orig %d", dhn->dhash.h.u32[0], dhn->myIID4orig);
+        dbgf_track(DBGT_INFO, "dhash %8X.. myIID4orig %d", dhn->dhash.h.u32[0], dhn->myIID4orig);
 
         return dhn;
 }
@@ -378,12 +192,12 @@ void purge_dhash_iid(struct dhash_node *dhn)
 {
         TRACE_FUNCTION_CALL;
         struct avl_node *an;
-        struct neigh_node *nn;
+        struct neigh_node *neigh;
 
         //reset all neigh_node->oid_repos[x]=dhn->mid4o entries
-        for (an = NULL; (nn = avl_iterate_item(&neigh_tree, &an));) {
+        for (an = NULL; (neigh = avl_iterate_item(&neigh_tree, &an));) {
 
-                iid_free_neighIID4x_by_myIID4x(&nn->neighIID4x_repos, dhn->myIID4orig);
+                iid_free_neighIID4x_by_myIID4x(&neigh->neighIID4x_repos, dhn->myIID4orig);
 
         }
 }
@@ -402,7 +216,7 @@ STATIC_FUNC
 
                         dbgf_all( DBGT_INFO, "dhash %8X myIID4orig %d", dhn->dhash.h.u32[0], dhn->myIID4orig);
 
-                        plist_rem_head(&dhash_invalid_plist);
+                        plist_del_head(&dhash_invalid_plist);
                         avl_remove(&dhash_invalid_tree, &dhn->dhash, -300194);
 
                         iid_free(&my_iid_repos, dhn->myIID4orig);
@@ -417,43 +231,8 @@ STATIC_FUNC
         }
 }
 
+// called to not leave blocked dhash values:
 STATIC_FUNC
-void unlink_dhash_node(struct dhash_node *dhn)
-{
-        TRACE_FUNCTION_CALL;
-        dbgf_all(DBGT_INFO, "dhash %8X myIID4orig %d", dhn->dhash.h.u32[0], dhn->myIID4orig);
-
-        if (dhn->neigh) {
-
-                struct avl_node *an;
-                struct link_node *ln;
-
-                while ((an = dhn->neigh->link_tree.root) && (ln = an->item)) {
-
-                        dbgf_all(DBGT_INFO, "dhn->neigh->link_tree item link_id=0x%X", ln->link_id);
-
-                        assertion(-500284, (ln->neigh == dhn->neigh));
-
-                        ln->neigh = NULL;
-
-                        avl_remove(&dhn->neigh->link_tree, &ln->link_id, -300197);
-                }
-
-                free_neigh_node(dhn->neigh);
-                
-                dhn->neigh = NULL;
-        }
-
-        if (dhn->on) {
-                dhn->on->dhn = NULL;
-                free_orig_node( dhn->on );
-                dhn->on = NULL;
-        }
-
-        avl_remove(&dhash_tree, &dhn->dhash, -300195);
-}
-
-
 void free_dhash_node( struct dhash_node *dhn )
 {
         TRACE_FUNCTION_CALL;
@@ -462,7 +241,10 @@ void free_dhash_node( struct dhash_node *dhn )
         dbgf(terminating ? DBGL_CHANGES : DBGL_SYS, DBGT_INFO,
                 "dhash %8X myIID4orig %d", dhn->dhash.h.u32[0], dhn->myIID4orig);
 
-        unlink_dhash_node(dhn); // will clear dhn->on and dhn->neigh
+        assertion(-500961, (!dhn->on));
+        assertion(-500962, (!dhn->neigh));
+
+        avl_remove(&dhash_tree, &dhn->dhash, -300195);
 
         purge_dhash_iid(dhn);
 
@@ -477,7 +259,8 @@ void free_dhash_node( struct dhash_node *dhn )
 }
 
 
-// called due to updated description
+// called due to updated description, block previously used dhash:
+STATIC_FUNC
 void invalidate_dhash_node( struct dhash_node *dhn )
 {
         TRACE_FUNCTION_CALL;
@@ -489,7 +272,8 @@ void invalidate_dhash_node( struct dhash_node *dhn )
 
         assertion( -500698, (!dhn->on));
         assertion( -500699, (!dhn->neigh));
-        unlink_dhash_node(dhn); // would clear dhn->on and dhn->neigh
+
+        avl_remove(&dhash_tree, &dhn->dhash, -300195);
 
         avl_insert(&dhash_invalid_tree, dhn, -300168);
         plist_add_tail(&dhash_invalid_plist, dhn);
@@ -497,160 +281,381 @@ void invalidate_dhash_node( struct dhash_node *dhn )
 }
 
 
+void update_neigh_dhash(struct orig_node *on, struct description_hash *dhash)
+{
+
+        struct neigh_node *neigh = NULL;
+
+        if (on->dhn) {
+                neigh = on->dhn->neigh;
+                on->dhn->neigh = NULL;
+                on->dhn->on = NULL;
+                invalidate_dhash_node(on->dhn);
+        }
+
+        on->dhn = create_dhash_node(dhash, on);
+
+        if (neigh) {
+                neigh->dhn = on->dhn;
+                on->dhn->neigh = neigh;
+        }
+
+}
 
 
 
 STATIC_FUNC
-void purge_router_tree(struct orig_node *on_key, struct link_dev_key *rt_key, IDM_T purge_all)
+void free_neigh_node(struct neigh_node *neigh)
+{
+        TRACE_FUNCTION_CALL;
+
+        dbgf_track(DBGT_INFO, "freeing %s", neigh && neigh->dhn && neigh->dhn->on ? neigh->dhn->on->id.name : "---");
+
+        assertion(-500963, (neigh));
+        assertion(-500964, (neigh->dhn));
+        assertion(-500965, (neigh->dhn->neigh == neigh));
+        assertion(-500966, (neigh->local));
+        assertion(-500967, (neigh->local->neigh == neigh));
+
+        avl_remove(&neigh_tree, &neigh->nnkey, -300196);
+        iid_purge_repos(&neigh->neighIID4x_repos);
+
+        neigh->dhn->neigh = NULL;
+        neigh->dhn = NULL;
+        neigh->local->neigh = NULL;
+        neigh->local = NULL;
+
+        debugFree(neigh, -300129);
+}
+
+
+
+STATIC_FUNC
+void create_neigh_node(struct local_node *local, struct dhash_node * dhn)
+{
+        TRACE_FUNCTION_CALL;
+        assertion(-500400, (dhn && !dhn->neigh));
+
+        struct neigh_node *neigh = debugMalloc(sizeof ( struct neigh_node), -300131);
+
+        memset(neigh, 0, sizeof ( struct neigh_node));
+
+        local->neigh = neigh;
+        local->neigh->local = local;
+
+        neigh->dhn = dhn;
+        dhn->neigh = neigh->nnkey = neigh;
+        avl_insert(&neigh_tree, neigh, -300141);
+}
+
+
+
+IDM_T update_local_neigh(struct packet_buff *pb, struct dhash_node *dhn)
+{
+        TRACE_FUNCTION_CALL;
+        struct local_node *local = pb->i.link->local;
+
+        dbgf_all(DBGT_INFO, "local_id=0x%X  dhn->orig=%s", local->local_id, dhn->on->desc->id.name);
+
+        assertion(-500517, (dhn != self.dhn));
+        ASSERTION(-500392, (pb->i.link == avl_find_item(&local->link_tree, &pb->i.link->key.dev_idx)));
+        assertion(-500390, (dhn && dhn->on && dhn->on->dhn == dhn));
+
+        if (!local->neigh && dhn->neigh) {
+
+                assertion(-500956, (dhn->neigh->dhn == dhn));
+                assertion(-500955, (dhn->neigh->local->neigh == dhn->neigh));
+
+                dbgf_sys(DBGT_INFO, "CHANGED link=%s -> LOCAL=%d->%d <- neighIID4me=%d <- dhn=%s",
+                        pb->i.llip_str, dhn->neigh->local->local_id, local->local_id, dhn->neigh->neighIID4me, dhn->on->desc->id.name);
+
+                dhn->neigh->local->neigh = NULL;
+                local->neigh = dhn->neigh;
+                local->neigh->local = local;
+
+                goto update_local_neigh_success;
+
+
+        } else if (!local->neigh && !dhn->neigh) {
+
+                create_neigh_node(local, dhn);
+                
+                dbgf_sys(DBGT_INFO, "NEW link=%s <-> LOCAL=%d <-> NEIGHIID4me=%d <-> dhn=%s",
+                        pb->i.llip_str, local->local_id, local->neigh->neighIID4me, dhn->on->desc->id.name);
+
+                goto update_local_neigh_success;
+
+
+        } else if (
+                dhn->neigh &&
+                dhn->neigh->dhn == dhn &&
+                dhn->neigh->local->neigh == dhn->neigh &&
+
+                local->neigh &&
+                local->neigh->local == local &&
+                local->neigh->dhn->neigh == local->neigh
+                ) {
+
+                goto update_local_neigh_success;
+        }
+
+        dbgf_sys(DBGT_ERR, "NONMATCHING LINK=%s -> local=%d -> neighIID4me=%d -> dhn=%s",
+                pb->i.llip_str, local->local_id,
+                local->neigh ? local->neigh->neighIID4me : 0,
+                local->neigh && local->neigh->dhn->on ? local->neigh->dhn->on->id.name : "---");
+        dbgf_sys(DBGT_ERR, "NONMATCHING local=%d <- neighIID4me=%d <- DHN=%s",
+                dhn->neigh && dhn->neigh->local ? dhn->neigh->local->local_id : 0,
+                dhn->neigh ? dhn->neigh->neighIID4me : 0,
+                dhn->on->desc->id.name);
+
+        if (dhn->neigh)
+                free_neigh_node(dhn->neigh);
+
+        if (local->neigh)
+                free_neigh_node(local->neigh);
+
+        return FAILURE;
+
+
+
+update_local_neigh_success:
+
+        assertion(-500954, (dhn->neigh));
+        assertion(-500953, (dhn->neigh->dhn == dhn));
+        assertion(-500952, (dhn->neigh->local->neigh == dhn->neigh));
+
+        assertion(-500951, (local->neigh));
+        assertion(-500050, (local->neigh->local == local));
+        assertion(-500949, (local->neigh->dhn->neigh == local->neigh));
+
+
+        return SUCCESS;
+}
+
+
+
+
+
+
+
+STATIC_FUNC
+void purge_orig_router(struct orig_node *only_orig, struct link_dev_node *only_lndev, IDM_T only_useless)
 {
         TRACE_FUNCTION_CALL;
         struct orig_node *on;
         struct avl_node *an = NULL;
-        while ((on = on_key) || (on = avl_iterate_item( &orig_tree, &an))) {
+        while ((on = only_orig) || (on = avl_iterate_item( &orig_tree, &an))) {
 
-                struct link_dev_key key;
-                memset(&key, 0, sizeof (key));
-                struct router_node *rn;
+                struct local_node *local_key = NULL;
+                struct router_node *rt;
 
-                while (rt_key ? (rn = avl_find_item(&on->rt_tree, rt_key)) : (rn = avl_next_item(&on->rt_tree, &key))) {
+                while ((rt = avl_next_item(&on->rt_tree, &local_key)) && (local_key = rt->local_key)) {
 
-                        key = rn->key;
+                        if (only_useless && (rt->mr.umetric >= UMETRIC_ROUTABLE))
+                                continue;
 
-                        if (purge_all || rt_key || !avl_find(&link_dev_tree, &key)) {
+                        if (only_lndev && (rt->local_key != only_lndev->key.link->local))
+                                continue;
 
-                                if (on->best_rn == rn)
-                                        on->best_rn = NULL;
+                        if (only_lndev && (rt->path_lndev_best != only_lndev) && (on->curr_rt_lndev != only_lndev))
+                                continue;
 
-                                if (on->curr_rn == rn) {
+                        dbgf_track(DBGT_INFO, "only_orig=%s only_lndev=%s,%s only_useless=%d purging metric=%ju router=%X (%s)",
+                                only_orig ? only_orig->id.name : "---",
+                                only_lndev ? ipXAsStr(af_cfg, &only_lndev->key.link->link_ip):"---",
+                                only_lndev ? only_lndev->key.dev->label_cfg.str : "...",
+                                only_useless,rt->mr.umetric,
+                                ntohl(rt->local_key->local_id),
+                                rt->local_key && rt->local_key->neigh ? rt->local_key->neigh->dhn->on->id.name : "???");
 
-                                        set_ogmSqn_toBeSend_and_aggregated(on, on->ogmSqn_maxRcvd, on->ogmSqn_maxRcvd);
+                        if (on->best_rt_local == rt)
+                                on->best_rt_local = NULL;
 
-                                        cb_route_change_hooks(DEL, on);
-                                        on->curr_rn = NULL;
-                                }
+                        if (on->curr_rt_local == rt) {
 
-                                avl_remove(&on->rt_tree, &rn->key, -300226);
+                                set_ogmSqn_toBeSend_and_aggregated(on, on->ogmMetric_next, on->ogmSqn_maxRcvd, on->ogmSqn_maxRcvd);
 
-                                debugFree(rn, -300225);
+                                cb_route_change_hooks(DEL, on);
+                                on->curr_rt_local = NULL;
+                                on->curr_rt_lndev = NULL;
                         }
 
-                        if (rt_key)
+                        avl_remove(&on->rt_tree, &rt->local_key, -300226);
+
+                        debugFree(rt, -300225);
+
+
+                        if (only_lndev)
                                 break;
                 }
 
-                if (on_key)
+                if (only_orig)
                         break;
         }
 }
 
 
 STATIC_FUNC
-void purge_link_node(LINK_ID_T only_link_id, struct dev_node *only_dev, IDM_T only_expired)
+void purge_link_node(struct link_node_key *only_link_key, struct dev_node *only_dev, IDM_T only_expired)
 {
         TRACE_FUNCTION_CALL;
-        struct avl_node *link_an;
-        struct link_node *ln;
-        LINK_ID_T it_link_id = LINK_ID_INVALID;
 
-        dbgf_all( DBGT_INFO, "link_id=0x%X %s %s only_expired",
-                only_link_id, only_dev ? only_dev->label_cfg.str : "---", only_expired ? " " : "not");
+        struct link_node *link;
+        struct link_node_key link_key_it;
+        memset(&link_key_it, 0, sizeof(link_key_it));
+        IDM_T removed_link_adv = NO;
 
-        while ((link_an = (only_link_id >= LINK_ID_MIN ?
-                (avl_find(&link_tree, &only_link_id)) : (avl_next(&link_tree, &it_link_id)))) && (ln = link_an->item)) {
+        dbgf_all( DBGT_INFO, "only_link_key=%X,%d only_dev=%s only_expired=%d",
+                only_link_key ? ntohl(only_link_key->local_id) : 0, only_link_key ? only_link_key->dev_idx : -1,
+                only_dev ? only_dev->label_cfg.str : "---", only_expired);
 
-                struct list_node *pos, *tmp, *prev = (struct list_node *) & ln->lndev_list;
-                struct neigh_node *nn = ln->neigh;
-                IDM_T removed_lndev = NO;
+        while ((link = (only_link_key ? avl_find_item(&link_tree, only_link_key) : avl_next_item(&link_tree, &link_key_it)))) {
 
-                it_link_id = ln->link_id;
+                struct local_node *local = link->local;
 
-                list_for_each_safe(pos, tmp, &ln->lndev_list)
+                assertion(-500940, local);
+                assertion(-500941, local == avl_find_item(&local_tree, &link->key.local_id));
+                assertion(-500942, link == avl_find_item(&local->link_tree, &link->key.dev_idx));
+
+                struct list_node *pos, *tmp, *prev = (struct list_node *) & link->lndev_list;
+                
+                IDM_T removed_link_lndev = NO;
+
+                link_key_it = link->key;
+
+                list_for_each_safe(pos, tmp, &link->lndev_list)
                 {
                         struct link_dev_node *lndev = list_entry(pos, struct link_dev_node, list);
 
                         if ((!only_dev || only_dev == lndev->key.dev) &&
                                 (!only_expired || (((TIME_T) (bmx_time - lndev->pkt_time_max)) > (TIME_T) link_purge_to))) {
 
-                                dbgf(DBGL_CHANGES, DBGT_INFO, "purging lndev=%s dev=%10s",
-                                        ipXAsStr(af_cfg, &ln->link_ip), lndev->key.dev->label_cfg.str);
+                                dbgf_track(DBGT_INFO, "purging lndev link=%s dev=%s",
+                                        ipXAsStr(af_cfg, &link->link_ip), lndev->key.dev->label_cfg.str);
 
-                                cb_plugin_hooks( PLUGIN_CB_LINKDEV_DESTROY, lndev);
-
-                                purge_router_tree(NULL, &lndev->key, NO);
+                                purge_orig_router(NULL, lndev, NO);
 
                                 purge_tx_task_list(lndev->tx_task_lists, NULL, NULL);
 
-                                list_del_next(&ln->lndev_list, prev);
+                                if (lndev->link_adv_msg != LINKADV_MSG_IGNORED)
+                                        removed_link_adv = YES; // delay update_my_link_adv() until trees are clean again!
+
+                                if (lndev == local->best_lndev)
+                                        local->best_lndev = NULL;
+
+                                if (lndev == local->best_rp_lndev)
+                                        local->best_rp_lndev = NULL;
+
+                                if (lndev == local->best_tp_lndev)
+                                        local->best_tp_lndev = NULL;
+
+
+                                list_del_next(&link->lndev_list, prev);
                                 avl_remove(&link_dev_tree, &lndev->key, -300221);
-                                debugFree(pos, -300044);
-                                removed_lndev = YES;
+                                debugFree(lndev, -300044);
+                                removed_link_lndev = YES;
 
                         } else {
                                 prev = pos;
                         }
                 }
 
-                assertion(-500323, (only_dev || only_expired || ln->lndev_list.items==0));
+                assertion(-500323, (only_dev || only_expired || !link->lndev_list.items));
 
-                if (!ln->lndev_list.items) {
+                if (!link->lndev_list.items) {
 
-                        dbgf(DBGL_CHANGES, DBGT_INFO, "purging: link_id=0x%X link_ip=%s %s",
-                                ln->link_id, ipXAsStr(af_cfg, &ln->link_ip), only_dev ? only_dev->label_cfg.str : "???");
+                        dbgf_track(DBGT_INFO, "purging: link local_id=%X link_ip=%s dev_idx=%d only_dev=%s",
+                                ntohl(link->key.local_id), ipXAsStr(af_cfg, &link->link_ip),
+                                 link->key.dev_idx, only_dev ? only_dev->label_cfg.str : "???");
 
-                        cb_plugin_hooks(PLUGIN_CB_LINK_DESTROY, ln);
-
-                        if (nn) {
-
-                                avl_remove(&nn->link_tree, &ln->link_id, -300198);
-
-                                if (!nn->link_tree.items) {
-
-                                        if (nn->dhn) {
-                                                nn->dhn->neigh = NULL;
-                                        }
-
-                                        free_neigh_node(nn);
-                                        nn = NULL;
-                                }
-                        }
-
-                        struct avl_node *dev_an;
+                        struct avl_node *dev_avl;
                         struct dev_node *dev;
-                        for(dev_an = NULL; (dev = avl_iterate_item(&dev_ip_tree, &dev_an));) {
-                                purge_tx_task_list(dev->tx_task_lists, ln, NULL);
+                        for(dev_avl = NULL; (dev = avl_iterate_item(&dev_ip_tree, &dev_avl));) {
+                                purge_tx_task_list(dev->tx_task_lists, link, NULL);
                         }
 
-                        avl_remove(&link_tree, &ln->link_id, -300193);
+                        avl_remove(&link_tree, &link->key, -300193);
+                        avl_remove(&local->link_tree, &link->key.dev_idx, -300330);
 
-                        debugFree( ln, -300045 );
+                        if (!local->link_tree.items) {
+
+                                dbgf_track(DBGT_INFO, "purging: local local_id=%X", ntohl(link->key.local_id));
+
+                                if (local->neigh)
+                                        free_neigh_node(local->neigh);
+
+                                if (local->dev_adv)
+                                        debugFree(local->dev_adv, -300339);
+
+                                if (local->link_adv)
+                                        debugFree(local->link_adv, -300347);
+
+                                assertion(-501135, (!local->orig_routes));
+
+                                avl_remove(&local_tree, &link->key.local_id, -300331);
+
+                                debugFree(local, -300333);
+                                local = NULL;
+                        }
+
+                        debugFree( link, -300045 );
                 }
 
-                if (nn && removed_lndev)
-                        assign_best_rtq_link(nn);
+/*
+                if (local && removed_link_lndev)
+                        lndev_assign_best(local, NULL);
+*/
 
-                if (only_link_id >= LINK_ID_MIN)
+                if (only_link_key)
                         break;
         }
+
+        lndev_assign_best(NULL, NULL);
+
+        if (removed_link_adv)
+                update_my_link_adv(LINKADV_CHANGES_REMOVED);
+
 }
 
+void purge_local_node(struct local_node *local)
+{
+        TRACE_FUNCTION_CALL;
+
+        uint16_t link_tree_items = local->link_tree.items;
+        struct link_node *link;
+
+        assertion(-501015, (link_tree_items));
+
+        while (link_tree_items && (link = avl_first_item(&local->link_tree))) {
+
+                assertion(-501016, (link_tree_items == local->link_tree.items));
+                purge_link_node(&link->key, NULL, NO);
+                link_tree_items--;
+        }
+
+}
 
 void free_orig_node(struct orig_node *on)
 {
         TRACE_FUNCTION_CALL;
-        dbgf(DBGL_CHANGES, DBGT_INFO, "%s %s", on->id.name, on->primary_ip_str);
+        dbgf_all(DBGT_INFO, "%s %s", on->id.name, on->primary_ip_str);
 
         if ( on == &self)
                 return;
 
         //cb_route_change_hooks(DEL, on, 0, &on->ort.rt_key.llip);
 
-        purge_router_tree(on, NULL, YES);
+        purge_orig_router(on, NULL, NO);
 
         if (on->desc && !on->blocked)
                 process_description_tlvs(NULL, on, on->desc, TLV_OP_DEL, FRAME_TYPE_PROCESS_ALL, NULL);
 
         if ( on->dhn ) {
                 on->dhn->on = NULL;
+
+                if (on->dhn->neigh)
+                        free_neigh_node(on->dhn->neigh);
+
                 free_dhash_node(on->dhn);
         }
 
@@ -664,14 +669,14 @@ void free_orig_node(struct orig_node *on)
 }
 
 
-void purge_link_and_orig_nodes(struct dev_node *only_dev, IDM_T only_expired)
+void purge_link_route_orig_nodes(struct dev_node *only_dev, IDM_T only_expired)
 {
         TRACE_FUNCTION_CALL;
 
         dbgf_all( DBGT_INFO, "%s %s only expired",
                 only_dev ? only_dev->label_cfg.str : "---", only_expired ? " " : "NOT");
 
-        purge_link_node(LINK_ID_INVALID, only_dev, only_expired);
+        purge_link_node(NULL, only_dev, only_expired);
 
         int i;
         for (i = IID_RSVD_MAX + 1; i < my_iid_repos.max_free; i++) {
@@ -683,129 +688,268 @@ void purge_link_and_orig_nodes(struct dev_node *only_dev, IDM_T only_expired)
                         if (!only_dev && (!only_expired ||
                                 ((TIME_T) (bmx_time - dhn->referred_by_me_timestamp)) > (TIME_T) ogm_purge_to)) {
 
-                                dbgf(terminating ? DBGL_ALL : DBGL_SYS, DBGT_INFO, "%s referred before: %d > purge_to=%d",
+                                dbgf_all(DBGT_INFO, "%s referred before: %d > purge_to=%d",
                                         dhn->on->id.name, ((TIME_T) (bmx_time - dhn->referred_by_me_timestamp)), (TIME_T) ogm_purge_to);
 
                                 free_orig_node(dhn->on);
+
+                        } else if (only_expired) {
+
+                                purge_orig_router(dhn->on, NULL, YES /*only_useless*/);
                         }
                 }
         }
 }
 
 
-LINK_ID_T new_link_id(struct dev_node *dev)
+LOCAL_ID_T new_local_id(struct dev_node *dev)
 {
         uint16_t tries = 0;
-        LINK_ID_T link_id = 0;
+        LOCAL_ID_T new_local_id = LOCAL_ID_INVALID;
 
-        dev->link_id_timestamp = bmx_time;
+        if (!my_local_id_timestamp) {
 
-        do {
-                link_id |= (((LINK_ID_T) (dev->mac.u8[5])) << 0);
-                link_id |= (((LINK_ID_T) (dev->mac.u8[4])) << 8);
-                link_id |= (((LINK_ID_T) (dev->mac.u8[3])) << 16);
-                link_id |= (((LINK_ID_T) ((link_id < LINK_ID_MIN ? (rand_num(((uint8_t) - 1) - LINK_ID_MIN) + LINK_ID_MIN) : (rand_num(((uint8_t) - 1)))))) << 24);
+                // first time we try our mac address:
+                if (dev && !is_zero(&dev->mac, sizeof (dev->mac))) {
+
+                        memcpy(&(((char*) &new_local_id)[1]), &(dev->mac.u8[3]), sizeof ( LOCAL_ID_T) - 1);
+                        ((char*) &new_local_id)[0] = rand_num(255);
+                }
+
 
 #ifdef TEST_LINK_ID_COLLISION_DETECTION
-                link_id = (tries || dev->link_id) ? link_id : LINK_ID_MIN;
+                new_local_id = LOCAL_ID_MIN;
 #endif
+        }
 
+        while (new_local_id == LOCAL_ID_INVALID && tries < LOCAL_ID_ITERATIONS_MAX) {
 
-                struct avl_node *an;
-                struct dev_node *tmp;
+                new_local_id = htonl(rand_num(LOCAL_ID_MAX - LOCAL_ID_MIN) + LOCAL_ID_MIN);
+                struct avl_node *an = NULL;
+                struct local_node *local;
+                while ((local = avl_iterate_item(&local_tree, &an))) {
 
-                for (an = NULL; (tmp = avl_iterate_item(&dev_ip_tree, &an));) {
-                        if (tmp->link_id == link_id)
+                        if (new_local_id == local->local_id) {
+
+                                tries++;
+
+                                if (tries % LOCAL_ID_ITERATIONS_WARN == 0) {
+                                        dbgf_sys(DBGT_ERR, "No free dev_id after %d trials (local_tree.items=%d, dev_ip_tree.items=%d)!",
+                                                tries, local_tree.items, dev_ip_tree.items);
+                                }
+
+                                new_local_id = LOCAL_ID_INVALID;
                                 break;
+                        }
                 }
+        }
 
-                if (!tmp && !avl_find_item(&link_tree, &link_id)) {
-                        dev->link_id = link_id;
-                        return link_id;
-                }
-
-                tries++;
-
-                if (tries % LINK_ID_ITERATIONS_WARN == 0) {
-                        dbgf(DBGL_SYS, DBGT_ERR, "No free link_id after %d trials (link_tree.items=%d, dev_ip_tree.items=%d)!",
-                                tries, link_tree.items, dev_ip_tree.items);
-                }
-
-        } while (tries < LINK_ID_ITERATIONS_MAX);
-
-
-        dev->link_id = LINK_ID_INVALID;
-        return LINK_ID_INVALID;
+        my_local_id_timestamp = bmx_time;
+        return (my_local_id = new_local_id);
 }
+
+
 
 STATIC_FUNC
 struct link_node *get_link_node(struct packet_buff *pb)
 {
         TRACE_FUNCTION_CALL;
+        struct link_node *link;
+        dbgf_all(DBGT_INFO, "NB=%s, local_id=%X dev_idx=0x%X",
+                pb->i.llip_str, ntohl(pb->i.link_key.local_id), pb->i.link_key.dev_idx);
 
-        dbgf_all(DBGT_INFO, "NB=%s, link_id=0x%X", pb->i.llip_str, pb->i.link_id);
+        struct local_node *local = avl_find_item(&local_tree, &pb->i.link_key.local_id);
 
-        struct link_node *ln = avl_find_item(&link_tree, &pb->i.link_id);
 
-        if (ln && !is_ip_equal(&pb->i.llip, &ln->link_ip)) {
+        if (local) {
 
-                if (((TIME_T) (bmx_time - ln->pkt_time_max)) < (TIME_T) dad_to) {
+                if ((((PKT_SQN_T) (pb->i.pkt_sqn + PKT_SQN_DAD_TOLERANCE - local->packet_sqn)) > (PKT_SQN_DAD_RANGE + PKT_SQN_DAD_TOLERANCE))) {
 
-                        dbgf(DBGL_SYS, DBGT_WARN,
-                                " DAD-Alert (link_id collision, this can happen)! NB=%s via dev=%s"
-                                "cached llIP=%s link_id=0x%X ! sending problem adv...",
-                                pb->i.llip_str, pb->i.iif->label_cfg.str, ipXAsStr(af_cfg, &ln->link_ip), pb->i.link_id);
+                        if (((TIME_T) (bmx_time - local->packet_time) < (TIME_T) PKT_SQN_DAD_RANGE * my_tx_interval)) {
 
-                        // better be carefull here. Errornous PROBLEM_ADVs cause neighboring nodes to cease!!!
-                        struct link_dev_node dummy_lndev = {.key = {.dev = pb->i.iif, .link = ln}, .mr = {ZERO_METRIC_RECORD,ZERO_METRIC_RECORD}};
+                                dbgf_sys(DBGT_INFO, "DAD-Alert NB=%s local_id=%X dev=%s pkt_sqn=%d pkt_sqn_max=%d dad_range=%d dad_to=%d",
+                                        pb->i.llip_str, ntohl(pb->i.link_key.local_id), pb->i.iif->label_cfg.str, pb->i.pkt_sqn, local->packet_sqn,
+                                        PKT_SQN_DAD_RANGE, PKT_SQN_DAD_RANGE * my_tx_interval);
 
-                        schedule_tx_task(&dummy_lndev, FRAME_TYPE_PROBLEM_ADV, sizeof (struct msg_problem_adv),
-                                FRAME_TYPE_PROBLEM_CODE_DUP_LINK_ID, ln->link_id, 0, pb->i.transmittersIID);
+                                schedule_tx_task(&pb->i.iif->dummy_lndev, FRAME_TYPE_PROBLEM_ADV, sizeof (struct msg_problem_adv),
+                                        FRAME_TYPE_PROBLEM_CODE_DUP_LINK_ID, local->local_id, 0, pb->i.transmittersIID);
 
-                        // we keep this entry until it timeouts
+                                // its safer to purge the old one, otherwise we might end up with hundrets
+                                //return NULL;
+                        }
+
+                        purge_local_node(local);
+
+                        assertion(-500983, (!avl_find_item(&local_tree, &pb->i.link_key.local_id)));
+
                         return NULL;
                 }
 
-                dbgf(DBGL_SYS, DBGT_WARN, "Reinitialized! NB=%s via dev=%s "
-                        "cached llIP=%s link_id=0x%X ! Reinitializing link_node...",
-                        pb->i.llip_str, pb->i.iif->label_cfg.str, ipXAsStr(af_cfg, &ln->link_ip), pb->i.link_id);
+                if ((((LINKADV_SQN_T) (pb->i.link_sqn - local->packet_link_sqn_ref)) > LINKADV_SQN_DAD_RANGE)) {
 
-                purge_link_node(ln->link_id, NULL, NO);
-                ASSERTION(-500213, !avl_find(&link_tree, &pb->i.link_id));
-                ln = NULL;
+                        dbgf_sys(DBGT_ERR, "DAD-Alert NB=%s local_id=%X dev=%s link_sqn=%d link_sqn_max=%d dad_range=%d dad_to=%d",
+                                pb->i.llip_str, ntohl(pb->i.link_key.local_id), pb->i.iif->label_cfg.str, pb->i.link_sqn, local->packet_link_sqn_ref,
+                                LINKADV_SQN_DAD_RANGE, LINKADV_SQN_DAD_RANGE * my_tx_interval);
+
+                        purge_local_node(local);
+
+                        assertion(-500984, (!avl_find_item(&local_tree, &pb->i.link_key.local_id)));
+
+                        return NULL;
+                }
+        }
+
+
+        link = NULL;
+
+        if (local) {
+                
+                link = avl_find_item(&local->link_tree, &pb->i.link_key.dev_idx);
+
+                assertion(-500943, (link == avl_find_item(&link_tree, &pb->i.link_key)));
+
+                if (link && !is_ip_equal(&pb->i.llip, &link->link_ip)) {
+
+                        if (((TIME_T) (bmx_time - link->pkt_time_max)) < (TIME_T) dad_to) {
+
+                                dbgf_sys(DBGT_WARN,
+                                        "DAD-Alert (local_id collision, this can happen)! NB=%s via dev=%s"
+                                        "cached llIP=%s local_id=%X dev_idx=0x%X ! sending problem adv...",
+                                        pb->i.llip_str, pb->i.iif->label_cfg.str, ipXAsStr(af_cfg, &link->link_ip),
+                                        ntohl(pb->i.link_key.local_id), pb->i.link_key.dev_idx);
+
+                                // be carefull here. Errornous PROBLEM_ADVs cause neighboring nodes to cease!!!
+                                //struct link_dev_node dummy_lndev = {.key ={.dev = pb->i.iif, .link = link}, .mr = {ZERO_METRIC_RECORD, ZERO_METRIC_RECORD}};
+
+                                schedule_tx_task(&pb->i.iif->dummy_lndev, FRAME_TYPE_PROBLEM_ADV, sizeof (struct msg_problem_adv),
+                                        FRAME_TYPE_PROBLEM_CODE_DUP_LINK_ID, link->key.local_id, 0, pb->i.transmittersIID);
+
+                                // its safer to purge the old one, otherwise we might end up with hundrets
+                                //return NULL;
+                        }
+
+
+
+                        dbgf_sys(DBGT_WARN, "Reinitialized! NB=%s via dev=%s "
+                                "cached llIP=%s local_id=%X dev_idx=0x%X ! Reinitializing link_node...",
+                                pb->i.llip_str, pb->i.iif->label_cfg.str, ipXAsStr(af_cfg, &link->link_ip),
+                                ntohl(pb->i.link_key.local_id), pb->i.link_key.dev_idx);
+
+                        purge_link_node(&link->key, NULL, NO);
+                        ASSERTION(-500213, !avl_find(&link_tree, &pb->i.link_key));
+                        link = NULL;
+                }
+                
+        } else {
+
+                if (local_tree.items >= LOCALS_MAX) {
+                        dbgf_sys(DBGT_WARN, "max number of locals reached");
+                        return NULL;
+                }
+
+                assertion(-500944, (!avl_find_item(&link_tree, &pb->i.link_key)));
+                local = debugMalloc(sizeof(struct local_node), -300336);
+                memset(local, 0, sizeof(struct local_node));
+                AVL_INIT_TREE(local->link_tree, struct link_node, key.dev_idx);
+                local->local_id = pb->i.link_key.local_id;
+                local->link_adv_msg_for_me = LINKADV_MSG_IGNORED;
+                local->link_adv_msg_for_him = LINKADV_MSG_IGNORED;
+                avl_insert(&local_tree, local, -300337);
+        }
+
+        local->packet_sqn = pb->i.pkt_sqn;
+        local->packet_link_sqn_ref = pb->i.link_sqn;
+        local->packet_time = bmx_time;
+
+
+        if (!link) {
+
+                link = debugMalloc(sizeof (struct link_node), -300024);
+                memset(link, 0, sizeof (struct link_node));
+
+                LIST_INIT_HEAD(link->lndev_list, struct link_dev_node, list, list);
+
+                link->key = pb->i.link_key;
+                link->link_ip = pb->i.llip;
+                link->local = local;
+
+                avl_insert(&link_tree, link, -300147);
+                avl_insert(&local->link_tree, link, -300334);
+
+                dbgf_track(DBGT_INFO, "creating new link=%s (total %d)", pb->i.llip_str, link_tree.items);
 
         }
 
-        if (!ln) {
+        link->pkt_time_max = bmx_time;
 
-                ln = debugMalloc(sizeof (struct link_node), -300024);
-                memset(ln, 0, sizeof (struct link_node));
-
-                LIST_INIT_HEAD(ln->lndev_list, struct link_dev_node, list);
-
-
-                ln->link_id = pb->i.link_id;
-                ln->link_ip = pb->i.llip;
-
-                avl_insert(&link_tree, ln, -300147);
-
-                cb_plugin_hooks(PLUGIN_CB_LINK_CREATE, ln);
-
-                dbgf(DBGL_CHANGES, DBGT_INFO, "new %s (total %d)", pb->i.llip_str, link_tree.items);
-
-        }
-
-        ln->pkt_time_max = bmx_time;
-
-        return ln;
+        return link;
 }
 
+
+STATIC_FUNC
+struct link_dev_node *get_link_dev_node(struct packet_buff *pb)
+{
+        TRACE_FUNCTION_CALL;
+
+        assertion(-500607, (pb->i.iif));
+
+        struct link_dev_node *lndev = NULL;
+        struct dev_node *dev = pb->i.iif;
+
+        struct link_node *link = get_link_node(pb);
+
+        if (!(pb->i.link = link))
+                return NULL;
+
+
+        while ((lndev = list_iterate(&link->lndev_list, lndev))) {
+
+                if (lndev->key.dev == dev)
+                        break;
+        }
+
+        if (!lndev) {
+
+                lndev = debugMalloc(sizeof ( struct link_dev_node), -300023);
+
+                memset(lndev, 0, sizeof ( struct link_dev_node));
+
+                lndev->key.dev = dev;
+                lndev->key.link = link;
+                lndev->link_adv_msg = LINKADV_MSG_IGNORED;
+
+
+                int i;
+                for (i = 0; i < FRAME_TYPE_ARRSZ; i++) {
+                        LIST_INIT_HEAD(lndev->tx_task_lists[i], struct tx_task_node, list, list);
+                }
+
+
+                dbgf_track(DBGT_INFO, "creating new lndev %16s %s", ipXAsStr(af_cfg, &link->link_ip), dev->name_phy_cfg.str);
+
+                list_add_tail(&link->lndev_list, &lndev->list);
+
+                ASSERTION(-500489, !avl_find(&link_dev_tree, &lndev->key));
+
+                avl_insert(&link_dev_tree, lndev, -300220);
+
+                lndev_assign_best(link->local, lndev);
+
+        }
+
+        lndev->pkt_time_max = bmx_time;
+
+        return lndev;
+}
 
 
 void rx_packet( struct packet_buff *pb )
 {
         TRACE_FUNCTION_CALL;
-        struct dev_node *oif, *iif = pb->i.iif;
+        assertion(-501105, (af_cfg == AF_INET || af_cfg == AF_INET6));
+
+        struct dev_node *oif, *iif;
+        iif = pb->i.iif;
 
         assertion(-500841, ((iif->active && iif->if_llocal_addr)));
 
@@ -825,7 +969,13 @@ void rx_packet( struct packet_buff *pb )
         struct packet_header *hdr = &pb->packet.header;
         uint16_t pkt_length = ntohs(hdr->pkt_length);
         pb->i.transmittersIID = ntohs(hdr->transmitterIID);
-        pb->i.link_id = ntohl(hdr->link_id);
+        pb->i.pkt_sqn = ntohl(hdr->pkt_sqn);
+        pb->i.link_sqn = ntohs(hdr->link_adv_sqn);
+
+        pb->i.link_key.dev_idx = hdr->dev_idx;
+        pb->i.link_key.local_id = hdr->local_id;
+
+
         ip2Str(af_cfg, &pb->i.llip, pb->i.llip_str);
 
         dbgf_all(DBGT_INFO, "via %s %s %s size %d", iif->label_cfg.str, iif->ip_llocal_str, pb->i.llip_str, pkt_length);
@@ -836,7 +986,7 @@ void rx_packet( struct packet_buff *pb )
                 pkt_length < (int) (sizeof (struct packet_header) + sizeof (struct frame_header_long)) ||
                 hdr->bmx_version != COMPATIBILITY_VERSION ||
                 pkt_length > pb->i.total_length || pkt_length > MAX_UDPD_SIZE ||
-                pb->i.link_id < LINK_ID_MIN) {
+                pb->i.link_key.dev_idx < DEVADV_IDX_MIN || pb->i.link_key.local_id == LOCAL_ID_INVALID ) {
 
                 goto process_packet_error;
         }
@@ -845,14 +995,16 @@ void rx_packet( struct packet_buff *pb )
 
                 ASSERTION(-500840, (oif == iif)); // so far, only unique own interface IPs are allowed!!
 
-                if (((oif->link_id != pb->i.link_id) && (((TIME_T) (bmx_time - oif->link_id_timestamp)) > (4 * (TIME_T) my_tx_interval))) ||
+                if (((my_local_id != pb->i.link_key.local_id || oif->dev_adv_idx != pb->i.link_key.dev_idx) &&
+                        (((TIME_T) (bmx_time - my_local_id_timestamp)) > (4 * (TIME_T) my_tx_interval))) ||
                         ((myIID4me != pb->i.transmittersIID) && (((TIME_T) (bmx_time - myIID4me_timestamp)) > (4 * (TIME_T) my_tx_interval)))) {
 
-                        // own link_id  or myIID4me might have just changed and then, due to delay,
-                        // I might receive my own packet back containing my previous (now non-matching)link_id of myIID4me
-                        dbgf(DBGL_SYS, DBGT_ERR, "DAD-Alert (duplicate Address) from NB=%s via dev=%s "
-                                "my_link_id=0x%X rcvd_link_id=0x%X   myIID4me=%d rcvdIID=%d",
-                                oif->ip_llocal_str, iif->label_cfg.str, iif->link_id, pb->i.link_id,
+                        // my local_id  or myIID4me might have just changed and then, due to delay,
+                        // I might receive my own packet back containing my previous (now non-matching) local_id of myIID4me
+                        dbgf_sys(DBGT_ERR, "DAD-Alert (duplicate Address) from NB=%s via dev=%s "
+                                "my_local_id=%X dev_idx=0x%X  rcvd local_id=%X dev_idx=0x%X  myIID4me=%d rcvdIID=%d",
+                                oif->ip_llocal_str, iif->label_cfg.str,
+                                ntohl(my_local_id), iif->dev_adv_idx, ntohl(pb->i.link_key.local_id), pb->i.link_key.dev_idx,
                                 myIID4me, pb->i.transmittersIID);
 
                         goto process_packet_error;
@@ -861,28 +1013,25 @@ void rx_packet( struct packet_buff *pb )
                 return;
         }
 
-        if (iif->link_id == pb->i.link_id) {
+        if (my_local_id == pb->i.link_key.local_id) {
 
-                if (new_link_id(iif) == LINK_ID_INVALID) {
-                        DEV_MARK_PROBLEM(iif);
+                if (new_local_id(NULL) == LOCAL_ID_INVALID) {
                         goto process_packet_error;
                 }
 
-                dbgf(DBGL_SYS, DBGT_WARN, "DAD-Alert (duplicate link ID, this can happen) via dev=%s NB=%s "
-                        "is using my link_id=0x%X!  Choosing new link_id=0x%X for myself, dropping packet",
-                        iif->label_cfg.str, pb->i.llip_str, pb->i.link_id, iif->link_id);
+                dbgf_sys(DBGT_WARN, "DAD-Alert (duplicate link ID, this can happen) via dev=%s NB=%s "
+                        "is using my local_id=%X dev_idx=0x%X!  Choosing new local_id=%X dev_idx=0x%X for myself, dropping packet",
+                        iif->label_cfg.str, pb->i.llip_str, ntohl(pb->i.link_key.local_id), pb->i.link_key.dev_idx, ntohl(my_local_id), iif->dev_adv_idx);
 
                 return;
         }
 
-        if (!(pb->i.ln = get_link_node(pb)))
+
+        if (!(pb->i.lndev = get_link_dev_node(pb)))
                 return;
 
-        if (!(pb->i.lndev = get_link_dev_node(pb->i.ln, pb->i.iif)))
-                return;
 
-        pb->i.lndev->pkt_time_max = bmx_time;
-        pb->i.described_dhn = is_described_neigh_dhn(pb);
+
 
 
         dbgf_all(DBGT_INFO, "version=%i, reserved=%X, size=%i IID=%d rcvd udp_len=%d via NB %s %s %s",
@@ -901,11 +1050,11 @@ void rx_packet( struct packet_buff *pb )
 
 process_packet_error:
 
-        dbgf(DBGL_SYS, DBGT_WARN,
+        dbgf_sys(DBGT_WARN,
                 "Drop (remaining) packet: rcvd problematic packet via NB=%s dev=%s "
-                "(version=%i, link_id=0x%X, reserved=0x%X, pkt_size=%i), udp_len=%d my_version=%d, max_udpd_size=%d",
-                pb->i.llip_str, iif->label_cfg.str,
-                hdr->bmx_version, pb->i.link_id, hdr->reserved, pkt_length, pb->i.total_length,
+                "(version=%i, local_id=%X dev_idx=0x%X, reserved=0x%X, pkt_size=%i), udp_len=%d my_version=%d, max_udpd_size=%d",
+                pb->i.llip_str, iif->label_cfg.str, hdr->bmx_version,
+                ntohl(pb->i.link_key.local_id), pb->i.link_key.dev_idx, hdr->reserved, pkt_length, pb->i.total_length,
                 COMPATIBILITY_VERSION, MAX_UDPD_SIZE);
 
         blacklist_neighbor(pb);
@@ -922,9 +1071,9 @@ process_packet_error:
 
 
 #ifndef NO_TRACE_FUNCTION_CALLS
-char* function_call_buffer_name_array[FUNCTION_CALL_BUFFER_SIZE] = {0};
-TIME_T function_call_buffer_time_array[FUNCTION_CALL_BUFFER_SIZE] = {0};
-uint8_t function_call_buffer_pos = 0;
+static char* function_call_buffer_name_array[FUNCTION_CALL_BUFFER_SIZE] = {0};
+static TIME_T function_call_buffer_time_array[FUNCTION_CALL_BUFFER_SIZE] = {0};
+static uint8_t function_call_buffer_pos = 0;
 
 static void debug_function_calls(void)
 {
@@ -934,7 +1083,7 @@ static void debug_function_calls(void)
                 if (!function_call_buffer_name_array[i])
                         continue;
 
-                dbgf(DBGL_SYS, DBGT_ERR, "%10d %s()", function_call_buffer_time_array[i], function_call_buffer_name_array[i]);
+                dbgf_sys(DBGT_ERR, "%10d %s()", function_call_buffer_time_array[i], function_call_buffer_name_array[i]);
 
         }
 }
@@ -964,24 +1113,22 @@ void upd_time(struct timeval *precise_tv)
 		timersub( &new_tv, &acceptable_p_tv, &diff_tv );
 		timeradd( &start_time_tv, &diff_tv, &start_time_tv );
 
-		dbg( DBGL_SYS, DBGT_WARN,
-		     "critical system time drift detected: ++ca %ld s, %ld us! Correcting reference!",
+                dbg_sys(DBGT_WARN, "critical system time drift detected: ++ca %ld s, %ld us! Correcting reference!",
 		     diff_tv.tv_sec, diff_tv.tv_usec );
 
                 if ( diff_tv.tv_sec > CRITICAL_PURGE_TIME_DRIFT )
-                        purge_link_and_orig_nodes(NULL, NO);
+                        purge_link_route_orig_nodes(NULL, NO);
 
 	} else 	if ( timercmp( &new_tv, &acceptable_m_tv, < ) ) {
 
 		timersub( &acceptable_m_tv, &new_tv, &diff_tv );
 		timersub( &start_time_tv, &diff_tv, &start_time_tv );
 
-		dbg( DBGL_SYS, DBGT_WARN,
-		     "critical system time drift detected: --ca %ld s, %ld us! Correcting reference!",
+                dbg_sys(DBGT_WARN, "critical system time drift detected: --ca %ld s, %ld us! Correcting reference!",
 		     diff_tv.tv_sec, diff_tv.tv_usec );
 
                 if ( diff_tv.tv_sec > CRITICAL_PURGE_TIME_DRIFT )
-                        purge_link_and_orig_nodes(NULL, NO);
+                        purge_link_route_orig_nodes(NULL, NO);
 
 	}
 
@@ -1037,20 +1184,17 @@ static void handler(int32_t sig)
 
         TRACE_FUNCTION_CALL;
 	if ( !Client_mode ) {
-		dbgf( DBGL_SYS, DBGT_ERR, "called with signal %d", sig);
+                dbgf_sys(DBGT_ERR, "called with signal %d", sig);
 	}
 
 	printf("\n");// to have a newline after ^C
 
-	terminating = 1;
-        cb_plugin_hooks(PLUGIN_CB_TERM, NULL);
-
+	terminating = YES;
 }
 
 
 
 
-static int cleaning_up = NO;
 
 static void segmentation_fault(int32_t sig)
 {
@@ -1061,7 +1205,7 @@ static void segmentation_fault(int32_t sig)
 
                 segfault = YES;
 
-                dbg(DBGL_SYS, DBGT_ERR, "First SIGSEGV %d received, try cleaning up...", sig);
+                dbg_sys(DBGT_ERR, "First SIGSEGV %d received, try cleaning up...", sig);
 
 #ifndef NO_TRACE_FUNCTION_CALLS
                 debug_function_calls();
@@ -1071,7 +1215,7 @@ static void segmentation_fault(int32_t sig)
                         sig, BMX_BRANCH, BRANCH_VERSION, CODE_VERSION);
 
                 if (initializing) {
-                        dbg(DBGL_SYS, DBGT_ERR,
+                        dbg_sys(DBGT_ERR,
                         "check up-to-dateness of bmx libs in default lib path %s or customized lib path defined by %s !",
                         BMX_DEF_LIB_PATH, BMX_ENV_LIB_PATH);
                 }
@@ -1079,7 +1223,7 @@ static void segmentation_fault(int32_t sig)
                 if (!cleaning_up)
                         cleanup_all(CLEANUP_RETURN);
 
-                dbg(DBGL_SYS, DBGT_ERR, "raising SIGSEGV again ...");
+                dbg_sys(DBGT_ERR, "raising SIGSEGV again ...");
 
         } else {
                 dbg(DBGL_SYS, DBGT_ERR, "Second SIGSEGV %d received, giving up! core contains second SIGSEV!", sig);
@@ -1088,7 +1232,7 @@ static void segmentation_fault(int32_t sig)
         signal(SIGSEGV, SIG_DFL);
         errno=0;
 	if ( raise( SIGSEGV ) ) {
-		dbg( DBGL_SYS, DBGT_ERR, "raising SIGSEGV failed: %s...", strerror(errno) );
+		dbg_sys(DBGT_ERR, "raising SIGSEGV failed: %s...", strerror(errno) );
         }
 }
 
@@ -1107,9 +1251,11 @@ void cleanup_all(int32_t status)
 
                 cleaning_up = YES;
 
-                // first, restore defaults...
+                terminating = YES;
 
-		terminating = 1;
+                // first, restore defaults...
+                cb_plugin_hooks(PLUGIN_CB_TERM, NULL);
+
 
 		cleanup_schedule();
 
@@ -1120,7 +1266,7 @@ void cleanup_all(int32_t status)
 
                 avl_remove(&orig_tree, &(self.id), -300203);
 
-                purge_link_and_orig_nodes(NULL, NO);
+                purge_link_route_orig_nodes(NULL, NO);
 
 		cleanup_plugin();
 
@@ -1137,24 +1283,16 @@ void cleanup_all(int32_t status)
 
                 checkLeak();
 
-                dbgf_all( DBGT_ERR, "...cleaning up done");
 
-                if (status == CLEANUP_SUCCESS) {
-
+                if (status == CLEANUP_SUCCESS)
                         exit(EXIT_SUCCESS);
 
-                } else if (status == CLEANUP_FAILURE) {
+                dbgf_all(DBGT_INFO, "...cleaning up done");
 
-                        exit(EXIT_FAILURE);
-
-                } else if (status == CLEANUP_RETURN) {
-
+                if (status == CLEANUP_RETURN)
                         return;
 
-                }
-
                 exit(EXIT_FAILURE);
-                dbg(DBGL_SYS, DBGT_ERR, "exit ignored!?");
         }
 }
 
@@ -1182,9 +1320,9 @@ int32_t opt_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_
 
                 if (!strcmp(opt->long_name, ARG_STATUS)) {
 
-                        dbg_printf(cn, "%s-%s (compatibility=%d code=cv%d) primary %s=%s ip=%s uptime=%s CPU=%d.%1d\n",
+                        dbg_printf(cn, "%s-%s (compatibility=%d code=cv%d) primary %s=%s ip=%s local_id=%X uptime=%s CPU=%d.%1d\n",
                                 BMX_BRANCH, BRANCH_VERSION, COMPATIBILITY_VERSION, CODE_VERSION,
-                                primary_dev_cfg->arg_cfg, primary_dev_cfg->label_cfg.str, self.primary_ip_str,
+                                ARG_DEV, primary_dev_cfg->label_cfg.str, self.primary_ip_str, ntohl(my_local_id),
                                 get_human_uptime(0), s_curr_avg_cpu_load / 10, s_curr_avg_cpu_load % 10);
 
                         cb_plugin_hooks(PLUGIN_CB_STATUS, cn);
@@ -1192,49 +1330,69 @@ int32_t opt_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_
                         dbg_printf(cn, "\n");
 
                 } else  if ( !strcmp( opt->long_name, ARG_LINKS ) ) {
-#define DBG_STATUS4_LINK_HEAD "%-16s %-10s %3s %3s %3s %7s %1s %7s %8s %8s %5s %5s %4s %4s\n"
-#define DBG_STATUS6_LINK_HEAD "%-30s %-10s %3s %3s %3s %7s %1s %7s %8s %8s %5s %5s %4s %4s\n"
-#define DBG_STATUS4_LINK_INFO "%-16s %-10s %3ju %3ju %3ju %7ju %1s %7ju %8X %8X %5d %5d %4d %4s\n"
-#define DBG_STATUS6_LINK_INFO "%-30s %-10s %3ju %3ju %3ju %7ju %1s %7ju %8X %8X %5d %5d %4d %4s\n"
+#define DBG_STATUS4_LINK_HEAD "%-16s %-10s %3s %3s %8s %8s %9s %5s %5s %4s %-5s\n"
+#define DBG_STATUS6_LINK_HEAD "%-30s %-10s %3s %3s %8s %8s %9s %5s %5s %4s %-5s\n"
+#define DBG_STATUS4_LINK_INFO "%-16s %-10s %3ju %3ju %8X %8X %9X %5d %5d %4d %2s %2s\n"
+#define DBG_STATUS6_LINK_INFO "%-30s %-10s %3ju %3ju %8X %8X %9X %5d %5d %4d %2s %2s\n"
 
                         dbg_printf(cn, (af_cfg == AF_INET ? DBG_STATUS4_LINK_HEAD : DBG_STATUS6_LINK_HEAD),
-                                "LinkLocalIP", "viaIF", "RTQ", "RQ", "TQ", "linkM/k", " ", "bestM/k",
-                                "myLinkID", "nbLinkID", "nbIID", "lSqn", "lVld", "pref");
+                                "LinkLocalIP", "viaIF", "RP", "TP",
+                                "myDevIDX", "nbDevIDX", "nbLocalID", "nbIID", "lSqn", "lVld", "best");
 
                         struct avl_node *it;
-                        struct link_node *ln;
+                        struct link_node *link;
 
-                        for (it = NULL; (ln = avl_iterate_item(&link_tree, &it));) {
+                        for (it = NULL; (link = avl_iterate_item(&link_tree, &it));) {
 
-                                struct neigh_node *nn = ln->neigh;
+                                struct link_dev_node *lndev = NULL;
 
-                                struct list_node *lndev_pos;
-
-                                list_for_each( lndev_pos, &ln->lndev_list )
-                                {
-                                        struct link_dev_node *lndev = list_entry(lndev_pos, struct link_dev_node, list);
-                                        UMETRIC_T bestM = ln->neigh && ln->neigh->dhn && ln->neigh->dhn->on->best_rn ? ln->neigh->dhn->on->best_rn->mr.umetric_final : 0;
+                                while ((lndev = list_iterate(&link->lndev_list, lndev))) {
 
                                         dbg_printf(cn, (af_cfg == AF_INET ? DBG_STATUS4_LINK_INFO : DBG_STATUS6_LINK_INFO),
-                                                ipXAsStr(af_cfg, &ln->link_ip),
+                                                ipXAsStr(af_cfg, &link->link_ip),
                                                 lndev->key.dev->label_cfg.str,
-                                                (((lndev->mr[SQR_RTQ].umetric_final) *100)/lndev->key.dev->umetric_max),
-                                                (((lndev->mr[SQR_RQ].umetric_final) *100)/lndev->key.dev->umetric_max),
-                                                lndev->mr[SQR_RQ].umetric_final ? (((lndev->mr[SQR_RTQ].umetric_final) *100) / lndev->mr[SQR_RQ].umetric_final) : 0,
-                                                lndev->umetric_link >> 10,
-                                                lndev->umetric_link >= bestM ? ">" : "<",
-                                                bestM >> 10,
-                                                lndev->key.dev->link_id,
-                                                ln->link_id,
-                                                nn ? nn->neighIID4me : 0,
-                                                ln->rq_hello_sqn_max,
-                                                (bmx_time - lndev->rtq_time_max) / 1000,
-                                                ln->neigh ? (lndev == ln->neigh->best_rtq ? "BEST" : "second") : "???"
+                                                ((lndev->timeaware_rx_probe *100) / UMETRIC_MAX),
+                                                ((lndev->timeaware_tx_probe *100) / UMETRIC_MAX),
+                                                lndev->key.dev->dev_adv_idx, link->key.dev_idx, ntohl(link->key.local_id),
+                                                link->local->neigh ? link->local->neigh->neighIID4me : 0,
+                                                link->rp_hello_sqn_max,
+                                                ((TIME_T)(bmx_time - link->rp_time_max/*lndev->key.link->local->rp_adv_time*/)) / 1000,
+                                                (lndev == link->local->best_rp_lndev ? "Rp" : " "),
+                                                (lndev == link->local->best_tp_lndev ? "Tp" : " ")
                                                 );
 
                                 }
 
                         }
+                        dbg_printf(cn, "\n");
+
+                } else  if ( !strcmp( opt->long_name, ARG_LOCALS ) ) {
+#define DBG_STATUS4_LOCAL_HEAD "%-8s %-22s %3s %9s %11s %3s %6s %1s %7s %1s %7s\n"
+#define DBG_STATUS6_LOCAL_HEAD "%-8s %-22s %3s %9s %11s %3s %6s %1s %7s %1s %7s\n"
+#define DBG_STATUS4_LOCAL_INFO "%8X %-22s %3d %9d %11d %3d %6d %1d %7d %1d %7d\n"
+#define DBG_STATUS6_LOCAL_INFO "%8X %-22s %3d %9d %11d %3d %6d %1d %7d %1d %7d\n"
+
+                        dbg_printf(cn, (af_cfg == AF_INET ? DBG_STATUS4_LOCAL_HEAD : DBG_STATUS6_LOCAL_HEAD),
+                                "localID", "Orig ID.name", "RTs", "wantsOGMs", "linkAdv4Him", "4Me", "devAdv", "d", "linkAdv", "d", "lastAdv");
+
+                        struct avl_node *it;
+                        struct local_node *local;
+
+                        for (it = NULL; (local = avl_iterate_item(&local_tree, &it));) {
+
+                                struct orig_node *on = local->neigh ? local->neigh->dhn->on : NULL;
+
+                                dbg_printf(cn, (af_cfg == AF_INET ? DBG_STATUS4_LOCAL_INFO : DBG_STATUS6_LOCAL_INFO),
+                                        ntohl(local->local_id),
+                                        on->id.name, local->orig_routes, local->rp_ogm_request_rcvd, 
+                                        local->link_adv_msg_for_him, local->link_adv_msg_for_me,
+
+                                        local->dev_adv_sqn, ((DEVADV_SQN_T) (local->link_adv_dev_sqn_ref - local->dev_adv_sqn)),
+                                        local->link_adv_sqn, ((LINKADV_SQN_T) (local->packet_link_sqn_ref - local->link_adv_sqn)),
+                                        ((TIME_T)(bmx_time - local->link_adv_time)) / 1000
+                                        );
+                        }
+
                         dbg_printf(cn, "\n");
 
                 } else if (!strcmp(opt->long_name, ARG_ORIGINATORS)) {
@@ -1243,20 +1401,21 @@ int32_t opt_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_
                         struct orig_node *on;
                         UMETRIC_T total_metric = 0;
                         uint32_t  total_lref = 0;
+                        uint32_t  total_router = 0;
                         char *empty = "";
 
-#define DBG_STATUS4_ORIG_HEAD "%-22s %-16s %3s %-16s %-10s %9s %5s %5s %5s %1s %5s %4s\n"
-#define DBG_STATUS6_ORIG_HEAD "%-22s %-40s %3s %-40s %-10s %9s %5s %5s %5s %1s %5s %4s\n"
-#define DBG_STATUS4_ORIG_INFO "%-22s %-16s %3d %-16s %-10s %9ju %5d %5d %5d %1d %5d %4d\n"
-#define DBG_STATUS6_ORIG_INFO "%-22s %-40s %3d %-40s %-10s %9ju %5d %5d %5d %1d %5d %4d\n"
-#define DBG_STATUS4_ORIG_TAIL "%-22s %-16d %3s %-16s %-10s %9ju %5s %5s %5s %1s %5s %4d\n"
-#define DBG_STATUS6_ORIG_TAIL "%-22s %-40d %3s %-40s %-10s %9ju %5s %5s %5s %1s %5s %4d\n"
+#define DBG_STATUS4_ORIG_HEAD "%-22s %-16s %3s %-16s %-10s %7s %5s %5s %5s %1s %5s %4s\n"
+#define DBG_STATUS6_ORIG_HEAD "%-22s %-40s %3s %-40s %-10s %7s %5s %5s %5s %1s %5s %4s\n"
+#define DBG_STATUS4_ORIG_INFO "%-22s %-16s %3d %-16s %-10s %7s %5d %5d %5d %1d %5d %4d\n"
+#define DBG_STATUS6_ORIG_INFO "%-22s %-40s %3d %-40s %-10s %7s %5d %5d %5d %1d %5d %4d\n"
+#define DBG_STATUS4_ORIG_TAIL "%-22s %-16d %3d %-16s %-10s %7s %5s %5s %5s %1s %5s %4d\n"
+#define DBG_STATUS6_ORIG_TAIL "%-22s %-40d %3d %-40s %-10s %7s %5s %5s %5s %1s %5s %4d\n"
 
 
 
                         dbg_printf(cn, (af_cfg == AF_INET ? DBG_STATUS4_ORIG_HEAD : DBG_STATUS6_ORIG_HEAD),
                                 "Orig ID.name", "primaryIP", "RTs", "currRT", "viaDev",
-                                "Metric/k","myIID", "desc#", "ogm#", "d", "lUpd", "lRef");
+                                "metric", "myIID", "desc#", "ogm#", "d", "lUpd", "lRef");
 
                         for (it = NULL; (on = avl_iterate_item(&orig_tree, &it));) {
 
@@ -1264,27 +1423,28 @@ int32_t opt_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_
                                         on->id.name,
                                         on->blocked ? "BLOCKED" : on->primary_ip_str,
                                         on->rt_tree.items,
-                                        ipXAsStr(af_cfg, (on->curr_rn ? &on->curr_rn->key.link->link_ip : &ZERO_IP)),
-                                        on->curr_rn && on->curr_rn->key.dev ? on->curr_rn->key.dev->name_phy_cfg.str : " ",
-                                        on->curr_rn ? ((on->curr_rn->mr.umetric_final) >> 10) :
-                                             (on == &self ? (umetric_max(DEF_FMETRIC_EXP_OFFSET)) >> 10 : 0),
+                                        ipXAsStr(af_cfg, (on->curr_rt_lndev ? &on->curr_rt_lndev->key.link->link_ip : &ZERO_IP)),
+                                        on->curr_rt_lndev && on->curr_rt_lndev->key.dev ? on->curr_rt_lndev->key.dev->name_phy_cfg.str : " ",
+                                        umetric_to_human(on->curr_rt_local ? (on->curr_rt_local->mr.umetric) : (on == &self ? UMETRIC_MAX : 0)),
                                         on->dhn->myIID4orig, on->descSqn,
-                                        on->ogmSqn_toBeSend,
-                                        (on->ogmSqn_maxRcvd - on->ogmSqn_toBeSend),
+                                        on->ogmSqn_next,
+                                        (on->ogmSqn_maxRcvd - on->ogmSqn_next),
                                         (bmx_time - on->updated_timestamp) / 1000,
                                         (bmx_time - on->dhn->referred_by_me_timestamp) / 1000
                                         );
 
                                 if (on != &self) {
-                                        total_metric += (on->curr_rn ? ((on->curr_rn->mr.umetric_final) >> 10) : 0);
+                                        total_metric += (on->curr_rt_local ? on->curr_rt_local->mr.umetric : 0);
                                         total_lref += (bmx_time - on->dhn->referred_by_me_timestamp) / 1000;
+                                        total_router += on->rt_tree.items;
                                 }
 
                         }
-
+                        total_metric = orig_tree.items > 1 ? total_metric / (orig_tree.items - 1) : 0;
+                        total_router = orig_tree.items > 1 ? total_router / (orig_tree.items - 1) : 0;
                         dbg_printf(cn, (af_cfg == AF_INET ? DBG_STATUS4_ORIG_TAIL : DBG_STATUS6_ORIG_TAIL),
-                                "Averages:", orig_tree.items, empty, empty, empty,
-                                (orig_tree.items > 1 ? total_metric / (orig_tree.items - 1) : 0),
+                                "Averages:", orig_tree.items, total_router, empty, empty,
+                                umetric_to_human(total_metric),
                                 empty, empty, empty, empty, empty,
                                 orig_tree.items > 1 ? ((total_lref + ((orig_tree.items - 1) / 2)) / (orig_tree.items - 1)) : 0);
 
@@ -1305,7 +1465,7 @@ int32_t opt_purge(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_p
         TRACE_FUNCTION_CALL;
 
 	if ( cmd == OPT_APPLY)
-                purge_link_and_orig_nodes(NULL, NO);
+                purge_link_route_orig_nodes(NULL, NO);
 
 	return SUCCESS;
 }
@@ -1318,11 +1478,6 @@ int32_t opt_update_description(uint8_t cmd, uint8_t _save, struct opt_type *opt,
 
 	if ( cmd == OPT_APPLY )
 		my_description_changed = YES;
-
-
-        if (cmd == OPT_POST && my_description_changed)
-                update_my_description_adv();
-
 
 	return SUCCESS;
 }
@@ -1347,17 +1502,12 @@ static struct opt_type bmx_options[]=
 	{ODI,0,ARG_LINKS,		0,  5,A_PS0,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0, 		opt_status,
 			0,		"show links\n"},
 
+	{ODI,0,ARG_LOCALS,      	0,  5,A_PS0,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0, 		opt_status,
+			0,		"show locals\n"},
+
 	{ODI,0,ARG_ORIGINATORS,	        0,  5,A_PS0,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0, 		opt_status,
 			0,		"show originators\n"},
-
-#ifndef LESS_OPTIONS
-	
-
-
-	{ODI,0,"asocial_device",	0,  5,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&Asocial_device,MIN_ASOCIAL,	MAX_ASOCIAL,	DEF_ASOCIAL,	0,
-			ARG_VALUE_FORM,	"disable/enable asocial mode for devices unwilling to forward other nodes' traffic"},
-
-#endif
+                        
 	{ODI,0,ARG_TTL,			't',5,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&my_ttl,	MIN_TTL,	MAX_TTL,	DEF_TTL,	opt_update_description,
 			ARG_VALUE_FORM,	"set time-to-live (TTL) for OGMs"}
         ,
@@ -1405,7 +1555,8 @@ void init_orig_node(struct orig_node *on, struct description_id *id)
         memset(on, 0, sizeof ( struct orig_node));
         memcpy(&on->id, id, sizeof ( struct description_id));
 
-        AVL_INIT_TREE(on->rt_tree, struct router_node, key);
+//        AVL_INIT_TREE(on->rt_tree, struct router_node, key_2BRemoved);
+        AVL_INIT_TREE(on->rt_tree, struct router_node, local_key);
 
         avl_insert(&orig_tree, on, -300148);
 
@@ -1426,7 +1577,7 @@ void init_bmx(void)
         id.name[DESCRIPTION0_ID_NAME_LEN - 1] = 0;
 
         if (validate_name(id.name) == FAILURE) {
-                dbg(DBGL_SYS, DBGT_ERR, "illegal hostname %s", id.name);
+                dbg_sys(DBGT_ERR, "illegal hostname %s", id.name);
                 cleanup_all(-500272);
         }
 
@@ -1451,45 +1602,52 @@ STATIC_FUNC
 void bmx(void)
 {
 
-	struct list_node *list_pos;
+        struct avl_node *an;
 	struct dev_node *dev;
-	TIME_T regular_timeout, statistic_timeout;
+	TIME_T frequent_timeout, seldom_timeout;
 
 	TIME_T s_last_cpu_time = 0, s_curr_cpu_time = 0;
 
-	regular_timeout = statistic_timeout = bmx_time;
+	frequent_timeout = seldom_timeout = bmx_time;
 
-	initializing = NO;
+        update_my_description_adv();
+
+        for (an = NULL; (dev = avl_iterate_item(&dev_ip_tree, &an));) {
+                if (dev->linklayer == TYP_DEV_LL_LO)
+                        continue;
+
+                schedule_tx_task(&dev->dummy_lndev, FRAME_TYPE_DEV_ADV, SCHEDULE_UNKNOWN_MSGS_SIZE, 0, 0, 0, 0);
+                schedule_tx_task(&dev->dummy_lndev, FRAME_TYPE_DESC_ADV, ntohs(self.desc->dsc_tlvs_len) + sizeof ( struct msg_description_adv), 0, 0, myIID4me, 0);
+        }
+
+        initializing = NO;
 
         while (!terminating) {
 
-		TIME_T wait = whats_next( );
+		TIME_T wait = task_next( );
 
 		if ( wait )
 			wait4Event( MIN( wait, MAX_SELECT_TIMEOUT_MS ) );
 
+                if (my_description_changed)
+                        update_my_description_adv();
+
 		// The regular tasks...
-		if ( U32_LT( regular_timeout + 1000,  bmx_time ) ) {
+		if ( U32_LT( frequent_timeout + 1000,  bmx_time ) ) {
 
 			// check for changed interface konfigurations...
-                        struct avl_node *an = NULL;
-                        while ((dev = avl_iterate_item(&dev_name_tree, &an))) {
+                        for (an = NULL; (dev = avl_iterate_item(&dev_name_tree, &an));) {
 
-				if ( dev->active ) {
-				
+				if ( dev->active )
                                         sysctl_config( dev );
-
-                                        //purge_tx_timestamp_tree(dev, NO);
-                                }
 
                         }
 
-                        purge_link_and_orig_nodes(NULL, YES);
 
-                        purge_dhash_invalid_list(NO);
+			close_ctrl_node( CTRL_CLEANUP, NULL );
 
-			close_ctrl_node( CTRL_CLEANUP, 0 );
-
+/*
+	                struct list_node *list_pos;
 			list_for_each( list_pos, &dbgl_clients[DBGL_ALL] ) {
 
 				struct ctrl_node *cn = (list_entry( list_pos, struct dbgl_node, list ))->cn;
@@ -1498,21 +1656,26 @@ void bmx(void)
 
 				check_apply_parent_option( ADD, OPT_APPLY, 0, get_option( 0, 0, ARG_STATUS ), 0, cn );
 				check_apply_parent_option( ADD, OPT_APPLY, 0, get_option( 0, 0, ARG_LINKS ), 0, cn );
+				check_apply_parent_option( ADD, OPT_APPLY, 0, get_option( 0, 0, ARG_LOCALS ), 0, cn );
                                 check_apply_parent_option( ADD, OPT_APPLY, 0, get_option( 0, 0, ARG_ORIGINATORS ), 0, cn );
 				dbg_printf( cn, "--------------- END DEBUG ---------------\n" );
-
 			}
+*/
 
 			/* preparing the next debug_timeout */
-			regular_timeout = bmx_time;
+			frequent_timeout = bmx_time;
 		}
 
 
-		if ( U32_LT( statistic_timeout + 5000, bmx_time ) ) {
+		if ( U32_LT( seldom_timeout + 5000, bmx_time ) ) {
 
                         struct orig_node *on;
                         struct description_id id;
                         memset(&id, 0, sizeof (struct description_id));
+
+                        purge_link_route_orig_nodes(NULL, YES);
+
+                        purge_dhash_invalid_list(NO);
 
                         while ((on = avl_next_item(&blocked_tree, &id))) {
 
@@ -1521,12 +1684,17 @@ void bmx(void)
                                 dbgf_all( DBGT_INFO, "trying to unblock %s...", on->desc->id.name);
 
                                 IDM_T tlvs_res;
-                                if ((tlvs_res = process_description_tlvs(NULL, on, on->desc, TLV_OP_TEST, FRAME_TYPE_PROCESS_ALL, NULL)) == TLV_RX_DATA_DONE) {
-                                        tlvs_res = process_description_tlvs(NULL, on, on->desc, TLV_OP_ADD, FRAME_TYPE_PROCESS_ALL, NULL);
+                                if ((tlvs_res = process_description_tlvs
+                                        (NULL, on, on->desc, TLV_OP_TEST, FRAME_TYPE_PROCESS_ALL, NULL)) ==
+                                        TLV_RX_DATA_DONE) {
+
+                                        tlvs_res = process_description_tlvs
+                                                (NULL, on, on->desc, TLV_OP_ADD, FRAME_TYPE_PROCESS_ALL, NULL);
+
                                         assertion(-500364, (tlvs_res == TLV_RX_DATA_DONE)); // checked, so MUST SUCCEED!!
                                 }
 
-                                dbgf(DBGL_CHANGES, DBGT_INFO, "unblocking %s %s !",
+                                dbgf_track(DBGT_INFO, "unblocking %s %s !",
                                         on->desc->id.name, tlvs_res == TLV_RX_DATA_DONE ? "success" : "failed");
 
                         }
@@ -1538,11 +1706,11 @@ void bmx(void)
 			/* generating cpu load statistics... */
 			s_curr_cpu_time = (TIME_T)clock();
 
-			s_curr_avg_cpu_load = ( (s_curr_cpu_time - s_last_cpu_time) / (TIME_T)(bmx_time - statistic_timeout) );
+			s_curr_avg_cpu_load = ( (s_curr_cpu_time - s_last_cpu_time) / (TIME_T)(bmx_time - seldom_timeout) );
 
 			s_last_cpu_time = s_curr_cpu_time;
 
-			statistic_timeout = bmx_time;
+			seldom_timeout = bmx_time;
 		}
 	}
 }
@@ -1553,6 +1721,10 @@ int main(int argc, char *argv[])
 {
         // make sure we are using compatible description0 sizes:
         assertion(-500201, (MSG_DESCRIPTION0_ADV_SIZE == sizeof ( struct msg_description_adv)));
+        assertion(-500996, (sizeof (FMETRIC_U16_T) == 2));
+        assertion(-500997, (sizeof (FMETRIC_U8_T) == 1));
+        assertion(-500998, (sizeof(struct frame_header_short) == 2));
+        assertion(-500999, (sizeof(struct frame_header_long) == 4));
 
 
 	gettimeofday( &start_time_tv, NULL );
@@ -1587,7 +1759,7 @@ int main(int argc, char *argv[])
 
 	init_bmx();
 
-	init_schedule();
+	//init_schedule();
 
         init_avl();
 
@@ -1601,7 +1773,7 @@ int main(int argc, char *argv[])
                 struct plugin * hna_get_plugin(void);
                 activate_plugin((hna_get_plugin()), NULL, NULL);
 
-#ifndef NO_TRAFFICDUMP
+#ifndef NO_TRAFFIC_DUMP
                 struct plugin * dump_get_plugin(void);
                 activate_plugin((dump_get_plugin()), NULL, NULL);
 #endif

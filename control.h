@@ -123,9 +123,36 @@ struct dbg_histogram {
 #define DBG_HIST_MUTED	0x02
 
 #ifdef  NO_DEBUG_ALL
-#define dbgf_all(...) {;}
+#define dbgf_all(...);
+#define dbg_all(...);
 #else
-#define dbgf_all( dbgt, ... ); do { if ( __dbgf_all() ) { _dbgf_all( dbgt, __FUNCTION__, __VA_ARGS__ ); } } while (0)
+#define dbgf_all( dbgt, ... ); { if ( __dbgf_all() ) { _dbgf_all( dbgt, __FUNCTION__, __VA_ARGS__ ); } }
+#define dbg_all( dbgt, ... );  { if ( __dbgf_all() ) { dbg( DBGL_ALL, dbgt, __VA_ARGS__ ); } }
+#endif
+
+#ifdef  NO_DEBUG_DUMP
+#define dbgf_dump(...);
+#define dbg_dump(...);
+#else
+#define dbgf_dump( dbgt, ... ); _dbgf( DBGL_DUMP, dbgt, __FUNCTION__, __VA_ARGS__ );
+#define dbg_dump( dbgt, ... ); dbg( DBGL_DUMP, dbgt, __VA_ARGS__ );
+#endif
+
+
+#ifdef  NO_DEBUG_TRACK
+#define dbgf_track(...);
+#define dbg_track(...);
+#else
+#define dbgf_track( dbgt, ... ); _dbgf( DBGL_CHANGES, dbgt, __FUNCTION__, __VA_ARGS__ );
+#define dbg_track( dbgt, ... ); dbg( DBGL_CHANGES, dbgt, __VA_ARGS__ );
+#endif
+
+#ifdef  NO_DEBUG_SYS
+#define dbgf_sys(...);
+#define dbg_sys(...);
+#else
+#define dbgf_sys( dbgt, ... ); _dbgf( DBGL_SYS, dbgt, __FUNCTION__, __VA_ARGS__ );
+#define dbg_sys( dbgt, ... ); dbg( DBGL_SYS, dbgt, __VA_ARGS__ );
 #endif
 
 #define dbgf( dbgl, dbgt, ...)           _dbgf(         dbgl, dbgt, __FUNCTION__, __VA_ARGS__ )
@@ -153,6 +180,11 @@ void dbg_printf( struct ctrl_node *cn, char *last, ...  );
 #define dbg_mute( check_len, dbgl, dbgt, ... ) 	printf( __VA_ARGS__ )
 #define dbgf_mute( check_len, dbgl, dbgt, ... ) printf( __VA_ARGS__ )
 #define dbgf_all( dbgt, ... ) 			printf( __VA_ARGS__ )
+#define dbg_all( dbgt, ... ) 			printf( __VA_ARGS__ )
+#define dbgf_track( dbgt, ... ) 		printf( __VA_ARGS__ )
+#define dbg_track( dbgt, ... ) 		        printf( __VA_ARGS__ )
+#define dbgf_sys( dbgt, ... ) 			printf( __VA_ARGS__ )
+#define dbg_sys( dbgt, ... ) 			printf( __VA_ARGS__ )
 #define dbgf_ext( dbgt, ... ) 			printf( __VA_ARGS__ )
 #define dbg_printf( cn, ...  ) 			printf( __VA_ARGS__ )
 

@@ -37,7 +37,8 @@ struct list_node {
 };
 
 struct list_head {
-	struct list_node *next, *prev;
+	struct list_node *next;
+	struct list_node *last;
 	uint16_t items;
 	uint16_t list_node_offset;
 	uint16_t key_node_offset;
@@ -51,36 +52,37 @@ struct plist_node {
 
 
 
-#define LIST_SIMPEL(lst, element_type, list_field, key_field ) struct list_head lst = { \
-          .next = (struct list_node *)&lst, \
-          .prev = (struct list_node *) & lst,    \
+#define LIST_SIMPEL(ptr, element_type, list_field, key_field ) struct list_head ptr = { \
+          .next = (struct list_node *)&ptr, \
+          .last = (struct list_node *)&ptr,    \
           .items = 0, \
           .list_node_offset = ((unsigned long)(&((element_type *)0)->list_field)), \
           .key_node_offset = ((unsigned long)(&((element_type *)0)->key_field)), \
           .key_length = sizeof(((element_type *)0)->key_field) }
 
-#define LIST_INIT_HEAD(ptr, element_type, list_field) do { \
-	ptr.next = ptr.prev =(struct list_node *)&ptr; \
+#define LIST_INIT_HEAD(ptr, element_type, list_field, key_field) do { \
+	ptr.next = (struct list_node *)&ptr; \
+        ptr.last = (struct list_node *)&ptr; \
         ptr.items = 0; \
         ptr.list_node_offset = ((unsigned long)(&((element_type *)0)->list_field)); \
-        ptr.key_node_offset = 0; \
-        ptr.key_length = 0; \
+        ptr.key_node_offset = ((unsigned long)(&((element_type *)0)->key_field)); \
+        ptr.key_length = sizeof(((element_type *)0)->key_field); \
 } while (0)
 
 #define LIST_EMPTY(lst)  ((lst)->next == (struct list_node *)(lst))
 
 
 #define list_get_first(head) ((void*)((LIST_EMPTY(head)) ? NULL : (((char*) (head)->next) - (head)->list_node_offset) ))
-#define list_get_last(head) ((void*)((LIST_EMPTY(head)) ? NULL : (((char*) (head)->prev) - (head)->list_node_offset) ))
+#define list_get_last(head) ((void*)((LIST_EMPTY(head)) ? NULL : (((char*) (head)->last) - (head)->list_node_offset) ))
 
 void *list_iterate( struct list_head *head, void *node );
-void *list_find(struct list_head *head, void* key);
+void *list_find_next(struct list_head *head, void* key, void *node);
 
 void list_add_head(struct list_head *head, struct list_node *new);
 void list_add_tail(struct list_head *head, struct list_node *new );
 void list_add_after(struct list_head *head, struct list_node *pos, struct list_node *new);
 void list_del_next(struct list_head *head, struct list_node *pos);
-void *list_rem_head(struct list_head *head);
+void *list_del_head(struct list_head *head);
 
 
 #define plist_get_first(head) (LIST_EMPTY(head) ? NULL : \
@@ -93,7 +95,7 @@ void * plist_iterate(struct list_head *head, struct plist_node **pln);
 
 void plist_add_head(struct list_head *head, void *item);
 void plist_add_tail(struct list_head *head, void *item);
-void *plist_rem_head(struct list_head *head);
+void *plist_del_head(struct list_head *head);
 
 
 

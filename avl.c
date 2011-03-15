@@ -369,7 +369,7 @@ void *avl_remove(struct avl_tree *tree, void *key, int32_t tag)
                         break;
 
                 if (!(up[top]) || !(up[top]->link[!upd[top]])) {
-                        dbgf(DBGL_SYS, DBGT_ERR, "up(top) %p  link %p   lh %d   rh %d",
+                        dbgf_sys(DBGT_ERR, "up(top) %p  link %p   lh %d   rh %d",
                                 (void*)(up[top]), (void*)((up[top]) ? (up[top]->link[!upd[top]]) : NULL), lh, rh);
 
                         paranoia(-500187, (!(up[top])));

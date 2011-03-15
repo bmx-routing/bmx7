@@ -25,14 +25,10 @@
 enum {
 	PLUGIN_CB_STATUS,
 	PLUGIN_CB_CONF,
-	PLUGIN_CB_DEV_EVENT,
-	PLUGIN_CB_ORIG_CREATE,
-	PLUGIN_CB_ORIG_FLUSH,
-	PLUGIN_CB_ORIG_DESTROY,
-	PLUGIN_CB_LINK_CREATE,
-	PLUGIN_CB_LINK_DESTROY,
-	PLUGIN_CB_LINKDEV_CREATE,
-	PLUGIN_CB_LINKDEV_DESTROY,
+	PLUGIN_CB_BMX_DEV_EVENT,
+	PLUGIN_CB_SYS_DEV_EVENT,
+	PLUGIN_CB_DESCRIPTION_CREATED,
+	PLUGIN_CB_DESCRIPTION_DESTROY,
 	PLUGIN_CB_TERM,
 	PLUGIN_CB_SIZE
 };
@@ -116,7 +112,7 @@ struct plugin {
 	int32_t (*cb_init) ( void );
 	void    (*cb_cleanup) ( void );
 	//some more advanced (rarely called) callbacks hooks
-	void (*cb_plugin_handler[PLUGIN_CB_SIZE]) (void*);
+	void (*cb_plugin_handler[PLUGIN_CB_SIZE]) (int32_t, void*);
 
 };
 

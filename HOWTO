@@ -154,8 +154,12 @@ sudo iwconfig $BMX6_IF0_NAME mode ad-hoc channel $BMX6_IF0_CHANNEL essid $BMX6_I
 
 #    Starting the bmx6 daemon
 #    ==========================================================================
+#
+#    In the most simple case the bmx6 daemon just neets the interface it shout use for meshing. 
+#    However, we also git it the base port it shall use for its protocol data:
 
-sudo ./bmx6 dev=$BMX6_IF0_NAME
+
+sudo ./bmx6 base_port=$BMX6_PORT dev=$BMX6_IF0_NAME
 
 
 

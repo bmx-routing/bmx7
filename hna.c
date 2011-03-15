@@ -35,9 +35,234 @@
 #include "hna.h"
 #include "tools.h"
 
-AVL_TREE(global_uhna_tree, struct uhna_node, key );
-AVL_TREE(local_uhna_tree, struct uhna_node, key );
+static AVL_TREE(global_uhna_tree, struct uhna_node, key );
+static AVL_TREE(local_uhna_tree, struct uhna_node, key );
 
+static IPX_T niit_address;
+
+static int niit4to6_dev_idx = 0;
+static int niit6to4_dev_idx = 0;
+static IPX_T niit_prefix96 = DEF_NIIT_PREFIX;
+
+
+STATIC_FUNC
+void description_event_hook(int32_t cb_id, struct orig_node *on)
+{
+        if (on != &self)
+                return;
+
+        dbgf_sys(DBGT_INFO, "cb_id=%d", cb_id);
+
+        if (cb_id == PLUGIN_CB_DESCRIPTION_DESTROY && !initializing)
+                process_description_tlvs(NULL, on, on->desc, TLV_OP_CUSTOM_NIIT6TO4_DEL, BMX_DSC_TLV_UHNA6, NULL);
+        
+        if (cb_id == PLUGIN_CB_DESCRIPTION_CREATED)
+                process_description_tlvs(NULL, on, on->desc, TLV_OP_CUSTOM_NIIT6TO4_ADD, BMX_DSC_TLV_UHNA6, NULL);
+        
+}
+
+
+
+STATIC_FUNC
+void sys_dev_event_hook(int32_t cb_id, void* unused)
+{
+        struct avl_node *an = NULL;
+        struct if_link_node *iln = NULL;
+        struct if_link_node *iln_4to6 = NULL;
+        struct if_link_node *iln_6to4 = NULL;
+        struct orig_node *on;
+
+        if (!niit_enabled || af_cfg != AF_INET6)
+                return;
+
+        while ((iln = avl_iterate_item(&if_link_tree, &an))) {
+
+                if (!(iln->flags & IFF_UP))
+                        continue;
+
+                if (!strcmp(iln->name.str, DEF_NIIT_6TO4_DEV)) {
+                        dbgf_sys(DBGT_INFO, "%s UP", DEF_NIIT_6TO4_DEV);
+                        iln_6to4 = iln;
+                }
+
+                if (!strcmp(iln->name.str, DEF_NIIT_4TO6_DEV)) {
+
+                        if (avl_find_item(&iln->if_addr_tree, &niit_address)) {
+                                dbgf_sys(DBGT_INFO, "%s UP", DEF_NIIT_4TO6_DEV);
+                                iln_4to6 = iln;
+                        } else {
+                                dbgf_sys(DBGT_WARN, "%s UP without IP", DEF_NIIT_4TO6_DEV);
+                        }
+                }
+
+                if (iln_4to6 && iln_6to4)
+                        break;
+        }
+
+        int niit4to6_old_idx = niit4to6_dev_idx;
+        int niit4to6_new_idx = iln_4to6 ? iln_4to6->index : 0;
+        int niit6to4_old_idx = niit6to4_dev_idx;
+        int niit6to4_new_idx = iln_6to4 ? iln_6to4->index : 0;
+
+        if (niit4to6_dev_idx != niit4to6_new_idx) {
+
+                dbgf_sys(DBGT_INFO, "niit4to6_dev_idx=%d niit4to6_new_idx=%d", niit4to6_dev_idx, niit4to6_new_idx);
+
+                for (an = NULL; (on = avl_iterate_item(&orig_tree, &an));) {
+
+                        if (on == &self)
+                                continue;
+
+                        if ((niit4to6_dev_idx = niit4to6_old_idx))
+                                process_description_tlvs(NULL, on, on->desc, TLV_OP_CUSTOM_NIIT4TO6_DEL, BMX_DSC_TLV_UHNA6, NULL);
+
+                        if ((niit4to6_dev_idx = niit4to6_new_idx))
+                                process_description_tlvs(NULL, on, on->desc, TLV_OP_CUSTOM_NIIT4TO6_ADD, BMX_DSC_TLV_UHNA6, NULL);
+                }
+
+                niit4to6_dev_idx = niit4to6_new_idx;
+        }
+
+        if (niit6to4_dev_idx != niit6to4_new_idx) {
+
+                dbgf_sys(DBGT_INFO, "niit6to4_dev_idx=%d niit6to4_new_idx=%d", niit6to4_dev_idx, niit6to4_new_idx);
+
+                if (niit6to4_old_idx)
+                        process_description_tlvs(NULL, &self, self.desc, TLV_OP_CUSTOM_NIIT6TO4_DEL, BMX_DSC_TLV_UHNA6, NULL);
+
+                niit6to4_dev_idx = niit6to4_new_idx;
+
+                if (niit6to4_new_idx)
+                        process_description_tlvs(NULL, &self, self.desc, TLV_OP_CUSTOM_NIIT6TO4_ADD, BMX_DSC_TLV_UHNA6, NULL);
+
+        }
+
+}
+
+STATIC_FUNC
+int32_t opt_niit(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
+{
+	TRACE_FUNCTION_CALL;
+
+        IPX_T vis_ip = ZERO_IP;
+        uint8_t family = AF_INET;
+        IDM_T enabled = NO;
+
+        if ( cmd == OPT_CHECK  ||  cmd == OPT_APPLY ) {
+
+                if ( patch->p_diff == DEL ) {
+
+                        vis_ip = ZERO_IP;
+
+                } else if ( str2netw( patch->p_val, &vis_ip, '/', cn, NULL, &family ) == FAILURE  ) {
+
+                        return FAILURE;
+
+                } else if ( family != AF_INET ) {
+
+                        return FAILURE;
+                } else {
+
+                        enabled = YES;
+
+                }
+        }
+
+        if (cmd == OPT_APPLY) {
+                niit_enabled = enabled;
+                niit_address = vis_ip;
+        }
+
+        return SUCCESS;
+}
+
+STATIC_FUNC
+IDM_T configure_niit4to6(IDM_T del, struct uhna_key *key)
+{
+
+        if (!niit4to6_dev_idx || !niit_enabled || key->family != AF_INET6 || key->prefixlen < 96 ||
+                !is_ip_net_equal(&key->glip, &niit_prefix96, 96, AF_INET6))
+                return SUCCESS;
+
+        dbgf_all(DBGT_INFO, "del=%d %s/%d", del, ipXAsStr(AF_INET6, &key->glip), key->prefixlen);
+
+        IPX_T niit_glip4 = ZERO_IP;
+        niit_glip4.s6_addr32[3] = key->glip.s6_addr32[3];
+
+        // update network routes:
+        if (del) {
+
+                return ip(AF_INET, IP_ROUTE_TUNS, DEL, NO, &niit_glip4, (key->prefixlen - 96), RT_TABLE_TUNS, 0,
+                        NULL, 0, NULL, NULL, ntohl(key->metric_nl));
+
+        } else {
+
+                return ip(AF_INET, IP_ROUTE_TUNS, ADD, NO, &niit_glip4, (key->prefixlen - 96), RT_TABLE_TUNS, 0,
+                        NULL, niit4to6_dev_idx, NULL, &niit_address, ntohl(key->metric_nl));
+
+        }
+
+        dbgf_sys(DBGT_ERR, "niit tunnel interface %s ERROR", DEF_NIIT_4TO6_DEV);
+        return FAILURE;
+}
+
+STATIC_FUNC
+IDM_T configure_niit6to4(IDM_T del, struct uhna_key *key)
+{
+
+        if (!niit6to4_dev_idx || !niit_enabled || key->family != AF_INET6 || key->prefixlen < 96 ||
+                !is_ip_net_equal(&key->glip, &niit_prefix96, 96, AF_INET6))
+                return SUCCESS;
+
+        dbgf_sys(DBGT_INFO, "del=%d %s/%d", del, ipXAsStr(AF_INET6, &key->glip), key->prefixlen);
+
+        // update network routes:
+        if (del) {
+
+                return ip(AF_INET6, IP_ROUTE_TUNS, DEL, NO, &key->glip, key->prefixlen, RT_TABLE_TUNS, 0,
+                        NULL, 0, NULL, NULL, ntohl(key->metric_nl));
+
+        } else {
+
+                return ip(AF_INET6, IP_ROUTE_TUNS, ADD, NO, &key->glip, key->prefixlen, RT_TABLE_TUNS, 0,
+                        NULL, niit6to4_dev_idx, NULL, &niit_address, ntohl(key->metric_nl));
+
+        }
+
+        dbgf_sys(DBGT_ERR, "niit tunnel interface %s ERROR", DEF_NIIT_6TO4_DEV);
+        return FAILURE;
+}
+
+
+
+STATIC_FUNC
+IDM_T configure_route(IDM_T del, struct orig_node *on, struct uhna_key *key)
+{
+
+        IDM_T primary = is_ip_equal(&key->glip, &on->primary_ip);
+        uint8_t cmd = primary ? IP_ROUTE_HOST : IP_ROUTE_HNA;
+        int32_t table_macro = primary ? RT_TABLE_HOSTS : RT_TABLE_NETS;
+
+        // update network routes:
+        if (del) {
+
+                return ip(key->family, cmd, DEL, NO, &key->glip, key->prefixlen, table_macro, 0,
+                        NULL, 0, NULL, NULL, ntohl(key->metric_nl));
+
+        } else {
+
+                struct link_dev_node *lndev = on->curr_rt_lndev;
+
+                assertion(-500820, (lndev));
+                ASSERTION(-500239, (avl_find(&link_dev_tree, &(lndev->key))));
+                assertion(-500579, (lndev->key.dev->if_llocal_addr));
+
+                return ip(key->family, cmd, ADD, NO, &key->glip, key->prefixlen, table_macro, 0,
+                        NULL, lndev->key.dev->if_llocal_addr->ifa.ifa_index,
+                        &(lndev->key.link->link_ip), &(self.primary_ip), ntohl(key->metric_nl));
+
+        }
+}
 
 STATIC_FUNC
 void set_uhna_key(struct uhna_key *key, uint8_t family, uint8_t prefixlen, IPX_T *glip, uint32_t metric)
@@ -79,7 +304,7 @@ int _create_tlv_hna(int family, uint8_t* data, uint16_t max_size, uint16_t pos,
 
         if ((pos + msg_size) > max_size) {
 
-                dbgf(DBGL_SYS, DBGT_ERR, "unable to announce %s/%d metric %d due to limiting --%s=%d",
+                dbgf_sys(DBGT_ERR, "unable to announce %s/%d metric %d due to limiting --%s=%d",
                         ipXAsStr(family, ip), prefixlen, ntohl(metric), ARG_UDPD_SIZE, max_size);
 
                 return pos;
@@ -129,7 +354,7 @@ int _create_tlv_hna(int family, uint8_t* data, uint16_t max_size, uint16_t pos,
 
         }
 
-        dbgf(DBGL_SYS, DBGT_INFO, "%s %s/%d metric %d",
+        dbgf_sys(DBGT_INFO, "%s %s/%d metric %d",
                 family2Str(family), ipXAsStr(family, ip), prefixlen, metric);
 
 
@@ -140,6 +365,7 @@ STATIC_FUNC
 int create_description_tlv_hna(struct tx_frame_iterator *it)
 {
         assertion(-500765, (it->frame_type == BMX_DSC_TLV_UHNA4 || it->frame_type == BMX_DSC_TLV_UHNA6));
+        assertion(-501106, (af_cfg == AF_INET || af_cfg == AF_INET6));
 
         uint8_t *data = tx_iterator_cache_msg_ptr(it);
         uint16_t max_size = tx_iterator_cache_data_space(it);
@@ -152,7 +378,7 @@ int create_description_tlv_hna(struct tx_frame_iterator *it)
         int pos = 0;
 
         if (af_cfg != family || !is_ip_set(&self.primary_ip))
-                return 0;
+                return TLV_TX_DATA_IGNORED;
 
         pos = _create_tlv_hna(family, data, max_size, pos, &self.primary_ip, 0, max_prefixlen);
 
@@ -173,38 +399,6 @@ int create_description_tlv_hna(struct tx_frame_iterator *it)
         }
 
         return pos;
-}
-
-
-STATIC_FUNC
-IDM_T configure_route(IDM_T del, struct orig_node *on, struct uhna_key *key)
-{
-
-        IDM_T primary = is_ip_equal(&key->glip, &on->primary_ip);
-        uint8_t cmd = primary ? IP_ROUTE_HOST : IP_ROUTE_HNA;
-        int32_t table_macro = primary ? RT_TABLE_HOSTS : RT_TABLE_NETS;
-
-        // update network routes:
-        if (del) {
-
-
-                return ip(key->family, cmd, DEL, NO, &key->glip, key->prefixlen, table_macro, ntohl(key->metric_nl),
-                        NULL, 0, NULL, NULL);
-
-
-        } else {
-
-                struct router_node *curr_rn = on->curr_rn;
-
-                assertion(-500820, (curr_rn));
-                ASSERTION(-500239, (avl_find(&link_dev_tree, &(curr_rn->key))));
-                assertion(-500579, (curr_rn->key.dev->if_llocal_addr));
-
-                return ip(key->family, cmd, ADD, NO, &key->glip, key->prefixlen, table_macro, ntohl(key->metric_nl),
-                        NULL, curr_rn->key.dev->if_llocal_addr->ifa.ifa_index, &(curr_rn->key.link->link_ip), &(self.primary_ip));
-
-        }
-
 }
 
 
@@ -243,15 +437,18 @@ void configure_uhna ( IDM_T del, struct uhna_key* key, struct orig_node *on ) {
         if (on == &self) {
 
                 // update throw routes:
-                ip(key->family, IP_THROW_MY_HNA, del, NO, &key->glip, key->prefixlen, RT_TABLE_HOSTS, 0, NULL, 0, NULL, NULL);
-                ip(key->family, IP_THROW_MY_HNA, del, NO, &key->glip, key->prefixlen, RT_TABLE_NETS, 0, NULL, 0, NULL, NULL);
-                ip(key->family, IP_THROW_MY_HNA, del, NO, &key->glip, key->prefixlen, RT_TABLE_TUNS, 0, NULL, 0, NULL, NULL);
+                if (policy_routing == POLICY_RT_ENABLED && ip_throw_rules_cfg) {
+                        ip(key->family, IP_THROW_MY_HNA, del, NO, &key->glip, key->prefixlen, RT_TABLE_HOSTS, 0, 0, 0, 0, 0, 0);
+                        ip(key->family, IP_THROW_MY_HNA, del, NO, &key->glip, key->prefixlen, RT_TABLE_NETS, 0, 0, 0, 0, 0, 0);
+                        ip(key->family, IP_THROW_MY_HNA, del, NO, &key->glip, key->prefixlen, RT_TABLE_TUNS, 0, 0, 0, 0, 0, 0);
+                }
 
                 my_description_changed = YES;
 
-        } else if (on->curr_rn) {
+        } else if (on->curr_rt_lndev) {
 
                 configure_route(del, on, key);
+                configure_niit4to6(del, key);
         }
 
 
@@ -267,20 +464,21 @@ int process_description_tlv_hna(struct rx_frame_iterator *it)
 {
         ASSERTION(-500357, (it->frame_type == BMX_DSC_TLV_UHNA4 || it->frame_type == BMX_DSC_TLV_UHNA6));
         assertion(-500588, (it->on));
+        assertion(-501107, (af_cfg == AF_INET || af_cfg == AF_INET6));
 
         struct orig_node *on = it->on;
         IDM_T op = it->op;
         uint8_t family = (it->frame_type == BMX_DSC_TLV_UHNA4 ? AF_INET : AF_INET6);
 
         if (af_cfg != family) {
-                dbgf(DBGL_SYS, DBGT_ERR, "invalid family %s", family2Str(family));
-                return TLV_DATA_BLOCKED;
+                dbgf_sys(DBGT_ERR, "invalid family %s", family2Str(family));
+                return TLV_RX_DATA_BLOCKED;
         }
 
         uint16_t msg_size = it->handls[it->frame_type].min_msg_size;
         uint16_t pos;
 
-        for (pos = 0; pos < it->frame_data_length; pos += msg_size) {
+        for (pos = 0; pos < it->frame_msgs_length; pos += msg_size) {
 
                 struct uhna_key key;
 
@@ -293,7 +491,7 @@ int process_description_tlv_hna(struct rx_frame_iterator *it)
 
 
                 dbgf_all(DBGT_INFO, "%s %s %s=%s/%d %s=%d",
-                        tlv_op_str[op], family2Str(key.family), ARG_UHNA,
+                        tlv_op_str(op), family2Str(key.family), ARG_UHNA,
                         ipXAsStr(key.family, &key.glip), key.prefixlen, ARG_UHNA_METRIC, ntohl(key.metric_nl));
 
                 if (op == TLV_OP_DEL) {
@@ -312,21 +510,21 @@ int process_description_tlv_hna(struct rx_frame_iterator *it)
                         if (!is_ip_set(&key.glip) || is_ip_forbidden( &key.glip, family ) ||
                                 (un = avl_find_item(&global_uhna_tree, &key))) {
 
-                                dbgf(DBGL_SYS, DBGT_ERR,
+                                dbgf_sys(DBGT_ERR,
                                         "id.name=%s id.rand=%X... %s=%s/%d %s=%d blocked by id.name=%s id.rand=%X...",
                                         on->id.name, on->id.rand.u32[0],
                                         ARG_UHNA, ipXAsStr(key.family, &key.glip), key.prefixlen,
                                         ARG_UHNA_METRIC, ntohl(key.metric_nl),
                                         un ? un->on->id.name : "---", un ? un->on->id.rand.u32[0] : 0);
 
-                                return TLV_DATA_BLOCKED;
+                                return TLV_RX_DATA_BLOCKED;
                         }
 
                         if (is_ip_net_equal(&key.glip, &IP6_LINKLOCAL_UC_PREF, IP6_LINKLOCAL_UC_PLEN, AF_INET6)) {
 
-                                dbgf(DBGL_SYS, DBGT_ERR, "NO link-local addresses %s", ipXAsStr(key.family, &key.glip));
+                                dbgf_sys(DBGT_ERR, "NO link-local addresses %s", ipXAsStr(key.family, &key.glip));
 
-                                return TLV_DATA_BLOCKED;
+                                return TLV_RX_DATA_BLOCKED;
                         }
 
 
@@ -349,10 +547,36 @@ int process_description_tlv_hna(struct rx_frame_iterator *it)
                                 ARG_UHNA, ipXAsStr(key.family, &key.glip), key.prefixlen,
                                 ARG_UHNA_METRIC, ntohl(key.metric_nl));
 
-                        if (pos == it->frame_data_length - msg_size) {
+                        if (pos == it->frame_msgs_length - msg_size) {
                                 dbg_printf(it->cn, "\n");
                         } else {
                                 dbg_printf(it->cn, ", ");
+                        }
+
+                } else if (op >= TLV_OP_CUSTOM_MIN) {
+
+                        dbgf_all(DBGT_INFO, "configure_niit... op=%d  orig=%s blocked=%d", op, on->id.name, on->blocked);
+
+                        if (!on->blocked) {
+                                ASSERTION(-500000, (avl_find(&global_uhna_tree, &key)));
+
+                                if (op == TLV_OP_CUSTOM_NIIT6TO4_ADD) {
+                                        configure_niit6to4(ADD, &key);
+                                } else if (op == TLV_OP_CUSTOM_NIIT6TO4_DEL) {
+                                        configure_niit6to4(DEL, &key);
+                                } else if (op == TLV_OP_CUSTOM_NIIT4TO6_ADD) {
+                                        configure_niit4to6(ADD, &key);
+                                } else if (op == TLV_OP_CUSTOM_NIIT4TO6_DEL) {
+                                        configure_niit4to6(DEL, &key);
+                                } else if (op == TLV_OP_CUSTOM_HNA_ROUTE_DEL) {
+                                        configure_niit4to6(DEL, &key);
+                                        configure_route(DEL, on, &key);
+                                } else if (op == TLV_OP_CUSTOM_HNA_ROUTE_ADD) {
+                                        configure_route(ADD, on, &key);
+                                        configure_niit4to6(ADD, &key);
+                                } else {
+                                        assertion(-500000, (NO));
+                                }
                         }
 
                 } else {
@@ -360,14 +584,18 @@ int process_description_tlv_hna(struct rx_frame_iterator *it)
                 }
         }
 
+        dbgf((it->frame_msgs_length == pos) ? DBGL_ALL : DBGL_SYS, (it->frame_msgs_length == pos) ? DBGT_INFO : DBGT_ERR,
+                "processed %d bytes frame_msgs_len=%d msg_size=%d", pos, it->frame_msgs_length, msg_size);
 
         return pos;
 }
 
 
 STATIC_FUNC
-void hna_status (struct ctrl_node *cn)
+void hna_status(int32_t cb_id, struct ctrl_node *cn)
 {
+        assertion(-501108, (af_cfg == AF_INET || af_cfg == AF_INET6));
+
         process_description_tlvs(NULL, &self, self.desc, TLV_OP_DEBUG, af_cfg == AF_INET ? BMX_DSC_TLV_UHNA4 : BMX_DSC_TLV_UHNA6, cn);
 }
 
@@ -386,9 +614,11 @@ int32_t opt_uhna(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
 
 	if ( cmd == OPT_ADJUST  ||  cmd == OPT_CHECK  ||  cmd == OPT_APPLY ) {
 
+                assertion(-501109, (af_cfg == AF_INET || af_cfg == AF_INET6));
+
                 uint8_t family = 0;
 
-		dbgf( DBGL_CHANGES, DBGT_INFO, "diff=%d cmd =%s  save=%d  opt=%s  patch=%s",
+		dbgf_all(DBGT_INFO, "diff=%d cmd =%s  save=%d  opt=%s  patch=%s",
 		        patch->p_diff, opt_cmd2str[cmd], _save, opt->long_name, patch->p_val);
 
 
@@ -398,15 +628,20 @@ int32_t opt_uhna(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
                                 family = 0;
 
 			// the unnamed UHNA
-                        dbgf(DBGL_CHANGES, DBGT_INFO, "unnamed %s %s diff=%d cmd=%s  save=%d  opt=%s  patch=%s",
+                        dbgf_all(DBGT_INFO, "unnamed %s %s diff=%d cmd=%s  save=%d  opt=%s  patch=%s",
                                 ARG_UHNA, family2Str(family), patch->p_diff, opt_cmd2str[cmd], _save, opt->long_name, patch->p_val);
 
                         if ( family != AF_INET && family != AF_INET6)
                                 return FAILURE;
 
+                        if (af_cfg && af_cfg != family)
+                                return FAILURE;
+                        else
+                                af_cfg = family;
+
                         if (is_ip_forbidden(&ipX, family) || ip_netmask_validate(&ipX, mask, family, NO) == FAILURE) {
                                 dbg_cn(cn, DBGL_SYS, DBGT_ERR,
-                                        "forbidden ip or invalid prefix %s/%d", ipXAsStr(family, &ipX), mask);
+                                        "invalid prefix %s/%d", ipXAsStr(family, &ipX), mask);
                                 return FAILURE;
                         }
 
@@ -418,42 +653,8 @@ int32_t opt_uhna(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
 				return SUCCESS;
 
 		} else {
-#ifdef ADJ_PATCHED_NETW
-			// the named UHNA
-
-			if ( adj_patched_network( opt, patch, new, &ip4, &mask, cn ) == FAILURE )
-				return FAILURE;
-
-			if ( cmd == OPT_ADJUST )
-				return SUCCESS;
-
-			if ( patch->p_diff == NOP ) {
-
-				// change network and netmask parameters of an already configured and named HNA
-
-				char old[30];
-
-				// 1. check if announcing the new HNA would not block,
-				if ( check_apply_parent_option( ADD, OPT_CHECK, NO, opt, new, cn ) == FAILURE )
-					return FAILURE;
-
-				if ( get_tracked_network( opt, patch, old, &ip4, &mask, cn ) == FAILURE )
-					return FAILURE;
-
-				// 3. remove the old HNA and hope to not mess it up...
-                                set_uhna_key(&key, AF_INET, mask, ip4, metric);
-
-                                if ( cmd == OPT_APPLY)
-                                        configure_uhna(DEL, &key, &self);
-
-			}
-
-			// then continue with the new HNA
-			if ( str2netw( new , &ip4, '/', cn, &mask, 32 ) == FAILURE )
-				return FAILURE;
-#else
                         return FAILURE;
-#endif
+
                 }
 
 
@@ -492,6 +693,7 @@ int32_t opt_uhna(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
 
 
 
+
 STATIC_FUNC
 struct opt_type hna_options[]= {
 //     		ord parent long_name   shrt Attributes				*ival		min		max		default		*function
@@ -500,7 +702,8 @@ struct opt_type hna_options[]= {
 			0,		"\nHost and Network Announcement (HNA) options:"}
         ,
 	{ODI,0,ARG_UHNA,	 	'u',5,A_PMN,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,		opt_uhna,
-			ARG_PREFIX_FORM,"perform host-network announcement (HNA) for defined ip range"}
+			ARG_PREFIX_FORM,"specify host-network announcement (HNA) for defined ip range"}
+        ,
 /*
         ,
 	{ODI,ARG_UHNA,ARG_UHNA_NETWORK,	'n',5,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,		opt_uhna,
@@ -512,6 +715,8 @@ struct opt_type hna_options[]= {
 	{ODI,ARG_UHNA,ARG_UHNA_METRIC,   'm',5,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		MIN_UHNA_METRIC,MAX_UHNA_METRIC,DEF_UHNA_METRIC,opt_uhna,
 			ARG_VALUE_FORM, "specify hna-metric of announcement (0 means highest preference)"}
 */
+	{ODI,0,ARG_NIIT,        	0,  5,A_PS1,A_ADM,A_INI,A_CFA,A_ANY,	0,		0,		0,		0,		opt_niit,
+			ARG_ADDR_FORM,HLP_NIIT}
 
 };
 
@@ -519,7 +724,18 @@ struct opt_type hna_options[]= {
 STATIC_FUNC
 void hna_route_change_hook(uint8_t del, struct orig_node *on)
 {
+        assertion(-501110, (af_cfg == AF_INET || af_cfg == AF_INET6));
+
         dbgf_all(DBGT_INFO, "%s", on->id.name);
+
+        if (!is_ip_set(&on->primary_ip))
+                return;
+
+        process_description_tlvs(NULL, on, on->desc,
+                del ? TLV_OP_CUSTOM_HNA_ROUTE_DEL : TLV_OP_CUSTOM_HNA_ROUTE_ADD,
+                af_cfg == AF_INET ? BMX_DSC_TLV_UHNA4 : BMX_DSC_TLV_UHNA6, NULL);
+
+/*
 
         uint16_t tlvs_length = ntohs(on->desc->dsc_tlvs_len);
         uint8_t uhna_type = (af_cfg == AF_INET ? BMX_DSC_TLV_UHNA4 : BMX_DSC_TLV_UHNA6);
@@ -538,7 +754,7 @@ void hna_route_change_hook(uint8_t del, struct orig_node *on)
         uint16_t pos;
         uint16_t msg_size = it.handls[it.frame_type].min_msg_size;
 
-        for (pos = 0; pos < it.frame_data_length; pos += msg_size) {
+        for (pos = 0; pos < it.frame_msgs_length; pos += msg_size) {
 
                 struct uhna_key key;
 
@@ -548,14 +764,10 @@ void hna_route_change_hook(uint8_t del, struct orig_node *on)
                 else
                         set_uhna_to_key(&key, NULL, (struct description_msg_hna6 *) (it.frame_data + pos));
 
-
-                if (configure_route(del, on, &key) != SUCCESS) {
-
-                        //assertion(-500670, (0));
-
-                }
-
+                configure_route(del, on, &key);
+                configure_niit4to6(del, &key);
         }
+*/
 }
 
 
@@ -598,7 +810,6 @@ int32_t hna_init( void )
         tlv_handl.rx_frame_handler = process_description_tlv_hna;
         register_frame_handler(description_tlv_handl, BMX_DSC_TLV_UHNA6, &tlv_handl);
 
-
         set_route_change_hooks(hna_route_change_hook, ADD);
 
         register_options_array( hna_options, sizeof( hna_options ) );
@@ -617,7 +828,10 @@ struct plugin *hna_get_plugin( void ) {
         hna_plugin.plugin_code_version = CODE_VERSION;
         hna_plugin.cb_init = hna_init;
 	hna_plugin.cb_cleanup = hna_cleanup;
-        hna_plugin.cb_plugin_handler[PLUGIN_CB_STATUS] = (void (*) (void*)) hna_status;
+        hna_plugin.cb_plugin_handler[PLUGIN_CB_STATUS] = (void (*) (int32_t, void*)) hna_status;
+        hna_plugin.cb_plugin_handler[PLUGIN_CB_SYS_DEV_EVENT] = sys_dev_event_hook;
+        hna_plugin.cb_plugin_handler[PLUGIN_CB_DESCRIPTION_CREATED] = (void (*) (int32_t, void*)) description_event_hook;
+        hna_plugin.cb_plugin_handler[PLUGIN_CB_DESCRIPTION_DESTROY] = (void (*) (int32_t, void*)) description_event_hook;
 
         return &hna_plugin;
 }

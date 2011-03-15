@@ -24,7 +24,7 @@
 
 
 #define MIN_UDPD_SIZE 128 //(6+4+(22+8)+32)+184=72+56=128
-#define DEF_UDPD_SIZE 512
+#define DEF_UDPD_SIZE 512 //512
 #define MAX_UDPD_SIZE (MIN( 1400, MAX_PACKET_SIZE))
 #define ARG_UDPD_SIZE "udp_data_size"
 
@@ -37,34 +37,73 @@
 #define DEF_DESC0_CACHE_TO   100000
 
 
-#define MIN_UNSOLICITED_DESC_ADVS 0
-#define MAX_UNSOLICITED_DESC_ADVS 1
-#define DEF_UNSOLICITED_DESC_ADVS 1
-#define ARG_UNSOLICITED_DESC_ADVS "unsolicited_descriptions"
 
-#define MIN_DHS0_REQS_TX_ITERS 1
-#define MAX_DHS0_REQS_TX_ITERS 100
-#define DEF_DHS0_REQS_TX_ITERS 40
-#define ARG_DHS0_REQS_TX_ITERS "hash_req_sends"
 
-#define MIN_DSC0_REQS_TX_ITERS 1
-#define MAX_DSC0_REQS_TX_ITERS 100
-#define DEF_DSC0_REQS_TX_ITERS 40
-#define ARG_DSC0_REQS_TX_ITERS "desc_req_sends"
+#define MIN_DEV_ADVS_TX_ITERS 1
+#define MAX_DEV_ADVS_TX_ITERS 100
+#define DEF_DEV_ADVS_TX_ITERS 1
+#define ARG_DEV_ADVS_TX_ITERS "dev_sends"
 
-#define MIN_DHS0_ADVS_TX_ITERS 1
-#define MAX_DHS0_ADVS_TX_ITERS 100
-#define DEF_DHS0_ADVS_TX_ITERS 1
-#define ARG_DHS0_ADVS_TX_ITERS "hash_sends"
+#define MIN_DEV_ADVS_UNSOLICITED 0
+#define MAX_DEV_ADVS_UNSOLICITED 1
+#define DEF_DEV_ADV_UNSOLICITED 3
+#define ARG_DEV_ADVS_UNSOLICITED "dev_unsolicited_sends"
+
+#define MIN_DEV_REQS_TX_ITERS 1
+#define MAX_DEV_REQS_TX_ITERS 100
+#define DEF_DEV_REQS_TX_ITERS 4
+#define ARG_DEV_REQS_TX_ITERS "dev_req_sends"
+
+
+
+
+#define MIN_LINK_ADVS_TX_ITERS 1
+#define MAX_LINK_ADVS_TX_ITERS 100
+#define DEF_LINK_ADVS_TX_ITERS 1
+#define ARG_LINK_ADVS_TX_ITERS "link_sends"
+
+#define MIN_LINK_ADVS_UNSOLICITED 0
+#define MAX_LINK_ADVS_UNSOLICITED 1
+#define DEF_LINK_ADV_UNSOLICITED  1
+#define ARG_LINK_ADVS_UNSOLICITED "link_unsolicited_sends"
+
+#define MIN_LINK_REQS_TX_ITERS 1
+#define MAX_LINK_REQS_TX_ITERS 100
+#define DEF_LINK_REQS_TX_ITERS 4
+#define ARG_LINK_REQS_TX_ITERS "link_req_sends"
+
+
 
 #define MIN_DSC0_ADVS_TX_ITERS 1
 #define MAX_DSC0_ADVS_TX_ITERS 20
-#define DEF_DSC0_ADVS_TX_ITERS 1
+#define DEF_DESC_ADV_TX_ITERS 1
 #define ARG_DSC0_ADVS_TX_ITERS "desc_sends"
 
+#define MIN_UNSOLICITED_DESC_ADVS 0
+#define MAX_UNSOLICITED_DESC_ADVS 1
+#define DEF_DESC_ADV_UNSOLICITED 1
+#define ARG_UNSOLICITED_DESC_ADVS "desc_unsolicited_sends"
+
+#define MIN_DSC0_REQS_TX_ITERS 1
+#define MAX_DSC0_REQS_TX_ITERS 100
+#define DEF_DESC_REQ_TX_ITERS 10 //TODO: will blow lndev->tx_task_list[] if new local_ids appeare just for a moment
+#define ARG_DSC0_REQS_TX_ITERS "desc_req_sends"
+
+
+#define MIN_DHS0_ADVS_TX_ITERS 1
+#define MAX_DHS0_ADVS_TX_ITERS 100
+#define DEF_DHASH_ADV_TX_ITERS 1
+#define ARG_DHS0_ADVS_TX_ITERS "hash_sends"
+
+#define MIN_DHS0_REQS_TX_ITERS 1
+#define MAX_DHS0_REQS_TX_ITERS 100
+#define DEF_DHASH_REQ_TX_ITERS 10 //TODO: will blow lndev->tx_task_list[] if new local_ids appeare just for a moment
+#define ARG_DHS0_REQS_TX_ITERS "hash_req_sends"
+
+
 #define MIN_OGM_TX_ITERS 0
-#define MAX_OGM_TX_ITERS 20
-#define DEF_OGM_TX_ITERS 4
+#define MAX_OGM_TX_ITERS 30
+#define DEF_OGM_TX_ITERS 10
 #define ARG_OGM_TX_ITERS "ogm_sends"
 
 #define DEF_OGM_ACK_TX_ITERS 1
@@ -72,7 +111,9 @@
 #define MAX_OGM_ACK_TX_ITERS 4
 #define ARG_OGM_ACK_TX_ITERS "ogm_ack_sends"
 
-
+#define CONTENT_MIN_TX_INTERVAL_MIN 0
+#define CONTENT_MIN_TX_INTERVAL__CHECK_FOR_REDUNDANCY 1
+#define CONTENT_MIN_TX_INTERVAL_MAX 50000
 
 //TODO: set REQ_TO to 1 (in a non-packet-loss testenvironment this may be set to 1000 for testing)
 #define DEF_TX_DESC0_REQ_TO  ((DEF_TX_INTERVAL*3)/2)
@@ -92,25 +133,50 @@
 
 
 
-#define FRAME_TYPE_RSVD0       0
-#define FRAME_TYPE_RSVD1       1
-#define FRAME_TYPE_PROBLEM_ADV 2  // yet only used to indicate link_id collisions
-#define FRAME_TYPE_DSC0_REQS   3
-#define FRAME_TYPE_DSC0_ADVS   4  // descriptions are send as individual advertisement frames ???
-#define FRAME_TYPE_RSVD5       5
-#define FRAME_TYPE_RSVD6       6
-#define FRAME_TYPE_DHS0_REQS   7  // Hash-for-description-of-OG-ID requests
-#define FRAME_TYPE_DHS0_ADVS   8  // Hash-for-description-of-OG-ID advertisements
-#define FRAME_TYPE_RSVD9       9
-#define FRAME_TYPE_RSVD10      10
-#define FRAME_TYPE_HELLO_ADVS  11 // most-simple BMX-NG hello (nb-discovery) advertisements
-#define FRAME_TYPE_HELLO_REPS  12 // most-simple BMX-NG hello (nb-discovery) replies
-#define FRAME_TYPE_RSVD13      13
-#define FRAME_TYPE_RSVD14      14
-#define FRAME_TYPE_OGM_ADVS    15 // most simple BMX-NG (type 0) OGM advertisements
-#define FRAME_TYPE_OGM_ACKS    16 // most simple BMX-NG (type 0) OGM advertisements
-#define FRAME_TYPE_NOP         17
+#define FRAME_TYPE_RSVD0        0
+
+#define FRAME_TYPE_PROBLEM_ADV  2  // yet only used to indicate dev_id collisions
+
+#define FRAME_TYPE_TEST_ADV     3  // just for testing zero-message rx/tx_frame_iterator()
+
+#define FRAME_TYPE_HELLO_ADV    4 // most-simple BMX-NG hello (nb-discovery) advertisements
+
+#define FRAME_TYPE_DEV_REQ      6
+#define FRAME_TYPE_DEV_ADV      7
+#define FRAME_TYPE_LINK_REQ     8
+#define FRAME_TYPE_LINK_ADV     9
+
+#define FRAME_TYPE_RP_ADV      11
+
+
+#define FRAME_TYPE_DESC_REQ    14
+#define FRAME_TYPE_DESC_ADV    15
+
+
+#define FRAME_TYPE_HASH_REQ    18  // Hash-for-description-of-OG-ID requests
+#define FRAME_TYPE_HASH_ADV    19  // Hash-for-description-of-OG-ID advertisements
+
+//#define FRAME_TYPE_HELLO_REPS  21  // most-simple BMX-NG hello (nb-discovery) replies
+
+#define FRAME_TYPE_OGM_ADV     22 // most simple BMX-NG (type 0) OGM advertisements
+#define FRAME_TYPE_OGM_ACK     23 // most simple BMX-NG (type 0) OGM advertisements
+
+#define FRAME_TYPE_NOP         24
 #define FRAME_TYPE_MAX         (FRAME_TYPE_ARRSZ-1)
+
+
+#define FRAME_TYPE_PROCESS_ALL    (255)
+#define FRAME_TYPE_PROCESS_NONE   (254)
+
+
+#define DEF_DESCRIPTION_GREP         0
+#define MIN_DESCRIPTION_GREP         0
+#define MAX_DESCRIPTION_GREP         FRAME_TYPE_PROCESS_ALL
+#define ARG_DESCRIPTION_GREP         "description"
+#define HELP_DESCRIPTION_GREP        "show filtered descriptions of nodes 0..254=type 255=none 255=all \n"
+
+#define ARG_DESCRIPTION_NAME    "name"
+#define ARG_DESCRIPTION_IP      "ip"
 
 
 struct frame_header_short { // 2 bytes
@@ -127,7 +193,7 @@ struct frame_header_short { // 2 bytes
 #else
 # error "Please fix <bits/endian.h>"
 #endif
-	uint8_t length_2B; // lenght of frame in 2-Byte steps, including frame_header and variable data field
+	uint8_t length_TLV_DATA_STEPS; // lenght of frame in TLV_DATA_STEPS Byte steps, including frame_header and variable data field
 //	uint8_t  data[];   // frame-type specific data consisting of 0-1 data headers and 1-n data messages
 } __attribute__((packed));
 
@@ -146,7 +212,7 @@ struct frame_header_long { // 4 bytes
 # error "Please fix <bits/endian.h>"
 #endif
 	uint8_t  reserved;
-	uint16_t length_1B;  // lenght of frame in 1-Byte steps, including frame_header and variable data field
+	uint16_t length;  // lenght of frame in 1-Byte steps, including frame_header and variable data field
 //	uint8_t  data[];  // frame-type specific data consisting of 0-1 data headers and 1-n data messages
 } __attribute__((packed));
 
@@ -154,33 +220,65 @@ struct frame_header_long { // 4 bytes
 
 
 
-#define SHORT_FRAME_DATA_MAX (MIN( 500, ((int)((((sizeof( ((struct frame_header_short*)NULL)->length_2B ))<<8)-1)*2))))
+#define SHORT_FRAME_DATA_MAX (MIN( 500, ((int)((((sizeof( ((struct frame_header_short*)NULL)->length_TLV_DATA_STEPS ))<<8)-1)*TLV_DATA_STEPS))))
 
+/*
+// iterator return codes:
+#define TLV_RX_DATA_BLOCKED    (-3) // blocked due to DAD
+
+#define TLV_TX_DATA_FULL       (-2) // nothing done! Frame finished or not enough remining data area to write
+                                 // only returns from tx-iterations, rx- will return FAILURE
+#define TLV_RX_DATA_FAILURE    (-1) // syntax error: exit or blacklist
+#define TLV_TX_DATA_FAILURE    (-1) // syntax error: will fail assertion()
+
+#define TLV_RX_DATA_DONE        (0) // done, nothing more to do
+#define TLV_TX_DATA_DONE        (0) // done, nothing more to do
+
+#define TLV_RX_DATA_IGNORED     (1) // unknown, filtered, nothing to send, or ignored due to bad link...
+#define TLV_TX_DATA_IGNORED     (1) // unknown, filtered, nothing to send, or ignored due to bad link...
+
+#define TLV_RX_DATA_PROCESSED   (2) // >= means succesfully processed returned amount of data
+#define TLV_TX_DATA_PROCESSED   (2) // >= means succesfully processed returned amount of data
+#define TLV_DATA_STEPS          (2) // legal data-size steps, never returns
+                                    // the smalles legal frame must be:
+                                    // - a multiple of two
+                                    // - have lenght of frame_header_short plus 2 bytes frame_data
+*/
 
 // iterator return codes:
-#define TLV_DATA_BLOCKED    (-3) // blocked due to DAD, only returns from rx-iterations
-#define TLV_DATA_FULL       (-2) // nothing done! Frame finished or not enough remining data area to write
+#define TLV_RX_DATA_BLOCKED    (-5) // blocked due to DAD
+
+#define TLV_TX_DATA_FULL       (-4) // nothing done! Frame finished or not enough remining data area to write
                                  // only returns from tx-iterations, rx- will return FAILURE
-#define TLV_DATA_FAILURE    (-1) // syntax error: exit or blacklist
-                                 // only returns from rx-iterations, tx- will fail assertion()
-#define TLV_TX_DATA_DONE        (0) // done, nothing more to do
-#define TLV_RX_DATA_DONE        (0) // done, nothing more to do
-#define TLV_TX_DATA_IGNORED     (1) // unknown, filtered, nothing to send, or ignored due to bad link...
-#define TLV_RX_DATA_IGNORED     (1) // unknown, filtered, nothing to send, or ignored due to bad link...
-#define TLV_DATA_PROCESSED   (2) // >= means succesfully processed returned amount of data
-#define TLV_DATA_STEPS       (2) // legal data-size steps, never returns
-                                 // the smalles legal frame must be:
-                                 // - a multiple of two
-                                 // - have lenght of frame_header_short plus 2 bytes frame_data
+#define TLV_RX_DATA_FAILURE    (-3) // syntax error: exit or blacklist
+#define TLV_TX_DATA_FAILURE    (-3) // syntax error: will fail assertion()
+
+#define TLV_RX_DATA_DONE        (-2) // done, nothing more to do
+#define TLV_TX_DATA_DONE        (-2) // done, nothing more to do
+
+#define TLV_RX_DATA_IGNORED     (-1) // unknown, filtered, nothing to send, or ignored due to bad link...
+#define TLV_TX_DATA_IGNORED     (-1) // unknown, filtered, nothing to send, or ignored due to bad link...
+
+#define TLV_RX_DATA_PROCESSED   (0) // >= means succesfully processed returned amount of data
+#define TLV_TX_DATA_PROCESSED   (0) // >= means succesfully processed returned amount of data
+#define TLV_DATA_STEPS          (1) // legal data-size steps, never returns
+                                    // the smalles legal frame must be:
+                                    // - a multiple of two
+                                    // - have lenght of frame_header_short plus 2 bytes frame_data
+
+
 
 // rx_frame_iterator operation codes:
 enum {
 	TLV_OP_DEL = 0,
 	TLV_OP_TEST = 1,
 	TLV_OP_ADD = 2,
-//	TLV_OP_DONE = 3,
-	TLV_OP_DEBUG = 4
+	TLV_OP_DEBUG = 3,
+	TLV_OP_CUSTOM_MIN = 20,
 };
+
+char *tlv_op_str(IDM_T op);
+
 /*
  * this iterator is given the beginning of a frame area (e.g. the end of the packet_header)
  * then it iterates over the frames in that area */
@@ -205,6 +303,7 @@ struct rx_frame_iterator {
 	uint8_t             is_short_header;
 	uint8_t             frame_type;
 	int32_t             frame_data_length;
+	int32_t             frame_msgs_length;
 	uint8_t            *frame_data;
 	uint8_t            *msg;
 };
@@ -243,7 +342,7 @@ struct tx_frame_iterator {
 
 struct frame_handl {
         uint8_t is_advertisement;              // NO link information required for tx_frame_...(), dev is enough
-	uint8_t is_destination_specific_frame; // particularly: is NO advertisement
+	uint8_t is_destination_specific_frame; // particularly: is NO advertisement AND individual frames are created for each destination
 	uint8_t is_relevant; // if set to ONE specifies: frame MUST BE processed or in case of unknown frame type, the
 	                     // whole super_frame MUST be dropped. If set to ZERO the frame can be ignored.
 	                     // if frame->is_relevant==1 and unknown and super_frame->is_relevant==1, then
@@ -251,20 +350,23 @@ struct frame_handl {
 	                     // If irrelevant and unknown frames are rebroadcasted depends on the super_frame logic.
 	                     // i.e.: * unknown packet_frames MUST BE dropped.
 	                     //       * unknown and irrelevant description_tlv_frames MUST BE propagated
-	uint8_t rx_requires_described_neigh_dhn;
-	uint8_t rx_requires_known_neighIID4me;
+	uint8_t rx_requires_described_neigh;
+//	uint8_t rx_requires_neighIID4me; can hardly be known
         uint16_t data_header_size;
         uint16_t min_msg_size;
         uint16_t fixed_msg_size;
-        uint16_t min_tx_interval;
+        uint16_t tx_task_interval_min;
         int32_t *tx_iterations;
-        UMETRIC_T *umetric_rq_min;
+        UMETRIC_T *tx_tp_min;
+        UMETRIC_T *tx_rp_min;
+        UMETRIC_T *rx_tp_min;
+        UMETRIC_T *rx_rp_min;
         char *name;
 
-	int32_t (*rx_frame_handler) (struct rx_frame_iterator *);
-	int32_t (*rx_msg_handler)   (struct rx_frame_iterator *);
-	int32_t (*tx_frame_handler) (struct tx_frame_iterator *);
-	int32_t (*tx_msg_handler)   (struct tx_frame_iterator *);
+	int32_t (*rx_frame_handler) (struct rx_frame_iterator *); // returns: TLV_RX_DATA_code or rcvd frame_msgs_len (without data_header_size)
+	int32_t (*rx_msg_handler)   (struct rx_frame_iterator *); // returns: TLV_RX_DATA_code or rcvd frame_msg_len  (without data_header_size)
+	int32_t (*tx_frame_handler) (struct tx_frame_iterator *); // returns: TLV_TX_DATA_code or send frame_msgs_len (without data_header_size)
+	int32_t (*tx_msg_handler)   (struct tx_frame_iterator *); // returns: TLV_TX_DATA_code or send frame_msg_len  (without data_header_size)
 };
 
 
@@ -290,15 +392,30 @@ static inline int32_t tx_iterator_cache_data_space(struct tx_frame_iterator *it)
 
 
 
+
+
+
+
 #define FRAME_TYPE_PROBLEM_CODE_MIN          0x01
 #define FRAME_TYPE_PROBLEM_CODE_DUP_LINK_ID  0x01
 #define FRAME_TYPE_PROBLEM_CODE_MAX          0x01
+
+//struct msg_test_adv { // 1 byte
+//	uint8_t adv_test;
+//} __attribute__((packed));
+//
+//struct hdr_test_adv { // 1 byte
+//	uint8_t hdr_test;
+//	struct msg_test_adv msg[];
+//} __attribute__((packed));
+
+
 
 
 struct msg_problem_adv { // 4 bytes
 	uint8_t code;
 	uint8_t reserved;
-	LINK_ID_T link_id;
+	LOCAL_ID_T local_id;
 } __attribute__((packed));
 
 
@@ -307,22 +424,129 @@ struct msg_problem_adv { // 4 bytes
 
 
 struct msg_hello_adv { // 2 bytes
-	HELLO_FLAGS_SQN_T hello_flags_sqn;
+	HELLO_SQN_T hello_sqn;
+	uint8_t reserved;
 } __attribute__((packed));
 
-struct msg_hello_reply { // 6 bytes
-	HELLO_FLAGS_SQN_T hello_flags_sqn;
-	IID_T transmitterIID4x;
+//struct msg_hello_reply { // 4 bytes
+//	HELLO_SQN_T hello_sqn;  // 4 + 12 bits
+//	IID_T transmitterIID4x;             // 16 bits
+//	DEVADV_SQN_T dev_sqn_ref;
+//} __attribute__((packed));
+
+
+#define DEVADV_MSG_IGNORED -1
+
+
+struct msg_dev_adv { // 26 byte
+
+	DEVADV_IDX_T dev_idx;
+	uint8_t channel;
+	FMETRIC_U8_T tx_bitrate_min;
+	FMETRIC_U8_T tx_bitrate_max;
+
+	IPX_T llip;  // 16 byte
+	MAC_T mac;   // 6 byte
+} __attribute__((packed));
+
+struct hdr_dev_adv { // 2 byte
+	DEVADV_SQN_T dev_sqn;
+	struct msg_dev_adv msg[];
+} __attribute__((packed));
+
+struct msg_dev_req { // 4 byte
+	LOCAL_ID_T destination_local_id;
 } __attribute__((packed));
 
 
 
-struct msg_dhash_request { // 4 bytes
-	IID_T receiverIID4x; // IID_RSVD_4YOU to ask for neighbours' dhash0
+#define LINKADV_INTERVAL_REMOVED 10000
+#define LINKADV_INTERVAL_NEW 2000
+#define LINKADV_CHANGES_NONE     0
+#define LINKADV_CHANGES_REMOVED  1
+#define LINKADV_CHANGES_NEW      1000
+#define LINKADV_CHANGES_CRITICAL 1000000
+#define LINKADV_MSG_IGNORED -1
+#define LINKADV_ADD_RP_4DIF 4
+#define LINKADV_ADD_RP_4MIN 2
+#define LINKADV_ADD_RP_4MAX 3
+
+struct msg_link_adv { // 6 byte
+	DEVADV_IDX_T transmitter_dev_idx; // to be combined with dev_id from packet header to resolve transmitters dev_id of reported link
+	DEVADV_IDX_T peer_dev_idx;
+	LOCAL_ID_T peer_local_id;
 } __attribute__((packed));
 
-struct hdr_dhash_request {
-	LINK_ID_T destination_link_id;
+struct hdr_link_adv { // 2 byte
+	//LINK_SQN_T link_sqn; as given in packet_header
+	DEVADV_SQN_T dev_sqn_ref;
+	struct msg_link_adv msg[];
+} __attribute__((packed));
+
+struct msg_link_req { // 4 byte
+	LOCAL_ID_T destination_local_id;
+} __attribute__((packed));
+
+
+
+
+struct msg_rp_adv { // 1 byte
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+	unsigned int rp_127range : 7;
+	unsigned int ogm_request : 1;
+#elif __BYTE_ORDER == __BIG_ENDIAN
+	unsigned int ogm_request : 1;
+	unsigned int rp_127range : 7;
+#else
+# error "Please fix <bits/endian.h>"
+#endif
+
+//	uint8_t rp_255range;
+} __attribute__((packed));
+
+
+
+
+/* Why knowledge about prev-hop (z) bandwidth is important:
+ * x,y,z transmit time via link x,y,z
+ *
+ *  ->-x=3--              x: MAX(x,z) <  y+z
+ * A        B        C
+ *  ---y=2-- ---z=2--
+ *
+ *
+ *  ---x=3--
+ * A        B        C
+ *  ->-y=2-- ---z=1--     y: MAX(x,z) >= y+z
+ *
+ *  */
+
+
+/* 
+ * Why 2-hops channel knowledge is important for directional links:
+ *
+ *  (------)--..  ..--(-------)--..
+ * A        B        C         D
+ *       ..--(------)--..
+ *
+ * Why 3-hops channel knowledge is important for omnidirectional links:
+ *
+ * *||||||||*)))))))) (((((((((*||||||||*))))))))))
+ * A        B                           E
+ *  ((((((((*||||||||*)))))))))
+ *                   C         D
+ *           ((((((((*|||||||||*)))))))))
+ *  */
+
+
+
+
+struct msg_dhash_request { // 2 bytes
+	IID_T receiverIID4x;
+} __attribute__((packed));
+
+struct hdr_dhash_request { // 4 bytes
+	LOCAL_ID_T destination_local_id;
 	struct msg_dhash_request msg[];
 } __attribute__((packed));
 
@@ -398,20 +622,7 @@ struct msg_description_adv {
 
 struct msg_ogm_adv // 4 bytes
 {
-	OGM_MIX_T mix; //uint16_t mix of transmitterIIDoffset, metric_exp, and metric_mant
-
-//#if __BYTE_ORDER == __LITTLE_ENDIAN
-//	unsigned int metric_mant : OGM_MANTISSA_BIT_SIZE;
-//	unsigned int metric_exp : OGM_EXPONENT_BIT_SIZE;
-//	unsigned int transmitterIIDoffset : IIDOFFSET_SIZE;
-//
-//#elif __BYTE_ORDER == __BIG_ENDIAN
-//	unsigned int transmitterIIDoffset : IIDOFFSET_SIZE;
-//	unsigned int metric_exp : OGM_EXPONENT_BIT_SIZE;
-//	unsigned int metric_mant : OGM_MANTISSA_BIT_SIZE;
-//#else
-//# error "Please fix <bits/endian.h>"
-//#endif
+	OGM_MIX_T mix; //uint16_t mix of transmitterIIDoffset, metric_mant, metric_exp
 
 	union {
 		OGM_SQN_T ogm_sqn;
@@ -421,8 +632,11 @@ struct msg_ogm_adv // 4 bytes
 } __attribute__((packed));
 
 
+
 struct hdr_ogm_adv { // 2 bytes
 	AGGREG_SQN_T aggregation_sqn;
+	uint8_t ogm_destination_array;
+
 	struct msg_ogm_adv msg[];
 } __attribute__((packed));
 
@@ -433,7 +647,8 @@ struct hdr_ogm_adv { // 2 bytes
  */
 
 struct msg_ogm_ack {
-	IID_T transmitterIID4x;
+//	IID_T transmitterIID4x;
+	OGM_DEST_T ogm_destination;
 	AGGREG_SQN_T aggregation_sqn;
 } __attribute__((packed));
 /*
@@ -450,13 +665,6 @@ struct msg_ogm_ack {
 #define BMX_DSC_TLV_ARRSZ       FRAME_TYPE_ARRSZ
 
 
-#define DEF_DESCRIPTION_GREP         0
-#define MIN_DESCRIPTION_GREP         0
-#define MAX_DESCRIPTION_GREP         FRAME_TYPE_PROCESS_ALL
-#define ARG_DESCRIPTION_GREP         "description"
-
-#define ARG_DESCRIPTION_NAME    "name"
-#define ARG_DESCRIPTION_IP      "ip"
 
 
 
@@ -470,10 +678,11 @@ extern uint32_t ogm_aggreg_pending;
 extern IID_T myIID4me;
 extern TIME_T myIID4me_timestamp;
 
+//extern IDM_T my_dev_adv_changed;
+
+
 extern struct frame_handl packet_frame_handler[FRAME_TYPE_ARRSZ];
 extern struct frame_handl description_tlv_handl[BMX_DSC_TLV_ARRSZ];
-
-extern char *tlv_op_str[];
 
 
 /***********************************************************
@@ -481,19 +690,25 @@ extern char *tlv_op_str[];
 ************************************************************/
 
 
-OGM_SQN_T set_ogmSqn_toBeSend_and_aggregated(struct orig_node *on, OGM_SQN_T to_be_send, OGM_SQN_T aggregated);
+OGM_SQN_T set_ogmSqn_toBeSend_and_aggregated(struct orig_node *on, UMETRIC_T um, OGM_SQN_T to_be_send, OGM_SQN_T aggregated);
 void update_my_description_adv( void );
+void update_my_dev_adv(void);
+void update_my_link_adv(uint32_t changes);
+
 struct dhash_node * process_description(struct packet_buff *pb, struct description *desc, struct description_hash *dhash);
 IDM_T process_description_tlvs(struct packet_buff *pb, struct orig_node *on, struct description *desc, IDM_T op, uint8_t filter, struct ctrl_node *cn);
-void purge_tx_timestamp_tree(struct dev_node *dev, IDM_T purge_all);
 void purge_tx_task_list(struct list_head *tx_tasks_list, struct link_node *only_link, struct dev_node *only_dev);
 
 void tx_packets( void *unused );
 IDM_T rx_frames(struct packet_buff *pb);
 int32_t rx_frame_iterate(struct rx_frame_iterator* it);
 
-void schedule_tx_task(struct link_dev_node *lndev_out,
-	uint16_t type, uint16_t msgs_len, uint16_t u16, uint32_t u32, IID_T myIID4x, IID_T neighIID4x);
+
+#define SCHEDULE_UNKNOWN_MSGS_SIZE 0
+#define SCHEDULE_MIN_MSG_SIZE -1
+
+void schedule_tx_task(struct link_dev_node *lndev_out, uint16_t type, int16_t msgs_len,
+	uint16_t u16, uint32_t u32, IID_T myIID4x, IID_T neighIID4x);
 
 void register_frame_handler(struct frame_handl *array, int pos, struct frame_handl *handl);
 

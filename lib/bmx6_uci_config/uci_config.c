@@ -48,7 +48,7 @@ static struct opt_type tmp_conf_opt;
 
 static void signal_hup_handler( int32_t sig ) {
 	
-	dbgf( DBGL_SYS, DBGT_INFO, "reloading config" );
+	dbgf_sys(DBGT_INFO, "reloading config" );
 	
 	struct ctrl_node *cn = create_ctrl_node( STDOUT_FILENO, NULL, YES/*we are root*/ );
 	
@@ -56,7 +56,7 @@ static void signal_hup_handler( int32_t sig ) {
 	     (apply_stream_opts( ARG_RELOAD_CONFIG, OPT_APPLY, NO/*no cfg by default*/, cn ) == FAILURE)  ) 
 	{
 		close_ctrl_node( CTRL_CLOSE_STRAIGHT, cn );	
-		dbg( DBGL_SYS, DBGT_ERR, "reloading config failed! FIX your config NOW!"  );
+		dbg_sys(DBGT_ERR, "reloading config failed! FIX your config NOW!"  );
 		return;
 	}
 	
@@ -80,7 +80,7 @@ int8_t uci_reload_package( struct uci_context *ctx, struct uci_ptr *ptr, char* p
 	
 	if ( uci_lookup_ptr( ctx, ptr, NULL, false) != SUCCESS ) {
 		uci_get_errorstr( ctx, &uci_err, "" );
-		dbgf( DBGL_SYS, DBGT_ERR, "%s", uci_err );
+		dbgf_sys(DBGT_ERR, "%s", uci_err );
 		return FAILURE;
 	}
 	
@@ -99,7 +99,7 @@ struct uci_element *uci_lookup( struct uci_context *ctx, struct uci_ptr *ptr, ch
 	
 	if ( uci_lookup_ptr( ctx, ptr, name, false) != SUCCESS ) {
 		uci_get_errorstr( ctx, &uci_err, "" );
-		dbgf( DBGL_SYS, DBGT_ERR, "%s %s", name, uci_err );
+		dbgf_sys(DBGT_ERR, "%s %s", name, uci_err );
 		return NULL;
 	}
 	struct uci_element *e = ptr->last;
@@ -895,8 +895,8 @@ STATIC_FUNC
 int32_t init_conf( void ) {
 
 	memset( &tmp_conf_opt, 0, sizeof( struct opt_type ) );
-	LIST_INIT_HEAD( tmp_conf_opt.d.childs_type_list, struct opt_data, list );
-	LIST_INIT_HEAD( tmp_conf_opt.d.parents_instance_list, struct opt_parent, list );
+	LIST_INIT_HEAD( tmp_conf_opt.d.childs_type_list, struct opt_data, list, list );
+	LIST_INIT_HEAD( tmp_conf_opt.d.parents_instance_list, struct opt_parent, list, list );
 	
 	register_options_array( config_options, sizeof( config_options ) );
 	

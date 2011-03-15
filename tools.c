@@ -32,27 +32,48 @@
 
 char* memAsStr( const void* mem, const uint32_t len)
 {
+#define MEMASSTR_BUFF_SIZE 2048
+#define MEMASSTR_BUFFERS 2
+#define MEMASSTR_STEP_SIZE 2
 	static uint8_t c=0;
-        static char out[4][256];
+        static char out[2][MEMASSTR_BUFF_SIZE];
         uint32_t i;
 
         if (!mem)
                 return NULL;
 
-        c = (c+1) % 4;
+        c = (c+1) % MEMASSTR_BUFFERS;
 
-        for (i = 0; i < len && i < (((sizeof (out)) / 2) - 1); i++) {
+        for (i = 0; i < len && i < ((MEMASSTR_BUFF_SIZE / MEMASSTR_STEP_SIZE) - MEMASSTR_STEP_SIZE); i++) {
 
-                sprintf(&(out[c][i * 2]), "%.2X", ((uint8_t*) mem)[i]);
+                sprintf(&(out[c][i * MEMASSTR_STEP_SIZE]), "%.2X", ((uint8_t*) mem)[i]);
         }
 
         if (len > i)
-                snprintf(&(out[c][(i - 1) * 2]), 2, "..");
+                snprintf(&(out[c][(i - 1) * MEMASSTR_STEP_SIZE]), MEMASSTR_STEP_SIZE, "..");
 
-        out[c][i*2] = 0;
+        out[c][i * MEMASSTR_STEP_SIZE] = 0;
 
         return out[c];
 }
+
+//http://en.wikipedia.org/wiki/Fast_inverse_square_root
+//http://www.codemaestro.com/reviews/9
+//http://www.beyond3d.com/content/articles/8/
+float fast_inverse_sqrt(float x)
+{
+        float h = x / 2.0f;
+        int32_t i;
+        ASSERTION(-501045, (sizeof (i) == sizeof (x)));
+
+        memcpy(&i, &x, sizeof (x));
+        i = 0x5f3759df - (i >> 1);
+        memcpy(&x, &i, sizeof (i));
+        x = x * (1.5f - h * x * x);
+        x = x * (1.5f - h * x * x);
+        return x;
+}
+
 
 //TODO: check all callers: currently limit parameter defines the first out-of-range element and not the max legal one!
 uint32_t rand_num(const uint32_t limit)
@@ -76,8 +97,26 @@ void init_set_bits_table256(void)
 	}
 }
 
-// count the number of true bits in v
 
+// clears byte range between and including begin and end
+void byte_clear(uint8_t *array, uint16_t array_size, uint16_t begin, uint16_t end)
+{
+
+        assertion(-500436, (array_size % 2 == 0));
+
+        begin = begin % array_size;
+        end = end % array_size;
+
+        memset(array + begin, 0, end >= begin ? end + 1 - begin : array_size - begin);
+
+        if ( begin > end)
+                memset(array, 0, end + 1);
+
+
+}
+
+
+// count the number of true bits in v
 uint8_t bits_count(uint32_t v)
 {
 	uint8_t c=0;
@@ -87,7 +126,6 @@ uint8_t bits_count(uint32_t v)
 
 	return c;
 }
-
 
 uint8_t bit_get(const uint8_t *array, const uint16_t array_bit_size, uint16_t bit)
 {
@@ -114,33 +152,65 @@ void bit_set(uint8_t *array, uint16_t array_bit_size, uint16_t bit, IDM_T value)
         assertion(-500415, (!value == !bit_get(array, array_bit_size, bit)));
 }
 
-/*
- * clears bit range between and including begin and end
- */
-void bit_clear(uint8_t *array, uint16_t array_bit_size, uint16_t begin_bit, uint16_t end_bit)
+
+uint16_t bits_get(uint8_t *array, uint16_t array_bit_size, uint16_t begin_bit, uint16_t end_bit)
+{
+        assertion(-501058, ((uint16_t) (end_bit - begin_bit)) < array_bit_size);
+
+        uint16_t begin_byte = (begin_bit % array_bit_size) / 8;
+        uint16_t end_byte = (end_bit % array_bit_size) / 8;
+        uint16_t array_byte_size = array_bit_size / 8;
+
+        uint16_t counted = 0;
+        uint16_t pos = begin_byte;
+
+        do {
+                uint8_t val = array[pos];
+
+                if (pos == begin_byte)
+                        val = val & (0xFF << (begin_bit % 8));
+
+                if (pos == end_byte)
+                        val = val & (0xFF >> (7-(end_bit % 8)));
+
+                counted += BitsSetTable256[val];
+
+                pos = ((pos + 1) % array_byte_size);
+
+        } while (pos != ((end_byte + 1) % array_byte_size));
+
+        return counted;
+}
+
+
+// clears bit range between and including begin and end
+ void bits_clear(uint8_t *array, uint16_t array_bit_size, uint16_t begin_bit, uint16_t end_bit)
 {
         assertion(-500435, (array_bit_size % 8 == 0));
+        assertion(-501060, ((uint16_t) (end_bit - begin_bit)) < array_bit_size);
 
-        if (((uint16_t) (end_bit - begin_bit)) >= (array_bit_size - 1)) {
+        uint16_t array_byte_size = array_bit_size / 8;
 
-                memset(array, 0, array_bit_size / 8);
+/*
+        if (((uint16_t) (end_bit - begin_bit)) >= array_bit_size) {
+                memset(array, 0, array_byte_size);
                 return;
         }
+*/
 
         begin_bit = begin_bit % array_bit_size;
         end_bit = end_bit % array_bit_size;
 
         uint16_t begin_byte = begin_bit/8;
         uint16_t end_byte = end_bit/8;
-        uint16_t array_byte_size = array_bit_size/8;
 
 
         if (begin_byte != end_byte && ((begin_byte + 1) % array_byte_size) != end_byte)
                 byte_clear(array, array_byte_size, begin_byte + 1, end_byte - 1);
 
 
-        uint8_t begin_mask = ~(0xFF << (begin_bit%8));
-        uint8_t end_mask = (0xFF >> ((end_bit%8)+1));
+        uint8_t begin_mask = ~(0xFF << (begin_bit % 8));   //eg 2: ~(11111100) = 00000011
+        uint8_t end_mask =   ~(0xFF >> (7-(end_bit % 8))); //eg 3: ~(00001111) = 11110000
 
         if (begin_byte == end_byte) {
 
@@ -153,23 +223,31 @@ void bit_clear(uint8_t *array, uint16_t array_bit_size, uint16_t begin_bit, uint
         }
 }
 
-/*
- * clears byte range between and including begin and end
- */
-void byte_clear(uint8_t *array, uint16_t array_size, uint16_t begin, uint16_t end)
+char* bits_print(uint8_t *array, uint16_t array_bit_size, uint16_t begin_bit, uint16_t end_bit)
 {
+#define BITS_PRINT_MAX 256
+        assertion(-501059, ((uint16_t) (end_bit - begin_bit)) < array_bit_size);
 
-        assertion(-500436, (array_size % 2 == 0));
+        uint16_t c = 0;
+        static char output[BITS_PRINT_MAX + 4];
 
-        begin = begin % array_size;
-        end = end % array_size;
+        uint16_t pos = (begin_bit % array_bit_size);
 
-        memset(array + begin, 0, end >= begin ? end + 1 - begin : array_size - begin);
+        do {
+                sprintf(&output[c], "%s", bit_get(array, array_bit_size, pos) ? "1" : "0");
+                if ((++c) >=BITS_PRINT_MAX) {
+                        sprintf(&output[c], "..");
+                        c=c+2;
+                        break;
+                }
 
-        if ( begin > end)
-                memset(array, 0, end + 1);
+                pos = (pos + 1) % array_bit_size;
 
+        } while (pos != ((end_bit + 1) % array_bit_size));
 
+        output[c]=0;
+
+        return output;
 }
 
 
@@ -278,8 +356,7 @@ int32_t check_file( char *path, uint8_t write, uint8_t exec ) {
 
 	if ( stat_ret  < 0 ) {
 
-		dbgf( DBGL_CHANGES, DBGT_WARN, "%s does not exist! (%s)",
-		      path, strerror(errno));
+                dbgf_track(DBGT_WARN, "%s does not exist! (%s)", path, strerror(errno));
 
 	} else {
 
@@ -289,9 +366,7 @@ int32_t check_file( char *path, uint8_t write, uint8_t exec ) {
 		     ((S_IXUSR & fstat.st_mode) || !exec) )
 			return SUCCESS;
 
-		dbgf( DBGL_SYS, DBGT_ERR,
-		      "%s exists but has inapropriate permissions (%s)",
-		      path, strerror(errno));
+                dbgf_sys(DBGT_ERR, "%s exists but has inapropriate permissions (%s)", path, strerror(errno));
 
 	}
 
@@ -310,8 +385,7 @@ int32_t check_dir( char *path, uint8_t create, uint8_t write ) {
 		if ( create && mkdir( path, S_IRUSR|S_IWUSR|S_IXUSR|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH ) >= 0 )
 			return SUCCESS;
 
-		dbgf( DBGL_SYS, DBGT_ERR,
-		      "directory %s does not exist and can not be created (%s)", path, strerror(errno));
+                dbgf_sys(DBGT_ERR, "directory %s does not exist and can not be created (%s)", path, strerror(errno));
 
 	} else {
 
@@ -321,8 +395,7 @@ int32_t check_dir( char *path, uint8_t create, uint8_t write ) {
 		     ((S_IWUSR & fstat.st_mode) || !write) )
 			return SUCCESS;
 
-		dbgf( DBGL_SYS, DBGT_ERR,
-		      "directory %s exists but has inapropriate permissions (%s)", path, strerror(errno));
+                dbgf_sys(DBGT_ERR, "directory %s exists but has inapropriate permissions (%s)", path, strerror(errno));
 
 	}
 
@@ -370,7 +443,7 @@ void wordCopy( char *out, char *in ) {
 
 	} else {
 
-		dbgf( DBGL_SYS, DBGT_ERR, "called with out: %s  and  in: %s", out, in );
+                dbgf_sys(DBGT_ERR, "called with out: %s  and  in: %s", out, in);
 		cleanup_all( -500017 );
 
 	}
@@ -427,4 +500,24 @@ uint32_t log_bin(uint32_t v)
 void init_tools( void )
 {
         init_set_bits_table256();
+
+/*
+#ifdef TEST_BIT_ARRAY_OPERATIONS
+#define TOOL_WINDOW_BYTES 16
+#define TOOL_WINDOW_BITS (TOOL_WINDOW_BYTES*8)
+        uint8_t array[TOOL_WINDOW_BYTES];
+        memset(array, 0, TOOL_WINDOW_BYTES);
+        uint16_t i;
+        for (i = 0; i < TOOL_WINDOW_BITS;) {
+                bit_set(array, TOOL_WINDOW_BITS, i, 1);
+                i++;
+                uint16_t bits = bits_get(array, TOOL_WINDOW_BITS, 0, TOOL_WINDOW_BITS - 1);
+                dbgf_sys(DBGT_INFO, "i=%3d array_bits=%3d >%s<",
+                        i, bits, bits_print(array, TOOL_WINDOW_BITS, 0, TOOL_WINDOW_BITS - 1));
+                ASSERTION(-501057, (i==bits));
+        }
+
+#endif
+*/
+
 }

@@ -42,7 +42,7 @@ static fd_set receive_wait_set;
 
 static uint16_t changed_readfds = 1;
 
-static int ifevent_sk = -1;
+
 
 void change_selects(void)
 {
@@ -53,89 +53,82 @@ static void check_selects(void)
 {
         TRACE_FUNCTION_CALL;
 
-	if( changed_readfds == 0 )
-		return;
-	
-	struct list_node *list_pos;
-	
-	dbgf_all( DBGT_INFO, "%d select fds changed... ", changed_readfds );
-	
-	changed_readfds = 0;
-	
-	FD_ZERO(&receive_wait_set);
-	receive_max_sock = 0;
-	
-	receive_max_sock = ifevent_sk;
-	FD_SET(ifevent_sk, &receive_wait_set);
-	
-	if ( receive_max_sock < unix_sock )
-		receive_max_sock = unix_sock;
-	
-	FD_SET(unix_sock,  &receive_wait_set);
-	
-	list_for_each( list_pos, &ctrl_list ) {
-		
-		struct ctrl_node *cn = list_entry( list_pos, struct ctrl_node, list );
-		
-		if ( cn->fd > 0  &&  cn->fd != STDOUT_FILENO ) {
-			
-			receive_max_sock = MAX( receive_max_sock, cn->fd);
-			
-			FD_SET( cn->fd, &receive_wait_set );
-		}
-	}
-	
-        struct avl_node *it=NULL;
-        struct dev_node *dev;
-        while ((dev = avl_iterate_item(&dev_ip_tree, &it))) {
+        if (changed_readfds) {
 
-		if ( dev->active  &&  dev->linklayer != VAL_DEV_LL_LO ) {
-			
-			receive_max_sock = MAX( receive_max_sock, dev->unicast_sock );
-			
-			FD_SET(dev->unicast_sock, &receive_wait_set);
-			
-			receive_max_sock = MAX( receive_max_sock, dev->rx_mcast_sock );
-			
-			FD_SET(dev->rx_mcast_sock, &receive_wait_set);
-			
-			if (dev->rx_fullbrc_sock > 0) {
-				
-				receive_max_sock = MAX( receive_max_sock, dev->rx_fullbrc_sock );
-				
-				FD_SET(dev->rx_fullbrc_sock, &receive_wait_set);
-				
-			}
-		}
-	}
-	
-	list_for_each( list_pos, &cb_fd_list ) {
-		
-		struct cb_fd_node *cdn = list_entry( list_pos, struct cb_fd_node, list );
-		
-		receive_max_sock = MAX( receive_max_sock, cdn->fd );
-		
-		FD_SET( cdn->fd, &receive_wait_set );
-		
-	}
-	
+                FD_ZERO(&receive_wait_set);
+                receive_max_sock = 0;
+
+                //	receive_max_sock = ifevent_sk;
+                //	FD_SET(ifevent_sk, &receive_wait_set);
+                //	if ( receive_max_sock < unix_sock )
+                //		receive_max_sock = unix_sock;
+
+                assertion(-501099, (unix_sock > 0));
+
+                receive_max_sock = MAX(receive_max_sock, unix_sock);
+                FD_SET(unix_sock, &receive_wait_set);
+
+                struct ctrl_node *cn = NULL;
+                while ((cn = list_iterate(&ctrl_list, cn))) {
+
+                        if (cn->fd > 0 && cn->fd != STDOUT_FILENO) {
+
+                                receive_max_sock = MAX(receive_max_sock, cn->fd);
+                                FD_SET(cn->fd, &receive_wait_set);
+                        }
+                }
+
+                struct avl_node *it = NULL;
+                struct dev_node *dev;
+                while ((dev = avl_iterate_item(&dev_ip_tree, &it))) {
+
+                        if (dev->active && dev->linklayer != TYP_DEV_LL_LO) {
+
+                                receive_max_sock = MAX(receive_max_sock, dev->unicast_sock);
+                                FD_SET(dev->unicast_sock, &receive_wait_set);
+
+                                receive_max_sock = MAX(receive_max_sock, dev->rx_mcast_sock);
+                                FD_SET(dev->rx_mcast_sock, &receive_wait_set);
+
+                                if (dev->rx_fullbrc_sock > 0) {
+
+                                        receive_max_sock = MAX(receive_max_sock, dev->rx_fullbrc_sock);
+                                        FD_SET(dev->rx_fullbrc_sock, &receive_wait_set);
+                                }
+                        }
+                }
+
+                struct cb_fd_node *cdn = NULL;
+                while ((cdn = list_iterate(&cb_fd_list, cdn))) {
+
+                        receive_max_sock = MAX(receive_max_sock, cdn->fd);
+                        FD_SET(cdn->fd, &receive_wait_set);
+                }
+
+                dbgf_all(DBGT_INFO, "updated changed=%d", changed_readfds);
+                changed_readfds = 0;
+        }
 }
 
 
 
 
 
-void register_task( TIME_T timeout, void (* task) (void *), void *data )
+void task_register(TIME_T timeout, void (* task) (void *), void *data, int32_t tag)
 {
+#define REGISTER_TASK_TIMEOUT_MAX MIN( 100000, TIME_MAX>>2)
+
         TRACE_FUNCTION_CALL;
-        assertion(-500475, (remove_task(task, data) == FAILURE));
+
+        assertion(-500475, (task_remove(task, data) == FAILURE));
+        assertion(-500989, (timeout < REGISTER_TASK_TIMEOUT_MAX ));
 
 	struct list_node *list_pos, *prev_pos = (struct list_node *)&task_list;
 	struct task_node *tmp_tn = NULL;
 
 	
 	//TODO: allocating and freeing tn and tn->data may be much faster when done by registerig function.. 
-	struct task_node *tn = debugMalloc( sizeof( struct task_node ), -300034 );
+	struct task_node *tn = debugMalloc( sizeof( struct task_node ), tag );
 	memset( tn, 0, sizeof(struct task_node) );
 	
 	tn->expire = bmx_time + timeout;
@@ -163,7 +156,8 @@ void register_task( TIME_T timeout, void (* task) (void *), void *data )
 	
 }
 
-IDM_T remove_task(void (* task) (void *), void *data)
+
+IDM_T task_remove(void (* task) (void *), void *data)
 {
         TRACE_FUNCTION_CALL;
 
@@ -179,10 +173,10 @@ IDM_T remove_task(void (* task) (void *), void *data)
                         list_del_next(&task_list, prev_pos);
 			
 			debugFree( tn, -300080 );
-#ifdef NO_ASSERTIONS
+#ifndef EXTREME_PARANOIA
                         return SUCCESS;
 #else
-                        assertion(-500474, (ret == FAILURE));
+                        ASSERTION(-500474, (ret == FAILURE));
                         ret = SUCCESS;
 #endif
 			
@@ -196,7 +190,7 @@ IDM_T remove_task(void (* task) (void *), void *data)
 }
 
 
-TIME_T whats_next( void )
+TIME_T task_next( void )
 {
         TRACE_FUNCTION_CALL;
 
@@ -208,12 +202,13 @@ TIME_T whats_next( void )
 			
 		if ( U32_LE( tn->expire, bmx_time )  ) {
 
+                        void (* task) (void *fpara) = tn->task;
+                        void *data = tn->data;
 
 			list_del_next( &task_list, prev_pos );
+			debugFree( tn, -300081 ); // remove before executing because otherwise we get memory leak if taks causes an assertion
 			
-			(*(tn->task)) (tn->data);
-			
-			debugFree( tn, -300081 );
+			(*(task)) (data);
 
                         CHECK_INTEGRITY();
 
@@ -228,74 +223,6 @@ TIME_T whats_next( void )
 	return MAX_SELECT_TIMEOUT_MS;
 }
 
-static int open_ifevent_netlink_sk(void)
-{
-	struct sockaddr_nl sa;
-	int32_t unix_opts;	
-	memset (&sa, 0, sizeof(sa));
-	sa.nl_family = AF_NETLINK;
-	sa.nl_groups |= RTMGRP_IPV4_IFADDR | RTMGRP_IPV4_MROUTE | RTMGRP_IPV4_ROUTE | RTMGRP_IPV4_RULE;
-        sa.nl_groups |= RTMGRP_IPV6_IFADDR | RTMGRP_IPV6_MROUTE | RTMGRP_IPV6_ROUTE | RTMGRP_IPV6_IFINFO | RTMGRP_IPV6_PREFIX;
-	sa.nl_groups |= RTMGRP_LINK; // (this can result in select storms with buggy wlan devices
-
-
-	if ( ( ifevent_sk = socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE) ) < 0 ) {
-		dbg( DBGL_SYS, DBGT_ERR, "can't create af_netlink socket for reacting on if up/down events: %s",
-		     strerror(errno) );
-		ifevent_sk = 0;
-		return -1;
-	}
-	
-	
-	unix_opts = fcntl( ifevent_sk, F_GETFL, 0 );
-	fcntl( ifevent_sk, F_SETFL, unix_opts | O_NONBLOCK );
-	
-	if ( ( bind( ifevent_sk, (struct sockaddr*)&sa, sizeof(sa) ) ) < 0 ) {
-		dbg( DBGL_SYS, DBGT_ERR, "can't bind af_netlink socket for reacting on if up/down events: %s",
-		     strerror(errno) );
-		ifevent_sk = 0;
-		return -1;
-	}
-	
-	change_selects();
-	
-	return ifevent_sk;
-}
-
-static void close_ifevent_netlink_sk(void)
-{
-	
-	if ( ifevent_sk > 0 )
-		close( ifevent_sk );
-	
-	ifevent_sk = 0;
-}
-
-static void recv_ifevent_netlink_sk(void)
-{
-        TRACE_FUNCTION_CALL;
-	char buf[4096]; //test this with a very small value !!
-
-	struct sockaddr_nl sa;
-
-        struct iovec iov;
-
-        memset(&iov, 0, sizeof (struct iovec));
-
-        iov.iov_base = buf;
-        iov.iov_len = sizeof (buf);
-
-        struct msghdr msg; // = {(void *) & sa, sizeof (sa), &iov, 1, NULL, 0, 0};
-        memset( &msg, 0, sizeof( struct msghdr));
-        msg.msg_name = (void *)&sa;
-        msg.msg_namelen = sizeof(sa); /* Length of address data.  */
-        msg.msg_iov = &iov; /* Vector of data to send/receive into.  */
-        msg.msg_iovlen = 1; /* Number of elements in the vector.  */
-
-	while( recvmsg (ifevent_sk, &msg, 0) > 0 );
-	
-	//so fare I just want to consume the pending message...	
-}
 
 
 void wait4Event(TIME_T timeout)
@@ -317,7 +244,8 @@ void wait4Event(TIME_T timeout)
 loop4Event:
 	
 	while ( U32_GT(return_time, bmx_time) ) {
-		
+
+
 		check_selects();
 		
 		memcpy( &tmp_wait_set, &receive_wait_set, sizeof(fd_set) );
@@ -326,6 +254,8 @@ loop4Event:
 		tv.tv_usec = ( (return_time - bmx_time) % 1000 ) * 1000;
 			
 		selected = select( receive_max_sock + 1, &tmp_wait_set, NULL, NULL, &tv );
+
+                dbgf_all(DBGT_INFO, "select=%d", selected);
 	
 		upd_time( &(pb.i.tv_stamp) );
 		
@@ -336,7 +266,7 @@ loop4Event:
 		if ( bmx_time < last_get_time_result ) {
 				
 			last_get_time_result = bmx_time;
-			dbg( DBGL_SYS, DBGT_WARN, "detected Timeoverlap..." );
+			dbg_sys(DBGT_WARN, "detected Timeoverlap..." );
 			
 			goto wait4Event_end;
 		}
@@ -347,7 +277,7 @@ loop4Event:
                         static TIME_T last_interrupted_syscall = 0;
 
                         if (((TIME_T) (bmx_time - last_interrupted_syscall) < 1000)) {
-                                dbg(DBGL_SYS, DBGT_WARN, //happens when receiving SIGHUP
+                                dbg_sys(DBGT_WARN, //happens when receiving SIGHUP
                                         "can't select! Waiting a moment! errno: %s", strerror(errno));
                         }
 
@@ -379,27 +309,32 @@ loop4Event:
 			goto loop4Event;
 		}
 		
+/*
 		// check for changed interface status...
 		if ( FD_ISSET( ifevent_sk, &tmp_wait_set ) ) {
-			
-			dbg_mute( 40, DBGL_CHANGES, DBGT_INFO,
-			     "select() indicated changed interface status! Going to check interfaces!" );
+
+                        dbgf_track(DBGT_INFO, "detected changed interface status! Going to check interfaces!");
 			
 			recv_ifevent_netlink_sk( );
+
+                        dev_check2();
 			
+
 			//do NOT delay checking of interfaces to not miss ifdown/up of interfaces !!
-                        if (kernel_if_config() /*changed*/)
+                        if (kernel_if_config() ) //just call if changed!
                                 dev_check(YES);
+
 			
 			goto wait4Event_end;
 		}
 		
+*/
 		
 		// check for received packets...
                 struct avl_node *it = NULL;
                 while ((pb.i.iif = avl_iterate_item(&dev_ip_tree, &it))) {
 
-			if ( pb.i.iif->linklayer == VAL_DEV_LL_LO )
+			if ( pb.i.iif->linklayer == TYP_DEV_LL_LO )
 				continue;
 				
 			if ( FD_ISSET( pb.i.iif->rx_mcast_sock, &tmp_wait_set ) ) {
@@ -412,9 +347,8 @@ loop4Event:
 				                             (struct sockaddr *)&pb.i.addr, &addr_len );
 				
 				if ( pb.i.total_length < 0  &&  ( errno == EWOULDBLOCK || errno == EAGAIN ) ) {
-					
-					dbgf(DBGL_SYS, DBGT_WARN, 
-					    "sock returned %d errno %d: %s",
+
+                                        dbgf_sys(DBGT_WARN, "sock returned %d errno %d: %s",
 					    pb.i.total_length, errno, strerror(errno) );
 					
 					continue;
@@ -439,9 +373,8 @@ loop4Event:
 				                             (struct sockaddr *)&pb.i.addr, &addr_len );
 				
 				if ( pb.i.total_length < 0  &&  ( errno == EWOULDBLOCK || errno == EAGAIN ) ) {
-					
-					dbgf(DBGL_SYS, DBGT_WARN, 
-					     "sock returned %d errno %d: %s",
+
+                                        dbgf_sys(DBGT_WARN, "sock returned %d errno %d: %s",
 					     pb.i.total_length, errno, strerror(errno) );
 					
 					continue;
@@ -483,8 +416,7 @@ loop4Event:
 				pb.i.total_length = recvmsg( pb.i.iif->unicast_sock, &msghdr, MSG_DONTWAIT  );
 				
 				if ( pb.i.total_length < 0  &&  ( errno == EWOULDBLOCK || errno == EAGAIN ) ) {
-					dbgf(DBGL_SYS, DBGT_WARN, 
-					    "sock returned %d errno %d: %s",
+                                        dbgf_sys(DBGT_WARN, "sock returned %d errno %d: %s",
 					    pb.i.total_length, errno, strerror(errno) );
 					continue;
 				}
@@ -543,8 +475,6 @@ loop4ActivePlugins:
 		// check for new control clients...
 		if ( FD_ISSET( unix_sock, &tmp_wait_set ) ) {
 				
-			dbgf_all( DBGT_INFO, "new control client..." );
-				
 			accept_ctrl_node();
 			
 			if ( --selected == 0 )
@@ -578,11 +508,11 @@ loop4ActiveClients:
 		}
 
 		
-	
-		if ( selected )
-			dbg( DBGL_CHANGES, DBGT_WARN, 
-			     "select() returned with  %d unhandled event(s)!! return_time %d, curr_time %d",
-			     selected, return_time, bmx_time );
+
+                if (selected) {
+                        dbg_track(DBGT_WARN, "select() returned %d unhandled event(s)!! return_time %d, curr_time %d",
+                                selected, return_time, bmx_time);
+                }
 		
 		break;
 	}
@@ -594,13 +524,6 @@ wait4Event_end:
 	return;
 }
 
-void init_schedule(void)
-{
-
-	if ( open_ifevent_netlink_sk() < 0 )
-		cleanup_all( -500150 );
-	
-}
 
 
 
@@ -609,8 +532,7 @@ void cleanup_schedule( void ) {
 
         struct task_node *tn;
 
-        while ( (tn = list_rem_head( &task_list )))
+        while ( (tn = list_del_head( &task_list )))
                 debugFree(tn, -300082);
         
-	close_ifevent_netlink_sk();	
 }

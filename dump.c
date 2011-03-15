@@ -78,7 +78,7 @@ void update_traffic_statistics_task(void *data)
         struct dev_node *dev;
         struct avl_node *an = NULL;
 
-        register_task(DUMP_STATISTIC_PERIOD, update_traffic_statistics_task, NULL);
+        task_register(DUMP_STATISTIC_PERIOD, update_traffic_statistics_task, NULL, -300348);
         update_traffic_statistics_data( &dump_all );
 
         while ((dev = avl_iterate_item(&dev_name_tree, &an))) {
@@ -92,7 +92,7 @@ void update_traffic_statistics_task(void *data)
         }
 }
 
-
+STATIC_FUNC
 void dump(struct packet_buff *pb)
 {
 
@@ -109,15 +109,25 @@ void dump(struct packet_buff *pb)
 
         uint16_t plength = ntohs(phdr->pkt_length);
 
-        dbgf(DBGL_DUMP, DBGT_NONE, "%s srcIP=%-16s dev=%-12s udpPayload=%-d",
+        dbgf_dump(DBGT_NONE, "%s srcIP=%-16s dev=%-12s udpPayload=%-d",
                 direction == DUMP_DIRECTION_IN ? "in " : "out", pb->i.llip_str, dev->label_cfg.str, plength);
+
+        dbgf_dump(DBGT_NONE, "%s data: %s",
+                direction == DUMP_DIRECTION_IN ? "in " : "out", memAsStr(((uint8_t*) phdr), plength));
+
+        dbgf_dump(DBGT_NONE, "          bmx_version     pkt_sqn local_id  next frame...");
+        dbgf_dump(DBGT_NONE, "            reserved  link_adv_sqn        dev_idx");
+        dbgf_dump(DBGT_NONE, "              pkt_length");
+        dbgf_dump(DBGT_NONE, "                  transmitterIID");
+
+
 
         (*dev_plugin_data)->tmp_all[direction][DUMP_TYPE_UDP_PAYLOAD] += (plength << IMPROVE_ROUNDOFF);
 
         dump_all.tmp_all[direction][DUMP_TYPE_UDP_PAYLOAD] += (plength << IMPROVE_ROUNDOFF);
 
 
-        dbgf(DBGL_DUMP, DBGT_NONE,
+        dbgf_dump(DBGT_NONE,
                 "%s       headerVersion=%-2d reserved=%-2X IID=%-5d headerSize=%-4zu",
                 direction == DUMP_DIRECTION_IN ? "in " : "out",
                 phdr->bmx_version, phdr->reserved, ntohs(phdr->transmitterIID), sizeof (struct packet_header));
@@ -133,10 +143,11 @@ void dump(struct packet_buff *pb)
                 .frames_length = (plength - sizeof (struct packet_header)), .frames_pos = 0
         };
 
-        IDM_T iterator_result;
+        int32_t iterator_result;
         uint16_t frame_length = 0;
+        uint16_t pkt_pos = sizeof (struct packet_header);
 
-        while ((iterator_result = rx_frame_iterate(&it)) > SUCCESS) {
+        while ((iterator_result = rx_frame_iterate(&it)) > TLV_RX_DATA_DONE) {
 
                 char tnum[4];
                 char *tname;
@@ -151,14 +162,20 @@ void dump(struct packet_buff *pb)
                         (it.is_short_header ? sizeof (struct frame_header_short) : sizeof (struct frame_header_long));
 
                 if (packet_frame_handler[it.frame_type].fixed_msg_size) {
-                        frame_msgs = (it.frame_data_length - packet_frame_handler[it.frame_type].data_header_size) / packet_frame_handler[it.frame_type].min_msg_size;
+                        frame_msgs = it.frame_msgs_length / packet_frame_handler[it.frame_type].min_msg_size;
                 }
 
 
-                dbgf(DBGL_DUMP, DBGT_NONE, "%s             frameType=%-12s headerSize=%-3d msgs=%-3d frameSize=%-4d",
+                dbgf_dump(DBGT_NONE, "%s             frame_type=%-12s data_header_size=%-3d msgs=%-3d frame_length=%-4d",
                         direction == DUMP_DIRECTION_IN ? "in " : "out", tname,
                         packet_frame_handler[it.frame_type].data_header_size, frame_msgs, frame_length);
 
+                dbgf_dump(DBGT_NONE, "%s         data [%3d...%3d]:%s",
+                        direction == DUMP_DIRECTION_IN ? "in  hex" : "out hex",
+                        pkt_pos, pkt_pos + frame_length - 1, memAsStr(((uint8_t*) phdr) + pkt_pos, frame_length));
+
+                assertion(-500991, (packet_frame_handler[it.frame_type].min_msg_size));
+                assertion(-500992, (it.frame_msgs_length >= 0));
 
                 (*dev_plugin_data)->tmp_frame[direction][it.frame_type] += (frame_length << IMPROVE_ROUNDOFF);
 
@@ -168,12 +185,23 @@ void dump(struct packet_buff *pb)
 
                 dump_all.tmp_all[direction][DUMP_TYPE_FRAME_HEADER] += ((frame_length - it.frame_data_length) << IMPROVE_ROUNDOFF);
 
+                pkt_pos += frame_length;
         }
 
-        if (iterator_result != SUCCESS) {
-                dbgf(DBGL_DUMP, DBGT_NONE, "%s             ERROR unknown frameType=%-12d size=%i4d - ignoring further frames!!",
-                        direction == DUMP_DIRECTION_IN ? "in " : "out", it.frame_type, frame_length);
+        if (iterator_result != TLV_RX_DATA_DONE) {
+
+                frame_length = it.frame_data_length +
+                        (it.is_short_header ? sizeof (struct frame_header_short) : sizeof (struct frame_header_long));
+
+                dbgf_dump(DBGT_NONE, "%s             ERROR frame_type=%d frame_length=%d frame_data_lenghth=%d short_header=%d iterator_result=%d - ignoring further frames!!",
+                        direction == DUMP_DIRECTION_IN ? "in " : "out", it.frame_type, frame_length, it.frame_data_length, it.is_short_header, iterator_result);
+
+                dbgf_dump(DBGT_NONE, "%s         data [%3d...%3d]:%s",
+                        direction == DUMP_DIRECTION_IN ? "in  hex" : "out hex",
+                        pkt_pos, pkt_pos + frame_length - 1, memAsStr(((uint8_t*) phdr) + pkt_pos, frame_length));
         }
+
+        assertion(-500990, (IMPLIES(direction == DUMP_DIRECTION_OUT, iterator_result == TLV_RX_DATA_DONE)));
 
 }
 
@@ -321,6 +349,9 @@ int32_t opt_traffic_statistics(uint8_t cmd, uint8_t _save, struct opt_type *opt,
 
                 }
 
+                dbg_printf(cn, "\n");
+
+
         }
 
         return SUCCESS;
@@ -342,9 +373,9 @@ struct opt_type dump_options[]=
 			"<DEV>",		"show traffic statistics for given device name, summary, or all\n"}
 
 };
-
-
-void init_cleanup_dev_traffic_data(void* devp) {
+STATIC_FUNC
+void init_cleanup_dev_traffic_data(int32_t cb_id, void* devp)
+{
 
         struct dev_node *dev;
         struct avl_node *an;
@@ -377,7 +408,7 @@ STATIC_FUNC
 void cleanup_dump( void )
 {
         dump_terminating = YES;
-        init_cleanup_dev_traffic_data(NULL);
+        init_cleanup_dev_traffic_data(0, NULL);
         set_packet_hook(dump, DEL);
 }
 
@@ -393,7 +424,7 @@ int32_t init_dump( void )
 
         register_options_array(dump_options, sizeof ( dump_options));
 
-        register_task(DUMP_STATISTIC_PERIOD, update_traffic_statistics_task, NULL);
+        task_register(DUMP_STATISTIC_PERIOD, update_traffic_statistics_task, NULL, -300349);
 
         set_packet_hook(dump, ADD);
 
@@ -412,7 +443,7 @@ struct plugin *dump_get_plugin( void ) {
         dump_plugin.plugin_code_version = CODE_VERSION;
 	dump_plugin.cb_init = init_dump;
 	dump_plugin.cb_cleanup = cleanup_dump;
-        dump_plugin.cb_plugin_handler[PLUGIN_CB_DEV_EVENT] = init_cleanup_dev_traffic_data;
+        dump_plugin.cb_plugin_handler[PLUGIN_CB_BMX_DEV_EVENT] = init_cleanup_dev_traffic_data;
 
         return &dump_plugin;
 }

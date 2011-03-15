@@ -25,8 +25,8 @@
 
 #include "bmx.h"
 
-
-#define MAGIC_NUMBER 0x12345678
+#define MAGIC_NUMBER_HEADER 0xB2B2B2B2
+#define MAGIC_NUMBER_TRAILOR 0xB2
 
 
 #ifndef NO_DEBUG_MALLOC
@@ -39,14 +39,10 @@ struct chunkHeader
 	struct chunkHeader *next;
 	uint32_t length;
 	int32_t tag;
-	uint32_t magicNumber;
+        uint32_t magicNumberHeader;
 };
 
-struct chunkTrailer
-{
-	uint32_t magicNumber;
-};
-
+typedef unsigned char MAGIC_TRAILER_T;
 
 
 #ifdef MEMORY_USAGE
@@ -101,8 +97,7 @@ void removeMemory(int32_t tag, int32_t freetag)
 
 			if ( walker->counter == 0 ) {
 
-				dbg( DBGL_SYS, DBGT_ERR, 
-				     "Freeing more memory than was allocated: malloc tag = %d, free tag = %d", 
+                                dbg_sys(DBGT_ERR, "Freeing more memory than was allocated: malloc tag = %d, free tag = %d",
 				     tag, freetag );
 				cleanup_all( -500069 );
 
@@ -117,8 +112,7 @@ void removeMemory(int32_t tag, int32_t freetag)
 
 	if ( walker == NULL ) {
 
-		dbg( DBGL_SYS, DBGT_ERR, 
-		     "Freeing memory that was never allocated: malloc tag = %d, free tag = %d",
+                dbg_sys(DBGT_ERR, "Freeing memory that was never allocated: malloc tag = %d, free tag = %d",
 		     tag, freetag );
 		cleanup_all( -500070 );
 	}
@@ -143,36 +137,34 @@ void debugMemory(struct ctrl_node *cn)
 	
 }
 
-#endif
+#endif //#ifdef MEMORY_USAGE
 
 
 void checkIntegrity(void)
 {
 	struct chunkHeader *walker;
-	struct chunkTrailer *chunkTrailer;
+	MAGIC_TRAILER_T *chunkTrailer;
 	unsigned char *memory;
 
 //        dbgf_all(DBGT_INFO, " ");
 
 	for (walker = chunkList; walker != NULL; walker = walker->next)
 	{
-		if (walker->magicNumber != MAGIC_NUMBER)
-		{
-			dbgf( DBGL_SYS, DBGT_ERR, 
-			     "invalid magic number in header: %08x, malloc tag = %d", 
-			     walker->magicNumber, walker->tag );
+		if (walker->magicNumberHeader != MAGIC_NUMBER_HEADER)
+{
+                        dbgf_sys(DBGT_ERR, "invalid magic number in header: %08x, malloc tag = %d",
+			     walker->magicNumberHeader, walker->tag );
 			cleanup_all( -500073 );
 		}
 
 		memory = (unsigned char *)walker;
 
-		chunkTrailer = (struct chunkTrailer *)(memory + sizeof(struct chunkHeader) + walker->length);
+		chunkTrailer = (MAGIC_TRAILER_T*)(memory + sizeof(struct chunkHeader) + walker->length);
 
-		if (chunkTrailer->magicNumber != MAGIC_NUMBER)
-		{
-			dbgf( DBGL_SYS, DBGT_ERR, 
-			     "invalid magic number in trailer: %08x, malloc tag = %d", 
-			     chunkTrailer->magicNumber, walker->tag );
+		if (*chunkTrailer != MAGIC_NUMBER_TRAILOR)
+{
+                        dbgf_sys(DBGT_ERR, "invalid magic number in trailer: %08x, malloc tag = %d",
+			     *chunkTrailer, walker->tag );
 			cleanup_all( -500075 );
 		}
 	}
@@ -203,27 +195,27 @@ void *_debugMalloc(uint32_t length, int32_t tag) {
 	
 	unsigned char *memory;
 	struct chunkHeader *chunkHeader;
-	struct chunkTrailer *chunkTrailer;
+	MAGIC_TRAILER_T *chunkTrailer;
 	unsigned char *chunk;
 
-	memory = malloc(length + sizeof(struct chunkHeader) + sizeof(struct chunkTrailer));
+	memory = malloc(length + sizeof(struct chunkHeader) + sizeof(MAGIC_TRAILER_T));
 
 	if (memory == NULL)
 	{
-		dbg( DBGL_SYS, DBGT_ERR, "Cannot allocate %u bytes, malloc tag = %d", 
-		     (unsigned int)(length + sizeof(struct chunkHeader) + sizeof(struct chunkTrailer)), tag );
+		dbg_sys(DBGT_ERR, "Cannot allocate %u bytes, malloc tag = %d",
+		     (unsigned int)(length + sizeof(struct chunkHeader) + sizeof(MAGIC_TRAILER_T)), tag );
 		cleanup_all( -500076 );
 	}
 
 	chunkHeader = (struct chunkHeader *)memory;
 	chunk = memory + sizeof(struct chunkHeader);
-	chunkTrailer = (struct chunkTrailer *)(memory + sizeof(struct chunkHeader) + length);
+	chunkTrailer = (MAGIC_TRAILER_T*)(memory + sizeof(struct chunkHeader) + length);
 
 	chunkHeader->length = length;
 	chunkHeader->tag = tag;
-	chunkHeader->magicNumber = MAGIC_NUMBER;
+	chunkHeader->magicNumberHeader = MAGIC_NUMBER_HEADER;
 
-	chunkTrailer->magicNumber = MAGIC_NUMBER;
+	*chunkTrailer = MAGIC_NUMBER_TRAILOR;
 
 	chunkHeader->next = chunkList;
 	chunkList = chunkHeader;
@@ -232,7 +224,7 @@ void *_debugMalloc(uint32_t length, int32_t tag) {
 
 	addMemory( length, tag );
 
-#endif
+#endif //#ifdef MEMORY_USAGE
 
 	return chunk;
 }
@@ -242,7 +234,7 @@ void *_debugRealloc(void *memoryParameter, uint32_t length, int32_t tag)
 	
 	unsigned char *memory;
 	struct chunkHeader *chunkHeader=NULL;
-	struct chunkTrailer *chunkTrailer;
+	MAGIC_TRAILER_T *chunkTrailer;
 	unsigned char *result;
 	uint32_t copyLength;
 
@@ -250,21 +242,19 @@ void *_debugRealloc(void *memoryParameter, uint32_t length, int32_t tag)
 		memory = memoryParameter;
 		chunkHeader = (struct chunkHeader *)(memory - sizeof(struct chunkHeader));
 
-		if (chunkHeader->magicNumber != MAGIC_NUMBER)
-		{
-			dbgf( DBGL_SYS, DBGT_ERR, 
-			     "invalid magic number in header: %08x, malloc tag = %d", 
-			     chunkHeader->magicNumber, chunkHeader->tag );
+		if (chunkHeader->magicNumberHeader != MAGIC_NUMBER_HEADER)
+{
+                        dbgf_sys(DBGT_ERR, "invalid magic number in header: %08x, malloc tag = %d",
+			     chunkHeader->magicNumberHeader, chunkHeader->tag );
 			cleanup_all( -500078 );
-		}
+                }
 
-		chunkTrailer = (struct chunkTrailer *)(memory + chunkHeader->length);
+                chunkTrailer = (MAGIC_TRAILER_T *) (memory + chunkHeader->length);
 
-		if (chunkTrailer->magicNumber != MAGIC_NUMBER)
-		{
-			dbgf( DBGL_SYS, DBGT_ERR, 
-			     "invalid magic number in trailer: %08x, malloc tag = %d", 
-			     chunkTrailer->magicNumber, chunkHeader->tag );
+		if (*chunkTrailer != MAGIC_NUMBER_TRAILOR)
+{
+                        dbgf_sys(DBGT_ERR, "invalid magic number in trailer: %08x, malloc tag = %d",
+			     *chunkTrailer, chunkHeader->tag );
 			cleanup_all( -500079 );
 		}
 	}
@@ -289,18 +279,18 @@ void _debugFree(void *memoryParameter, int tag)
 	
 	unsigned char *memory;
 	struct chunkHeader *chunkHeader;
-	struct chunkTrailer *chunkTrailer;
+	MAGIC_TRAILER_T *chunkTrailer;
 	struct chunkHeader *walker;
 	struct chunkHeader *previous;
 
 	memory = memoryParameter;
 	chunkHeader = (struct chunkHeader *)(memory - sizeof(struct chunkHeader));
 
-	if (chunkHeader->magicNumber != MAGIC_NUMBER)
+	if (chunkHeader->magicNumberHeader != MAGIC_NUMBER_HEADER)
 	{
-		dbgf( DBGL_SYS, DBGT_ERR, 
-		     "invalid magic number in header: %08x, malloc tag = %d, free tag = %d", 
-		     chunkHeader->magicNumber, chunkHeader->tag, tag );
+		dbgf_sys(DBGT_ERR,
+		     "invalid magic number in header: %08x, malloc tag = %d, free tag = %d, malloc size = %d",
+                        chunkHeader->magicNumberHeader, chunkHeader->tag, tag, chunkHeader->length);
 		cleanup_all( -500080 );
 	}
 
@@ -316,8 +306,8 @@ void _debugFree(void *memoryParameter, int tag)
 
 	if (walker == NULL)
 	{
-		dbg( DBGL_SYS, DBGT_ERR, "Double free detected, malloc tag = %d, free tag = %d", 
-		     chunkHeader->tag, tag );
+		dbg_sys(DBGT_ERR, "Double free detected, malloc tag = %d, free tag = %d malloc size = %d",
+		     chunkHeader->tag, tag, chunkHeader->length );
 		cleanup_all( -500081 );
 	}
 
@@ -328,13 +318,11 @@ void _debugFree(void *memoryParameter, int tag)
 		previous->next = walker->next;
 
 
-	chunkTrailer = (struct chunkTrailer *)(memory + chunkHeader->length);
+	chunkTrailer = (MAGIC_TRAILER_T *)(memory + chunkHeader->length);
 
-	if (chunkTrailer->magicNumber != MAGIC_NUMBER)
-	{
-		dbgf( DBGL_SYS, DBGT_ERR, 
-		     "invalid magic number in trailer: %08x, malloc tag = %d, free tag = %d",
-		     chunkTrailer->magicNumber, chunkHeader->tag, tag );
+	if (*chunkTrailer != MAGIC_NUMBER_TRAILOR) {
+                dbgf_sys(DBGT_ERR, "invalid magic number in trailer: %08x, malloc tag = %d, free tag = %d, malloc size = %d",
+                        *chunkTrailer, chunkHeader->tag, tag, chunkHeader->length);
 		cleanup_all( -500082 );
 	}
 
@@ -342,14 +330,14 @@ void _debugFree(void *memoryParameter, int tag)
 
 	removeMemory( chunkHeader->tag, tag );
 
-#endif
+#endif //#ifdef MEMORY_USAGE
 
 	free(chunkHeader);
 	
 
 }
 
-#else
+#else //#ifndef NO_DEBUG_MALLOC
 
 void checkIntegrity(void)
 {
@@ -371,7 +359,7 @@ void *_debugMalloc(uint32_t length, int32_t tag)
 
 	if (result == NULL)
 	{
-		dbg( DBGL_SYS, DBGT_ERR, "Cannot allocate %u bytes, malloc tag = %d", length, tag );
+		dbg_sys(DBGT_ERR, "Cannot allocate %u bytes, malloc tag = %d", length, tag );
 		cleanup_all( -500072 );
 	}
 
@@ -385,7 +373,7 @@ void *_debugRealloc(void *memory, uint32_t length, int32_t tag)
 	result = realloc(memory, length);
 
 	if (result == NULL) {
-		dbg( DBGL_SYS, DBGT_ERR, "Cannot re-allocate %u bytes, malloc tag = %d", length, tag );
+		dbg_sys(DBGT_ERR, "Cannot re-allocate %u bytes, malloc tag = %d", length, tag );
 		cleanup_all( -500071 );
 	}
 

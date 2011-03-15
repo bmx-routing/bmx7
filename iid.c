@@ -35,7 +35,7 @@ int8_t iid_extend_repos(struct iid_repos *rep)
 
         if (rep->arr_size + IID_REPOS_SIZE_BLOCK >= IID_REPOS_SIZE_WARN) {
 
-                dbgf( DBGL_SYS, DBGT_WARN, "%d", rep->arr_size);
+                dbgf_sys(DBGT_WARN, "%d", rep->arr_size);
 
                 if (rep->arr_size + IID_REPOS_SIZE_BLOCK >= IID_REPOS_SIZE_MAX)
                         return FAILURE;
@@ -133,7 +133,7 @@ IID_NODE_T* iid_get_node_by_myIID4x(IID_T myIID4x)
 
         if (dhn && !dhn->on) {
 
-                dbgf(DBGL_CHANGES, DBGT_INFO, "myIID4x %d INVALIDATED %d sec ago",
+                dbgf_track(DBGT_INFO, "myIID4x %d INVALIDATED %d sec ago",
                         myIID4x, (bmx_time - dhn->referred_by_me_timestamp) / 1000);
 
                 return NULL;
@@ -144,14 +144,16 @@ IID_NODE_T* iid_get_node_by_myIID4x(IID_T myIID4x)
 }
 
 
-IID_NODE_T* _iid_get_node_by_neighIID4x( const char *f, IID_NEIGH_T *nn, IID_T neighIID4x )
+IID_NODE_T* iid_get_node_by_neighIID4x(IID_NEIGH_T *nn, IID_T neighIID4x, IDM_T verbose)
 {
         TRACE_FUNCTION_CALL;
 
         if (!nn || nn->neighIID4x_repos.max_free <= neighIID4x) {
 
-                dbgf(DBGL_CHANGES, DBGT_INFO, "%s NB=%s neighIID4x=%d to large for neighIID4x_repos",
-                        f, nn ? nn->dhn->on->id.name: "???", neighIID4x);
+                if (verbose) {
+                        dbgf_all(DBGT_INFO, "NB=%s neighIID4x=%d to large for neighIID4x_repos",
+                                nn ? nn->dhn->on->id.name : "???", neighIID4x);
+                }
                 return NULL;
         }
 
@@ -159,13 +161,16 @@ IID_NODE_T* _iid_get_node_by_neighIID4x( const char *f, IID_NEIGH_T *nn, IID_T n
 
 
         if (!ref->myIID4x ) {
-                dbgf(DBGL_CHANGES, DBGT_WARN, "%s neighIID4x=%d not recorded by neighIID4x_repos", f, neighIID4x);
-
+                if (verbose) {
+                        dbgf_all(DBGT_WARN, "neighIID4x=%d not recorded by neighIID4x_repos", neighIID4x);
+                }
         } else if (((((uint16_t) bmx_time_sec) - ref->referred_by_neigh_timestamp_sec) >
                 ((MIN_DHASH_TO - (MIN_DHASH_TO / DHASH_TO_TOLERANCE_FK)) / 1000))) {
 
-                dbgf(DBGL_CHANGES, DBGT_WARN, "%s neighIID4x=%d outdated in neighIID4x_repos, now_sec=%d, ref_sec=%d",
-                        f, neighIID4x, bmx_time_sec, ref->referred_by_neigh_timestamp_sec);
+                if (verbose) {
+                        dbgf_track(DBGT_WARN, "neighIID4x=%d outdated in neighIID4x_repos, now_sec=%d, ref_sec=%d",
+                                neighIID4x, bmx_time_sec, ref->referred_by_neigh_timestamp_sec);
+                }
 
         } else {
 
@@ -178,13 +183,15 @@ IID_NODE_T* _iid_get_node_by_neighIID4x( const char *f, IID_NEIGH_T *nn, IID_T n
                         if (dhn)
                                 return dhn;
 
-                        dbgf(DBGL_CHANGES, DBGT_WARN, "%s neighIID4x=%d -> myIID4x=%d empty!",
-                                f, neighIID4x, ref->myIID4x);
+                        if (verbose) {
+                                dbgf_track(DBGT_WARN, "neighIID4x=%d -> myIID4x=%d empty!", neighIID4x, ref->myIID4x);
+                        }
 
                 } else {
 
-                        dbgf(DBGL_CHANGES, DBGT_WARN, "%s neighIID4x=%d -> myIID4x=%d to large!",
-                                f, neighIID4x, ref->myIID4x);
+                        if (verbose) {
+                                dbgf_track(DBGT_WARN, "neighIID4x=%d -> myIID4x=%d to large!", neighIID4x, ref->myIID4x);
+                        }
                 }
         }
 
@@ -300,9 +307,9 @@ IDM_T iid_set_neighIID4x(struct iid_repos *neigh_rep, IID_T neighIID4x, IID_T my
                                 return SUCCESS;
                         }
 
-                        IID_NODE_T *dhn_old = my_iid_repos.arr.node[ref->myIID4x];
-
-                        dbgf(DBGL_SYS, DBGT_ERR, "demanding mapping: neighIID4x=%d to myIID4x=%d "
+                        IID_NODE_T *dhn_old;
+                        dhn_old = my_iid_repos.arr.node[ref->myIID4x]; // avoid -DNO_DEBUG_SYS warnings
+                        dbgf_sys(DBGT_ERR, "demanding mapping: neighIID4x=%d to myIID4x=%d "
                                 "(%s updated=%d last_referred_by_me=%d)  "
                                 "already used for ref->myIID4x=%d (last_referred_by_neigh_sec=%d %s=%jd last_referred_by_me=%jd)! Reused faster than allowed!!",
                                 neighIID4x, myIID4x, dhn->on->id.name, dhn->on->updated_timestamp,
@@ -331,7 +338,7 @@ IDM_T iid_set_neighIID4x(struct iid_repos *neigh_rep, IID_T neighIID4x, IID_T my
                         neigh_rep->arr_size > my_iid_repos.arr_size &&
                         neigh_rep->tot_used < neigh_rep->arr_size / (2 * IID_SPREAD_FK)) {
 
-                        dbgf(DBGL_SYS, DBGT_WARN, "IID_REPOS USAGE WARNING neighIID4x %d myIID4x %d arr_size %d used %d",
+                        dbgf_sys(DBGT_WARN, "IID_REPOS USAGE WARNING neighIID4x %d myIID4x %d arr_size %d used %d",
                                 neighIID4x, myIID4x, neigh_rep->arr_size, neigh_rep->tot_used );
                 }
 

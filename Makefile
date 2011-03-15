@@ -20,23 +20,26 @@
 
 # optinal defines:
 # CFLAGS += -static
-# CFLAGS += -pg   # "-pg" with openWrt toolchain results in "gcrt1.o: No such file" ?!
+# CFLAGS += -pg   # "-pg" with openWrt causes "gcrt1.o: No such file"! Needs ld -o myprog /lib/gcrt0.o myprog.o utils.o -lc_p, grep: http://www.cs.utah.edu/dept/old/texinfo/as/gprof.html
+
 
 # paranoid defines (helps bug hunting during development):
-# CFLAGS += -DPROFILING -DEXTREME_PARANOIA -DEXIT_ON_ERROR
+# CFLAGS += -DEXTREME_PARANOIA -DEXIT_ON_ERROR -DPROFILING 
 
 # Some test cases:
 # CFLAGS += -DTEST_LINK_ID_COLLISION_DETECTION
 # CFLAGS += -DTEST_DEBUG          # (testing syntax of __VA_ARGS__ dbg...() macros)
 # CFLAGS += -DAVL_DEBUG -DAVL_TEST
 
-# optional defines (you may disable these features if you dont need it):
+# optional defines (you may disable these features if you dont need them)
 # CFLAGS += -DNO_DEBUG_ALL
+# CFLAGS += -DNO_DEBUG_DUMP
+# CFLAGS += -DNO_DEBUG_TRACK
+# CFLAGS += -DNO_DEBUG_SYS
 # CFLAGS += -DLESS_OPTIONS
 # CFLAGS += -DNO_TRAFFIC_DUMP
 # CFLAGS += -DNO_DYN_PLUGIN
 # CFLAGS += -DNO_TRACE_FUNCTION_CALLS
-# CFLAGS += -DNO_DEBU_GALL
 # CFLAGS += -DNO_DEBUG_MALLOC
 # CFLAGS += -DNO_MEMORY_USAGE
 
@@ -50,15 +53,20 @@
 # CFLAGS += -DPROFILING           # (no static functions -> better profiling and cores)
 # CFLAGS += -DNO_DEPRECATED	  # (for backward compatibility)
 
-
-
-
-#EXTRA_CFLAGS +=
+#EXTRA_CFLAGS += 
 #EXTRA_LDFLAGS +=
 
-LDFLAGS +=	-g3
+#for profiling:
+#EXTRA_CFLAGS="-DPROFILING -pg"
+
+#for embedded stuff (reducing binary size and cpu footprint):
+#EXTRA_CFLAGS="-DNO_DEBUG_ALL -DNO_DEBUG_TRACK -DNO_TRAFFIC_DUMP -DNO_DEBUG_MALLOC -DNO_TRACE_FUNCTION_CALLS -DNO_ASSERTIONS -DEXIT_ON_ERROR"
+
+
+LDFLAGS += -g3
 
 LDFLAGS += $(shell echo "$(CFLAGS) $(EXTRA_CFLAGS)" | grep -q "DNO_DYNPLUGIN" || echo "-Wl,-export-dynamic -ldl" )
+LDFLAGS += $(shell echo "$(CFLAGS) $(EXTRA_CFLAGS)" | grep -q "DPROFILING" && echo "-pg -lc" )
 
 
 
@@ -70,8 +78,8 @@ SRC_FILES= "\(\.c\)\|\(\.h\)\|\(Makefile\)\|\(INSTALL\)\|\(LIESMICH\)\|\(README\
 SRC_C =  bmx.c msg.c metrics.c tools.c plugin.c list.c allocate.c avl.c iid.c hna.c control.c schedule.c ip.c cyassl/sha.c cyassl/random.c cyassl/arc4.c
 SRC_H =  bmx.h msg.h metrics.h tools.h plugin.h list.h allocate.h avl.h iid.h hna.h control.h schedule.h ip.h cyassl/sha.h cyassl/random.h cyassl/arc4.h
 
-SRC_C += $(shell echo "$(CFLAGS)" | grep -q "DNO_TRAFFIC_DUMP" || echo dump.c )
-SRC_H += $(shell echo "$(CFLAGS)" | grep -q "DNO_TRAFFIC_DUMP" || echo dump.h )
+SRC_C += $(shell echo "$(CFLAGS) $(EXTRA_CFLAGS)" | grep -q "DNO_TRAFFIC_DUMP" || echo dump.c )
+SRC_H += $(shell echo "$(CFLAGS) $(EXTRA_CFLAGS)" | grep -q "DNO_TRAFFIC_DUMP" || echo dump.h )
 
 OBJS=  $(SRC_C:.c=.o)
 

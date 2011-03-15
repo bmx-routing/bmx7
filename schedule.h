@@ -18,11 +18,11 @@
 
 
 
-void init_schedule( void );
+//void init_schedule( void );
 void change_selects( void );
 void cleanup_schedule( void );
-void register_task( TIME_T timeout, void (* task) (void *), void *data );
-IDM_T remove_task(void (* task) (void *), void *data);
-TIME_T whats_next( void );
+void task_register( TIME_T timeout, void (* task) (void *), void *data, int32_t tag );
+IDM_T task_remove(void (* task) (void *), void *data);
+TIME_T task_next( void );
 void wait4Event( TIME_T timeout );
 

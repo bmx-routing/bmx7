@@ -30,7 +30,6 @@
 
 static LIST_SIMPEL(plugin_list, struct plugin_node, list, list);
 
-
 static LIST_SIMPEL(cb_route_change_list, struct cb_route_change_node, list, list);
 static LIST_SIMPEL(cb_packet_list, struct cb_packet_node, list, list);
 LIST_SIMPEL(cb_fd_list, struct cb_fd_node, list, list);
@@ -49,14 +48,14 @@ void cb_plugin_hooks(int32_t cb_id, void* data)
 		
 		pn = list_entry( list_pos, struct plugin_node, list );
 		
-		if ( prev_pn  &&  prev_pn->plugin  &&  prev_pn->plugin->cb_plugin_handler[cb_id] )
-			(*(prev_pn->plugin->cb_plugin_handler[cb_id])) ( data );
+		if ( prev_pn  &&  prev_pn->plugin  &&  prev_pn->plugin->cb_plugin_handler[cb_id])
+                        (*(prev_pn->plugin->cb_plugin_handler[cb_id])) (cb_id, data);
 		
 		prev_pn = pn;
 	}
 	
-	if ( prev_pn  &&  prev_pn->plugin  &&  prev_pn->plugin->cb_plugin_handler[cb_id] )
-		((*(prev_pn->plugin->cb_plugin_handler[cb_id])) (data));
+	if ( prev_pn  &&  prev_pn->plugin  &&  prev_pn->plugin->cb_plugin_handler[cb_id])
+                ((*(prev_pn->plugin->cb_plugin_handler[cb_id])) (cb_id, data));
 	
 }
 
@@ -68,7 +67,7 @@ void _set_thread_hook(int32_t cb_type, void (*cb_handler) (void), int8_t del, st
 	struct cb_node *cbn;
 		
 	if ( !cb_type  ||  !cb_handler ) {
-		cleanup_all( -500143 );
+                cleanup_all(-500143);
 	}
 	
 	list_for_each_safe( list_pos, tmp_pos, (struct list_head*) cb_list ) {
@@ -84,8 +83,8 @@ void _set_thread_hook(int32_t cb_type, void (*cb_handler) (void), int8_t del, st
                                 return;
 				
 			} else {
-				cleanup_all( -500144 );
-				//dbgf( DBGL_SYS, DBGT_ERR, "cb_hook for cb_type %d and cb_handler already registered", cb_type );
+                                cleanup_all(-500144);
+				//dbgf_sys(DBGT_ERR, "cb_hook for cb_type %d and cb_handler already registered", cb_type );
 			}
 			
 		} else {
@@ -119,8 +118,13 @@ void cb_route_change_hooks(uint8_t del, struct orig_node *dest)
         TRACE_FUNCTION_CALL;
 	struct list_node *list_pos;
 	struct cb_route_change_node *con, *prev_con = NULL;
+        struct local_node *local_router = dest->curr_rt_local->local_key;
 
         assertion(-500674, (dest && dest->desc));
+
+        local_router->orig_routes = local_router->orig_routes + (del ? -1 : +1);
+
+        assertion(-501137, (local_router->orig_routes >= 0 && local_router->orig_routes < (int) orig_tree.items));
 
 	list_for_each( list_pos, &cb_route_change_list ) {
 
@@ -201,7 +205,7 @@ void **get_plugin_data(void *data, uint8_t data_type, int32_t registry)
 	
 	if ( data_type >= PLUGIN_DATA_SIZE  ||  registry > plugin_data_registries[data_type] ) {
 		cleanup_all( -500145 );
-		//dbgf( DBGL_SYS, DBGT_ERR, "requested to deliver data for unknown registry !");
+		//dbgf_sys(DBGT_ERR, "requested to deliver data for unknown registry !");
 		//return NULL;
 	}
 		
@@ -247,7 +251,7 @@ int activate_plugin(struct plugin *p, void *dlhandle, const char *dl_name)
 
         if (p->plugin_size != sizeof ( struct plugin) || (p->plugin_code_version != CODE_VERSION)) {
 
-                dbgf(DBGL_SYS, DBGT_ERR,
+                dbgf_sys(DBGT_ERR,
                         "plugin with unexpected size %d != %zu, revision %d != %d",
                         p->plugin_size, sizeof ( struct plugin), p->plugin_code_version, CODE_VERSION);
 
@@ -257,7 +261,7 @@ int activate_plugin(struct plugin *p, void *dlhandle, const char *dl_name)
 
         if ( p->cb_init == NULL  ||  ((*( p->cb_init )) ()) == FAILURE ) {
 
-                dbg( DBGL_SYS, DBGT_ERR, "could not init plugin");
+                dbg_sys(DBGT_ERR, "could not init plugin");
                 return FAILURE;
         }
 
@@ -296,7 +300,7 @@ void deactivate_plugin( void *p ) {
 
                         list_del_next(&plugin_list, prev_pos);
 			
-			dbg( DBGL_CHANGES, DBGT_INFO, "deactivating plugin %s", pn->plugin->plugin_name );
+			dbg_track(DBGT_INFO, "deactivating plugin %s", pn->plugin->plugin_name );
 			
 			if ( pn->plugin->cb_cleanup )
 				(*( pn->plugin->cb_cleanup )) ();
@@ -376,14 +380,14 @@ int8_t activate_dyn_plugin( const char* name ) {
         alias.obj = dlsym( dlhandle, "get_plugin");
 
 	if ( !( get_plugin = alias.func )  ) {
-		dbgf( DBGL_SYS, DBGT_ERR, "dlsym( %s ) failed: %s", name, dlerror() );
+		dbgf_sys(DBGT_ERR, "dlsym( %s ) failed: %s", name, dlerror() );
 		return FAILURE;
 	}
 
 	
 	if ( !(pv1 = get_plugin()) ) {
 
-		dbgf( DBGL_SYS, DBGT_ERR, "get_plugin( %s ) failed", name );
+		dbgf_sys(DBGT_ERR, "get_plugin( %s ) failed", name );
 		return FAILURE;
 		
 	}
@@ -394,14 +398,12 @@ int8_t activate_dyn_plugin( const char* name ) {
 
         if (activate_plugin(pv1, dlhandle, name) == FAILURE) {
 
-                dbgf(DBGL_SYS, DBGT_ERR, "activate_plugin( %s ) failed", dl_path);
+                dbgf_sys(DBGT_ERR, "activate_plugin( %s ) failed", dl_path);
                 return FAILURE;
 		
-	}
-	
-	dbg( DBGL_CHANGES, DBGT_INFO, 
-	     "loading and activating %s dl %s succeeded",
-	     My_libs ? "customized" : "default",   dl_path );
+        }
+
+        dbg_track(DBGT_INFO, "loading and activating %s dl %s succeeded", My_libs ? "customized" : "default", dl_path);
 	
 	return SUCCESS;
 }

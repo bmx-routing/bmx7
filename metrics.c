@@ -200,7 +200,7 @@ FMETRIC_U16_T umetric_to_fmetric(UMETRIC_T val)
                 UMETRIC_T reverse = fmetric_to_umetric(fm);
                 int32_t failure = - ((int32_t)((val<<10)/(val?val:1))) + ((int32_t)((reverse<<10)/(val?val:1)));
 
-                dbgf_sys(DBGT_INFO, "val=%-12ju tmp=%-12ju reverse=%-12ju failure=%5d/1024 exp_sum=%2d exp=%d mantissa=%d",
+                dbgf_track(DBGT_INFO, "val=%-12ju tmp=%-12ju reverse=%-12ju failure=%5d/1024 exp_sum=%2d exp=%d mantissa=%d",
                         val, tmp, reverse, failure, exp_sum, fm.val.fu16_exp, fm.val.fu16_mantissa);
         #endif
 */
@@ -842,7 +842,7 @@ void update_link_probe_record(struct link_dev_node *lndev, HELLO_SQN_T sqn, uint
                         bit_set(lpr->probe_array, MAX_HELLO_SQN_WINDOW, sqn, 1);
 
                 lpr->probe_sum = probe;
-                dbgf_sys(DBGT_INFO, "probe=%d probe_sum=%d %d",
+                dbgf_all(DBGT_INFO, "probe=%d probe_sum=%d %d",
                         probe, lpr->probe_sum, bits_get(lpr->probe_array, MAX_HELLO_SQN_WINDOW, 0, MAX_HELLO_SQN_WINDOW - 1));
                 
                 ASSERTION(-501058, (bits_get(lpr->probe_array, MAX_HELLO_SQN_WINDOW, 0, MAX_HELLO_SQN_WINDOW - 1) == lpr->probe_sum));

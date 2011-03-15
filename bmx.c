@@ -366,7 +366,7 @@ IDM_T update_local_neigh(struct packet_buff *pb, struct dhash_node *dhn)
                 assertion(-500956, (dhn->neigh->dhn == dhn));
                 assertion(-500955, (dhn->neigh->local->neigh == dhn->neigh));
 
-                dbgf_sys(DBGT_INFO, "CHANGED link=%s -> LOCAL=%d->%d <- neighIID4me=%d <- dhn=%s",
+                dbgf_track(DBGT_INFO, "CHANGED link=%s -> LOCAL=%d->%d <- neighIID4me=%d <- dhn=%s",
                         pb->i.llip_str, dhn->neigh->local->local_id, local->local_id, dhn->neigh->neighIID4me, dhn->on->desc->id.name);
 
                 dhn->neigh->local->neigh = NULL;
@@ -380,7 +380,7 @@ IDM_T update_local_neigh(struct packet_buff *pb, struct dhash_node *dhn)
 
                 create_neigh_node(local, dhn);
                 
-                dbgf_sys(DBGT_INFO, "NEW link=%s <-> LOCAL=%d <-> NEIGHIID4me=%d <-> dhn=%s",
+                dbgf_track(DBGT_INFO, "NEW link=%s <-> LOCAL=%d <-> NEIGHIID4me=%d <-> dhn=%s",
                         pb->i.llip_str, local->local_id, local->neigh->neighIID4me, dhn->on->desc->id.name);
 
                 goto update_local_neigh_success;
@@ -767,7 +767,7 @@ struct link_node *get_link_node(struct packet_buff *pb)
 
                         if (((TIME_T) (bmx_time - local->packet_time) < (TIME_T) PKT_SQN_DAD_RANGE * my_tx_interval)) {
 
-                                dbgf_sys(DBGT_INFO, "DAD-Alert NB=%s local_id=%X dev=%s pkt_sqn=%d pkt_sqn_max=%d dad_range=%d dad_to=%d",
+                                dbgf_sys(DBGT_WARN, "DAD-Alert NB=%s local_id=%X dev=%s pkt_sqn=%d pkt_sqn_max=%d dad_range=%d dad_to=%d",
                                         pb->i.llip_str, ntohl(pb->i.link_key.local_id), pb->i.iif->label_cfg.str, pb->i.pkt_sqn, local->packet_sqn,
                                         PKT_SQN_DAD_RANGE, PKT_SQN_DAD_RANGE * my_tx_interval);
 

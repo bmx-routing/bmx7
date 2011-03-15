@@ -853,15 +853,15 @@ int kernel_if_link_config(struct nlmsghdr *nlhdr, uint16_t update_sqn)
                 if (nlhdr->nlmsg_len > old_ilx->nlmsghdr->nlmsg_len) {
 
                         avl_remove(&if_link_tree, &index, -300240);
-                        dbgf_sys(DBGT_INFO, "CHANGED and MORE nlmsg_len");
+                        dbgf_track(DBGT_INFO, "CHANGED and MORE nlmsg_len");
 
                 } else if (memcmp(nlhdr, old_ilx->nlmsghdr, nlhdr->nlmsg_len)) {
 
                         if (nlhdr->nlmsg_len != old_ilx->nlmsghdr->nlmsg_len) {
-                                dbgf_sys(DBGT_INFO, "CHANGED and LESS nlmsg_len %d < %d",
+                                dbgf_track(DBGT_INFO, "CHANGED and LESS nlmsg_len %d < %d",
                                         nlhdr->nlmsg_len, old_ilx->nlmsghdr->nlmsg_len);
                         } else {
-                                dbgf_sys(DBGT_INFO, "CHANGED but EQUAL nlmsg_len %d", nlhdr->nlmsg_len);
+                                dbgf_track(DBGT_INFO, "CHANGED but EQUAL nlmsg_len %d", nlhdr->nlmsg_len);
                         }
                         
                         memcpy(old_ilx->nlmsghdr, nlhdr, nlhdr->nlmsg_len);

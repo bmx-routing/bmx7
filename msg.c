@@ -2381,7 +2381,7 @@ int32_t rx_msg_dhash_or_description_request(struct rx_frame_iterator *it)
 
         if (!dhn || ((TIME_T) (bmx_time - dhn->referred_by_me_timestamp)) > DEF_DESC0_REFERRED_TO) {
 
-                dbgf_sys(DBGT_WARN, "%s from %s requesting %s %s",
+                dbgf_track(DBGT_WARN, "%s from %s requesting %s %s",
                         it->handls[it->frame_type].name, pb->i.llip_str,
                         dhn ? "REFERRED TIMEOUT" : "INVALID or UNKNOWN", on ? on->id.name : "?");
 

@@ -265,8 +265,8 @@ void invalidate_dhash_node( struct dhash_node *dhn )
 {
         TRACE_FUNCTION_CALL;
 
-        dbgf(terminating ? DBGL_ALL : DBGL_SYS, DBGT_INFO,
-                "dhash %8X myIID4orig %d, my_iid_repository: used %d, inactive %d  min_free %d  max_free %d ",
+        dbgf_track(DBGT_INFO,
+                "dhash %8X myIID4orig %d, my_iid_repository: used=%d, inactive=%d  min_free=%d  max_free=%d ",
                 dhn->dhash.h.u32[0], dhn->myIID4orig,
                 my_iid_repos.tot_used, dhash_invalid_tree.items+1, my_iid_repos.min_free, my_iid_repos.max_free);
 

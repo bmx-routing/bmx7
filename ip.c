@@ -2044,13 +2044,19 @@ void dev_activate( struct dev_node *dev )
                 } else /* check if interface is a wireless interface */ {
 
                         struct ifreq int_req;
+                        char *dot_ptr;
+
+                        // if given interface is a vlan then truncate to physical interface name:
+                        if ((dot_ptr = strchr(dev->name_phy_cfg.str, '.')) != NULL)
+                                *dot_ptr = '\0';
 
                         if (get_if_req(&dev->name_phy_cfg, &int_req, SIOCGIWNAME) == SUCCESS)
                                 dev->linklayer = TYP_DEV_LL_WIFI;
-
                         else
                                 dev->linklayer = TYP_DEV_LL_LAN;
 
+                        if (dot_ptr)
+                                *dot_ptr = '.';
                 }
         }
 

@@ -71,6 +71,7 @@ void niit_dev_event_hook(int32_t cb_id, void* unused)
         struct if_link_node *iln_4to6 = NULL;
         struct if_link_node *iln_6to4 = NULL;
         struct orig_node *on;
+        IDM_T has_niit4to6_address = 0;
 
         if (!niit_enabled || af_cfg != AF_INET6)
                 return;
@@ -86,21 +87,34 @@ void niit_dev_event_hook(int32_t cb_id, void* unused)
                 }
 
                 if (!strcmp(iln->name.str, DEF_NIIT_4TO6_DEV)) {
-
-                        if (avl_find_item(&iln->if_addr_tree, &niit_address)) {
-                                dbgf_track(DBGT_INFO, "%s UP", DEF_NIIT_4TO6_DEV);
-                                iln_4to6 = iln;
-                        } else {
-                                dbgf_track(DBGT_WARN, "%s UP without IP", DEF_NIIT_4TO6_DEV);
-                        }
+                        dbgf_track(DBGT_INFO, "%s UP", DEF_NIIT_4TO6_DEV);
+                        iln_4to6 = iln;
                 }
 
-                if (iln_4to6 && iln_6to4)
+                if (avl_find_item(&iln->if_addr_tree, &niit_address)) {
+                        dbgf_track(DBGT_INFO, "Found niit address on interface %s", iln->name.str);
+                        has_niit4to6_address = 1;
+                }
+
+                if (iln_4to6 && iln_6to4 && has_niit4to6_address)
                         break;
         }
 
+        if (!has_niit4to6_address) {
+                dbgf_track(DBGT_WARN, "%s address %s does not exist on the system",
+                        ARG_NIIT, ipXAsStr(AF_INET, &niit_address));
+        }
+
+        if (!iln_4to6) {
+                dbgf_track(DBGT_WARN, "%s interface not found or down", DEF_NIIT_4TO6_DEV);
+        }
+
+        if (!iln_6to4) {
+                dbgf_track(DBGT_WARN, "%s interface not found or down", DEF_NIIT_6TO4_DEV);
+        }
+
         int niit4to6_old_idx = niit4to6_dev_idx;
-        int niit4to6_new_idx = iln_4to6 ? iln_4to6->index : 0;
+        int niit4to6_new_idx = (iln_4to6 && has_niit4to6_address) ? iln_4to6->index : 0;
         int niit6to4_old_idx = niit6to4_dev_idx;
         int niit6to4_new_idx = iln_6to4 ? iln_6to4->index : 0;
 

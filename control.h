@@ -181,6 +181,8 @@ void dbg_printf( struct ctrl_node *cn, char *last, ...  );
 #define dbgf_mute( check_len, dbgl, dbgt, ... ) printf( __VA_ARGS__ )
 #define dbgf_all( dbgt, ... ) 			printf( __VA_ARGS__ )
 #define dbg_all( dbgt, ... ) 			printf( __VA_ARGS__ )
+#define dbgf_dump( dbgt, ... ) 			printf( __VA_ARGS__ )
+#define dbg_dump( dbgt, ... ) 			printf( __VA_ARGS__ )
 #define dbgf_track( dbgt, ... ) 		printf( __VA_ARGS__ )
 #define dbg_track( dbgt, ... ) 		        printf( __VA_ARGS__ )
 #define dbgf_sys( dbgt, ... ) 			printf( __VA_ARGS__ )

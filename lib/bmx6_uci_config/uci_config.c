@@ -791,8 +791,8 @@ int32_t opt_conf_file ( uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
 				struct opt_type *on = (struct opt_type*)list_entry( list_pos, struct opt_data, list );
 				
 				if ( (test && on->order != 1 ) || (!test && on->order == 0) ) {
-					
-					if ( bmx_load_config( test?OPT_CHECK:OPT_APPLY, on, cn ) != SUCCESS ) {
+
+                                        if (bmx_load_config(test ? OPT_CHECK : OPT_APPLY, on, cn) != SUCCESS) {
 						
 						dbgf_all(  DBGT_ERR, 
 							"bmx_load_config() %s %s failed", 
@@ -844,9 +844,9 @@ int32_t opt_show_conf ( uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
 		dbg_printf( cn, "config '%s' '%s'\n", DEF_SECT_TYPE, DEF_SECT_NAME );
 		
 		show_conf_general = YES;
-		func_for_each_opt( cn, NULL, "show_conf()", show_conf );
+		func_for_each_opt( cn, NULL, show_conf );
 		show_conf_general = NO;
-		func_for_each_opt( cn, NULL, "show_conf()", show_conf );
+		func_for_each_opt( cn, NULL, show_conf );
 		
 		dbg_printf( cn, "\n" );
 		

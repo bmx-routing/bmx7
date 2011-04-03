@@ -5,7 +5,9 @@
 
 - to compile first install uci: 
 	wget http://downloads.openwrt.org/sources/uci-0.7.3.tar.gz
+        sometimes theres an error: edit cli.c # change line 465 to:         char *argv[MAX_ARGS+2];
 	tar xzvf uci-0.7.3.tar.gz; cd uci-0.7.3; make; sudo make install
+
 
 - default configuration backend is: /etc/config/bmx6
 

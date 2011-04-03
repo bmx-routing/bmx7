@@ -94,8 +94,6 @@ static void http_info_rcv_tcp_data( struct ctrl_node *cn ) {
                         
 		} else {
 			
-			dbg( DBGL_CHANGES, DBGT_INFO, "rcvd illegal %d bytes long HTTP request via fd %d", 
-			      tcp_req_len, cn->fd);
 			/*
 			dbg_cn( cn, DBGL_ALL, DBGT_INFO, "rcvd illegal %d bytes long HTTP request via fd %d:\n%s\n", 
 			        tcp_req_len, cn->fd, tcp_req_data);

@@ -173,10 +173,9 @@
 #define MIN_DESCRIPTION_GREP         0
 #define MAX_DESCRIPTION_GREP         FRAME_TYPE_PROCESS_ALL
 #define ARG_DESCRIPTION_GREP         "description"
-#define HELP_DESCRIPTION_GREP        "show filtered descriptions of nodes 0..254=type 255=none 255=all \n"
+#define HELP_DESCRIPTION_GREP        "show filtered descriptions of nodes 0..253=type 254=none 255=all \n"
 
 #define ARG_DESCRIPTION_NAME    "name"
-#define ARG_DESCRIPTION_IP      "ip"
 
 
 struct frame_header_short { // 2 bytes

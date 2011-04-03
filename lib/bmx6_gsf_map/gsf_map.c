@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006 BATMAN contributors:
+ * Copyright (C) 2010 BMX contributors:
  * Axel Neumann, Agusti Moll
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU General Public

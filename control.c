@@ -999,7 +999,7 @@ int8_t is_valid_opt_ival(struct opt_type *opt, char *s, struct ctrl_node *cn)
  * call given function for each applied option
  * thus: if several hna are active func() is called once for each
  */
-int8_t func_for_each_opt(struct ctrl_node *cn, void *data, char* func_name,
+int8_t func_for_each_opt(struct ctrl_node *cn, void *data,
         int8_t(*func) (struct ctrl_node *cn, void *data, struct opt_type *opt, struct opt_parent *p, struct opt_child *c))
 {
 	
@@ -1008,8 +1008,8 @@ int8_t func_for_each_opt(struct ctrl_node *cn, void *data, char* func_name,
 	list_for_each( list_pos, &opt_list ) {
 		
 		struct opt_type *opt = (struct opt_type *)list_entry( list_pos, struct opt_data, list );
-		
-		if ( /* !opt->help  || we are also interested in uncommented configurations*/ !opt->long_name )
+
+                if (!opt->long_name)
 			continue;
 
 		struct list_node *p_pos;
@@ -1020,9 +1020,7 @@ int8_t func_for_each_opt(struct ctrl_node *cn, void *data, char* func_name,
 			
                         if ( (*func)( cn, data, opt, p, NULL ) == FAILURE ) {
 
-                                dbgf_cn( cn, DBGL_SYS, DBGT_ERR,
-                                         "func()=%s with %s %s failed",
-                                         func_name, opt->long_name, p->p_val );
+                                dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "with %s %s failed", opt->long_name, p->p_val);
 
                                 return FAILURE;
                         }
@@ -1034,10 +1032,9 @@ int8_t func_for_each_opt(struct ctrl_node *cn, void *data, char* func_name,
 				struct opt_child *c = (struct opt_child*)list_entry( c_pos, struct opt_child, list );
 				
 				if ( (*func)( cn, data, opt, p, c ) == FAILURE ) {
-					
-					dbgf_cn( cn, DBGL_SYS, DBGT_ERR, 
-					         "func()=%s with %s %s %s %s failed",
-					         func_name, opt->long_name, p->p_val, c->c_opt->long_name, c->c_val );
+
+                                        dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "with %s %s %s %s failed",
+                                                opt->long_name, p->p_val, c->c_opt->long_name, c->c_val);
 					
 					return FAILURE;
 				}
@@ -2225,8 +2222,8 @@ int32_t track_opt_parent(uint8_t cmd, uint8_t save, struct opt_type *p_opt, stru
 				
 				set_opt_parent_val( p_track, p_patch->p_val );
 				set_opt_parent_ref( p_track, p_patch->p_ref );
-			}
-			changed=YES;
+                        }
+                        changed = YES;
 			
 		} else {
 			paranoia( -500121, YES );
@@ -2253,8 +2250,8 @@ int32_t track_opt_parent(uint8_t cmd, uint8_t save, struct opt_type *p_opt, stru
 							save_config_cb( DEL, c_track->c_opt, save_val, c_track->c_ref ? c_track->c_ref : c_track->c_val, cn );
 						
 						del_opt_child( p_track, c_track->c_opt );
-					}
-					changed_child=changed=YES;
+                                        }
+                                        changed_child = changed = YES;
 					
 				} else if ( !c_patch->c_val  &&  !c_track ) {
 					
@@ -2284,8 +2281,8 @@ int32_t track_opt_parent(uint8_t cmd, uint8_t save, struct opt_type *p_opt, stru
 						set_opt_child_val( c_track, c_patch->c_val );
 						set_opt_child_ref( c_track, c_patch->c_ref );
 					}
-					
-					changed_child=changed=YES;
+
+                                        changed_child = changed = YES;
 					
 				} else {
 					
@@ -2846,8 +2843,8 @@ int32_t opt_show_parameter(uint8_t cmd, uint8_t _save, struct opt_type *opt, str
 {
 	
 	if ( cmd == OPT_APPLY ) {
-		
-		func_for_each_opt( cn, NULL, "opt_show_info()", show_info );
+
+                func_for_each_opt(cn, NULL, show_info);
 
                 if (initializing)
 			cleanup_all(CLEANUP_SUCCESS);

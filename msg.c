@@ -3454,11 +3454,7 @@ int32_t opt_show_descriptions(uint8_t cmd, uint8_t _save, struct opt_type *opt, 
                 while ((c = list_iterate(&patch->childs_instance_list, c))) {
 
                         if (!strcmp(c->c_opt->long_name, ARG_DESCRIPTION_NAME)) {
-
                                 name = c->c_val;
-
-			} else if ( !strcmp( c->c_opt->long_name, ARG_DESCRIPTION_IP ) ) {
-
 			}
 		}
 
@@ -3523,7 +3519,7 @@ struct opt_type msg_options[]=
 			ARG_VALUE_FORM,	"set tx iterations for ogm acknowledgements"}
         ,
 #endif
-	{ODI, 0, ARG_DESCRIPTION_GREP,	   0,  5, A_PMN, A_USR, A_DYN, A_ARG, A_ANY, 0,            MIN_DESCRIPTION_GREP,MAX_DESCRIPTION_GREP,DEF_DESCRIPTION_GREP,                  opt_show_descriptions,
+	{ODI, 0, ARG_DESCRIPTION_GREP,	   0,  5, A_PMN, A_USR, A_DYN, A_ARG, A_ANY, 0,            MIN_DESCRIPTION_GREP,MAX_DESCRIPTION_GREP,DEF_DESCRIPTION_GREP,   opt_show_descriptions,
 			ARG_VALUE_FORM,		HELP_DESCRIPTION_GREP}
         ,
 	{ODI,ARG_DESCRIPTION_GREP,ARG_DESCRIPTION_NAME,'n',5,A_CS1,A_USR,A_DYN,A_ARG,A_ANY,	0,		0,	0,0,		opt_show_descriptions,

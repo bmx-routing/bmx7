@@ -1299,19 +1299,11 @@ int process_description_tlv_metricalgo(struct rx_frame_iterator *it )
 
                 // migrate current router_nodes->mr.clr position to new sqn_range:
                 struct router_node *rn;
-                struct avl_node *an;
+                struct avl_node *an = NULL;
 
-                for (an = NULL; (rn = avl_iterate_item(&on->rt_tree, &an));) {
-
+                while ((rn = avl_iterate_item(&on->rt_tree, &an)))
                         reconfigure_metric_record_position(&rn->mr, on->path_metricalgo, on->ogmSqn_rangeMin, on->ogmSqn_rangeMin, 0, NO);
-
-/*
-                        OGM_SQN_T in = ((OGM_SQN_MASK)&(on->ogmSqn_rangeMin + on->path_metricalgo->lounge_size));
-                        reconfigure_metric_record(&rn->mr, on->path_metricalgo, on->ogmSqn_rangeMin, in, 0, NO);
-*/
-
-                }
-
+                
 
         } else if (op == TLV_OP_DEBUG) {
 

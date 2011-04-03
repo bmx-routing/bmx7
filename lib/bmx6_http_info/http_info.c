@@ -75,8 +75,8 @@ static void http_info_rcv_tcp_data( struct ctrl_node *cn ) {
 		struct opt_type *opt;
 		char *request = &(tcp_req_data[HTTP_PREAMBLE_LEN]);
 	
-//		dbg_printf( cn, "Content-type: text/plain\n\n" );
-//		dbg_printf( cn, "\n" );
+		dbg_printf( cn, "Content-type: text/plain\n\n" );
+		dbg_printf( cn, "\n" );
 
 
 		if ( wordlen( request ) <= MAX_ARG_SIZE  &&

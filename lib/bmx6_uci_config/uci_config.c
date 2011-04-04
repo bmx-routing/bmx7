@@ -385,9 +385,9 @@ int bmx_save_config ( uint8_t del, struct opt_type *opt, char *p_val, char *c_va
 			
 			uci_get_sect_name( YES/*create*/, cn, bmx_ctx, bmx_conf_name, DEF_SECT_NAME, DEF_SECT_TYPE, NULL, NULL );
 			return uci_save_option( bmx_ctx, bmx_conf_name, DEF_SECT_NAME, opt->long_name, c_val, cn );
-		}
-		
-	} else if ( opt->opt_t == A_PMN ) {
+                }
+
+        } else if (opt->opt_t == A_PSN || opt->opt_t == A_PMN) {
 		
 		// all A_PMN-options are saved as sections 
 		// some with only one argument like HNAs, throw-rule, plugin, service
@@ -502,13 +502,11 @@ int bmx_load_config ( uint8_t cmd, struct opt_type *opt, struct ctrl_node *cn ) 
 			
 			return FAILURE;
 		}
+
+
+        } else if (opt->opt_t == A_PSN || opt->opt_t == A_PMN) {
 		
-		
-	} else if ( opt->opt_t == A_PMN ) {
-		
-		// For A_M (multiple) and A_N (N-suboptons) we use a section)
-		
-		dbgf_all( DBGT_INFO, "loading A_PMN-option: %s", opt->long_name );
+		dbgf_all( DBGT_INFO, "loading A_PSN/A_PMN-option: %s", opt->long_name );
 		
 		struct uci_element *e;
 		struct uci_element *se;
@@ -819,8 +817,8 @@ int8_t show_conf ( struct ctrl_node *cn, void *data, struct opt_type *opt, struc
 	if ( show_conf_general  &&  !c  &&  opt->opt_t == A_PS1 ) {
 		
 		dbg_printf( cn, "\toption '%s' '%s'\n", opt->long_name, (p->p_ref ? p->p_ref : p->p_val) );
-		
-	} else if ( !show_conf_general  &&  !c  &&  opt->opt_t == A_PMN ) {
+
+        } else if (!show_conf_general && !c && (opt->opt_t == A_PSN || opt->opt_t == A_PMN)) {
 		
 		dbg_printf( cn, "\nconfig '%s'\n", opt->long_name );
 		dbg_printf( cn, "\toption '%s' '%s'\n", opt->long_name, (p->p_ref ? p->p_ref : p->p_val) );

@@ -208,8 +208,9 @@ extern struct list_head opt_list;
 /* opt_t types (Parent/Child, Single/Multiple, 0/1/N-arguments) */
 #define A_PS0   0x01
 #define A_PS1	0x02
-#define A_PMN   0x14
-#define A_CS1	0x22
+#define A_PSN   0x03
+#define A_PMN   0x04
+#define A_CS1	0x05
 
 
 /* auth_t types */

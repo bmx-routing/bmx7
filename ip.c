@@ -3128,7 +3128,7 @@ static struct opt_type ip_options[]=
 	{ODI,0,0,	                0,  0,0,0,0,0,0,			0,		0,		0,		0,		0,
 			0,		"\nip options:"}
         ,
-	{ODI,0,ARG_IP,	                'I',3,A_PMN,A_ADM,A_INI,A_CFA,A_ANY,	NULL ,          0,              0,              0,	        opt_ip_version,
+	{ODI,0,ARG_IP,	                'I',3,A_PSN,A_ADM,A_INI,A_CFA,A_ANY,	NULL ,          0,              0,              0,	        opt_ip_version,
 			ARG_VALUE_FORM,	"select ip protocol Version 4 or 6"}
         ,
 

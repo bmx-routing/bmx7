@@ -1472,7 +1472,7 @@ struct opt_type metrics_options[]=
 
 #endif
 #ifndef LESS_OPTIONS
-        {ODI, 0, ARG_PATH_METRIC_ALGO, CHR_PATH_METRIC_ALGO,  5, A_PMN, A_ADM, A_DYI, A_CFA, A_ANY, &my_path_algo,MIN_METRIC_ALGO,    MAX_METRIC_ALGO,    DEF_METRIC_ALGO,    opt_path_metricalgo,
+        {ODI, 0, ARG_PATH_METRIC_ALGO, CHR_PATH_METRIC_ALGO,  5, A_PSN, A_ADM, A_DYI, A_CFA, A_ANY, &my_path_algo,MIN_METRIC_ALGO,    MAX_METRIC_ALGO,    DEF_METRIC_ALGO,    opt_path_metricalgo,
                 ARG_VALUE_FORM, HELP_PATH_METRIC_ALGO}
         ,
         {ODI, ARG_PATH_METRIC_ALGO, ARG_PATH_RP_EXP_NUMERATOR, CHR_PATH_RP_EXP_NUMERATOR, 5, A_CS1, A_ADM, A_DYI, A_CFA, A_ANY, &my_path_rp_exp_numerator, MIN_PATH_XP_EXP_NUMERATOR, MAX_PATH_XP_EXP_NUMERATOR, DEF_PATH_RP_EXP_NUMERATOR, opt_path_metricalgo,

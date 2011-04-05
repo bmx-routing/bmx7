@@ -65,7 +65,6 @@ static struct timeval start_time_tv;
 static struct timeval ret_tv, new_tv, diff_tv, acceptable_m_tv, acceptable_p_tv, max_tv = {0,(2000*MAX_SELECT_TIMEOUT_MS)};
 
 
-uint32_t My_pid = 0;
 static RNG rng;
 
 TIME_T bmx_time = 0;

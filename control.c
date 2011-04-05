@@ -55,6 +55,7 @@ static int32_t loop_mode;
 
 
 int unix_sock = 0;
+uint32_t My_pid = 0;
 
 LIST_SIMPEL( ctrl_list, struct ctrl_node, list, list );
 
@@ -182,7 +183,7 @@ int update_pid_file(void)
 	
 	My_pid = getpid();
 	
-	sprintf( tmp_path, "%s/pid", run_dir );
+	sprintf( tmp_path, "%s/%s", run_dir, BMX_PID_FILE );
 	
 	if ( (tmp_fd = open( tmp_path, O_CREAT|O_WRONLY|O_TRUNC, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH )) < 0 ) {  //check permissions of generated file
 		
@@ -960,7 +961,7 @@ int32_t is_end_of_cmd_stream(struct opt_type *opt, char *s)
 	else
 		s = nextword(s);
 	
-	if ( s  &&  ( s[0] != EOS_DELIMITER  ||  wordlen(s)>1 ) )
+	if ( s  &&  ( s[0] != CHR_QUIT  ||  wordlen(s)>1 ) )
 		return NO;
 	
 	return YES;
@@ -1677,7 +1678,7 @@ int32_t call_opt_patch(uint8_t ad, struct opt_type *opt, struct opt_parent *patc
 		// assign one or more values
                 if (ad == ADD || opt->opt_t == A_PSN || opt->opt_t == A_PMN) {
 
-                        if (!strm || !wordlen(strm) || strm[0] == EOS_DELIMITER)
+                        if (!strm || !wordlen(strm) || strm[0] == CHR_QUIT)
 				return FAILURE;
 			
 			if ( strm  &&  wordlen(strm) > strlen( REFERENCE_KEY_WORD )  && 
@@ -1819,7 +1820,7 @@ int32_t opt_connect_client_to_daemon(uint8_t cmd, struct opt_type *opt, struct c
 		if ( !curr_strm_pos )
 			cleanup_all( -500141 );
 		
-		sprintf( tmp_path, "%s/sock", run_dir );
+		sprintf( tmp_path, "%s/%s", run_dir, BMX_UNIX_SOCK_FILE );
 
                 struct sockaddr_un unix_addr;
 		
@@ -1847,19 +1848,19 @@ int32_t opt_connect_client_to_daemon(uint8_t cmd, struct opt_type *opt, struct c
 			     !strncmp( curr_strm_pos, ARG_CONNECT, strlen(ARG_CONNECT) )  &&  
 			     (curr_strm_pos+strlen(ARG_CONNECT))[0] == ' ' )
 			{
-				sprintf( unix_buff, "%s %c", nextword(curr_strm_pos), EOS_DELIMITER );
+				sprintf( unix_buff, "%s %c", nextword(curr_strm_pos), CHR_QUIT );
 				
 			} else if ( strlen(curr_strm_pos) > strlen(ARG_CONNECT)  &&
 			            !strncmp( curr_strm_pos, ARG_CONNECT, strlen(ARG_CONNECT) )  &&
 			            (curr_strm_pos+strlen(ARG_CONNECT))[0] == '=' ) 
 			{
-				sprintf( unix_buff, "%s %c", curr_strm_pos+strlen(ARG_CONNECT)+1 , EOS_DELIMITER );
+				sprintf( unix_buff, "%s %c", curr_strm_pos+strlen(ARG_CONNECT)+1 , CHR_QUIT );
 				
 			} else if ( strlen(curr_strm_pos) > 1  &&  curr_strm_pos[0] == opt->short_name  &&  curr_strm_pos[1] == ' ' ) {
-				sprintf( unix_buff, "%s %c", nextword(curr_strm_pos), EOS_DELIMITER );
+				sprintf( unix_buff, "%s %c", nextword(curr_strm_pos), CHR_QUIT );
 				
 			} else if ( strlen(curr_strm_pos) > 1  &&  curr_strm_pos[0] == opt->short_name  &&  curr_strm_pos[1] != ' ' ) {
-				sprintf( unix_buff, "-%s %c", curr_strm_pos+1, EOS_DELIMITER );
+				sprintf( unix_buff, "-%s %c", curr_strm_pos+1, CHR_QUIT );
 				
 			} else {
 				dbgf_cn( cn, DBGL_SYS, DBGT_ERR, "invalid connect stream %s",curr_strm_pos);
@@ -1975,8 +1976,9 @@ int32_t opt_connect_daemon_to_unix_sock(uint8_t cmd, uint8_t _save, struct opt_t
 		// create unix sock:
 		
 		struct sockaddr_un unix_addr;
-		
-		sprintf( tmp_path, "%s/sock", run_dir );
+
+                sprintf(tmp_path, "%s/%s", run_dir, BMX_UNIX_SOCK_FILE);
+
 		
 		memset( &unix_addr, 0, sizeof(struct sockaddr_un) );
 		unix_addr.sun_family = AF_LOCAL;
@@ -2995,7 +2997,7 @@ int32_t opt_help(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
 }
 
 STATIC_FUNC
-int32_t opt_quit(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
+int32_t opt_quit_connection(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
 {
 	
 	if ( cmd == OPT_APPLY )
@@ -3085,7 +3087,7 @@ static struct opt_type control_options[]=
                         "       12  : traffic dump"},
 	
 	{ODI,0,ARG_RUN_DIR,		0,  2,A_PS1,A_ADM,A_INI,A_CFA,A_ANY,	0,		0,		0,		0,		opt_run_dir,
-			ARG_DIR_FORM,	"set runtime DIR of pid, socket,... - default: " DEF_RUN_DIR " (must be defined before --" ARG_CONNECT ")."},
+			ARG_DIR_FORM,	"set runtime DIR of "BMX_PID_FILE", "BMX_UNIX_SOCK_FILE", ... - default: " DEF_RUN_DIR " (must be defined before --" ARG_CONNECT ")."},
 		
 		
 		
@@ -3110,7 +3112,7 @@ static struct opt_type control_options[]=
 			ARG_VALUE_FORM,	"set timeout in ms for muting frequent messages"},
 
 		
-	{ODI,0,ARG_QUIT,EOS_DELIMITER,    5,A_PS0,A_USR,A_DYN,A_ARG,A_END,	0,		0, 		0,		0, 		opt_quit,0,0}
+	{ODI,0,ARG_QUIT,CHR_QUIT,    5,A_PS0,A_USR,A_DYN,A_ARG,A_END,	0,		0, 		0,		0, 		opt_quit_connection,0,0}
 };
 
 void init_control(void)

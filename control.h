@@ -63,7 +63,24 @@ extern int32_t Client_mode;
 
 #define REFERENCE_KEY_WORD	"ref:"
 
-#define EOS_DELIMITER '#'
+
+#define ARG_DEBUG	"debug"
+#define ARG_NO_FORK	"no_fork"
+#define ARG_QUIT	"quit"
+
+#define ARG_CONNECT "connect"
+#define ARG_RUN_DIR "runtime_dir"
+#define DEF_RUN_DIR "/var/run/bmx6"
+#define CHR_QUIT '#'
+
+#define BMX_PID_FILE "pid"
+#define BMX_UNIX_SOCK_FILE "sock"
+
+#define BMX_STATUS_DIR "status"
+#define BMX_DESCRIPTION_DIR "descriptions"
+
+
+extern uint32_t My_pid;
 
 
 #define ARG_RESET "-" /* s-string preamble for call_option() to reset opt to default */

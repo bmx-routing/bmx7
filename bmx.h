@@ -485,16 +485,7 @@ struct description_hash {
 
 
 
-#define ARG_DEBUG	"debug"
-#define ARG_NO_FORK	"no_fork"
-#define ARG_QUIT	"quit"
 
-#define ARG_CONNECT "connect"
-#define ARG_RUN_DIR "runtime_dir"
-#define DEF_RUN_DIR "/var/run/bmx6"
-
-
-extern uint32_t My_pid;
 #define BMX_ENV_LIB_PATH "BMX6_LIB_PATH"
 #define BMX_DEF_LIB_PATH "/usr/lib"
 // e.g. sudo BMX_LIB_PATH="$(pwd)/lib" ./bmx6 -d3 eth0:bmx

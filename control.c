@@ -1804,7 +1804,7 @@ int32_t cleanup_patch(struct opt_type *opt, struct opt_parent *patch, struct ctr
 
 
 STATIC_FUNC
-int32_t _opt_connect(uint8_t cmd, struct opt_type *opt, struct ctrl_node *cn, char *curr_strm_pos)
+int32_t opt_connect_client_to_daemon(uint8_t cmd, struct opt_type *opt, struct ctrl_node *cn, char *curr_strm_pos)
 {
 	
 	char tmp_path[MAX_PATH_SIZE+20] = "";
@@ -1965,7 +1965,7 @@ int32_t _opt_connect(uint8_t cmd, struct opt_type *opt, struct ctrl_node *cn, ch
 }
 
 STATIC_FUNC
-int32_t opt_connect(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
+int32_t opt_connect_daemon_to_unix_sock(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
 {
 	
 	char tmp_path[MAX_PATH_SIZE+20] = "";
@@ -2060,9 +2060,9 @@ int32_t call_opt_apply(uint8_t cmd, uint8_t save, struct opt_type *opt, struct o
 	}
 	
 	
-	if ( opt->call_custom_option == opt_connect ) {
+	if ( opt->call_custom_option == opt_connect_daemon_to_unix_sock ) {
 		// this is necessary because we dont have the "*in" argument for the opt_something(...) prototype
-		if ( _opt_connect( cmd, opt, cn, in ) == FAILURE )
+		if ( opt_connect_client_to_daemon( cmd, opt, cn, in ) == FAILURE )
 			goto call_opt_apply_error;
 		
 		
@@ -3098,7 +3098,7 @@ static struct opt_type control_options[]=
 #endif
 		
 		
-	{ODI,0,ARG_CONNECT,		'c',3,A_PS0,A_ADM,A_INI,A_ARG,A_EAT,	0,		0, 		0,		0, 		opt_connect,
+	{ODI,0,ARG_CONNECT,		'c',3,A_PS0,A_ADM,A_INI,A_ARG,A_EAT,	0,		0, 		0,		0, 		opt_connect_daemon_to_unix_sock,
 			0,		"set client mode. Connect and forward remaining args to main routing daemon"},
 
 	//order=5: so when used during startup it also shows the config-file options	

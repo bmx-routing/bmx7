@@ -2614,14 +2614,14 @@ static int open_ifevent_netlink_sk(void)
 		return -1;
         }
 
-        set_fd_hook(ifevent_sk, recv_ifevent_netlink_sk, ADD);
+        set_recv_fd_hook(ifevent_sk, recv_ifevent_netlink_sk, ADD);
 
 	return ifevent_sk;
 }
 
 static void close_ifevent_netlink_sk(void)
 {
-        set_fd_hook(ifevent_sk, recv_ifevent_netlink_sk, DEL);
+        set_recv_fd_hook(ifevent_sk, recv_ifevent_netlink_sk, DEL);
 
 	if ( ifevent_sk > 0 )
 		close( ifevent_sk );

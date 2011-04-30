@@ -571,7 +571,7 @@ int process_description_tlv_hna(struct rx_frame_iterator *it)
                         dbgf_all(DBGT_INFO, "configure_niit... op=%d  orig=%s blocked=%d", op, on->id.name, on->blocked);
 
                         if (!on->blocked) {
-                                ASSERTION(-500000, (avl_find(&global_uhna_tree, &key)));
+                                ASSERTION(-501144, (avl_find(&global_uhna_tree, &key)));
 
                                 if (op == TLV_OP_CUSTOM_NIIT6TO4_ADD) {
                                         configure_niit6to4(ADD, &key);
@@ -588,7 +588,7 @@ int process_description_tlv_hna(struct rx_frame_iterator *it)
                                         configure_route(ADD, on, &key);
                                         configure_niit4to6(ADD, &key);
                                 } else {
-                                        assertion(-500000, (NO));
+                                        assertion(-501146, (NO));
                                 }
                         }
 

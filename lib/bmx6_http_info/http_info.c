@@ -144,7 +144,7 @@ static void http_info_rcv_tcp_connect( int32_t fd_in ) {
 	
 	if ( fd_in != http_info_tcp_sock_in ) {
 		dbgf( DBGL_SYS, DBGT_ERR, "rcvd invalid fd %d - should be %d", fd_in, http_info_tcp_sock_in );
-		set_recv_fd_hook( fd_in, http_info_rcv_tcp_connect, YES /*unregister*/ );
+		set_fd_hook( fd_in, http_info_rcv_tcp_connect, YES /*unregister*/ );
 		close( fd_in );
 	}
 	
@@ -183,8 +183,8 @@ static int32_t opt_http_port ( uint8_t cmd, uint8_t _save, struct opt_type *opt,
 	if ( cmd == OPT_APPLY ) {
 		
 		if ( http_info_tcp_sock_in ) {
-
-                        set_recv_fd_hook(http_info_tcp_sock_in, http_info_rcv_tcp_connect, DEL);
+			
+			set_fd_hook( http_info_tcp_sock_in, http_info_rcv_tcp_connect, YES /*unregister*/ );
 			close( http_info_tcp_sock_in );
 			http_info_tcp_sock_in = 0;
 		}
@@ -200,9 +200,7 @@ static int32_t opt_http_port ( uint8_t cmd, uint8_t _save, struct opt_type *opt,
 				dbgf_cn( cn, DBGL_SYS, DBGT_ERR, "requesting socket failed: %s", strerror(errno) );
 				return SUCCESS;
 			}
-
-                        dbgf_track(DBGT_INFO, "opened socket=%d as tmp_tcp_sock_in", tmp_tcp_sock_in);
-
+			
 			int sock_opts = 1; 
 			if (setsockopt(tmp_tcp_sock_in, SOL_SOCKET, SO_REUSEADDR, &sock_opts, sizeof(sock_opts)) < 0) {
 				dbgf_cn( cn, DBGL_SYS, DBGT_ERR, "can't set SO_REUSEADDR option: %s\n", strerror(errno));
@@ -230,8 +228,8 @@ static int32_t opt_http_port ( uint8_t cmd, uint8_t _save, struct opt_type *opt,
 			}
 		
 			http_info_tcp_sock_in = tmp_tcp_sock_in;
-
-                        set_recv_fd_hook(http_info_tcp_sock_in, http_info_rcv_tcp_connect, ADD);
+			
+			set_fd_hook( http_info_tcp_sock_in, http_info_rcv_tcp_connect, NO /*unregister*/ );
 
 		
 		}
@@ -240,8 +238,8 @@ static int32_t opt_http_port ( uint8_t cmd, uint8_t _save, struct opt_type *opt,
 	} else if ( cmd == OPT_UNREGISTER ) {
 		
 		if ( http_info_tcp_sock_in ) {
-
-                        set_recv_fd_hook(http_info_tcp_sock_in, http_info_rcv_tcp_connect, DEL);
+			
+			set_fd_hook( http_info_tcp_sock_in, http_info_rcv_tcp_connect, YES /*unregister*/ );
 			close( http_info_tcp_sock_in );
 			http_info_tcp_sock_in = 0;
 		}

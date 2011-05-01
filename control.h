@@ -76,7 +76,8 @@ extern int32_t Client_mode;
 #define BMX_PID_FILE "pid"
 #define BMX_UNIX_SOCK_FILE "sock"
 
-#define BMX_TEST_PIPE "status"
+#define BMX_STATUS_DIR "status"
+#define BMX_DESCRIPTION_DIR "descriptions"
 
 
 extern uint32_t My_pid;

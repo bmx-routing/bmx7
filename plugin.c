@@ -32,8 +32,7 @@ static LIST_SIMPEL(plugin_list, struct plugin_node, list, list);
 
 static LIST_SIMPEL(cb_route_change_list, struct cb_route_change_node, list, list);
 static LIST_SIMPEL(cb_packet_list, struct cb_packet_node, list, list);
-LIST_SIMPEL(cb_recv_fd_list, struct cb_fd_node, list, list);
-LIST_SIMPEL(cb_send_fd_list, struct cb_fd_node, list, list);
+LIST_SIMPEL(cb_fd_list, struct cb_fd_node, list, list);
 
 
 
@@ -94,7 +93,7 @@ void _set_thread_hook(int32_t cb_type, void (*cb_handler) (void), int8_t del, st
 		}
 	}
 
-        assertion(-501147, (!del));
+        assertion(-500145, (!del));
 
         cbn = debugMalloc(sizeof ( struct cb_node), -300027);
         memset(cbn, 0, sizeof ( struct cb_node));
@@ -175,16 +174,9 @@ void cb_packet_hooks(struct packet_buff *pb)
 }
 
 
-void set_recv_fd_hook( int32_t fd, void (*cb_recv_fd_handler) (int32_t fd), int8_t del ) {
+void set_fd_hook( int32_t fd, void (*cb_fd_handler) (int32_t fd), int8_t del ) {
 
-        _set_thread_hook(fd, (void (*) (void)) cb_recv_fd_handler, del, (struct list_node*) & cb_recv_fd_list);
-
-	change_selects();
-}
-
-void set_send_fd_hook( int32_t fd, void (*cb_send_fd_handler) (int32_t fd), int8_t del ) {
-
-        _set_thread_hook(fd, (void (*) (void)) cb_send_fd_handler, del, (struct list_node*) & cb_send_fd_list);
+        _set_thread_hook(fd, (void (*) (void)) cb_fd_handler, del, (struct list_node*) & cb_fd_list);
 
 	change_selects();
 }

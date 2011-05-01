@@ -26,7 +26,6 @@
 #include <sys/un.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
-#include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -161,8 +160,6 @@ static int daemonize()
 	}
 
 	if ( ( fd = open( _PATH_DEVNULL, O_RDWR, 0) ) != -1 ) {
-                dbgf_track(DBGT_INFO, "opened fd=%d %s", fd, _PATH_DEVNULL);
-
 
 		dup2(fd, STDIN_FILENO);
 		dup2(fd, STDOUT_FILENO);
@@ -189,8 +186,7 @@ int update_pid_file(void)
 	sprintf( tmp_path, "%s/%s", run_dir, BMX_PID_FILE );
 	
 	if ( (tmp_fd = open( tmp_path, O_CREAT|O_WRONLY|O_TRUNC, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH )) < 0 ) {  //check permissions of generated file
-                dbgf_track(DBGT_INFO, "opened fd=%d as %s", tmp_fd, tmp_path);
-
+		
 		dbgf_sys(DBGT_ERR, "could not open %s - %s", tmp_path, strerror(errno) );
 		return FAILURE;
 	}
@@ -1872,8 +1868,6 @@ int32_t opt_connect_client_to_daemon(uint8_t cmd, struct opt_type *opt, struct c
 			}
 			
 			unix_sock = socket( AF_LOCAL, SOCK_STREAM, 0 );
-                        dbgf_track(DBGT_INFO, "opened socket=%d as unix_sock", unix_sock);
-
 			
 			/* make unix_sock socket non blocking */
 			int sock_opts = fcntl( unix_sock, F_GETFL, 0 );
@@ -1993,8 +1987,6 @@ int32_t opt_connect_daemon_to_unix_sock(uint8_t cmd, uint8_t _save, struct opt_t
 		// Testing for open and used unix socket
 		
 		unix_sock = socket( AF_LOCAL, SOCK_STREAM, 0 );
-                dbgf_track(DBGT_INFO, "opened socket=%d as unix_sock", unix_sock);
-
 		
 		if ( connect ( unix_sock, (struct sockaddr *)&unix_addr, sizeof(struct sockaddr_un) ) < 0 ) {
 			
@@ -2003,8 +1995,6 @@ int32_t opt_connect_daemon_to_unix_sock(uint8_t cmd, uint8_t _save, struct opt_t
 			close( unix_sock );
 			unlink( tmp_path );
 			unix_sock = socket( AF_LOCAL, SOCK_STREAM, 0 );
-                        dbgf_track(DBGT_INFO, "opened socket=%d again as unix_sock", unix_sock);
-
 			
 		} else {
 			
@@ -2409,7 +2399,7 @@ int32_t call_option(uint8_t ad, uint8_t cmd, uint8_t save, struct opt_type *opt,
                 if (cmd == OPT_APPLY && opt->opt_t == A_PSN && patch->p_diff == ADD && patch->p_val &&
                         opt->d.parents_instance_list.items >= 1) {
 
-                        assertion(-501140, (opt->d.parents_instance_list.items == 1));
+                        assertion(-500000, (opt->d.parents_instance_list.items == 1));
 
                         struct opt_parent *p_tmp = list_get_first(&opt->d.parents_instance_list);
 
@@ -3017,60 +3007,6 @@ int32_t opt_quit_connection(uint8_t cmd, uint8_t _save, struct opt_type *opt, st
 }
 
 
-
-int bmx_read_pipe_fd = 0;
-
-static void bmx_test_pipe_read( int32_t fd_in ) {
-
-        char bmx_test_buff[100];
-        int bmx_test_read;
-
-        assertion(-501141, (fd_in == bmx_read_pipe_fd));
-
-        while ((bmx_test_read = read(fd_in, bmx_test_buff, (sizeof (bmx_test_buff) - 1))) > 0) {
-
-                bmx_test_buff[bmx_test_read] = 0;
-
-                dbgf_track(DBGT_INFO, "rcvd %d bytes: %s", bmx_test_read, bmx_test_buff);
-        }
-}
-
-
-int bmx_send_pipe_fd = 0;
-char bmx_test_pipe_path[MAX_PATH_SIZE + 20] = "";
-
-static void bmx_test_pipe_send( int32_t fd_in )
-{
-
-        int bmx_test_send = 0;
-        static int sends = 0;
-        char bmx_test_buff[100];
-
-        assertion(-501142, (fd_in == bmx_send_pipe_fd));
-
-        sprintf(bmx_test_buff, "%10d", sends++);
-
-        dbgf_track(DBGT_INFO, "send %d test %d bytes via fd=%d", sends, strlen(bmx_test_buff), fd_in);
-
-//        bmx_test_send = write(fd_in, bmx_test_buff, 10);
-
-        dbgf_track(DBGT_INFO, "send %d test %d bytes via fd=%d", sends, strlen(bmx_test_buff), fd_in);
-
-//        assertion(-500000, (0));
-
-/*
-        set_send_fd_hook(bmx_send_pipe_fd, bmx_test_pipe_send, DEL);
-        close(bmx_send_pipe_fd);
-
-        if ((bmx_send_pipe_fd = open(bmx_test_pipe_path, O_RDWR | O_NONBLOCK, S_IRUSR | S_IWUSR)) < 0) {
-                dbgf_sys(DBGT_ERR, "open pipe %s failed: %s", bmx_test_pipe_path, strerror(errno));
-                assertion(-501143, (0));
-        }
-
-        set_send_fd_hook(bmx_send_pipe_fd, bmx_test_pipe_send, ADD);
-*/
-}
-
 STATIC_FUNC
 int32_t opt_run_dir(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
 {
@@ -3091,68 +3027,12 @@ int32_t opt_run_dir(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt
 			strcpy( run_dir, tmp_dir );
 		}	
 		
-
-        } else 	if ( cmd == OPT_SET_POST  &&  initializing ) {
+	} else 	if ( cmd == OPT_SET_POST  &&  initializing ) {
 		
 		if ( check_dir( run_dir, YES/*create*/, YES/*writable*/ ) == FAILURE )
 			return FAILURE;
-
-
-        } else if (cmd == OPT_POST && initializing && !bmx_send_pipe_fd) {
-
-
-                int tmp_status;
-                sprintf(bmx_test_pipe_path, "%s/%s", run_dir, BMX_TEST_PIPE);
-                errno = 0;
-                if ((tmp_status = mkfifo(bmx_test_pipe_path, S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH))) {
-
-                        if (errno == EEXIST) {
-
-                                struct stat fstat;
-                                int stat_ret = stat(bmx_test_pipe_path, &fstat);
-
-                                if (stat_ret < 0) {
-
-                                        dbgf_track(DBGT_WARN, "%s does not exist! (%s)", bmx_test_pipe_path, strerror(errno));
-                                        return FAILURE;
-
-                                } else if (!(S_ISFIFO(fstat.st_mode) && (S_IRUSR & fstat.st_mode) && (S_IWUSR & fstat.st_mode))) {
-
-                                        dbgf_sys(DBGT_ERR, "%s exists but has inapropriate permissions (%s)", bmx_test_pipe_path, strerror(errno));
-                                        return FAILURE;
-                                }
-
-
-                        } else {
-                                dbgf_sys(DBGT_ERR, "creating pipe %s failed %d: %s", bmx_test_pipe_path, tmp_status, strerror(errno));
-                                return FAILURE;
-                        }
-                }
-
-                if ((bmx_send_pipe_fd = open(bmx_test_pipe_path, (O_WRONLY | O_NONBLOCK), 0)) < 0) {
-                        dbgf_sys(DBGT_ERR, "open pipe %s failed: %s", bmx_test_pipe_path, strerror(errno));
-                        return FAILURE;
-                }
-
-                dbgf_track(DBGT_INFO, "opened fd=%d as %s", bmx_send_pipe_fd, bmx_test_pipe_path);
-
-//                set_recv_fd_hook( test_pipe_fd, bmx_test_pipe_read, ADD );
-                set_send_fd_hook( bmx_send_pipe_fd, bmx_test_pipe_send, ADD );
-
-        } else if (cmd == OPT_UNREGISTER) {
-
-                if (bmx_read_pipe_fd > 0) {
-                        set_recv_fd_hook(bmx_read_pipe_fd, bmx_test_pipe_read, DEL);
-                        close(bmx_read_pipe_fd);
-                        bmx_read_pipe_fd = 0;
-                }
-
-                if (bmx_send_pipe_fd > 0) {
-                        set_send_fd_hook(bmx_send_pipe_fd, bmx_test_pipe_send, DEL);
-                        close(bmx_send_pipe_fd);
-                        bmx_send_pipe_fd = 0;
-                }
-        }
+		
+	}
 	
 	return SUCCESS;
 }

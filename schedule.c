@@ -37,31 +37,26 @@
 
 static LIST_SIMPEL( task_list, struct task_node, list, list );
 
-static int32_t fdset_max_sock = 0;
-static fd_set fd_read_set;
-static fd_set fd_send_set;
+static int32_t receive_max_sock = 0;
+static fd_set receive_wait_set;
 
-static uint16_t changed_selected_fds = 1;
+static uint16_t changed_readfds = 1;
 
 
 
 void change_selects(void)
 {
-	changed_selected_fds++;
+	changed_readfds++;	
 }
 
 static void check_selects(void)
 {
         TRACE_FUNCTION_CALL;
 
-        if (changed_selected_fds) {
+        if (changed_readfds) {
 
-                memset(&fd_read_set, 0, sizeof (fd_set));
-                memset(&fd_send_set, 0, sizeof (fd_set));
-
-                FD_ZERO(&fd_read_set);
-                FD_ZERO(&fd_send_set);
-                fdset_max_sock = 0;
+                FD_ZERO(&receive_wait_set);
+                receive_max_sock = 0;
 
                 //	receive_max_sock = ifevent_sk;
                 //	FD_SET(ifevent_sk, &receive_wait_set);
@@ -70,20 +65,16 @@ static void check_selects(void)
 
                 assertion(-501099, (unix_sock > 0));
 
-                fdset_max_sock = MAX(fdset_max_sock, unix_sock);
-                FD_SET(unix_sock, &fd_read_set);
-
-                dbgf_track(DBGT_INFO, "added fd=%d as unix_sock", unix_sock);
+                receive_max_sock = MAX(receive_max_sock, unix_sock);
+                FD_SET(unix_sock, &receive_wait_set);
 
                 struct ctrl_node *cn = NULL;
                 while ((cn = list_iterate(&ctrl_list, cn))) {
 
                         if (cn->fd > 0 && cn->fd != STDOUT_FILENO) {
 
-                                fdset_max_sock = MAX(fdset_max_sock, cn->fd);
-                                FD_SET(cn->fd, &fd_read_set);
-                                dbgf_track(DBGT_INFO, "added fd=%d as cn->fd", cn->fd);
-
+                                receive_max_sock = MAX(receive_max_sock, cn->fd);
+                                FD_SET(cn->fd, &receive_wait_set);
                         }
                 }
 
@@ -93,47 +84,29 @@ static void check_selects(void)
 
                         if (dev->active && dev->linklayer != TYP_DEV_LL_LO) {
 
-                                fdset_max_sock = MAX(fdset_max_sock, dev->unicast_sock);
-                                FD_SET(dev->unicast_sock, &fd_read_set);
-                                dbgf_track(DBGT_INFO, "added fd=%d as dev->unicast_sock", dev->unicast_sock);
+                                receive_max_sock = MAX(receive_max_sock, dev->unicast_sock);
+                                FD_SET(dev->unicast_sock, &receive_wait_set);
 
-
-                                fdset_max_sock = MAX(fdset_max_sock, dev->rx_mcast_sock);
-                                FD_SET(dev->rx_mcast_sock, &fd_read_set);
-                                dbgf_track(DBGT_INFO, "added fd=%d as dev->mcast_sock", dev->rx_mcast_sock);
+                                receive_max_sock = MAX(receive_max_sock, dev->rx_mcast_sock);
+                                FD_SET(dev->rx_mcast_sock, &receive_wait_set);
 
                                 if (dev->rx_fullbrc_sock > 0) {
 
-                                        fdset_max_sock = MAX(fdset_max_sock, dev->rx_fullbrc_sock);
-                                        FD_SET(dev->rx_fullbrc_sock, &fd_read_set);
-                                        dbgf_track(DBGT_INFO, "added fd=%d as dev->rx_fullbrc_sock", dev->rx_fullbrc_sock);
-
+                                        receive_max_sock = MAX(receive_max_sock, dev->rx_fullbrc_sock);
+                                        FD_SET(dev->rx_fullbrc_sock, &receive_wait_set);
                                 }
                         }
                 }
 
-                struct cb_fd_node *cdn;
-                cdn = NULL;
-                while ((cdn = list_iterate(&cb_recv_fd_list, cdn))) {
+                struct cb_fd_node *cdn = NULL;
+                while ((cdn = list_iterate(&cb_fd_list, cdn))) {
 
-                        fdset_max_sock = MAX(fdset_max_sock, cdn->fd);
-                        FD_SET(cdn->fd, &fd_read_set);
-                        dbgf_track(DBGT_INFO, "added fd=%d as cdn->fd from cb_recv_fd_list", cdn->fd);
-
+                        receive_max_sock = MAX(receive_max_sock, cdn->fd);
+                        FD_SET(cdn->fd, &receive_wait_set);
                 }
 
-                cdn = NULL;
-                while ((cdn = list_iterate(&cb_send_fd_list, cdn))) {
-
-                        fdset_max_sock = MAX(fdset_max_sock, cdn->fd);
-                        FD_SET(cdn->fd, &fd_send_set);
-                        dbgf_track(DBGT_INFO, "added fd=%d as cdn->fd from cb_send_fd_list", cdn->fd);
-
-                }
-
-
-                dbgf_all(DBGT_INFO, "updated changed=%d", changed_selected_fds);
-                changed_selected_fds = 0;
+                dbgf_all(DBGT_INFO, "updated changed=%d", changed_readfds);
+                changed_readfds = 0;
         }
 }
 
@@ -265,8 +238,7 @@ void wait4Event(TIME_T timeout)
 	struct timeval tv;
 	struct list_node *list_pos;
 	int selected;
-	fd_set tmp_read_fds;
-        fd_set tmp_write_fds;
+	fd_set tmp_wait_set;
 		
 	
 loop4Event:
@@ -275,18 +247,13 @@ loop4Event:
 
 
 		check_selects();
-
-                memset(&tmp_read_fds, 0, sizeof (fd_set));
-                memset(&tmp_write_fds, 0, sizeof (fd_set));
-
 		
-		memcpy( &tmp_read_fds, &fd_read_set, sizeof(fd_set) );
-		memcpy( &tmp_write_fds, &fd_send_set, sizeof(fd_set) );
+		memcpy( &tmp_wait_set, &receive_wait_set, sizeof(fd_set) );
 			
 		tv.tv_sec  =   (return_time - bmx_time) / 1000;
 		tv.tv_usec = ( (return_time - bmx_time) % 1000 ) * 1000;
-
-                selected = select(fdset_max_sock + 1, &tmp_read_fds, &tmp_write_fds, NULL, &tv);
+			
+		selected = select( receive_max_sock + 1, &tmp_wait_set, NULL, NULL, &tv );
 
                 dbgf_all(DBGT_INFO, "select=%d", selected);
 	
@@ -309,10 +276,10 @@ loop4Event:
 		if ( selected < 0 ) {
                         static TIME_T last_interrupted_syscall = 0;
 
-//                        if (((TIME_T) (bmx_time - last_interrupted_syscall) < 1000)) {
+                        if (((TIME_T) (bmx_time - last_interrupted_syscall) < 1000)) {
                                 dbg_sys(DBGT_WARN, //happens when receiving SIGHUP
                                         "can't select! Waiting a moment! errno: %s", strerror(errno));
-//                        }
+                        }
 
                         last_interrupted_syscall = bmx_time;
 
@@ -370,7 +337,7 @@ loop4Event:
 			if ( pb.i.iif->linklayer == TYP_DEV_LL_LO )
 				continue;
 				
-			if ( FD_ISSET( pb.i.iif->rx_mcast_sock, &tmp_read_fds ) ) {
+			if ( FD_ISSET( pb.i.iif->rx_mcast_sock, &tmp_wait_set ) ) {
 	
 				pb.i.unicast = NO;
 				
@@ -396,7 +363,7 @@ loop4Event:
 
 			}
 			
-			if ( FD_ISSET( pb.i.iif->rx_fullbrc_sock, &tmp_read_fds ) ) {
+			if ( FD_ISSET( pb.i.iif->rx_fullbrc_sock, &tmp_wait_set ) ) {
 				
 				pb.i.unicast = NO;
 				
@@ -423,7 +390,7 @@ loop4Event:
 			}
 			
 			
-			if ( FD_ISSET( pb.i.iif->unicast_sock, &tmp_read_fds ) ) {
+			if ( FD_ISSET( pb.i.iif->unicast_sock, &tmp_wait_set ) ) {
 				
 				pb.i.unicast = YES;
 					
@@ -481,40 +448,32 @@ loop4Event:
 		
 		}
 		
-loop4ActiveReadFdPlugins:
-		list_for_each( list_pos, &cb_recv_fd_list ) {
-			struct cb_fd_node *cdn = list_entry( list_pos, struct cb_fd_node, list );
+loop4ActivePlugins:
 
-                        if (FD_ISSET(cdn->fd, &tmp_read_fds)) {
-                                FD_CLR(cdn->fd, &tmp_read_fds);
+		// check active plugins...
+		list_for_each( list_pos, &cb_fd_list ) {
+	
+			struct cb_fd_node *cdn = list_entry( list_pos, struct cb_fd_node, list );
+	
+			if ( FD_ISSET( cdn->fd, &tmp_wait_set ) ) {
+				
+				FD_CLR( cdn->fd, &tmp_wait_set );
+				
 				(*(cdn->cb_fd_handler)) (cdn->fd); 
+				
 				// list might have changed, due to unregistered handlers, reiterate NOW
 				//TODO: check if fd was really consumed !
 				if ( --selected == 0 )
 					goto loop4Event;
 				
-				goto loop4ActiveReadFdPlugins;
+				goto loop4ActivePlugins;
 			}
+
 		}
 		
-loop4ActiveSendFdPlugins:
-		list_for_each( list_pos, &cb_send_fd_list ) {
-			struct cb_fd_node *cdn = list_entry( list_pos, struct cb_fd_node, list );
-
-                        if (FD_ISSET(cdn->fd, &tmp_write_fds)) {
-                                FD_CLR(cdn->fd, &tmp_write_fds);
-				(*(cdn->cb_fd_handler)) (cdn->fd);
-				// list might have changed, due to unregistered handlers, reiterate NOW
-				//TODO: check if fd was really consumed !
-				if ( --selected == 0 )
-					goto loop4Event;
-
-				goto loop4ActiveSendFdPlugins;
-			}
-		}
 
 		// check for new control clients...
-		if ( FD_ISSET( unix_sock, &tmp_read_fds ) ) {
+		if ( FD_ISSET( unix_sock, &tmp_wait_set ) ) {
 				
 			accept_ctrl_node();
 			
@@ -530,9 +489,9 @@ loop4ActiveClients:
 			
 			struct ctrl_node *client = list_entry( list_pos, struct ctrl_node, list );
 				
-			if ( FD_ISSET( client->fd, &tmp_read_fds ) ) {
+			if ( FD_ISSET( client->fd, &tmp_wait_set ) ) {
 					
-				FD_CLR( client->fd, &tmp_read_fds );
+				FD_CLR( client->fd, &tmp_wait_set );
 				
 				//omit debugging here since event could be a closed -d4 ctrl socket 
 				//which should be removed before debugging

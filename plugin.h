@@ -63,7 +63,7 @@ void **get_plugin_data( void *data, uint8_t data_type, int32_t registry );
 struct cb_node {
 	struct list_node list;
 	int32_t cb_type;
-	void (*cb_handler) (void);
+	void (*cb_handler) ( void );
 };
 
 struct cb_fd_node {
@@ -72,13 +72,11 @@ struct cb_fd_node {
 	void (*cb_fd_handler) (int32_t fd);
 };
 
-extern struct list_head cb_recv_fd_list;
-extern struct list_head cb_send_fd_list;
-
+extern struct list_head cb_fd_list;
 // cb_fd_handler is called when fd received data
 // called function may remove itself
-void set_recv_fd_hook( int32_t fd, void (*cb_fd_handler) (int32_t fd), int8_t del );
-void set_send_fd_hook( int32_t fd, void (*cb_fd_handler) (int32_t fd), int8_t del );
+void set_fd_hook( int32_t fd, void (*cb_fd_handler) (int32_t fd), int8_t del );
+
 
 struct cb_route_change_node {
 	struct list_node list;

@@ -219,6 +219,15 @@ extern int32_t my_ogm_interval;
 #define ARG_DAD_TO "dad_timeout"
 extern int32_t dad_to;
 
+#define DEF_DROP_ALL_FRAMES 0
+#define MIN_DROP_ALL_FRAMES 0
+#define MAX_DROP_ALL_FRAMES 1
+#define ARG_DROP_ALL_FRAMES "drop_all_frames"
+
+#define DEF_DROP_ALL_PACKETS 0
+#define MIN_DROP_ALL_PACKETS 0
+#define MAX_DROP_ALL_PACKETS 1
+#define ARG_DROP_ALL_PACKETS "drop_all_packets"
 
 
 #define MIN_DHASH_TO 300000 //300000

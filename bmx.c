@@ -41,6 +41,8 @@
 #include "plugin.h"
 
 
+int32_t drop_all_frames = DEF_DROP_ALL_FRAMES;
+int32_t drop_all_packets = DEF_DROP_ALL_PACKETS;
 
 
 int32_t dad_to = DEF_DAD_TO;
@@ -947,8 +949,10 @@ void rx_packet( struct packet_buff *pb )
         TRACE_FUNCTION_CALL;
         assertion(-501105, (af_cfg == AF_INET || af_cfg == AF_INET6));
 
-        struct dev_node *oif, *iif;
-        iif = pb->i.iif;
+        struct dev_node *oif, *iif = pb->i.iif;
+        
+        if (drop_all_packets)
+                return;
 
         assertion(-500841, ((iif->active && iif->if_llocal_addr)));
 
@@ -1030,9 +1034,6 @@ void rx_packet( struct packet_buff *pb )
                 return;
 
 
-
-
-
         dbgf_all(DBGT_INFO, "version=%i, reserved=%X, size=%i IID=%d rcvd udp_len=%d via NB %s %s %s",
                 hdr->bmx_version, hdr->reserved, pkt_length, pb->i.transmittersIID,
                 pb->i.total_length, pb->i.llip_str, iif->label_cfg.str, pb->i.unicast ? "UNICAST" : "BRC");
@@ -1041,6 +1042,9 @@ void rx_packet( struct packet_buff *pb )
         cb_packet_hooks(pb);
 
         if (blacklisted_neighbor(pb, NULL))
+                return;
+        
+        if (drop_all_frames)
                 return;
 
         if (rx_frames(pb) == SUCCESS)
@@ -1526,7 +1530,13 @@ static struct opt_type bmx_options[]=
 			ARG_VALUE_FORM,	"duplicate address (DAD) detection timout in ms"}
         ,
 	{ODI,0,"flush_all",		0,  5,A_PS0,A_ADM,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0, 		opt_purge,
-			0,		"purge all neighbors and routes on the fly"},
+			0,		"purge all neighbors and routes on the fly"}
+        ,
+	{ODI,0,ARG_DROP_ALL_FRAMES,     0,  5,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&drop_all_frames,	MIN_DROP_ALL_FRAMES,	MAX_DROP_ALL_FRAMES,	DEF_DROP_ALL_FRAMES,	0,
+			ARG_VALUE_FORM,	"drop all received frames (but process packet header)"}
+        ,
+	{ODI,0,ARG_DROP_ALL_PACKETS,     0,  5,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&drop_all_packets,	MIN_DROP_ALL_PACKETS,	MAX_DROP_ALL_PACKETS,	DEF_DROP_ALL_PACKETS,	0,
+			ARG_VALUE_FORM,	"drop all received packets"}
 
 };
 

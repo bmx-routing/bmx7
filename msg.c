@@ -125,162 +125,137 @@ struct frame_handl packet_frame_handler[FRAME_TYPE_ARRSZ];
 struct frame_handl description_tlv_handl[BMX_DSC_TLV_ARRSZ];
 
 
-static const int16_t std_field_sizes[STD_FIELD_END] = STD_FIELD_SIZES;
+void dbg_msg_field(uint8_t *msg, struct ctrl_node *cn, uint16_t pos, uint16_t field_size, uint16_t field_type)
+{
 
-void dbg_msg_field( uint8_t *msg, struct ctrl_node *cn, uint16_t pos, uint16_t field_size, uint16_t field_type) {
-        
         assertion(-501144, field_type < STD_FIELD_END);
-        
-        if (!msg || ! cn)
+
+        if (!msg || !cn)
                 return;
-        
-                
+
+
 }
 
-int8_t validate_msg_format(struct frame_handl *handl, uint16_t data_size, uint8_t *data, struct ctrl_node *cn ) {
-        
-#define VARSIZE_UNDEFINED -1
-#define VARSIZE_DEFINED 0
-        
-        TRACE_FUNCTION_CALL;
-        
-        const struct msg_field_format *format = handl->msg_format;
-                 
-        uint16_t pos = 0;
-        int16_t field = -1;
-        int32_t varsize = VARSIZE_UNDEFINED;
-        uint16_t field_type;
-        
-        while( (field_type = format[++field].msg_field_type) < STD_FIELD_END ) {
-                
-                int16_t std_size = std_field_sizes[ format[field].msg_field_type ];
-                int16_t field_size = format[field].msg_field_size;
-                
-                if (std_size > STD_FIELD_SIZE_VARIABLE) { // field has standard fixed size
-                        
-                        if ( field_type == STD_FIELD_TYPE_VARSIZE_U8 || field_type == STD_FIELD_TYPE_VARSIZE_U16 ) {
-                                
-                                // field defines size for following variable-sized field:
-                                
-                                if ( varsize >= VARSIZE_DEFINED ) {
-                         
-                                        assertion(-5001150, 0);
-                                        return FAILURE;
-                                
-                                } else if ( data_size ) {
-                                                                               
-                                        if ( field_type == STD_FIELD_TYPE_VARSIZE_U8 ) {
-                                                
-                                                varsize = *((uint8_t*)&(data[pos]));
-                                        
-                                        } else {
-                                                
-                                                varsize = *((uint16_t*)&(data[pos]));
-                                        }
-                                        
-                                        if ( pos + std_size + varsize > data_size ) {
-                                                assertion(-5001151, 0);       
-                                                return FAILURE;
-                                        }
-                                        
-                                } else {
-                                        varsize = VARSIZE_DEFINED;
-                                }
-                                
-                        }
+static const int32_t std_field_sizes[STD_FIELD_END] = STD_FIELD_SIZES;
 
-                        if ( std_size == field_size || field_size == STD_FIELD_SIZE_STANDARD ) {
-                                
-                                if ( pos + std_size > handl->min_msg_size ) {
-                                        assertion(-5001152, 0);
-                                        return FAILURE;
-                                }
-                                
-                                
-                                if ( data_size ) {
-                                
-                                        if ( pos + std_size + ((varsize>=VARSIZE_DEFINED)?varsize:0) > data_size ) {
-                                                assertion(-5001153, 0);
-                                                return FAILURE;
-                                        }
-                                
-                                        dbg_msg_field( data, cn, pos, field_size, field_type );
-                                        
-                                }
-                                
-                                
-                                pos += std_size;
-                                
-                        } else {
-                                assertion(-5001154, 0);
-                                return FAILURE;
-                        }
+int64_t msg_field_get_value(struct frame_handl *handl, int32_t field, uint8_t *data, uint32_t pos_bit, uint32_t bits)
+{
+        uint16_t field_type = handl->msg_format[field].msg_field_type;
+        uint16_t host_order = handl->msg_format[field].msg_field_host_order;
 
-                } else if ( std_size == STD_FIELD_SIZE_VARIABLE) {
-                        
-                        if ( field_size > STD_FIELD_SIZE_VARIABLE ) {
-                                
-                                if ( pos + field_size > handl->min_msg_size ) {
-                                        assertion(-5001155, 0);
-                                        return FAILURE;
-                                }
 
-                                if ( data_size ) {
-                                        
-                                        if ( pos + field_size + ((varsize>=VARSIZE_DEFINED)?varsize:0) > data_size ) {
-                                                assertion(-5001156, 0);
-                                                return FAILURE;
-                                        }
+        if (!(field_type == STD_FIELD_TYPE_UINT || field_type == STD_FIELD_TYPE_HEX || field_type == STD_FIELD_TYPE_STRING_SIZE))
+                return FAILURE;
 
-                                        dbg_msg_field( data, cn, pos, field_size, field_type);
-                                }
+        if ( bits > 32)
+                return FAILURE;
 
-                                pos += field_size;
-                                
-                        } else if ( handl->fixed_msg_size ) {
-                                assertion(-5001158, 0);
-                                return FAILURE;
-                                
-                        } else if ( field_size == STD_FIELD_SIZE_VARIABLE && varsize >= VARSIZE_DEFINED ) {
-                                
-                                if ( format[field+1].msg_field_type != STD_FIELD_END ) {
-                                        assertion(-5001158, 0);
-                                        return FAILURE;
-                                }
-                                
-                                if ( data_size ) {
-                                        
-                                        if ( pos + varsize > data_size ) {
-                                                assertion(-5001160, 0);
-                                                return FAILURE;
-                                        }
-                                        
-                                        dbg_msg_field(data, cn, pos, varsize, field_type);
-                                }
-                                
-                        } else {
-                                assertion(-5001161, 0);
-                                return FAILURE;
-                        }
-                        
-                } else {
-                        assertion(-5001162, 0);
-                        return FAILURE;
+        if ((bits % 8) == 0) {
+
+                uint16_t pos_byte;
+                uint32_t result = 0;
+
+                assertion(-501168, ((pos_bit % 8) == 0));
+                assertion(-501169, (host_order || bits == 16 || bits == 32));
+
+                for (pos_byte = 0; pos_byte < bits / 8; pos_byte++)
+                        ((uint8_t*) & result)[ sizeof (result) - (bits / 8) + pos_byte ] = data[(pos_bit / 8) + pos_byte];
+
+                if (host_order)
+                        return result;
+                else if (bits == 16)
+                        return ntohs(result);
+                else if (bits == 32)
+                        return ntohl(result);
+
+        } else if (bits < 8) {
+
+                uint8_t bit = 0;
+                uint8_t result = 0;
+
+                for (bit = 0; bit < bits; bit++) {
+                        uint8_t val = bit_get(data, (8 * handl->min_msg_size), (pos_bit + bit));
+                        bit_set(&result, (8 * sizeof (result)), ((8 * sizeof (result)) - bits + bit), val);
                 }
+
+                return result;
         }
-        
-        if ( handl->min_msg_size != pos ) {
-                assertion(-5001163, 0);
-                return FAILURE;
-        }
-        
-        if ( data_size && data_size != (pos + ((varsize>=VARSIZE_DEFINED)?varsize:0)) ) {
-                assertion(-5001164, 0);
-                return FAILURE;
-        }
-        
-        return SUCCESS;
+
+        return FAILURE;
 }
+
+
+void validate_msg_format(struct frame_handl *handl, uint16_t data_size, uint8_t *data, struct ctrl_node *cn)
+{
+        TRACE_FUNCTION_CALL;
+
+        const struct msg_field_format *format;
+
+        uint32_t pos_bit = 0;
+        int32_t field = -1;
+        uint32_t var_bits = 0;
+
+        assertion(-501171, IMPLIES(data_size, data));
+
+        while (((format = &(handl->msg_format[++field]))->msg_field_type) < STD_FIELD_END) {
+
+                //printf("msg_name=%s field_name=%s\n", handl->name, format->msg_field_name);
+
+                uint16_t field_type = format->msg_field_type;
+                int32_t field_bits = format->msg_field_bits ? format->msg_field_bits : var_bits;
+                int32_t std_bits = std_field_sizes[field_type];
+
+                assertion(-501172, IMPLIES(field_type == STD_FIELD_TYPE_STRING_SIZE, !var_bits));
+
+                assertion(-501173, IMPLIES(format->msg_field_bits == 0, format[1].msg_field_type == STD_FIELD_END));
+
+                assertion(-501174, (std_bits != 0));
+                assertion(-501175, IMPLIES(std_bits > 0, (field_bits == std_bits)));
+                assertion(-501176, IMPLIES(std_bits < 0, !(field_bits % (-std_bits))));
+
+                assertion(-500000, IMPLIES(field_bits >= 8, !(field_bits % 8)));
+                assertion(-501177, IMPLIES((field_bits % 8), field_bits < 8));
+                assertion(-501178, IMPLIES(!(field_bits % 8), !(pos_bit % 8)));
+                //assertion(-501179, IMPLIES(!(field_bits % 16), !(pos_bit % 16)));
+                //assertion(-501180, IMPLIES(!(field_bits % 32), !(pos_bit % 32)));
+
+                //assertion(-501181, ((pos_bit % format->msg_field_alignement) == 0));
+
+                assertion(-501182, (handl->min_msg_size * 8 >= pos_bit + format->msg_field_bits));
+
+                assertion(-501183, IMPLIES(data_size, handl->min_msg_size <= data_size));
+                assertion(-501184, IMPLIES(data_size, field_bits));
+                assertion(-501185, IMPLIES(data_size, pos_bit + field_bits  <= data_size * 8));
+
+                assertion(-501186, IMPLIES(data_size && handl->fixed_msg_size, handl->fixed_msg_size == data_size));
+                assertion(-501187, IMPLIES(handl->fixed_msg_size, field_type != STD_FIELD_TYPE_STRING_SIZE));
+                assertion(-501188, IMPLIES(handl->fixed_msg_size, field_type != STD_FIELD_TYPE_STRING_CHAR));
+                assertion(-501189, IMPLIES(handl->fixed_msg_size, field_type != STD_FIELD_TYPE_STRING_BINARY));
+
+                assertion(-501190, IMPLIES(!format->msg_field_host_order, (field_bits == 16 || field_bits == 32)));
+                assertion(-501191, IMPLIES(!format->msg_field_host_order, (field_type == STD_FIELD_TYPE_UINT || field_type == STD_FIELD_TYPE_HEX || field_type == STD_FIELD_TYPE_STRING_SIZE)));
+
+                assertion(-501192, IMPLIES((field_type == STD_FIELD_TYPE_UINT || field_type == STD_FIELD_TYPE_HEX || field_type == STD_FIELD_TYPE_STRING_SIZE), field_bits <= 32));
+
+
+                if (data_size) {
+
+                        if (field_type == STD_FIELD_TYPE_STRING_SIZE) {
+                                int32_t var_bytes = msg_field_get_value(handl, field, data, pos_bit, field_bits);
+                                assertion(-500000, (var_bytes >= SUCCESS));
+                                var_bits = 8 * var_bytes;
+                        }
+
+                        dbg_msg_field(data, cn, pos_bit, field_bits, field_type);
+                }
+
+                pos_bit += format->msg_field_bits;
+        }
+
+        assertion(-5001163, (handl->min_msg_size * 8 == pos_bit));
+        assertion(-5001164, IMPLIES(data_size, data_size * 8 == pos_bit + var_bits));
+}
+
 
 
 
@@ -295,9 +270,9 @@ void register_frame_handler(struct frame_handl *array, int pos, struct frame_han
         assertion(-500879, (!(handl->min_msg_size % TLV_DATA_STEPS) && handl->min_msg_size >= TLV_DATA_STEPS));
         assertion(-500880, (!(handl->data_header_size % TLV_DATA_STEPS)));
         assertion(-500975, (handl->tx_task_interval_min <= CONTENT_MIN_TX_INTERVAL_MAX));
-        
-        if ( handl->msg_format )
-                validate_msg_format( handl, handl->min_msg_size, NULL, NULL );
+
+        if (handl->msg_format)
+                validate_msg_format( handl, 0, NULL, NULL );
                 
         array[pos] = *handl;
 
@@ -3751,6 +3726,8 @@ int32_t init_msg( void )
         handl.rx_msg_handler = rx_msg_dhash_or_description_request;
         register_frame_handler(packet_frame_handler, FRAME_TYPE_DESC_REQ, &handl);
 
+
+        static const struct msg_field_format description_format[] = DESCRIPTION_MSG_FORMAT;
         handl.name = "DESC_ADV";
         handl.is_advertisement = 1;
         handl.tx_iterations = &desc_adv_tx_iters;
@@ -3758,6 +3735,7 @@ int32_t init_msg( void )
         handl.tx_task_interval_min = DEF_TX_DESC0_ADV_TO;
         handl.tx_msg_handler = tx_msg_description_adv;
         handl.rx_frame_handler = rx_frame_description_advs;
+        handl.msg_format = description_format;
         register_frame_handler(packet_frame_handler, FRAME_TYPE_DESC_ADV, &handl);
 
         

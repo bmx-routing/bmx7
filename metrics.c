@@ -1600,6 +1600,8 @@ int32_t init_metrics( void )
                 UMETRIC_TO_FMETRIC_INPUT_FIX, c, steps, err_sum_square / c, err_sum / c, err_min, err_max);
 #endif
 
+        static const struct msg_field_format metric_format[] = DESCRIPTION_MSG_METRICALGO_FORMAT;
+
         struct frame_handl metric_handl;
         memset( &metric_handl, 0, sizeof(metric_handl));
         metric_handl.fixed_msg_size = 0;
@@ -1608,6 +1610,7 @@ int32_t init_metrics( void )
         metric_handl.name = "desc_tlv_metric0";
         metric_handl.tx_frame_handler = create_description_tlv_metricalgo;
         metric_handl.rx_frame_handler = process_description_tlv_metricalgo;
+        metric_handl.msg_format = metric_format;
         register_frame_handler(description_tlv_handl, BMX_DSC_TLV_METRIC, &metric_handl);
 
         

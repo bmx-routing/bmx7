@@ -337,40 +337,31 @@ struct tx_frame_iterator {
 };
 
 enum {
-	STD_FIELD_TYPE_INT8,
-	STD_FIELD_TYPE_INT16,
-	STD_FIELD_TYPE_INT32,
-	STD_FIELD_TYPE_INT64,
-	STD_FIELD_TYPE_UINT8,
-	STD_FIELD_TYPE_UINT16,
-	STD_FIELD_TYPE_UINT32,
-	STD_FIELD_TYPE_UINT64,
-	STD_FIELD_TYPE_HEX8,
-	STD_FIELD_TYPE_HEX16,
-	STD_FIELD_TYPE_HEX32,
-	STD_FIELD_TYPE_HEX64,
+	STD_FIELD_TYPE_UINT,
+	STD_FIELD_TYPE_HEX,
 	STD_FIELD_TYPE_CHAR,
-	STD_FIELD_TYPE_VARSIZE_U8,
-	STD_FIELD_TYPE_VARSIZE_U16,
-	STD_FIELD_TYPE_STRING,
-	STD_FIELD_TYPE_BINARY,
+	STD_FIELD_TYPE_STRING_SIZE,
+	STD_FIELD_TYPE_STRING_CHAR,
+	STD_FIELD_TYPE_STRING_BINARY,
 	STD_FIELD_TYPE_INET4,
 	STD_FIELD_TYPE_INET6,
-	
+	STD_FIELD_TYPE_MAC,
+
 	STD_FIELD_END
 };
 
-
-#define STD_FIELD_SIZE_STANDARD -1
-#define STD_FIELD_SIZE_VARIABLE 0
-#define STD_FIELD_SIZES { 1,2,4,8,1,2,4,8,1,2,4,8,1,1,2,STD_FIELD_SIZE_VARIABLE,STD_FIELD_SIZE_VARIABLE,4,16 }
-
+#define STD_FIELD_SIZES {-1,-1, 8,-1,-8,-8,32,128,48}
+// negative values mean size must be multiple of negativ value, positive values mean absolute bit sizes
 
 struct msg_field_format {
 	uint16_t msg_field_type;
-	int16_t msg_field_size;
+//	uint16_t msg_field_alignement;
+	uint32_t msg_field_bits;
+	uint8_t msg_field_host_order;
 	char * msg_field_name;
 };
+
+
 
 
 struct frame_handl {
@@ -635,6 +626,23 @@ struct msg_description_adv {
 } __attribute__((packed));
 
 
+#define DESCRIPTION_MSG_FORMAT { \
+{STD_FIELD_TYPE_UINT,          (8*sizeof(IID_T)),              0, "transmitterIID4x"}, \
+{STD_FIELD_TYPE_STRING_CHAR,   (8*DESCRIPTION0_ID_NAME_LEN),   1, "id.Name"},  \
+{STD_FIELD_TYPE_STRING_BINARY, (8*DESCRIPTION0_ID_RANDOM_LEN), 1, "id.Rand" },  \
+{STD_FIELD_TYPE_UINT,          16,                             0, "codeVersion" }, \
+{STD_FIELD_TYPE_STRING_SIZE,   16,                             0, "extension_msgs_len" }, \
+{STD_FIELD_TYPE_UINT,          16,                             0, "sqn" }, \
+{STD_FIELD_TYPE_HEX,           16,                             0, "capabilities" }, \
+{STD_FIELD_TYPE_UINT,          (8*sizeof(OGM_SQN_T)),          0, "ogm_sqn_min" }, \
+{STD_FIELD_TYPE_UINT,          (8*sizeof(OGM_SQN_T)),          0, "ogm_sqn_range" }, \
+{STD_FIELD_TYPE_UINT,          16,                             0, "tx_interval" }, \
+{STD_FIELD_TYPE_UINT,          8,                              1, "ttl" }, \
+{STD_FIELD_TYPE_UINT,          8,                              1, "reserved1" }, \
+{STD_FIELD_TYPE_STRING_BINARY, 128,                            1, "reserved" }, \
+{STD_FIELD_TYPE_STRING_BINARY, 0,                              1, "extension_msgs" }, \
+{STD_FIELD_END,         0, 0,  NULL }       \
+}
 
 
 

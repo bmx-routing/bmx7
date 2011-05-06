@@ -15,6 +15,7 @@
  * 02110-1301, USA
  */
 
+
 #define BIT_METRIC_ALGO_MIN           0x00
 #define BIT_METRIC_ALGO_MP            0x00 // ->   1
 #define BIT_METRIC_ALGO_EP            0x01 // ->   2
@@ -78,7 +79,7 @@
 #define DEF_PATH_REGRESSION_SLOW 1
 #define MIN_PATH_REGRESSION_SLOW 1
 #define MAX_PATH_REGRESSION_SLOW 255
-#define ARG_PATH_REGRESSION_SLOW "path_regression_slow"
+#define ARG_PATH_REGRESSION_SLOW "path_regression"
 
 
 
@@ -193,6 +194,24 @@ struct description_tlv_metricalgo {
 	uint8_t optional[];
 } __attribute__((packed));
 
+#define DESCRIPTION_MSG_METRICALGO_FORMAT { \
+{STD_FIELD_TYPE_HEX,   (8*sizeof(FMETRIC_U16_T)),  0, "fmetric_u16_min"}, \
+{STD_FIELD_TYPE_UINT,  16,  0, "reserved"},  \
+{STD_FIELD_TYPE_UINT,  16,  0, ARG_PATH_METRIC_ALGO },  \
+{STD_FIELD_TYPE_HEX,   16,  0, "flags" },   \
+{STD_FIELD_TYPE_UINT,  2,   1, ARG_PATH_TP_EXP_DIVISOR },   \
+{STD_FIELD_TYPE_UINT,  2,   1, ARG_PATH_TP_EXP_NUMERATOR },   \
+{STD_FIELD_TYPE_UINT,  2,   1, ARG_PATH_RP_EXP_DIVISOR },   \
+{STD_FIELD_TYPE_UINT,  2,   1, ARG_PATH_RP_EXP_NUMERATOR },   \
+{STD_FIELD_TYPE_UINT,  8,   1, "reserved2"},  \
+{STD_FIELD_TYPE_UINT,  8,   1, ARG_PATH_WINDOW},  \
+{STD_FIELD_TYPE_UINT,  8,   1, ARG_PATH_LOUNGE},  \
+{STD_FIELD_TYPE_UINT,  8,   1, ARG_PATH_REGRESSION_SLOW},  \
+{STD_FIELD_TYPE_UINT,  8,   1, ARG_PATH_HYST},  \
+{STD_FIELD_TYPE_UINT,  8,   1, ARG_HOP_PENALTY},  \
+{STD_FIELD_TYPE_UINT,  8,   1, ARG_LATE_PENAL},  \
+{STD_FIELD_END,        0,   0, NULL }       \
+}
 
 
 extern struct host_metricalgo link_rp_metric_algo;

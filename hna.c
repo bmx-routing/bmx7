@@ -571,7 +571,7 @@ int process_description_tlv_hna(struct rx_frame_iterator *it)
                         dbgf_all(DBGT_INFO, "configure_niit... op=%d  orig=%s blocked=%d", op, on->id.name, on->blocked);
 
                         if (!on->blocked) {
-                                ASSERTION(-500000, (avl_find(&global_uhna_tree, &key)));
+                                ASSERTION(-501141, (avl_find(&global_uhna_tree, &key)));
 
                                 if (op == TLV_OP_CUSTOM_NIIT6TO4_ADD) {
                                         configure_niit6to4(ADD, &key);
@@ -588,7 +588,7 @@ int process_description_tlv_hna(struct rx_frame_iterator *it)
                                         configure_route(ADD, on, &key);
                                         configure_niit4to6(ADD, &key);
                                 } else {
-                                        assertion(-500000, (NO));
+                                        assertion(-501142, (NO));
                                 }
                         }
 
@@ -798,11 +798,14 @@ void hna_cleanup( void )
 }
 
 
-
 STATIC_FUNC
 int32_t hna_init( void )
 {
         struct frame_handl tlv_handl;
+        
+        static const struct msg_field_format hna4_format[] = DESCRIPTION_MSG_HNA4_FORMAT;
+        static const struct msg_field_format hna6_format[] = DESCRIPTION_MSG_HNA6_FORMAT;
+
 
         memset( &tlv_handl, 0, sizeof(tlv_handl));
         tlv_handl.min_msg_size = sizeof (struct description_msg_hna4);
@@ -811,6 +814,7 @@ int32_t hna_init( void )
         tlv_handl.name = "desc_tlv_uhna4";
         tlv_handl.tx_frame_handler = create_description_tlv_hna;
         tlv_handl.rx_frame_handler = process_description_tlv_hna;
+        tlv_handl.msg_format = hna4_format;
         register_frame_handler(description_tlv_handl, BMX_DSC_TLV_UHNA4, &tlv_handl);
 
 
@@ -821,6 +825,7 @@ int32_t hna_init( void )
         tlv_handl.name = "desc_tlv_uhna6";
         tlv_handl.tx_frame_handler = create_description_tlv_hna;
         tlv_handl.rx_frame_handler = process_description_tlv_hna;
+        tlv_handl.msg_format = hna6_format;
         register_frame_handler(description_tlv_handl, BMX_DSC_TLV_UHNA6, &tlv_handl);
 
         set_route_change_hooks(hna_route_change_hook, ADD);

@@ -22,7 +22,6 @@
 
 
 
-
 #define MIN_UDPD_SIZE 128 //(6+4+(22+8)+32)+184=72+56=128
 #define DEF_UDPD_SIZE 512 //512
 #define MAX_UDPD_SIZE (MIN( 1400, MAX_PACKET_SIZE))
@@ -337,6 +336,41 @@ struct tx_frame_iterator {
 //#define tx_iterator_cache_msg_ptr( it ) ((it)->cache_data_array + (it)->cache_msg_pos)
 };
 
+enum {
+	STD_FIELD_TYPE_INT8,
+	STD_FIELD_TYPE_INT16,
+	STD_FIELD_TYPE_INT32,
+	STD_FIELD_TYPE_INT64,
+	STD_FIELD_TYPE_UINT8,
+	STD_FIELD_TYPE_UINT16,
+	STD_FIELD_TYPE_UINT32,
+	STD_FIELD_TYPE_UINT64,
+	STD_FIELD_TYPE_HEX8,
+	STD_FIELD_TYPE_HEX16,
+	STD_FIELD_TYPE_HEX32,
+	STD_FIELD_TYPE_HEX64,
+	STD_FIELD_TYPE_CHAR,
+	STD_FIELD_TYPE_VARSIZE_U8,
+	STD_FIELD_TYPE_VARSIZE_U16,
+	STD_FIELD_TYPE_STRING,
+	STD_FIELD_TYPE_BINARY,
+	STD_FIELD_TYPE_INET4,
+	STD_FIELD_TYPE_INET6,
+	
+	STD_FIELD_END
+};
+
+
+#define STD_FIELD_SIZE_STANDARD -1
+#define STD_FIELD_SIZE_VARIABLE 0
+#define STD_FIELD_SIZES { 1,2,4,8,1,2,4,8,1,2,4,8,1,1,2,STD_FIELD_SIZE_VARIABLE,STD_FIELD_SIZE_VARIABLE,4,16 }
+
+
+struct msg_field_format {
+	uint16_t msg_field_type;
+	int16_t msg_field_size;
+	char * msg_field_name;
+};
 
 
 struct frame_handl {
@@ -366,6 +400,8 @@ struct frame_handl {
 	int32_t (*rx_msg_handler)   (struct rx_frame_iterator *); // returns: TLV_RX_DATA_code or rcvd frame_msg_len  (without data_header_size)
 	int32_t (*tx_frame_handler) (struct tx_frame_iterator *); // returns: TLV_TX_DATA_code or send frame_msgs_len (without data_header_size)
 	int32_t (*tx_msg_handler)   (struct tx_frame_iterator *); // returns: TLV_TX_DATA_code or send frame_msg_len  (without data_header_size)
+	
+	const struct msg_field_format *msg_format;
 };
 
 

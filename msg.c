@@ -124,8 +124,170 @@ struct frame_handl packet_frame_handler[FRAME_TYPE_ARRSZ];
 
 struct frame_handl description_tlv_handl[BMX_DSC_TLV_ARRSZ];
 
+
+static const int16_t std_field_sizes[STD_FIELD_END] = STD_FIELD_SIZES;
+
+void dbg_msg_field( uint8_t *msg, struct ctrl_node *cn, uint16_t pos, uint16_t field_size, uint16_t field_type) {
+        
+        assertion(-501144, field_type < STD_FIELD_END);
+        
+        if (!msg || ! cn)
+                return;
+        
+                
+}
+
+int8_t validate_msg_format(struct frame_handl *handl, uint16_t data_size, uint8_t *data, struct ctrl_node *cn ) {
+        
+#define VARSIZE_UNDEFINED -1
+#define VARSIZE_DEFINED 0
+        
+        TRACE_FUNCTION_CALL;
+        
+        const struct msg_field_format *format = handl->msg_format;
+                 
+        uint16_t pos = 0;
+        int16_t field = -1;
+        int32_t varsize = VARSIZE_UNDEFINED;
+        uint16_t field_type;
+        
+        while( (field_type = format[++field].msg_field_type) < STD_FIELD_END ) {
+                
+                int16_t std_size = std_field_sizes[ format[field].msg_field_type ];
+                int16_t field_size = format[field].msg_field_size;
+                
+                if (std_size > STD_FIELD_SIZE_VARIABLE) { // field has standard fixed size
+                        
+                        if ( field_type == STD_FIELD_TYPE_VARSIZE_U8 || field_type == STD_FIELD_TYPE_VARSIZE_U16 ) {
+                                
+                                // field defines size for following variable-sized field:
+                                
+                                if ( varsize >= VARSIZE_DEFINED ) {
+                         
+                                        assertion(-5001150, 0);
+                                        return FAILURE;
+                                
+                                } else if ( data_size ) {
+                                                                               
+                                        if ( field_type == STD_FIELD_TYPE_VARSIZE_U8 ) {
+                                                
+                                                varsize = *((uint8_t*)&(data[pos]));
+                                        
+                                        } else {
+                                                
+                                                varsize = *((uint16_t*)&(data[pos]));
+                                        }
+                                        
+                                        if ( pos + std_size + varsize > data_size ) {
+                                                assertion(-5001151, 0);       
+                                                return FAILURE;
+                                        }
+                                        
+                                } else {
+                                        varsize = VARSIZE_DEFINED;
+                                }
+                                
+                        }
+
+                        if ( std_size == field_size || field_size == STD_FIELD_SIZE_STANDARD ) {
+                                
+                                if ( pos + std_size > handl->min_msg_size ) {
+                                        assertion(-5001152, 0);
+                                        return FAILURE;
+                                }
+                                
+                                
+                                if ( data_size ) {
+                                
+                                        if ( pos + std_size + ((varsize>=VARSIZE_DEFINED)?varsize:0) > data_size ) {
+                                                assertion(-5001153, 0);
+                                                return FAILURE;
+                                        }
+                                
+                                        dbg_msg_field( data, cn, pos, field_size, field_type );
+                                        
+                                }
+                                
+                                
+                                pos += std_size;
+                                
+                        } else {
+                                assertion(-5001154, 0);
+                                return FAILURE;
+                        }
+
+                } else if ( std_size == STD_FIELD_SIZE_VARIABLE) {
+                        
+                        if ( field_size > STD_FIELD_SIZE_VARIABLE ) {
+                                
+                                if ( pos + field_size > handl->min_msg_size ) {
+                                        assertion(-5001155, 0);
+                                        return FAILURE;
+                                }
+
+                                if ( data_size ) {
+                                        
+                                        if ( pos + field_size + ((varsize>=VARSIZE_DEFINED)?varsize:0) > data_size ) {
+                                                assertion(-5001156, 0);
+                                                return FAILURE;
+                                        }
+
+                                        dbg_msg_field( data, cn, pos, field_size, field_type);
+                                }
+
+                                pos += field_size;
+                                
+                        } else if ( handl->fixed_msg_size ) {
+                                assertion(-5001158, 0);
+                                return FAILURE;
+                                
+                        } else if ( field_size == STD_FIELD_SIZE_VARIABLE && varsize >= VARSIZE_DEFINED ) {
+                                
+                                if ( format[field+1].msg_field_type != STD_FIELD_END ) {
+                                        assertion(-5001158, 0);
+                                        return FAILURE;
+                                }
+                                
+                                if ( data_size ) {
+                                        
+                                        if ( pos + varsize > data_size ) {
+                                                assertion(-5001160, 0);
+                                                return FAILURE;
+                                        }
+                                        
+                                        dbg_msg_field(data, cn, pos, varsize, field_type);
+                                }
+                                
+                        } else {
+                                assertion(-5001161, 0);
+                                return FAILURE;
+                        }
+                        
+                } else {
+                        assertion(-5001162, 0);
+                        return FAILURE;
+                }
+        }
+        
+        if ( handl->min_msg_size != pos ) {
+                assertion(-5001163, 0);
+                return FAILURE;
+        }
+        
+        if ( data_size && data_size != (pos + ((varsize>=VARSIZE_DEFINED)?varsize:0)) ) {
+                assertion(-5001164, 0);
+                return FAILURE;
+        }
+        
+        return SUCCESS;
+}
+
+
+
 void register_frame_handler(struct frame_handl *array, int pos, struct frame_handl *handl)
 {
+        TRACE_FUNCTION_CALL;
+        
         assertion(-500659, (pos < BMX_DSC_TLV_ARRSZ));
         assertion(-500660, (!array[pos].min_msg_size)); // the pos MUST NOT be used yet
         assertion(-500661, (handl && handl->min_msg_size && handl->name));
@@ -133,7 +295,10 @@ void register_frame_handler(struct frame_handl *array, int pos, struct frame_han
         assertion(-500879, (!(handl->min_msg_size % TLV_DATA_STEPS) && handl->min_msg_size >= TLV_DATA_STEPS));
         assertion(-500880, (!(handl->data_header_size % TLV_DATA_STEPS)));
         assertion(-500975, (handl->tx_task_interval_min <= CONTENT_MIN_TX_INTERVAL_MAX));
-
+        
+        if ( handl->msg_format )
+                validate_msg_format( handl, handl->min_msg_size, NULL, NULL );
+                
         array[pos] = *handl;
 
         memset(handl, 0, sizeof ( struct frame_handl ) );

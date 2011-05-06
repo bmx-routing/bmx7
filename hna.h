@@ -64,6 +64,14 @@ struct description_msg_hna4 {
 	uint32_t metric;
 } __attribute__((packed));
 
+#define DESCRIPTION_MSG_HNA4_FORMAT { \
+{STD_FIELD_TYPE_UINT8,  -1, "prefixlen"}, \
+{STD_FIELD_TYPE_UINT8,  -1, "reserved"},  \
+{STD_FIELD_TYPE_INET4,  -1, "address" },  \
+{STD_FIELD_TYPE_UINT32, -1, "metric" },   \
+{STD_FIELD_END,         -1, NULL }        \
+}
+
 
 struct description_msg_hna6 {
 	uint8_t prefixlen;
@@ -71,4 +79,13 @@ struct description_msg_hna6 {
 	IP6_T    ip6;
 	uint32_t metric;
 } __attribute__((packed));
+
+
+#define DESCRIPTION_MSG_HNA6_FORMAT { \
+{STD_FIELD_TYPE_UINT8,  -1, "prefixlen"}, \
+{STD_FIELD_TYPE_UINT8,  -1, "reserved"},  \
+{STD_FIELD_TYPE_INET6,  -1, "address" },  \
+{STD_FIELD_TYPE_UINT32, -1, "metric" },   \
+{STD_FIELD_END,         -1, NULL }        \
+};
 

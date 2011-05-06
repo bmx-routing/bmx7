@@ -2399,7 +2399,7 @@ int32_t call_option(uint8_t ad, uint8_t cmd, uint8_t save, struct opt_type *opt,
                 if (cmd == OPT_APPLY && opt->opt_t == A_PSN && patch->p_diff == ADD && patch->p_val &&
                         opt->d.parents_instance_list.items >= 1) {
 
-                        assertion(-500000, (opt->d.parents_instance_list.items == 1));
+                        assertion(-501140, (opt->d.parents_instance_list.items == 1));
 
                         struct opt_parent *p_tmp = list_get_first(&opt->d.parents_instance_list);
 

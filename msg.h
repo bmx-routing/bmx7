@@ -272,7 +272,11 @@ enum {
 	TLV_OP_TEST = 1,
 	TLV_OP_ADD = 2,
 	TLV_OP_DEBUG = 3,
-	TLV_OP_CUSTOM_MIN = 128,
+
+	TLV_OP_CUSTOM_MIN = 20,
+        TLV_OP_CUSTOM_MAX = 99,
+        TLV_OP_PLUGIN_MIN = 100,
+        TLV_OP_PLUGIN_MAX = 199
 };
 
 char *tlv_op_str(uint8_t op);
@@ -755,5 +759,7 @@ void schedule_tx_task(struct link_dev_node *lndev_out, uint16_t type, int16_t ms
 	uint16_t u16, uint32_t u32, IID_T myIID4x, IID_T neighIID4x);
 
 void register_frame_handler(struct frame_handl *array, int pos, struct frame_handl *handl);
+
+uint8_t frame_operator_register(int32_t(*handl) (struct rx_frame_iterator *));
 
 struct plugin *msg_get_plugin( void );

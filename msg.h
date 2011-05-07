@@ -272,10 +272,10 @@ enum {
 	TLV_OP_TEST = 1,
 	TLV_OP_ADD = 2,
 	TLV_OP_DEBUG = 3,
-	TLV_OP_CUSTOM_MIN = 20,
+	TLV_OP_CUSTOM_MIN = 128,
 };
 
-char *tlv_op_str(IDM_T op);
+char *tlv_op_str(uint8_t op);
 
 /*
  * this iterator is given the beginning of a frame area (e.g. the end of the packet_header)
@@ -289,7 +289,7 @@ struct rx_frame_iterator {
 	struct ctrl_node   *cn;
 	uint8_t            *frames_in;
 	struct frame_handl *handls;
-	IDM_T               op;
+	uint8_t             op;
 	uint8_t             process_filter;
 	uint8_t             handl_max;
 	int32_t             frames_length;
@@ -739,7 +739,8 @@ void update_my_dev_adv(void);
 void update_my_link_adv(uint32_t changes);
 
 struct dhash_node * process_description(struct packet_buff *pb, struct description *desc, struct description_hash *dhash);
-IDM_T process_description_tlvs(struct packet_buff *pb, struct orig_node *on, struct description *desc, IDM_T op, uint8_t filter, struct ctrl_node *cn);
+IDM_T process_description_tlvs(struct packet_buff *pb, struct orig_node *on, struct description *desc, uint8_t op,
+        uint8_t filter, struct ctrl_node *cn);
 void purge_tx_task_list(struct list_head *tx_tasks_list, struct link_node *only_link, struct dev_node *only_dev);
 
 void tx_packets( void *unused );

@@ -480,7 +480,7 @@ int process_description_tlv_hna(struct rx_frame_iterator *it)
         assertion(-501107, (af_cfg == AF_INET || af_cfg == AF_INET6));
 
         struct orig_node *on = it->on;
-        IDM_T op = it->op;
+        uint8_t op = it->op;
         uint8_t family = (it->frame_type == BMX_DSC_TLV_UHNA4 ? AF_INET : AF_INET6);
 
         if (af_cfg != family) {

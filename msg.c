@@ -98,7 +98,7 @@ static struct dhash_node* DHASH_NODE_FAILURE = (struct dhash_node*) & DHASH_NODE
   The core frame/message structures and handlers
  ************************************************************/
 
-char *tlv_op_str(IDM_T op)
+char *tlv_op_str(uint8_t op)
 {
         switch (op) {
         case TLV_OP_DEL:
@@ -373,7 +373,8 @@ void cache_description(struct description *desc, struct description_hash *dhash)
 
 
 
-IDM_T process_description_tlvs(struct packet_buff *pb, struct orig_node *on, struct description *desc, IDM_T op, uint8_t filter, struct ctrl_node *cn)
+IDM_T process_description_tlvs(struct packet_buff *pb, struct orig_node *on, struct description *desc, uint8_t op,
+                               uint8_t filter, struct ctrl_node *cn)
 {
         TRACE_FUNCTION_CALL;
         assertion(-500370, (op == TLV_OP_DEL || op == TLV_OP_TEST || op == TLV_OP_ADD || op == TLV_OP_DEBUG || op >= TLV_OP_CUSTOM_MIN));
@@ -2703,28 +2704,11 @@ int32_t rx_frame_iterate(struct rx_frame_iterator *it)
 
                 } else if (!IMPLIES(f_handl->rx_requires_described_neigh, (pb && is_described_neigh(pb->i.link, pb->i.transmittersIID)))) {
 
-/*
-                        struct neigh_node *neigh
-                        if (neigh && neigh->dhn && neigh->dhn->on &&
-                                neigh->dhn == iid_get_node_by_neighIID4x(neigh, transmittersIID4x)) {
-
-*/
-
-
                         dbgf_track(DBGT_INFO, "%s - UNDESCRIBED IID=%d of neigh=%s - skipping frame type=%s",
                                 it->caller, pb->i.transmittersIID, pb->i.llip_str, f_handl->name);
 
                         return TLV_RX_DATA_IGNORED;
 
-/*
-                } else if (pb && f_handl->rx_requires_neighIID4me && !(pb->i.link->local->neigh && pb->i.link->local->neigh->neighIID4me)) {
-
-                        dbgf_track(DBGT_INFO, "%s - UNKNOWN neighIID4me neigh=%s - skipping frame type=%s",
-                                it->caller, pb->i.llip_str, f_handl->name);
-
-                        return TLV_RX_DATA_IGNORED;
-
-*/
                 } else if (f_handl->rx_msg_handler && f_handl->fixed_msg_size) {
 
                         it->msg = it->frame_data + f_handl->data_header_size;
@@ -2784,7 +2768,7 @@ IDM_T rx_frames(struct packet_buff *pb)
         int32_t it_result;
 
         struct rx_frame_iterator it = {
-                .caller = __FUNCTION__, .pb = pb,
+                .caller = __FUNCTION__, .on = NULL, .cn = NULL, .op = 0, .pb = pb,
                 .handls = packet_frame_handler, .handl_max = FRAME_TYPE_MAX, .process_filter = FRAME_TYPE_PROCESS_ALL,
                 .frames_in = (((uint8_t*) & pb->packet.header) + sizeof (struct packet_header)),
                 .frames_length = (ntohs(pb->packet.header.pkt_length) - sizeof (struct packet_header)), .frames_pos = 0

@@ -1261,7 +1261,7 @@ int process_description_tlv_metricalgo(struct rx_frame_iterator *it )
         assertion(-500684, (it->on));
 
         struct orig_node *on = it->on;
-        IDM_T op = it->op;
+        uint8_t op = it->op;
 
         struct description_tlv_metricalgo *tlv_algo = (struct description_tlv_metricalgo *) (it->frame_data);
         struct host_metricalgo host_algo;

@@ -347,14 +347,15 @@ enum {
 	STD_FIELD_TYPE_STRING_SIZE,
 	STD_FIELD_TYPE_STRING_CHAR,
 	STD_FIELD_TYPE_STRING_BINARY,
-	STD_FIELD_TYPE_INET4,
-	STD_FIELD_TYPE_INET6,
+	STD_FIELD_TYPE_IP4,
+	STD_FIELD_TYPE_IPX4,
+	STD_FIELD_TYPE_IPX6,
 	STD_FIELD_TYPE_MAC,
 
 	STD_FIELD_END
 };
 
-#define STD_FIELD_SIZES {-1,-1, 8,-1,-8,-8,32,128,48}
+#define STD_FIELD_SIZES {-1,-1, 8,-1,-8,-8,32,128,128,48}
 // negative values mean size must be multiple of negativ value, positive values mean absolute bit sizes
 
 struct msg_field_format {
@@ -631,20 +632,20 @@ struct msg_description_adv {
 
 
 #define DESCRIPTION_MSG_FORMAT { \
-{STD_FIELD_TYPE_UINT,          (8*sizeof(IID_T)),              0, "transmitterIID4x"}, \
-{STD_FIELD_TYPE_STRING_CHAR,   (8*DESCRIPTION0_ID_NAME_LEN),   1, "id.Name"},  \
-{STD_FIELD_TYPE_STRING_BINARY, (8*DESCRIPTION0_ID_RANDOM_LEN), 1, "id.Rand" },  \
-{STD_FIELD_TYPE_UINT,          16,                             0, "codeVersion" }, \
-{STD_FIELD_TYPE_STRING_SIZE,   16,                             0, "extension_msgs_len" }, \
-{STD_FIELD_TYPE_UINT,          16,                             0, "sqn" }, \
-{STD_FIELD_TYPE_HEX,           16,                             0, "capabilities" }, \
-{STD_FIELD_TYPE_UINT,          (8*sizeof(OGM_SQN_T)),          0, "ogm_sqn_min" }, \
-{STD_FIELD_TYPE_UINT,          (8*sizeof(OGM_SQN_T)),          0, "ogm_sqn_range" }, \
-{STD_FIELD_TYPE_UINT,          16,                             0, "tx_interval" }, \
-{STD_FIELD_TYPE_UINT,          8,                              1, "ttl" }, \
-{STD_FIELD_TYPE_UINT,          8,                              1, "reserved1" }, \
-{STD_FIELD_TYPE_STRING_BINARY, 128,                            1, "reserved" }, \
-{STD_FIELD_TYPE_STRING_BINARY, 0,                              1, "extension_msgs" }, \
+{STD_FIELD_TYPE_UINT,          (8*sizeof(IID_T)),                0, "IID"}, \
+{STD_FIELD_TYPE_STRING_CHAR,   (8*(DESCRIPTION0_ID_NAME_LEN)),   1, "id_name"},  \
+{STD_FIELD_TYPE_STRING_BINARY, (8*DESCRIPTION0_ID_RANDOM_LEN),   1, "id_rand" },  \
+{STD_FIELD_TYPE_UINT,          16,                               0, "code_version" }, \
+{STD_FIELD_TYPE_STRING_SIZE,   16,                               0, "extension_msgs_len" }, \
+{STD_FIELD_TYPE_UINT,          16,                               0, "sqn" }, \
+{STD_FIELD_TYPE_HEX,           16,                               0, "capabilities" }, \
+{STD_FIELD_TYPE_UINT,          (8*sizeof(OGM_SQN_T)),            0, "ogm_sqn_min" }, \
+{STD_FIELD_TYPE_UINT,          (8*sizeof(OGM_SQN_T)),            0, "ogm_sqn_range" }, \
+{STD_FIELD_TYPE_UINT,          16,                               0, "tx_interval" }, \
+{STD_FIELD_TYPE_UINT,          8,                                1, "ttl" }, \
+{STD_FIELD_TYPE_UINT,          8,                                1, "reserved" }, \
+{STD_FIELD_TYPE_STRING_BINARY, 128,                              1, "reserved" }, \
+{STD_FIELD_TYPE_STRING_BINARY, 0,                                1, "extension_msgs" }, \
 {STD_FIELD_END,         0, 0,  NULL }       \
 }
 

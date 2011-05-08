@@ -30,13 +30,13 @@
 #include "ip.h"
 #include "tools.h"
 
-char* memAsStr( const void* mem, const uint32_t len)
+char* memAsHexString( const void* mem, uint32_t len)
 {
 #define MEMASSTR_BUFF_SIZE 2048
 #define MEMASSTR_BUFFERS 2
 #define MEMASSTR_STEP_SIZE 2
 	static uint8_t c=0;
-        static char out[2][MEMASSTR_BUFF_SIZE];
+        static char out[MEMASSTR_BUFFERS][MEMASSTR_BUFF_SIZE];
         uint32_t i;
 
         if (!mem)
@@ -50,12 +50,57 @@ char* memAsStr( const void* mem, const uint32_t len)
         }
 
         if (len > i)
-                snprintf(&(out[c][(i - 1) * MEMASSTR_STEP_SIZE]), MEMASSTR_STEP_SIZE, "..");
+                return NULL;
 
         out[c][i * MEMASSTR_STEP_SIZE] = 0;
 
         return out[c];
 }
+
+IDM_T validate_char_string (const char* data, uint32_t len) {
+
+        uint32_t pos = 0;
+
+        for (pos = 0; pos < len; pos++) {
+                if (data[pos] < ' ' || data[pos] >= 0x7F /*delete according to man ascii(7)*/ ) {
+                        dbgf_sys(DBGT_ERR, "stream len=%d pos=%d contains char=%d", len, pos, data[pos]);
+                        return FAILURE;
+                }
+        }
+
+        if (data[pos] != '\0') {
+                return FAILURE;
+                dbgf_sys(DBGT_ERR, "stream len=%d pos=%d not terminated with \\0", len, pos);
+        }
+
+        return SUCCESS;
+}
+
+char* memAsCharString( const char* mem, uint32_t len)
+{
+#define MEMASSTR_BUFF_SIZE 2048
+#define MEMASSTR_BUFFERS 2
+	static uint8_t c=0;
+        static char out[MEMASSTR_BUFFERS][MEMASSTR_BUFF_SIZE];
+
+
+        if (!mem)
+                return NULL;
+
+        len = MIN(strlen(mem), len);
+
+        if (len >= (MEMASSTR_BUFF_SIZE - 1) || validate_char_string(mem, len) == FAILURE)
+                return NULL;
+
+        c = (c+1) % MEMASSTR_BUFFERS;
+
+        memcpy(out[c], mem, len);
+
+        out[c][len] = 0;
+
+        return out[c];
+}
+
 
 //http://en.wikipedia.org/wiki/Fast_inverse_square_root
 //http://www.codemaestro.com/reviews/9

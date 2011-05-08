@@ -113,7 +113,7 @@ void dump(struct packet_buff *pb)
                 direction == DUMP_DIRECTION_IN ? "in " : "out", pb->i.llip_str, dev->label_cfg.str, plength);
 
         dbgf_dump(DBGT_NONE, "%s data: %s",
-                direction == DUMP_DIRECTION_IN ? "in " : "out", memAsStr(((uint8_t*) phdr), plength));
+                direction == DUMP_DIRECTION_IN ? "in " : "out", memAsHexString(((uint8_t*) phdr), plength));
 
         dbgf_dump(DBGT_NONE, "          bmx_version     pkt_sqn local_id  next frame...");
         dbgf_dump(DBGT_NONE, "            reserved  link_adv_sqn        dev_idx");
@@ -173,7 +173,7 @@ void dump(struct packet_buff *pb)
 
                 dbgf_dump(DBGT_NONE, "%s         data [%3d...%3d]:%s",
                         direction == DUMP_DIRECTION_IN ? "in  hex" : "out hex",
-                        pkt_pos, pkt_pos + frame_length - 1, memAsStr(((uint8_t*) phdr) + pkt_pos, frame_length));
+                        pkt_pos, pkt_pos + frame_length - 1, memAsHexString(((uint8_t*) phdr) + pkt_pos, frame_length));
 
                 assertion(-500991, (packet_frame_handler[it.frame_type].min_msg_size));
                 assertion(-500992, (it.frame_msgs_length >= 0));
@@ -199,7 +199,7 @@ void dump(struct packet_buff *pb)
 
                 dbgf_dump(DBGT_NONE, "%s         data [%3d...%3d]:%s",
                         direction == DUMP_DIRECTION_IN ? "in  hex" : "out hex",
-                        pkt_pos, pkt_pos + frame_length - 1, memAsStr(((uint8_t*) phdr) + pkt_pos, frame_length));
+                        pkt_pos, pkt_pos + frame_length - 1, memAsHexString(((uint8_t*) phdr) + pkt_pos, frame_length));
         }
 
         assertion(-500990, (IMPLIES(direction == DUMP_DIRECTION_OUT, iterator_result == TLV_RX_DATA_DONE)));

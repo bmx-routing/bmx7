@@ -443,7 +443,7 @@ char *ip4AsStr( IP4_T addr )
 
 char* macAsStr(const MAC_T* mac)
 {
-        return memAsStr( mac, sizeof(MAC_T));
+        return memAsHexString( mac, sizeof(MAC_T));
 }
 
 IDM_T is_mac_equal(const MAC_T *a, const MAC_T *b)
@@ -614,7 +614,7 @@ IDM_T kernel_if_fix(IDM_T purge_all, uint16_t curr_sqn)
 
                         dbgf(terminating || initializing ? DBGL_ALL : DBGL_SYS, DBGT_WARN,
                                 "link index %d %s addr %s REMOVED",
-                                iln->index, iln->name.str, memAsStr(&iln->addr, iln->alen));
+                                iln->index, iln->name.str, memAsHexString(&iln->addr, iln->alen));
 
                         avl_remove(&if_link_tree, &iln->index, -300232);
                         avl_remove(&if_link_tree, &iln->name, -300234);
@@ -895,7 +895,7 @@ int kernel_if_link_config(struct nlmsghdr *nlhdr, uint16_t update_sqn)
                 memcmp(&old_ilx->addr, RTA_DATA(tb[IFLA_ADDRESS]), MIN(alen, (int)sizeof(old_ilx->addr))) ||
                 memcmp(&old_ilx->name, &devname, sizeof (devname))) {
 
-                dbgf_all(DBGT_INFO, "link %s addr %s CHANGED", devname.str, memAsStr(RTA_DATA(tb[IFLA_ADDRESS]), alen));
+                dbgf_all(DBGT_INFO, "link %s addr %s CHANGED", devname.str, memAsHexString(RTA_DATA(tb[IFLA_ADDRESS]), alen));
 
                 changed++;
         }

@@ -67,7 +67,7 @@ struct description_msg_hna4 {
 #define DESCRIPTION_MSG_HNA4_FORMAT { \
 {STD_FIELD_TYPE_UINT,   8, 1, "prefixlen"}, \
 {STD_FIELD_TYPE_UINT,   8, 1, "reserved"},  \
-{STD_FIELD_TYPE_INET4, 32, 1, "address" },  \
+{STD_FIELD_TYPE_IP4,   32, 1, "address" },  \
 {STD_FIELD_TYPE_UINT,  32, 0, "metric" },   \
 {STD_FIELD_END,         0, 0,  NULL }       \
 }
@@ -85,7 +85,7 @@ struct description_msg_hna6 {
 #define DESCRIPTION_MSG_HNA6_FORMAT { \
 {STD_FIELD_TYPE_UINT,    8, 1, "prefixlen"}, \
 {STD_FIELD_TYPE_UINT,    8, 1, "reserved"},  \
-{STD_FIELD_TYPE_INET6, 128, 1, "address" },  \
+{STD_FIELD_TYPE_IPX6,  128, 1, "address" },  \
 {STD_FIELD_TYPE_UINT,   32, 0, "metric" },   \
 {STD_FIELD_END,          0, 0, NULL }        \
 };

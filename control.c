@@ -357,14 +357,15 @@ void handle_ctrl_node(struct ctrl_node *cn)
 	int input = read( cn->fd, buff, MAX_UNIX_MSG_SIZE );
 
 	buff[input]='\0';
-	
-	if ( input > 0 && input < MAX_UNIX_MSG_SIZE ) {
-		
+
+        if (input > 0 && input < MAX_UNIX_MSG_SIZE) {
+
 		dbgf_all( DBGT_INFO, "rcvd ctrl stream via fd %d, %d bytes, auth %d: %s", 
 		         cn->fd, input, cn->authorized, buff );
-		
-		if ( (apply_stream_opts( buff, OPT_CHECK, NO/*no cfg by default*/, cn ) == FAILURE)  ||
-		     (apply_stream_opts( buff, OPT_APPLY,  NO/*no cfg by default*/, cn ) == FAILURE)  ) 
+
+                if (validate_char_string(buff, input) != SUCCESS ||
+                        (apply_stream_opts(buff, OPT_CHECK, NO/*no cfg by default*/, cn) == FAILURE) ||
+                        (apply_stream_opts(buff, OPT_APPLY, NO/*no cfg by default*/, cn) == FAILURE))
 		{
 			
 			dbg_sys(DBGT_ERR, "invalid ctrl stream via fd %d, %d bytes, auth %d: %s",
@@ -1845,21 +1846,23 @@ int32_t opt_connect_client_to_daemon(uint8_t cmd, struct opt_type *opt, struct c
 			dbgf_all( DBGT_INFO, "called with %s",curr_strm_pos);
 			
 			if ( strlen(curr_strm_pos) > strlen(ARG_CONNECT)  &&  
-			     !strncmp( curr_strm_pos, ARG_CONNECT, strlen(ARG_CONNECT) )  &&  
-			     (curr_strm_pos+strlen(ARG_CONNECT))[0] == ' ' )
-			{
+			     !strncmp( curr_strm_pos, ARG_CONNECT, strlen(ARG_CONNECT) )  &&
+                                (curr_strm_pos + strlen(ARG_CONNECT))[0] == ' ') {
+
 				sprintf( unix_buff, "%s %c", nextword(curr_strm_pos), CHR_QUIT );
 				
 			} else if ( strlen(curr_strm_pos) > strlen(ARG_CONNECT)  &&
-			            !strncmp( curr_strm_pos, ARG_CONNECT, strlen(ARG_CONNECT) )  &&
-			            (curr_strm_pos+strlen(ARG_CONNECT))[0] == '=' ) 
-			{
+                                !strncmp(curr_strm_pos, ARG_CONNECT, strlen(ARG_CONNECT)) &&
+                                (curr_strm_pos + strlen(ARG_CONNECT))[0] == '=') {
+
 				sprintf( unix_buff, "%s %c", curr_strm_pos+strlen(ARG_CONNECT)+1 , CHR_QUIT );
 				
 			} else if ( strlen(curr_strm_pos) > 1  &&  curr_strm_pos[0] == opt->short_name  &&  curr_strm_pos[1] == ' ' ) {
+
 				sprintf( unix_buff, "%s %c", nextword(curr_strm_pos), CHR_QUIT );
 				
 			} else if ( strlen(curr_strm_pos) > 1  &&  curr_strm_pos[0] == opt->short_name  &&  curr_strm_pos[1] != ' ' ) {
+
 				sprintf( unix_buff, "-%s %c", curr_strm_pos+1, CHR_QUIT );
 				
 			} else {

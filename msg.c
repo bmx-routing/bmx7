@@ -129,14 +129,17 @@ struct frame_handl description_tlv_handl[BMX_DSC_TLV_ARRSZ];
 
 
 
-static const int32_t std_field_sizes[STD_FIELD_END] = STD_FIELD_SIZES;
 
-int64_t msg_field_get_value_i64(struct frame_handl *handl, int32_t field, uint8_t *data, uint32_t pos_bit, uint32_t bits)
+
+
+static const int32_t std_field_sizes[MSG_FIELD_TYPE_END] = MSG_FIELD_STANDARD_SIZES;
+
+static int64_t msg_field_get_value_i64(const struct msg_field_format *format, uint16_t min_msg_size, uint8_t *data, uint32_t pos_bit, uint32_t bits)
 {
-        uint16_t field_type = handl->msg_format[field].msg_field_type;
-        uint16_t host_order = handl->msg_format[field].msg_field_host_order;
+        uint16_t field_type = format->msg_field_type;
+        uint16_t host_order = format->msg_field_host_order;
 
-        assertion(-500000, (field_type == STD_FIELD_TYPE_UINT || field_type == STD_FIELD_TYPE_HEX || field_type == STD_FIELD_TYPE_STRING_SIZE));
+        assertion(-500000, (field_type == MSG_FIELD_TYPE_UINT || field_type == MSG_FIELD_TYPE_HEX || field_type == MSG_FIELD_TYPE_STRING_SIZE));
         assertion(-500000, (bits <= 32));
 
         if ((bits % 8) == 0) {
@@ -169,7 +172,7 @@ int64_t msg_field_get_value_i64(struct frame_handl *handl, int32_t field, uint8_
                 uint8_t result = 0;
 
                 for (bit = 0; bit < bits; bit++) {
-                        uint8_t val = bit_get(data, (8 * handl->min_msg_size), (pos_bit + bit));
+                        uint8_t val = bit_get(data, (8 * min_msg_size), (pos_bit + bit));
                         bit_set(&result, 8, bit, val);
                 }
 
@@ -179,19 +182,20 @@ int64_t msg_field_get_value_i64(struct frame_handl *handl, int32_t field, uint8_
         return FAILURE;
 }
 
-void msg_field_get_value_string(struct frame_handl *handl, int32_t field, uint8_t *data, uint32_t pos_bit, uint32_t bits, struct ctrl_node *cn)
+void msg_field_dbg_value(struct ctrl_node *cn, const struct msg_field_format *format, uint16_t min_msg_size,
+                         uint8_t *data, uint32_t pos_bit, uint32_t bits)
 {
 
-        assertion(-501200, (handl && data && cn));
+        assertion(-501200, (format && min_msg_size && data && cn && bits));
 
-        uint16_t field_type = handl->msg_format[field].msg_field_type;
+        uint16_t field_type = format->msg_field_type;
 
-        if (field_type == STD_FIELD_TYPE_UINT || field_type == STD_FIELD_TYPE_HEX || field_type == STD_FIELD_TYPE_STRING_SIZE) {
+        if (field_type == MSG_FIELD_TYPE_UINT || field_type == MSG_FIELD_TYPE_HEX || field_type == MSG_FIELD_TYPE_STRING_SIZE) {
 
                 if (bits <= 32) {
-                        int64_t field_val = msg_field_get_value_i64(handl, field, data, pos_bit, bits);
+                        int64_t field_val = msg_field_get_value_i64(format, min_msg_size, data, pos_bit, bits);
 
-                        if (handl->msg_format[field].msg_field_type == STD_FIELD_TYPE_HEX)
+                        if (format->msg_field_type == MSG_FIELD_TYPE_HEX)
                                 dbg_printf(cn, "%jX", field_val);
                         else
                                 dbg_printf(cn, "%ji", field_val);
@@ -199,33 +203,33 @@ void msg_field_get_value_string(struct frame_handl *handl, int32_t field, uint8_
                         dbg_printf(cn, "%s", memAsHexString(&data[pos_bit / 8], bits / 8));
                 }
 
-        } else if (field_type == STD_FIELD_TYPE_CHAR) {
+        } else if (field_type == MSG_FIELD_TYPE_CHAR) {
 
                 assertion(-501201, (pos_bit % 8 == 0 && bits == 8));
                 
                 dbg_printf(cn, "%c", data[pos_bit / 8]);
                 
-        } else if (field_type == STD_FIELD_TYPE_IP4) {
+        } else if (field_type == MSG_FIELD_TYPE_IP4) {
 
                 dbg_printf(cn, "%s", ip4AsStr(*((IP4_T*)&data[pos_bit / 8])));
 
-        } else if (field_type == STD_FIELD_TYPE_IPX4) {
+        } else if (field_type == MSG_FIELD_TYPE_IPX4) {
 
                 dbg_printf(cn, "%s", ipXAsStr(AF_INET, (IPX_T*) & data[pos_bit / 8]));
 
-        } else if (field_type == STD_FIELD_TYPE_IPX6) {
+        } else if (field_type == MSG_FIELD_TYPE_IPX6) {
 
                 dbg_printf(cn, "%s", ipXAsStr(AF_INET6, (IPX_T*) & data[pos_bit / 8]));
 
-        } else if (field_type == STD_FIELD_TYPE_MAC) {
+        } else if (field_type == MSG_FIELD_TYPE_MAC) {
 
                 dbg_printf(cn, "%s", macAsStr((MAC_T*)&data[pos_bit / 8]));
 
-        } else if (field_type == STD_FIELD_TYPE_STRING_BINARY) {
+        } else if (field_type == MSG_FIELD_TYPE_STRING_BINARY) {
 
                 dbg_printf(cn, "%s", memAsHexString(&data[pos_bit / 8], bits / 8));
 
-        } else if (field_type == STD_FIELD_TYPE_STRING_CHAR) {
+        } else if (field_type == MSG_FIELD_TYPE_STRING_CHAR) {
 
                 dbg_printf(cn, "%s", memAsCharString((char*)&data[pos_bit / 8], bits / 8));
         
@@ -234,34 +238,21 @@ void msg_field_get_value_string(struct frame_handl *handl, int32_t field, uint8_
         }
 }
 
-struct msg_field_iterator {
-        struct frame_handl *handl;
-        uint16_t max_data_size;
-        uint8_t *data;
-
-        uint32_t field;
-        int32_t field_bits;
-        uint32_t pos_bit;
-        uint32_t var_bits;
-
-        uint32_t _field;
-        uint32_t _pos_bit;
-};
 
 uint32_t msg_field_iterate(struct msg_field_iterator *it)
 {
         TRACE_FUNCTION_CALL;
         assertion(-501171, IMPLIES(it->max_data_size, it->data));
 
-        const struct msg_field_format *format = &(it->handl->msg_format[it->_field]);
+        const struct msg_field_format *format = &(it->format[it->_field]);
 
-        if (format->msg_field_type == STD_FIELD_END && 8 * it->max_data_size > it->_pos_bit) {
+        if (format->msg_field_type == MSG_FIELD_TYPE_END && 8 * it->max_data_size > it->_pos_bit) {
                 it->_field = 0;
                 it->var_bits = 0;
-                format = &(it->handl->msg_format[it->_field]);
+                format = &(it->format[it->_field]);
         }
 
-        if (format->msg_field_type < STD_FIELD_END) {
+        if (format->msg_field_type < MSG_FIELD_TYPE_END) {
 
                 //printf("msg_name=%s field_name=%s\n", handl->name, format->msg_field_name);
 
@@ -270,19 +261,19 @@ uint32_t msg_field_iterate(struct msg_field_iterator *it)
                 int32_t std_bits = std_field_sizes[field_type];
 
 
-                assertion(-501172, IMPLIES(field_type == STD_FIELD_TYPE_STRING_SIZE, !it->var_bits));
+                assertion(-501172, IMPLIES(field_type == MSG_FIELD_TYPE_STRING_SIZE, !it->var_bits));
 
-                assertion(-501203, IMPLIES(field_type == STD_FIELD_TYPE_UINT, (field_bits <= 8 || field_bits == 16 || field_bits == 32)));
-                assertion(-501204, IMPLIES(field_type == STD_FIELD_TYPE_HEX, (field_bits <= 8 || field_bits == 16 || field_bits == 32)));
-                assertion(-501205, IMPLIES(field_type == STD_FIELD_TYPE_STRING_SIZE, (field_bits <= 8 || field_bits == 16 || field_bits == 32)));
+                assertion(-501203, IMPLIES(field_type == MSG_FIELD_TYPE_UINT, (field_bits <= 8 || field_bits == 16 || field_bits == 32)));
+                assertion(-501204, IMPLIES(field_type == MSG_FIELD_TYPE_HEX, (field_bits <= 8 || field_bits == 16 || field_bits == 32)));
+                assertion(-501205, IMPLIES(field_type == MSG_FIELD_TYPE_STRING_SIZE, (field_bits <= 8 || field_bits == 16 || field_bits == 32)));
 
-                assertion(-501186, IMPLIES(it->handl->fixed_msg_size && it->max_data_size, it->max_data_size % it->handl->fixed_msg_size == 0));
-                assertion(-501187, IMPLIES(it->handl->fixed_msg_size, field_type != STD_FIELD_TYPE_STRING_SIZE));
-                assertion(-501188, IMPLIES(it->handl->fixed_msg_size, field_type != STD_FIELD_TYPE_STRING_CHAR));
-                assertion(-501189, IMPLIES(it->handl->fixed_msg_size, field_type != STD_FIELD_TYPE_STRING_BINARY));
+                assertion(-501186, IMPLIES(it->fixed_msg_size && it->max_data_size, it->max_data_size % it->fixed_msg_size == 0));
+                assertion(-501187, IMPLIES(it->fixed_msg_size, field_type != MSG_FIELD_TYPE_STRING_SIZE));
+                assertion(-501188, IMPLIES(it->fixed_msg_size, field_type != MSG_FIELD_TYPE_STRING_CHAR));
+                assertion(-501189, IMPLIES(it->fixed_msg_size, field_type != MSG_FIELD_TYPE_STRING_BINARY));
 
 
-                assertion(-501173, IMPLIES(format->msg_field_bits == 0, format[1].msg_field_type == STD_FIELD_END));
+                assertion(-501173, IMPLIES(format->msg_field_bits == 0, format[1].msg_field_type == MSG_FIELD_TYPE_END));
 
                 assertion(-501174, (std_bits != 0));
                 assertion(-501175, IMPLIES(std_bits > 0, (field_bits == std_bits)));
@@ -292,22 +283,22 @@ uint32_t msg_field_iterate(struct msg_field_iterator *it)
                 assertion(-501177, IMPLIES((field_bits % 8), field_bits < 8));
                 assertion(-501178, IMPLIES(!(field_bits % 8), !(it->_pos_bit % 8)));
 
-                assertion(-501182, (it->handl->min_msg_size * 8 >= it->_pos_bit + format->msg_field_bits));
+                assertion(-501182, (it->min_msg_size * 8 >= it->_pos_bit + format->msg_field_bits));
 
-                assertion(-501183, IMPLIES(it->max_data_size, it->handl->min_msg_size <= it->max_data_size));
+                assertion(-501183, IMPLIES(it->max_data_size, it->min_msg_size <= it->max_data_size));
                 assertion(-501184, IMPLIES(it->max_data_size, field_bits));
                 assertion(-501185, IMPLIES(it->max_data_size, it->_pos_bit + field_bits  <= it->max_data_size * 8));
 
                 assertion(-501190, IMPLIES(!format->msg_field_host_order, (field_bits == 16 || field_bits == 32)));
-                assertion(-501191, IMPLIES(!format->msg_field_host_order, (field_type == STD_FIELD_TYPE_UINT || field_type == STD_FIELD_TYPE_HEX || field_type == STD_FIELD_TYPE_STRING_SIZE)));
+                assertion(-501191, IMPLIES(!format->msg_field_host_order, (field_type == MSG_FIELD_TYPE_UINT || field_type == MSG_FIELD_TYPE_HEX || field_type == MSG_FIELD_TYPE_STRING_SIZE)));
 
-                assertion(-501192, IMPLIES((field_type == STD_FIELD_TYPE_UINT || field_type == STD_FIELD_TYPE_HEX || field_type == STD_FIELD_TYPE_STRING_SIZE), field_bits <= 32));
+                assertion(-501192, IMPLIES((field_type == MSG_FIELD_TYPE_UINT || field_type == MSG_FIELD_TYPE_HEX || field_type == MSG_FIELD_TYPE_STRING_SIZE), field_bits <= 32));
 
 
                 if (it->max_data_size) {
 
-                        if (field_type == STD_FIELD_TYPE_STRING_SIZE) {
-                                int64_t var_bytes = msg_field_get_value_i64(it->handl, it->_field, it->data, it->_pos_bit, field_bits);
+                        if (field_type == MSG_FIELD_TYPE_STRING_SIZE) {
+                                int64_t var_bytes = msg_field_get_value_i64(format, it->min_msg_size, it->data, it->_pos_bit, field_bits);
                                 assertion(-501207, (var_bytes >= SUCCESS));
                                 it->var_bits = 8 * var_bytes;
                         }
@@ -322,26 +313,27 @@ uint32_t msg_field_iterate(struct msg_field_iterator *it)
                 it->_pos_bit += field_bits;
                 it->_field++;
 
-                dbgf_all(DBGT_INFO, "handl=%s max_data_size=%d data=%p field=%d field_bits=%d pos_bit=%d var_bits=%d _field=%d _pos_bit=%d field_type=%d field_bits=%d std_bits=%d",
-                        it->handl->name, it->max_data_size, it->data, it->field, it->field_bits, it->pos_bit, it->var_bits, it->_field, it->_pos_bit, field_type, field_bits, std_bits);
+                dbgf_all(DBGT_INFO, "max_data_size=%d data=%p field=%d field_bits=%d pos_bit=%d var_bits=%d _field=%d _pos_bit=%d field_type=%d field_bits=%d std_bits=%d",
+                        it->max_data_size, it->data, it->field, it->field_bits, it->pos_bit, it->var_bits, it->_field, it->_pos_bit, field_type, field_bits, std_bits);
 
                 return SUCCESS;
 
         }
 
-        assertion(-501163, IMPLIES(!it->max_data_size, (it->_pos_bit % (it->handl->min_msg_size * 8) == 0)));
+        assertion(-501163, IMPLIES(!it->max_data_size, (it->_pos_bit % (it->min_msg_size * 8) == 0)));
         assertion(-501164, IMPLIES(it->max_data_size, it->max_data_size * 8 == it->_pos_bit));
         assertion(-501208, ((it->_pos_bit % 8) == 0));
 
         return (it->_pos_bit / 8);
 }
 
-uint32_t msg_fields_validate(struct frame_handl *handl, uint16_t max_data_size, uint8_t *data, struct ctrl_node *cn)
+uint32_t msg_fields_dbg(struct ctrl_node *cn, struct frame_handl *handl, uint16_t max_data_size, uint8_t *data)
 {
         TRACE_FUNCTION_CALL;
         assertion(-501209, handl);
 
-        struct msg_field_iterator it = {.handl = handl, .max_data_size = max_data_size, .data = data};
+        struct msg_field_iterator it = {.format = handl->msg_format, .data = data, .max_data_size = max_data_size,
+                .fixed_msg_size = handl->fixed_msg_size, .min_msg_size = handl->min_msg_size};
         uint32_t msgs_size = 0;
 
         dbg_printf(cn, "%s:\n", handl->name);
@@ -349,11 +341,9 @@ uint32_t msg_fields_validate(struct frame_handl *handl, uint16_t max_data_size, 
                 
                 if (data && cn) {
                         dbg_printf(cn, " %s=", handl->msg_format[it.field].msg_field_name);
-                        msg_field_get_value_string(handl, it.field, data, it.pos_bit, it.field_bits, cn);
-                        if (handl->msg_format[it.field + 1].msg_field_type == STD_FIELD_END)
+                        msg_field_dbg_value(cn, &it.format[it.field], it.min_msg_size, data, it.pos_bit, it.field_bits);
+                        if (handl->msg_format[it.field + 1].msg_field_type == MSG_FIELD_TYPE_END)
                                 dbg_printf(cn, "\n");
-
-
 
                 }
         }
@@ -378,7 +368,7 @@ void register_frame_handler(struct frame_handl *array, int pos, struct frame_han
         assertion(-500880, (!(handl->data_header_size % TLV_DATA_STEPS)));
         assertion(-500975, (handl->tx_task_interval_min <= CONTENT_MIN_TX_INTERVAL_MAX));
 
-        assertion(-501213, IMPLIES(handl->msg_format, handl->min_msg_size == msg_fields_validate(handl, 0, NULL, NULL)));
+        assertion(-501213, IMPLIES(handl->msg_format, handl->min_msg_size == msg_fields_dbg(NULL, handl, 0, NULL)));
                 
         array[pos] = *handl;
 
@@ -3665,15 +3655,6 @@ void update_my_description_adv(void)
         ShaFinal(&bmx_sha, (byte*) & dhash);
 
         update_neigh_dhash( &self, &dhash );
-/*
-        if (self.dhn) {
-                self.dhn->on = NULL;
-                invalidate_dhash_node( self.dhn );
-        }
-
-        self.dhn = create_dhash_node(&dhash, &self);
-*/
-
 
         myIID4me = self.dhn->myIID4orig;
         myIID4me_timestamp = bmx_time;
@@ -3713,20 +3694,20 @@ STATIC_FUNC
 int32_t frame_operator_debug(struct rx_frame_iterator *it)
 {
 
-        msg_fields_validate(&it->handls[it->frame_type], it->frame_msgs_length, it->msg, it->cn);
+        msg_fields_dbg(it->cn, &it->handls[it->frame_type], it->frame_msgs_length, it->msg);
         return it->frame_msgs_length;
 }
 
 
 STATIC_FUNC
-int32_t opt_show_descriptions(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
+int32_t opt_show_descriptions(uint8_t cmd, uint8_t _save, struct opt_type *opt,
+                              struct opt_parent *patch, struct ctrl_node *cn)
 {
         TRACE_FUNCTION_CALL;
 
 	if ( cmd == OPT_APPLY ) {
 
                 struct avl_node *an = NULL;
-                uint16_t count = 0;
                 struct orig_node *on;
                 char *name = NULL;
                 int32_t filter = strtol(patch->p_val, NULL, 10);
@@ -3747,29 +3728,29 @@ int32_t opt_show_descriptions(uint8_t cmd, uint8_t _save, struct opt_type *opt, 
                         if (name && strcmp(name, on->desc->id.name))
                                 continue;
 
-                        dbg_printf(cn, "\nID.name=%-10s ID.rand=%s.. dhash=%s.. code=%-3d last_upd=%-4d last_ref=%-3d path_metric=%ju %s\n",
-                                on->id.name,
-                                memAsHexString(((char*) &(on->id.rand)), 4),
+                        dbg_printf(cn, "dhash=%s last_upd=%-4d last_ref=%-3d path_metric=%ju blocked=%d :\n",
                                 memAsHexString(((char*) &(on->dhn->dhash)), 4),
-                                ntohs(on->desc->code_version),
                                 (bmx_time - on->updated_timestamp) / 1000,
                                 (bmx_time - on->dhn->referred_by_me_timestamp) / 1000,
-                                on->curr_rt_local ? on->curr_rt_local->mr.umetric : 0, on->blocked ? "BLOCKED" : " ");
+                                on->curr_rt_local ? on->curr_rt_local->mr.umetric : 0,
+                                on->blocked ? 1 : 0);
 
-                        process_description_tlvs(NULL, on, on->desc, TLV_OP_DEBUG, filter, cn);
+                        //process_description_tlvs(NULL, on, on->desc, TLV_OP_DEBUG, filter, cn);
+
 
                         uint16_t tlvs_len = ntohs(on->desc->dsc_tlvs_len);
                         struct msg_description_adv * desc_buff = debugMalloc(sizeof (struct msg_description_adv) +tlvs_len, -300000);
                         desc_buff->transmitterIID4x = htons(on->dhn->myIID4orig);
                         memcpy(&desc_buff->desc, on->desc, sizeof (struct description) + tlvs_len);
-                        msg_fields_validate(&packet_frame_handler[FRAME_TYPE_DESC_ADV], sizeof (struct msg_description_adv) +tlvs_len, (uint8_t*) desc_buff, cn);
+
+                        msg_fields_dbg(cn, &packet_frame_handler[FRAME_TYPE_DESC_ADV], sizeof (struct msg_description_adv) +tlvs_len, (uint8_t*) desc_buff);
+
                         debugFree(desc_buff, -300000);
+
 
                         uint8_t tlv_op_debug = frame_operator_register(frame_operator_debug);
                         process_description_tlvs(NULL, on, on->desc, tlv_op_debug, filter, cn);
                         frame_operator_unregister(frame_operator_debug, tlv_op_debug);
-
-                        count++;
                 }
 
 		dbg_printf( cn, "\n" );
@@ -3812,7 +3793,7 @@ struct opt_type msg_options[]=
 			ARG_VALUE_FORM,	"set tx iterations for ogm acknowledgements"}
         ,
 #endif
-	{ODI, 0, ARG_DESCRIPTION_GREP,	   0,  5, A_PMN, A_USR, A_DYN, A_ARG, A_ANY, 0,            MIN_DESCRIPTION_GREP,MAX_DESCRIPTION_GREP,DEF_DESCRIPTION_GREP,   opt_show_descriptions,
+	{ODI, 0, ARG_DESCRIPTION_GREP,	   0,  5, A_PSN, A_USR, A_DYN, A_ARG, A_ANY, 0,            MIN_DESCRIPTION_GREP,MAX_DESCRIPTION_GREP,DEF_DESCRIPTION_GREP,   opt_show_descriptions,
 			ARG_VALUE_FORM,		HELP_DESCRIPTION_GREP}
         ,
 	{ODI,ARG_DESCRIPTION_GREP,ARG_DESCRIPTION_NAME,'n',5,A_CS1,A_USR,A_DYN,A_ARG,A_ANY,	0,		0,	0,0,		opt_show_descriptions,

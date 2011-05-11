@@ -341,21 +341,21 @@ struct tx_frame_iterator {
 };
 
 enum {
-	STD_FIELD_TYPE_UINT,
-	STD_FIELD_TYPE_HEX,
-	STD_FIELD_TYPE_CHAR,
-	STD_FIELD_TYPE_STRING_SIZE,
-	STD_FIELD_TYPE_STRING_CHAR,
-	STD_FIELD_TYPE_STRING_BINARY,
-	STD_FIELD_TYPE_IP4,
-	STD_FIELD_TYPE_IPX4,
-	STD_FIELD_TYPE_IPX6,
-	STD_FIELD_TYPE_MAC,
+	MSG_FIELD_TYPE_UINT,
+	MSG_FIELD_TYPE_HEX,
+	MSG_FIELD_TYPE_CHAR,
+	MSG_FIELD_TYPE_STRING_SIZE,
+	MSG_FIELD_TYPE_STRING_CHAR,
+	MSG_FIELD_TYPE_STRING_BINARY,
+	MSG_FIELD_TYPE_IP4,
+	MSG_FIELD_TYPE_IPX4,
+	MSG_FIELD_TYPE_IPX6,
+	MSG_FIELD_TYPE_MAC,
 
-	STD_FIELD_END
+	MSG_FIELD_TYPE_END
 };
 
-#define STD_FIELD_SIZES {-1,-1, 8,-1,-8,-8,32,128,128,48}
+#define MSG_FIELD_STANDARD_SIZES {-1,-1, 8,-1,-8,-8,32,128,128,48}
 // negative values mean size must be multiple of negativ value, positive values mean absolute bit sizes
 
 struct msg_field_format {
@@ -366,6 +366,25 @@ struct msg_field_format {
 	char * msg_field_name;
 };
 
+#define MSG_FIELD_FORMAT_END {MSG_FIELD_TYPE_END, 0, 0, NULL}
+
+struct msg_field_iterator {
+//        struct frame_handl *handl;
+        const struct msg_field_format *format;
+//        char * msg_name;
+        uint8_t *data;
+        uint16_t max_data_size;
+        uint16_t fixed_msg_size;
+        uint16_t min_msg_size;
+
+        uint32_t field;
+        int32_t field_bits;
+        uint32_t pos_bit;
+        uint32_t var_bits;
+
+        uint32_t _field;
+        uint32_t _pos_bit;
+};
 
 
 
@@ -632,22 +651,21 @@ struct msg_description_adv {
 
 
 #define DESCRIPTION_MSG_FORMAT { \
-{STD_FIELD_TYPE_UINT,          (8*sizeof(IID_T)),                0, "IID"}, \
-{STD_FIELD_TYPE_STRING_CHAR,   (8*(DESCRIPTION0_ID_NAME_LEN)),   1, "id_name"},  \
-{STD_FIELD_TYPE_STRING_BINARY, (8*DESCRIPTION0_ID_RANDOM_LEN),   1, "id_rand" },  \
-{STD_FIELD_TYPE_UINT,          16,                               0, "code_version" }, \
-{STD_FIELD_TYPE_STRING_SIZE,   16,                               0, "extension_msgs_len" }, \
-{STD_FIELD_TYPE_UINT,          16,                               0, "sqn" }, \
-{STD_FIELD_TYPE_HEX,           16,                               0, "capabilities" }, \
-{STD_FIELD_TYPE_UINT,          (8*sizeof(OGM_SQN_T)),            0, "ogm_sqn_min" }, \
-{STD_FIELD_TYPE_UINT,          (8*sizeof(OGM_SQN_T)),            0, "ogm_sqn_range" }, \
-{STD_FIELD_TYPE_UINT,          16,                               0, "tx_interval" }, \
-{STD_FIELD_TYPE_UINT,          8,                                1, "ttl" }, \
-{STD_FIELD_TYPE_UINT,          8,                                1, "reserved" }, \
-{STD_FIELD_TYPE_STRING_BINARY, 128,                              1, "reserved" }, \
-{STD_FIELD_TYPE_STRING_BINARY, 0,                                1, "extension_msgs" }, \
-{STD_FIELD_END,         0, 0,  NULL }       \
-}
+{MSG_FIELD_TYPE_UINT,          (8*sizeof(IID_T)),                0, "IID"}, \
+{MSG_FIELD_TYPE_STRING_CHAR,   (8*(DESCRIPTION0_ID_NAME_LEN)),   1, "id_name"},  \
+{MSG_FIELD_TYPE_STRING_BINARY, (8*DESCRIPTION0_ID_RANDOM_LEN),   1, "id_rand" },  \
+{MSG_FIELD_TYPE_UINT,          16,                               0, "code_version" }, \
+{MSG_FIELD_TYPE_STRING_SIZE,   16,                               0, "extension_msgs_len" }, \
+{MSG_FIELD_TYPE_UINT,          16,                               0, "sqn" }, \
+{MSG_FIELD_TYPE_HEX,           16,                               0, "capabilities" }, \
+{MSG_FIELD_TYPE_UINT,          (8*sizeof(OGM_SQN_T)),            0, "ogm_sqn_min" }, \
+{MSG_FIELD_TYPE_UINT,          (8*sizeof(OGM_SQN_T)),            0, "ogm_sqn_range" }, \
+{MSG_FIELD_TYPE_UINT,          16,                               0, "tx_interval" }, \
+{MSG_FIELD_TYPE_UINT,          8,                                1, "ttl" }, \
+{MSG_FIELD_TYPE_UINT,          8,                                1, "reserved" }, \
+{MSG_FIELD_TYPE_STRING_BINARY, 128,                              1, "reserved" }, \
+{MSG_FIELD_TYPE_STRING_BINARY, 0,                                1, "extension_msgs" }, \
+MSG_FIELD_FORMAT_END}
 
 
 

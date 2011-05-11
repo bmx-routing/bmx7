@@ -168,13 +168,17 @@
 #define FRAME_TYPE_PROCESS_NONE   (254)
 
 
-#define DEF_DESCRIPTION_GREP         0
-#define MIN_DESCRIPTION_GREP         0
-#define MAX_DESCRIPTION_GREP         FRAME_TYPE_PROCESS_ALL
-#define ARG_DESCRIPTION_GREP         "description"
-#define HELP_DESCRIPTION_GREP        "show filtered descriptions of nodes 0..253=type 254=none 255=all \n"
+#define ARG_DESCRIPTIONS        "descriptions"
+#define HLP_DESCRIPTIONS        "show node descriptions\n"
 
 #define ARG_DESCRIPTION_NAME    "name"
+
+#define ARG_DESCRIPTION_TYPE    "type"
+#define DEF_DESCRIPTION_TYPE     0
+#define MIN_DESCRIPTION_TYPE     0
+#define MAX_DESCRIPTION_TYPE     FRAME_TYPE_PROCESS_ALL
+#define HLP_DESCRIPTION_TYPE     "show description extension(s) of given type (0..253=type 254=none 255=all) \n"
+
 
 
 struct frame_header_short { // 2 bytes

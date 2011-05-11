@@ -43,6 +43,8 @@
 #include "tools.h"
 #include "metrics.h"
 
+#define CODE_CATEGORY_NAME "ip"
+
 int32_t base_port = DEF_BASE_PORT;
 
 
@@ -3128,7 +3130,7 @@ static struct opt_type ip_options[]=
 	{ODI,0,0,	                0,  0,0,0,0,0,0,			0,		0,		0,		0,		0,
 			0,		"\nip options:"}
         ,
-	{ODI,0,ARG_IP,	                'I',3,A_PSN,A_ADM,A_INI,A_CFA,A_ANY,	NULL ,          0,              0,              0,	        opt_ip_version,
+	{ODI,0,ARG_IP,	                'I',3,A_PS1N,A_ADM,A_INI,A_CFA,A_ANY,	NULL ,          0,              0,              0,	        opt_ip_version,
 			ARG_VALUE_FORM,	"select ip protocol Version 4 or 6"}
         ,
 
@@ -3160,7 +3162,7 @@ static struct opt_type ip_options[]=
 			ARG_PREFIX_FORM,HLP_LLOCAL_PREFIX}
         ,
 
-	{ODI,0,ARG_DEV,		        0,  5,A_PMN,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0, 		0,		0, 		opt_dev,
+	{ODI,0,ARG_DEV,		        0,  5,A_PM1N,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0, 		0,		0, 		opt_dev,
 			"<interface-name>", HLP_DEV}
         ,
 	{ODI,ARG_DEV,ARG_DEV_TTL,	't',5,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		MIN_TTL,	MAX_TTL,	DEF_TTL,	opt_dev,
@@ -3217,7 +3219,7 @@ void init_ip(void)
         if (open_ifevent_netlink_sk() < 0)
                 cleanup_all(-500150);
 
-        register_options_array(ip_options, sizeof ( ip_options));
+        register_options_array(ip_options, sizeof ( ip_options), CODE_CATEGORY_NAME);
 
 //        InitSha(&ip_sha);
 }

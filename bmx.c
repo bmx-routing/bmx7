@@ -40,6 +40,7 @@
 #include "metrics.h"
 #include "plugin.h"
 
+#define CODE_CATEGORY_NAME "general"
 
 int32_t drop_all_frames = DEF_DROP_ALL_FRAMES;
 int32_t drop_all_packets = DEF_DROP_ALL_PACKETS;
@@ -1601,7 +1602,7 @@ void init_bmx(void)
 
         self.descSqn = ((DESC_SQN_MASK) & rand_num(DESC_SQN_MAX));
 
-        register_options_array(bmx_options, sizeof ( bmx_options));
+        register_options_array(bmx_options, sizeof ( bmx_options), CODE_CATEGORY_NAME);
 }
 
 

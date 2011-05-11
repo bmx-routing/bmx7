@@ -28,6 +28,7 @@
 #include "bmx.h"
 #include "avl.h"
 
+#define CODE_CATEGORY_NAME "avl"
 
 struct avl_node *avl_find( struct avl_tree *tree, void *key )
 {
@@ -683,6 +684,6 @@ static struct opt_type msg_options[]=
 void init_avl( void )
 {
 #ifdef AVL_TEST
-	register_options_array( msg_options, sizeof( msg_options ) );
+	register_options_array( msg_options, sizeof( msg_options ), CODE_CATEGORY_NAME );
 #endif
 }

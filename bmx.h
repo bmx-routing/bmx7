@@ -33,7 +33,7 @@
  * dont touch this for compatibility reasons:
  */
 
-#define CODE_VERSION 3             // to be incremented after each critical code change
+#define CODE_VERSION 4             // to be incremented after each critical code change
 #define BMX_BRANCH "BMX6"
 #define BRANCH_VERSION "0.1-alpha" //put exactly one distinct word inside the string like "0.3-pre-alpha" or "0.3-rc1" or "0.3"
 #define COMPATIBILITY_VERSION 13

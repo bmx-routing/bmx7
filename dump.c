@@ -29,6 +29,8 @@
 #include "plugin.h"
 #include "tools.h"
 
+#define CODE_CATEGORY_NAME "data_dump"
+
 #define LESS_ROUNDING_ERRORS 0
 #define IMPROVE_ROUNDOFF 10
 
@@ -423,7 +425,7 @@ int32_t init_dump( void )
 
         assertion(-500762, (data_dev_plugin_registry != FAILURE));
 
-        register_options_array(dump_options, sizeof ( dump_options));
+        register_options_array(dump_options, sizeof ( dump_options), CODE_CATEGORY_NAME);
 
         task_register(DUMP_STATISTIC_PERIOD, update_traffic_statistics_task, NULL, -300349);
 
@@ -439,7 +441,7 @@ struct plugin *dump_get_plugin( void ) {
 	static struct plugin dump_plugin;
 	memset( &dump_plugin, 0, sizeof ( struct plugin ) );
 
-	dump_plugin.plugin_name = "bmx6_trafficdump_plugin";
+	dump_plugin.plugin_name = CODE_CATEGORY_NAME;
 	dump_plugin.plugin_size = sizeof ( struct plugin );
         dump_plugin.plugin_code_version = CODE_VERSION;
 	dump_plugin.cb_init = init_dump;

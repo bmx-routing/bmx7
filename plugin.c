@@ -27,6 +27,7 @@
 #include "schedule.h"
 #include "tools.h"
 
+#define CODE_CATEGORY_NAME "plugin"
 
 static LIST_SIMPEL(plugin_list, struct plugin_node, list, list);
 
@@ -442,7 +443,7 @@ static struct opt_type plugin_options[]=
 //        ord parent long_name          shrt Attributes				*ival		min		max		default		*func,*syntax,*help
 	
 	//order> config-file order to be loaded by config file, order < ARG_CONNECT oder to appera first in help text
-	{ODI,0,ARG_PLUGIN,		0,  2,A_PMN,A_ADM,A_INI,A_CFA,A_ANY,	0,		0, 		0,		0, 		opt_plugin,
+	{ODI,0,ARG_PLUGIN,		0,  2,A_PM1N,A_ADM,A_INI,A_CFA,A_ANY,	0,		0, 		0,		0, 		opt_plugin,
 			ARG_FILE_FORM,	"load plugin. "ARG_FILE_FORM" must be in LD_LIBRARY_PATH or " BMX_ENV_LIB_PATH 
 			"\n	path (e.g. --plugin bmx6_howto_plugin.so )\n"}
 };
@@ -463,7 +464,7 @@ IDM_T init_plugin(void)
 	// first try loading config plugin, if succesfull, continue loading optinal plugins depending on config
 	activate_dyn_plugin( BMX_LIB_CONFIG );
 
-	register_options_array( plugin_options, sizeof( plugin_options ) );
+	register_options_array( plugin_options, sizeof( plugin_options ), CODE_CATEGORY_NAME);
 #endif
 
         return SUCCESS;

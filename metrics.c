@@ -37,7 +37,7 @@
 #include "tools.h"
 #include "metrics.h"
 
-
+#define CODE_CATEGORY_NAME "metric"
 
 static int32_t my_path_algo = DEF_METRIC_ALGO;
 static int32_t my_path_rp_exp_numerator = DEF_PATH_RP_EXP_NUMERATOR;
@@ -1476,7 +1476,7 @@ struct opt_type metrics_options[]=
 
 #endif
 #ifndef LESS_OPTIONS
-        {ODI, 0, ARG_PATH_METRIC_ALGO, CHR_PATH_METRIC_ALGO,  5, A_PSN, A_ADM, A_DYI, A_CFA, A_ANY, &my_path_algo,MIN_METRIC_ALGO,    MAX_METRIC_ALGO,    DEF_METRIC_ALGO,    opt_path_metricalgo,
+        {ODI, 0, ARG_PATH_METRIC_ALGO, CHR_PATH_METRIC_ALGO,  5, A_PS1N, A_ADM, A_DYI, A_CFA, A_ANY, &my_path_algo,MIN_METRIC_ALGO,    MAX_METRIC_ALGO,    DEF_METRIC_ALGO,    opt_path_metricalgo,
                 ARG_VALUE_FORM, HELP_PATH_METRIC_ALGO}
         ,
         {ODI, ARG_PATH_METRIC_ALGO, ARG_PATH_RP_EXP_NUMERATOR, CHR_PATH_RP_EXP_NUMERATOR, 5, A_CS1, A_ADM, A_DYI, A_CFA, A_ANY, &my_path_rp_exp_numerator, MIN_PATH_XP_EXP_NUMERATOR, MAX_PATH_XP_EXP_NUMERATOR, DEF_PATH_RP_EXP_NUMERATOR, opt_path_metricalgo,
@@ -1620,7 +1620,7 @@ int32_t init_metrics( void )
         register_path_metricalgo(BIT_METRIC_ALGO_EB, path_metricalgo_ExpectedBandwidth);
         register_path_metricalgo(BIT_METRIC_ALGO_VB, path_metricalgo_VectorBandwidth);
 
-        register_options_array(metrics_options, sizeof (metrics_options));
+        register_options_array(metrics_options, sizeof (metrics_options), CODE_CATEGORY_NAME);
 
         return SUCCESS;
 }
@@ -1643,7 +1643,7 @@ struct plugin *metrics_get_plugin( void ) {
 	static struct plugin metrics_plugin;
 	memset( &metrics_plugin, 0, sizeof ( struct plugin ) );
 
-	metrics_plugin.plugin_name = "bmx6_metric_plugin";
+	metrics_plugin.plugin_name = CODE_CATEGORY_NAME;
 	metrics_plugin.plugin_size = sizeof ( struct plugin );
         metrics_plugin.plugin_code_version = CODE_VERSION;
         metrics_plugin.cb_init = init_metrics;

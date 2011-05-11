@@ -37,6 +37,7 @@
 #include "schedule.h"
 #include "tools.h"
 
+#define CODE_CATEGORY_NAME "control"
 
 #define MAX_DBG_STR_SIZE 1500
 
@@ -1149,7 +1150,8 @@ void show_opts_help(uint8_t all_opts, uint8_t verbose, struct ctrl_node *cn)
 	
 }
 
-void register_option(struct opt_type *opt)
+STATIC_FUNC
+void register_option(struct opt_type *opt, const char * category_name)
 {
 	
 	dbgf_all( DBGT_INFO, "%s", (opt&&opt->long_name) ? opt->long_name : "" );
@@ -1172,14 +1174,16 @@ void register_option(struct opt_type *opt)
 	
 	
 	// arg_t A_PS0 with no function can only be YES/NO:
-	paranoia( -500111, ( opt->opt_t == A_PS0  &&  opt->ival  &&  ( opt->imin != NO || opt->imax != YES || opt->idef != NO ) ) );
+        assertion(-500111, IMPLIES(opt->opt_t == A_PS0 && opt->ival, opt->imin == NO && opt->imax == YES && opt->idef == NO));
+        assertion(-500000, IMPLIES(opt->opt_t == A_PS0N, !opt->ival && !opt->imin && !opt->imax && !opt->idef));
 	
 	// arg_t A_PS0 can not be stored
-	paranoia( -500112, ( opt->opt_t == A_PS0  &&  opt->cfg_t != A_ARG ) );
-	
-	paranoia( -500113, ( opt->order < 0 || opt->order > 99 ) );
-	
-	paranoia( -500114, ( (opt->parent_name  &&  strchr( opt->parent_name, '-'))  ||  (opt->long_name  &&  strchr( opt->long_name, '-'))  ) );
+        assertion(-500112, IMPLIES(opt->opt_t == A_PS0 || opt->opt_t == A_PS0N, opt->cfg_t == A_ARG));
+
+        assertion(-500113, (opt->order >= 0 || opt->order <= 99));
+
+        assertion(-500000, IMPLIES(opt->parent_name, !strchr(opt->parent_name, '-')));
+        assertion(-500000, IMPLIES(opt->long_name, !strchr(opt->long_name, '-')));
 	
 	
 	memset( &(opt->d), 0, sizeof( struct opt_data ) );
@@ -1196,9 +1200,9 @@ void register_option(struct opt_type *opt)
 				break;
 			else 
 				tmp_opt = NULL;
-		}
+                }
 
-                if (opt->opt_t != A_CS1 || !tmp_opt || (tmp_opt->opt_t != A_PSN && tmp_opt->opt_t != A_PMN))
+                if (opt->opt_t != A_CS1 || !tmp_opt || (tmp_opt->opt_t != A_PS0N && tmp_opt->opt_t != A_PS1N && tmp_opt->opt_t != A_PM1N))
 			goto failure;
 		
 		opt->d.parent_opt = tmp_opt;
@@ -1288,16 +1292,16 @@ void remove_option(struct opt_type *opt)
 	dbgf_sys(DBGT_ERR, "%s no matching opt found", opt->long_name );
 }
 
-void register_options_array(struct opt_type *fixed_options, int size)
+void register_options_array(struct opt_type *fixed_options, int size, const char *category_name)
 {
 	
 	int i = 0;
 	int i_max = size / sizeof( struct opt_type );
-	
-	paranoia( -500149, ((size % sizeof( struct opt_type )) != 0 ) );
+
+        assertion(-500149, ((size % sizeof ( struct opt_type)) == 0));
 	
 	while ( i<i_max  &&  (fixed_options[i].long_name || fixed_options[i].help))
-                register_option(&(fixed_options[i++]));
+                register_option(&(fixed_options[i++]), category_name);
 	
 }
 
@@ -1667,17 +1671,17 @@ int32_t call_opt_patch(uint8_t ad, struct opt_type *opt, struct opt_parent *patc
 	dbgf_all( DBGT_INFO, "ad:%d opt:%s val:%s strm:%s",
 	          ad, opt->long_name, patch->p_val, strm );
 	
-	if ( opt->opt_t == A_PS0 ) {
+	if ( opt->opt_t == A_PS0 || opt->opt_t == A_PS0N ) {
 		
 		patch->p_diff = ((ad==ADD) ? ADD : DEL);
 
-        } else if (opt->opt_t == A_PS1 || opt->opt_t == A_PSN || opt->opt_t == A_PMN || opt->opt_t == A_CS1) {
+        } else if (opt->opt_t == A_PS1 || opt->opt_t == A_PS1N || opt->opt_t == A_PM1N || opt->opt_t == A_CS1) {
 		
 		char *ref = NULL;
 		char tmp[MAX_ARG_SIZE];
 		
 		// assign one or more values
-                if (ad == ADD || opt->opt_t == A_PSN || opt->opt_t == A_PMN) {
+                if (ad == ADD || opt->opt_t == A_PS1N || opt->opt_t == A_PM1N) {
 
                         if (!strm || !wordlen(strm) || strm[0] == CHR_QUIT)
 				return FAILURE;
@@ -1717,7 +1721,7 @@ int32_t call_opt_patch(uint8_t ad, struct opt_type *opt, struct opt_parent *patc
 			
                 }
 
-                if (opt->opt_t == A_PS1 || opt->opt_t == A_PSN || opt->opt_t == A_PMN) {
+                if (opt->opt_t == A_PS1 || opt->opt_t == A_PS1N || opt->opt_t == A_PM1N) {
 			
 			set_opt_parent_val( patch, strm );
 			set_opt_parent_ref( patch, ref );
@@ -1762,7 +1766,7 @@ int32_t cleanup_patch(struct opt_type *opt, struct opt_parent *patch, struct ctr
 			patch->p_diff = NOP;
 
 
-        } else if (opt->opt_t == A_PSN || opt->opt_t == A_PMN) {
+        } else if (opt->opt_t == A_PS0N || opt->opt_t == A_PS1N || opt->opt_t == A_PM1N) {
 		
 		struct opt_parent *p_track = NULL;
 		struct list_node *c_pos, *c_tmp;
@@ -2164,8 +2168,8 @@ int32_t track_opt_parent(uint8_t cmd, uint8_t save, struct opt_type *p_opt, stru
 {
 	
 	struct list_node *pos;
-        struct opt_parent *p_reftr = get_opt_parent_ref(p_opt, (p_opt->opt_t == A_PSN || p_opt->opt_t == A_PMN) ? p_patch->p_ref : NULL);
-        struct opt_parent *p_track = get_opt_parent_val(p_opt, (p_opt->opt_t == A_PSN || p_opt->opt_t == A_PMN) ? p_patch->p_val : NULL);
+        struct opt_parent *p_reftr = get_opt_parent_ref(p_opt, (p_opt->opt_t == A_PS1N || p_opt->opt_t == A_PM1N) ? p_patch->p_ref : NULL);
+        struct opt_parent *p_track = get_opt_parent_val(p_opt, (p_opt->opt_t == A_PS1N || p_opt->opt_t == A_PM1N) ? p_patch->p_val : NULL);
 	
 	paranoia( -500125, ( p_reftr && p_track && p_reftr != p_track ) );
 	
@@ -2324,15 +2328,13 @@ int32_t call_option(uint8_t ad, uint8_t cmd, uint8_t save, struct opt_type *opt,
 	
 	if ( !opt ) // might be NULL when referring to disabled plugin functionality
 		return SUCCESS;
-	
-	paranoia( -500104, ( !( ad == ADD  ||  ad == DEL ) ) );
-	
-	paranoia( -500103, ( ( cmd == OPT_PATCH  ||  cmd == OPT_ADJUST  ||  cmd == OPT_CHECK  ||  cmd == OPT_APPLY )  &&  !patch ) );
-	
-	paranoia( -500147, ( ( cmd == OPT_PATCH  ||  cmd == OPT_ADJUST  ||  cmd == OPT_CHECK  ||  cmd == OPT_APPLY )  &&  !cn ) );
-	
-	if ( ( cmd == OPT_PATCH  ||  cmd == OPT_ADJUST  ||  cmd == OPT_CHECK  ||  cmd == OPT_APPLY ) &&
-	     !cn->authorized  &&  opt->auth_t == A_ADM ) 
+
+        assertion(-500104, (ad == ADD || ad == DEL));
+        assertion(-500103, IMPLIES(cmd == OPT_PATCH || cmd == OPT_ADJUST || cmd == OPT_CHECK || cmd == OPT_APPLY, patch));
+        assertion(-500147, IMPLIES(cmd == OPT_PATCH || cmd == OPT_ADJUST || cmd == OPT_CHECK || cmd == OPT_APPLY, cn));
+
+        if ((cmd == OPT_PATCH || cmd == OPT_ADJUST || cmd == OPT_CHECK || cmd == OPT_APPLY) &&
+                !cn->authorized && opt->auth_t == A_ADM)
 	{
 		dbg_cn( cn, DBGL_SYS, DBGT_ERR, "insufficient permissions to use command %s",  opt->long_name );
 		return FAILURE;
@@ -2381,9 +2383,9 @@ int32_t call_option(uint8_t ad, uint8_t cmd, uint8_t save, struct opt_type *opt,
                 assertion(-500105, (!opt->parent_name));
 
                 assertion(-500128, (opt->cfg_t == A_ARG || patch->p_val ||
-                        (patch->p_diff == DEL && opt->opt_t != A_PSN && opt->opt_t != A_PMN)));
+                        (patch->p_diff == DEL && opt->opt_t != A_PS1N && opt->opt_t != A_PM1N)));
 
-                if (opt->cfg_t != A_ARG && (opt->opt_t == A_PSN || opt->opt_t == A_PMN)) {
+                if (opt->cfg_t != A_ARG && (opt->opt_t == A_PS1N || opt->opt_t == A_PM1N)) {
 			
 			struct opt_parent *p_reftr = get_opt_parent_ref( opt, patch->p_ref );
 			struct opt_parent *p_track = get_opt_parent_val( opt, patch->p_val );
@@ -2399,7 +2401,7 @@ int32_t call_option(uint8_t ad, uint8_t cmd, uint8_t save, struct opt_type *opt,
                         }
                 }
 
-                if (cmd == OPT_APPLY && opt->opt_t == A_PSN && patch->p_diff == ADD && patch->p_val &&
+                if (cmd == OPT_APPLY && opt->opt_t == A_PS1N && patch->p_diff == ADD && patch->p_val &&
                         opt->d.parents_instance_list.items >= 1) {
 
                         assertion(-501140, (opt->d.parents_instance_list.items == 1));
@@ -2617,7 +2619,19 @@ int8_t apply_stream_opts(char *s, uint8_t cmd, uint8_t load_cfg, struct ctrl_nod
 					goto apply_args_error;
                                 }
 
-                        } else if (opt->opt_t == A_PS1 || opt->opt_t == A_PSN || opt->opt_t == A_PMN) {
+                        } else if (opt->opt_t == A_PS0N) {
+
+                                        patch = add_opt_parent(&Patch_opt);
+
+                                        if ((pb = call_option(ADD, OPT_PATCH, 0/*save*/, opt, patch, s, cn)) == FAILURE)
+                                                goto apply_args_error;
+
+                                        pmn_s = s;
+                                        s += pb;
+                                        state = LONG_OPT_WHAT;
+
+
+                        } else if (opt->opt_t == A_PS1 || opt->opt_t == A_PS1N || opt->opt_t == A_PM1N) {
 				
 				s++;
 				
@@ -2642,18 +2656,26 @@ int8_t apply_stream_opts(char *s, uint8_t cmd, uint8_t load_cfg, struct ctrl_nod
 				
 				
 				if ( opt->opt_t == A_PS0 ) {
-					
-					if ( (pb=check_apply_parent_option( ADD, cmd, 0/*save*/, opt, s, cn )) == FAILURE )
+
+                                        if ((pb = check_apply_parent_option(ADD, cmd, 0/*save*/, opt, s, cn)) == FAILURE)
 						goto apply_args_error;
-					
-					if ( pb )
-						s+=pb;
-					else 
-						s+=wordlen(s);
-					
+
+                                        s += pb ? pb : (int32_t)wordlen(s);
+
 					state = NEXT_OPT;
 
-                                } else if (opt->opt_t == A_PS1 || opt->opt_t == A_PSN || opt->opt_t == A_PMN) {
+                                } else if (opt->opt_t == A_PS0N) {
+
+                                        patch = add_opt_parent(&Patch_opt);
+
+                                        if ((pb = call_option(ADD, OPT_PATCH, 0/*save*/, opt, patch, s, cn)) == FAILURE)
+                                                goto apply_args_error;
+
+                                        pmn_s = s;
+                                        s += pb;
+                                        state = LONG_OPT_WHAT;
+
+                                } else if (opt->opt_t == A_PS1 || opt->opt_t == A_PS1N || opt->opt_t == A_PM1N) {
 					
 					equalp=index( s, '=' );
 					
@@ -2688,22 +2710,21 @@ int8_t apply_stream_opts(char *s, uint8_t cmd, uint8_t load_cfg, struct ctrl_nod
 
                                 if ((pb = check_apply_parent_option(del, cmd, (initializing ? NO : YES)/*save*/, opt, s, cn)) == FAILURE)
 					goto apply_args_error;
-				
-				s+=pb;
+
+                                s += pb;
 				state = NEXT_OPT;
 
-                        } else if (opt->opt_t == A_PSN || opt->opt_t == A_PMN) {
+                        } else if (opt->opt_t == A_PS1N || opt->opt_t == A_PM1N) {
 				
 				s = s + (del = ((s[0] == ARG_RESET_CHAR) ? 1 : 0));
 				
 				patch = add_opt_parent( &Patch_opt );
-				
-				if ( (pb=call_option( del, OPT_PATCH, 0/*save*/, opt, patch, s, cn )) == FAILURE )
+
+                                if ((pb = call_option(del, OPT_PATCH, 0/*save*/, opt, patch, s, cn)) == FAILURE)
 					goto apply_args_error;
 				
 				pmn_s = s;
-				s+=pb;
-				
+                                s += pb;
 				state = LONG_OPT_WHAT;
 				
 			} else {
@@ -2712,7 +2733,7 @@ int8_t apply_stream_opts(char *s, uint8_t cmd, uint8_t load_cfg, struct ctrl_nod
 			
 		} else if ( state == LONG_OPT_WHAT ) {
 
-                        if (opt->opt_t != A_PSN && opt->opt_t != A_PMN)
+                        if (opt->opt_t != A_PS0N && opt->opt_t != A_PS1N && opt->opt_t != A_PM1N)
 				goto apply_args_error;
 
                         char* delmiter_ptr = index(s, LONG_OPT_ARG_DELIMITER_CHAR);
@@ -3137,7 +3158,7 @@ void init_control(void)
         LIST_INIT_HEAD( Patch_opt.d.childs_type_list, struct opt_data, list, list);
         LIST_INIT_HEAD( Patch_opt.d.parents_instance_list, struct opt_parent, list, list);
 
-	register_options_array( control_options, sizeof( control_options ) );
+        register_options_array(control_options, sizeof ( control_options), CODE_CATEGORY_NAME);
 	
 }
 

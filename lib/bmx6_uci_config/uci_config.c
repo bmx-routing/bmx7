@@ -33,6 +33,8 @@
 #include "../../tools.h"
 #include "uci_config.h"
 
+#define CODE_CATEGORY_NAME "uci_config"
+
 static char conf_path[MAX_PATH_SIZE] = "";
 static char *bmx_conf_name = NULL;
 
@@ -387,7 +389,7 @@ int bmx_save_config ( uint8_t del, struct opt_type *opt, char *p_val, char *c_va
 			return uci_save_option( bmx_ctx, bmx_conf_name, DEF_SECT_NAME, opt->long_name, c_val, cn );
                 }
 
-        } else if (opt->opt_t == A_PSN || opt->opt_t == A_PMN) {
+        } else if (opt->opt_t == A_PS1N || opt->opt_t == A_PM1N) {
 		
 		// all A_PMN-options are saved as sections 
 		// some with only one argument like HNAs, throw-rule, plugin, service
@@ -504,7 +506,7 @@ int bmx_load_config ( uint8_t cmd, struct opt_type *opt, struct ctrl_node *cn ) 
 		}
 
 
-        } else if (opt->opt_t == A_PSN || opt->opt_t == A_PMN) {
+        } else if (opt->opt_t == A_PS1N || opt->opt_t == A_PM1N) {
 		
 		dbgf_all( DBGT_INFO, "loading A_PSN/A_PMN-option: %s", opt->long_name );
 		
@@ -818,7 +820,7 @@ int8_t show_conf ( struct ctrl_node *cn, void *data, struct opt_type *opt, struc
 		
 		dbg_printf( cn, "\toption '%s' '%s'\n", opt->long_name, (p->p_ref ? p->p_ref : p->p_val) );
 
-        } else if (!show_conf_general && !c && (opt->opt_t == A_PSN || opt->opt_t == A_PMN)) {
+        } else if (!show_conf_general && !c && (opt->opt_t == A_PS1N || opt->opt_t == A_PM1N)) {
 		
 		dbg_printf( cn, "\nconfig '%s'\n", opt->long_name );
 		dbg_printf( cn, "\toption '%s' '%s'\n", opt->long_name, (p->p_ref ? p->p_ref : p->p_val) );
@@ -896,7 +898,7 @@ int32_t init_conf( void ) {
 	LIST_INIT_HEAD( tmp_conf_opt.d.childs_type_list, struct opt_data, list, list );
 	LIST_INIT_HEAD( tmp_conf_opt.d.parents_instance_list, struct opt_parent, list, list );
 	
-	register_options_array( config_options, sizeof( config_options ) );
+	register_options_array( config_options, sizeof( config_options ), CODE_CATEGORY_NAME );
 	
 	return SUCCESS;
 }
@@ -908,7 +910,7 @@ struct plugin* get_plugin( void ) {
 	static struct plugin conf_plugin;
         memset( &conf_plugin, 0, sizeof( conf_plugin));
 	
-	conf_plugin.plugin_name = "bmx6_uci_config_plugin";
+	conf_plugin.plugin_name = CODE_CATEGORY_NAME;
 	conf_plugin.plugin_size = sizeof ( struct plugin );
         conf_plugin.plugin_code_version = CODE_VERSION;
 	conf_plugin.cb_init = init_conf;

@@ -31,6 +31,7 @@
 #include "tools.h"
 #include "plugin.h"
 
+#define CODE_CATEGORY_NAME "message"
 
 
 static int32_t pref_udpd_size = DEF_UDPD_SIZE;
@@ -3710,12 +3711,15 @@ int32_t opt_show_descriptions(uint8_t cmd, uint8_t _save, struct opt_type *opt,
                 struct avl_node *an = NULL;
                 struct orig_node *on;
                 char *name = NULL;
-                int32_t filter = strtol(patch->p_val, NULL, 10);
+                int32_t type_filter = DEF_DESCRIPTION_TYPE;
                 struct opt_child *c = NULL;
 
                 while ((c = list_iterate(&patch->childs_instance_list, c))) {
 
-                        if (!strcmp(c->c_opt->long_name, ARG_DESCRIPTION_NAME)) {
+                        if (!strcmp(c->c_opt->long_name, ARG_DESCRIPTION_TYPE)) {
+                                type_filter = strtol(c->c_val, NULL, 10);
+
+                        } else if (!strcmp(c->c_opt->long_name, ARG_DESCRIPTION_NAME)) {
                                 name = c->c_val;
 			}
 		}
@@ -3749,7 +3753,7 @@ int32_t opt_show_descriptions(uint8_t cmd, uint8_t _save, struct opt_type *opt,
 
 
                         uint8_t tlv_op_debug = frame_operator_register(frame_operator_debug);
-                        process_description_tlvs(NULL, on, on->desc, tlv_op_debug, filter, cn);
+                        process_description_tlvs(NULL, on, on->desc, tlv_op_debug, type_filter, cn);
                         frame_operator_unregister(frame_operator_debug, tlv_op_debug);
                 }
 
@@ -3793,10 +3797,13 @@ struct opt_type msg_options[]=
 			ARG_VALUE_FORM,	"set tx iterations for ogm acknowledgements"}
         ,
 #endif
-	{ODI, 0, ARG_DESCRIPTION_GREP,	   0,  5, A_PSN, A_USR, A_DYN, A_ARG, A_ANY, 0,            MIN_DESCRIPTION_GREP,MAX_DESCRIPTION_GREP,DEF_DESCRIPTION_GREP,   opt_show_descriptions,
-			ARG_VALUE_FORM,		HELP_DESCRIPTION_GREP}
+	{ODI, 0, ARG_DESCRIPTIONS,	   0,  5, A_PS0N,A_USR, A_DYN, A_ARG, A_ANY, 0,                0,                   0,                   0,   opt_show_descriptions,
+			0,		HLP_DESCRIPTIONS}
         ,
-	{ODI,ARG_DESCRIPTION_GREP,ARG_DESCRIPTION_NAME,'n',5,A_CS1,A_USR,A_DYN,A_ARG,A_ANY,	0,		0,	0,0,		opt_show_descriptions,
+	{ODI,ARG_DESCRIPTIONS,ARG_DESCRIPTION_TYPE,'t',5,A_CS1,A_USR,A_DYN,A_ARG,A_ANY,	0,	MIN_DESCRIPTION_TYPE, MAX_DESCRIPTION_TYPE, DEF_DESCRIPTION_TYPE, opt_show_descriptions,
+			"<TYPE>",	HLP_DESCRIPTION_TYPE}
+        ,
+	{ODI,ARG_DESCRIPTIONS,ARG_DESCRIPTION_NAME,'n',5,A_CS1,A_USR,A_DYN,A_ARG,A_ANY,	0,		0,	0,0,		opt_show_descriptions,
 			"<NAME>",	"only show description of nodes with given name"}
 
 };
@@ -3814,7 +3821,7 @@ int32_t init_msg( void )
 
         my_packet_sqn = (rand_num(PKT_SQN_MAX - 1) + 1); // dont start with zero because my_link_sqn and my_dev_sqn assume this
 
-	register_options_array( msg_options, sizeof( msg_options ) );
+	register_options_array( msg_options, sizeof( msg_options ), CODE_CATEGORY_NAME );
 
         InitSha(&bmx_sha);
 
@@ -4004,7 +4011,7 @@ struct plugin *msg_get_plugin( void ) {
 	static struct plugin msg_plugin;
 	memset( &msg_plugin, 0, sizeof ( struct plugin ) );
 
-	msg_plugin.plugin_name = "bmx6_msg_plugin";
+	msg_plugin.plugin_name = CODE_CATEGORY_NAME;
 	msg_plugin.plugin_size = sizeof ( struct plugin );
         msg_plugin.plugin_code_version = CODE_VERSION;
         msg_plugin.cb_init = init_msg;

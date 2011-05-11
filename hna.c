@@ -35,6 +35,8 @@
 #include "hna.h"
 #include "tools.h"
 
+#define CODE_CATEGORY_NAME "hna"
+
 static AVL_TREE(global_uhna_tree, struct uhna_node, key );
 static AVL_TREE(local_uhna_tree, struct uhna_node, key );
 
@@ -714,7 +716,7 @@ struct opt_type hna_options[]= {
 	{ODI,0,0,			0,  5,0,0,0,0,0,				0,		0,		0,		0,		0,
 			0,		"\nHost and Network Announcement (HNA) options:"}
         ,
-	{ODI,0,ARG_UHNA,	 	'u',5,A_PMN,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,		opt_uhna,
+	{ODI,0,ARG_UHNA,	 	'u',5,A_PM1N,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,		opt_uhna,
 			ARG_PREFIX_FORM,"specify host-network announcement (HNA) for defined ip range"}
         ,
 /*
@@ -830,7 +832,7 @@ int32_t hna_init( void )
 
         set_route_change_hooks(hna_route_change_hook, ADD);
 
-        register_options_array( hna_options, sizeof( hna_options ) );
+        register_options_array(hna_options, sizeof ( hna_options), CODE_CATEGORY_NAME);
 
         return SUCCESS;
 }
@@ -841,7 +843,7 @@ struct plugin *hna_get_plugin( void ) {
 	static struct plugin hna_plugin;
 	memset( &hna_plugin, 0, sizeof ( struct plugin ) );
 
-	hna_plugin.plugin_name = "bmx6_hna_plugin";
+	hna_plugin.plugin_name = CODE_CATEGORY_NAME;
 	hna_plugin.plugin_size = sizeof ( struct plugin );
         hna_plugin.plugin_code_version = CODE_VERSION;
         hna_plugin.cb_init = hna_init;

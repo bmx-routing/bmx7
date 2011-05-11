@@ -222,12 +222,13 @@ struct ctrl_node *create_ctrl_node( int fd, void (*cn_fd_handler) (struct ctrl_n
 extern struct list_head opt_list;
 
 
-/* opt_t types (Parent/Child, Single/Multiple, 0/1/N-arguments) */
+/* opt_t types (Parent-/Child- Option, Single-/Multiple- option instances, (0/1 parent arguments), 0/1/N child options and arguments) */
 #define A_PS0   0x01
 #define A_PS1	0x02
-#define A_PSN   0x03
-#define A_PMN   0x04
-#define A_CS1	0x05
+#define A_PS0N  0x03
+#define A_PS1N  0x04
+#define A_PM1N  0x05
+#define A_CS1	0x06
 
 
 /* auth_t types */
@@ -293,10 +294,12 @@ struct opt_parent {
 	
 };
 
-#define ODI {{0},0,{0,0,0,0,0,0},{0,0,0,0,0,0}}
+#define ODI {NULL, {0}, NULL, {0,0,0,0,0,0}, {0,0,0,0,0,0}}
 
 struct opt_data {
-	
+
+        char *category_name;
+
 	struct list_node list;
 	
 	struct opt_type *parent_opt; //REMOVE THIS and use casting instead !
@@ -304,15 +307,11 @@ struct opt_data {
 	struct list_head childs_type_list; //if this opt is a section type, then further sub-opts types can be listed here
 	
 	struct list_head parents_instance_list; //
-//	uint16_t found_parents;
-	
 };
 
 struct opt_type {
 	
 	struct opt_data d; //MUST be first structure in opt_type to allow casting between struct opt_data and  struct opt_type
-	
-//	int8_t old_order;  // enforces an order during the init process,  (0==anytime????), 1..99: in this order. Might become removed
 	
 	char *parent_name;
 	char *long_name;
@@ -448,9 +447,9 @@ extern int (*save_config_cb) ( uint8_t del, struct opt_type *opt, char *parent, 
 extern int (*derive_config) ( char *reference, char *derivation, struct ctrl_node *cn );
 
 
-void register_option( struct opt_type *opt );
+//void register_option( struct opt_type *opt );
 //void remove_option( struct opt_type *opt );
-void register_options_array ( struct opt_type *fixed_options, int size );
+void register_options_array ( struct opt_type *fixed_options, int size, const char *category_name );
 
 extern int32_t Load_config;
 

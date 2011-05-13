@@ -34,6 +34,7 @@
 #include "ip.h"
 #include "tools.h"
 
+#define CODE_CATEGORY_NAME "gsf_map"
 
 #define GSF_MAP_MYNAME 		"gsf_map_name"
 #define GSF_MAP_LONGITUDE	"gsf_map_longitude"
@@ -272,7 +273,7 @@ static void gsf_map_cleanup( void ) {
 
 static int32_t gsf_map_init( void ) {
 	
-	register_options_array( gsf_map_options, sizeof( gsf_map_options ) );
+	register_options_array( gsf_map_options, sizeof( gsf_map_options ), CODE_CATEGORY_NAME );
 	
 	return SUCCESS;
 	

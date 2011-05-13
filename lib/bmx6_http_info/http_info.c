@@ -41,6 +41,8 @@
 //#include "control.h"
 //#include "list.h"
 
+#define CODE_CATEGORY_NAME "http_info"
+
 #define MAX_TCP_REQ_LEN		MAX_UNIX_MSG_SIZE
 #define HTTP_PREAMBLE 		"GET /"
 #define HTTP_PREAMBLE_LEN	strlen(HTTP_PREAMBLE)
@@ -272,8 +274,8 @@ static void http_info_cleanup( void ) {
 }
 
 static int32_t http_info_init( void ) {
-	
-	register_options_array( http_info_options, sizeof( http_info_options ) );
+
+        register_options_array(http_info_options, sizeof ( http_info_options), CODE_CATEGORY_NAME);
 	
 	return SUCCESS;
 	

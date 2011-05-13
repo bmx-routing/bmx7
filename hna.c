@@ -750,39 +750,6 @@ void hna_route_change_hook(uint8_t del, struct orig_node *on)
                 del ? TLV_OP_CUSTOM_HNA_ROUTE_DEL : TLV_OP_CUSTOM_HNA_ROUTE_ADD,
                 af_cfg == AF_INET ? BMX_DSC_TLV_UHNA4 : BMX_DSC_TLV_UHNA6, NULL);
 
-/*
-
-        uint16_t tlvs_length = ntohs(on->desc->dsc_tlvs_len);
-        uint8_t uhna_type = (af_cfg == AF_INET ? BMX_DSC_TLV_UHNA4 : BMX_DSC_TLV_UHNA6);
-
-        struct rx_frame_iterator it = {.caller = __FUNCTION__, .on = on,
-                .frames_in = (((uint8_t*) on->desc) + sizeof (struct description)),
-                .frames_pos = 0, .frames_length = tlvs_length,
-                .handls = description_tlv_handl, .handl_max = FRAME_TYPE_MAX, .process_filter = FRAME_TYPE_PROCESS_NONE
-        };
-
-        while (rx_frame_iterate(&it) > TLV_RX_DATA_DONE && it.frame_type != uhna_type);
-
-        if (it.frame_type != uhna_type)
-                return;
-
-        uint16_t pos;
-        uint16_t msg_size = it.handls[it.frame_type].min_msg_size;
-
-        for (pos = 0; pos < it.frame_msgs_length; pos += msg_size) {
-
-                struct uhna_key key;
-
-                if (uhna_type == BMX_DSC_TLV_UHNA4)
-                        set_uhna_to_key(&key, (struct description_msg_hna4 *) (it.frame_data + pos), NULL);
-
-                else
-                        set_uhna_to_key(&key, NULL, (struct description_msg_hna6 *) (it.frame_data + pos));
-
-                configure_route(del, on, &key);
-                configure_niit4to6(del, &key);
-        }
-*/
 }
 
 

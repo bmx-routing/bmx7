@@ -235,31 +235,28 @@ static int32_t opt_gsf_map_args ( uint8_t cmd, uint8_t _save, struct opt_type *o
 static struct opt_type gsf_map_options[]= {
 //        ord parent long_name          shrt Attributes				*ival		min		max		default		*func,*syntax,*help
 	
-	{ODI,0,0,			0,   5,0,0,0,0,0,				0,		0,		0,		0,		0,
-			0,		"\nGraciaSenseFils (GSF) Map options:"},
-		
-	{ODI,0,GSF_MAP_MYNAME,	        0,   5,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0, 		0,		0, 		opt_gsf_map_args,
+	{ODI,0,GSF_MAP_MYNAME,	        0,   5,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0, 		0,		0,0, 		opt_gsf_map_args,
 			GSF_HELP_WORD,	"set gsf-map name"},
 		
-	{ODI,0,GSF_MAP_LONGITUDE,	0,   5,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0, 		0,		0, 		opt_gsf_map_args,
+	{ODI,0,GSF_MAP_LONGITUDE,	0,   5,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0, 		0,		0,0, 		opt_gsf_map_args,
 			GSF_HELP_WORD, 	"set gsf-map longitude" },
 		
-	{ODI,0,GSF_MAP_LATITUDE,	0,   5,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0, 		0,		0, 		opt_gsf_map_args,
+	{ODI,0,GSF_MAP_LATITUDE,	0,   5,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0, 		0,		0,0, 		opt_gsf_map_args,
 			GSF_HELP_WORD, "set gsf-map latitude" },
 		
-	{ODI,0,GSF_MAP_HW,		0,   5,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0, 		0,		0, 		opt_gsf_map_args,
+	{ODI,0,GSF_MAP_HW,		0,   5,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0, 		0,		0,0, 		opt_gsf_map_args,
 			GSF_HELP_WORD, "set gsf-map hw" },
 		
-	{ODI,0,GSF_MAP_EMAIL,		0,   5,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0, 		0,		0, 		opt_gsf_map_args,
+	{ODI,0,GSF_MAP_EMAIL,		0,   5,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0, 		0,		0,0, 		opt_gsf_map_args,
 			GSF_HELP_WORD, "set gsf-map email" },
 		
-	{ODI,0,GSF_MAP_COMMENT,	        0,   5,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0, 		0,		0, 		opt_gsf_map_args,
+	{ODI,0,GSF_MAP_COMMENT,	        0,   5,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0, 		0,		0,0, 		opt_gsf_map_args,
 			GSF_HELP_WORD, "set gsf-map comment (use _ between several words)" },
 		
-	{ODI,0,GSF_MAP_LOCAL_JSON,	0,   5,A_PS0,A_USR,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0, 		opt_gsf_map_local,
+	{ODI,0,GSF_MAP_LOCAL_JSON,	0,   5,A_PS0,A_USR,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_gsf_map_local,
 			0,		"show myself and local neighborhood in JSON format" },
 	
-	{ODI,0,GSF_MAP_WORLD_JSON,	0,   5,A_PS0,A_USR,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0, 		opt_gsf_map_global,
+	{ODI,0,GSF_MAP_WORLD_JSON,	0,   5,A_PS0,A_USR,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_gsf_map_global,
 			0,		"show all my reachable nodes in JSON format" },
 	
 };

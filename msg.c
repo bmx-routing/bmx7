@@ -3768,42 +3768,39 @@ struct opt_type msg_options[]=
 {
 //       ord parent long_name             shrt Attributes                            *ival              min                 max                default              *func,*syntax,*help
 
-	{ODI, 0,0,                         0,  5,0,0,0,0,0,                          0,                 0,                  0,                 0,                   0,
-			0,		"\nMessage options:"}
-        ,
 #ifndef LESS_OPTIONS
-        {ODI, 0, ARG_UDPD_SIZE,            0,  5, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &pref_udpd_size,   MIN_UDPD_SIZE,      MAX_UDPD_SIZE,     DEF_UDPD_SIZE,       0,
+        {ODI, 0, ARG_UDPD_SIZE,            0,  5, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &pref_udpd_size,   MIN_UDPD_SIZE,      MAX_UDPD_SIZE,     DEF_UDPD_SIZE,0,       0,
 			ARG_VALUE_FORM,	"set preferred udp-data size for send packets"}
         ,
-        {ODI, 0, ARG_OGM_TX_ITERS,         0,  5, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &ogm_adv_tx_iters,MIN_OGM_TX_ITERS,MAX_OGM_TX_ITERS,DEF_OGM_TX_ITERS,0,
+        {ODI, 0, ARG_OGM_TX_ITERS,         0,  5, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &ogm_adv_tx_iters,MIN_OGM_TX_ITERS,MAX_OGM_TX_ITERS,DEF_OGM_TX_ITERS,0,0,
 			ARG_VALUE_FORM,	"set maximum resend attempts for ogm aggregations"}
         ,
-        {ODI, 0, ARG_UNSOLICITED_DESC_ADVS,0,  5, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &desc_adv_tx_unsolicited,MIN_UNSOLICITED_DESC_ADVS,MAX_UNSOLICITED_DESC_ADVS,DEF_DESC_ADV_UNSOLICITED,0,
+        {ODI, 0, ARG_UNSOLICITED_DESC_ADVS,0,  5, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &desc_adv_tx_unsolicited,MIN_UNSOLICITED_DESC_ADVS,MAX_UNSOLICITED_DESC_ADVS,DEF_DESC_ADV_UNSOLICITED,0,0,
 			ARG_VALUE_FORM,	"send unsolicited description advertisements after receiving a new one"}
         ,
-        {ODI, 0, ARG_DSC0_REQS_TX_ITERS,   0,  5, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &desc_req_tx_iters,MIN_DSC0_REQS_TX_ITERS,MAX_DSC0_REQS_TX_ITERS,DEF_DESC_REQ_TX_ITERS,0,
+        {ODI, 0, ARG_DSC0_REQS_TX_ITERS,   0,  5, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &desc_req_tx_iters,MIN_DSC0_REQS_TX_ITERS,MAX_DSC0_REQS_TX_ITERS,DEF_DESC_REQ_TX_ITERS,0,0,
 			ARG_VALUE_FORM,	"set tx iterations for description requests"}
         ,
-        {ODI, 0, ARG_DHS0_REQS_TX_ITERS,   0,  5, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &dhash_req_tx_iters,MIN_DHS0_REQS_TX_ITERS,MAX_DHS0_REQS_TX_ITERS,DEF_DHASH_REQ_TX_ITERS,0,
+        {ODI, 0, ARG_DHS0_REQS_TX_ITERS,   0,  5, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &dhash_req_tx_iters,MIN_DHS0_REQS_TX_ITERS,MAX_DHS0_REQS_TX_ITERS,DEF_DHASH_REQ_TX_ITERS,0,0,
 			ARG_VALUE_FORM,	"set tx iterations for description-hash requests"}
         ,
-        {ODI, 0, ARG_DSC0_ADVS_TX_ITERS,   0,  5, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &desc_adv_tx_iters,MIN_DSC0_ADVS_TX_ITERS,MAX_DSC0_ADVS_TX_ITERS,DEF_DESC_ADV_TX_ITERS,0,
+        {ODI, 0, ARG_DSC0_ADVS_TX_ITERS,   0,  5, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &desc_adv_tx_iters,MIN_DSC0_ADVS_TX_ITERS,MAX_DSC0_ADVS_TX_ITERS,DEF_DESC_ADV_TX_ITERS,0,0,
 			ARG_VALUE_FORM,	"set tx iterations for descriptions"}
         ,
-        {ODI, 0, ARG_DHS0_ADVS_TX_ITERS,   0,  5, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &dhash_adv_tx_iters,MIN_DHS0_ADVS_TX_ITERS,MAX_DHS0_ADVS_TX_ITERS,DEF_DHASH_ADV_TX_ITERS,0,
+        {ODI, 0, ARG_DHS0_ADVS_TX_ITERS,   0,  5, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &dhash_adv_tx_iters,MIN_DHS0_ADVS_TX_ITERS,MAX_DHS0_ADVS_TX_ITERS,DEF_DHASH_ADV_TX_ITERS,0,0,
 			ARG_VALUE_FORM,	"set tx iterations for description hashes"}
         ,
-        {ODI, 0, ARG_OGM_ACK_TX_ITERS,     0,  5, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &ogm_ack_tx_iters,MIN_OGM_ACK_TX_ITERS,MAX_OGM_ACK_TX_ITERS,DEF_OGM_ACK_TX_ITERS,0,
+        {ODI, 0, ARG_OGM_ACK_TX_ITERS,     0,  5, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &ogm_ack_tx_iters,MIN_OGM_ACK_TX_ITERS,MAX_OGM_ACK_TX_ITERS,DEF_OGM_ACK_TX_ITERS,0,0,
 			ARG_VALUE_FORM,	"set tx iterations for ogm acknowledgements"}
         ,
 #endif
-	{ODI, 0, ARG_DESCRIPTIONS,	   0,  5, A_PS0N,A_USR, A_DYN, A_ARG, A_ANY, 0,                0,                   0,                   0,   opt_show_descriptions,
+	{ODI, 0, ARG_DESCRIPTIONS,	   0,  5, A_PS0N,A_USR, A_DYN, A_ARG, A_ANY, 0,                0,                   0,                   0,0,   opt_show_descriptions,
 			0,		HLP_DESCRIPTIONS}
         ,
-	{ODI,ARG_DESCRIPTIONS,ARG_DESCRIPTION_TYPE,'t',5,A_CS1,A_USR,A_DYN,A_ARG,A_ANY,	0,	MIN_DESCRIPTION_TYPE, MAX_DESCRIPTION_TYPE, DEF_DESCRIPTION_TYPE, opt_show_descriptions,
+	{ODI,ARG_DESCRIPTIONS,ARG_DESCRIPTION_TYPE,'t',5,A_CS1,A_USR,A_DYN,A_ARG,A_ANY,	0,	MIN_DESCRIPTION_TYPE, MAX_DESCRIPTION_TYPE, DEF_DESCRIPTION_TYPE,0, opt_show_descriptions,
 			"<TYPE>",	HLP_DESCRIPTION_TYPE}
         ,
-	{ODI,ARG_DESCRIPTIONS,ARG_DESCRIPTION_NAME,'n',5,A_CS1,A_USR,A_DYN,A_ARG,A_ANY,	0,		0,	0,0,		opt_show_descriptions,
+	{ODI,ARG_DESCRIPTIONS,ARG_DESCRIPTION_NAME,'n',5,A_CS1,A_USR,A_DYN,A_ARG,A_ANY,	0,		0,	0,0,		0, opt_show_descriptions,
 			"<NAME>",	"only show description of nodes with given name"}
 
 };

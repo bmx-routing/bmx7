@@ -29,7 +29,7 @@
 #include "plugin.h"
 #include "tools.h"
 
-#define CODE_CATEGORY_NAME "data_dump"
+#define CODE_CATEGORY_NAME "traffic"
 
 #define LESS_ROUNDING_ERRORS 0
 #define IMPROVE_ROUNDOFF 10
@@ -366,13 +366,10 @@ struct opt_type dump_options[]=
 {
 //       ord parent long_name             shrt Attributes                            *ival              min                 max                default              *func,*syntax,*help
 
-	{ODI, 0,0,                         0,  5,0,0,0,0,0,                          0,                 0,                  0,                 0,                   0,
-			0,		"\ntraffic-dump options:"}
-        ,
-        {ODI, 0, ARG_DUMP_REGRESSION_EXP,  0,  5, A_PS1, A_ADM, A_DYN, A_ARG, A_ANY, &dump_regression_exp,MIN_DUMP_REGRESSION_EXP,MAX_DUMP_REGRESSION_EXP,DEF_DUMP_REGRESSION_EXP,0,
+        {ODI, 0, ARG_DUMP_REGRESSION_EXP,  0,  5, A_PS1, A_ADM, A_DYN, A_ARG, A_ANY, &dump_regression_exp,MIN_DUMP_REGRESSION_EXP,MAX_DUMP_REGRESSION_EXP,DEF_DUMP_REGRESSION_EXP,0,0,
 			ARG_VALUE_FORM,	"set regression exponent for traffic-dump statistics "}
         ,
-	{ODI, 0, ARG_DUMP,     	           0,  5, A_PS1, A_USR, A_DYN, A_ARG, A_ANY, 0,                 0,                  0,                  0,                  opt_traffic_statistics,
+	{ODI, 0, ARG_DUMP,     	           0,  5, A_PS1, A_USR, A_DYN, A_ARG, A_ANY, 0,                 0,                  0,                 0,0,                  opt_traffic_statistics,
 			"<DEV>",		"show traffic statistics for given device name, summary, or all\n"}
 
 };

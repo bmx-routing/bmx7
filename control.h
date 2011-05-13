@@ -222,7 +222,11 @@ struct ctrl_node *create_ctrl_node( int fd, void (*cn_fd_handler) (struct ctrl_n
 extern struct list_head opt_list;
 
 
-/* opt_t types (Parent-/Child- Option, Single-/Multiple- option instances, (0/1 parent arguments), 0/1/N child options and arguments) */
+/* opt_t types:
+ *        v     Parent-/Child- Option,
+ *         v    Single(exactly one) / Multiple (zero ore more) option instances
+ *          v   0/1 parent arguments
+ *           v  0/1/N child options and arguments) */
 #define A_PS0   0x01
 #define A_PS1	0x02
 #define A_PS0N  0x03
@@ -298,7 +302,7 @@ struct opt_parent {
 
 struct opt_data {
 
-        char *category_name;
+        const char *category_name;
 
 	struct list_node list;
 	
@@ -332,6 +336,7 @@ struct opt_type {
 	int32_t imin;
 	int32_t imax;  
 	int32_t idef;
+        char *  sdef;
 	
 	int32_t (*call_custom_option)( uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn );
 	

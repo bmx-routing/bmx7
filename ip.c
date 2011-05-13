@@ -3131,65 +3131,62 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
 static struct opt_type ip_options[]=
 {
 //        ord parent long_name          shrt Attributes				*ival		min		max		default		*func,*syntax,*help
-	{ODI,0,0,	                0,  0,0,0,0,0,0,			0,		0,		0,		0,		0,
-			0,		"\nip options:"}
-        ,
-	{ODI,0,ARG_IP,	                'I',3,A_PS1N,A_ADM,A_INI,A_CFA,A_ANY,	&ip_version,    MIN_IP_VERSION, MAX_IP_VERSION, DEF_IP_VERSION,  opt_ip_version,
+	{ODI,0,ARG_IP,	                'I',3,A_PS1N,A_ADM,A_INI,A_CFA,A_ANY,	&ip_version,    MIN_IP_VERSION, MAX_IP_VERSION, DEF_IP_VERSION,0,  opt_ip_version,
 			ARG_VALUE_FORM,	"select ip protocol Version 4 or 6"}
         ,
 
-	{ODI,ARG_IP,ARG_IP_POLICY_ROUTING,0,3,A_CS1,A_ADM,A_INI,A_CFA,A_ANY,	&ip_policy_rt_cfg,0, 		1,		DEF_IP_POLICY_ROUTING,opt_ip_version,
+	{ODI,ARG_IP,ARG_IP_POLICY_ROUTING,0,3,A_CS1,A_ADM,A_INI,A_CFA,A_ANY,	&ip_policy_rt_cfg,0, 		1,		DEF_IP_POLICY_ROUTING,0,opt_ip_version,
 			ARG_VALUE_FORM,	"disable policy routing (throw and priority rules)"}
         ,
-	{ODI,ARG_IP,ARG_IP_THROW_RULES,	 0, 3,A_CS1,A_ADM,A_INI,A_CFA,A_ANY,	&ip_throw_rules_cfg,0, 		1,		DEF_IP_THROW_RULES,opt_ip_version,
+	{ODI,ARG_IP,ARG_IP_THROW_RULES,	 0, 3,A_CS1,A_ADM,A_INI,A_CFA,A_ANY,	&ip_throw_rules_cfg,0, 		1,		DEF_IP_THROW_RULES,0,opt_ip_version,
 			ARG_VALUE_FORM,	"disable/enable default throw rules"}
         ,
-	{ODI,ARG_IP,ARG_IP_PRIO_RULES,	 0, 3,A_CS1,A_ADM,A_INI,A_CFA,A_ANY,	&ip_prio_rules_cfg, 0, 		1,		DEF_IP_PRIO_RULES, opt_ip_version,
+	{ODI,ARG_IP,ARG_IP_PRIO_RULES,	 0, 3,A_CS1,A_ADM,A_INI,A_CFA,A_ANY,	&ip_prio_rules_cfg, 0, 		1,		DEF_IP_PRIO_RULES,0, opt_ip_version,
 			ARG_VALUE_FORM,	"disable/enable default priority rules"}
         ,
-	{ODI,ARG_IP,ARG_IP_RULE_OFFSET,	 0, 3,A_CS1,A_ADM,A_INI,A_CFA,A_ANY,	&ip_prio_offset_cfg,	MIN_IP_RULE_OFFSET,MAX_IP_RULE_OFFSET,DEF_IP_RULE_OFFSET,opt_ip_version,
+	{ODI,ARG_IP,ARG_IP_RULE_OFFSET,	 0, 3,A_CS1,A_ADM,A_INI,A_CFA,A_ANY,	&ip_prio_offset_cfg,	MIN_IP_RULE_OFFSET,MAX_IP_RULE_OFFSET,DEF_IP_RULE_OFFSET,0,opt_ip_version,
 			ARG_VALUE_FORM,	"specify iprout2 rule preference offset"}
         ,
-	{ODI,ARG_IP,ARG_IP_TABLE_OFFSET, 0, 3,A_CS1,A_ADM,A_INI,A_CFA,A_ANY,	&ip_table_offset_cfg,	MIN_IP_TABLE_OFFSET,   MAX_IP_TABLE_OFFSET,   DEF_IP_TABLE_OFFSET,     opt_ip_version,
+	{ODI,ARG_IP,ARG_IP_TABLE_OFFSET, 0, 3,A_CS1,A_ADM,A_INI,A_CFA,A_ANY,	&ip_table_offset_cfg,	MIN_IP_TABLE_OFFSET,   MAX_IP_TABLE_OFFSET,   DEF_IP_TABLE_OFFSET,0,     opt_ip_version,
 			ARG_VALUE_FORM,	"specify iprout2 table offset"}
 
 #ifndef WITH_UNUSED
         ,
-        {ODI,0,"lo_rule",		0,  4,A_PS1,A_ADM,A_INI,A_CFA,A_ANY,	&Lo_rule,	0, 		1,		DEF_LO_RULE,	0,
+        {ODI,0,"lo_rule",		0,  4,A_PS1,A_ADM,A_INI,A_CFA,A_ANY,	&Lo_rule,	0, 		1,		DEF_LO_RULE,0,	0,
 			ARG_VALUE_FORM,	"disable/enable autoconfiguration of lo rule"}
 #endif
         ,
-	{ODI,0,ARG_GLOBAL_PREFIX,	0,  5,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,		opt_dev_prefix,
+	{ODI,0,ARG_GLOBAL_PREFIX,	0,  5,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_dev_prefix,
 			ARG_PREFIX_FORM,HLP_GLOBAL_PREFIX}
         ,
-	{ODI,0,ARG_LLOCAL_PREFIX,	0,  5,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,		opt_dev_prefix,
+	{ODI,0,ARG_LLOCAL_PREFIX,	0,  5,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_dev_prefix,
 			ARG_PREFIX_FORM,HLP_LLOCAL_PREFIX}
         ,
 
-	{ODI,0,ARG_DEV,		        0,  5,A_PM1N,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0, 		0,		0, 		opt_dev,
+	{ODI,0,ARG_DEV,		        0,  5,A_PM1N,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0, 		0,		0,0, 		opt_dev,
 			"<interface-name>", HLP_DEV}
         ,
-	{ODI,ARG_DEV,ARG_DEV_TTL,	't',5,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		MIN_TTL,	MAX_TTL,	DEF_TTL,	opt_dev,
+	{ODI,ARG_DEV,ARG_DEV_TTL,	't',5,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		MIN_TTL,	MAX_TTL,	DEF_TTL,0,	opt_dev,
 			ARG_VALUE_FORM,	HLP_DEV_TTL}
         ,
-	{ODI,ARG_DEV,ARG_DEV_ANNOUNCE,  'a',5,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		1,		DEF_DEV_ANNOUNCE,opt_dev,
+	{ODI,ARG_DEV,ARG_DEV_ANNOUNCE,  'a',5,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		1,		DEF_DEV_ANNOUNCE,0,opt_dev,
 			ARG_VALUE_FORM,	HLP_DEV_ANNOUNCE}
         ,
-	{ODI,ARG_DEV,ARG_DEV_LL,	 'l',5,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		MIN_DEV_LL,	MAX_DEV_LL,     DEF_DEV_LL,	opt_dev,
+	{ODI,ARG_DEV,ARG_DEV_LL,	 'l',5,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		MIN_DEV_LL,	MAX_DEV_LL,     DEF_DEV_LL,0,	opt_dev,
 			ARG_VALUE_FORM,	HLP_DEV_LL}
         ,
-	{ODI,ARG_DEV,ARG_DEV_BITRATE_MAX,'b',5,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,              0,              0,              opt_dev,
+	{ODI,ARG_DEV,ARG_DEV_BITRATE_MAX,'b',5,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,              0,              0,0,              opt_dev,
 			ARG_VALUE_FORM,	HLP_DEV_BITRATE_MAX}
         ,
-	{ODI,ARG_DEV,ARG_DEV_GLOBAL_PREFIX,0, 5,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,  0,		0,              0,              0,              opt_dev,
+	{ODI,ARG_DEV,ARG_DEV_GLOBAL_PREFIX,0, 5,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,  0,		0,              0,              0,0,              opt_dev,
 			ARG_VALUE_FORM,	HLP_DEV_GLOBAL_PREFIX}
 
         ,
-	{ODI,0,ARG_INTERFACES,	         0,  5,A_PS0,A_USR,A_DYI,A_ARG,A_ANY,	0,		0,		1,		0,		opt_interfaces,
+	{ODI,0,ARG_INTERFACES,	         0,  5,A_PS0,A_USR,A_DYI,A_ARG,A_ANY,	0,		0,		1,		0,0,		opt_interfaces,
 			0,		"show configured interfaces"}
         ,
 
-	{ODI,0,ARG_PEDANTIC_CLEANUP,	0,  5,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&Pedantic_cleanup,0,		1,		DEF_PEDANT_CLNUP,0,
+	{ODI,0,ARG_PEDANTIC_CLEANUP,	0,  5,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&Pedantic_cleanup,0,		1,		DEF_PEDANT_CLNUP,0,0,
 			ARG_VALUE_FORM,	"disable/enable pedantic cleanup of system configuration (like ip_forward,..) \n"
 			"	at program termination. Its generally safer to keep this disabled to not mess up \n"
 			"	with other routing protocols"}

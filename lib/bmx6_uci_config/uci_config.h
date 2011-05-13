@@ -16,6 +16,7 @@
  */
 
 #define DEF_CONF_NAME "bmx6"
+#define DEF_CONF_FILE UCI_CONFDIR"/"DEF_CONF_NAME
 #define DEF_SECT_NAME "general"
 #define DEF_SECT_TYPE "bmx6"
 

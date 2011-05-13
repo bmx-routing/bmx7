@@ -1322,10 +1322,14 @@ int32_t opt_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_
 
         if ( cmd == OPT_APPLY ) {
 
-                if (!strcmp(opt->long_name, ARG_STATUS)) {
+                if (!strcmp(opt->long_name, ARG_VERSION)) {
 
-                        dbg_printf(cn, "%s-%s (compatibility=%d code=cv%d) primary %s=%s ip=%s local_id=%X uptime=%s CPU=%d.%1d\n",
-                                BMX_BRANCH, BRANCH_VERSION, COMPATIBILITY_VERSION, CODE_VERSION,
+                        dbg_printf(cn, "%s-%s (compatibility_version=%d code_version=%d)\n",
+                                BMX_BRANCH, BRANCH_VERSION, COMPATIBILITY_VERSION, CODE_VERSION);
+
+                } else if (!strcmp(opt->long_name, ARG_STATUS)) {
+
+                        dbg_printf(cn, "primary %s=%s ip=%s local_id=%X uptime=%s CPU=%d.%1d\n",
                                 ARG_DEV, primary_dev_cfg->label_cfg.str, self.primary_ip_str, ntohl(my_local_id),
                                 get_human_uptime(0), s_curr_avg_cpu_load / 10, s_curr_avg_cpu_load % 10);
 
@@ -1491,6 +1495,9 @@ int32_t opt_update_description(uint8_t cmd, uint8_t _save, struct opt_type *opt,
 static struct opt_type bmx_options[]=
 {
 //        ord parent long_name          shrt Attributes				*ival		min		max		default		*func,*syntax,*help
+
+	{ODI,0,ARG_VERSION,		'v',0,A_PS0,A_USR,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
+			0,		"show version"},
 
 	{ODI,0,ARG_STATUS,		0,  5,A_PS0,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
 			0,		"show status\n"},

@@ -232,9 +232,6 @@ void activate_debug_system(void)
 		
 		dbgf_all( DBGT_INFO, "activated debug_level=%d", debug_level);
 
-                dbg_track(DBGT_INFO, "%s-%s (compatibility_version=%d code_version=%d): %s",
-                        BMX_BRANCH, BRANCH_VERSION, COMPATIBILITY_VERSION, CODE_VERSION, init_string);
-		
 	}
 }
 
@@ -2913,6 +2910,7 @@ int32_t opt_debug(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_p
 */
 		} else if ( ival == DBGL_DETAILS ) {
 			
+			check_apply_parent_option( ADD, OPT_APPLY, 0, get_option( 0, 0, ARG_VERSION ), 0, cn );
 			check_apply_parent_option( ADD, OPT_APPLY, 0, get_option( 0, 0, ARG_STATUS ), 0, cn );
 			check_apply_parent_option( ADD, OPT_APPLY, 0, get_option( 0, 0, ARG_INTERFACES ), 0, cn );
 			check_apply_parent_option( ADD, OPT_APPLY, 0, get_option( 0, 0, ARG_LINKS ), 0, cn );
@@ -2969,11 +2967,6 @@ int32_t opt_help(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
 	} else if ( !strcmp(opt->long_name, ARG_EXP) ) {
 		
 		show_opts_help( YES, NO, cn );
-		
-	} else if ( !strcmp(opt->long_name, ARG_VERSION) ) {
-
-                dbg_printf(cn, "%s-%s (compatibility=%d code=cv%d)\n",
-                        BMX_BRANCH, BRANCH_VERSION, COMPATIBILITY_VERSION, CODE_VERSION);
 		
 	} else {
 		
@@ -3051,9 +3044,6 @@ static struct opt_type control_options[]=
 	{ODI,0,ARG_VERBOSE_EXP,	        'X',0,A_PS0,A_USR,A_DYI,A_ARG,A_END,	0,		0, 		0,		0,0, 		opt_help,
 			0,		"show advanced and experimental options"},
 		
-	{ODI,0,ARG_VERSION,		'v',0,A_PS0,A_USR,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_help,
-			0,		"show version"},
-	
 	{ODI,0,ARG_TEST,		0,  0,A_PS0,A_ADM,A_DYI,A_ARG,A_ANY,	&Testing,	0, 		1,		0,0, 		0,
 			0,		"test remaining args and provide feedback about projected success (without applying them)"},
 		

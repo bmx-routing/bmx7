@@ -998,55 +998,6 @@ int8_t is_valid_opt_ival(struct opt_type *opt, char *s, struct ctrl_node *cn)
 }
 
 
-/*
- * call given function for each applied option
- * thus: if several hna are active func() is called once for each
- */
-int8_t func_for_each_opt(struct ctrl_node *cn, void *data,
-        int8_t(*func) (struct ctrl_node *cn, void *data, struct opt_type *opt, struct opt_parent *p, struct opt_child *c))
-{
-	
-	struct list_node *list_pos;
-	
-	list_for_each( list_pos, &opt_list ) {
-		
-		struct opt_type *opt = (struct opt_type *)list_entry( list_pos, struct opt_data, list );
-
-                if (!opt->long_name)
-			continue;
-
-		struct list_node *p_pos;
-		
-		list_for_each( p_pos, &(opt->d.parents_instance_list) ) {
-			
-			struct opt_parent *p = (struct opt_parent*)list_entry( p_pos, struct opt_parent, list );
-			
-                        if ( (*func)( cn, data, opt, p, NULL ) == FAILURE ) {
-
-                                dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "with %s %s failed", opt->long_name, p->p_val);
-
-                                return FAILURE;
-                        }
-			
-			struct list_node *c_pos;
-			
-			list_for_each( c_pos, &p->childs_instance_list ) {
-				
-				struct opt_child *c = (struct opt_child*)list_entry( c_pos, struct opt_child, list );
-				
-				if ( (*func)( cn, data, opt, p, c ) == FAILURE ) {
-
-                                        dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "with %s %s %s %s failed",
-                                                opt->long_name, p->p_val, c->c_opt->long_name, c->c_val);
-					
-					return FAILURE;
-				}
-			}
-		}
-	}
-	
-	return SUCCESS;
-}
 
 
 STATIC_FUNC
@@ -2862,22 +2813,6 @@ void apply_init_args(int argc, char *argv[])
 	free_init_string();
 }
 
-STATIC_FUNC
-int8_t show_info(struct ctrl_node *cn, void *data, struct opt_type *opt, struct opt_parent *p, struct opt_child *c)
-{
-
-        if (c) {
-                dbg_printf(cn, "    %s%-18s %-20s %s%s\n",
-                        LONG_OPT_ARG_DELIMITER_STR, c->c_opt->long_name, c->c_val,
-                        (c->c_ref ? "resolved from " : ""), (c->c_ref ? c->c_ref : ""));
-        } else {
-                dbg_printf(cn, " %-22s %-20s %s%s\n",
-                        opt->long_name, p->p_val, (p->p_ref ? "resolved from " : ""), (p->p_ref ? p->p_ref : ""));
-        }
-	
-	
-	return SUCCESS;
-}
 
 STATIC_FUNC
 int32_t opt_show_parameter(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
@@ -2885,12 +2820,27 @@ int32_t opt_show_parameter(uint8_t cmd, uint8_t _save, struct opt_type *opt, str
 	
 	if ( cmd == OPT_APPLY ) {
 
-                func_for_each_opt(cn, NULL, show_info);
+                struct opt_type *opt = NULL;
+
+                while ((opt = list_iterate(&opt_list, opt))) {
+                        struct opt_parent *p = NULL;
+
+                        while (opt->long_name && (p = list_iterate(&opt->d.parents_instance_list, p))) {
+                                struct opt_child *c = NULL;
+
+                                dbg_printf(cn, " %-22s %-20s %s%s\n",
+                                        opt->long_name, p->p_val, (p->p_ref ? "resolved from " : ""), (p->p_ref ? p->p_ref : ""));
+
+                                while ((c = list_iterate(&p->childs_instance_list, c))) {
+                                        dbg_printf(cn, "    %s%-18s %-20s %s%s\n",
+                                                LONG_OPT_ARG_DELIMITER_STR, c->c_opt->long_name, c->c_val,
+                                                (c->c_ref ? "resolved from " : ""), (c->c_ref ? c->c_ref : ""));
+                                }
+                        }
+                }
 
                 if (initializing)
 			cleanup_all(CLEANUP_SUCCESS);
-		
-		
 	}
 	
 	return SUCCESS;

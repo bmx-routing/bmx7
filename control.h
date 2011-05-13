@@ -432,8 +432,6 @@ struct opt_parent *	get_opt_parent_ref ( struct opt_type *opt, char *ref );
 
 
 
-int8_t func_for_each_opt(struct ctrl_node *cn, void *data,
-                          int8_t (*func) ( struct ctrl_node *cn, void *data, struct opt_type *opt, struct opt_parent *p, struct opt_child *c ) );
 
 int respect_opt_order( uint8_t test, int8_t last, int8_t next, struct opt_type *on, uint8_t load_config, uint8_t cmd, struct ctrl_node *cn );
 

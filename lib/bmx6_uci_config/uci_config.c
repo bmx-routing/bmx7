@@ -811,48 +811,51 @@ int32_t opt_conf_file ( uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
 	return SUCCESS;
 }
 
-static uint8_t show_conf_general = YES;
-
 STATIC_FUNC
-int8_t show_conf ( struct ctrl_node *cn, void *data, struct opt_type *opt, struct opt_parent *p, struct opt_child *c ) {
-	
-	if ( show_conf_general  &&  !c  &&  opt->opt_t == A_PS1 ) {
-		
-		dbg_printf( cn, "\toption '%s' '%s'\n", opt->long_name, (p->p_ref ? p->p_ref : p->p_val) );
+int32_t opt_show_conf(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
+{
 
-        } else if (!show_conf_general && !c && (opt->opt_t == A_PS1N || opt->opt_t == A_PM1N)) {
-		
-		dbg_printf( cn, "\nconfig '%s'\n", opt->long_name );
-		dbg_printf( cn, "\toption '%s' '%s'\n", opt->long_name, (p->p_ref ? p->p_ref : p->p_val) );
-		
-	} else if ( !show_conf_general  &&  c  &&  c->c_opt->opt_t == A_CS1 ) {
-		
-		dbg_printf( cn, "\toption '%s' '%s'\n", c->c_opt->long_name, (c->c_ref ? c->c_ref : c->c_val) );
-		
-	}
-	
-	return SUCCESS;
-}
+        if (cmd == OPT_APPLY) {
 
+                int8_t show_sections = 0;
 
+                dbg_printf(cn, "config '%s' '%s'\n", DEF_SECT_TYPE, DEF_SECT_NAME);
 
-STATIC_FUNC
-int32_t opt_show_conf ( uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn ) {
-	
-	if ( cmd == OPT_APPLY ) {
-		
-		dbg_printf( cn, "config '%s' '%s'\n", DEF_SECT_TYPE, DEF_SECT_NAME );
-		
-		show_conf_general = YES;
-		func_for_each_opt( cn, NULL, show_conf );
-		show_conf_general = NO;
-		func_for_each_opt( cn, NULL, show_conf );
-		
-		dbg_printf( cn, "\n" );
-		
-	}	
-	
-	return SUCCESS;
+                do {
+                        struct opt_type *opt = NULL;
+
+                        while ((opt = list_iterate(&opt_list, opt))) {
+                                struct opt_parent *p = NULL;
+
+                                while (opt->long_name && (p = list_iterate(&opt->d.parents_instance_list, p))) {
+                                        struct opt_child *c = NULL;
+
+                                        if (!show_sections && opt->opt_t == A_PS1) {
+
+                                                dbg_printf(cn, "\toption '%s' '%s'\n",
+                                                        opt->long_name, (p->p_ref ? p->p_ref : p->p_val));
+
+                                        } else if (show_sections && (opt->opt_t == A_PS1N || opt->opt_t == A_PM1N)) {
+
+                                                dbg_printf(cn, "\nconfig '%s'\n", opt->long_name);
+                                                dbg_printf(cn, "\toption '%s' '%s'\n",
+                                                        opt->long_name, (p->p_ref ? p->p_ref : p->p_val));
+                                        }
+
+                                        while (show_sections && (c = list_iterate(&p->childs_instance_list, c))) {
+
+                                                dbg_printf(cn, "\toption '%s' '%s'\n",
+                                                        c->c_opt->long_name, (c->c_ref ? c->c_ref : c->c_val));
+
+                                        }
+                                }
+                        }
+                } while ((show_sections++) < 1);
+
+                dbg_printf(cn, "\n");
+        }
+
+        return SUCCESS;
 }
 
 static struct opt_type config_options[]= {

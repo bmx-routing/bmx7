@@ -1337,7 +1337,9 @@ int32_t opt_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_
 
                         dbg_printf(cn, "\n");
 
+
                 } else  if ( !strcmp( opt->long_name, ARG_LINKS ) ) {
+
 #define DBG_STATUS4_LINK_HEAD "%-16s %-10s %3s %3s %8s %8s %9s %5s %5s %4s %-5s\n"
 #define DBG_STATUS6_LINK_HEAD "%-30s %-10s %3s %3s %8s %8s %9s %5s %5s %4s %-5s\n"
 #define DBG_STATUS4_LINK_INFO "%-16s %-10s %3ju %3ju %8X %8X %9X %5d %5d %4d %2s %2s\n"
@@ -1368,13 +1370,14 @@ int32_t opt_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_
                                                 (lndev == link->local->best_rp_lndev ? "Rp" : " "),
                                                 (lndev == link->local->best_tp_lndev ? "Tp" : " ")
                                                 );
-
                                 }
 
                         }
                         dbg_printf(cn, "\n");
 
+
                 } else  if ( !strcmp( opt->long_name, ARG_LOCALS ) ) {
+
 #define DBG_STATUS4_LOCAL_HEAD "%-8s %-22s %3s %9s %11s %3s %6s %1s %7s %1s %7s\n"
 #define DBG_STATUS6_LOCAL_HEAD "%-8s %-22s %3s %9s %11s %3s %6s %1s %7s %1s %7s\n"
 #define DBG_STATUS4_LOCAL_INFO "%8X %-22s %3d %9d %11d %3d %6d %1d %7d %1d %7d\n"
@@ -1405,13 +1408,6 @@ int32_t opt_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_
 
                 } else if (!strcmp(opt->long_name, ARG_ORIGINATORS)) {
 
-                        struct avl_node *it;
-                        struct orig_node *on;
-                        UMETRIC_T total_metric = 0;
-                        uint32_t  total_lref = 0;
-                        uint32_t  total_router = 0;
-                        char *empty = "";
-
 #define DBG_STATUS4_ORIG_HEAD "%-22s %-16s %3s %-16s %-10s %7s %5s %5s %5s %1s %5s %4s\n"
 #define DBG_STATUS6_ORIG_HEAD "%-22s %-40s %3s %-40s %-10s %7s %5s %5s %5s %1s %5s %4s\n"
 #define DBG_STATUS4_ORIG_INFO "%-22s %-16s %3d %-16s %-10s %7s %5d %5d %5d %1d %5d %4d\n"
@@ -1419,7 +1415,12 @@ int32_t opt_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_
 #define DBG_STATUS4_ORIG_TAIL "%-22s %-16d %3d %-16s %-10s %7s %5s %5s %5s %1s %5s %4d\n"
 #define DBG_STATUS6_ORIG_TAIL "%-22s %-40d %3d %-40s %-10s %7s %5s %5s %5s %1s %5s %4d\n"
 
-
+                        struct avl_node *it;
+                        struct orig_node *on;
+                        UMETRIC_T total_metric = 0;
+                        uint32_t  total_lref = 0;
+                        uint32_t  total_router = 0;
+                        char *empty = "";
 
                         dbg_printf(cn, (af_cfg == AF_INET ? DBG_STATUS4_ORIG_HEAD : DBG_STATUS6_ORIG_HEAD),
                                 "Orig ID.name", "primaryIP", "RTs", "currRT", "viaDev",

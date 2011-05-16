@@ -1466,7 +1466,8 @@ uint32_t field_iterate(struct field_iterator *it)
                 format->field_type, format->field_bits, field_standard_sizes[format->field_type]);
 
 
-        if (it->msg_bit_pos + (it->min_msg_size * 8) + it->var_bits <= 8 * (it->max_data_size ? it->max_data_size : it->min_msg_size)) {
+        if (it->msg_bit_pos + (it->min_msg_size * 8) + it->var_bits <=
+                8 * (it->max_data_size ? it->max_data_size : it->min_msg_size)) {
 
                 //printf("msg_name=%s field_name=%s\n", handl->name, format->msg_field_name);
 

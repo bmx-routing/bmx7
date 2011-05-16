@@ -114,8 +114,8 @@ static int32_t opt_gsf_map_local ( uint8_t cmd, uint8_t _save, struct opt_type *
                                                 lndev->key.dev->label_cfg.str,
                                                 ((lndev->timeaware_rx_probe * 100) / UMETRIC_MAX),
                                                 ((lndev->timeaware_tx_probe * 100) / UMETRIC_MAX),
-                                                link->rp_hello_sqn_max,
-                                                ((TIME_T) (bmx_time - link->rp_time_max/*lndev->key.link->local->rp_adv_time*/)) / 1000,
+                                                link->hello_sqn_max,
+                                                ((TIME_T) (bmx_time - link->hello_time_max)) / 1000,
                                                 (lndev == link->local->best_rp_lndev ? 1 : 0),
                                                 (lndev == link->local->best_tp_lndev ? 1 : 0),
                                                 orig->primary_ip_str, orig->id.name, orig->id.rand.u64[0]

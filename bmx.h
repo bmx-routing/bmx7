@@ -434,13 +434,13 @@ struct host_metricalgo {
 	uint8_t late_penalty;
 };
 
-struct link_probe_record {
-	HELLO_SQN_T sqn_max; // SQN which has been applied (if equals wa_pos) then wa_unscaled MUST NOT be set again!
+struct lndev_probe_record {
+	HELLO_SQN_T hello_sqn_max; // SQN which has been applied (if equals wa_pos) then wa_unscaled MUST NOT be set again!
 
-	uint8_t probe_array[MAX_HELLO_SQN_WINDOW/8];
-	uint32_t probe_sum;
-	UMETRIC_T umetric;
-	TIME_T time_max;
+	uint8_t hello_array[MAX_HELLO_SQN_WINDOW/8];
+	uint32_t hello_sum;
+	UMETRIC_T hello_umetric;
+	TIME_T hello_time_max;
 };
 
 
@@ -614,6 +614,86 @@ extern struct orig_node self;
  * The most important data structures
  */
 
+enum {
+	FIELD_TYPE_UINT,
+	FIELD_TYPE_HEX,
+	FIELD_TYPE_CHAR,
+	FIELD_TYPE_STRING_SIZE,
+	FIELD_TYPE_STRING_CHAR,
+	FIELD_TYPE_STRING_BINARY,
+	FIELD_TYPE_STRPTR_CHAR,
+	FIELD_TYPE_IP4,
+	FIELD_TYPE_IPX,
+	FIELD_TYPE_IPX4,
+	FIELD_TYPE_IPX6,
+	FIELD_TYPE_MAC,
+
+	FIELD_TYPE_END
+};
+
+#define FIELD_STANDARD_SIZES {-1,-1, 8,-1,-8,-8,(8*sizeof(void*)),32,128,128,128,48}
+// negative values mean size must be multiple of negativ value, positive values mean absolute bit sizes
+
+enum {
+        FIELD_RELEVANCE_LOW,
+        FIELD_RELEVANCE_MEDI,
+        FIELD_RELEVANCE_HIGH
+};
+
+struct field_format {
+	uint16_t field_type;
+        int32_t field_pos; // -1 means relative to previous 
+	uint32_t field_bits;
+	uint8_t field_host_order;
+        uint8_t field_relevance;
+	const char * field_name;
+};
+
+#define FIELD_FORMAT_END {FIELD_TYPE_END, 0, 0, 0, FIELD_RELEVANCE_LOW, NULL}
+#define FIELD_STR_VALUE(name) #name
+#define FIELD_FORMAT_INIT(f_type, f_struct_name, f_struct_field, f_host_order, f_relevance) { \
+.field_type = f_type, \
+.field_pos = (((unsigned long)&(((struct f_struct_name*) NULL)->f_struct_field))*8), \
+.field_bits = (sizeof( (((struct f_struct_name *) NULL)->f_struct_field) ) * 8), \
+.field_host_order = f_host_order, \
+.field_relevance = f_relevance, \
+.field_name = FIELD_STR_VALUE(f_struct_field) \
+}
+
+struct field_iterator {
+        const struct field_format *format;
+//        char * msg_name;
+        uint8_t *data;
+        uint16_t max_data_size;
+        uint16_t fixed_msg_size;
+        uint16_t min_msg_size;
+
+        uint32_t field;
+        int32_t field_bits;
+        uint32_t var_bits;
+        uint32_t field_bit_pos;
+        uint32_t msg_bit_pos;
+
+};
+
+struct status_handl {
+        uint16_t min_msg_size;
+        uint16_t fixed_msg_size;
+        char status_name[16];
+        char *code_category;
+        uint8_t *data;
+
+	int32_t (*frame_creator) (struct status_handl *status_handl);
+
+	const struct field_format *format;
+};
+
+extern struct avl_tree status_tree;
+
+
+uint32_t fields_dbg(struct ctrl_node *cn, uint16_t max_data_size, uint8_t *data,
+                    uint16_t min_msg_size, uint16_t fixed_msg_size, const struct field_format *format);
+
 
 
 
@@ -697,9 +777,9 @@ struct link_node {
 	IPX_T link_ip;
 
 	TIME_T pkt_time_max;
-	TIME_T rp_time_max;
+	TIME_T hello_time_max;
 
-	HELLO_SQN_T rp_hello_sqn_max;
+	HELLO_SQN_T hello_sqn_max;
 
 	struct local_node *local; // set immediately
 	
@@ -735,7 +815,7 @@ struct link_dev_node {
 
 	UMETRIC_T tx_probe_umetric;
 	UMETRIC_T timeaware_tx_probe;
-	struct link_probe_record rx_probe_record;
+	struct lndev_probe_record rx_probe_record;
 	UMETRIC_T timeaware_rx_probe;
 
 	struct list_head tx_task_lists[FRAME_TYPE_ARRSZ]; // scheduled frames and messages

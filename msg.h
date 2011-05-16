@@ -344,53 +344,6 @@ struct tx_frame_iterator {
 //#define tx_iterator_cache_msg_ptr( it ) ((it)->cache_data_array + (it)->cache_msg_pos)
 };
 
-enum {
-	MSG_FIELD_TYPE_UINT,
-	MSG_FIELD_TYPE_HEX,
-	MSG_FIELD_TYPE_CHAR,
-	MSG_FIELD_TYPE_STRING_SIZE,
-	MSG_FIELD_TYPE_STRING_CHAR,
-	MSG_FIELD_TYPE_STRING_BINARY,
-	MSG_FIELD_TYPE_IP4,
-	MSG_FIELD_TYPE_IPX4,
-	MSG_FIELD_TYPE_IPX6,
-	MSG_FIELD_TYPE_MAC,
-
-	MSG_FIELD_TYPE_END
-};
-
-#define MSG_FIELD_STANDARD_SIZES {-1,-1, 8,-1,-8,-8,32,128,128,48}
-// negative values mean size must be multiple of negativ value, positive values mean absolute bit sizes
-
-struct msg_field_format {
-	uint16_t msg_field_type;
-//	uint16_t msg_field_alignement;
-	uint32_t msg_field_bits;
-	uint8_t msg_field_host_order;
-	char * msg_field_name;
-};
-
-#define MSG_FIELD_FORMAT_END {MSG_FIELD_TYPE_END, 0, 0, NULL}
-
-struct msg_field_iterator {
-//        struct frame_handl *handl;
-        const struct msg_field_format *format;
-//        char * msg_name;
-        uint8_t *data;
-        uint16_t max_data_size;
-        uint16_t fixed_msg_size;
-        uint16_t min_msg_size;
-
-        uint32_t field;
-        int32_t field_bits;
-        uint32_t pos_bit;
-        uint32_t var_bits;
-
-        uint32_t _field;
-        uint32_t _pos_bit;
-};
-
-
 
 struct frame_handl {
         uint8_t is_advertisement;              // NO link information required for tx_frame_...(), dev is enough
@@ -403,7 +356,6 @@ struct frame_handl {
 	                     // i.e.: * unknown packet_frames MUST BE dropped.
 	                     //       * unknown and irrelevant description_tlv_frames MUST BE propagated
 	uint8_t rx_requires_described_neigh;
-//	uint8_t rx_requires_neighIID4me; can hardly be known
         uint16_t data_header_size;
         uint16_t min_msg_size;
         uint16_t fixed_msg_size;
@@ -420,7 +372,7 @@ struct frame_handl {
 	int32_t (*tx_frame_handler) (struct tx_frame_iterator *); // returns: TLV_TX_DATA_code or send frame_msgs_len (without data_header_size)
 	int32_t (*tx_msg_handler)   (struct tx_frame_iterator *); // returns: TLV_TX_DATA_code or send frame_msg_len  (without data_header_size)
 	
-	const struct msg_field_format *msg_format;
+	const struct field_format *msg_format;
 };
 
 
@@ -655,21 +607,21 @@ struct msg_description_adv {
 
 
 #define DESCRIPTION_MSG_FORMAT { \
-{MSG_FIELD_TYPE_UINT,          (8*sizeof(IID_T)),                0, "IID"}, \
-{MSG_FIELD_TYPE_STRING_CHAR,   (8*(DESCRIPTION0_ID_NAME_LEN)),   1, "id_name"},  \
-{MSG_FIELD_TYPE_STRING_BINARY, (8*DESCRIPTION0_ID_RANDOM_LEN),   1, "id_rand" },  \
-{MSG_FIELD_TYPE_UINT,          16,                               0, "code_version" }, \
-{MSG_FIELD_TYPE_STRING_SIZE,   16,                               0, "extension_msgs_len" }, \
-{MSG_FIELD_TYPE_UINT,          16,                               0, "sqn" }, \
-{MSG_FIELD_TYPE_HEX,           16,                               0, "capabilities" }, \
-{MSG_FIELD_TYPE_UINT,          (8*sizeof(OGM_SQN_T)),            0, "ogm_sqn_min" }, \
-{MSG_FIELD_TYPE_UINT,          (8*sizeof(OGM_SQN_T)),            0, "ogm_sqn_range" }, \
-{MSG_FIELD_TYPE_UINT,          16,                               0, "tx_interval" }, \
-{MSG_FIELD_TYPE_UINT,          8,                                1, "ttl" }, \
-{MSG_FIELD_TYPE_UINT,          8,                                1, "reserved" }, \
-{MSG_FIELD_TYPE_STRING_BINARY, 128,                              1, "reserved" }, \
-{MSG_FIELD_TYPE_STRING_BINARY, 0,                                1, "extension_msgs" }, \
-MSG_FIELD_FORMAT_END}
+{FIELD_TYPE_UINT,          -1, (8*sizeof(IID_T)),                0, FIELD_RELEVANCE_MEDI, "IID"}, \
+{FIELD_TYPE_STRING_CHAR,   -1, (8*(DESCRIPTION0_ID_NAME_LEN)),   1, FIELD_RELEVANCE_HIGH, "id_name"},  \
+{FIELD_TYPE_STRING_BINARY, -1, (8*DESCRIPTION0_ID_RANDOM_LEN),   1, FIELD_RELEVANCE_HIGH, "id_rand" },  \
+{FIELD_TYPE_UINT,          -1, 16,                               0, FIELD_RELEVANCE_MEDI, "code_version" }, \
+{FIELD_TYPE_STRING_SIZE,   -1, 16,                               0, FIELD_RELEVANCE_LOW,  "extension_msgs_len" }, \
+{FIELD_TYPE_UINT,          -1, 16,                               0, FIELD_RELEVANCE_MEDI, "sqn" }, \
+{FIELD_TYPE_HEX,           -1, 16,                               0, FIELD_RELEVANCE_MEDI, "capabilities" }, \
+{FIELD_TYPE_UINT,          -1, (8*sizeof(OGM_SQN_T)),            0, FIELD_RELEVANCE_MEDI, "ogm_sqn_min" }, \
+{FIELD_TYPE_UINT,          -1, (8*sizeof(OGM_SQN_T)),            0, FIELD_RELEVANCE_MEDI, "ogm_sqn_range" }, \
+{FIELD_TYPE_UINT,          -1, 16,                               0, FIELD_RELEVANCE_HIGH, "tx_interval" }, \
+{FIELD_TYPE_UINT,          -1, 8,                                1, FIELD_RELEVANCE_LOW,  "ttl" }, \
+{FIELD_TYPE_UINT,          -1, 8,                                1, FIELD_RELEVANCE_LOW,  "reserved" }, \
+{FIELD_TYPE_STRING_BINARY, -1, 128,                              1, FIELD_RELEVANCE_LOW,  "reserved" }, \
+{FIELD_TYPE_STRING_BINARY, -1, 0,                                1, FIELD_RELEVANCE_MEDI, "extension_msgs" }, \
+FIELD_FORMAT_END}
 
 
 

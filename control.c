@@ -1130,19 +1130,19 @@ void register_option(struct opt_type *opt, const char * category_name)
 		goto failure;
 
 
-        assertion(-500000, (opt->long_name));
+        assertion(-501227, (opt->long_name));
 	
 	// arg_t A_PS0 with no function can only be YES/NO:
         assertion(-500111, IMPLIES(opt->opt_t == A_PS0 && opt->ival, opt->imin == NO && opt->imax == YES && opt->idef == NO));
-        assertion(-500000, IMPLIES(opt->opt_t == A_PS0N, !opt->ival && !opt->imin && !opt->imax && !opt->idef));
+        assertion(-501228, IMPLIES(opt->opt_t == A_PS0N, !opt->ival && !opt->imin && !opt->imax && !opt->idef));
 	
 	// arg_t A_PS0 can not be stored
         assertion(-500112, IMPLIES(opt->opt_t == A_PS0 || opt->opt_t == A_PS0N, opt->cfg_t == A_ARG));
 
         assertion(-500113, (opt->order >= 0 || opt->order <= 99));
 
-        assertion(-500000, IMPLIES(opt->parent_name, !strchr(opt->parent_name, '-')));
-        assertion(-500000, IMPLIES(opt->long_name, !strchr(opt->long_name, '-')));
+        assertion(-501229, IMPLIES(opt->parent_name, !strchr(opt->parent_name, '-')));
+        assertion(-501230, IMPLIES(opt->long_name, !strchr(opt->long_name, '-')));
 	
 	
 	memset( &(opt->d), 0, sizeof( struct opt_data ) );
@@ -2839,7 +2839,7 @@ int32_t opt_show_parameter(uint8_t cmd, uint8_t _save, struct opt_type *opt, str
                         while ((p = list_iterate(&opt->d.parents_instance_list, p))) {
                                 struct opt_child *c = NULL;
 
-                                assertion(-500000, (opt->long_name && opt->cfg_t != A_ARG));
+                                assertion(-501231, (opt->long_name && opt->cfg_t != A_ARG));
                                 
                                 dbg_printf(cn, " %-22s %-20s %s%s\n", opt->long_name, p->p_val,
                                         (p->p_ref ? "resolved from " : ""), (p->p_ref ? p->p_ref : ""));

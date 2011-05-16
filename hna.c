@@ -769,8 +769,8 @@ int32_t hna_init( void )
 {
         struct frame_handl tlv_handl;
         
-        static const struct msg_field_format hna4_format[] = DESCRIPTION_MSG_HNA4_FORMAT;
-        static const struct msg_field_format hna6_format[] = DESCRIPTION_MSG_HNA6_FORMAT;
+        static const struct field_format hna4_format[] = DESCRIPTION_MSG_HNA4_FORMAT;
+        static const struct field_format hna6_format[] = DESCRIPTION_MSG_HNA6_FORMAT;
 
 
         memset( &tlv_handl, 0, sizeof(tlv_handl));

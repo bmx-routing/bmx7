@@ -711,12 +711,12 @@ update_metric_error:
 STATIC_FUNC
 UMETRIC_T timeaware_rx_probe(struct link_dev_node *lndev)
 {
-        if (((TIME_T) (bmx_time - lndev->rx_probe_record.time_max)) < RP_ADV_DELAY_TOLERANCE)
-                return lndev->rx_probe_record.umetric;
+        if (((TIME_T) (bmx_time - lndev->rx_probe_record.hello_time_max)) < RP_ADV_DELAY_TOLERANCE)
+                return lndev->rx_probe_record.hello_umetric;
 
-        if (((TIME_T) (bmx_time - lndev->rx_probe_record.time_max)) < RP_ADV_DELAY_RANGE) {
-                return (lndev->rx_probe_record.umetric *
-                        ((UMETRIC_T) (RP_ADV_DELAY_RANGE - (bmx_time - lndev->rx_probe_record.time_max)))) /
+        if (((TIME_T) (bmx_time - lndev->rx_probe_record.hello_time_max)) < RP_ADV_DELAY_RANGE) {
+                return (lndev->rx_probe_record.hello_umetric *
+                        ((UMETRIC_T) (RP_ADV_DELAY_RANGE - (bmx_time - lndev->rx_probe_record.hello_time_max)))) /
                         RP_ADV_DELAY_RANGE;
         }
 
@@ -825,74 +825,74 @@ void update_link_probe_record(struct link_dev_node *lndev, HELLO_SQN_T sqn, uint
 
         TRACE_FUNCTION_CALL;
         struct link_node *link = lndev->key.link;
-        struct link_probe_record *lpr = &lndev->rx_probe_record;
+        struct lndev_probe_record *lpr = &lndev->rx_probe_record;
 
-        ASSERTION(-501049, ((sizeof (((struct link_probe_record*) NULL)->probe_array)) * 8 == MAX_HELLO_SQN_WINDOW));
+        ASSERTION(-501049, ((sizeof (((struct lndev_probe_record*) NULL)->hello_array)) * 8 == MAX_HELLO_SQN_WINDOW));
         assertion(-501050, (probe <= 1));
-        ASSERTION(-501055, (bits_get(lpr->probe_array, MAX_HELLO_SQN_WINDOW, 0, MAX_HELLO_SQN_WINDOW - 1) == lpr->probe_sum));
+        ASSERTION(-501055, (bits_get(lpr->hello_array, MAX_HELLO_SQN_WINDOW, 0, MAX_HELLO_SQN_WINDOW - 1) == lpr->hello_sum));
 
-        if ((link->rp_time_max || link->rp_hello_sqn_max) && link->rp_hello_sqn_max != sqn &&
-                ((HELLO_SQN_MASK)&(link->rp_hello_sqn_max - sqn)) < HELLO_SQN_TOLERANCE)
+        if ((link->hello_time_max || link->hello_sqn_max) && link->hello_sqn_max != sqn &&
+                ((HELLO_SQN_MASK)&(link->hello_sqn_max - sqn)) < HELLO_SQN_TOLERANCE)
                 return;
 
 
-        if (((HELLO_SQN_MASK)&(sqn - lpr->sqn_max)) >= my_link_window) {
+        if (((HELLO_SQN_MASK)&(sqn - lpr->hello_sqn_max)) >= my_link_window) {
 
-                memset(lpr->probe_array, 0, MAX_HELLO_SQN_WINDOW/8);
+                memset(lpr->hello_array, 0, MAX_HELLO_SQN_WINDOW/8);
 
-                ASSERTION(-500159, is_zero(lpr->probe_array, MAX_HELLO_SQN_WINDOW / 8));
+                ASSERTION(-500159, is_zero(lpr->hello_array, MAX_HELLO_SQN_WINDOW / 8));
 
                 if (probe)
-                        bit_set(lpr->probe_array, MAX_HELLO_SQN_WINDOW, sqn, 1);
+                        bit_set(lpr->hello_array, MAX_HELLO_SQN_WINDOW, sqn, 1);
 
-                lpr->probe_sum = probe;
+                lpr->hello_sum = probe;
                 dbgf_all(DBGT_INFO, "probe=%d probe_sum=%d %d",
-                        probe, lpr->probe_sum, bits_get(lpr->probe_array, MAX_HELLO_SQN_WINDOW, 0, MAX_HELLO_SQN_WINDOW - 1));
+                        probe, lpr->hello_sum, bits_get(lpr->hello_array, MAX_HELLO_SQN_WINDOW, 0, MAX_HELLO_SQN_WINDOW - 1));
                 
-                ASSERTION(-501058, (bits_get(lpr->probe_array, MAX_HELLO_SQN_WINDOW, 0, MAX_HELLO_SQN_WINDOW - 1) == lpr->probe_sum));
+                ASSERTION(-501058, (bits_get(lpr->hello_array, MAX_HELLO_SQN_WINDOW, 0, MAX_HELLO_SQN_WINDOW - 1) == lpr->hello_sum));
 
         } else {
-                if (sqn != lpr->sqn_max) {
-                        HELLO_SQN_T prev_sqn_min = (HELLO_SQN_MASK)&(lpr->sqn_max + 1 - ((HELLO_SQN_T) my_link_window));
+                if (sqn != lpr->hello_sqn_max) {
+                        HELLO_SQN_T prev_sqn_min = (HELLO_SQN_MASK)&(lpr->hello_sqn_max + 1 - ((HELLO_SQN_T) my_link_window));
                         HELLO_SQN_T new_sqn_min_minus_one = (HELLO_SQN_MASK)&(sqn - ((HELLO_SQN_T) my_link_window));
 
                         dbgf_all(DBGT_INFO, "prev_min=%5d prev_max=%d new_min=%5d sqn=%5d sum=%3d bits=%3d %s",
-                                prev_sqn_min,lpr->sqn_max, new_sqn_min_minus_one+1, sqn, lpr->probe_sum,
-                                bits_get(lpr->probe_array, MAX_HELLO_SQN_WINDOW, 0, MAX_HELLO_SQN_WINDOW - 1),
-                                bits_print(lpr->probe_array, MAX_HELLO_SQN_WINDOW, 0, MAX_HELLO_SQN_WINDOW - 1));
+                                prev_sqn_min,lpr->hello_sqn_max, new_sqn_min_minus_one+1, sqn, lpr->hello_sum,
+                                bits_get(lpr->hello_array, MAX_HELLO_SQN_WINDOW, 0, MAX_HELLO_SQN_WINDOW - 1),
+                                bits_print(lpr->hello_array, MAX_HELLO_SQN_WINDOW, 0, MAX_HELLO_SQN_WINDOW - 1));
 
-                        lpr->probe_sum -= bits_get(lpr->probe_array, MAX_HELLO_SQN_WINDOW, prev_sqn_min, new_sqn_min_minus_one);
+                        lpr->hello_sum -= bits_get(lpr->hello_array, MAX_HELLO_SQN_WINDOW, prev_sqn_min, new_sqn_min_minus_one);
 
                         dbgf_all(DBGT_INFO, "prev_min=%5d prev_max=%d new_min=%5d sqn=%5d sum=%3d bits=%3d %s",
-                                prev_sqn_min,lpr->sqn_max, new_sqn_min_minus_one+1, sqn, lpr->probe_sum, 
-                                bits_get(lpr->probe_array, MAX_HELLO_SQN_WINDOW, 0, MAX_HELLO_SQN_WINDOW - 1),
-                                bits_print(lpr->probe_array, MAX_HELLO_SQN_WINDOW, 0, MAX_HELLO_SQN_WINDOW - 1));
+                                prev_sqn_min,lpr->hello_sqn_max, new_sqn_min_minus_one+1, sqn, lpr->hello_sum,
+                                bits_get(lpr->hello_array, MAX_HELLO_SQN_WINDOW, 0, MAX_HELLO_SQN_WINDOW - 1),
+                                bits_print(lpr->hello_array, MAX_HELLO_SQN_WINDOW, 0, MAX_HELLO_SQN_WINDOW - 1));
                         
-                        bits_clear(lpr->probe_array, MAX_HELLO_SQN_WINDOW, prev_sqn_min, new_sqn_min_minus_one);
+                        bits_clear(lpr->hello_array, MAX_HELLO_SQN_WINDOW, prev_sqn_min, new_sqn_min_minus_one);
 
                         dbgf_all(DBGT_INFO, "prev_min=%5d prev_max=%d new_min=%5d sqn=%5d sum=%3d bits=%3d %s\n",
-                                prev_sqn_min,lpr->sqn_max, new_sqn_min_minus_one+1, sqn, lpr->probe_sum,
-                                bits_get(lpr->probe_array, MAX_HELLO_SQN_WINDOW, 0, MAX_HELLO_SQN_WINDOW - 1),
-                                bits_print(lpr->probe_array, MAX_HELLO_SQN_WINDOW, 0, MAX_HELLO_SQN_WINDOW - 1));
+                                prev_sqn_min,lpr->hello_sqn_max, new_sqn_min_minus_one+1, sqn, lpr->hello_sum,
+                                bits_get(lpr->hello_array, MAX_HELLO_SQN_WINDOW, 0, MAX_HELLO_SQN_WINDOW - 1),
+                                bits_print(lpr->hello_array, MAX_HELLO_SQN_WINDOW, 0, MAX_HELLO_SQN_WINDOW - 1));
 
                 }
 
-                ASSERTION(-501057, (bits_get(lpr->probe_array, MAX_HELLO_SQN_WINDOW, 0, MAX_HELLO_SQN_WINDOW - 1) == lpr->probe_sum));
+                ASSERTION(-501057, (bits_get(lpr->hello_array, MAX_HELLO_SQN_WINDOW, 0, MAX_HELLO_SQN_WINDOW - 1) == lpr->hello_sum));
 
-                if (!bit_get(lpr->probe_array, MAX_HELLO_SQN_WINDOW, sqn) && probe) {
-                        bit_set(lpr->probe_array, MAX_HELLO_SQN_WINDOW, sqn, 1);
-                        lpr->probe_sum++;
+                if (!bit_get(lpr->hello_array, MAX_HELLO_SQN_WINDOW, sqn) && probe) {
+                        bit_set(lpr->hello_array, MAX_HELLO_SQN_WINDOW, sqn, 1);
+                        lpr->hello_sum++;
                 }
                 
-                ASSERTION(-501056, (bits_get(lpr->probe_array, MAX_HELLO_SQN_WINDOW, 0, MAX_HELLO_SQN_WINDOW - 1) == lpr->probe_sum));
+                ASSERTION(-501056, (bits_get(lpr->hello_array, MAX_HELLO_SQN_WINDOW, 0, MAX_HELLO_SQN_WINDOW - 1) == lpr->hello_sum));
         }
 
-        lpr->sqn_max = sqn;
-        lpr->umetric = (UMETRIC_MAX / my_link_window) * lpr->probe_sum;
-        lpr->time_max = bmx_time;
+        lpr->hello_sqn_max = sqn;
+        lpr->hello_umetric = (UMETRIC_MAX / my_link_window) * lpr->hello_sum;
+        lpr->hello_time_max = bmx_time;
 
-        link->rp_hello_sqn_max = sqn;
-        link->rp_time_max = bmx_time;
+        link->hello_sqn_max = sqn;
+        link->hello_time_max = bmx_time;
 
         lndev_assign_best(link->local, lndev);
 
@@ -1337,21 +1337,21 @@ int32_t opt_link_metric(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
 
                 for (an = NULL; (lndev = avl_iterate_item(&link_dev_tree, &an));) {
 
-                        struct link_probe_record *lpr = &lndev->rx_probe_record;
+                        struct lndev_probe_record *lpr = &lndev->rx_probe_record;
 
                         if (my_link_window < my_link_window_prev) {
 
-                                HELLO_SQN_T prev_sqn_min = (HELLO_SQN_MASK)&(lpr->sqn_max + 1 - my_link_window_prev);
-                                HELLO_SQN_T new_sqn_min_minus_one = (HELLO_SQN_MASK)&(lpr->sqn_max - my_link_window);
+                                HELLO_SQN_T prev_sqn_min = (HELLO_SQN_MASK)&(lpr->hello_sqn_max + 1 - my_link_window_prev);
+                                HELLO_SQN_T new_sqn_min_minus_one = (HELLO_SQN_MASK)&(lpr->hello_sqn_max - my_link_window);
 
-                                lpr->probe_sum -= bits_get(lpr->probe_array, MAX_HELLO_SQN_WINDOW, prev_sqn_min, new_sqn_min_minus_one);
-                                bits_clear(lpr->probe_array, MAX_HELLO_SQN_WINDOW, prev_sqn_min, new_sqn_min_minus_one);
+                                lpr->hello_sum -= bits_get(lpr->hello_array, MAX_HELLO_SQN_WINDOW, prev_sqn_min, new_sqn_min_minus_one);
+                                bits_clear(lpr->hello_array, MAX_HELLO_SQN_WINDOW, prev_sqn_min, new_sqn_min_minus_one);
                         }
 
-                        assertion(-501053, (bits_get(lpr->probe_array, MAX_HELLO_SQN_WINDOW, 0, MAX_HELLO_SQN_WINDOW - 1) == lpr->probe_sum));
-                        assertion(-501061, (lpr->probe_sum <= ((uint32_t)my_link_window)));
+                        assertion(-501053, (bits_get(lpr->hello_array, MAX_HELLO_SQN_WINDOW, 0, MAX_HELLO_SQN_WINDOW - 1) == lpr->hello_sum));
+                        assertion(-501061, (lpr->hello_sum <= ((uint32_t)my_link_window)));
 
-                        lpr->umetric = (UMETRIC_MAX / my_link_window) * lpr->probe_sum;
+                        lpr->hello_umetric = (UMETRIC_MAX / my_link_window) * lpr->hello_sum;
                 }
 
 
@@ -1597,7 +1597,7 @@ int32_t init_metrics( void )
                 UMETRIC_TO_FMETRIC_INPUT_FIX, c, steps, err_sum_square / c, err_sum / c, err_min, err_max);
 #endif
 
-        static const struct msg_field_format metric_format[] = DESCRIPTION_MSG_METRICALGO_FORMAT;
+        static const struct field_format metric_format[] = DESCRIPTION_MSG_METRICALGO_FORMAT;
 
         struct frame_handl metric_handl;
         memset( &metric_handl, 0, sizeof(metric_handl));

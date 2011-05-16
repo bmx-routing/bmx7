@@ -102,6 +102,8 @@ AVL_TREE(blocked_tree, struct orig_node, id);
 
 AVL_TREE(blacklisted_tree, struct black_node, dhash);
 
+AVL_TREE(status_tree, struct status_handl, status_name);
+
 /***********************************************************
  Data Infrastructure
  ************************************************************/
@@ -1270,6 +1272,13 @@ void cleanup_all(int32_t status)
 
                 avl_remove(&orig_tree, &(self.id), -300203);
 
+                while (status_tree.items) {
+                        struct status_handl *handl = avl_first_item(&status_tree);
+                        avl_remove(&status_tree, handl->status_name, -300357);
+                        if (handl->data)
+                                debugFree(handl->data, -300359);
+                }
+
                 purge_link_route_orig_nodes(NULL, NO);
 
 		cleanup_plugin();
@@ -1314,6 +1323,527 @@ void cleanup_all(int32_t status)
  Configuration data and handlers
 ************************************************************/
 
+static const int32_t field_standard_sizes[FIELD_TYPE_END] = FIELD_STANDARD_SIZES;
+
+static int64_t field_get_value(const struct field_format *format, uint16_t min_msg_size, uint8_t *data, uint32_t pos_bit, uint32_t bits)
+{
+        uint8_t field_type = format->field_type;
+        uint8_t host_order = format->field_host_order;
+
+        assertion(-501221, (field_type == FIELD_TYPE_UINT || field_type == FIELD_TYPE_HEX || field_type == FIELD_TYPE_STRING_SIZE));
+        assertion(-501222, (bits <= 32));
+
+        if ((bits % 8) == 0) {
+
+                assertion(-501223, (bits == 8 || bits == 16 || bits == 32));
+                assertion(-501168, ((pos_bit % 8) == 0));
+
+                if (bits == 8) {
+
+                        return data[pos_bit / 8];
+
+                } else if (bits == 16) {
+
+                        if(host_order)
+                                return *((uint16_t*) & data[pos_bit / 8]);
+                        else
+                                return ntohs(*((uint16_t*) & data[pos_bit / 8]));
+
+                } else if (bits == 32) {
+
+                        if(host_order)
+                                return *((uint32_t*) & data[pos_bit / 8]);
+                        else
+                                return ntohs(*((uint32_t*) & data[pos_bit / 8]));
+                }
+
+        } else if (bits < 8) {
+
+                uint8_t bit = 0;
+                uint8_t result = 0;
+
+                for (bit = 0; bit < bits; bit++) {
+                        uint8_t val = bit_get(data, (8 * min_msg_size), (pos_bit + bit));
+                        bit_set(&result, 8, bit, val);
+                }
+
+                return result;
+        }
+
+        return FAILURE;
+}
+
+void field_dbg_value(struct ctrl_node *cn, const struct field_format *format, uint16_t min_msg_size,
+                         uint8_t *data, uint32_t pos_bit, uint32_t bits)
+{
+
+        assertion(-501200, (format && min_msg_size && data && cn && bits));
+
+        uint8_t field_type = format->field_type;
+
+        if (field_type == FIELD_TYPE_UINT || field_type == FIELD_TYPE_HEX || field_type == FIELD_TYPE_STRING_SIZE) {
+
+                if (bits <= 32) {
+                        int64_t field_val = field_get_value(format, min_msg_size, data, pos_bit, bits);
+
+                        if (format->field_type == FIELD_TYPE_HEX)
+                                dbg_printf(cn, "%jX", field_val);
+                        else
+                                dbg_printf(cn, "%ji", field_val);
+                } else {
+                        dbg_printf(cn, "%s", memAsHexString(&data[pos_bit / 8], bits / 8));
+                }
+
+        } else if (field_type == FIELD_TYPE_CHAR) {
+
+                assertion(-501201, (pos_bit % 8 == 0 && bits == 8));
+
+                dbg_printf(cn, "%c", data[pos_bit / 8]);
+
+        } else if (field_type == FIELD_TYPE_IP4) {
+
+                dbg_printf(cn, "%s", ip4AsStr(*((IP4_T*)&data[pos_bit / 8])));
+
+        } else if (field_type == FIELD_TYPE_IPX4) {
+
+                dbg_printf(cn, "%s", ipXAsStr(AF_INET, (IPX_T*) & data[pos_bit / 8]));
+
+        } else if (field_type == FIELD_TYPE_IPX6) {
+
+                dbg_printf(cn, "%s", ipXAsStr(AF_INET6, (IPX_T*) & data[pos_bit / 8]));
+
+        } else if (field_type == FIELD_TYPE_IPX) {
+
+                dbg_printf(cn, "%s", ipXAsStr(af_cfg, (IPX_T*) & data[pos_bit / 8]));
+
+        } else if (field_type == FIELD_TYPE_MAC) {
+
+                dbg_printf(cn, "%s", macAsStr((MAC_T*)&data[pos_bit / 8]));
+
+        } else if (field_type == FIELD_TYPE_STRING_BINARY) {
+
+                dbg_printf(cn, "%s", memAsHexString(&data[pos_bit / 8], bits / 8));
+
+        } else if (field_type == FIELD_TYPE_STRING_CHAR) {
+
+                dbg_printf(cn, "%s", memAsCharString((char*)&data[pos_bit / 8], bits / 8));
+
+        } else if (field_type == FIELD_TYPE_STRPTR_CHAR) {
+
+                dbg_printf(cn, "%s", memAsCharString(*((char**) (&data[pos_bit / 8])), strlen(*((char**) (&data[pos_bit / 8])))));
+
+        } else {
+                assertion(-501202, 0);
+        }
+}
+
+
+uint32_t field_iterate(struct field_iterator *it)
+{
+        TRACE_FUNCTION_CALL;
+        assertion(-501171, IMPLIES(it->max_data_size, it->data));
+
+        const struct field_format *format;
+
+
+        it->field = (it->field_bits || it->field) ? (it->field + 1) : 0;
+
+        format = &(it->format[it->field]);
+
+        if (format->field_type == FIELD_TYPE_END) {
+
+                it->field = 0;
+                it->msg_bit_pos += ((it->min_msg_size * 8) + it->var_bits);
+                it->var_bits = 0;
+                format = &(it->format[0]);
+        }
+
+        it->field_bit_pos = (format->field_pos == -1) ?
+                it->field_bit_pos + it->field_bits : it->msg_bit_pos + format->field_pos;
+
+        dbgf_all(DBGT_INFO, "field_name=%s max_data_size=%d min_msg_size=%d msg_bit_pos=%d data=%p field=%d field_bits=%d field_bit_pos=%d var_bits=%d field_type=%d field_bits=%d std_bits=%d\n",
+                format->field_name, it->max_data_size, it->min_msg_size, it->msg_bit_pos, it->data, it->field, it->field_bits, it->field_bit_pos, it->var_bits,
+                format->field_type, format->field_bits, field_standard_sizes[format->field_type]);
+
+
+        if (it->msg_bit_pos + (it->min_msg_size * 8) + it->var_bits <= 8 * (it->max_data_size ? it->max_data_size : it->min_msg_size)) {
+
+                //printf("msg_name=%s field_name=%s\n", handl->name, format->msg_field_name);
+
+                uint8_t field_type = format->field_type;
+                int32_t field_bits = format->field_bits ? format->field_bits : it->var_bits;
+                int32_t std_bits = field_standard_sizes[field_type];
+
+
+                assertion(-501172, IMPLIES(field_type == FIELD_TYPE_STRING_SIZE, !it->var_bits));
+
+                assertion(-501203, IMPLIES(field_type == FIELD_TYPE_UINT, (field_bits <= 8 || field_bits == 16 || field_bits == 32)));
+                assertion(-501204, IMPLIES(field_type == FIELD_TYPE_HEX, (field_bits <= 8 || field_bits == 16 || field_bits == 32)));
+                assertion(-501205, IMPLIES(field_type == FIELD_TYPE_STRING_SIZE, (field_bits <= 8 || field_bits == 16 || field_bits == 32)));
+
+                assertion(-501186, IMPLIES(it->fixed_msg_size && it->max_data_size, it->max_data_size % it->fixed_msg_size == 0));
+                assertion(-501187, IMPLIES(it->fixed_msg_size, field_type != FIELD_TYPE_STRING_SIZE || !format->field_bits));
+                assertion(-501188, IMPLIES(!format->field_bits && it->max_data_size, it->var_bits));
+                assertion(-501189, IMPLIES(!format->field_bits, field_type == FIELD_TYPE_STRING_CHAR || field_type == FIELD_TYPE_STRING_BINARY));
+
+
+                assertion(-501173, IMPLIES(field_bits == 0, format[1].field_type == FIELD_TYPE_END));
+
+                assertion(-501174, (std_bits != 0));
+                assertion(-501175, IMPLIES(std_bits > 0, (field_bits == std_bits)));
+                assertion(-501176, IMPLIES(std_bits < 0, !(field_bits % (-std_bits))));
+
+                assertion(-501206, IMPLIES(field_bits >= 8, !(field_bits % 8)));
+                assertion(-501177, IMPLIES((field_bits % 8), field_bits < 8));
+                assertion(-501178, IMPLIES(!(field_bits % 8), !(it->field_bit_pos % 8)));
+
+                assertion(-501182, (it->min_msg_size * 8 >= it->field_bit_pos + field_bits));
+
+                assertion(-501183, IMPLIES(it->max_data_size, it->min_msg_size <= it->max_data_size));
+                assertion(-501184, IMPLIES(it->max_data_size, field_bits));
+                assertion(-501185, IMPLIES(it->max_data_size, it->field_bit_pos + field_bits  <= it->max_data_size * 8));
+
+                assertion(-501190, IMPLIES(!format->field_host_order, (field_bits == 16 || field_bits == 32)));
+                assertion(-501191, IMPLIES(!format->field_host_order, (field_type == FIELD_TYPE_UINT || field_type == FIELD_TYPE_HEX || field_type == FIELD_TYPE_STRING_SIZE)));
+
+                assertion(-501192, IMPLIES((field_type == FIELD_TYPE_UINT || field_type == FIELD_TYPE_HEX || field_type == FIELD_TYPE_STRING_SIZE), field_bits <= 32));
+
+
+                if (it->max_data_size) {
+
+                        if (field_type == FIELD_TYPE_STRING_SIZE) {
+                                int64_t var_bytes = field_get_value(format, it->min_msg_size, it->data, it->field_bit_pos, field_bits);
+                                assertion(-501207, (var_bytes >= SUCCESS));
+                                it->var_bits = 8 * var_bytes;
+                        }
+
+                        //msg_field_dbg(it->handl, it->field, it->data, it->pos_bit, field_bits, cn);
+                }
+
+                it->field_bits = field_bits;
+
+
+                //dbgf_all(DBGT_INFO,
+
+                return SUCCESS;
+        }
+
+        assertion(-501163, IMPLIES(!it->max_data_size, (it->field_bit_pos % (it->min_msg_size * 8) == 0)));
+        assertion(-501164, IMPLIES(it->max_data_size, it->max_data_size * 8 == it->field_bit_pos));
+        assertion(-501208, ((it->field_bit_pos % 8) == 0));
+
+        return (it->msg_bit_pos / 8);
+}
+
+
+uint32_t fields_dbg(struct ctrl_node *cn, uint16_t max_data_size, uint8_t *data,
+                    uint16_t min_msg_size, uint16_t fixed_msg_size, const struct field_format *format)
+{
+        TRACE_FUNCTION_CALL;
+        assertion(-501209, format);
+
+        struct field_iterator it = {.format = format, .data = data, .max_data_size = max_data_size,
+                .fixed_msg_size = fixed_msg_size, .min_msg_size = min_msg_size};
+        uint32_t msgs_size = 0;
+
+        while ((msgs_size = field_iterate(&it)) == SUCCESS) {
+
+                if (data && cn) {
+                        dbg_printf(cn, " %s=", format[it.field].field_name);
+                        field_dbg_value(cn, &format[it.field], min_msg_size, data, it.field_bit_pos, it.field_bits);
+
+                        if (format[it.field + 1].field_type == FIELD_TYPE_END)
+                                dbg_printf(cn, "\n");
+
+                }
+        }
+
+        assertion(-501210, (max_data_size ? msgs_size == max_data_size : msgs_size == min_msg_size));
+
+        return msgs_size;
+}
+
+void register_status_handl(const struct status_handl *handl)
+{
+        assertion(-501224, !avl_find(&status_tree, &handl->status_name));
+        avl_insert(&status_tree, (void*) handl, -300357);
+}
+
+
+
+struct bmx_status {
+        char version[strlen(BMX_BRANCH) + strlen("-") + strlen(BRANCH_VERSION) + 1];
+        uint16_t compatibility;
+        uint16_t code_version;
+        char *hostname;
+        IPX_T primary_ip;
+        LOCAL_ID_T my_local_id;
+        char *uptime;
+        char cpu_load[6];
+};
+
+static const struct field_format bmx_status_format[] = {
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR, bmx_status, version,       1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        bmx_status, compatibility, 1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        bmx_status, code_version,  1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRPTR_CHAR, bmx_status, hostname,      1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_IPX,         bmx_status, primary_ip,    1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_HEX,         bmx_status, my_local_id,   1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRPTR_CHAR, bmx_status, uptime,        1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR, bmx_status, cpu_load,      1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_END
+};
+
+static int32_t bmx_status_creator(struct status_handl *handl)
+{
+        struct bmx_status *status = (struct bmx_status *) (handl->data = debugRealloc(handl->data, sizeof (struct bmx_status), -300000));
+        sprintf(status->version, "%s-%s", BMX_BRANCH, BRANCH_VERSION);
+        status->compatibility = COMPATIBILITY_VERSION;
+        status->code_version = CODE_VERSION;
+        status->hostname = self.id.name;
+        status->primary_ip = self.primary_ip;
+        status->my_local_id = ntohl(my_local_id);
+        status->uptime = get_human_uptime(0);
+        sprintf(status->cpu_load, "%d.%1d", s_curr_avg_cpu_load / 10, s_curr_avg_cpu_load % 10);
+        return sizeof (struct bmx_status);
+}
+
+static struct status_handl bmx_status_handl = {
+        .fixed_msg_size = 1,
+        .min_msg_size = sizeof(struct bmx_status),
+        .format = bmx_status_format,
+        .status_name = ARG_STATUS,
+        .code_category = CODE_CATEGORY_NAME,
+        .frame_creator = bmx_status_creator
+};
+
+
+
+
+
+struct link_status {
+        IPX_T llocal_ip;
+        IFNAME_T via_dev;
+        uint8_t rx_rate;
+        uint8_t tx_rate;
+        DEVADV_IDX_T my_dev_idx;
+        DEVADV_IDX_T nb_dev_idx;
+        LOCAL_ID_T nb_local_id;
+        IID_T nb_iid_4_me;
+        HELLO_SQN_T last_hello_sqn;
+        TIME_T last_hello_adv;
+        uint8_t best_rx_lndev;
+        uint8_t best_tx_lndev;
+};
+
+static const struct field_format link_status_format[] = {
+        FIELD_FORMAT_INIT(FIELD_TYPE_IPX,         link_status, llocal_ip,       1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR, link_status, via_dev,         1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        link_status, rx_rate,         1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        link_status, rx_rate,         1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        link_status, my_dev_idx,      1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        link_status, nb_dev_idx,      1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        link_status, nb_local_id,     1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        link_status, nb_iid_4_me,     1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        link_status, last_hello_sqn,  1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        link_status, last_hello_adv,  1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        link_status, best_rx_lndev,   1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        link_status, best_tx_lndev,   1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_END
+};
+
+static int32_t link_status_creator(struct status_handl *handl)
+{
+        struct avl_node *it;
+        struct link_node *link;
+        uint32_t status_size = link_dev_tree.items * sizeof (struct link_status);
+        uint32_t i = 0;
+
+        struct link_status *status = ((struct link_status*) (handl->data = debugRealloc(handl->data, status_size, -300358)));
+        memset(status, 0, status_size);
+
+        for (it = NULL; (link = avl_iterate_item(&link_tree, &it));) {
+                struct link_dev_node *lndev = NULL;
+
+                while ((lndev = list_iterate(&link->lndev_list, lndev))) {
+
+                        status[i].llocal_ip = link->link_ip;
+                        status[i].via_dev = lndev->key.dev->label_cfg;
+                        status[i].rx_rate = ((lndev->timeaware_rx_probe * 100) / UMETRIC_MAX);
+                        status[i].tx_rate = ((lndev->timeaware_tx_probe * 100) / UMETRIC_MAX);
+                        status[i].my_dev_idx = lndev->key.dev->dev_adv_idx;
+                        status[i].nb_dev_idx = link->key.dev_idx;
+                        status[i].nb_local_id = ntohl(link->key.local_id);
+                        status[i].nb_iid_4_me = link->local->neigh ? link->local->neigh->neighIID4me : 0;
+                        status[i].last_hello_sqn = link->hello_sqn_max;
+                        status[i].last_hello_adv = ((TIME_T) (bmx_time - link->hello_time_max)) / 1000;
+                        status[i].best_rx_lndev = (lndev == link->local->best_rp_lndev);
+                        status[i].best_tx_lndev = (lndev == link->local->best_tp_lndev);
+                        i++;
+                        assertion(-501225, (status_size <= i * sizeof (struct link_status)));
+                }
+        }
+        assertion(-501226, (status_size == i * sizeof (struct link_status)));
+        return status_size;
+}
+
+static struct status_handl link_status_handl = {
+        .fixed_msg_size = 1,
+        .min_msg_size = sizeof(struct link_status),
+        .format = link_status_format,
+        .status_name = ARG_LINKS,
+        .code_category = CODE_CATEGORY_NAME,
+        .frame_creator = link_status_creator
+};
+
+
+
+
+struct local_status {
+        LOCAL_ID_T local_id;
+        char *hostname;
+        uint8_t routes;
+        uint8_t wants_ogms;
+        uint8_t link_adv_4_him;
+        uint8_t link_adv_4_me;
+        DEVADV_SQN_T dev_adv_sqn;
+        DEVADV_SQN_T dev_adv_sqn_diff;
+        LINKADV_SQN_T link_adv_sqn;
+        LINKADV_SQN_T link_adv_sqn_diff;
+        TIME_T last_link_adv;
+};
+
+static const struct field_format local_status_format[] = {
+        FIELD_FORMAT_INIT(FIELD_TYPE_HEX,         local_status, local_id,         1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRPTR_CHAR, local_status, hostname,         1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        local_status, routes,           1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        local_status, wants_ogms,       1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        local_status, link_adv_4_him,   1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        local_status, link_adv_4_me,    1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        local_status, dev_adv_sqn,      1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        local_status, dev_adv_sqn_diff, 1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        local_status, link_adv_sqn,     1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        local_status, link_adv_sqn_diff,1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        local_status, last_link_adv,    1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_END
+};
+
+static int32_t locals_status_creator(struct status_handl *handl)
+{
+        struct avl_node *it;
+        struct local_node *local;
+        uint32_t status_size = local_tree.items * sizeof (struct local_status);
+        uint32_t i = 0;
+
+        struct local_status *status = ((struct local_status*) (handl->data = debugRealloc(handl->data, status_size, -300358)));
+        memset(status, 0, status_size);
+
+
+        for (it = NULL; (local = avl_iterate_item(&local_tree, &it));) {
+
+                struct orig_node *on = local->neigh ? local->neigh->dhn->on : NULL;
+
+                status[i].local_id = ntohl(local->local_id);
+                status[i].hostname = on->id.name;
+                status[i].routes = local->orig_routes;
+                status[i].wants_ogms = local->rp_ogm_request_rcvd;
+                status[i].link_adv_4_him = local->link_adv_msg_for_him;
+                status[i].link_adv_4_me =  local->link_adv_msg_for_me;
+                status[i].dev_adv_sqn = local->dev_adv_sqn;
+                status[i].dev_adv_sqn_diff = ((DEVADV_SQN_T) (local->link_adv_dev_sqn_ref - local->dev_adv_sqn));
+                status[i].link_adv_sqn = local->link_adv_sqn;
+                status[i].link_adv_sqn_diff = ((LINKADV_SQN_T) (local->packet_link_sqn_ref - local->link_adv_sqn));
+                status[i].last_link_adv = ((TIME_T) (bmx_time - local->link_adv_time)) / 1000;
+                i++;
+        }
+        return status_size;
+}
+
+
+static struct status_handl local_status_handl = {
+        .fixed_msg_size = 1,
+        .min_msg_size = sizeof(struct local_status),
+        .format = local_status_format,
+        .status_name = ARG_LOCALS,
+        .code_category = CODE_CATEGORY_NAME,
+        .frame_creator = locals_status_creator
+};
+
+
+
+
+
+
+struct orig_status {
+        char *hostname;
+        uint8_t blocked;
+        IPX_T primary_ip;
+        uint16_t routes;
+        IPX_T via_ip;
+        char *via_dev;
+        char *metric;
+        IID_T myIid4x;
+        DESC_SQN_T descSqn;
+        OGM_SQN_T ogmSqn;
+        OGM_SQN_T ogmSqnDiff;
+        uint16_t lastOgm;
+        uint16_t lastRef;
+};
+
+static const struct field_format orig_status_format[] = {
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRPTR_CHAR, orig_status, hostname,      1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        orig_status, blocked,       1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_IPX,         orig_status, primary_ip,    1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        orig_status, routes,        1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_IPX,         orig_status, via_ip,        1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRPTR_CHAR, orig_status, via_dev,       1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRPTR_CHAR, orig_status, metric,        1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        orig_status, myIid4x,       1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        orig_status, descSqn,       1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        orig_status, ogmSqn,        1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        orig_status, ogmSqnDiff,    1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        orig_status, lastOgm,       1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        orig_status, lastRef,       1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_END
+};
+
+static int32_t orig_status_creator(struct status_handl *handl)
+{
+        struct avl_node *it;
+        struct orig_node *on;
+        uint32_t status_size = orig_tree.items * sizeof (struct orig_status);
+        uint32_t i = 0;
+        struct orig_status *status = ((struct orig_status*) (handl->data = debugRealloc(handl->data, status_size, -300000)));
+        memset(status, 0, status_size);
+
+        for (it = NULL; (on = avl_iterate_item(&orig_tree, &it));) {
+                status[i].hostname = on->id.name;
+                status[i].blocked = on->blocked;
+                status[i].primary_ip = on->primary_ip;
+                status[i].routes = on->rt_tree.items;
+                status[i].via_ip = (on->curr_rt_lndev ? on->curr_rt_lndev->key.link->link_ip : ZERO_IP);
+                status[i].via_dev = on->curr_rt_lndev && on->curr_rt_lndev->key.dev ? on->curr_rt_lndev->key.dev->name_phy_cfg.str : "";
+                status[i].metric = umetric_to_human(on->curr_rt_local ? (on->curr_rt_local->mr.umetric) : (on == &self ? UMETRIC_MAX : 0));
+                status[i].myIid4x = on->dhn->myIID4orig;
+                status[i].descSqn = on->descSqn;
+                status[i].ogmSqn = on->ogmSqn_next;
+                status[i].ogmSqnDiff = (on->ogmSqn_maxRcvd - on->ogmSqn_next);
+                status[i].lastOgm = (bmx_time - on->updated_timestamp) / 1000;
+                status[i].lastRef = (bmx_time - on->dhn->referred_by_me_timestamp) / 1000;
+        }
+        return status_size;
+}
+
+static struct status_handl orig_status_handl = {
+        .fixed_msg_size = 1,
+        .min_msg_size = sizeof(struct orig_status),
+        .format = orig_status_format,
+        .status_name = ARG_ORIGINATORS,
+        .code_category = CODE_CATEGORY_NAME,
+        .frame_creator = orig_status_creator
+};
+
+
 
 STATIC_FUNC
 int32_t opt_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
@@ -1324,19 +1854,7 @@ int32_t opt_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_
 
                 if (!strcmp(opt->long_name, ARG_VERSION)) {
 
-                        dbg_printf(cn, "%s-%s (compatibility_version=%d code_version=%d)\n",
-                                BMX_BRANCH, BRANCH_VERSION, COMPATIBILITY_VERSION, CODE_VERSION);
-
                 } else if (!strcmp(opt->long_name, ARG_STATUS)) {
-
-                        dbg_printf(cn, "primary %s=%s ip=%s local_id=%X uptime=%s CPU=%d.%1d\n",
-                                ARG_DEV, primary_dev_cfg->label_cfg.str, self.primary_ip_str, ntohl(my_local_id),
-                                get_human_uptime(0), s_curr_avg_cpu_load / 10, s_curr_avg_cpu_load % 10);
-
-                        cb_plugin_hooks(PLUGIN_CB_STATUS, cn);
-
-                        dbg_printf(cn, "\n");
-
 
                 } else  if ( !strcmp( opt->long_name, ARG_LINKS ) ) {
 
@@ -1365,8 +1883,8 @@ int32_t opt_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_
                                                 ((lndev->timeaware_tx_probe *100) / UMETRIC_MAX),
                                                 lndev->key.dev->dev_adv_idx, link->key.dev_idx, ntohl(link->key.local_id),
                                                 link->local->neigh ? link->local->neigh->neighIID4me : 0,
-                                                link->rp_hello_sqn_max,
-                                                ((TIME_T)(bmx_time - link->rp_time_max/*lndev->key.link->local->rp_adv_time*/)) / 1000,
+                                                link->hello_sqn_max,
+                                                ((TIME_T)(bmx_time - link->hello_time_max/*lndev->key.link->local->rp_adv_time*/)) / 1000,
                                                 (lndev == link->local->best_rp_lndev ? "Rp" : " "),
                                                 (lndev == link->local->best_tp_lndev ? "Tp" : " ")
                                                 );
@@ -1384,7 +1902,8 @@ int32_t opt_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_
 #define DBG_STATUS6_LOCAL_INFO "%8X %-22s %3d %9d %11d %3d %6d %1d %7d %1d %7d\n"
 
                         dbg_printf(cn, (af_cfg == AF_INET ? DBG_STATUS4_LOCAL_HEAD : DBG_STATUS6_LOCAL_HEAD),
-                                "localID", "Orig ID.name", "RTs", "wantsOGMs", "linkAdv4Him", "4Me", "devAdv", "d", "linkAdv", "d", "lastAdv");
+                                "localID", "Orig ID.name",
+                                "RTs", "wantsOGMs", "linkAdv4Him", "4Me", "devAdv", "d", "linkAdv", "d", "lastAdv");
 
                         struct avl_node *it;
                         struct local_node *local;
@@ -1460,7 +1979,22 @@ int32_t opt_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_
 
 		} else {
 			return FAILURE;
-		}
+                }
+
+
+
+                struct status_handl *handl = NULL;
+                uint32_t data_len;
+                char status_name[sizeof (handl->status_name)] = {0};
+                strcpy(status_name, opt->long_name);
+
+                if ((handl = avl_find_item(&status_tree, status_name)) && (data_len = ((*(handl->frame_creator))(handl)))) {
+
+                        dbg_printf(cn, "%s %s:\n", handl->code_category, handl->status_name);
+                        fields_dbg(cn, data_len, handl->data, handl->min_msg_size, handl->fixed_msg_size, handl->format);
+                        dbg_printf(cn, "\n");
+                        
+                }
 
 	}
 
@@ -1608,6 +2142,11 @@ void init_bmx(void)
         self.descSqn = ((DESC_SQN_MASK) & rand_num(DESC_SQN_MAX));
 
         register_options_array(bmx_options, sizeof ( bmx_options), CODE_CATEGORY_NAME);
+
+        register_status_handl(&bmx_status_handl);
+        register_status_handl(&link_status_handl);
+        register_status_handl(&local_status_handl);
+        register_status_handl(&orig_status_handl);
 }
 
 

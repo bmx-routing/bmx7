@@ -17,6 +17,8 @@
 
 
 
+
+
 #define ARG_UHNA "unicast_hna"
 
 #define ARG_UHNA_NETWORK     "network"
@@ -65,11 +67,11 @@ struct description_msg_hna4 {
 } __attribute__((packed));
 
 #define DESCRIPTION_MSG_HNA4_FORMAT { \
-{MSG_FIELD_TYPE_UINT,   8, 1, "prefixlen"}, \
-{MSG_FIELD_TYPE_UINT,   8, 1, "reserved"},  \
-{MSG_FIELD_TYPE_IP4,   32, 1, "address" },  \
-{MSG_FIELD_TYPE_UINT,  32, 0, "metric" },   \
-MSG_FIELD_FORMAT_END }
+{FIELD_TYPE_UINT, -1,  8, 1, FIELD_RELEVANCE_HIGH, "prefixlen"}, \
+{FIELD_TYPE_UINT, -1,  8, 1, FIELD_RELEVANCE_LOW,  "reserved"},  \
+{FIELD_TYPE_IP4,  -1, 32, 1, FIELD_RELEVANCE_HIGH, "address" },  \
+{FIELD_TYPE_UINT, -1, 32, 0, FIELD_RELEVANCE_HIGH, "metric" },   \
+FIELD_FORMAT_END }
 
 
 
@@ -82,9 +84,9 @@ struct description_msg_hna6 {
 } __attribute__((packed));
 
 #define DESCRIPTION_MSG_HNA6_FORMAT { \
-{MSG_FIELD_TYPE_UINT,    8, 1, "prefixlen"}, \
-{MSG_FIELD_TYPE_UINT,    8, 1, "reserved"},  \
-{MSG_FIELD_TYPE_IPX6,  128, 1, "address" },  \
-{MSG_FIELD_TYPE_UINT,   32, 0, "metric" },   \
-MSG_FIELD_FORMAT_END }
+{FIELD_TYPE_UINT, -1,   8, 1, FIELD_RELEVANCE_HIGH, "prefixlen"}, \
+{FIELD_TYPE_UINT, -1,   8, 1, FIELD_RELEVANCE_LOW,  "reserved"},  \
+{FIELD_TYPE_IPX6, -1, 128, 1, FIELD_RELEVANCE_HIGH, "address" },  \
+{FIELD_TYPE_UINT, -1,  32, 0, FIELD_RELEVANCE_HIGH, "metric" },   \
+FIELD_FORMAT_END }
 

@@ -1498,7 +1498,7 @@ uint32_t field_iterate(struct field_iterator *it)
                 assertion(-501177, IMPLIES((field_bits % 8), field_bits < 8));
                 assertion(-501178, IMPLIES(!(field_bits % 8), !(it->field_bit_pos % 8)));
 
-                assertion(-501182, (it->min_msg_size * 8 >= it->field_bit_pos + field_bits));
+//                assertion(-501182, (it->min_msg_size * 8 >= it->field_bit_pos + field_bits));
 
                 assertion(-501183, IMPLIES(it->max_data_size, it->min_msg_size <= it->max_data_size));
                 assertion(-501184, IMPLIES(it->max_data_size, field_bits));

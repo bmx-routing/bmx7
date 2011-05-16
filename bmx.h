@@ -665,8 +665,8 @@ struct field_iterator {
 //        char * msg_name;
         uint8_t *data;
         uint32_t max_data_size;
-        uint16_t fixed_msg_size;
-        uint16_t min_msg_size;
+        uint32_t min_msg_size;
+        uint8_t fixed_msg_size;
 
         uint32_t field;
         uint32_t field_bits;

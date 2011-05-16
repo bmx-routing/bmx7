@@ -1681,7 +1681,7 @@ static int32_t link_status_creator(struct status_handl *handl)
                         status[i].best_rx_lndev = (lndev == link->local->best_rp_lndev);
                         status[i].best_tx_lndev = (lndev == link->local->best_tp_lndev);
                         i++;
-                        assertion(-501225, (status_size <= i * sizeof (struct link_status)));
+                        assertion(-501225, (status_size >= i * sizeof (struct link_status)));
                 }
         }
         assertion(-501226, (status_size == i * sizeof (struct link_status)));

@@ -228,13 +228,13 @@ char *umetric_to_human(UMETRIC_T val) {
         } else {
 
                 if (val < 100000) {
-                        sprintf(out[p], "%5ju b", val);
+                        sprintf(out[p], "%ju", val);
                 } else if (val < 100000000) {
-                        sprintf(out[p], "%5ju K", val/1000);
+                        sprintf(out[p], "%juK", val/1000);
                 } else if (val < 100000000000) {
-                        sprintf(out[p], "%5ju M", val/1000000);
+                        sprintf(out[p], "%juM", val/1000000);
                 } else if (val < 100000000000000) {
-                        sprintf(out[p], "%5ju G", val/1000000000);
+                        sprintf(out[p], "%juG", val/1000000000);
                 }
         }
         return out[p];

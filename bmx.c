@@ -1787,7 +1787,7 @@ struct orig_status {
         DESC_SQN_T descSqn;
         OGM_SQN_T ogmSqn;
         OGM_SQN_T ogmSqnDiff;
-        uint16_t lastOgm;
+        uint16_t lastDesc;
         uint16_t lastRef;
 };
 
@@ -1803,8 +1803,8 @@ static const struct field_format orig_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        orig_status, descSqn,       1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        orig_status, ogmSqn,        1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        orig_status, ogmSqnDiff,    1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        orig_status, lastOgm,       1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        orig_status, lastRef,       1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        orig_status, lastDesc,      1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        orig_status, lastRef,       1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_END
 };
 
@@ -1829,7 +1829,7 @@ static int32_t orig_status_creator(struct status_handl *handl)
                 status[i].descSqn = on->descSqn;
                 status[i].ogmSqn = on->ogmSqn_next;
                 status[i].ogmSqnDiff = (on->ogmSqn_maxRcvd - on->ogmSqn_next);
-                status[i].lastOgm = (bmx_time - on->updated_timestamp) / 1000;
+                status[i].lastDesc = (bmx_time - on->updated_timestamp) / 1000;
                 status[i].lastRef = (bmx_time - on->dhn->referred_by_me_timestamp) / 1000;
                 i++;
         }

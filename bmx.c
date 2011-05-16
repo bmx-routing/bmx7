@@ -1991,7 +1991,7 @@ int32_t opt_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_
                 if ((handl = avl_find_item(&status_tree, status_name)) && (data_len = ((*(handl->frame_creator))(handl)))) {
 
                         dbg_printf(cn, "%s %s:\n", handl->code_category, handl->status_name);
-                        fields_dbg(cn, FIELD_RELEVANCE_MEDI, data_len, handl->data, handl->min_msg_size, handl->format);
+                        fields_dbg(cn, FIELD_RELEVANCE_HIGH, data_len, handl->data, handl->min_msg_size, handl->format);
                         dbg_printf(cn, "\n");
                         
                 }

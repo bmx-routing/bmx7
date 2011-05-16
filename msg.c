@@ -3476,7 +3476,7 @@ STATIC_FUNC
 int32_t frame_operator_debug(struct rx_frame_iterator *it)
 {
         dbg_printf(it->cn, "%s:\n", it->handls[it->frame_type].name);
-        fields_dbg(it->cn, FIELD_RELEVANCE_MEDI, it->frame_msgs_length, it->msg,
+        fields_dbg(it->cn, FIELD_RELEVANCE_HIGH, it->frame_msgs_length, it->msg,
                 it->handls[it->frame_type].min_msg_size, it->handls[it->frame_type].msg_format);
 
         return it->frame_msgs_length;
@@ -3531,7 +3531,7 @@ int32_t opt_show_descriptions(uint8_t cmd, uint8_t _save, struct opt_type *opt,
                         memcpy(&desc_buff->desc, on->desc, sizeof (struct description) + tlvs_len);
                         
                         dbg_printf(cn, "%s:\n", packet_frame_handler[FRAME_TYPE_DESC_ADV].name);
-                        fields_dbg(cn, FIELD_RELEVANCE_MEDI, sizeof (struct msg_description_adv) +tlvs_len, (uint8_t*) desc_buff,
+                        fields_dbg(cn, FIELD_RELEVANCE_HIGH, sizeof (struct msg_description_adv) +tlvs_len, (uint8_t*) desc_buff,
                                 packet_frame_handler[FRAME_TYPE_DESC_ADV].min_msg_size,
                                 packet_frame_handler[FRAME_TYPE_DESC_ADV].msg_format);
 

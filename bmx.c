@@ -1441,7 +1441,7 @@ void field_dbg_value(struct ctrl_node *cn, const struct field_format *format, ui
 uint32_t field_iterate(struct field_iterator *it)
 {
         TRACE_FUNCTION_CALL;
-        assertion(-501171, IMPLIES(it->max_data_size, it->data));
+        assertion(-501171, IMPLIES(it->data_size, it->data));
 
         const struct field_format *format;
 
@@ -1462,12 +1462,12 @@ uint32_t field_iterate(struct field_iterator *it)
                 it->field_bit_pos + it->field_bits : it->msg_bit_pos + format->field_pos;
 
         dbgf_all(DBGT_INFO, "field_name=%s max_data_size=%d min_msg_size=%d msg_bit_pos=%d data=%p field=%d field_bits=%d field_bit_pos=%d var_bits=%d field_type=%d field_bits=%d std_bits=%d\n",
-                format->field_name, it->max_data_size, it->min_msg_size, it->msg_bit_pos, it->data, it->field, it->field_bits, it->field_bit_pos, it->var_bits,
+                format->field_name, it->data_size, it->min_msg_size, it->msg_bit_pos, it->data, it->field, it->field_bits, it->field_bit_pos, it->var_bits,
                 format->field_type, format->field_bits, field_standard_sizes[format->field_type]);
 
 
         if (it->msg_bit_pos + (it->min_msg_size * 8) + it->var_bits <=
-                8 * (it->max_data_size ? it->max_data_size : it->min_msg_size)) {
+                8 * (it->data_size ? it->data_size : it->min_msg_size)) {
 
                 //printf("msg_name=%s field_name=%s\n", handl->name, format->msg_field_name);
 
@@ -1482,9 +1482,9 @@ uint32_t field_iterate(struct field_iterator *it)
                 assertion(-501204, IMPLIES(field_type == FIELD_TYPE_HEX, (field_bits <= 8 || field_bits == 16 || field_bits == 32)));
                 assertion(-501205, IMPLIES(field_type == FIELD_TYPE_STRING_SIZE, (field_bits <= 8 || field_bits == 16 || field_bits == 32)));
 
-                assertion(-501186, IMPLIES(it->fixed_msg_size && it->max_data_size, it->max_data_size % it->fixed_msg_size == 0));
-                assertion(-501187, IMPLIES(it->fixed_msg_size, field_type != FIELD_TYPE_STRING_SIZE || !format->field_bits));
-                assertion(-501188, IMPLIES(!format->field_bits && it->max_data_size, it->var_bits));
+//                assertion(-501186, IMPLIES(it->fixed_msg_size && it->data_size, it->data_size % it->fixed_msg_size == 0));
+//                assertion(-501187, IMPLIES(it->fixed_msg_size, field_type != FIELD_TYPE_STRING_SIZE || !format->field_bits));
+                assertion(-501188, IMPLIES(!format->field_bits && it->data_size, it->var_bits));
                 assertion(-501189, IMPLIES(!format->field_bits, field_type == FIELD_TYPE_STRING_CHAR || field_type == FIELD_TYPE_STRING_BINARY));
 
 
@@ -1500,9 +1500,9 @@ uint32_t field_iterate(struct field_iterator *it)
 
 //                assertion(-501182, (it->min_msg_size * 8 >= it->field_bit_pos + field_bits));
 
-                assertion(-501183, IMPLIES(it->max_data_size, it->min_msg_size <= it->max_data_size));
-                assertion(-501184, IMPLIES(it->max_data_size, field_bits));
-                assertion(-501185, IMPLIES(it->max_data_size, it->field_bit_pos + field_bits  <= it->max_data_size * 8));
+                assertion(-501183, IMPLIES(it->data_size, it->min_msg_size <= it->data_size));
+                assertion(-501184, IMPLIES(it->data_size, field_bits));
+                assertion(-501185, IMPLIES(it->data_size, it->field_bit_pos + field_bits  <= it->data_size * 8));
 
                 assertion(-501190, IMPLIES(!format->field_host_order, (field_bits == 16 || field_bits == 32)));
                 assertion(-501191, IMPLIES(!format->field_host_order, (field_type == FIELD_TYPE_UINT || field_type == FIELD_TYPE_HEX || field_type == FIELD_TYPE_STRING_SIZE)));
@@ -1510,7 +1510,7 @@ uint32_t field_iterate(struct field_iterator *it)
                 assertion(-501192, IMPLIES((field_type == FIELD_TYPE_UINT || field_type == FIELD_TYPE_HEX || field_type == FIELD_TYPE_STRING_SIZE), field_bits <= 32));
 
 
-                if (it->max_data_size) {
+                if (it->data_size) {
 
                         if (field_type == FIELD_TYPE_STRING_SIZE) {
                                 int64_t var_bytes = field_get_value(format, it->min_msg_size, it->data, it->field_bit_pos, field_bits);
@@ -1529,29 +1529,31 @@ uint32_t field_iterate(struct field_iterator *it)
                 return SUCCESS;
         }
 
-        assertion(-501163, IMPLIES(!it->max_data_size, (it->field_bit_pos % (it->min_msg_size * 8) == 0)));
-        assertion(-501164, IMPLIES(it->max_data_size, it->max_data_size * 8 == it->field_bit_pos));
+        assertion(-501163, IMPLIES(!it->data_size, (it->field_bit_pos % (it->min_msg_size * 8) == 0)));
+        assertion(-501164, IMPLIES(it->data_size, it->data_size * 8 == it->field_bit_pos));
         assertion(-501208, ((it->field_bit_pos % 8) == 0));
 
         return (it->msg_bit_pos / 8);
 }
 
 
-uint32_t fields_dbg(struct ctrl_node *cn, uint16_t max_data_size, uint8_t *data,
-                    uint16_t min_msg_size, uint16_t fixed_msg_size, const struct field_format *format)
+uint32_t fields_dbg(struct ctrl_node *cn, uint16_t relevance, uint16_t data_size, uint8_t *data,
+                    uint16_t min_msg_size, const struct field_format *format)
 {
         TRACE_FUNCTION_CALL;
         assertion(-501209, format);
 
-        struct field_iterator it = {.format = format, .data = data, .max_data_size = max_data_size,
-                .fixed_msg_size = fixed_msg_size, .min_msg_size = min_msg_size};
         uint32_t msgs_size = 0;
+        struct field_iterator it = {.format = format, .data = data, .data_size = data_size, .min_msg_size = min_msg_size};
 
         while ((msgs_size = field_iterate(&it)) == SUCCESS) {
 
                 if (data && cn) {
-                        dbg_printf(cn, " %s=", format[it.field].field_name);
-                        field_dbg_value(cn, &format[it.field], min_msg_size, data, it.field_bit_pos, it.field_bits);
+
+                        if (format[it.field].field_relevance >= relevance) {
+                                dbg_printf(cn, " %s=", format[it.field].field_name);
+                                field_dbg_value(cn, &format[it.field], min_msg_size, data, it.field_bit_pos, it.field_bits);
+                        }
 
                         if (format[it.field + 1].field_type == FIELD_TYPE_END)
                                 dbg_printf(cn, "\n");
@@ -1559,7 +1561,7 @@ uint32_t fields_dbg(struct ctrl_node *cn, uint16_t max_data_size, uint8_t *data,
                 }
         }
 
-        assertion(-501210, (max_data_size ? msgs_size == max_data_size : msgs_size == min_msg_size));
+        assertion(-501210, (data_size ? msgs_size == data_size : msgs_size == min_msg_size));
 
         return msgs_size;
 }
@@ -1610,7 +1612,6 @@ static int32_t bmx_status_creator(struct status_handl *handl)
 }
 
 static struct status_handl bmx_status_handl = {
-        .fixed_msg_size = 1,
         .min_msg_size = sizeof(struct bmx_status),
         .format = bmx_status_format,
         .status_name = ARG_STATUS,
@@ -1689,7 +1690,6 @@ static int32_t link_status_creator(struct status_handl *handl)
 }
 
 static struct status_handl link_status_handl = {
-        .fixed_msg_size = 1,
         .min_msg_size = sizeof(struct link_status),
         .format = link_status_format,
         .status_name = ARG_LINKS,
@@ -1762,7 +1762,6 @@ static int32_t locals_status_creator(struct status_handl *handl)
 
 
 static struct status_handl local_status_handl = {
-        .fixed_msg_size = 1,
         .min_msg_size = sizeof(struct local_status),
         .format = local_status_format,
         .status_name = ARG_LOCALS,
@@ -1837,7 +1836,6 @@ static int32_t orig_status_creator(struct status_handl *handl)
 }
 
 static struct status_handl orig_status_handl = {
-        .fixed_msg_size = 1,
         .min_msg_size = sizeof(struct orig_status),
         .format = orig_status_format,
         .status_name = ARG_ORIGINATORS,
@@ -1993,7 +1991,7 @@ int32_t opt_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_
                 if ((handl = avl_find_item(&status_tree, status_name)) && (data_len = ((*(handl->frame_creator))(handl)))) {
 
                         dbg_printf(cn, "%s %s:\n", handl->code_category, handl->status_name);
-                        fields_dbg(cn, data_len, handl->data, handl->min_msg_size, handl->fixed_msg_size, handl->format);
+                        fields_dbg(cn, FIELD_RELEVANCE_MEDI, data_len, handl->data, handl->min_msg_size, handl->format);
                         dbg_printf(cn, "\n");
                         
                 }

@@ -664,9 +664,9 @@ struct field_iterator {
         const struct field_format *format;
 //        char * msg_name;
         uint8_t *data;
-        uint32_t max_data_size;
+        uint32_t data_size;
         uint32_t min_msg_size;
-        uint8_t fixed_msg_size;
+//        uint8_t fixed_msg_size;
 
         uint32_t field;
         uint32_t field_bits;
@@ -678,7 +678,6 @@ struct field_iterator {
 
 struct status_handl {
         uint16_t min_msg_size;
-        uint16_t fixed_msg_size;
         char status_name[16];
         char *code_category;
         uint8_t *data;
@@ -691,8 +690,8 @@ struct status_handl {
 extern struct avl_tree status_tree;
 
 
-uint32_t fields_dbg(struct ctrl_node *cn, uint16_t max_data_size, uint8_t *data,
-                    uint16_t min_msg_size, uint16_t fixed_msg_size, const struct field_format *format);
+uint32_t fields_dbg(struct ctrl_node *cn, uint16_t relevance, uint16_t data_size, uint8_t *data,
+                    uint16_t min_msg_size,  const struct field_format *format);
 
 
 

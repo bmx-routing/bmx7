@@ -150,7 +150,7 @@ void register_frame_handler(struct frame_handl *array, int pos, struct frame_han
         assertion(-500975, (handl->tx_task_interval_min <= CONTENT_MIN_TX_INTERVAL_MAX));
 
         assertion(-501213, IMPLIES(handl->msg_format, handl->min_msg_size ==
-                fields_dbg(NULL, 0, NULL, handl->min_msg_size, handl->fixed_msg_size, handl->msg_format)));
+                fields_dbg(NULL, FIELD_RELEVANCE_LOW, 0, NULL, handl->min_msg_size, handl->msg_format)));
                 
         array[pos] = *handl;
 
@@ -3476,10 +3476,8 @@ STATIC_FUNC
 int32_t frame_operator_debug(struct rx_frame_iterator *it)
 {
         dbg_printf(it->cn, "%s:\n", it->handls[it->frame_type].name);
-        fields_dbg(it->cn, it->frame_msgs_length, it->msg,
-                it->handls[it->frame_type].min_msg_size,
-                it->handls[it->frame_type].fixed_msg_size,
-                it->handls[it->frame_type].msg_format);
+        fields_dbg(it->cn, FIELD_RELEVANCE_MEDI, it->frame_msgs_length, it->msg,
+                it->handls[it->frame_type].min_msg_size, it->handls[it->frame_type].msg_format);
 
         return it->frame_msgs_length;
 }
@@ -3533,9 +3531,8 @@ int32_t opt_show_descriptions(uint8_t cmd, uint8_t _save, struct opt_type *opt,
                         memcpy(&desc_buff->desc, on->desc, sizeof (struct description) + tlvs_len);
                         
                         dbg_printf(cn, "%s:\n", packet_frame_handler[FRAME_TYPE_DESC_ADV].name);
-                        fields_dbg(cn, sizeof (struct msg_description_adv) +tlvs_len, (uint8_t*) desc_buff,
+                        fields_dbg(cn, FIELD_RELEVANCE_MEDI, sizeof (struct msg_description_adv) +tlvs_len, (uint8_t*) desc_buff,
                                 packet_frame_handler[FRAME_TYPE_DESC_ADV].min_msg_size,
-                                packet_frame_handler[FRAME_TYPE_DESC_ADV].fixed_msg_size,
                                 packet_frame_handler[FRAME_TYPE_DESC_ADV].msg_format);
 
                         debugFree(desc_buff, -300362);

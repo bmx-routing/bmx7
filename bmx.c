@@ -1831,6 +1831,7 @@ static int32_t orig_status_creator(struct status_handl *handl)
                 status[i].ogmSqnDiff = (on->ogmSqn_maxRcvd - on->ogmSqn_next);
                 status[i].lastOgm = (bmx_time - on->updated_timestamp) / 1000;
                 status[i].lastRef = (bmx_time - on->dhn->referred_by_me_timestamp) / 1000;
+                i++;
         }
         return status_size;
 }

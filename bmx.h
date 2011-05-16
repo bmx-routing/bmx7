@@ -664,12 +664,12 @@ struct field_iterator {
         const struct field_format *format;
 //        char * msg_name;
         uint8_t *data;
-        uint16_t max_data_size;
+        uint32_t max_data_size;
         uint16_t fixed_msg_size;
         uint16_t min_msg_size;
 
         uint32_t field;
-        int32_t field_bits;
+        uint32_t field_bits;
         uint32_t var_bits;
         uint32_t field_bit_pos;
         uint32_t msg_bit_pos;

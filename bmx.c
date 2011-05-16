@@ -1472,7 +1472,7 @@ uint32_t field_iterate(struct field_iterator *it)
                 //printf("msg_name=%s field_name=%s\n", handl->name, format->msg_field_name);
 
                 uint8_t field_type = format->field_type;
-                int32_t field_bits = format->field_bits ? format->field_bits : it->var_bits;
+                uint32_t field_bits = format->field_bits ? format->field_bits : it->var_bits;
                 int32_t std_bits = field_standard_sizes[field_type];
 
 
@@ -1491,7 +1491,7 @@ uint32_t field_iterate(struct field_iterator *it)
                 assertion(-501173, IMPLIES(field_bits == 0, format[1].field_type == FIELD_TYPE_END));
 
                 assertion(-501174, (std_bits != 0));
-                assertion(-501175, IMPLIES(std_bits > 0, (field_bits == std_bits)));
+                assertion(-501175, IMPLIES(std_bits > 0, (field_bits == (uint32_t)std_bits)));
                 assertion(-501176, IMPLIES(std_bits < 0, !(field_bits % (-std_bits))));
 
                 assertion(-501206, IMPLIES(field_bits >= 8, !(field_bits % 8)));

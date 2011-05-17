@@ -1,0 +1,22 @@
+
+sudo apt-get install libjson0 libjson0-dev
+
+
+
+http://www.json.org/
+
+output of json_help
+
+
+{ options : [
+  { name : "ogm_interval",	 min : 0, max : 1, def : "/etc/", admin : 1 },
+  { name : "ogm_interval",	 min : 0, max : 1, def : "/etc/", admin : 1, child_options : [
+     { name : "ogm_interval",	 min : 0, max : 1, def : 0 },
+     { }
+	] }
+  ]
+}
+
+
+
+

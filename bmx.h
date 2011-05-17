@@ -617,7 +617,6 @@ extern struct orig_node self;
 enum {
 	FIELD_TYPE_UINT,
 	FIELD_TYPE_HEX,
-	FIELD_TYPE_CHAR,
 	FIELD_TYPE_STRING_SIZE,
 	FIELD_TYPE_STRING_CHAR,
 	FIELD_TYPE_STRING_BINARY,
@@ -631,7 +630,7 @@ enum {
 	FIELD_TYPE_END
 };
 
-#define FIELD_STANDARD_SIZES {-1,-1, 8,-1,-8,-8,(8*sizeof(void*)),32,128,128,128,48}
+#define FIELD_STANDARD_SIZES {-1,-1,-1,-8,-8,(8*sizeof(void*)),32,128,128,128,48}
 // negative values mean size must be multiple of negativ value, positive values mean absolute bit sizes
 
 enum {

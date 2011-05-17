@@ -1373,68 +1373,70 @@ static int64_t field_get_value(const struct field_format *format, uint16_t min_m
         return FAILURE;
 }
 
-void field_dbg_value(struct ctrl_node *cn, const struct field_format *format, uint16_t min_msg_size,
-                         uint8_t *data, uint32_t pos_bit, uint32_t bits)
+char *field_dbg_value(const struct field_format *format, uint16_t min_msg_size, uint8_t *data, uint32_t pos_bit, uint32_t bits)
 {
 
-        assertion(-501200, (format && min_msg_size && data && cn && bits));
+        assertion(-501200, (format && min_msg_size && data && bits));
 
         uint8_t field_type = format->field_type;
 
         if (field_type == FIELD_TYPE_UINT || field_type == FIELD_TYPE_HEX || field_type == FIELD_TYPE_STRING_SIZE) {
 
                 if (bits <= 32) {
+
+                        static char uint32_out[ 16 ] = {0};
+
                         int64_t field_val = field_get_value(format, min_msg_size, data, pos_bit, bits);
 
                         if (format->field_type == FIELD_TYPE_HEX)
-                                dbg_printf(cn, "%jX", field_val);
+                                snprintf(uint32_out, sizeof (uint32_out), "%jX", field_val);
                         else
-                                dbg_printf(cn, "%ji", field_val);
+                                snprintf(uint32_out, sizeof (uint32_out), "%ji", field_val);
+
+                        assertion(-500000, (strlen(uint32_out) < sizeof (uint32_out)));
+                        return uint32_out;
+
+
                 } else {
-                        dbg_printf(cn, "%s", memAsHexString(&data[pos_bit / 8], bits / 8));
+                        return memAsHexString(&data[pos_bit / 8], bits / 8);
                 }
-
-        } else if (field_type == FIELD_TYPE_CHAR) {
-
-                assertion(-501201, (pos_bit % 8 == 0 && bits == 8));
-
-                dbg_printf(cn, "%c", data[pos_bit / 8]);
 
         } else if (field_type == FIELD_TYPE_IP4) {
 
-                dbg_printf(cn, "%s", ip4AsStr(*((IP4_T*)&data[pos_bit / 8])));
+                return ip4AsStr(*((IP4_T*) & data[pos_bit / 8]));
 
         } else if (field_type == FIELD_TYPE_IPX4) {
 
-                dbg_printf(cn, "%s", ipXAsStr(AF_INET, (IPX_T*) & data[pos_bit / 8]));
+                return ipXAsStr(AF_INET, (IPX_T*) & data[pos_bit / 8]);
 
         } else if (field_type == FIELD_TYPE_IPX6) {
 
-                dbg_printf(cn, "%s", ipXAsStr(AF_INET6, (IPX_T*) & data[pos_bit / 8]));
+                return ipXAsStr(AF_INET6, (IPX_T*) & data[pos_bit / 8]);
 
         } else if (field_type == FIELD_TYPE_IPX) {
 
-                dbg_printf(cn, "%s", ipXAsStr(af_cfg, (IPX_T*) & data[pos_bit / 8]));
+                return ipXAsStr(af_cfg, (IPX_T*) & data[pos_bit / 8]);
 
         } else if (field_type == FIELD_TYPE_MAC) {
 
-                dbg_printf(cn, "%s", macAsStr((MAC_T*)&data[pos_bit / 8]));
+                return macAsStr((MAC_T*)&data[pos_bit / 8]);
 
         } else if (field_type == FIELD_TYPE_STRING_BINARY) {
 
-                dbg_printf(cn, "%s", memAsHexString(&data[pos_bit / 8], bits / 8));
+                return memAsHexString(&data[pos_bit / 8], bits / 8);
 
         } else if (field_type == FIELD_TYPE_STRING_CHAR) {
 
-                dbg_printf(cn, "%s", memAsCharString((char*)&data[pos_bit / 8], bits / 8));
+                return memAsCharString((char*) &data[pos_bit / 8], bits / 8);
 
         } else if (field_type == FIELD_TYPE_STRPTR_CHAR) {
 
-                dbg_printf(cn, "%s", memAsCharString(*((char**) (&data[pos_bit / 8])), strlen(*((char**) (&data[pos_bit / 8])))));
+                return memAsCharString(*((char**) (&data[pos_bit / 8])), strlen(*((char**) (&data[pos_bit / 8]))));
 
-        } else {
-                assertion(-501202, 0);
         }
+
+        assertion(-501202, 0);
+        return NULL;
 }
 
 
@@ -1561,8 +1563,8 @@ uint32_t fields_dbg(struct ctrl_node *cn, uint16_t relevance, uint16_t data_size
                 if (data && cn) {
 
                         if (format[it.field].field_relevance >= relevance) {
-                                dbg_printf(cn, " %s=", format[it.field].field_name);
-                                field_dbg_value(cn, &format[it.field], min_msg_size, data, it.field_bit_pos, it.field_bits);
+                                dbg_printf(cn, " %s=%s", format[it.field].field_name,
+                                        field_dbg_value(&format[it.field], min_msg_size, data, it.field_bit_pos, it.field_bits));
                         }
 
                         if (format[it.field + 1].field_type == FIELD_TYPE_END)

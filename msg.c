@@ -250,39 +250,6 @@ void cache_description(struct description *desc, struct description_hash *dhash)
 }
 
 
-static int32_t(*frame_operator_array[TLV_OP_PLUGIN_MAX - TLV_OP_PLUGIN_MIN]) (struct rx_frame_iterator *) = {NULL};
-
-
-int32_t(*frame_operator_get(uint8_t op)) (struct rx_frame_iterator *)
-{
-        assertion(-501214, (op >= TLV_OP_PLUGIN_MIN && op <= TLV_OP_PLUGIN_MAX));
-
-        return frame_operator_array[op - TLV_OP_PLUGIN_MIN];
-}
-
-uint8_t frame_operator_register(int32_t(*frame_op_handl) (struct rx_frame_iterator *))
-{
-        assertion(-501215, frame_op_handl);
-        uint8_t op;
-        for (op = TLV_OP_PLUGIN_MIN; op <= TLV_OP_PLUGIN_MAX; op++) {
-                if (!frame_operator_get(op)) {
-                        frame_operator_array[op - TLV_OP_PLUGIN_MIN] = frame_op_handl;
-                        return op;
-                }
-        }
-        assertion(-501216, 0);
-        return FAILURE;
-}
-
-void frame_operator_unregister(int32_t(*frame_op_handl) (struct rx_frame_iterator *), uint8_t op)
-{
-        assertion(-501232, (frame_op_handl && frame_operator_get(op) == frame_op_handl));
-
-        frame_operator_array[op - TLV_OP_PLUGIN_MIN] = NULL;
-
-}
-
-
 IDM_T process_description_tlvs(struct packet_buff *pb, struct orig_node *on, struct description *desc, uint8_t op,
                                uint8_t filter, struct ctrl_node *cn)
 {
@@ -294,9 +261,9 @@ IDM_T process_description_tlvs(struct packet_buff *pb, struct orig_node *on, str
         assertion(-500807, (desc));
         assertion(-500829, IMPLIES(op == TLV_OP_DEL, !on->blocked));
 
+        int32_t tlv_result;
         uint16_t dsc_tlvs_len = ntohs(desc->dsc_tlvs_len);
 
-        int32_t tlv_result;
         struct rx_frame_iterator it = {
                 .caller = __FUNCTION__, .on = on, .cn = cn, .op = op, .pb = pb,
                 .handls = description_tlv_handl, .handl_max = (BMX_DSC_TLV_MAX), .process_filter = filter,
@@ -2623,12 +2590,9 @@ int32_t rx_frame_iterate(struct rx_frame_iterator *it)
 
                 } else if (it->op >= TLV_OP_PLUGIN_MIN && it->op <= TLV_OP_PLUGIN_MAX) {
 
-                        assertion(-501217, (frame_operator_get(it->op)));
-
                         it->msg = it->frame_data + f_handl->data_header_size;
 
-                        return ((((*(frame_operator_get(it->op))) (it)) == it->frame_msgs_length) ?
-                                it->frame_msgs_length : TLV_RX_DATA_FAILURE);
+                        return it->frame_msgs_length;
 
                 } else if (f_handl->rx_msg_handler && f_handl->fixed_msg_size) {
 
@@ -3456,32 +3420,6 @@ void update_my_description_adv(void)
 }
 
 
-STATIC_FUNC
-void dbg_msg_status(int32_t cb_id, struct ctrl_node *cn)
-{
-        TRACE_FUNCTION_CALL;
-
-        dbg_printf(cn, "%s=%d %s=%d %s=%d %s=%d %s=%d %s=%d %s=%d %s=%d\n",
-                ARG_UDPD_SIZE, pref_udpd_size,
-                ARG_TX_INTERVAL, my_tx_interval,
-                ARG_UNSOLICITED_DESC_ADVS, desc_adv_tx_unsolicited,
-                ARG_DHS0_ADVS_TX_ITERS, dhash_adv_tx_iters,
-                ARG_DSC0_ADVS_TX_ITERS, desc_adv_tx_iters,
-                ARG_OGM_INTERVAL, my_ogm_interval,
-                ARG_OGM_TX_ITERS, ogm_adv_tx_iters,
-                ARG_OGM_ACK_TX_ITERS, ogm_ack_tx_iters);
-}
-
-STATIC_FUNC
-int32_t frame_operator_debug(struct rx_frame_iterator *it)
-{
-        dbg_printf(it->cn, "%s:\n", it->handls[it->frame_type].name);
-        fields_dbg(it->cn, FIELD_RELEVANCE_HIGH, it->frame_msgs_length, it->msg,
-                it->handls[it->frame_type].min_msg_size, it->handls[it->frame_type].msg_format);
-
-        return it->frame_msgs_length;
-}
-
 
 STATIC_FUNC
 int32_t opt_show_descriptions(uint8_t cmd, uint8_t _save, struct opt_type *opt,
@@ -3515,15 +3453,8 @@ int32_t opt_show_descriptions(uint8_t cmd, uint8_t _save, struct opt_type *opt,
                         if (name && strcmp(name, on->desc->id.name))
                                 continue;
 
-                        dbg_printf(cn, "dhash=%s last_upd=%-4d last_ref=%-3d path_metric=%ju blocked=%d :\n",
-                                memAsHexString(((char*) &(on->dhn->dhash)), 4),
-                                (bmx_time - on->updated_timestamp) / 1000,
-                                (bmx_time - on->dhn->referred_by_me_timestamp) / 1000,
-                                on->curr_rt_local ? on->curr_rt_local->mr.umetric : 0,
-                                on->blocked ? 1 : 0);
-
-                        //process_description_tlvs(NULL, on, on->desc, TLV_OP_DEBUG, filter, cn);
-
+                        dbg_printf(cn, "dhash=%s blocked=%d :\n",
+                                memAsHexString(((char*) &(on->dhn->dhash)), 4), on->blocked ? 1 : 0);
 
                         uint16_t tlvs_len = ntohs(on->desc->dsc_tlvs_len);
                         struct msg_description_adv * desc_buff = debugMalloc(sizeof (struct msg_description_adv) +tlvs_len, -300361);
@@ -3531,16 +3462,26 @@ int32_t opt_show_descriptions(uint8_t cmd, uint8_t _save, struct opt_type *opt,
                         memcpy(&desc_buff->desc, on->desc, sizeof (struct description) + tlvs_len);
                         
                         dbg_printf(cn, "%s:\n", packet_frame_handler[FRAME_TYPE_DESC_ADV].name);
+
                         fields_dbg(cn, FIELD_RELEVANCE_HIGH, sizeof (struct msg_description_adv) +tlvs_len, (uint8_t*) desc_buff,
                                 packet_frame_handler[FRAME_TYPE_DESC_ADV].min_msg_size,
                                 packet_frame_handler[FRAME_TYPE_DESC_ADV].msg_format);
 
                         debugFree(desc_buff, -300362);
 
+                        struct rx_frame_iterator it = {
+                                .caller = __FUNCTION__, .on = on, .cn = cn, .op = TLV_OP_PLUGIN_MIN,
+                                .handls = description_tlv_handl, .handl_max = BMX_DSC_TLV_MAX, .process_filter = type_filter,
+                                .frames_in = (((uint8_t*) on->desc) + sizeof (struct description)), .frames_length = tlvs_len
+                        };
 
-                        uint8_t tlv_op_debug = frame_operator_register(frame_operator_debug);
-                        process_description_tlvs(NULL, on, on->desc, tlv_op_debug, type_filter, cn);
-                        frame_operator_unregister(frame_operator_debug, tlv_op_debug);
+                        while (rx_frame_iterate(&it) > TLV_RX_DATA_DONE) {
+
+                                dbg_printf(it.cn, "%s:\n", it.handls[it.frame_type].name);
+
+                                fields_dbg(it.cn, FIELD_RELEVANCE_HIGH, it.frame_msgs_length, it.msg,
+                                        it.handls[it.frame_type].min_msg_size, it.handls[it.frame_type].msg_format);
+                        }
                 }
 
 		dbg_printf( cn, "\n" );
@@ -3799,7 +3740,6 @@ struct plugin *msg_get_plugin( void ) {
         msg_plugin.plugin_code_version = CODE_VERSION;
         msg_plugin.cb_init = init_msg;
 	msg_plugin.cb_cleanup = cleanup_msg;
-        msg_plugin.cb_plugin_handler[PLUGIN_CB_STATUS] = (void (*) (int32_t, void*)) dbg_msg_status;
 
         return &msg_plugin;
 }

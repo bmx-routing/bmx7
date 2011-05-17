@@ -174,7 +174,7 @@
 #define ARG_DESCRIPTION_NAME    "name"
 
 #define ARG_DESCRIPTION_TYPE    "type"
-#define DEF_DESCRIPTION_TYPE     0
+#define DEF_DESCRIPTION_TYPE     FRAME_TYPE_PROCESS_ALL
 #define MIN_DESCRIPTION_TYPE     0
 #define MAX_DESCRIPTION_TYPE     FRAME_TYPE_PROCESS_ALL
 #define HLP_DESCRIPTION_TYPE     "show description extension(s) of given type (0..253=type 254=none 255=all) \n"
@@ -734,7 +734,5 @@ void schedule_tx_task(struct link_dev_node *lndev_out, uint16_t type, int16_t ms
 	uint16_t u16, uint32_t u32, IID_T myIID4x, IID_T neighIID4x);
 
 void register_frame_handler(struct frame_handl *array, int pos, struct frame_handl *handl);
-
-uint8_t frame_operator_register(int32_t(*handl) (struct rx_frame_iterator *));
 
 struct plugin *msg_get_plugin( void );

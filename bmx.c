@@ -1536,6 +1536,16 @@ uint32_t field_iterate(struct field_iterator *it)
         return (it->msg_bit_pos / 8);
 }
 
+int16_t field_format_get_items(const struct field_format *format) {
+
+        int16_t i=-1;
+
+        while (format[++i].field_type != FIELD_TYPE_END) {
+                assertion(-500000, (i < 100));
+        }
+
+        return i;
+}
 
 uint32_t fields_dbg(struct ctrl_node *cn, uint16_t relevance, uint16_t data_size, uint8_t *data,
                     uint16_t min_msg_size, const struct field_format *format)

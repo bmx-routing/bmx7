@@ -283,7 +283,7 @@ struct plugin* get_plugin( void ) {
 	
 	memset( &gsf_map_plugin, 0, sizeof ( struct plugin ) );
 	
-	gsf_map_plugin.plugin_name = "bmx_gsf_map_plugin";
+	gsf_map_plugin.plugin_name = CODE_CATEGORY_NAME;
 	gsf_map_plugin.plugin_size = sizeof ( struct plugin );
         gsf_map_plugin.plugin_code_version = CODE_VERSION;
 	gsf_map_plugin.cb_init = gsf_map_init;

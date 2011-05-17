@@ -39,7 +39,6 @@
 
 #define CODE_CATEGORY_NAME "control"
 
-#define MAX_DBG_STR_SIZE 1500
 
 static char run_dir[MAX_PATH_SIZE] = DEF_RUN_DIR;
 
@@ -473,50 +472,6 @@ uint8_t check_dbg_history(int8_t dbgl, char *s, uint16_t check_len)
 
 
 
-
-void dbg_printf(struct ctrl_node *cn, char *last, ...)
-{
-#define MAX_DBG_WRITES 4
-	
-	if ( !cn  ||  cn->fd <= 0 )
-		return;
-	
-	static char s[ MAX_DBG_STR_SIZE + 1 ];
-	ssize_t w, out=0;
-	int i = 1;
-	
-	va_list ap;
-	va_start( ap, last );
-	vsnprintf( s, MAX_DBG_STR_SIZE, last, ap );
-	va_end( ap );
-	
-	// CONNECTION_END_CHR is reserved for signaling connection end
-	paranoia( -500146, (strchr( s, CONNECTION_END_CHR ) ) );
-	
-	errno=0;
-	
-	while ( (w=write( cn->fd, s+out, strlen(s+out) )) != (ssize_t)strlen(s+out) ) {
-		
-		if ( errno == EPIPE  ||  i >= MAX_DBG_WRITES  ||  cn->dbgl==DBGL_ALL ) {
-			
-			if ( cn->dbgl != DBGL_ALL ) {
-				syslog( LOG_ERR, "failed %d times writing %d instead of %d/%d bytes (%s)! Giving up: %s\n", 
-				        i, (int)w, (int)strlen(s+out), (int)strlen(s), strerror(errno), s+out );
-			}
-			
-			break;
-		}
-		i++;
-		
-		wait_sec_msec( 0, 10 );
-		
-		if( w > 0 )
-			out+=w;
-		
-		errno=0;
-	}
-}
-
 STATIC_FUNC
 void debug_output(uint32_t check_len, struct ctrl_node *cn, int8_t dbgl, int8_t dbgt, const char *f, char *s)
 {
@@ -640,6 +595,8 @@ void debug_output(uint32_t check_len, struct ctrl_node *cn, int8_t dbgl, int8_t 
 // this static array of char is used by all following dbg functions.
 static char dbg_string_out[ MAX_DBG_STR_SIZE + 1 ];
 
+
+
 void dbg ( int8_t dbgl, int8_t dbgt, char *last, ... ) {
 	va_list ap;
 	va_start( ap, last );
@@ -704,6 +661,62 @@ uint8_t __dbgf_all( void ) {
 	
 	return YES;
 }
+
+void dbg_printf(struct ctrl_node *cn, char *last, ...)
+{
+#define MAX_DBG_WRITES 4
+
+        if (!cn || cn->fd <= 0)
+                return;
+
+/*
+        static char s[ MAX_DBG_STR_SIZE + 1 ];
+        ssize_t w, out = 0;
+        int tries = 1;
+*/
+
+        errno = 0;
+
+        va_list ap;
+        va_start(ap, last);
+//      vsnprintf(s, MAX_DBG_STR_SIZE, last, ap);
+        if (vdprintf(cn->fd, last, ap) < 0) {
+                wait_sec_msec(0, 10);
+                dprintf(cn->fd, "\nERROR: %s !\n", strerror(errno));
+        }
+        va_end(ap);
+
+
+
+/*
+        // CONNECTION_END_CHR is reserved for signaling connection end
+        paranoia(-500146, (strchr(s, CONNECTION_END_CHR)));
+
+        errno = 0;
+
+        while ((w = write(cn->fd, s + out, strlen(s + out))) != (ssize_t) strlen(s + out)) {
+
+                if (errno == EPIPE || tries >= MAX_DBG_WRITES || cn->dbgl == DBGL_ALL) {
+
+                        if (cn->dbgl != DBGL_ALL) {
+                                syslog(LOG_ERR, "failed %d times writing %d instead of %d/%d bytes (%s)! Giving up: %s\n",
+                                        tries, (int) w, (int) strlen(s + out), (int) strlen(s), strerror(errno), s + out);
+                        }
+
+                        break;
+                }
+                tries++;
+
+                wait_sec_msec(0, 10);
+
+                if (w > 0)
+                        out += w;
+
+                errno = 0;
+        }
+*/
+}
+
 #endif
 
 
@@ -1000,9 +1013,8 @@ int8_t is_valid_opt_ival(struct opt_type *opt, char *s, struct ctrl_node *cn)
 STATIC_FUNC
 void show_opts_help(uint8_t all_opts, uint8_t verbose, struct ctrl_node *cn)
 {
-	
-	if ( !cn )
-		return;
+	struct list_node *list_pos;
+        const char *category = NULL;
 	
 	dbg_printf(cn, "\n");
 	dbg_printf(cn, "Usage: %s [LONGOPT=[%c]VAL] | -[SHORTOPT[SHORTOPT...] [%c]VAL] ...\n",
@@ -1012,9 +1024,6 @@ void show_opts_help(uint8_t all_opts, uint8_t verbose, struct ctrl_node *cn)
         dbg_printf(cn, "  e.g. %s -c %s %s=%cwlan1 %s \n", prog_name, ARG_STATUS, ARG_DEV, ARG_RESET_CHAR, ARG_INTERFACES );
 	dbg_printf(cn, "\n");
 	
-	struct list_node *list_pos;
-
-        const char *category = NULL;
 
 	list_for_each( list_pos, &opt_list ) {
 		

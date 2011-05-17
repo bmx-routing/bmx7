@@ -1220,38 +1220,6 @@ int create_description_tlv_metricalgo(struct tx_frame_iterator *it)
 }
 
 
-STATIC_FUNC
-void dbg_metrics_status(int32_t cb_id, struct ctrl_node *cn)
-{
-        TRACE_FUNCTION_CALL;
-
-        dbg_printf(cn, "%s=%d %s=%d\n",
-                ARG_HELLO_SQN_WINDOW, my_link_window, ARG_NEW_RT_DISMISSAL, new_rt_dismissal_div100);
-
-        process_description_tlvs(NULL, &self, self.desc, TLV_OP_DEBUG, BMX_DSC_TLV_METRIC, cn);
-
-}
-
-STATIC_FUNC
-void dbg_metricalgo(struct ctrl_node *cn, struct host_metricalgo *host_algo)
-{
-        TRACE_FUNCTION_CALL;
-
-        dbg_printf(cn, "%s=%ju %s=%d %s=0x%X %s=%d %s=%d %s=%d %s=%d %s=%d %s=%d %s=%d %s=%d %s=%d %s=%d\n",
-                ARG_PATH_UMETRIC_MIN, host_algo->umetric_min,
-                ARG_PATH_METRIC_ALGO, host_algo->algo_type,
-                ARG_PATH_METRIC_FLAGS, host_algo->flags,
-                ARG_PATH_RP_EXP_NUMERATOR, host_algo->algo_rp_exp_numerator,
-                ARG_PATH_RP_EXP_DIVISOR, host_algo->algo_rp_exp_divisor,
-                ARG_PATH_TP_EXP_NUMERATOR, host_algo->algo_tp_exp_numerator,
-                ARG_PATH_TP_EXP_DIVISOR, host_algo->algo_tp_exp_divisor,
-                ARG_PATH_REGRESSION_SLOW, host_algo->regression,
-                ARG_PATH_LOUNGE, host_algo->lounge_size,
-                ARG_PATH_WINDOW, host_algo->window_size,
-                ARG_PATH_HYST, host_algo->hystere,
-                ARG_HOP_PENALTY, host_algo->hop_penalty,
-                ARG_LATE_PENAL, host_algo->late_penalty);
-}
 
 STATIC_FUNC
 int process_description_tlv_metricalgo(struct rx_frame_iterator *it )
@@ -1308,10 +1276,6 @@ int process_description_tlv_metricalgo(struct rx_frame_iterator *it )
                 while ((rn = avl_iterate_item(&on->rt_tree, &an)))
                         reconfigure_metric_record_position(&rn->mr, on->path_metricalgo, on->ogmSqn_rangeMin, on->ogmSqn_rangeMin, 0, NO);
                 
-
-        } else if (op == TLV_OP_DEBUG) {
-
-                dbg_metricalgo(it->cn, &host_algo);
 
         }
 
@@ -1645,7 +1609,6 @@ struct plugin *metrics_get_plugin( void ) {
         metrics_plugin.plugin_code_version = CODE_VERSION;
         metrics_plugin.cb_init = init_metrics;
 	metrics_plugin.cb_cleanup = cleanup_metrics;
-        metrics_plugin.cb_plugin_handler[PLUGIN_CB_STATUS] = (void (*) (int32_t, void*)) dbg_metrics_status;
 
         return &metrics_plugin;
 }

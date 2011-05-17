@@ -1,6 +1,6 @@
 
 CFLAGS +=	$(CORE_CFLAGS) -fpic -I../../
-LDFLAGS +=	-shared -luci
+LDFLAGS +=	-shared
 #-Wl,-soname,bmxd_config 
 
 PLUGIN_NAME =   bmx6_http_info

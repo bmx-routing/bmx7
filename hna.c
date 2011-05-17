@@ -556,18 +556,6 @@ int process_description_tlv_hna(struct rx_frame_iterator *it)
                         configure_uhna(ADD, &key, on);
 
 
-                } else if ( op == TLV_OP_DEBUG ) {
-
-                        dbg_printf(it->cn, "%s=%s/%d %s=%d",
-                                ARG_UHNA, ipXAsStr(key.family, &key.glip), key.prefixlen,
-                                ARG_UHNA_METRIC, ntohl(key.metric_nl));
-
-                        if (pos == it->frame_msgs_length - msg_size) {
-                                dbg_printf(it->cn, "\n");
-                        } else {
-                                dbg_printf(it->cn, ", ");
-                        }
-
                 } else if (op >= TLV_OP_CUSTOM_MIN) {
 
                         dbgf_all(DBGT_INFO, "configure_niit... op=%d  orig=%s blocked=%d", op, on->id.name, on->blocked);
@@ -603,15 +591,6 @@ int process_description_tlv_hna(struct rx_frame_iterator *it)
                 "processed %d bytes frame_msgs_len=%d msg_size=%d", pos, it->frame_msgs_length, msg_size);
 
         return pos;
-}
-
-
-STATIC_FUNC
-void hna_status(int32_t cb_id, struct ctrl_node *cn)
-{
-        assertion(-501108, (af_cfg == AF_INET || af_cfg == AF_INET6));
-
-        process_description_tlvs(NULL, &self, self.desc, TLV_OP_DEBUG, af_cfg == AF_INET ? BMX_DSC_TLV_UHNA4 : BMX_DSC_TLV_UHNA6, cn);
 }
 
 
@@ -812,7 +791,6 @@ struct plugin *hna_get_plugin( void ) {
         hna_plugin.plugin_code_version = CODE_VERSION;
         hna_plugin.cb_init = hna_init;
 	hna_plugin.cb_cleanup = hna_cleanup;
-        hna_plugin.cb_plugin_handler[PLUGIN_CB_STATUS] = (void (*) (int32_t, void*)) hna_status;
         hna_plugin.cb_plugin_handler[PLUGIN_CB_SYS_DEV_EVENT] = niit_dev_event_hook;
         hna_plugin.cb_plugin_handler[PLUGIN_CB_DESCRIPTION_CREATED] = (void (*) (int32_t, void*)) niit_description_event_hook;
         hna_plugin.cb_plugin_handler[PLUGIN_CB_DESCRIPTION_DESTROY] = (void (*) (int32_t, void*)) niit_description_event_hook;

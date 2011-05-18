@@ -526,11 +526,11 @@ int process_description_tlv_hna(struct rx_frame_iterator *it)
                                 (un = avl_find_item(&global_uhna_tree, &key))) {
 
                                 dbgf_sys(DBGT_ERR,
-                                        "id.name=%s id.rand=%X... %s=%s/%d %s=%d blocked by id.name=%s id.rand=%X...",
-                                        on->id.name, on->id.rand.u32[0],
+                                        "global_id=%s %s=%s/%d %s=%d blocked by global_id=%s ",
+                                        globalIdAsString(&on->global_id),
                                         ARG_UHNA, ipXAsStr(key.family, &key.glip), key.prefixlen,
                                         ARG_UHNA_METRIC, ntohl(key.metric_nl),
-                                        un ? un->on->id.name : "---", un ? un->on->id.rand.u32[0] : 0);
+                                        un ? globalIdAsString(&un->on->global_id) : "???");
 
                                 return TLV_RX_DATA_BLOCKED;
                         }
@@ -558,7 +558,8 @@ int process_description_tlv_hna(struct rx_frame_iterator *it)
 
                 } else if (op >= TLV_OP_CUSTOM_MIN) {
 
-                        dbgf_all(DBGT_INFO, "configure_niit... op=%d  orig=%s blocked=%d", op, on->id.name, on->blocked);
+                        dbgf_all(DBGT_INFO, "configure_niit... op=%d  global_id=%s blocked=%d",
+                                op, globalIdAsString(&on->global_id), on->blocked);
 
                         if (!on->blocked) {
                                 ASSERTION(-501141, (avl_find(&global_uhna_tree, &key)));
@@ -659,9 +660,9 @@ int32_t opt_uhna(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
                 if (patch->p_diff != DEL && (un = (avl_find_item(&global_uhna_tree, &key)))) {
 
 			dbg_cn( cn, DBGL_CHANGES, DBGT_ERR,
-                                "UHNA %s/%d metric %d already blocked by %s !",
+                                "UHNA %s/%d metric %d already blocked by global_id=%s !",
                                 ipXAsStr(key.family, &key.glip), mask, metric,
-                                (un->on == &self ? "MYSELF" : un->on->id.name));
+                                (un->on == &self ? "MYSELF" : globalIdAsString(&un->on->global_id)));
 
                         return FAILURE;
 		}
@@ -717,7 +718,7 @@ void hna_route_change_hook(uint8_t del, struct orig_node *on)
 {
         assertion(-501110, (af_cfg == AF_INET || af_cfg == AF_INET6));
 
-        dbgf_all(DBGT_INFO, "%s", on->id.name);
+        dbgf_all(DBGT_INFO, "global_id=%s", globalIdAsString(&on->global_id));
 
         if (!is_ip_set(&on->primary_ip))
                 return;

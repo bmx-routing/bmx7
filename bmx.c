@@ -97,8 +97,8 @@ AVL_TREE(dhash_tree, struct dhash_node, dhash);
 AVL_TREE(dhash_invalid_tree, struct dhash_node, dhash);
 LIST_SIMPEL( dhash_invalid_plist, struct plist_node, list, list );
 
-AVL_TREE(orig_tree, struct orig_node, id);
-AVL_TREE(blocked_tree, struct orig_node, id);
+AVL_TREE(orig_tree, struct orig_node, global_id);
+AVL_TREE(blocked_tree, struct orig_node, global_id);
 
 AVL_TREE(blacklisted_tree, struct black_node, dhash);
 
@@ -177,7 +177,7 @@ struct dhash_node* create_dhash_node(struct description_hash *dhash, struct orig
 
         struct dhash_node * dhn = debugMalloc(sizeof ( struct dhash_node), -300001);
         memset(dhn, 0, sizeof ( struct dhash_node));
-        memcpy(&dhn->dhash, dhash, HASH0_SHA1_LEN);
+        memcpy(&dhn->dhash, dhash, HASH_SHA1_LEN);
         avl_insert(&dhash_tree, dhn, -300142);
 
         dhn->myIID4orig = iid_new_myIID4x(dhn);
@@ -313,7 +313,8 @@ void free_neigh_node(struct neigh_node *neigh)
 {
         TRACE_FUNCTION_CALL;
 
-        dbgf_track(DBGT_INFO, "freeing %s", neigh && neigh->dhn && neigh->dhn->on ? neigh->dhn->on->id.name : "---");
+        dbgf_track(DBGT_INFO, "freeing id=%s",
+                neigh && neigh->dhn && neigh->dhn->on ? globalIdAsString(&neigh->dhn->on->global_id) : "---");
 
         assertion(-500963, (neigh));
         assertion(-500964, (neigh->dhn));
@@ -359,7 +360,7 @@ IDM_T update_local_neigh(struct packet_buff *pb, struct dhash_node *dhn)
         TRACE_FUNCTION_CALL;
         struct local_node *local = pb->i.link->local;
 
-        dbgf_all(DBGT_INFO, "local_id=0x%X  dhn->orig=%s", local->local_id, dhn->on->desc->id.name);
+        dbgf_all(DBGT_INFO, "local_id=0x%X  dhn->id=%s", local->local_id, globalIdAsString(&dhn->on->desc->global_id));
 
         assertion(-500517, (dhn != self.dhn));
         ASSERTION(-500392, (pb->i.link == avl_find_item(&local->link_tree, &pb->i.link->key.dev_idx)));
@@ -370,8 +371,9 @@ IDM_T update_local_neigh(struct packet_buff *pb, struct dhash_node *dhn)
                 assertion(-500956, (dhn->neigh->dhn == dhn));
                 assertion(-500955, (dhn->neigh->local->neigh == dhn->neigh));
 
-                dbgf_track(DBGT_INFO, "CHANGED link=%s -> LOCAL=%d->%d <- neighIID4me=%d <- dhn=%s",
-                        pb->i.llip_str, dhn->neigh->local->local_id, local->local_id, dhn->neigh->neighIID4me, dhn->on->desc->id.name);
+                dbgf_track(DBGT_INFO, "CHANGED link=%s -> LOCAL=%d->%d <- neighIID4me=%d <- dhn->id=%s",
+                        pb->i.llip_str, dhn->neigh->local->local_id, local->local_id, dhn->neigh->neighIID4me, 
+                        globalIdAsString(&dhn->on->desc->global_id));
 
                 dhn->neigh->local->neigh = NULL;
                 local->neigh = dhn->neigh;
@@ -384,8 +386,9 @@ IDM_T update_local_neigh(struct packet_buff *pb, struct dhash_node *dhn)
 
                 create_neigh_node(local, dhn);
                 
-                dbgf_track(DBGT_INFO, "NEW link=%s <-> LOCAL=%d <-> NEIGHIID4me=%d <-> dhn=%s",
-                        pb->i.llip_str, local->local_id, local->neigh->neighIID4me, dhn->on->desc->id.name);
+                dbgf_track(DBGT_INFO, "NEW link=%s <-> LOCAL=%d <-> NEIGHIID4me=%d <-> dhn->id=%s",
+                        pb->i.llip_str, local->local_id, local->neigh->neighIID4me, 
+                        globalIdAsString(&dhn->on->desc->global_id));
 
                 goto update_local_neigh_success;
 
@@ -403,14 +406,14 @@ IDM_T update_local_neigh(struct packet_buff *pb, struct dhash_node *dhn)
                 goto update_local_neigh_success;
         }
 
-        dbgf_sys(DBGT_ERR, "NONMATCHING LINK=%s -> local=%d -> neighIID4me=%d -> dhn=%s",
+        dbgf_sys(DBGT_ERR, "NONMATCHING LINK=%s -> local=%d -> neighIID4me=%d -> dhn->id=%s",
                 pb->i.llip_str, local->local_id,
                 local->neigh ? local->neigh->neighIID4me : 0,
-                local->neigh && local->neigh->dhn->on ? local->neigh->dhn->on->id.name : "---");
+                local->neigh && local->neigh->dhn->on ? globalIdAsString(&local->neigh->dhn->on->global_id) : "---");
         dbgf_sys(DBGT_ERR, "NONMATCHING local=%d <- neighIID4me=%d <- DHN=%s",
                 dhn->neigh && dhn->neigh->local ? dhn->neigh->local->local_id : 0,
                 dhn->neigh ? dhn->neigh->neighIID4me : 0,
-                dhn->on->desc->id.name);
+                globalIdAsString(&dhn->on->desc->global_id));
 
         if (dhn->neigh)
                 free_neigh_node(dhn->neigh);
@@ -465,12 +468,12 @@ void purge_orig_router(struct orig_node *only_orig, struct link_dev_node *only_l
                                 continue;
 
                         dbgf_track(DBGT_INFO, "only_orig=%s only_lndev=%s,%s only_useless=%d purging metric=%ju router=%X (%s)",
-                                only_orig ? only_orig->id.name : "---",
+                                only_orig ? globalIdAsString(&only_orig->global_id) : "---",
                                 only_lndev ? ipXAsStr(af_cfg, &only_lndev->key.link->link_ip):"---",
                                 only_lndev ? only_lndev->key.dev->label_cfg.str : "...",
                                 only_useless,rt->mr.umetric,
                                 ntohl(rt->local_key->local_id),
-                                rt->local_key && rt->local_key->neigh ? rt->local_key->neigh->dhn->on->id.name : "???");
+                                rt->local_key && rt->local_key->neigh ? globalIdAsString(&rt->local_key->neigh->dhn->on->global_id) : "???");
 
                         if (on->best_rt_local == rt)
                                 on->best_rt_local = NULL;
@@ -642,7 +645,7 @@ void purge_local_node(struct local_node *local)
 void free_orig_node(struct orig_node *on)
 {
         TRACE_FUNCTION_CALL;
-        dbgf_all(DBGT_INFO, "%s %s", on->id.name, on->primary_ip_str);
+        dbgf_all(DBGT_INFO, "id=%s ip=%s", globalIdAsString(&on->global_id), on->primary_ip_str);
 
         if ( on == &self)
                 return;
@@ -663,8 +666,8 @@ void free_orig_node(struct orig_node *on)
                 free_dhash_node(on->dhn);
         }
 
-        avl_remove(&orig_tree, &on->id, -300200);
-        avl_remove(&blocked_tree, &on->id, -300201);
+        avl_remove(&orig_tree, &on->global_id, -300200);
+        avl_remove(&blocked_tree, &on->global_id, -300201);
 
         if (on->desc)
                 debugFree(on->desc, -300228);
@@ -692,8 +695,9 @@ void purge_link_route_orig_nodes(struct dev_node *only_dev, IDM_T only_expired)
                         if (!only_dev && (!only_expired ||
                                 ((TIME_T) (bmx_time - dhn->referred_by_me_timestamp)) > (TIME_T) ogm_purge_to)) {
 
-                                dbgf_all(DBGT_INFO, "%s referred before: %d > purge_to=%d",
-                                        dhn->on->id.name, ((TIME_T) (bmx_time - dhn->referred_by_me_timestamp)), (TIME_T) ogm_purge_to);
+                                dbgf_all(DBGT_INFO, "id=%s referred before: %d > purge_to=%d",
+                                        globalIdAsString(&dhn->on->global_id),
+                                        ((TIME_T) (bmx_time - dhn->referred_by_me_timestamp)), (TIME_T) ogm_purge_to);
 
                                 free_orig_node(dhn->on);
 
@@ -1270,7 +1274,7 @@ void cleanup_all(int32_t status)
                         free_dhash_node(self.dhn);
                 }
 
-                avl_remove(&orig_tree, &(self.id), -300203);
+                avl_remove(&orig_tree, &(self.global_id), -300203);
 
                 while (status_tree.items) {
                         struct status_handl *handl = avl_first_item(&status_tree);
@@ -1322,6 +1326,8 @@ void cleanup_all(int32_t status)
 /***********************************************************
  Configuration data and handlers
 ************************************************************/
+
+
 
 static const int32_t field_standard_sizes[FIELD_TYPE_END] = FIELD_STANDARD_SIZES;
 
@@ -1590,7 +1596,7 @@ struct bmx_status {
         char version[strlen(BMX_BRANCH) + strlen("-") + strlen(BRANCH_VERSION) + 1];
         uint16_t compatibility;
         uint16_t code_version;
-        char *hostname;
+        char *global_id;
         IPX_T primary_ip;
         LOCAL_ID_T my_local_id;
         char *uptime;
@@ -1601,7 +1607,7 @@ static const struct field_format bmx_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR, bmx_status, version,       1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        bmx_status, compatibility, 1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        bmx_status, code_version,  1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_STRPTR_CHAR, bmx_status, hostname,      1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRPTR_CHAR, bmx_status, global_id,     1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_IPX,         bmx_status, primary_ip,    1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_HEX,         bmx_status, my_local_id,   1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRPTR_CHAR, bmx_status, uptime,        1, FIELD_RELEVANCE_HIGH),
@@ -1615,7 +1621,7 @@ static int32_t bmx_status_creator(struct status_handl *handl)
         sprintf(status->version, "%s-%s", BMX_BRANCH, BRANCH_VERSION);
         status->compatibility = COMPATIBILITY_VERSION;
         status->code_version = CODE_VERSION;
-        status->hostname = self.id.name;
+        status->global_id = globalIdAsString(&self.global_id);
         status->primary_ip = self.primary_ip;
         status->my_local_id = ntohl(my_local_id);
         status->uptime = get_human_uptime(0);
@@ -1714,7 +1720,7 @@ static struct status_handl link_status_handl = {
 
 struct local_status {
         LOCAL_ID_T local_id;
-        char *hostname;
+        char *global_id;
         uint8_t routes;
         uint8_t wants_ogms;
         uint8_t link_adv_4_him;
@@ -1728,7 +1734,7 @@ struct local_status {
 
 static const struct field_format local_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_HEX,         local_status, local_id,         1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_STRPTR_CHAR, local_status, hostname,         1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRPTR_CHAR, local_status, global_id,        1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        local_status, routes,           1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        local_status, wants_ogms,       1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        local_status, link_adv_4_him,   1, FIELD_RELEVANCE_MEDI),
@@ -1757,7 +1763,7 @@ static int32_t locals_status_creator(struct status_handl *handl)
                 struct orig_node *on = local->neigh ? local->neigh->dhn->on : NULL;
 
                 status[i].local_id = ntohl(local->local_id);
-                status[i].hostname = on->id.name;
+                status[i].global_id = globalIdAsString(&on->global_id);
                 status[i].routes = local->orig_routes;
                 status[i].wants_ogms = local->rp_ogm_request_rcvd;
                 status[i].link_adv_4_him = local->link_adv_msg_for_him;
@@ -1787,7 +1793,7 @@ static struct status_handl local_status_handl = {
 
 
 struct orig_status {
-        char *hostname;
+        char *global_id;
         uint8_t blocked;
         IPX_T primary_ip;
         uint16_t routes;
@@ -1803,7 +1809,7 @@ struct orig_status {
 };
 
 static const struct field_format orig_status_format[] = {
-        FIELD_FORMAT_INIT(FIELD_TYPE_STRPTR_CHAR, orig_status, hostname,      1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRPTR_CHAR, orig_status, global_id,     1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        orig_status, blocked,       1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_IPX,         orig_status, primary_ip,    1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        orig_status, routes,        1, FIELD_RELEVANCE_HIGH),
@@ -1829,7 +1835,7 @@ static int32_t orig_status_creator(struct status_handl *handl)
         memset(status, 0, status_size);
 
         for (it = NULL; (on = avl_iterate_item(&orig_tree, &it));) {
-                status[i].hostname = on->id.name;
+                status[i].global_id = globalIdAsString(&on->global_id);
                 status[i].blocked = on->blocked;
                 status[i].primary_ip = on->primary_ip;
                 status[i].routes = on->rt_tree.items;
@@ -1908,13 +1914,13 @@ int32_t opt_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_
 
                 } else  if ( !strcmp( opt->long_name, ARG_LOCALS ) ) {
 
-#define DBG_STATUS4_LOCAL_HEAD "%-8s %-22s %3s %9s %11s %3s %6s %1s %7s %1s %7s\n"
-#define DBG_STATUS6_LOCAL_HEAD "%-8s %-22s %3s %9s %11s %3s %6s %1s %7s %1s %7s\n"
-#define DBG_STATUS4_LOCAL_INFO "%8X %-22s %3d %9d %11d %3d %6d %1d %7d %1d %7d\n"
-#define DBG_STATUS6_LOCAL_INFO "%8X %-22s %3d %9d %11d %3d %6d %1d %7d %1d %7d\n"
+#define DBG_STATUS4_LOCAL_HEAD "%-8s %-40s %3s %9s %11s %3s %6s %1s %7s %1s %7s\n"
+#define DBG_STATUS6_LOCAL_HEAD "%-8s %-40s %3s %9s %11s %3s %6s %1s %7s %1s %7s\n"
+#define DBG_STATUS4_LOCAL_INFO "%8X %-40s %3d %9d %11d %3d %6d %1d %7d %1d %7d\n"
+#define DBG_STATUS6_LOCAL_INFO "%8X %-40s %3d %9d %11d %3d %6d %1d %7d %1d %7d\n"
 
                         dbg_printf(cn, (af_cfg == AF_INET ? DBG_STATUS4_LOCAL_HEAD : DBG_STATUS6_LOCAL_HEAD),
-                                "localID", "Orig ID.name",
+                                "localID", "globalId",
                                 "RTs", "wantsOGMs", "linkAdv4Him", "4Me", "devAdv", "d", "linkAdv", "d", "lastAdv");
 
                         struct avl_node *it;
@@ -1926,7 +1932,7 @@ int32_t opt_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_
 
                                 dbg_printf(cn, (af_cfg == AF_INET ? DBG_STATUS4_LOCAL_INFO : DBG_STATUS6_LOCAL_INFO),
                                         ntohl(local->local_id),
-                                        on->id.name, local->orig_routes, local->rp_ogm_request_rcvd, 
+                                        globalIdAsString(&on->global_id), local->orig_routes, local->rp_ogm_request_rcvd,
                                         local->link_adv_msg_for_him, local->link_adv_msg_for_me,
 
                                         local->dev_adv_sqn, ((DEVADV_SQN_T) (local->link_adv_dev_sqn_ref - local->dev_adv_sqn)),
@@ -1939,12 +1945,12 @@ int32_t opt_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_
 
                 } else if (!strcmp(opt->long_name, ARG_ORIGINATORS)) {
 
-#define DBG_STATUS4_ORIG_HEAD "%-22s %-16s %3s %-16s %-10s %7s %5s %5s %5s %1s %5s %4s\n"
-#define DBG_STATUS6_ORIG_HEAD "%-22s %-40s %3s %-40s %-10s %7s %5s %5s %5s %1s %5s %4s\n"
-#define DBG_STATUS4_ORIG_INFO "%-22s %-16s %3d %-16s %-10s %7s %5d %5d %5d %1d %5d %4d\n"
-#define DBG_STATUS6_ORIG_INFO "%-22s %-40s %3d %-40s %-10s %7s %5d %5d %5d %1d %5d %4d\n"
-#define DBG_STATUS4_ORIG_TAIL "%-22s %-16d %3d %-16s %-10s %7s %5s %5s %5s %1s %5s %4d\n"
-#define DBG_STATUS6_ORIG_TAIL "%-22s %-40d %3d %-40s %-10s %7s %5s %5s %5s %1s %5s %4d\n"
+#define DBG_STATUS4_ORIG_HEAD "%-40s %-16s %3s %-16s %-10s %7s %5s %5s %5s %1s %5s %4s\n"
+#define DBG_STATUS6_ORIG_HEAD "%-40s %-40s %3s %-40s %-10s %7s %5s %5s %5s %1s %5s %4s\n"
+#define DBG_STATUS4_ORIG_INFO "%-40s %-16s %3d %-16s %-10s %7s %5d %5d %5d %1d %5d %4d\n"
+#define DBG_STATUS6_ORIG_INFO "%-40s %-40s %3d %-40s %-10s %7s %5d %5d %5d %1d %5d %4d\n"
+#define DBG_STATUS4_ORIG_TAIL "%-40s %-16d %3d %-16s %-10s %7s %5s %5s %5s %1s %5s %4d\n"
+#define DBG_STATUS6_ORIG_TAIL "%-40s %-40d %3d %-40s %-10s %7s %5s %5s %5s %1s %5s %4d\n"
 
                         struct avl_node *it;
                         struct orig_node *on;
@@ -1954,13 +1960,13 @@ int32_t opt_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_
                         char *empty = "";
 
                         dbg_printf(cn, (af_cfg == AF_INET ? DBG_STATUS4_ORIG_HEAD : DBG_STATUS6_ORIG_HEAD),
-                                "Orig ID.name", "primaryIP", "RTs", "currRT", "viaDev",
+                                "globalId", "primaryIP", "RTs", "currRT", "viaDev",
                                 "metric", "myIID", "desc#", "ogm#", "d", "lUpd", "lRef");
 
                         for (it = NULL; (on = avl_iterate_item(&orig_tree, &it));) {
 
                                 dbg_printf(cn, (af_cfg == AF_INET ? DBG_STATUS4_ORIG_INFO : DBG_STATUS6_ORIG_INFO),
-                                        on->id.name,
+                                        globalIdAsString(&on->global_id),
                                         on->blocked ? "BLOCKED" : on->primary_ip_str,
                                         on->rt_tree.items,
                                         ipXAsStr(af_cfg, (on->curr_rt_lndev ? &on->curr_rt_lndev->key.link->link_ip : &ZERO_IP)),
@@ -2092,29 +2098,47 @@ static struct opt_type bmx_options[]=
 
 };
 
-IDM_T validate_name( char* name ) {
+IDM_T validate_hostname( char* name ) {
 
         int i,len;
-        if ( (len = strlen( name )) >= DESCRIPTION0_ID_NAME_LEN )
+
+        if ((len = strlen(name)) >= GLOBAL_ID_NAME_LEN || !is_zero(&name[len], GLOBAL_ID_NAME_LEN - len))
                 return FAILURE;
 
         for (i = 0; i < len; i++) {
 
                 char c = name[i];
 
-                if (c == '"' || c < ' ' || c > '~')
-                        return FAILURE;
+                if ((c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+                        c == '-' || c == '-' || c == '.' )
+                        continue;
 
+                return FAILURE;
         }
 
         return SUCCESS;
 }
 
-void init_orig_node(struct orig_node *on, struct description_id *id)
+char *globalIdAsString( struct GLOBAL_ID *id ) {
+
+        uint8_t i;
+        static char id_str[GLOBAL_ID_NAME_LEN + strlen(".") + (GLOBAL_ID_PKID_LEN * 2) + 1];
+
+        for (i = 0; !id->pkid.u8[i] && i < GLOBAL_ID_PKID_LEN; i++);
+
+        snprintf(id_str, GLOBAL_ID_NAME_LEN, "%s.%s",
+                validate_hostname(id->name) == SUCCESS ? id->name : "ILLEGAL_HOSTNAME",
+                memAsHexString(&(id->pkid.u8[i]), GLOBAL_ID_PKID_LEN - i));
+
+        return id_str;
+}
+
+
+void init_orig_node(struct orig_node *on, GLOBAL_ID_T *id)
 {
         TRACE_FUNCTION_CALL;
         memset(on, 0, sizeof ( struct orig_node));
-        memcpy(&on->id, id, sizeof ( struct description_id));
+        on->global_id = *id;
 
 //        AVL_INIT_TREE(on->rt_tree, struct router_node, key_2BRemoved);
         AVL_INIT_TREE(on->rt_tree, struct router_node, local_key);
@@ -2129,20 +2153,20 @@ void init_bmx(void)
 {
 
         static uint8_t my_desc0[MAX_PKT_MSG_SIZE];
-        static struct description_id id;
+        static GLOBAL_ID_T id;
         memset(&id, 0, sizeof (id));
 
-        if (gethostname(id.name, DESCRIPTION0_ID_NAME_LEN))
+        if (gethostname(id.name, GLOBAL_ID_NAME_LEN))
                 cleanup_all(-500240);
 
-        id.name[DESCRIPTION0_ID_NAME_LEN - 1] = 0;
+        id.name[GLOBAL_ID_NAME_LEN - 1] = 0;
 
-        if (validate_name(id.name) == FAILURE) {
+        if (validate_hostname(id.name) == FAILURE) {
                 dbg_sys(DBGT_ERR, "illegal hostname %s", id.name);
                 cleanup_all(-500272);
         }
 
-        RNG_GenerateBlock(&rng, id.rand.u8, DESCRIPTION0_ID_RANDOM_LEN);
+        RNG_GenerateBlock(&rng, &(id.pkid.u8[GLOBAL_ID_PKID_RAND_POS]), GLOBAL_ID_PKID_RAND_LEN);
 
         init_orig_node(&self, &id);
 
@@ -2236,8 +2260,8 @@ void bmx(void)
 		if ( U32_LT( seldom_timeout + 5000, bmx_time ) ) {
 
                         struct orig_node *on;
-                        struct description_id id;
-                        memset(&id, 0, sizeof (struct description_id));
+                        GLOBAL_ID_T id;
+                        memset(&id, 0, sizeof (GLOBAL_ID_T));
 
                         purge_link_route_orig_nodes(NULL, YES);
 
@@ -2245,9 +2269,9 @@ void bmx(void)
 
                         while ((on = avl_next_item(&blocked_tree, &id))) {
 
-                                memcpy( &id, &on->id, sizeof(struct description_id));
+                                id = on->global_id;
 
-                                dbgf_all( DBGT_INFO, "trying to unblock %s...", on->desc->id.name);
+                                dbgf_all( DBGT_INFO, "trying to unblock %s...", on->desc->global_id.name);
 
                                 IDM_T tlvs_res;
                                 if ((tlvs_res = process_description_tlvs
@@ -2261,7 +2285,7 @@ void bmx(void)
                                 }
 
                                 dbgf_track(DBGT_INFO, "unblocking %s %s !",
-                                        on->desc->id.name, tlvs_res == TLV_RX_DATA_DONE ? "success" : "failed");
+                                        on->desc->global_id.name, tlvs_res == TLV_RX_DATA_DONE ? "success" : "failed");
 
                         }
 

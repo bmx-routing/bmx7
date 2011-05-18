@@ -107,7 +107,7 @@ static int32_t opt_gsf_map_local ( uint8_t cmd, uint8_t _save, struct opt_type *
                                         dbg_printf(cn, "    '%i' : {\n"
                                                 "neighLocalIp: '%s', dev: '%s', rp: %3ju, tp: %3ju, "
                                                 "lseq: %5i, lvld: %d, bestRp: %d, bestTp: %d, "
-                                                "neighGlobalIp: '%s', neighIdName: '%s', neighIdRand: %jX"
+                                                "neighGlobalIp: '%s', neighGlobalId: '%s'"
                                                 "} ",
                                                 count,
                                                 ipXAsStr(af_cfg, &link->link_ip),
@@ -118,8 +118,7 @@ static int32_t opt_gsf_map_local ( uint8_t cmd, uint8_t _save, struct opt_type *
                                                 ((TIME_T) (bmx_time - link->hello_time_max)) / 1000,
                                                 (lndev == link->local->best_rp_lndev ? 1 : 0),
                                                 (lndev == link->local->best_tp_lndev ? 1 : 0),
-                                                orig->primary_ip_str, orig->id.name, orig->id.rand.u64[0]
-                                                );
+                                                orig->primary_ip_str, globalIdAsString(&orig->global_id));
 
                                 }
 

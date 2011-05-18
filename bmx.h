@@ -374,7 +374,7 @@ typedef uint8_t  FRAME_TYPE_T;
 
 
 
-#define HASH0_SHA1_LEN SHA_DIGEST_SIZE  // sha.h: 20 bytes
+#define HASH_SHA1_LEN SHA_DIGEST_SIZE  // sha.h: 20 bytes
 
 #define MAX_PACKET_SIZE 1600
 
@@ -469,29 +469,31 @@ struct metric_record {
 
 
 
-#define DESCRIPTION0_ID_RANDOM_T uint64_t
-#define DESCRIPTION0_ID_RANDOM_LEN sizeof( DESCRIPTION0_ID_RANDOM_T )
-#define DESCRIPTION0_ID_NAME_LEN 32
+#define GLOBAL_ID_NAME_LEN 32
+#define GLOBAL_ID_PKID_LEN HASH_SHA1_LEN
+#define GLOBAL_ID_PKID_RAND_POS (GLOBAL_ID_PKID_LEN / 2)
+#define GLOBAL_ID_PKID_RAND_LEN (GLOBAL_ID_PKID_LEN / 2)
 
 
-struct description_id {
-	char    name[DESCRIPTION0_ID_NAME_LEN];
+struct GLOBAL_ID {
+	char    name[GLOBAL_ID_NAME_LEN];
 	union {
-		uint8_t u8[DESCRIPTION0_ID_RANDOM_LEN];
-		uint16_t u16[DESCRIPTION0_ID_RANDOM_LEN / sizeof(uint16_t)];
-		uint32_t u32[DESCRIPTION0_ID_RANDOM_LEN / sizeof(uint32_t)];
-		uint64_t u64[DESCRIPTION0_ID_RANDOM_LEN / sizeof( uint64_t)];
-	} rand;
+		uint8_t u8[GLOBAL_ID_PKID_LEN];
+		uint16_t u16[GLOBAL_ID_PKID_LEN / sizeof(uint16_t)];
+		uint32_t u32[GLOBAL_ID_PKID_LEN / sizeof(uint32_t)];
+	} pkid;
 } __attribute__((packed));
+
+typedef struct GLOBAL_ID GLOBAL_ID_T;
 
 struct description_hash {
 	union {
-		uint8_t u8[HASH0_SHA1_LEN];
-		uint32_t u32[HASH0_SHA1_LEN/sizeof(uint32_t)];
+		uint8_t u8[HASH_SHA1_LEN];
+		uint32_t u32[HASH_SHA1_LEN/sizeof(uint32_t)];
 	} h;
 };
 
-
+//typedef struct description_hash DESC_HASH_T;
 
 
 
@@ -854,7 +856,7 @@ extern struct avl_tree blocked_tree;
 struct orig_node {
 	// filled in by validate_new_link_desc0():
 
-	struct description_id id;
+	GLOBAL_ID_T global_id;
 
 	struct dhash_node *dhn;
 	struct description *desc;
@@ -1019,7 +1021,7 @@ struct neigh_node *is_described_neigh( struct link_node *link, IID_T transmitter
 
 void purge_link_route_orig_nodes(struct dev_node *only_dev, IDM_T only_expired);
 void free_orig_node(struct orig_node *on);
-void init_orig_node(struct orig_node *on, struct description_id *id);
+void init_orig_node(struct orig_node *on, GLOBAL_ID_T *id);
 
 void purge_local_node(struct local_node *local);
 
@@ -1127,5 +1129,7 @@ char *get_human_uptime( uint32_t reference );
 ************************************************************/
 
 
-IDM_T validate_name( char* name );
+IDM_T validate_hostname( char* name );
 IDM_T validate_param(int32_t probe, int32_t min, int32_t max, char *name);
+
+char *globalIdAsString( struct GLOBAL_ID *id );

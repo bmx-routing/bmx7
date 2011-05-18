@@ -151,8 +151,8 @@ IID_NODE_T* iid_get_node_by_neighIID4x(IID_NEIGH_T *nn, IID_T neighIID4x, IDM_T 
         if (!nn || nn->neighIID4x_repos.max_free <= neighIID4x) {
 
                 if (verbose) {
-                        dbgf_all(DBGT_INFO, "NB=%s neighIID4x=%d to large for neighIID4x_repos",
-                                nn ? nn->dhn->on->id.name : "???", neighIID4x);
+                        dbgf_all(DBGT_INFO, "NB: global_id=%s neighIID4x=%d to large for neighIID4x_repos",
+                                nn ? globalIdAsString(&nn->dhn->on->global_id) : "???", neighIID4x);
                 }
                 return NULL;
         }
@@ -310,15 +310,15 @@ IDM_T iid_set_neighIID4x(struct iid_repos *neigh_rep, IID_T neighIID4x, IID_T my
                         IID_NODE_T *dhn_old;
                         dhn_old = my_iid_repos.arr.node[ref->myIID4x]; // avoid -DNO_DEBUG_SYS warnings
                         dbgf_sys(DBGT_ERR, "demanding mapping: neighIID4x=%d to myIID4x=%d "
-                                "(%s updated=%d last_referred_by_me=%d)  "
-                                "already used for ref->myIID4x=%d (last_referred_by_neigh_sec=%d %s=%jd last_referred_by_me=%jd)! Reused faster than allowed!!",
-                                neighIID4x, myIID4x, dhn->on->id.name, dhn->on->updated_timestamp,
+                                "(global_id=%s updated=%d last_referred_by_me=%d)  "
+                                "already used for ref->myIID4x=%d (last_referred_by_neigh_sec=%d %s=%s last_referred_by_me=%jd)! Reused faster than allowed!!",
+                                neighIID4x, myIID4x, globalIdAsString(&dhn->on->global_id), dhn->on->updated_timestamp,
                                 dhn->referred_by_me_timestamp,
                                 ref->myIID4x,
                                 ref->referred_by_neigh_timestamp_sec,
-                                (!dhn_old ? "???" : (dhn_old->on ? dhn_old->on->id.name :
-                                (!dhn_old->dhash.h.u32[0] && !dhn_old->dhash.h.u32[1] && !dhn_old->dhash.h.u32[2] ? "FREED" : "INVALIDATED"))),
-                                dhn_old ? (int64_t) dhn_old->dhash.h.u32[(sizeof ( struct description_hash) / sizeof (uint32_t)) - 1] : -1,
+                                (!dhn_old ? "???" : (dhn_old->on ? globalIdAsString(&dhn_old->on->global_id) :
+                                (is_zero(&dhn_old->dhash, sizeof (dhn_old->dhash)) ? "FREED" : "INVALIDATED"))),
+                                dhn_old ? memAsHexString(&dhn_old->dhash, sizeof ( dhn_old->dhash)) : "???",
                                 dhn_old ? (int64_t)dhn_old->referred_by_me_timestamp : -1
                                 );
 

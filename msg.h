@@ -569,7 +569,7 @@ struct msg_dhash_adv { // 2 + X bytes
 
 
 struct description {
-	struct description_id id;
+	GLOBAL_ID_T global_id;
 
 	uint16_t code_version;
 	uint16_t dsc_tlvs_len;
@@ -592,7 +592,7 @@ struct description {
 
 
 #define MSG_DESCRIPTION0_ADV_UNHASHED_SIZE  2
-#define MSG_DESCRIPTION0_ADV_HASHED_SIZE   (sizeof( struct description_id) + (8 * sizeof(uint32_t)))
+#define MSG_DESCRIPTION0_ADV_HASHED_SIZE   (sizeof( GLOBAL_ID_T) + (8 * sizeof(uint32_t)))
 #define MSG_DESCRIPTION0_ADV_SIZE  (MSG_DESCRIPTION0_ADV_UNHASHED_SIZE + MSG_DESCRIPTION0_ADV_HASHED_SIZE)
 
 struct msg_description_adv {
@@ -608,8 +608,8 @@ struct msg_description_adv {
 
 #define DESCRIPTION_MSG_FORMAT { \
 {FIELD_TYPE_UINT,          -1, (8*sizeof(IID_T)),                0, FIELD_RELEVANCE_MEDI, "IID"}, \
-{FIELD_TYPE_STRING_CHAR,   -1, (8*(DESCRIPTION0_ID_NAME_LEN)),   1, FIELD_RELEVANCE_HIGH, "id_name"},  \
-{FIELD_TYPE_STRING_BINARY, -1, (8*DESCRIPTION0_ID_RANDOM_LEN),   1, FIELD_RELEVANCE_HIGH, "id_rand" },  \
+{FIELD_TYPE_STRING_CHAR,   -1, (8*GLOBAL_ID_NAME_LEN),           1, FIELD_RELEVANCE_HIGH, "id_name"},  \
+{FIELD_TYPE_STRING_BINARY, -1, (8*GLOBAL_ID_PKID_LEN),           1, FIELD_RELEVANCE_HIGH, "id_pkid" },  \
 {FIELD_TYPE_UINT,          -1, 16,                               0, FIELD_RELEVANCE_MEDI, "code_version" }, \
 {FIELD_TYPE_STRING_SIZE,   -1, 16,                               0, FIELD_RELEVANCE_LOW,  "extension_msgs_len" }, \
 {FIELD_TYPE_UINT,          -1, 16,                               0, FIELD_RELEVANCE_MEDI, "sqn" }, \

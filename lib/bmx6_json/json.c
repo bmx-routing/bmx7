@@ -15,6 +15,7 @@
  * 02110-1301, USA
  */
 
+#define _GNU_SOURCE
 
 #include <stdio.h>
 #include <string.h>
@@ -40,116 +41,113 @@
 
 #define CODE_CATEGORY_NAME "json"
 
+static char json_dir[MAX_PATH_SIZE] = DEF_JSON_DIR;
+static char json_desc_dir[MAX_PATH_SIZE];
 
 STATIC_FUNC
-int32_t opt_json_test(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
+uint32_t fields_dbg_json(int fd, uint16_t relevance, uint16_t data_size, uint8_t *data,
+                    uint16_t min_msg_size, const struct field_format *format)
 {
+        TRACE_FUNCTION_CALL;
+        assertion(-500000, (format && data && fd));
 
-	if ( cmd != OPT_APPLY )
-		return SUCCESS;
-        if (!cn)
-		return FAILURE;
+        uint32_t msgs_size = 0;
+        struct field_iterator it = {.format = format, .data = data, .data_size = data_size, .min_msg_size = min_msg_size};
 
-        static char test[10];
+        while ((msgs_size = field_iterate(&it)) == SUCCESS) {
 
-        json_object * jobj = json_object_new_object();
-        json_object *jopts = json_object_new_array();
+                if (format[it.field].field_relevance >= relevance) {
+                        dprintf(fd, " %s=%s", format[it.field].field_name,
+                                field_dbg_value(&format[it.field], min_msg_size, data, it.field_bit_pos, it.field_bits));
+                }
+
+                if (format[it.field + 1].field_type == FIELD_TYPE_END)
+                        dprintf(fd, "\n");
 
 
-        json_object *jopt;
-        json_object *jopt_name;
+        }
 
-        sprintf(test, "A");
-        jopt = json_object_new_object();
-        jopt_name = json_object_new_string(test);
-        json_object_object_add(jopt, "name", jopt_name);
-        json_object_array_add(jopts, jopt);
+        assertion(-500000, (data_size ? msgs_size == data_size : msgs_size == min_msg_size));
 
-        sprintf(test, "B");
-        jopt = json_object_new_object();
-        jopt_name = json_object_new_string(test);
-        json_object_object_add(jopt, "name", jopt_name);
-        json_object_array_add(jopts, jopt);
-
-        sprintf(test, "C");
-
-        json_object_object_add(jobj, "options", jopts);
-
-        dbg_printf(cn, "%s\n", json_object_to_json_string(jobj));
-
-        json_object_put(jobj);
-
-	return SUCCESS;
+        return msgs_size;
 }
 
 
+
 STATIC_FUNC
-int32_t opt_json_descriptions(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
+void json_description_event_hook(int32_t cb_id, struct orig_node *on)
 {
         TRACE_FUNCTION_CALL;
 
-	if ( cmd != OPT_APPLY )
-		return SUCCESS;
+        assertion(-500000, (on && on->desc));
+        assertion(-500000, (cb_id == PLUGIN_CB_DESCRIPTION_DESTROY || cb_id == PLUGIN_CB_DESCRIPTION_CREATED));
+        assertion(-500000, IMPLIES(initializing, cb_id == PLUGIN_CB_DESCRIPTION_CREATED));
 
-        assertion(-500000, (cn));
+        dbgf_all(DBGT_INFO, "cb_id=%d", cb_id);
 
-        struct avl_node *an = NULL;
-        struct orig_node *on;
-        char *name = NULL;
-
-
-        while ((on = avl_iterate_item(&orig_tree, &an))) {
-
-                assertion(-500361, (!on || on->desc));
-
-                if (name && strcmp(name, on->desc->global_id.name))
-                        continue;
-
-                dbg_printf(cn, "dhash=%s blocked=%d :\n",
-                        memAsHexString(((char*) &(on->dhn->dhash)), 4), on->blocked ? 1 : 0);
-
-                uint16_t tlvs_len = ntohs(on->desc->dsc_tlvs_len);
-                struct msg_description_adv * desc_buff = debugMalloc(sizeof (struct msg_description_adv) +tlvs_len, -300361);
-                desc_buff->transmitterIID4x = htons(on->dhn->myIID4orig);
-                memcpy(&desc_buff->desc, on->desc, sizeof (struct description) +tlvs_len);
-
-                dbg_printf(cn, "%s:\n", packet_frame_handler[FRAME_TYPE_DESC_ADV].name);
-
-                fields_dbg(cn, FIELD_RELEVANCE_MEDI, sizeof (struct msg_description_adv) +tlvs_len, (uint8_t*) desc_buff,
-                        packet_frame_handler[FRAME_TYPE_DESC_ADV].min_msg_size,
-                        packet_frame_handler[FRAME_TYPE_DESC_ADV].msg_format);
-
-                debugFree(desc_buff, -300362);
-
-                struct rx_frame_iterator it = {
-                        .caller = __FUNCTION__, .on = on, .cn = cn, .op = TLV_OP_PLUGIN_MIN,
-                        .handls = description_tlv_handl, .handl_max = BMX_DSC_TLV_MAX, .process_filter = FRAME_TYPE_PROCESS_ALL,
-                        .frames_in = (((uint8_t*) on->desc) + sizeof (struct description)), .frames_length = tlvs_len
-                };
-
-                while (rx_frame_iterate(&it) > TLV_RX_DATA_DONE) {
-
-                        dbg_printf(it.cn, "%s:\n", it.handls[it.frame_type].name);
-
-                        fields_dbg(it.cn, FIELD_RELEVANCE_MEDI, it.frame_msgs_length, it.msg,
-                                it.handls[it.frame_type].min_msg_size, it.handls[it.frame_type].msg_format);
-                }
+        if (cb_id == PLUGIN_CB_DESCRIPTION_DESTROY) {
+                dbgf_track(DBGT_WARN, "keeping destroyed json-description of orig=%s", globalIdAsString(&on->global_id));
+                return;
         }
 
-        dbg_printf(cn, "\n");
+        int fd;
+        char file_name[MAX_PATH_SIZE] = "";
 
-	return SUCCESS;
+        sprintf(file_name, "%s/%s", json_desc_dir, globalIdAsString(&on->global_id));
+
+        if ((fd = open(file_name, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) < 0) { //check permissions of generated file
+
+		dbgf_sys(DBGT_ERR, "could not open %s - %s", file_name, strerror(errno) );
+                return;
+	}
+
+        dprintf(fd, "dhash=%s blocked=%d :\n", memAsHexString(((char*) &(on->dhn->dhash)), 4), on->blocked ? 1 : 0);
+
+        uint16_t tlvs_len = ntohs(on->desc->dsc_tlvs_len);
+        struct msg_description_adv * desc_buff = debugMalloc(sizeof (struct msg_description_adv) +tlvs_len, -300361);
+        desc_buff->transmitterIID4x = htons(on->dhn->myIID4orig);
+        memcpy(&desc_buff->desc, on->desc, sizeof (struct description) +tlvs_len);
+
+        dprintf(fd, "%s:\n", packet_frame_handler[FRAME_TYPE_DESC_ADV].name);
+
+        fields_dbg_json(fd, FIELD_RELEVANCE_MEDI, sizeof (struct msg_description_adv) +tlvs_len, (uint8_t*) desc_buff,
+                packet_frame_handler[FRAME_TYPE_DESC_ADV].min_msg_size,
+                packet_frame_handler[FRAME_TYPE_DESC_ADV].msg_format);
+
+        debugFree(desc_buff, -300362);
+
+        struct rx_frame_iterator it = {
+                .caller = __FUNCTION__, .on = on, .cn = NULL, .op = TLV_OP_PLUGIN_MIN,
+                .handls = description_tlv_handl, .handl_max = BMX_DSC_TLV_MAX, .process_filter = FRAME_TYPE_PROCESS_ALL,
+                .frames_in = (((uint8_t*) on->desc) + sizeof (struct description)), .frames_length = tlvs_len
+        };
+
+        while (rx_frame_iterate(&it) > TLV_RX_DATA_DONE) {
+
+                dprintf(fd, "%s:\n", it.handls[it.frame_type].name);
+
+                fields_dbg_json(fd, FIELD_RELEVANCE_MEDI, it.frame_msgs_length, it.msg,
+                        it.handls[it.frame_type].min_msg_size, it.handls[it.frame_type].msg_format);
+        }
+
+        dprintf(fd, "\n");
+        close(fd);
 }
 
-
 STATIC_FUNC
-int32_t opt_json_help(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
+int32_t update_json_help(void)
 {
+        int fd;
+        char file_name[MAX_PATH_SIZE + 20] = "";
 
-	if ( cmd != OPT_APPLY )
-		return SUCCESS;
+        sprintf(file_name, "%s/%s", json_dir, JSON_OPTIONS_FILE);
 
-        assertion(-500000, (cn));
+        if ((fd = open(file_name, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) < 0) { //check permissions of generated file
+
+		dbgf_sys(DBGT_ERR, "could not open %s - %s", file_name, strerror(errno) );
+		return FAILURE;
+	}
+
 
         struct opt_type * p_opt = NULL;
         json_object * jobj = json_object_new_object();
@@ -214,28 +212,74 @@ int32_t opt_json_help(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct o
 
         json_object_object_add(jobj, "options", jopts);
 
-        dbg_printf(cn, "%s\n", json_object_to_json_string(jobj));
+        dprintf(fd, "%s\n", json_object_to_json_string(jobj));
 
         json_object_put(jobj);
 
-
-	if ( initializing )
-		cleanup_all(CLEANUP_SUCCESS);
+        close(fd);
 
 	return SUCCESS;
 }
 
+
+
+
+
+
+STATIC_FUNC
+int32_t opt_json_dir(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
+{
+
+	char tmp_dir[MAX_PATH_SIZE];
+        strcpy(tmp_dir, json_dir);
+
+        assertion(-500000, IMPLIES((cmd == OPT_CHECK || cmd == OPT_APPLY), initializing));
+
+
+	if ( cmd == OPT_CHECK  ||  cmd == OPT_APPLY ) {
+
+		if ( wordlen( patch->p_val )+1 >= MAX_PATH_SIZE  ||  patch->p_val[0] != '/' )
+			return FAILURE;
+
+		snprintf( tmp_dir, wordlen(patch->p_val)+1, "%s", patch->p_val );
+        }
+
+        if (cmd == OPT_CHECK || cmd == OPT_APPLY || (cmd == OPT_SET_POST && initializing)) {
+
+                if (check_dir(tmp_dir, YES/*create*/, YES/*writable*/) == FAILURE)
+			return FAILURE;
+
+
+                sprintf(json_desc_dir, "%s/%s", tmp_dir, DEF_JSON_DESC_DIR);
+
+                if (check_dir(json_desc_dir, YES/*create*/, YES/*writable*/) == FAILURE)
+			return FAILURE;
+        }
+
+
+        if (cmd == OPT_APPLY) {
+
+                strcpy(json_dir, tmp_dir);
+        }
+
+        if (cmd == OPT_SET_POST && initializing) {
+
+                update_json_help();
+        }
+
+	return SUCCESS;
+}
+
+
+
+
+
+
 static struct opt_type json_options[]= {
 //        ord parent long_name          shrt Attributes				*ival		min		max		default		*func,*syntax,*help
 	
-	{ODI, 0, ARG_JSON_DESCRIPTIONS,	0,5, A_PS0,A_USR,A_DYN,A_ARG,A_ANY,     0,              0,              0,              0,0,           opt_json_descriptions,
-			0,		HLP_DESCRIPTIONS}
-        ,
-	{ODI,0,ARG_JSON_HELP,		0,0,A_PS0,A_USR,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_json_help,
-			0,		"summarize available parameters and options"}
-                        ,
-	{ODI,0,ARG_JSON_TEST,		0,0,A_PS0,A_USR,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_json_test,
-			0,		"test json options"}
+	{ODI,0,ARG_JSON_DIR,		0,5, A_PS1,A_ADM,A_INI,A_CFA,A_ANY,	0,		0,		0,		0,DEF_JSON_DIR,	opt_json_dir,
+			ARG_DIR_FORM,	"set DIR of json related files and subdirectories"}
 
 	
 };
@@ -267,7 +311,9 @@ struct plugin* get_plugin( void ) {
         json_plugin.plugin_code_version = CODE_VERSION;
 	json_plugin.cb_init = json_init;
 	json_plugin.cb_cleanup = json_cleanup;
-	
+        json_plugin.cb_plugin_handler[PLUGIN_CB_DESCRIPTION_CREATED] = (void (*) (int32_t, void*)) json_description_event_hook;
+        json_plugin.cb_plugin_handler[PLUGIN_CB_DESCRIPTION_DESTROY] = (void (*) (int32_t, void*)) json_description_event_hook;
+
 	return &json_plugin;
 }
 

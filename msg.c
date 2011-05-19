@@ -3337,7 +3337,8 @@ void update_my_description_adv(void)
         if (terminating)
                 return;
 
-        cb_plugin_hooks(PLUGIN_CB_DESCRIPTION_DESTROY, &self);
+        if (!initializing)
+                cb_plugin_hooks(PLUGIN_CB_DESCRIPTION_DESTROY, &self);
 
         // put obligatory stuff:
         memset(dsc, 0, sizeof (struct description));
@@ -3478,9 +3479,9 @@ int32_t opt_show_descriptions(uint8_t cmd, uint8_t _save, struct opt_type *opt,
 
                         while (rx_frame_iterate(&it) > TLV_RX_DATA_DONE) {
 
-                                dbg_printf(it.cn, "%s:\n", it.handls[it.frame_type].name);
+                                dbg_printf(cn, "%s:\n", it.handls[it.frame_type].name);
 
-                                fields_dbg(it.cn, relevance, it.frame_msgs_length, it.msg,
+                                fields_dbg(cn, relevance, it.frame_msgs_length, it.msg,
                                         it.handls[it.frame_type].min_msg_size, it.handls[it.frame_type].msg_format);
                         }
                 }

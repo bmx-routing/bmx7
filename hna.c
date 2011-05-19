@@ -55,7 +55,10 @@ void niit_description_event_hook(int32_t cb_id, struct orig_node *on)
 
         dbgf_all(DBGT_INFO, "cb_id=%d", cb_id);
 
-        if (cb_id == PLUGIN_CB_DESCRIPTION_DESTROY && !initializing)
+        assertion(-500000, (cb_id == PLUGIN_CB_DESCRIPTION_DESTROY || cb_id == PLUGIN_CB_DESCRIPTION_CREATED));
+        assertion(-500000, IMPLIES(initializing, cb_id == PLUGIN_CB_DESCRIPTION_CREATED));
+
+        if (cb_id == PLUGIN_CB_DESCRIPTION_DESTROY)
                 process_description_tlvs(NULL, on, on->desc, TLV_OP_CUSTOM_NIIT6TO4_DEL, BMX_DSC_TLV_UHNA6, NULL);
         
         if (cb_id == PLUGIN_CB_DESCRIPTION_CREATED)

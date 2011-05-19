@@ -691,10 +691,15 @@ struct status_handl {
 extern struct avl_tree status_tree;
 
 
+int16_t field_format_get_items(const struct field_format *format);
+
+char *field_dbg_value(const struct field_format *format, uint16_t min_msg_size, uint8_t *data, uint32_t pos_bit, uint32_t bits);
+
 uint32_t fields_dbg(struct ctrl_node *cn, uint16_t relevance, uint16_t data_size, uint8_t *data,
                     uint16_t min_msg_size,  const struct field_format *format);
 
-int16_t field_format_get_items(const struct field_format *format);
+
+uint32_t field_iterate(struct field_iterator *it);
 
 
 

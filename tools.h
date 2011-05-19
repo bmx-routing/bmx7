@@ -47,7 +47,11 @@
 
 char* memAsHexString( const void* mem, uint32_t len);
 char* memAsCharString( const char* mem, uint32_t len);
+
 IDM_T validate_char_string (const char* data, uint32_t len);
+IDM_T validate_name_string(char* name, uint32_t field_len);
+
+char *globalIdAsString( struct GLOBAL_ID *id );
 
 float fast_inverse_sqrt(float x);
 

@@ -57,7 +57,8 @@ char* memAsHexString( const void* mem, uint32_t len)
         return out[c];
 }
 
-IDM_T validate_char_string (const char* data, uint32_t len) {
+IDM_T validate_char_string(const char* data, uint32_t len)
+{
 
         uint32_t pos = 0;
 
@@ -75,6 +76,29 @@ IDM_T validate_char_string (const char* data, uint32_t len) {
 
         return SUCCESS;
 }
+
+IDM_T validate_name_string(char* name, uint32_t field_len)
+{
+        uint32_t i, string_len = strlen(name);
+
+        if (field_len && (string_len >= field_len || !is_zero(&name[string_len], field_len - string_len)))
+                return FAILURE;
+
+        for (i = 0; i < string_len; i++) {
+
+                char c = name[i];
+
+                if ((c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+                        c == '-' || c == '-' || (c == '.' && (i != 0 && i != (string_len - 1))))
+                        continue;
+
+                return FAILURE;
+        }
+
+        return SUCCESS;
+}
+
+
 
 char* memAsCharString( const char* mem, uint32_t len)
 {

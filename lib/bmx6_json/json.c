@@ -30,6 +30,7 @@
 
 
 #include "bmx.h"
+#include "msg.h"
 #include "plugin.h"
 #include "schedule.h"
 #include "tools.h"
@@ -81,15 +82,74 @@ int32_t opt_json_test(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct o
 	return SUCCESS;
 }
 
+
+STATIC_FUNC
+int32_t opt_json_descriptions(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
+{
+        TRACE_FUNCTION_CALL;
+
+	if ( cmd != OPT_APPLY )
+		return SUCCESS;
+
+        assertion(-500000, (cn));
+
+        struct avl_node *an = NULL;
+        struct orig_node *on;
+        char *name = NULL;
+
+
+        while ((on = avl_iterate_item(&orig_tree, &an))) {
+
+                assertion(-500361, (!on || on->desc));
+
+                if (name && strcmp(name, on->desc->global_id.name))
+                        continue;
+
+                dbg_printf(cn, "dhash=%s blocked=%d :\n",
+                        memAsHexString(((char*) &(on->dhn->dhash)), 4), on->blocked ? 1 : 0);
+
+                uint16_t tlvs_len = ntohs(on->desc->dsc_tlvs_len);
+                struct msg_description_adv * desc_buff = debugMalloc(sizeof (struct msg_description_adv) +tlvs_len, -300361);
+                desc_buff->transmitterIID4x = htons(on->dhn->myIID4orig);
+                memcpy(&desc_buff->desc, on->desc, sizeof (struct description) +tlvs_len);
+
+                dbg_printf(cn, "%s:\n", packet_frame_handler[FRAME_TYPE_DESC_ADV].name);
+
+                fields_dbg(cn, FIELD_RELEVANCE_MEDI, sizeof (struct msg_description_adv) +tlvs_len, (uint8_t*) desc_buff,
+                        packet_frame_handler[FRAME_TYPE_DESC_ADV].min_msg_size,
+                        packet_frame_handler[FRAME_TYPE_DESC_ADV].msg_format);
+
+                debugFree(desc_buff, -300362);
+
+                struct rx_frame_iterator it = {
+                        .caller = __FUNCTION__, .on = on, .cn = cn, .op = TLV_OP_PLUGIN_MIN,
+                        .handls = description_tlv_handl, .handl_max = BMX_DSC_TLV_MAX, .process_filter = FRAME_TYPE_PROCESS_ALL,
+                        .frames_in = (((uint8_t*) on->desc) + sizeof (struct description)), .frames_length = tlvs_len
+                };
+
+                while (rx_frame_iterate(&it) > TLV_RX_DATA_DONE) {
+
+                        dbg_printf(it.cn, "%s:\n", it.handls[it.frame_type].name);
+
+                        fields_dbg(it.cn, FIELD_RELEVANCE_MEDI, it.frame_msgs_length, it.msg,
+                                it.handls[it.frame_type].min_msg_size, it.handls[it.frame_type].msg_format);
+                }
+        }
+
+        dbg_printf(cn, "\n");
+
+	return SUCCESS;
+}
+
+
 STATIC_FUNC
 int32_t opt_json_help(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
 {
 
 	if ( cmd != OPT_APPLY )
 		return SUCCESS;
-	if ( !cn  )
-		return FAILURE;
 
+        assertion(-500000, (cn));
 
         struct opt_type * p_opt = NULL;
         json_object * jobj = json_object_new_object();
@@ -168,10 +228,13 @@ int32_t opt_json_help(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct o
 static struct opt_type json_options[]= {
 //        ord parent long_name          shrt Attributes				*ival		min		max		default		*func,*syntax,*help
 	
-	{ODI,0,ARG_JSON_HELP,		0,0,A_PS0,A_USR,A_DYI,A_ARG,A_END,	0,		0, 		0,		0,0, 		opt_json_help,
+	{ODI, 0, ARG_JSON_DESCRIPTIONS,	0,5, A_PS0,A_USR,A_DYN,A_ARG,A_ANY,     0,              0,              0,              0,0,           opt_json_descriptions,
+			0,		HLP_DESCRIPTIONS}
+        ,
+	{ODI,0,ARG_JSON_HELP,		0,0,A_PS0,A_USR,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_json_help,
 			0,		"summarize available parameters and options"}
                         ,
-	{ODI,0,ARG_JSON_TEST,		0,0,A_PS0,A_USR,A_DYI,A_ARG,A_END,	0,		0, 		0,		0,0, 		opt_json_test,
+	{ODI,0,ARG_JSON_TEST,		0,0,A_PS0,A_USR,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_json_test,
 			0,		"test json options"}
 
 	

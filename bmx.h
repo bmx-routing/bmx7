@@ -1129,7 +1129,6 @@ char *get_human_uptime( uint32_t reference );
 ************************************************************/
 
 
-IDM_T validate_hostname( char* name );
+
 IDM_T validate_param(int32_t probe, int32_t min, int32_t max, char *name);
 
-char *globalIdAsString( struct GLOBAL_ID *id );

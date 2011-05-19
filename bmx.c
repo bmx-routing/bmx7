@@ -2098,26 +2098,6 @@ static struct opt_type bmx_options[]=
 
 };
 
-IDM_T validate_hostname( char* name ) {
-
-        int i,len;
-
-        if ((len = strlen(name)) >= GLOBAL_ID_NAME_LEN || !is_zero(&name[len], GLOBAL_ID_NAME_LEN - len))
-                return FAILURE;
-
-        for (i = 0; i < len; i++) {
-
-                char c = name[i];
-
-                if ((c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
-                        c == '-' || c == '-' || c == '.' )
-                        continue;
-
-                return FAILURE;
-        }
-
-        return SUCCESS;
-}
 
 char *globalIdAsString( struct GLOBAL_ID *id ) {
 
@@ -2127,7 +2107,7 @@ char *globalIdAsString( struct GLOBAL_ID *id ) {
         for (i = 0; !id->pkid.u8[i] && i < GLOBAL_ID_PKID_LEN; i++);
 
         snprintf(id_str, GLOBAL_ID_NAME_LEN, "%s.%s",
-                validate_hostname(id->name) == SUCCESS ? id->name : "ILLEGAL_HOSTNAME",
+                validate_name_string(id->name, GLOBAL_ID_NAME_LEN) == SUCCESS ? id->name : "ILLEGAL_HOSTNAME",
                 memAsHexString(&(id->pkid.u8[i]), GLOBAL_ID_PKID_LEN - i));
 
         return id_str;
@@ -2140,11 +2120,9 @@ void init_orig_node(struct orig_node *on, GLOBAL_ID_T *id)
         memset(on, 0, sizeof ( struct orig_node));
         on->global_id = *id;
 
-//        AVL_INIT_TREE(on->rt_tree, struct router_node, key_2BRemoved);
         AVL_INIT_TREE(on->rt_tree, struct router_node, local_key);
 
         avl_insert(&orig_tree, on, -300148);
-
 }
 
 
@@ -2161,7 +2139,7 @@ void init_bmx(void)
 
         id.name[GLOBAL_ID_NAME_LEN - 1] = 0;
 
-        if (validate_hostname(id.name) == FAILURE) {
+        if (validate_name_string(id.name, GLOBAL_ID_NAME_LEN) == FAILURE) {
                 dbg_sys(DBGT_ERR, "illegal hostname %s", id.name);
                 cleanup_all(-500272);
         }

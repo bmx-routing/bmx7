@@ -3183,7 +3183,7 @@ IDM_T validate_description(struct description *desc)
 {
         TRACE_FUNCTION_CALL;
 
-        if (validate_hostname(desc->global_id.name) == FAILURE) {
+        if (validate_name_string(desc->global_id.name, GLOBAL_ID_NAME_LEN) == FAILURE) {
 
                 dbg_sys(DBGT_ERR, "global_id=%s has illegal hostname ", globalIdAsString(&desc->global_id));
                 return FAILURE;
@@ -3430,12 +3430,16 @@ int32_t opt_show_descriptions(uint8_t cmd, uint8_t _save, struct opt_type *opt,
                 struct orig_node *on;
                 char *name = NULL;
                 int32_t type_filter = DEF_DESCRIPTION_TYPE;
+                int32_t relevance = DEF_RELEVANCE;
                 struct opt_child *c = NULL;
 
                 while ((c = list_iterate(&patch->childs_instance_list, c))) {
 
                         if (!strcmp(c->c_opt->long_name, ARG_DESCRIPTION_TYPE)) {
                                 type_filter = strtol(c->c_val, NULL, 10);
+
+                        } else if (!strcmp(c->c_opt->long_name, ARG_RELEVANCE)) {
+                                relevance = strtol(c->c_val, NULL, 10);
 
                         } else if (!strcmp(c->c_opt->long_name, ARG_DESCRIPTION_NAME)) {
                                 name = c->c_val;
@@ -3460,7 +3464,7 @@ int32_t opt_show_descriptions(uint8_t cmd, uint8_t _save, struct opt_type *opt,
                         
                         dbg_printf(cn, "%s:\n", packet_frame_handler[FRAME_TYPE_DESC_ADV].name);
 
-                        fields_dbg(cn, FIELD_RELEVANCE_HIGH, sizeof (struct msg_description_adv) +tlvs_len, (uint8_t*) desc_buff,
+                        fields_dbg(cn, relevance, sizeof (struct msg_description_adv) +tlvs_len, (uint8_t*) desc_buff,
                                 packet_frame_handler[FRAME_TYPE_DESC_ADV].min_msg_size,
                                 packet_frame_handler[FRAME_TYPE_DESC_ADV].msg_format);
 
@@ -3476,7 +3480,7 @@ int32_t opt_show_descriptions(uint8_t cmd, uint8_t _save, struct opt_type *opt,
 
                                 dbg_printf(it.cn, "%s:\n", it.handls[it.frame_type].name);
 
-                                fields_dbg(it.cn, FIELD_RELEVANCE_HIGH, it.frame_msgs_length, it.msg,
+                                fields_dbg(it.cn, relevance, it.frame_msgs_length, it.msg,
                                         it.handls[it.frame_type].min_msg_size, it.handls[it.frame_type].msg_format);
                         }
                 }
@@ -3526,6 +3530,9 @@ struct opt_type msg_options[]=
         ,
 	{ODI,ARG_DESCRIPTIONS,ARG_DESCRIPTION_NAME,'n',5,A_CS1,A_USR,A_DYN,A_ARG,A_ANY,	0,		0,	0,0,		0, opt_show_descriptions,
 			"<NAME>",	"only show description of nodes with given name"}
+        ,
+	{ODI,ARG_DESCRIPTIONS,ARG_RELEVANCE,       'r',5,A_CS1,A_USR,A_DYN,A_ARG,A_ANY,	0,		0,	0,0,		0, opt_show_descriptions,
+			ARG_VALUE_FORM,	"only show description with given relevance"}
 
 };
 

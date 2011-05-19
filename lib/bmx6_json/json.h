@@ -18,6 +18,7 @@
 
 #define ARG_JSON_HELP "json_help"
 #define ARG_JSON_TEST "json_test"
+#define ARG_JSON_DESCRIPTIONS "json_descriptions"
 
 
 

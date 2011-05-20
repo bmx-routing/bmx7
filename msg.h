@@ -624,7 +624,7 @@ struct msg_description_adv {
 {FIELD_TYPE_UINT,          -1, 8,                                1, FIELD_RELEVANCE_LOW,  "ttl" }, \
 {FIELD_TYPE_UINT,          -1, 8,                                1, FIELD_RELEVANCE_LOW,  "reserved" }, \
 {FIELD_TYPE_STRING_BINARY, -1, 128,                              1, FIELD_RELEVANCE_LOW,  "reserved" }, \
-{FIELD_TYPE_STRING_BINARY, -1, 0,                                1, FIELD_RELEVANCE_MEDI, "extension_msgs" }, \
+{FIELD_TYPE_STRING_BINARY, -1, 0,                                1, FIELD_RELEVANCE_LOW,  "extension_msgs" }, \
 FIELD_FORMAT_END}
 
 

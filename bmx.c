@@ -2105,15 +2105,19 @@ static struct opt_type bmx_options[]=
 char *globalIdAsString( struct GLOBAL_ID *id ) {
 
         uint8_t i;
-        static char id_str[GLOBAL_ID_NAME_LEN + strlen(".") + (GLOBAL_ID_PKID_LEN * 2) + 1];
+#define MAX_IDS_PER_PRINTF 4
+        static char id_str[MAX_IDS_PER_PRINTF][GLOBAL_ID_NAME_LEN + strlen(".") + (GLOBAL_ID_PKID_LEN * 2) + 1];
+        static uint8_t a = 0;
+
+        a = (a + 1) % MAX_IDS_PER_PRINTF;
 
         for (i = 0; !id->pkid.u8[i] && i < GLOBAL_ID_PKID_LEN; i++);
 
-        snprintf(id_str, GLOBAL_ID_NAME_LEN, "%s.%s",
+        snprintf(id_str[a], GLOBAL_ID_NAME_LEN, "%s.%s",
                 validate_name_string(id->name, GLOBAL_ID_NAME_LEN) == SUCCESS ? id->name : "ILLEGAL_HOSTNAME",
                 memAsHexString(&(id->pkid.u8[i]), GLOBAL_ID_PKID_LEN - i));
 
-        return id_str;
+        return id_str[a];
 }
 
 

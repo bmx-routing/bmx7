@@ -1446,6 +1446,9 @@ char *field_dbg_value(const struct field_format *format, uint16_t min_msg_size, 
 
                 return globalIdAsString(*((GLOBAL_ID_T**) (&data[pos_bit / 8])));
 
+        } else if (field_type == FIELD_TYPE_UMETRIC) {
+
+                return umetric_to_human(*((UMETRIC_T*) (&data[pos_bit / 8])));
         }
 
         assertion(-501202, 0);
@@ -1806,7 +1809,7 @@ struct orig_status {
         uint16_t routes;
         IPX_T via_ip;
         char *via_dev;
-        char *metric;
+        UMETRIC_T metric;
         IID_T myIid4x;
         DESC_SQN_T descSqn;
         OGM_SQN_T ogmSqn;
@@ -1822,7 +1825,7 @@ static const struct field_format orig_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, routes,        1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_IPX,               orig_status, via_ip,        1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      orig_status, via_dev,       1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      orig_status, metric,        1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           orig_status, metric,        1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, myIid4x,       1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, descSqn,       1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, ogmSqn,        1, FIELD_RELEVANCE_MEDI),
@@ -1848,7 +1851,7 @@ static int32_t orig_status_creator(struct status_handl *handl)
                 status[i].routes = on->rt_tree.items;
                 status[i].via_ip = (on->curr_rt_lndev ? on->curr_rt_lndev->key.link->link_ip : ZERO_IP);
                 status[i].via_dev = on->curr_rt_lndev && on->curr_rt_lndev->key.dev ? on->curr_rt_lndev->key.dev->name_phy_cfg.str : "";
-                status[i].metric = umetric_to_human(on->curr_rt_local ? (on->curr_rt_local->mr.umetric) : (on == &self ? UMETRIC_MAX : 0));
+                status[i].metric = (on->curr_rt_local ? (on->curr_rt_local->mr.umetric) : (on == &self ? UMETRIC_MAX : 0));
                 status[i].myIid4x = on->dhn->myIID4orig;
                 status[i].descSqn = on->descSqn;
                 status[i].ogmSqn = on->ogmSqn_next;

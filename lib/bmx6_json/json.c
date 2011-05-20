@@ -99,7 +99,12 @@ void json_description_event_hook(int32_t cb_id, struct orig_node *on)
         dbgf_all(DBGT_INFO, "cb_id=%d", cb_id);
 
         if (cb_id == PLUGIN_CB_DESCRIPTION_DESTROY) {
-                dbgf_track(DBGT_WARN, "keeping destroyed json-description of orig=%s", globalIdAsString(&on->global_id));
+                dbgf_track(DBGT_WARN, "removing destroyed json-description of orig=%s", globalIdAsString(&on->global_id));
+                char rm_file[MAX_PATH_SIZE];
+                sprintf(rm_file, "%s/%s", json_desc_dir, globalIdAsString(&on->global_id));
+                if (remove(rm_file) != 0) {
+                        dbgf_sys(DBGT_ERR, "could not remove %s: %s \n", rm_file, strerror(errno));
+                }
                 return;
         }
 

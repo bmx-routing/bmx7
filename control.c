@@ -40,7 +40,7 @@
 #define CODE_CATEGORY_NAME "control"
 
 
-static char run_dir[MAX_PATH_SIZE] = DEF_RUN_DIR;
+char run_dir[MAX_PATH_SIZE] = DEF_RUN_DIR;
 
 static int32_t debug_level = -1;
 static int32_t dbg_mute_to;

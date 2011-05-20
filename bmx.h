@@ -693,6 +693,8 @@ extern struct avl_tree status_tree;
 
 int16_t field_format_get_items(const struct field_format *format);
 
+int64_t field_get_value(const struct field_format *format, uint16_t min_msg_size, uint8_t *data, uint32_t pos_bit, uint32_t bits);
+
 char *field_dbg_value(const struct field_format *format, uint16_t min_msg_size, uint8_t *data, uint32_t pos_bit, uint32_t bits);
 
 uint32_t fields_dbg(struct ctrl_node *cn, uint16_t relevance, uint16_t data_size, uint8_t *data,
@@ -1046,7 +1048,7 @@ void rx_packet( struct packet_buff *pb );
 /*
  * ASSERTION / PARANOIA ERROR CODES:
  * Negative numbers are used as SIGSEV error codes !
- * Currently used numbers are: -500000 -500001 ... -501242
+ * Currently used numbers are: -500000 -500001 ... -501255
  */
 
 #ifdef NO_ASSERTIONS

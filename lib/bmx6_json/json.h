@@ -17,13 +17,15 @@
 
 
 #define ARG_JSON_TEST "json_test"
-#define ARG_JSON_DESCRIPTIONS "json_descriptions"
+#define ARG_JSON_SUBDIR "json_subdir"
 
 #define JSON_OPTIONS_FILE "options"
 
-#define ARG_JSON_DIR "json_dir"
-#define DEF_JSON_DIR "/var/run/bmx6/json"
-#define DEF_JSON_DESC_DIR "descriptions"
+
+#define JSON_ILLEGAL_DIR "/tmp/ILLEGAL"
+#define DEF_JSON_SUBDIR "json"
+#define DEF_JSON_DESC_SUBDIR "descriptions"
+
 
 
 

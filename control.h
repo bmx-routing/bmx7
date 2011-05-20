@@ -71,6 +71,9 @@ extern int32_t Client_mode;
 #define ARG_CONNECT "connect"
 #define ARG_RUN_DIR "runtime_dir"
 #define DEF_RUN_DIR "/var/run/bmx6"
+
+extern char run_dir[];
+
 #define CHR_QUIT '#'
 
 #define BMX_PID_FILE "pid"

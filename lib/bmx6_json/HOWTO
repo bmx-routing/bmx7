@@ -5,18 +5,31 @@ sudo apt-get install libjson0 libjson0-dev
 
 http://www.json.org/
 
-output of json_help
+output of json_options
 
 
 { options : [
   { name : "ogm_interval",	 min : 0, max : 1, def : "/etc/", admin : 1 },
+
   { name : "ogm_interval",	 min : 0, max : 1, def : "/etc/", admin : 1, child_options : [
      { name : "ogm_interval",	 min : 0, max : 1, def : 0 },
      { }
 	] }
+
   ]
 }
 
 
 
 
+
+{ originators : [
+    { dhash : "E014844A",   blocked : 0 ,
+      DESC_ADV : { IID : 2, id_name : sid, id_pkid : 6F53B69820882DC46F39,  code_version : 5,  ..., extensions : [
+        DESC_EXT_METRIC : { fmetric_u16_min : 1,  path_metricalgo : 16 , ...},
+        DESC_EXT_UHNA4 : { prefixlen : 32,  address : 1.2.3.4,  metric : 0 }
+        ]
+      }
+    }
+  ]
+}

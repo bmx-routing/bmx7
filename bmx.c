@@ -1331,7 +1331,7 @@ void cleanup_all(int32_t status)
 
 static const int32_t field_standard_sizes[FIELD_TYPE_END] = FIELD_STANDARD_SIZES;
 
-static int64_t field_get_value(const struct field_format *format, uint16_t min_msg_size, uint8_t *data, uint32_t pos_bit, uint32_t bits)
+int64_t field_get_value(const struct field_format *format, uint16_t min_msg_size, uint8_t *data, uint32_t pos_bit, uint32_t bits)
 {
         uint8_t field_type = format->field_type;
         uint8_t host_order = format->field_host_order;
@@ -1399,7 +1399,7 @@ char *field_dbg_value(const struct field_format *format, uint16_t min_msg_size, 
                         else
                                 snprintf(uint32_out, sizeof (uint32_out), "%ji", field_val);
 
-                        assertion(-500000, (strlen(uint32_out) < sizeof (uint32_out)));
+                        assertion(-501243, (strlen(uint32_out) < sizeof (uint32_out)));
                         return uint32_out;
 
 
@@ -1549,7 +1549,7 @@ int16_t field_format_get_items(const struct field_format *format) {
         int16_t i=-1;
 
         while (format[++i].field_type != FIELD_TYPE_END) {
-                assertion(-500000, (i < 100));
+                assertion(-501244, (i < 100));
         }
 
         return i;

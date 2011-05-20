@@ -1,6 +1,12 @@
 
 sudo apt-get install libjson0 libjson0-dev
 
+or download sources from: wget http://ftp.de.debian.org/debian/pool/main/j/json-c/json-c_0.9.orig.tar.gz
+
+tar xzvf json-c_0.9.orig.tar.gz
+cd json-c..
+./configure ; make ; make install; ldconfig
+
 
 
 http://www.json.org/

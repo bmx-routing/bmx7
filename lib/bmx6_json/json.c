@@ -90,7 +90,8 @@ void json_description_event_hook(int32_t cb_id, struct orig_node *on)
 {
         TRACE_FUNCTION_CALL;
 
-        assertion(-501249, (on && on->desc));
+        assertion(-500000, (on));
+        assertion(-501249, IMPLIES(cb_id == PLUGIN_CB_DESCRIPTION_CREATED, (on && on->desc)));
         assertion(-501250, (cb_id == PLUGIN_CB_DESCRIPTION_DESTROY || cb_id == PLUGIN_CB_DESCRIPTION_CREATED));
         assertion(-501251, IMPLIES(initializing, cb_id == PLUGIN_CB_DESCRIPTION_CREATED));
         assertion(-501252, (strcmp(json_desc_dir, JSON_ILLEGAL_DIR)));

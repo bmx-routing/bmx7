@@ -1438,9 +1438,13 @@ char *field_dbg_value(const struct field_format *format, uint16_t min_msg_size, 
 
                 return memAsCharString((char*) &data[pos_bit / 8], bits / 8);
 
-        } else if (field_type == FIELD_TYPE_STRPTR_CHAR) {
+        } else if (field_type == FIELD_TYPE_POINTER_CHAR) {
 
                 return memAsCharString(*((char**) (&data[pos_bit / 8])), strlen(*((char**) (&data[pos_bit / 8]))));
+
+        } else if (field_type == FIELD_TYPE_POINTER_GLOBAL_ID) {
+
+                return globalIdAsString(*((GLOBAL_ID_T**) (&data[pos_bit / 8])));
 
         }
 
@@ -1599,7 +1603,7 @@ struct bmx_status {
         char version[strlen(BMX_BRANCH) + strlen("-") + strlen(BRANCH_VERSION) + 1];
         uint16_t compatibility;
         uint16_t code_version;
-        char *global_id;
+        GLOBAL_ID_T *global_id;
         IPX_T primary_ip;
         LOCAL_ID_T my_local_id;
         char *uptime;
@@ -1607,14 +1611,14 @@ struct bmx_status {
 };
 
 static const struct field_format bmx_status_format[] = {
-        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR, bmx_status, version,       1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        bmx_status, compatibility, 1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        bmx_status, code_version,  1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_STRPTR_CHAR, bmx_status, global_id,     1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_IPX,         bmx_status, primary_ip,    1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_HEX,         bmx_status, my_local_id,   1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_STRPTR_CHAR, bmx_status, uptime,        1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR, bmx_status, cpu_load,      1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       bmx_status, version,       1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              bmx_status, compatibility, 1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              bmx_status, code_version,  1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, bmx_status, global_id,     1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_IPX,               bmx_status, primary_ip,    1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_HEX,               bmx_status, my_local_id,   1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      bmx_status, uptime,        1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       bmx_status, cpu_load,      1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_END
 };
 
@@ -1624,7 +1628,7 @@ static int32_t bmx_status_creator(struct status_handl *handl)
         sprintf(status->version, "%s-%s", BMX_BRANCH, BRANCH_VERSION);
         status->compatibility = COMPATIBILITY_VERSION;
         status->code_version = CODE_VERSION;
-        status->global_id = globalIdAsString(&self.global_id);
+        status->global_id = &self.global_id;
         status->primary_ip = self.primary_ip;
         status->my_local_id = ntohl(my_local_id);
         status->uptime = get_human_uptime(0);
@@ -1723,7 +1727,7 @@ static struct status_handl link_status_handl = {
 
 struct local_status {
         LOCAL_ID_T local_id;
-        char *global_id;
+        GLOBAL_ID_T *global_id;
         uint8_t routes;
         uint8_t wants_ogms;
         uint8_t link_adv_4_him;
@@ -1736,17 +1740,17 @@ struct local_status {
 };
 
 static const struct field_format local_status_format[] = {
-        FIELD_FORMAT_INIT(FIELD_TYPE_HEX,         local_status, local_id,         1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_STRPTR_CHAR, local_status, global_id,        1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        local_status, routes,           1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        local_status, wants_ogms,       1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        local_status, link_adv_4_him,   1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        local_status, link_adv_4_me,    1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        local_status, dev_adv_sqn,      1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        local_status, dev_adv_sqn_diff, 1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        local_status, link_adv_sqn,     1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        local_status, link_adv_sqn_diff,1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        local_status, last_link_adv,    1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_HEX,               local_status, local_id,         1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, local_status, global_id,        1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              local_status, routes,           1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              local_status, wants_ogms,       1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              local_status, link_adv_4_him,   1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              local_status, link_adv_4_me,    1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              local_status, dev_adv_sqn,      1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              local_status, dev_adv_sqn_diff, 1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              local_status, link_adv_sqn,     1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              local_status, link_adv_sqn_diff,1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              local_status, last_link_adv,    1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_END
 };
 
@@ -1766,7 +1770,7 @@ static int32_t locals_status_creator(struct status_handl *handl)
                 struct orig_node *on = local->neigh ? local->neigh->dhn->on : NULL;
 
                 status[i].local_id = ntohl(local->local_id);
-                status[i].global_id = globalIdAsString(&on->global_id);
+                status[i].global_id = &on->global_id;
                 status[i].routes = local->orig_routes;
                 status[i].wants_ogms = local->rp_ogm_request_rcvd;
                 status[i].link_adv_4_him = local->link_adv_msg_for_him;
@@ -1796,7 +1800,7 @@ static struct status_handl local_status_handl = {
 
 
 struct orig_status {
-        char *global_id;
+        GLOBAL_ID_T *global_id;
         uint8_t blocked;
         IPX_T primary_ip;
         uint16_t routes;
@@ -1812,19 +1816,19 @@ struct orig_status {
 };
 
 static const struct field_format orig_status_format[] = {
-        FIELD_FORMAT_INIT(FIELD_TYPE_STRPTR_CHAR, orig_status, global_id,     1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        orig_status, blocked,       1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_IPX,         orig_status, primary_ip,    1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        orig_status, routes,        1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_IPX,         orig_status, via_ip,        1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_STRPTR_CHAR, orig_status, via_dev,       1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_STRPTR_CHAR, orig_status, metric,        1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        orig_status, myIid4x,       1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        orig_status, descSqn,       1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        orig_status, ogmSqn,        1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        orig_status, ogmSqnDiff,    1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        orig_status, lastDesc,      1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        orig_status, lastRef,       1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, orig_status, global_id,     1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, blocked,       1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_IPX,               orig_status, primary_ip,    1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, routes,        1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_IPX,               orig_status, via_ip,        1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      orig_status, via_dev,       1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      orig_status, metric,        1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, myIid4x,       1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, descSqn,       1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, ogmSqn,        1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, ogmSqnDiff,    1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, lastDesc,      1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, lastRef,       1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_END
 };
 
@@ -1838,7 +1842,7 @@ static int32_t orig_status_creator(struct status_handl *handl)
         memset(status, 0, status_size);
 
         for (it = NULL; (on = avl_iterate_item(&orig_tree, &it));) {
-                status[i].global_id = globalIdAsString(&on->global_id);
+                status[i].global_id = &on->global_id;
                 status[i].blocked = on->blocked;
                 status[i].primary_ip = on->primary_ip;
                 status[i].routes = on->rt_tree.items;

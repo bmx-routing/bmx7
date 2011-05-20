@@ -654,6 +654,9 @@ void free_orig_node(struct orig_node *on)
 
         purge_orig_router(on, NULL, NO);
 
+        if (on->desc)
+                cb_plugin_hooks(PLUGIN_CB_DESCRIPTION_DESTROY, on);
+
         if (on->desc && !on->blocked)
                 process_description_tlvs(NULL, on, on->desc, TLV_OP_DEL, FRAME_TYPE_PROCESS_ALL, NULL);
 

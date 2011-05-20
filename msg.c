@@ -3284,15 +3284,16 @@ struct dhash_node * process_description(struct packet_buff *pb, struct descripti
                 goto process_desc0_error;
 
 /*
-        // actually I want to accept descriptions without any primary IP:
-        if (!on->blocked && !ip_set(&on->ort.primary_ip))
-                goto process_desc0_error;
-*/
+                // actually I want to accept descriptions without any primary IP:
+                if (!on->blocked && !ip_set(&on->ort.primary_ip))
+                        goto process_desc0_error;
+         */
 
-        cb_plugin_hooks(PLUGIN_CB_DESCRIPTION_DESTROY, on);
 
-        if (on->desc)
+        if (on->desc) {
+                cb_plugin_hooks(PLUGIN_CB_DESCRIPTION_DESTROY, on);
                 debugFree(on->desc, -300111);
+        }
 
         on->desc = desc;
         desc = NULL;

@@ -689,7 +689,7 @@ void dbg_printf(struct ctrl_node *cn, char *last, ...)
         va_start(ap, last);
 //      vsnprintf(s, MAX_DBG_STR_SIZE, last, ap);
         if (vdprintf(cn->fd, last, ap) < 0) {
-                wait_sec_msec(0, 10);
+                wait_sec_msec(0, 100);
                 dprintf(cn->fd, "\nERROR: %s !\n", strerror(errno));
         }
         va_end(ap);

@@ -677,26 +677,25 @@ void dbg_printf(struct ctrl_node *cn, char *last, ...)
         if (!cn || cn->fd <= 0)
                 return;
 
-/*
+
         static char s[ MAX_DBG_STR_SIZE + 1 ];
         ssize_t w, out = 0;
         int tries = 1;
-*/
+
 
         errno = 0;
 
         va_list ap;
         va_start(ap, last);
-//      vsnprintf(s, MAX_DBG_STR_SIZE, last, ap);
+        vsnprintf(s, MAX_DBG_STR_SIZE, last, ap);
+/*
         if (vdprintf(cn->fd, last, ap) < 0) {
                 wait_sec_msec(0, 100);
                 dprintf(cn->fd, "\nERROR: %s !\n", strerror(errno));
         }
+*/
         va_end(ap);
 
-
-
-/*
         // CONNECTION_END_CHR is reserved for signaling connection end
         paranoia(-500146, (strchr(s, CONNECTION_END_CHR)));
 
@@ -722,7 +721,6 @@ void dbg_printf(struct ctrl_node *cn, char *last, ...)
 
                 errno = 0;
         }
-*/
 }
 
 #endif

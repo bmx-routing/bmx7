@@ -1655,6 +1655,7 @@ struct bmx_status {
         LOCAL_ID_T my_local_id;
         char *uptime;
         char cpu_load[6];
+        uint16_t nodes;
 };
 
 static const struct field_format bmx_status_format[] = {
@@ -1666,6 +1667,7 @@ static const struct field_format bmx_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_HEX,               bmx_status, my_local_id,   1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      bmx_status, uptime,        1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       bmx_status, cpu_load,      1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              bmx_status, nodes,         1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_END
 };
 
@@ -1680,6 +1682,7 @@ static int32_t bmx_status_creator(struct status_handl *handl)
         status->my_local_id = ntohl(my_local_id);
         status->uptime = get_human_uptime(0);
         sprintf(status->cpu_load, "%d.%1d", s_curr_avg_cpu_load / 10, s_curr_avg_cpu_load % 10);
+        status->nodes = orig_tree.items;
         return sizeof (struct bmx_status);
 }
 
@@ -2109,10 +2112,8 @@ int32_t opt_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_
 
                 if ((handl = avl_find_item(&status_tree, status_name)) && (data_len = ((*(handl->frame_creator))(handl)))) {
 
-                        dbg_printf(cn, "%s %s:\n", handl->code_category, handl->status_name);
+                        dbg_printf(cn, "%s:\n", handl->status_name);
                         fields_dbg_table(cn, FIELD_RELEVANCE_HIGH, data_len, handl->data, handl->min_msg_size, handl->format);
-                        dbg_printf(cn, "\n");
-                        
                 }
 	}
 
@@ -2160,11 +2161,16 @@ static struct opt_type bmx_options[]=
 			0,		"show routes\n"},
 */
 
+	{ODI,0,ARG_INTERFACES,	        0,  5,A_PS0,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
+			0,		"show interfaces\n"},
+
 	{ODI,0,ARG_LINKS,		0,  5,A_PS0,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
 			0,		"show links\n"},
 
+/*
 	{ODI,0,ARG_LOCALS,      	0,  5,A_PS0,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
 			0,		"show locals\n"},
+*/
 
 	{ODI,0,ARG_ORIGINATORS,	        0,  5,A_PS0,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
 			0,		"show originators\n"},

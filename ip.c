@@ -3182,9 +3182,11 @@ static struct opt_type ip_options[]=
 			ARG_VALUE_FORM,	HLP_DEV_GLOBAL_PREFIX}
 
         ,
+/*
 	{ODI,0,ARG_INTERFACES,	         0,  5,A_PS0,A_USR,A_DYI,A_ARG,A_ANY,	0,		0,		1,		0,0,		opt_interfaces,
 			0,		"show configured interfaces"}
         ,
+*/
 
 	{ODI,0,ARG_PEDANTIC_CLEANUP,	0,  5,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&Pedantic_cleanup,0,		1,		DEF_PEDANT_CLNUP,0,0,
 			ARG_VALUE_FORM,	"disable/enable pedantic cleanup of system configuration (like ip_forward,..) \n"

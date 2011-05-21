@@ -300,7 +300,7 @@ int32_t update_json_parameters(void)
                                 }
                                 json_object_array_add(jps, jp);
                         }
-                        json_object_object_add(jopt, "CHILD_OPTIONS", jps);
+                        json_object_object_add(jopt, "PARENT_INSTANCES", jps);
                 }
                 json_object_array_add(jopts, jopt);
         }

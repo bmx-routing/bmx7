@@ -125,6 +125,17 @@ char* memAsCharString( const char* mem, uint32_t len)
         return out[c];
 }
 
+int32_t max_i32(int32_t a, int32_t b)
+{
+        return (a > b) ? a : b;
+}
+
+int32_t min_i32( int32_t a, int32_t b )
+{
+        return (a < b) ? a : b;
+}
+
+
 
 //http://en.wikipedia.org/wiki/Fast_inverse_square_root
 //http://www.codemaestro.com/reviews/9

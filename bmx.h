@@ -563,6 +563,7 @@ enum ADGSN {
 #define MAX( a, b ) ( (a>b) ? (a) : (b) )
 #define MIN( a, b ) ( (a<b) ? (a) : (b) )
 
+
 #define U64_MAX ((uint64_t)(-1))
 #define U32_MAX ((uint32_t)(-1))
 #define I32_MAX ((U32_MAX>>1))
@@ -637,6 +638,7 @@ enum {
 #define FIELD_STANDARD_SIZES {-1,-1,-1,-8,-8,(8*sizeof(void*)),(8*sizeof(void*)),(8*sizeof(UMETRIC_T)),32,128,128,128,48}
 // negative values mean size must be multiple of negativ value, positive values mean absolute bit sizes
 
+#define FIELD_FORMAT_MAX_ITEMS 100
 enum {
         FIELD_RELEVANCE_LOW,
         FIELD_RELEVANCE_MEDI,
@@ -699,7 +701,7 @@ int64_t field_get_value(const struct field_format *format, uint16_t min_msg_size
 
 char *field_dbg_value(const struct field_format *format, uint16_t min_msg_size, uint8_t *data, uint32_t pos_bit, uint32_t bits);
 
-uint32_t fields_dbg(struct ctrl_node *cn, uint16_t relevance, uint16_t data_size, uint8_t *data,
+uint32_t fields_dbg_lines(struct ctrl_node *cn, uint16_t relevance, uint16_t data_size, uint8_t *data,
                     uint16_t min_msg_size,  const struct field_format *format);
 
 

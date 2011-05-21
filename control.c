@@ -662,6 +662,14 @@ uint8_t __dbgf_all( void ) {
 	return YES;
 }
 
+void dbg_spaces(struct ctrl_node *cn, uint16_t spaces)
+{
+        uint16_t i;
+        for (i = 0; i < spaces; i++)
+                dbg_printf(cn, " ");
+
+}
+
 void dbg_printf(struct ctrl_node *cn, char *last, ...)
 {
 #define MAX_DBG_WRITES 4

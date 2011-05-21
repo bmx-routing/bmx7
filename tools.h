@@ -53,6 +53,10 @@ IDM_T validate_name_string(char* name, uint32_t field_len);
 
 char *globalIdAsString( struct GLOBAL_ID *id );
 
+
+int32_t max_i32( int32_t a, int32_t b );
+int32_t min_i32( int32_t a, int32_t b );
+
 float fast_inverse_sqrt(float x);
 
 uint32_t rand_num(const uint32_t limit);

@@ -1559,14 +1559,14 @@ int16_t field_format_get_items(const struct field_format *format) {
         int16_t i=-1;
 
         while (format[++i].field_type != FIELD_TYPE_END) {
-                assertion(-501244, (i < 100));
+                assertion(-501244, (i < FIELD_FORMAT_MAX_ITEMS));
         }
 
         return i;
 }
 
-uint32_t fields_dbg(struct ctrl_node *cn, uint16_t relevance, uint16_t data_size, uint8_t *data,
-                    uint16_t min_msg_size, const struct field_format *format)
+uint32_t fields_dbg_lines(struct ctrl_node *cn, uint16_t relevance, uint16_t data_size, uint8_t *data,
+                          uint16_t min_msg_size, const struct field_format *format)
 {
         TRACE_FUNCTION_CALL;
         assertion(-501209, format);
@@ -1593,6 +1593,50 @@ uint32_t fields_dbg(struct ctrl_node *cn, uint16_t relevance, uint16_t data_size
 
         return msgs_size;
 }
+
+void fields_dbg_table(struct ctrl_node *cn, uint16_t relevance, uint16_t data_size, uint8_t *data,
+                          uint16_t min_msg_size, const struct field_format *format)
+{
+        TRACE_FUNCTION_CALL;
+        assertion(-501209, (format && data && cn));
+
+        uint16_t field_string_sizes[FIELD_FORMAT_MAX_ITEMS] = {0};
+        uint32_t fields = field_format_get_items(format);
+        assertion(-500000, (fields && fields <= FIELD_FORMAT_MAX_ITEMS));
+
+        struct field_iterator it1 = {.format = format, .data = data, .data_size = data_size, .min_msg_size = min_msg_size};
+        while (field_iterate(&it1) == SUCCESS) {
+
+                field_string_sizes[it1.field] = max_i32(field_string_sizes[it1.field], strlen(
+                        field_dbg_value(&format[it1.field], min_msg_size, data, it1.field_bit_pos, it1.field_bits)));
+        }
+
+        uint8_t i = 0;
+        for (i = 0; i < fields; i++) {
+
+                field_string_sizes[i] = max_i32(field_string_sizes[i], strlen(format[i].field_name));
+
+                if (format[i].field_relevance >= relevance) {
+                        dbg_printf(cn, "%s", format[i].field_name);
+                        dbg_spaces(cn, field_string_sizes[i] - strlen(format[i].field_name) + (i == fields - 1 ? 0 : 1));
+                }
+        }
+        dbg_printf(cn, "\n");
+
+        struct field_iterator it2 = {.format = format, .data = data, .data_size = data_size, .min_msg_size = min_msg_size};
+        while(field_iterate(&it2) == SUCCESS) {
+
+                if (format[it2.field].field_relevance >= relevance) {
+                        char *val = field_dbg_value(&format[it2.field], min_msg_size, data, it2.field_bit_pos, it2.field_bits);
+                        dbg_printf(cn, "%s", val);
+                        dbg_spaces(cn, field_string_sizes[it2.field] - strlen(val) + (it2.field == fields - 1 ? 0 : 1));
+                }
+
+                if (it2.field == fields - 1)
+                        dbg_printf(cn, "\n");
+        }
+}
+
 
 void register_status_handl(const struct status_handl *handl)
 {
@@ -1652,67 +1696,110 @@ static struct status_handl bmx_status_handl = {
 
 
 struct link_status {
+        GLOBAL_ID_T *global_id;
         IPX_T llocal_ip;
         IFNAME_T via_dev;
         uint8_t rx_rate;
+        uint8_t best_rx_lndev;
         uint8_t tx_rate;
+        uint8_t best_tx_lndev;
+        uint8_t routes;
+        uint8_t wants_ogms;
         DEVADV_IDX_T my_dev_idx;
         DEVADV_IDX_T nb_dev_idx;
-        LOCAL_ID_T nb_local_id;
-        IID_T nb_iid_4_me;
         HELLO_SQN_T last_hello_sqn;
         TIME_T last_hello_adv;
-        uint8_t best_rx_lndev;
-        uint8_t best_tx_lndev;
+
+        LOCAL_ID_T nb_local_id;
+        IID_T nb_iid_4_me;
+        uint8_t link_adv_4_him;
+        uint8_t link_adv_4_me;
+        DEVADV_SQN_T dev_adv_sqn;
+        DEVADV_SQN_T dev_adv_sqn_diff;
+        LINKADV_SQN_T link_adv_sqn;
+        LINKADV_SQN_T link_adv_sqn_diff;
+        TIME_T last_link_adv;
 };
 
 static const struct field_format link_status_format[] = {
-        FIELD_FORMAT_INIT(FIELD_TYPE_IPX,         link_status, llocal_ip,       1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR, link_status, via_dev,         1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        link_status, rx_rate,         1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        link_status, rx_rate,         1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        link_status, my_dev_idx,      1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        link_status, nb_dev_idx,      1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        link_status, nb_local_id,     1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        link_status, nb_iid_4_me,     1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        link_status, last_hello_sqn,  1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        link_status, last_hello_adv,  1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        link_status, best_rx_lndev,   1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        link_status, best_tx_lndev,   1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, link_status, global_id,         1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_IPX,               link_status, llocal_ip,         1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       link_status, via_dev,           1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, rx_rate,           1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, best_rx_lndev,     1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, tx_rate,           1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, best_tx_lndev,     1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, routes,            1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wants_ogms,        1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, my_dev_idx,        1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, nb_dev_idx,        1, FIELD_RELEVANCE_MEDI),
+
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, last_hello_sqn,    1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, last_hello_adv,    1, FIELD_RELEVANCE_MEDI),
+
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, nb_local_id,       1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, nb_iid_4_me,       1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, link_adv_4_him,    1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, link_adv_4_me,     1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, dev_adv_sqn,       1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, dev_adv_sqn_diff,  1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, link_adv_sqn,      1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, link_adv_sqn_diff, 1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, last_link_adv,     1, FIELD_RELEVANCE_MEDI),
+
         FIELD_FORMAT_END
 };
 
 static int32_t link_status_creator(struct status_handl *handl)
 {
-        struct avl_node *it;
+        struct avl_node *link_it, *local_it;
         struct link_node *link;
+        struct local_node *local;
         uint32_t status_size = link_dev_tree.items * sizeof (struct link_status);
         uint32_t i = 0;
 
         struct link_status *status = ((struct link_status*) (handl->data = debugRealloc(handl->data, status_size, -300358)));
         memset(status, 0, status_size);
 
-        for (it = NULL; (link = avl_iterate_item(&link_tree, &it));) {
-                struct link_dev_node *lndev = NULL;
+        for (local_it = NULL; (local = avl_iterate_item(&local_tree, &local_it));) {
 
-                while ((lndev = list_iterate(&link->lndev_list, lndev))) {
+                struct orig_node *on = local->neigh ? local->neigh->dhn->on : NULL;
 
-                        status[i].llocal_ip = link->link_ip;
-                        status[i].via_dev = lndev->key.dev->label_cfg;
-                        status[i].rx_rate = ((lndev->timeaware_rx_probe * 100) / UMETRIC_MAX);
-                        status[i].tx_rate = ((lndev->timeaware_tx_probe * 100) / UMETRIC_MAX);
-                        status[i].my_dev_idx = lndev->key.dev->dev_adv_idx;
-                        status[i].nb_dev_idx = link->key.dev_idx;
-                        status[i].nb_local_id = ntohl(link->key.local_id);
-                        status[i].nb_iid_4_me = link->local->neigh ? link->local->neigh->neighIID4me : 0;
-                        status[i].last_hello_sqn = link->hello_sqn_max;
-                        status[i].last_hello_adv = ((TIME_T) (bmx_time - link->hello_time_max)) / 1000;
-                        status[i].best_rx_lndev = (lndev == link->local->best_rp_lndev);
-                        status[i].best_tx_lndev = (lndev == link->local->best_tp_lndev);
-                        i++;
-                        assertion(-501225, (status_size >= i * sizeof (struct link_status)));
+                for (link_it = NULL; (link = avl_iterate_item(&local->link_tree, &link_it));) {
+                        struct link_dev_node *lndev = NULL;
+
+                        while ((lndev = list_iterate(&link->lndev_list, lndev))) {
+
+                                status[i].global_id = &on->global_id;
+                                status[i].llocal_ip = link->link_ip;
+                                status[i].via_dev = lndev->key.dev->label_cfg;
+                                status[i].rx_rate = ((lndev->timeaware_rx_probe * 100) / UMETRIC_MAX);
+                                status[i].best_rx_lndev = (lndev == local->best_rp_lndev);
+                                status[i].tx_rate = ((lndev->timeaware_tx_probe * 100) / UMETRIC_MAX);
+                                status[i].best_tx_lndev = (lndev == local->best_tp_lndev);
+                                status[i].routes = (lndev == local->best_rp_lndev) ? local->orig_routes : 0;
+                                status[i].wants_ogms = (lndev == local->best_rp_lndev) ? local->rp_ogm_request_rcvd : 0;
+                                status[i].my_dev_idx = lndev->key.dev->dev_adv_idx;
+                                status[i].nb_dev_idx = link->key.dev_idx;
+                                status[i].last_hello_sqn = link->hello_sqn_max;
+                                status[i].last_hello_adv = ((TIME_T) (bmx_time - link->hello_time_max)) / 1000;
+
+                                status[i].nb_local_id = ntohl(link->key.local_id);
+                                status[i].nb_iid_4_me = local->neigh ? local->neigh->neighIID4me : 0;
+                                status[i].link_adv_4_him = local->link_adv_msg_for_him;
+                                status[i].link_adv_4_me = local->link_adv_msg_for_me;
+                                status[i].dev_adv_sqn = local->dev_adv_sqn;
+                                status[i].dev_adv_sqn_diff = ((DEVADV_SQN_T) (local->link_adv_dev_sqn_ref - local->dev_adv_sqn));
+                                status[i].link_adv_sqn = local->link_adv_sqn;
+                                status[i].link_adv_sqn_diff = ((LINKADV_SQN_T) (local->packet_link_sqn_ref - local->link_adv_sqn));
+                                status[i].last_link_adv = ((TIME_T) (bmx_time - local->link_adv_time)) / 1000;
+
+                                i++;
+                                assertion(-501225, (status_size >= i * sizeof (struct link_status)));
+                        }
                 }
         }
+
         assertion(-501226, (status_size == i * sizeof (struct link_status)));
         return status_size;
 }
@@ -1726,6 +1813,7 @@ static struct status_handl link_status_handl = {
 };
 
 
+/*
 
 
 struct local_status {
@@ -1798,6 +1886,7 @@ static struct status_handl local_status_handl = {
 };
 
 
+*/
 
 
 
@@ -2019,7 +2108,7 @@ int32_t opt_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_
                 if ((handl = avl_find_item(&status_tree, status_name)) && (data_len = ((*(handl->frame_creator))(handl)))) {
 
                         dbg_printf(cn, "%s %s:\n", handl->code_category, handl->status_name);
-                        fields_dbg(cn, FIELD_RELEVANCE_HIGH, data_len, handl->data, handl->min_msg_size, handl->format);
+                        fields_dbg_table(cn, FIELD_RELEVANCE_HIGH, data_len, handl->data, handl->min_msg_size, handl->format);
                         dbg_printf(cn, "\n");
                         
                 }
@@ -2173,7 +2262,7 @@ void init_bmx(void)
 
         register_status_handl(&bmx_status_handl);
         register_status_handl(&link_status_handl);
-        register_status_handl(&local_status_handl);
+//        register_status_handl(&local_status_handl);
         register_status_handl(&orig_status_handl);
 }
 

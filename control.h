@@ -187,7 +187,7 @@ void _dbgf_all ( int8_t dbgt, const char *f, char *last, ... );
 uint8_t __dbgf_all( void );
 
 void dbg_printf( struct ctrl_node *cn, char *last, ...  );
-
+void dbg_spaces(struct ctrl_node *cn, uint16_t spaces);
 #else
 
 #define dbgf( dbgl, dbgt, ...)  		printf( __VA_ARGS__ )
@@ -207,7 +207,7 @@ void dbg_printf( struct ctrl_node *cn, char *last, ...  );
 #define dbg_sys( dbgt, ... ) 			printf( __VA_ARGS__ )
 #define dbgf_ext( dbgt, ... ) 			printf( __VA_ARGS__ )
 #define dbg_printf( cn, ...  ) 			printf( __VA_ARGS__ )
-
+#define dbg_spaces(cn, spaces)
 #endif
 
 void accept_ctrl_node( void );

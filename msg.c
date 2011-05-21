@@ -150,7 +150,7 @@ void register_frame_handler(struct frame_handl *array, int pos, struct frame_han
         assertion(-500975, (handl->tx_task_interval_min <= CONTENT_MIN_TX_INTERVAL_MAX));
 
         assertion(-501213, IMPLIES(handl->msg_format, handl->min_msg_size ==
-                fields_dbg(NULL, FIELD_RELEVANCE_LOW, 0, NULL, handl->min_msg_size, handl->msg_format)));
+                fields_dbg_lines(NULL, FIELD_RELEVANCE_LOW, 0, NULL, handl->min_msg_size, handl->msg_format)));
                 
         array[pos] = *handl;
 
@@ -3466,7 +3466,7 @@ int32_t opt_show_descriptions(uint8_t cmd, uint8_t _save, struct opt_type *opt,
                         
                         dbg_printf(cn, "%s:\n", packet_frame_handler[FRAME_TYPE_DESC_ADV].name);
 
-                        fields_dbg(cn, relevance, sizeof (struct msg_description_adv) +tlvs_len, (uint8_t*) desc_buff,
+                        fields_dbg_lines(cn, relevance, sizeof (struct msg_description_adv) +tlvs_len, (uint8_t*) desc_buff,
                                 packet_frame_handler[FRAME_TYPE_DESC_ADV].min_msg_size,
                                 packet_frame_handler[FRAME_TYPE_DESC_ADV].msg_format);
 
@@ -3482,7 +3482,7 @@ int32_t opt_show_descriptions(uint8_t cmd, uint8_t _save, struct opt_type *opt,
 
                                 dbg_printf(cn, "%s:\n", it.handls[it.frame_type].name);
 
-                                fields_dbg(cn, relevance, it.frame_msgs_length, it.msg,
+                                fields_dbg_lines(cn, relevance, it.frame_msgs_length, it.msg,
                                         it.handls[it.frame_type].min_msg_size, it.handls[it.frame_type].msg_format);
                         }
                 }

@@ -251,26 +251,26 @@ int32_t update_json_parameters(void)
                                 if (c_opt->imin != c_opt->imax) {
 
                                         json_object *jopt_min = json_object_new_int(c_opt->imin);
-                                        json_object_object_add(jopt, "min", jopt_min);
+                                        json_object_object_add(jchild, "min", jopt_min);
                                         json_object *jopt_max = json_object_new_int(c_opt->imax);
-                                        json_object_object_add(jopt, "max", jopt_max);
+                                        json_object_object_add(jchild, "max", jopt_max);
                                         json_object *jopt_def = json_object_new_int(c_opt->idef);
-                                        json_object_object_add(jopt, "def", jopt_def);
+                                        json_object_object_add(jchild, "def", jopt_def);
 
                                 } else if (c_opt->sdef) {
 
                                         json_object *jopt_def = json_object_new_string(c_opt->sdef);
-                                        json_object_object_add(jopt, "def", jopt_def);
+                                        json_object_object_add(jchild, "def", jopt_def);
                                 }
 
                                 if (c_opt->syntax) {
                                         json_object *jopt_syntax = json_object_new_string(c_opt->syntax);
-                                        json_object_object_add(jopt, "syntax", jopt_syntax);
+                                        json_object_object_add(jchild, "syntax", jopt_syntax);
                                 }
 
                                 if (c_opt->help) {
                                         json_object *jopt_help = json_object_new_string(c_opt->help);
-                                        json_object_object_add(jopt, "help", jopt_help);
+                                        json_object_object_add(jchild, "help", jopt_help);
                                 }
 
                                 json_object_array_add(jchilds, jchild);

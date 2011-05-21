@@ -1628,8 +1628,8 @@ void fields_dbg_table(struct ctrl_node *cn, uint16_t relevance, uint16_t data_si
 
                 if (format[it2.field].field_relevance >= relevance) {
                         char *val = field_dbg_value(&format[it2.field], min_msg_size, data, it2.field_bit_pos, it2.field_bits);
-                        dbg_printf(cn, "%s", val);
-                        dbg_spaces(cn, field_string_sizes[it2.field] - strlen(val) + (it2.field == fields - 1 ? 0 : 1));
+                        dbg_spaces(cn, field_string_sizes[it2.field] - strlen(val));
+                        dbg_printf(cn, "%s%s", val, (it2.field == fields - 1 ? "" : " "));
                 }
 
                 if (it2.field == fields - 1)
@@ -1969,6 +1969,7 @@ int32_t opt_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_
 
         if ( cmd == OPT_APPLY ) {
 
+/*
                 if (!strcmp(opt->long_name, ARG_VERSION)) {
 
                 } else if (!strcmp(opt->long_name, ARG_STATUS)) {
@@ -2001,7 +2002,7 @@ int32_t opt_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_
                                                 lndev->key.dev->dev_adv_idx, link->key.dev_idx, ntohl(link->key.local_id),
                                                 link->local->neigh ? link->local->neigh->neighIID4me : 0,
                                                 link->hello_sqn_max,
-                                                ((TIME_T)(bmx_time - link->hello_time_max/*lndev->key.link->local->rp_adv_time*/)) / 1000,
+                                                ((TIME_T)(bmx_time - link->hello_time_max)) / 1000,
                                                 (lndev == link->local->best_rp_lndev ? "Rp" : " "),
                                                 (lndev == link->local->best_tp_lndev ? "Tp" : " ")
                                                 );
@@ -2098,6 +2099,7 @@ int32_t opt_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_
 			return FAILURE;
                 }
 
+*/
 
 
                 struct status_handl *handl = NULL;
@@ -2112,7 +2114,6 @@ int32_t opt_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_
                         dbg_printf(cn, "\n");
                         
                 }
-
 	}
 
 	return SUCCESS;

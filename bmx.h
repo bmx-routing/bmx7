@@ -62,6 +62,7 @@ typedef struct dhash_node IID_NODE_T;
 //#define INET6_ADDRSTRLEN INET6_ADDRSTRLEN    // from in.h
 
 #define IPX_STR_LEN INET6_ADDRSTRLEN
+#define IPX_PREFIX_STR_LEN (INET6_ADDRSTRLEN + 4)
 
 
 typedef uint32_t IP4_T;
@@ -684,7 +685,6 @@ struct field_iterator {
 struct status_handl {
         uint16_t min_msg_size;
         char status_name[16];
-        char *code_category;
         uint8_t *data;
 
 	int32_t (*frame_creator) (struct status_handl *status_handl);
@@ -707,7 +707,8 @@ uint32_t fields_dbg_lines(struct ctrl_node *cn, uint16_t relevance, uint16_t dat
 
 uint32_t field_iterate(struct field_iterator *it);
 
-
+void register_status_handl(uint16_t min_msg_size, const struct field_format* format, char *name,
+                            int32_t(*creator) (struct status_handl *status_handl));
 
 struct task_node {
 	struct list_node list;

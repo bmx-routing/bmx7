@@ -1284,6 +1284,7 @@ void cleanup_all(int32_t status)
                         avl_remove(&status_tree, handl->status_name, -300357);
                         if (handl->data)
                                 debugFree(handl->data, -300359);
+                        debugFree(handl, -300000);
                 }
 
                 purge_link_route_orig_nodes(NULL, NO);
@@ -1638,11 +1639,22 @@ void fields_dbg_table(struct ctrl_node *cn, uint16_t relevance, uint16_t data_si
 }
 
 
-void register_status_handl(const struct status_handl *handl)
+
+void register_status_handl(uint16_t min_msg_size, const struct field_format* format, char *name,
+                            int32_t(*creator) (struct status_handl *status_handl))
 {
+        struct status_handl *handl = debugMalloc(sizeof (struct status_handl), -300000);
+        memset(handl, 0, sizeof (handl));
+
+        handl->min_msg_size = min_msg_size;
+        handl->format = format;
+        strcpy(handl->status_name, name);
+        handl->frame_creator = creator;
+
         assertion(-501224, !avl_find(&status_tree, &handl->status_name));
         avl_insert(&status_tree, (void*) handl, -300357);
 }
+
 
 
 
@@ -1686,13 +1698,6 @@ static int32_t bmx_status_creator(struct status_handl *handl)
         return sizeof (struct bmx_status);
 }
 
-static struct status_handl bmx_status_handl = {
-        .min_msg_size = sizeof(struct bmx_status),
-        .format = bmx_status_format,
-        .status_name = ARG_STATUS,
-        .code_category = CODE_CATEGORY_NAME,
-        .frame_creator = bmx_status_creator
-};
 
 
 
@@ -1807,14 +1812,6 @@ static int32_t link_status_creator(struct status_handl *handl)
         return status_size;
 }
 
-static struct status_handl link_status_handl = {
-        .min_msg_size = sizeof(struct link_status),
-        .format = link_status_format,
-        .status_name = ARG_LINKS,
-        .code_category = CODE_CATEGORY_NAME,
-        .frame_creator = link_status_creator
-};
-
 
 /*
 
@@ -1880,13 +1877,6 @@ static int32_t locals_status_creator(struct status_handl *handl)
 }
 
 
-static struct status_handl local_status_handl = {
-        .min_msg_size = sizeof(struct local_status),
-        .format = local_status_format,
-        .status_name = ARG_LOCALS,
-        .code_category = CODE_CATEGORY_NAME,
-        .frame_creator = locals_status_creator
-};
 
 
 */
@@ -1955,13 +1945,6 @@ static int32_t orig_status_creator(struct status_handl *handl)
         return status_size;
 }
 
-static struct status_handl orig_status_handl = {
-        .min_msg_size = sizeof(struct orig_status),
-        .format = orig_status_format,
-        .status_name = ARG_ORIGINATORS,
-        .code_category = CODE_CATEGORY_NAME,
-        .frame_creator = orig_status_creator
-};
 
 
 
@@ -2267,10 +2250,10 @@ void init_bmx(void)
 
         register_options_array(bmx_options, sizeof ( bmx_options), CODE_CATEGORY_NAME);
 
-        register_status_handl(&bmx_status_handl);
-        register_status_handl(&link_status_handl);
-//        register_status_handl(&local_status_handl);
-        register_status_handl(&orig_status_handl);
+        register_status_handl(sizeof (struct bmx_status), bmx_status_format, ARG_STATUS, bmx_status_creator);
+        register_status_handl(sizeof (struct link_status), link_status_format, ARG_LINKS, link_status_creator);
+        //register_status_handl(sizeof (struct local_status), local_status_format, ARG_LOCALS, locals_status_creator);
+        register_status_handl(sizeof (struct orig_status), orig_status_format, ARG_ORIGINATORS, orig_status_creator);
 }
 
 

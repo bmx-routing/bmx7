@@ -2762,55 +2762,69 @@ int32_t opt_ip_version(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
 	return SUCCESS;
 }
 
+struct dev_status {
+        char* devName;
+        DEVADV_IDX_T devIdx;
+        char *state;
+        char *type;
+        UMETRIC_T rateMin;
+        UMETRIC_T rateMax;
+        char llocalIp[IPX_PREFIX_STR_LEN];
+        char globalIp[IPX_PREFIX_STR_LEN];
+        char *multicastIp;
+        HELLO_SQN_T helloSqn;
+        uint8_t primary;
+};
 
+static const struct field_format dev_status_format[] = {
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,              dev_status, devName,     1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,                      dev_status, devIdx,         1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,              dev_status, state,       1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,              dev_status, type,        1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,                   dev_status, rateMin,     1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,                   dev_status, rateMax,     1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,               dev_status, llocalIp,    1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,               dev_status, globalIp,    1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,              dev_status, multicastIp, 1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,                      dev_status, helloSqn,    1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,                      dev_status, primary,     1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_END
+};
 
-
-
-STATIC_FUNC
-int32_t opt_interfaces(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
+static int32_t dev_status_creator(struct status_handl *handl)
 {
-	TRACE_FUNCTION_CALL;
+        struct avl_node *it = NULL;
+        struct dev_node *dev;
+        uint32_t status_size = dev_name_tree.items * sizeof (struct dev_status);
+        uint32_t i = 0;
+        struct dev_status *status = ((struct dev_status*) (handl->data = debugRealloc(handl->data, status_size, -300000)));
+        memset(status, 0, status_size);
+
+        while ((dev = avl_iterate_item(&dev_name_tree, &it))) {
+
+                IDM_T iff_up = dev->if_llocal_addr && (dev->if_llocal_addr->iln->flags & IFF_UP);
 
 
-	if ( cmd == OPT_APPLY ) {
-                assertion(-501123, (af_cfg == AF_INET || af_cfg == AF_INET6));
+                status[i].devName = dev->label_cfg.str;
+                status[i].devIdx = dev->dev_adv_idx;
+                status[i].state = iff_up ? "UP":"DOWN";
+                status[i].type = !dev->active ? "INACTIVE" :
+                        (dev->linklayer == TYP_DEV_LL_LO ? "loopback" :
+                        (dev->linklayer == TYP_DEV_LL_LAN ? "ethernet" :
+                        (dev->linklayer == TYP_DEV_LL_WIFI ? "wireless" : "???")));
+                status[i].rateMin = dev->umetric_min;
+                status[i].rateMax = dev->umetric_max;
+                sprintf(status[i].llocalIp, "%s/%d", dev->ip_llocal_str, dev->if_llocal_addr ? dev->if_llocal_addr->ifa.ifa_prefixlen : -1);
+                sprintf(status[i].globalIp, "%s/%d", dev->ip_global_str, dev->if_global_addr ? dev->if_global_addr->ifa.ifa_prefixlen : -1);
+                status[i].multicastIp = dev->ip_brc_str;
+                status[i].helloSqn = dev->link_hello_sqn;
+                status[i].primary = (dev == primary_dev_cfg);
 
-#define DBG_STATUS4_DEV_HEAD "%-10s %3s %5s %9s %7s %7s %2s %16s %2s %16s %16s %8s %1s\n"
-#define DBG_STATUS6_DEV_HEAD "%-10s %3s %5s %9s %7s %7s %3s %30s %3s %30s %30s %8s %1s\n"
-#define DBG_STATUS4_DEV_INFO "%-10s %3d %5s %9s %7s %7s %16s/%-2d %16s/%-2d %16s %8d %1s\n"
-#define DBG_STATUS6_DEV_INFO "%-10s %3d %5s %9s %7s %7s %30s/%-3d %30s/%-3d %30s %8d %1s\n"
-
-                dbg_printf(cn, (af_cfg == AF_INET ? DBG_STATUS4_DEV_HEAD : DBG_STATUS6_DEV_HEAD),
-                        "dev", "idx", "state", "type", "rateMin", "rateMax", " ", "llocal", " ", "global", "broadcast", "helloSqn", "#");
-
-                struct avl_node *it=NULL;
-                struct dev_node *dev;
-                while ((dev = avl_iterate_item(&dev_name_tree, &it))) {
-                        
-                        IDM_T iff_up = dev->if_llocal_addr && (dev->if_llocal_addr->iln->flags & IFF_UP);
-
-                        dbg_printf(cn, (af_cfg == AF_INET ? DBG_STATUS4_DEV_INFO : DBG_STATUS6_DEV_INFO),
-                                dev->label_cfg.str,
-                                dev->dev_adv_idx,
-                                iff_up ? "UP":"DOWN",
-			        !dev->active ? "INACTIVE" :
-			        ( dev->linklayer == TYP_DEV_LL_LO ? "loopback":
-			          ( dev->linklayer == TYP_DEV_LL_LAN ? "ethernet":
-			            ( dev->linklayer == TYP_DEV_LL_WIFI ? "wireless": "???" ) ) ),
-                                umetric_to_human(dev->umetric_min), umetric_to_human(dev->umetric_max),
-                                dev->ip_llocal_str,
-                                dev->if_llocal_addr ? dev->if_llocal_addr->ifa.ifa_prefixlen : -1,
-                                dev->ip_global_str,
-                                dev->if_global_addr ? dev->if_global_addr->ifa.ifa_prefixlen : -1,
-                                dev->ip_brc_str,
-			        dev->link_hello_sqn,
-                                dev == primary_dev_cfg ? "P" : "N"
-			      );
-                }
-                dbg_printf(cn, "\n");
-	}
-	return SUCCESS;
+                i++;
+        }
+        return status_size;
 }
+
 
 
 
@@ -3223,6 +3237,9 @@ void init_ip(void)
                 cleanup_all(-500150);
 
         register_options_array(ip_options, sizeof ( ip_options), CODE_CATEGORY_NAME);
+
+        register_status_handl(sizeof (struct dev_status), dev_status_format, ARG_INTERFACES, dev_status_creator);
+
 
 //        InitSha(&ip_sha);
 }

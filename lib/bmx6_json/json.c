@@ -179,14 +179,14 @@ void json_description_event_hook(int32_t cb_id, struct orig_node *on)
 
 
 STATIC_FUNC
-int32_t update_json_parameters(void)
+int32_t update_json_options(void)
 {
         assertion(-501254, (strcmp(json_dir, JSON_ILLEGAL_DIR)));
 
         int fd;
         char file_name[MAX_PATH_SIZE + 20] = "";
 
-        sprintf(file_name, "%s/%s", json_dir, JSON_PARAMETERS_FILE);
+        sprintf(file_name, "%s/%s", json_dir, JSON_OPTIONS_FILE);
 
         if ((fd = open(file_name, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) < 0) { //check permissions of generated file
 
@@ -289,8 +289,8 @@ int32_t update_json_parameters(void)
                                 assertion(-501231, (p_opt->long_name && p_opt->cfg_t != A_ARG));
                                 json_object *jp = json_object_new_object();
 
-                                json_object *jp_name = json_object_new_string(p_opt->long_name);
-                                json_object_object_add(jp, "name", jp_name);
+//                                json_object *jp_name = json_object_new_string(p_opt->long_name);
+//                                json_object_object_add(jp, "name", jp_name);
 
                                 json_object *jp_val = json_object_new_string(p->p_val);
                                 json_object_object_add(jp, "value", jp_val);
@@ -341,95 +341,6 @@ int32_t update_json_parameters(void)
  	return SUCCESS;
 }
 
-STATIC_FUNC
-int32_t update_json_help(void)
-{
-        assertion(-501254, (strcmp(json_dir, JSON_ILLEGAL_DIR)));
-
-        int fd;
-        char file_name[MAX_PATH_SIZE + 20] = "";
-
-        sprintf(file_name, "%s/%s", json_dir, JSON_OPTIONS_FILE);
-
-        if ((fd = open(file_name, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) < 0) { //check permissions of generated file
-
-		dbgf_sys(DBGT_ERR, "could not open %s - %s", file_name, strerror(errno) );
-		return FAILURE;
-	}
-
-
-        struct opt_type * p_opt = NULL;
-        json_object *jopts = json_object_new_array();
-
-        while ((p_opt = list_iterate(&opt_list, p_opt))) {
-
-                if (p_opt->parent_name)
-                        continue;
-
-                assertion(-501240, (p_opt->long_name));
-
-                json_object *jopt = json_object_new_object();
-
-                json_object *jopt_name = json_object_new_string(p_opt->long_name);
-                json_object_object_add(jopt, "name", jopt_name);
-
-                if (p_opt->opt_t != A_PS0 && p_opt->imin != p_opt->imax) {
-                        json_object *jopt_min = json_object_new_int(p_opt->imin);
-                        json_object_object_add(jopt, "min", jopt_min);
-                        json_object *jopt_max = json_object_new_int(p_opt->imax);
-                        json_object_object_add(jopt, "max", jopt_max);
-                        json_object *jopt_def = json_object_new_int(p_opt->idef);
-                        json_object_object_add(jopt, "def", jopt_def);
-
-                } else if (p_opt->sdef) {
-                        json_object *jopt_def = json_object_new_string(p_opt->sdef);
-                        json_object_object_add(jopt, "def", jopt_def);
-                }
-
-                if (p_opt->syntax) {
-                        json_object *jopt_syntax = json_object_new_string(p_opt->syntax);
-                        json_object_object_add(jopt, "syntax", jopt_syntax);
-                }
-
-                if (p_opt->help) {
-                        json_object *jopt_help = json_object_new_string(p_opt->help);
-                        json_object_object_add(jopt, "help", jopt_help);
-                }
-
-                if (p_opt->d.childs_type_list.items) {
-                        struct opt_type *c_opt = NULL;
-                        json_object *jchilds = json_object_new_array();
-
-                        while ((c_opt = list_iterate(&p_opt->d.childs_type_list, c_opt))) {
-
-                                assertion(-501241, (c_opt->parent_name && c_opt->long_name));
-
-                                json_object *jchild = json_object_new_object();
-
-                                json_object *jopt_name = json_object_new_string(p_opt->long_name);
-                                json_object_object_add(jchild, "name", jopt_name);
-
-
-
-                                json_object_array_add(jchilds, jchild);
-                        }
-                        json_object_object_add(jopt, "child_options", jchilds);
-                }
-                json_object_array_add(jopts, jopt);
-        }
-
-        json_object * jobj = json_object_new_object();
-
-        json_object_object_add(jobj, "options", jopts);
-
-        dprintf(fd, "%s\n", json_object_to_json_string(jobj));
-
-        json_object_put(jobj);
-
-        close(fd);
-
-	return SUCCESS;
-}
 
 
 
@@ -491,8 +402,7 @@ int32_t opt_json_dir(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct op
                 strcpy(json_dir, tmp_dir);
                 strcpy(json_desc_dir, tmp_desc_dir);
 
-                update_json_help();
-                update_json_parameters();
+                update_json_options();
 
         }
 	return SUCCESS;

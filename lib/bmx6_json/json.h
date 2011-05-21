@@ -20,12 +20,13 @@
 #define ARG_JSON_SUBDIR "json_subdir"
 
 #define JSON_OPTIONS_FILE "options"
-#define JSON_PARAMETERS_FILE "parameters"
 
 
 #define JSON_ILLEGAL_DIR "/tmp/ILLEGAL"
 #define DEF_JSON_SUBDIR "json"
 #define DEF_JSON_DESC_SUBDIR "descriptions"
+
+
 
 
 

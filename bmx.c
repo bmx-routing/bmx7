@@ -1950,7 +1950,24 @@ static int32_t orig_status_creator(struct status_handl *handl)
 }
 
 
+STATIC_FUNC
+int32_t opt_version(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
+{
+        TRACE_FUNCTION_CALL;
 
+	if ( cmd != OPT_APPLY )
+		return SUCCESS;
+
+        assertion(-500000, !strcmp(opt->long_name, ARG_VERSION));
+
+        dbg_printf(cn, "%s-%s compatibility=%d codeVersion=%d\n",
+                        BMX_BRANCH, BRANCH_VERSION, COMPATIBILITY_VERSION, CODE_VERSION);
+
+        if (initializing)
+                cleanup_all(CLEANUP_SUCCESS);
+
+        return SUCCESS;
+ }
 
 STATIC_FUNC
 int32_t opt_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
@@ -2137,7 +2154,7 @@ static struct opt_type bmx_options[]=
 {
 //        ord parent long_name          shrt Attributes				*ival		min		max		default		*func,*syntax,*help
 
-	{ODI,0,ARG_VERSION,		'v',0,A_PS0,A_USR,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
+	{ODI,0,ARG_VERSION,		'v',0,A_PS0,A_USR,A_DYI,A_ARG,A_END,	0,		0, 		0,		0,0, 		opt_version,
 			0,		"show version"},
 
 	{ODI,0,ARG_STATUS,		0,  5,A_PS0,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,

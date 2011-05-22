@@ -2920,7 +2920,6 @@ int32_t opt_debug(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_p
 */
 		} else if ( ival == DBGL_DETAILS ) {
 			
-			check_apply_parent_option( ADD, OPT_APPLY, 0, get_option( 0, 0, ARG_VERSION ), 0, cn );
 			check_apply_parent_option( ADD, OPT_APPLY, 0, get_option( 0, 0, ARG_STATUS ), 0, cn );
 			check_apply_parent_option( ADD, OPT_APPLY, 0, get_option( 0, 0, ARG_INTERFACES ), 0, cn );
 			check_apply_parent_option( ADD, OPT_APPLY, 0, get_option( 0, 0, ARG_LINKS ), 0, cn );

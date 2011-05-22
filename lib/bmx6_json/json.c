@@ -67,7 +67,8 @@ json_object * fields_dbg_json(uint16_t relevance, uint16_t data_size, uint8_t *d
                         if (it.field == 0) {
                                 msgs++;
 
-                                if (msgs > 1) {
+                                if (msgs >= 2) {
+                                        jarray = jarray ? jarray : json_object_new_array();
                                         json_object_array_add(jarray, jfields);
                                         jfields = NULL;
                                 }
@@ -95,7 +96,7 @@ json_object * fields_dbg_json(uint16_t relevance, uint16_t data_size, uint8_t *d
 
                 return jfields;
 
-        } else if (msgs > 1) {
+        } else if (msgs >= 2) {
                 
                 json_object_array_add(jarray, jfields);
                 return jarray;

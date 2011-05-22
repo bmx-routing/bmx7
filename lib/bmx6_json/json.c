@@ -326,14 +326,14 @@ int32_t update_json_options(IDM_T show_options, IDM_T show_parameters, char *fil
                                 }
                                 json_object_array_add(jps, jp);
                         }
-                        json_object_object_add(jopt, "PARENT_INSTANCES", jps);
+                        json_object_object_add(jopt, "INSTANCES", jps);
                 }
                 json_object_array_add(jopts, jopt);
         }
 
         json_object * jobj = json_object_new_object();
 
-        json_object_object_add(jobj, "PARENT_OPTIONS", jopts);
+        json_object_object_add(jobj, "OPTIONS", jopts);
 
         dprintf(fd, "%s\n", json_object_to_json_string(jobj));
 

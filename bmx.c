@@ -1447,6 +1447,10 @@ char *field_dbg_value(const struct field_format *format, uint16_t min_msg_size, 
 
                 return globalIdAsString(*((GLOBAL_ID_T**) (&data[pos_bit / 8])));
 
+        } else if (field_type == FIELD_TYPE_GLOBAL_ID) {
+
+                return globalIdAsString(((GLOBAL_ID_T*) (&data[pos_bit / 8])));
+
         } else if (field_type == FIELD_TYPE_UMETRIC) {
 
                 return umetric_to_human(*((UMETRIC_T*) (&data[pos_bit / 8])));

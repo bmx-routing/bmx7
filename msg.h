@@ -611,20 +611,19 @@ struct msg_description_adv {
 
 
 #define DESCRIPTION_MSG_FORMAT { \
-{FIELD_TYPE_UINT,          -1, (8*sizeof(IID_T)),                0, FIELD_RELEVANCE_MEDI, "IID"}, \
-{FIELD_TYPE_STRING_CHAR,   -1, (8*GLOBAL_ID_NAME_LEN),           1, FIELD_RELEVANCE_HIGH, "id_name"},  \
-{FIELD_TYPE_STRING_BINARY, -1, (8*GLOBAL_ID_PKID_LEN),           1, FIELD_RELEVANCE_HIGH, "id_pkid" },  \
-{FIELD_TYPE_UINT,          -1, 16,                               0, FIELD_RELEVANCE_MEDI, "code_version" }, \
-{FIELD_TYPE_STRING_SIZE,   -1, 16,                               0, FIELD_RELEVANCE_LOW,  "extension_msgs_len" }, \
-{FIELD_TYPE_UINT,          -1, 16,                               0, FIELD_RELEVANCE_MEDI, "sqn" }, \
-{FIELD_TYPE_HEX,           -1, 16,                               0, FIELD_RELEVANCE_MEDI, "capabilities" }, \
-{FIELD_TYPE_UINT,          -1, (8*sizeof(OGM_SQN_T)),            0, FIELD_RELEVANCE_MEDI, "ogm_sqn_min" }, \
-{FIELD_TYPE_UINT,          -1, (8*sizeof(OGM_SQN_T)),            0, FIELD_RELEVANCE_MEDI, "ogm_sqn_range" }, \
-{FIELD_TYPE_UINT,          -1, 16,                               0, FIELD_RELEVANCE_HIGH, "tx_interval" }, \
-{FIELD_TYPE_UINT,          -1, 8,                                1, FIELD_RELEVANCE_LOW,  "ttl" }, \
-{FIELD_TYPE_UINT,          -1, 8,                                1, FIELD_RELEVANCE_LOW,  "reserved" }, \
-{FIELD_TYPE_STRING_BINARY, -1, 128,                              1, FIELD_RELEVANCE_LOW,  "reserved" }, \
-{FIELD_TYPE_STRING_BINARY, -1, 0,                                1, FIELD_RELEVANCE_LOW,  "extension_msgs" }, \
+{FIELD_TYPE_UINT,             -1, (8*sizeof(IID_T)),       0, FIELD_RELEVANCE_MEDI, "transmitterIid4x"}, \
+{FIELD_TYPE_GLOBAL_ID,        -1, (8*sizeof(GLOBAL_ID_T)), 1, FIELD_RELEVANCE_HIGH, "globalId"},  \
+{FIELD_TYPE_UINT,             -1, 16,                      0, FIELD_RELEVANCE_MEDI, "codeVersion" }, \
+{FIELD_TYPE_STRING_SIZE,      -1, 16,                      0, FIELD_RELEVANCE_LOW,  "extensionLen" }, \
+{FIELD_TYPE_UINT,             -1, 16,                      0, FIELD_RELEVANCE_MEDI, "descSqn" }, \
+{FIELD_TYPE_HEX,              -1, 16,                      0, FIELD_RELEVANCE_MEDI, "capabilities" }, \
+{FIELD_TYPE_UINT,             -1, (8*sizeof(OGM_SQN_T)),   0, FIELD_RELEVANCE_MEDI, "ogmSqnMin" }, \
+{FIELD_TYPE_UINT,             -1, (8*sizeof(OGM_SQN_T)),   0, FIELD_RELEVANCE_MEDI, "ogmSqnRange" }, \
+{FIELD_TYPE_UINT,             -1, 16,                      0, FIELD_RELEVANCE_HIGH, "txInterval" }, \
+{FIELD_TYPE_UINT,             -1, 8,                       1, FIELD_RELEVANCE_LOW,  "ttl" }, \
+{FIELD_TYPE_UINT,             -1, 8,                       1, FIELD_RELEVANCE_LOW,  "reserved" }, \
+{FIELD_TYPE_STRING_BINARY,    -1, 128,                     1, FIELD_RELEVANCE_LOW,  "reserved" }, \
+{FIELD_TYPE_STRING_BINARY,    -1, 0,                       1, FIELD_RELEVANCE_LOW,  "extensionData" }, \
 FIELD_FORMAT_END}
 
 

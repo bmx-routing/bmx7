@@ -626,6 +626,7 @@ enum {
 	FIELD_TYPE_STRING_BINARY,
 	FIELD_TYPE_POINTER_CHAR,
         FIELD_TYPE_POINTER_GLOBAL_ID,
+        FIELD_TYPE_GLOBAL_ID,
         FIELD_TYPE_UMETRIC,
 	FIELD_TYPE_IP4,
 	FIELD_TYPE_IPX,
@@ -636,7 +637,7 @@ enum {
 	FIELD_TYPE_END
 };
 
-#define FIELD_STANDARD_SIZES {-1,-1,-1,-8,-8,(8*sizeof(void*)),(8*sizeof(void*)),(8*sizeof(UMETRIC_T)),32,128,128,128,48}
+#define FIELD_STANDARD_SIZES {-1,-1,-1,-8,-8,(8*sizeof(void*)),(8*sizeof(void*)),(8*sizeof(GLOBAL_ID_T)),(8*sizeof(UMETRIC_T)),32,128,128,128,48}
 // negative values mean size must be multiple of negativ value, positive values mean absolute bit sizes
 
 #define FIELD_FORMAT_MAX_ITEMS 100

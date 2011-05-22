@@ -58,9 +58,9 @@ static int32_t new_rt_dismissal_div100 = DEF_NEW_RT_DISMISSAL;
 
 static int32_t my_link_window = DEF_HELLO_SQN_WINDOW;
 
-int32_t link_ignore_min = DEF_LINK_IGNORE_MIN;
+//int32_t link_ignore_min = DEF_LINK_IGNORE_MIN;
 
-int32_t link_ignore_max = DEF_LINK_IGNORE_MAX;
+//int32_t link_ignore_max = DEF_LINK_IGNORE_MAX;
 
 
 

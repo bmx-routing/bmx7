@@ -37,7 +37,7 @@
 #define DEF_DUMP_REGRESSION_EXP 4
 #define MIN_DUMP_REGRESSION_EXP 0
 #define MAX_DUMP_REGRESSION_EXP 20
-#define ARG_DUMP_REGRESSION_EXP "traffic_regression_exponent"
+#define ARG_DUMP_REGRESSION_EXP "trafficRegressionExponent"
 
 
 #define DUMP_TYPE_UDP_PAYLOAD   0

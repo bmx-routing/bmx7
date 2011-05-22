@@ -131,9 +131,8 @@ static int ifevent_sk = -1;
 //static Sha ip_sha;
 
 
-#define ARG_PEDANTIC_CLEANUP "pedantic_cleanup"
-#define DEF_PEDANT_CLNUP  NO
-static int32_t Pedantic_cleanup = DEF_PEDANT_CLNUP;
+
+static int32_t Pedantic_cleanup = DEF_PEDANTIC_CLEANUP;
 static int32_t if6_forward_orig = -1;
 static int32_t if4_forward_orig = -1;
 static int32_t if4_rp_filter_all_orig = -1;
@@ -2778,7 +2777,7 @@ struct dev_status {
 
 static const struct field_format dev_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,              dev_status, devName,     1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,                      dev_status, devIdx,         1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,                      dev_status, devIdx,      1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,              dev_status, state,       1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,              dev_status, type,        1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,                   dev_status, rateMin,     1, FIELD_RELEVANCE_HIGH),
@@ -3180,9 +3179,11 @@ static struct opt_type ip_options[]=
 	{ODI,0,ARG_DEV,		        0,  5,A_PM1N,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0, 		0,		0,0, 		opt_dev,
 			"<interface-name>", HLP_DEV}
         ,
+/*
 	{ODI,ARG_DEV,ARG_DEV_TTL,	't',5,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		MIN_TTL,	MAX_TTL,	DEF_TTL,0,	opt_dev,
 			ARG_VALUE_FORM,	HLP_DEV_TTL}
         ,
+*/
 	{ODI,ARG_DEV,ARG_DEV_ANNOUNCE,  'a',5,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		1,		DEF_DEV_ANNOUNCE,0,opt_dev,
 			ARG_VALUE_FORM,	HLP_DEV_ANNOUNCE}
         ,
@@ -3202,7 +3203,7 @@ static struct opt_type ip_options[]=
         ,
 */
 
-	{ODI,0,ARG_PEDANTIC_CLEANUP,	0,  5,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&Pedantic_cleanup,0,		1,		DEF_PEDANT_CLNUP,0,0,
+	{ODI,0,ARG_PEDANTIC_CLEANUP,	0,  5,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&Pedantic_cleanup,0,		1,		DEF_PEDANTIC_CLEANUP,0,0,
 			ARG_VALUE_FORM,	"disable/enable pedantic cleanup of system configuration (like ip_forward,..) \n"
 			"	at program termination. Its generally safer to keep this disabled to not mess up \n"
 			"	with other routing protocols"}

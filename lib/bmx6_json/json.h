@@ -16,8 +16,8 @@
  */
 
 
-#define ARG_JSON_TEST "json_test"
-#define ARG_JSON_SUBDIR "json_subdir"
+
+#define ARG_JSON_SUBDIR "jsonSubdir"
 
 #define JSON_OPTIONS_FILE "options"
 

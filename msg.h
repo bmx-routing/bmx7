@@ -22,10 +22,11 @@
 
 
 
+
 #define MIN_UDPD_SIZE 128 //(6+4+(22+8)+32)+184=72+56=128
 #define DEF_UDPD_SIZE 512 //512
 #define MAX_UDPD_SIZE (MIN( 1400, MAX_PACKET_SIZE))
-#define ARG_UDPD_SIZE "udp_data_size"
+#define ARG_UDPD_SIZE "udpDataSize"
 
 
 
@@ -41,17 +42,17 @@
 #define MIN_DEV_ADVS_TX_ITERS 1
 #define MAX_DEV_ADVS_TX_ITERS 100
 #define DEF_DEV_ADVS_TX_ITERS 1
-#define ARG_DEV_ADVS_TX_ITERS "dev_sends"
+#define ARG_DEV_ADVS_TX_ITERS "devAdvSends"
 
 #define MIN_DEV_ADVS_UNSOLICITED 0
 #define MAX_DEV_ADVS_UNSOLICITED 1
 #define DEF_DEV_ADV_UNSOLICITED 3
-#define ARG_DEV_ADVS_UNSOLICITED "dev_unsolicited_sends"
+#define ARG_DEV_ADVS_UNSOLICITED "devUnsolicitedSends"
 
 #define MIN_DEV_REQS_TX_ITERS 1
 #define MAX_DEV_REQS_TX_ITERS 100
 #define DEF_DEV_REQS_TX_ITERS 4
-#define ARG_DEV_REQS_TX_ITERS "dev_req_sends"
+#define ARG_DEV_REQS_TX_ITERS "devReqSends"
 
 
 
@@ -59,56 +60,56 @@
 #define MIN_LINK_ADVS_TX_ITERS 1
 #define MAX_LINK_ADVS_TX_ITERS 100
 #define DEF_LINK_ADVS_TX_ITERS 1
-#define ARG_LINK_ADVS_TX_ITERS "link_sends"
+#define ARG_LINK_ADVS_TX_ITERS "linkAdvSends"
 
 #define MIN_LINK_ADVS_UNSOLICITED 0
 #define MAX_LINK_ADVS_UNSOLICITED 1
 #define DEF_LINK_ADV_UNSOLICITED  1
-#define ARG_LINK_ADVS_UNSOLICITED "link_unsolicited_sends"
+#define ARG_LINK_ADVS_UNSOLICITED "linkUnsolicitedSends"
 
 #define MIN_LINK_REQS_TX_ITERS 1
 #define MAX_LINK_REQS_TX_ITERS 100
 #define DEF_LINK_REQS_TX_ITERS 4
-#define ARG_LINK_REQS_TX_ITERS "link_req_sends"
+#define ARG_LINK_REQS_TX_ITERS "linkReqSends"
 
 
 
 #define MIN_DSC0_ADVS_TX_ITERS 1
 #define MAX_DSC0_ADVS_TX_ITERS 20
 #define DEF_DESC_ADV_TX_ITERS 1
-#define ARG_DSC0_ADVS_TX_ITERS "desc_sends"
+#define ARG_DSC0_ADVS_TX_ITERS "descAdvSends"
 
 #define MIN_UNSOLICITED_DESC_ADVS 0
 #define MAX_UNSOLICITED_DESC_ADVS 1
 #define DEF_DESC_ADV_UNSOLICITED 1
-#define ARG_UNSOLICITED_DESC_ADVS "desc_unsolicited_sends"
+#define ARG_UNSOLICITED_DESC_ADVS "descUnsolicitedSends"
 
 #define MIN_DSC0_REQS_TX_ITERS 1
 #define MAX_DSC0_REQS_TX_ITERS 100
 #define DEF_DESC_REQ_TX_ITERS 10 //TODO: will blow lndev->tx_task_list[] if new local_ids appeare just for a moment
-#define ARG_DSC0_REQS_TX_ITERS "desc_req_sends"
+#define ARG_DSC0_REQS_TX_ITERS "descReqSends"
 
 
 #define MIN_DHS0_ADVS_TX_ITERS 1
 #define MAX_DHS0_ADVS_TX_ITERS 100
 #define DEF_DHASH_ADV_TX_ITERS 1
-#define ARG_DHS0_ADVS_TX_ITERS "hash_sends"
+#define ARG_DHS0_ADVS_TX_ITERS "descShaAdvSends"
 
 #define MIN_DHS0_REQS_TX_ITERS 1
 #define MAX_DHS0_REQS_TX_ITERS 100
 #define DEF_DHASH_REQ_TX_ITERS 10 //TODO: will blow lndev->tx_task_list[] if new local_ids appeare just for a moment
-#define ARG_DHS0_REQS_TX_ITERS "hash_req_sends"
+#define ARG_DHS0_REQS_TX_ITERS "descShaReqSends"
 
 
 #define MIN_OGM_TX_ITERS 0
 #define MAX_OGM_TX_ITERS 30
 #define DEF_OGM_TX_ITERS 10
-#define ARG_OGM_TX_ITERS "ogm_sends"
+#define ARG_OGM_TX_ITERS "ogmAdvSends"
 
 #define DEF_OGM_ACK_TX_ITERS 1
 #define MIN_OGM_ACK_TX_ITERS 0
 #define MAX_OGM_ACK_TX_ITERS 4
-#define ARG_OGM_ACK_TX_ITERS "ogm_ack_sends"
+#define ARG_OGM_ACK_TX_ITERS "ogmAckSends"
 
 #define CONTENT_MIN_TX_INTERVAL_MIN 0
 #define CONTENT_MIN_TX_INTERVAL__CHECK_FOR_REDUNDANCY 1
@@ -573,30 +574,28 @@ struct msg_dhash_adv { // 2 + X bytes
 
 
 struct description {
-	GLOBAL_ID_T global_id;
+	GLOBAL_ID_T globalId;
 
-	uint16_t code_version;
-	uint16_t dsc_tlvs_len;
+	uint16_t codeVersion;
+	uint16_t capabilities;
 
-	DESC_SQN_T dsc_sqn;
-	uint16_t capabilies;
+	DESC_SQN_T descSqn;
 
-	OGM_SQN_T ogm_sqn_min;
-	OGM_SQN_T ogm_sqn_range;
+	OGM_SQN_T ogmSqnMin;
+	OGM_SQN_T ogmSqnRange;
 
-	uint16_t tx_interval;
+	uint16_t txInterval;
 
-	uint8_t ttl_max;
-	uint8_t reserved1;
+	uint8_t reservedTtl;
+	uint8_t reserved;
 
-	uint32_t reserved[4]; //ensure traditional message size
-
-//	uint8_t tlv_frames[];
+        uint16_t extensionLen;
+//	uint8_t extensionData[];
 } __attribute__((packed));
 
 
 #define MSG_DESCRIPTION0_ADV_UNHASHED_SIZE  2
-#define MSG_DESCRIPTION0_ADV_HASHED_SIZE   (sizeof( GLOBAL_ID_T) + (8 * sizeof(uint32_t)))
+#define MSG_DESCRIPTION0_ADV_HASHED_SIZE   (sizeof( GLOBAL_ID_T) + (4 * sizeof(uint32_t)))
 #define MSG_DESCRIPTION0_ADV_SIZE  (MSG_DESCRIPTION0_ADV_UNHASHED_SIZE + MSG_DESCRIPTION0_ADV_HASHED_SIZE)
 
 struct msg_description_adv {
@@ -614,15 +613,14 @@ struct msg_description_adv {
 {FIELD_TYPE_UINT,             -1, (8*sizeof(IID_T)),       0, FIELD_RELEVANCE_MEDI, "transmitterIid4x"}, \
 {FIELD_TYPE_GLOBAL_ID,        -1, (8*sizeof(GLOBAL_ID_T)), 1, FIELD_RELEVANCE_HIGH, "globalId"},  \
 {FIELD_TYPE_UINT,             -1, 16,                      0, FIELD_RELEVANCE_MEDI, "codeVersion" }, \
-{FIELD_TYPE_STRING_SIZE,      -1, 16,                      0, FIELD_RELEVANCE_LOW,  "extensionLen" }, \
-{FIELD_TYPE_UINT,             -1, 16,                      0, FIELD_RELEVANCE_MEDI, "descSqn" }, \
 {FIELD_TYPE_HEX,              -1, 16,                      0, FIELD_RELEVANCE_MEDI, "capabilities" }, \
+{FIELD_TYPE_UINT,             -1, 16,                      0, FIELD_RELEVANCE_MEDI, "descSqn" }, \
 {FIELD_TYPE_UINT,             -1, (8*sizeof(OGM_SQN_T)),   0, FIELD_RELEVANCE_MEDI, "ogmSqnMin" }, \
-{FIELD_TYPE_UINT,             -1, (8*sizeof(OGM_SQN_T)),   0, FIELD_RELEVANCE_MEDI, "ogmSqnRange" }, \
-{FIELD_TYPE_UINT,             -1, 16,                      0, FIELD_RELEVANCE_HIGH, "txInterval" }, \
-{FIELD_TYPE_UINT,             -1, 8,                       1, FIELD_RELEVANCE_LOW,  "ttl" }, \
+{FIELD_TYPE_UINT,             -1, (8*sizeof(OGM_SQN_T)),   0, FIELD_RELEVANCE_MEDI, ARG_OGM_SQN_RANGE }, \
+{FIELD_TYPE_UINT,             -1, 16,                      0, FIELD_RELEVANCE_HIGH, ARG_TX_INTERVAL }, \
+{FIELD_TYPE_UINT,             -1, 8,                       1, FIELD_RELEVANCE_LOW,  "reservedTtl" }, \
 {FIELD_TYPE_UINT,             -1, 8,                       1, FIELD_RELEVANCE_LOW,  "reserved" }, \
-{FIELD_TYPE_STRING_BINARY,    -1, 128,                     1, FIELD_RELEVANCE_LOW,  "reserved" }, \
+{FIELD_TYPE_STRING_SIZE,      -1, 16,                      0, FIELD_RELEVANCE_LOW,  "extensionLen" }, \
 {FIELD_TYPE_STRING_BINARY,    -1, 0,                       1, FIELD_RELEVANCE_LOW,  "extensionData" }, \
 FIELD_FORMAT_END}
 

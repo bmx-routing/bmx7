@@ -48,9 +48,6 @@ extern int unix_sock;
 
 extern struct list_head ctrl_list;
 
-#define ARG_PEDANTIC_CMDCHECK "pedantic_cmd_check"
-
-
 extern int32_t Client_mode;
 
 
@@ -65,11 +62,11 @@ extern int32_t Client_mode;
 
 
 #define ARG_DEBUG	"debug"
-#define ARG_NO_FORK	"no_fork"
+#define ARG_NO_FORK	"noFork"
 #define ARG_QUIT	"quit"
 
 #define ARG_CONNECT "connect"
-#define ARG_RUN_DIR "runtime_dir"
+#define ARG_RUN_DIR "runtimeDir"
 #define DEF_RUN_DIR "/var/run/bmx6"
 
 extern char run_dir[];

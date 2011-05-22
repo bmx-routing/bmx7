@@ -49,10 +49,10 @@ struct ifname {
 typedef struct ifname IFNAME_T;
 
 
-#define ARG_LLOCAL_PREFIX "llocal_prefix"
+#define ARG_LLOCAL_PREFIX "llocalPrefix"
 #define HLP_LLOCAL_PREFIX "specify link-local prefix for interfaces"
 
-#define ARG_GLOBAL_PREFIX "global_prefix"
+#define ARG_GLOBAL_PREFIX "globalPrefix"
 #define HLP_GLOBAL_PREFIX "specify global prefix for interfaces"
 
 
@@ -60,15 +60,15 @@ typedef struct ifname IFNAME_T;
 #define ARG_DEV  		"dev"
 #define HLP_DEV                 "add or change interface device or its configuration"
 
-#define ARG_DEV_GLOBAL_PREFIX   "global_prefix"
+#define ARG_DEV_GLOBAL_PREFIX   "globalPrefix"
 #define HLP_DEV_GLOBAL_PREFIX   "specify global prefix for interface"
 
-#define ARG_DEV_LLOCAL_PREFIX   "llocal_prefix"
+#define ARG_DEV_LLOCAL_PREFIX   "llocalPrefix"
 #define HLP_DEV_LLOCAL_PREFIX   "specify link-local prefix for interface"
 
-#define ARG_DEV_TTL		"ttl"
-#define HLP_DEV_TTL             "set TTL of generated OGMs"
-#define ARG_DEV_CLONE		"clone"
+//#define ARG_DEV_TTL		"ttl"
+//#define HLP_DEV_TTL             "set TTL of generated OGMs"
+//#define ARG_DEV_CLONE		"clone"
 
 #define ARG_DEV_ANNOUNCE        "announce"
 #define DEF_DEV_ANNOUNCE        YES
@@ -95,31 +95,31 @@ typedef struct ifname IFNAME_T;
 #define TYP_DEV_CHANNEL_EXCLUSIVE 255
 #define MAX_DEV_CHANNEL           255
 
-#define ARG_DEV_BITRATE_MAX       "bitrate_max"
+#define ARG_DEV_BITRATE_MAX       "bitrateMax"
 #define DEF_DEV_BITRATE_MAX         56000000
 #define DEF_DEV_BITRATE_MAX_LAN   1000000000
 #define DEF_DEV_BITRATE_MAX_WIFI    56000000
 #define HLP_DEV_BITRATE_MAX       "set maximum bandwidth as bits/sec of dev"
 
-#define ARG_DEV_BITRATE_MIN       "bitrate_min"
+#define ARG_DEV_BITRATE_MIN       "bitrateMin"
 #define DEF_DEV_BITRATE_MIN          6000000
 #define DEF_DEV_BITRATE_MIN_LAN   1000000000
 #define DEF_DEV_BITRATE_MIN_WIFI     6000000
 
 
 
-#define ARG_IP "ip_version"
+#define ARG_IP "ipVersion"
 #define MIN_IP_VERSION 4
 #define MAX_IP_VERSION 6
 #define DEF_IP_VERSION 4
 
 #define DEF_IP_POLICY_ROUTING 1
-#define ARG_IP_POLICY_ROUTING "policy_routing"
+#define ARG_IP_POLICY_ROUTING "policyRouting"
 
-#define ARG_IP_THROW_RULES "throw_rules"
+#define ARG_IP_THROW_RULES "throwRules"
 #define DEF_IP_THROW_RULES 1
 
-#define ARG_IP_PRIO_RULES "prio_rules"
+#define ARG_IP_PRIO_RULES "prioRules"
 #define DEF_IP_PRIO_RULES 1
 
 
@@ -153,13 +153,15 @@ typedef struct ifname IFNAME_T;
 
 
 extern int32_t base_port;
-#define ARG_BASE_PORT "base_port"
+#define ARG_BASE_PORT "basePort"
 #define DEF_BASE_PORT 6240
 #define MIN_BASE_PORT 1025
 #define MAX_BASE_PORT 60000
 
 
 
+#define ARG_PEDANTIC_CLEANUP "pedanticCleanup"
+#define DEF_PEDANTIC_CLEANUP  NO
 
 
 

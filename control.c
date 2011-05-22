@@ -2427,16 +2427,6 @@ call_option_failure:
 	        ad, opt->ival ? *(opt->ival) : 0, opt->imin, opt->imax, opt->idef,
 	        opt_cmd2str[cmd], opt->opt_t, !initializing, wordlen(in)  );
 	
-	/* This results in too much side effects. And MUST be handled by calling function like apply_stream_opts()
-        if ( !on_the_fly  &&  !pedantic_cmd_check  &&  ( cmd == OPT_PATCH || cmd == OPT_ADJUST || cmd == OPT_CHECK || cmd == OPT_APPLY ) ) {
-	
-                dbg_sys(DBGT_ERR, "ignored SYNTAX ERROR in startup config due to disabled --%s! FIX YOUR CONFIG NOW !!",
-		ARG_PEDANTIC_CMDCHECK );
-		
-		return SUCCESS;
-	}
-	*/
-	
 	return FAILURE;
 }
 

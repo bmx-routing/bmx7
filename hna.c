@@ -696,7 +696,7 @@ STATIC_FUNC
 struct opt_type hna_options[]= {
 //     		ord parent long_name   shrt Attributes				*ival		min		max		default		*function
 
-	{ODI,0,ARG_UHNA,	 	'u',5,A_PM1N,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_uhna,
+	{ODI,0,ARG_UHNA,	 	'a',5,A_PM1N,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_uhna,
 			ARG_PREFIX_FORM,"specify host-network announcement (HNA) for defined ip range"}
         ,
 /*

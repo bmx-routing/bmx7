@@ -196,12 +196,12 @@ typedef struct float_u8 FMETRIC_U8_T;
 #define MIN_TX_INTERVAL 35
 #define MAX_TX_INTERVAL 10000  // < U16_MAX due to metricalgo->ogm_interval field
 #define DEF_TX_INTERVAL 500
-#define ARG_TX_INTERVAL "tx_interval"
+#define ARG_TX_INTERVAL "txInterval"
 extern int32_t my_tx_interval;
 
 #define DEF_TX_DELAY ((2*my_tx_interval) + rand_num(my_tx_interval))
 
-#define ARG_OGM_INTERVAL "ogm_interval"
+#define ARG_OGM_INTERVAL "ogmInterval"
 #define DEF_OGM_INTERVAL 5000
 #define MIN_OGM_INTERVAL 200
 #define MAX_OGM_INTERVAL 60000 // 60000 = 1 minutes
@@ -211,24 +211,24 @@ extern int32_t my_ogm_interval;
 #define MIN_OGM_PURGE_TO  (MAX_OGM_INTERVAL + MAX_TX_INTERVAL)
 #define MAX_OGM_PURGE_TO  864000000 /*10 days*/
 #define DEF_OGM_PURGE_TO  100000
-#define ARG_OGM_PURGE_TO  "purge_timeout"
+#define ARG_OGM_PURGE_TO  "purgeTimeout"
 // extern int32_t purge_to;
 
 #define DEF_DAD_TO 20000//(MAX_OGM_INTERVAL + MAX_TX_INTERVAL)
 #define MIN_DAD_TO 100
 #define MAX_DAD_TO 360000000
-#define ARG_DAD_TO "dad_timeout"
+#define ARG_DAD_TO "dadTimeout"
 extern int32_t dad_to;
 
 #define DEF_DROP_ALL_FRAMES 0
 #define MIN_DROP_ALL_FRAMES 0
 #define MAX_DROP_ALL_FRAMES 1
-#define ARG_DROP_ALL_FRAMES "drop_all_frames"
+#define ARG_DROP_ALL_FRAMES "dropAllFrames"
 
 #define DEF_DROP_ALL_PACKETS 0
 #define MIN_DROP_ALL_PACKETS 0
 #define MAX_DROP_ALL_PACKETS 1
-#define ARG_DROP_ALL_PACKETS "drop_all_packets"
+#define ARG_DROP_ALL_PACKETS "dropAllPackets"
 
 
 #define MIN_DHASH_TO 300000 //300000
@@ -258,7 +258,7 @@ typedef uint16_t OGM_SQN_T;
 #define MIN_OGM_SQN_RANGE 32
 #define MAX_OGM_SQN_RANGE 8192 // changing this will cause compatibility trouble
 #define DEF_OGM_SQN_RANGE MAX_OGM_SQN_RANGE
-#define ARG_OGM_SQN_RANGE "ogm_validity_range"
+#define ARG_OGM_SQN_RANGE "ogmSqnRange"
 
 
 typedef uint16_t OGM_MIX_T;
@@ -343,7 +343,7 @@ typedef uint16_t HELLO_SQN_T;
 #define MAX_HELLO_SQN_WINDOW 128
 #define MIN_HELLO_SQN_WINDOW 1
 #define DEF_HELLO_SQN_WINDOW 48
-#define ARG_HELLO_SQN_WINDOW "link_window"
+#define ARG_HELLO_SQN_WINDOW "linkWindow"
 //extern int32_t my_link_window; // my link window size used to quantify the link qualities to direct neighbors
 //#define RP_PURGE_ITERATIONS MAX_LINK_WINDOW
 
@@ -351,7 +351,7 @@ typedef uint16_t HELLO_SQN_T;
 #define DEF_LINK_PURGE_TO  100000
 #define MIN_LINK_PURGE_TO  (MAX_TX_INTERVAL*2)
 #define MAX_LINK_PURGE_TO  864000000 /*10 days*/
-#define ARG_LINK_PURGE_TO  "link_purge_timeout"
+#define ARG_LINK_PURGE_TO  "linkPurgeTimeout"
 
 
 
@@ -513,9 +513,9 @@ extern int32_t my_ttl;
 
 
 #define ARG_HELP		"help"
-#define ARG_VERBOSE_HELP	"verbose_help"
-#define ARG_EXP			"exp_help"
-#define ARG_VERBOSE_EXP		"verbose_exp_help"
+#define ARG_VERBOSE_HELP	"verboseHelp"
+#define ARG_EXP			"extraHelp"
+#define ARG_VERBOSE_EXP		"verboseExtraHelp"
 
 #define ARG_VERSION		"version"
 

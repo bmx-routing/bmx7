@@ -360,7 +360,7 @@ IDM_T update_local_neigh(struct packet_buff *pb, struct dhash_node *dhn)
         TRACE_FUNCTION_CALL;
         struct local_node *local = pb->i.link->local;
 
-        dbgf_all(DBGT_INFO, "local_id=0x%X  dhn->id=%s", local->local_id, globalIdAsString(&dhn->on->desc->global_id));
+        dbgf_all(DBGT_INFO, "local_id=0x%X  dhn->id=%s", local->local_id, globalIdAsString(&dhn->on->desc->globalId));
 
         assertion(-500517, (dhn != self.dhn));
         ASSERTION(-500392, (pb->i.link == avl_find_item(&local->link_tree, &pb->i.link->key.dev_idx)));
@@ -373,7 +373,7 @@ IDM_T update_local_neigh(struct packet_buff *pb, struct dhash_node *dhn)
 
                 dbgf_track(DBGT_INFO, "CHANGED link=%s -> LOCAL=%d->%d <- neighIID4me=%d <- dhn->id=%s",
                         pb->i.llip_str, dhn->neigh->local->local_id, local->local_id, dhn->neigh->neighIID4me, 
-                        globalIdAsString(&dhn->on->desc->global_id));
+                        globalIdAsString(&dhn->on->desc->globalId));
 
                 dhn->neigh->local->neigh = NULL;
                 local->neigh = dhn->neigh;
@@ -388,7 +388,7 @@ IDM_T update_local_neigh(struct packet_buff *pb, struct dhash_node *dhn)
                 
                 dbgf_track(DBGT_INFO, "NEW link=%s <-> LOCAL=%d <-> NEIGHIID4me=%d <-> dhn->id=%s",
                         pb->i.llip_str, local->local_id, local->neigh->neighIID4me, 
-                        globalIdAsString(&dhn->on->desc->global_id));
+                        globalIdAsString(&dhn->on->desc->globalId));
 
                 goto update_local_neigh_success;
 
@@ -413,7 +413,7 @@ IDM_T update_local_neigh(struct packet_buff *pb, struct dhash_node *dhn)
         dbgf_sys(DBGT_ERR, "NONMATCHING local=%d <- neighIID4me=%d <- DHN=%s",
                 dhn->neigh && dhn->neigh->local ? dhn->neigh->local->local_id : 0,
                 dhn->neigh ? dhn->neigh->neighIID4me : 0,
-                globalIdAsString(&dhn->on->desc->global_id));
+                globalIdAsString(&dhn->on->desc->globalId));
 
         if (dhn->neigh)
                 free_neigh_node(dhn->neigh);
@@ -1665,24 +1665,24 @@ void register_status_handl(uint16_t min_msg_size, const struct field_format* for
 struct bmx_status {
         char version[strlen(BMX_BRANCH) + strlen("-") + strlen(BRANCH_VERSION) + 1];
         uint16_t compatibility;
-        uint16_t code_version;
-        GLOBAL_ID_T *global_id;
-        IPX_T primary_ip;
-        LOCAL_ID_T my_local_id;
+        uint16_t codeVersion;
+        GLOBAL_ID_T *globalId;
+        IPX_T primaryIp;
+        LOCAL_ID_T myLocalId;
         char *uptime;
-        char cpu_load[6];
+        char cpu[6];
         uint16_t nodes;
 };
 
 static const struct field_format bmx_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       bmx_status, version,       1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              bmx_status, compatibility, 1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              bmx_status, code_version,  1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, bmx_status, global_id,     1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_IPX,               bmx_status, primary_ip,    1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_HEX,               bmx_status, my_local_id,   1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              bmx_status, codeVersion,   1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, bmx_status, globalId,      1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_IPX,               bmx_status, primaryIp,     1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_HEX,               bmx_status, myLocalId,     1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      bmx_status, uptime,        1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       bmx_status, cpu_load,      1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       bmx_status, cpu,           1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              bmx_status, nodes,         1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_END
 };
@@ -1692,12 +1692,12 @@ static int32_t bmx_status_creator(struct status_handl *handl)
         struct bmx_status *status = (struct bmx_status *) (handl->data = debugRealloc(handl->data, sizeof (struct bmx_status), -300000));
         sprintf(status->version, "%s-%s", BMX_BRANCH, BRANCH_VERSION);
         status->compatibility = COMPATIBILITY_VERSION;
-        status->code_version = CODE_VERSION;
-        status->global_id = &self.global_id;
-        status->primary_ip = self.primary_ip;
-        status->my_local_id = ntohl(my_local_id);
+        status->codeVersion = CODE_VERSION;
+        status->globalId = &self.global_id;
+        status->primaryIp = self.primary_ip;
+        status->myLocalId = ntohl(my_local_id);
         status->uptime = get_human_uptime(0);
-        sprintf(status->cpu_load, "%d.%1d", s_curr_avg_cpu_load / 10, s_curr_avg_cpu_load % 10);
+        sprintf(status->cpu, "%d.%1d", s_curr_avg_cpu_load / 10, s_curr_avg_cpu_load % 10);
         status->nodes = orig_tree.items;
         return sizeof (struct bmx_status);
 }
@@ -1708,56 +1708,56 @@ static int32_t bmx_status_creator(struct status_handl *handl)
 
 
 struct link_status {
-        GLOBAL_ID_T *global_id;
-        IPX_T llocal_ip;
-        IFNAME_T via_dev;
-        uint8_t rx_rate;
-        uint8_t best_rx_lndev;
-        uint8_t tx_rate;
-        uint8_t best_tx_lndev;
+        GLOBAL_ID_T *globalId;
+        IPX_T llocalIp;
+        IFNAME_T viaDev;
+        uint8_t rxRate;
+        uint8_t bestRxLink;
+        uint8_t txRate;
+        uint8_t bestTxLink;
         uint8_t routes;
-        uint8_t wants_ogms;
-        DEVADV_IDX_T my_dev_idx;
-        DEVADV_IDX_T nb_dev_idx;
-        HELLO_SQN_T last_hello_sqn;
-        TIME_T last_hello_adv;
+        uint8_t wantsOgms;
+        DEVADV_IDX_T myDevIdx;
+        DEVADV_IDX_T nbDevIdx;
+        HELLO_SQN_T lastHelloSqn;
+        TIME_T lastHelloAdv;
 
-        LOCAL_ID_T nb_local_id;
-        IID_T nb_iid_4_me;
-        uint8_t link_adv_4_him;
-        uint8_t link_adv_4_me;
-        DEVADV_SQN_T dev_adv_sqn;
-        DEVADV_SQN_T dev_adv_sqn_diff;
-        LINKADV_SQN_T link_adv_sqn;
-        LINKADV_SQN_T link_adv_sqn_diff;
-        TIME_T last_link_adv;
+        LOCAL_ID_T nbLocalId;
+        IID_T nbIid4Me;
+        uint8_t linkAdv4Him;
+        uint8_t linkAdv4Me;
+        DEVADV_SQN_T devAdvSqn;
+        DEVADV_SQN_T devAdvSqnDiff;
+        LINKADV_SQN_T linkAdvSqn;
+        LINKADV_SQN_T linkAdvSqnDiff;
+        TIME_T lastLinkAdv;
 };
 
 static const struct field_format link_status_format[] = {
-        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, link_status, global_id,         1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_IPX,               link_status, llocal_ip,         1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       link_status, via_dev,           1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, rx_rate,           1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, best_rx_lndev,     1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, tx_rate,           1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, best_tx_lndev,     1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, routes,            1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wants_ogms,        1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, my_dev_idx,        1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, nb_dev_idx,        1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, link_status, globalId,         1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_IPX,               link_status, llocalIp,         1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       link_status, viaDev,           1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, rxRate,           1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, bestRxLink,       1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, txRate,           1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, bestTxLink,       1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, routes,           1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wantsOgms,        1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, myDevIdx,         1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, nbDevIdx,         1, FIELD_RELEVANCE_MEDI),
 
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, last_hello_sqn,    1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, last_hello_adv,    1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, lastHelloSqn,     1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, lastHelloAdv,     1, FIELD_RELEVANCE_MEDI),
 
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, nb_local_id,       1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, nb_iid_4_me,       1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, link_adv_4_him,    1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, link_adv_4_me,     1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, dev_adv_sqn,       1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, dev_adv_sqn_diff,  1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, link_adv_sqn,      1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, link_adv_sqn_diff, 1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, last_link_adv,     1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, nbLocalId,        1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, nbIid4Me,         1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, linkAdv4Him,      1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, linkAdv4Me,       1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, devAdvSqn,        1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, devAdvSqnDiff,    1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, linkAdvSqn,       1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, linkAdvSqnDiff,   1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, lastLinkAdv,      1, FIELD_RELEVANCE_MEDI),
 
         FIELD_FORMAT_END
 };
@@ -1782,29 +1782,29 @@ static int32_t link_status_creator(struct status_handl *handl)
 
                         while ((lndev = list_iterate(&link->lndev_list, lndev))) {
 
-                                status[i].global_id = &on->global_id;
-                                status[i].llocal_ip = link->link_ip;
-                                status[i].via_dev = lndev->key.dev->label_cfg;
-                                status[i].rx_rate = ((lndev->timeaware_rx_probe * 100) / UMETRIC_MAX);
-                                status[i].best_rx_lndev = (lndev == local->best_rp_lndev);
-                                status[i].tx_rate = ((lndev->timeaware_tx_probe * 100) / UMETRIC_MAX);
-                                status[i].best_tx_lndev = (lndev == local->best_tp_lndev);
+                                status[i].globalId = &on->global_id;
+                                status[i].llocalIp = link->link_ip;
+                                status[i].viaDev = lndev->key.dev->label_cfg;
+                                status[i].rxRate = ((lndev->timeaware_rx_probe * 100) / UMETRIC_MAX);
+                                status[i].bestRxLink = (lndev == local->best_rp_lndev);
+                                status[i].txRate = ((lndev->timeaware_tx_probe * 100) / UMETRIC_MAX);
+                                status[i].bestTxLink = (lndev == local->best_tp_lndev);
                                 status[i].routes = (lndev == local->best_rp_lndev) ? local->orig_routes : 0;
-                                status[i].wants_ogms = (lndev == local->best_rp_lndev) ? local->rp_ogm_request_rcvd : 0;
-                                status[i].my_dev_idx = lndev->key.dev->dev_adv_idx;
-                                status[i].nb_dev_idx = link->key.dev_idx;
-                                status[i].last_hello_sqn = link->hello_sqn_max;
-                                status[i].last_hello_adv = ((TIME_T) (bmx_time - link->hello_time_max)) / 1000;
+                                status[i].wantsOgms = (lndev == local->best_rp_lndev) ? local->rp_ogm_request_rcvd : 0;
+                                status[i].myDevIdx = lndev->key.dev->dev_adv_idx;
+                                status[i].nbDevIdx = link->key.dev_idx;
+                                status[i].lastHelloSqn = link->hello_sqn_max;
+                                status[i].lastHelloAdv = ((TIME_T) (bmx_time - link->hello_time_max)) / 1000;
 
-                                status[i].nb_local_id = ntohl(link->key.local_id);
-                                status[i].nb_iid_4_me = local->neigh ? local->neigh->neighIID4me : 0;
-                                status[i].link_adv_4_him = local->link_adv_msg_for_him;
-                                status[i].link_adv_4_me = local->link_adv_msg_for_me;
-                                status[i].dev_adv_sqn = local->dev_adv_sqn;
-                                status[i].dev_adv_sqn_diff = ((DEVADV_SQN_T) (local->link_adv_dev_sqn_ref - local->dev_adv_sqn));
-                                status[i].link_adv_sqn = local->link_adv_sqn;
-                                status[i].link_adv_sqn_diff = ((LINKADV_SQN_T) (local->packet_link_sqn_ref - local->link_adv_sqn));
-                                status[i].last_link_adv = ((TIME_T) (bmx_time - local->link_adv_time)) / 1000;
+                                status[i].nbLocalId = ntohl(link->key.local_id);
+                                status[i].nbIid4Me = local->neigh ? local->neigh->neighIID4me : 0;
+                                status[i].linkAdv4Him = local->link_adv_msg_for_him;
+                                status[i].linkAdv4Me = local->link_adv_msg_for_me;
+                                status[i].devAdvSqn = local->dev_adv_sqn;
+                                status[i].devAdvSqnDiff = ((DEVADV_SQN_T) (local->link_adv_dev_sqn_ref - local->dev_adv_sqn));
+                                status[i].linkAdvSqn = local->link_adv_sqn;
+                                status[i].linkAdvSqnDiff = ((LINKADV_SQN_T) (local->packet_link_sqn_ref - local->link_adv_sqn));
+                                status[i].lastLinkAdv = ((TIME_T) (bmx_time - local->link_adv_time)) / 1000;
 
                                 i++;
                                 assertion(-501225, (status_size >= i * sizeof (struct link_status)));
@@ -1889,12 +1889,12 @@ static int32_t locals_status_creator(struct status_handl *handl)
 
 
 struct orig_status {
-        GLOBAL_ID_T *global_id;
+        GLOBAL_ID_T *globalId;
         uint8_t blocked;
-        IPX_T primary_ip;
+        IPX_T primaryIp;
         uint16_t routes;
-        IPX_T via_ip;
-        char *via_dev;
+        IPX_T viaIp;
+        char *viaDev;
         UMETRIC_T metric;
         IID_T myIid4x;
         DESC_SQN_T descSqn;
@@ -1905,12 +1905,12 @@ struct orig_status {
 };
 
 static const struct field_format orig_status_format[] = {
-        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, orig_status, global_id,     1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, orig_status, globalId,      1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, blocked,       1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_IPX,               orig_status, primary_ip,    1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_IPX,               orig_status, primaryIp,     1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, routes,        1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_IPX,               orig_status, via_ip,        1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      orig_status, via_dev,       1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_IPX,               orig_status, viaIp,         1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      orig_status, viaDev,        1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           orig_status, metric,        1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, myIid4x,       1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, descSqn,       1, FIELD_RELEVANCE_MEDI),
@@ -1931,12 +1931,12 @@ static int32_t orig_status_creator(struct status_handl *handl)
         memset(status, 0, status_size);
 
         for (it = NULL; (on = avl_iterate_item(&orig_tree, &it));) {
-                status[i].global_id = &on->global_id;
+                status[i].globalId = &on->global_id;
                 status[i].blocked = on->blocked;
-                status[i].primary_ip = on->primary_ip;
+                status[i].primaryIp = on->primary_ip;
                 status[i].routes = on->rt_tree.items;
-                status[i].via_ip = (on->curr_rt_lndev ? on->curr_rt_lndev->key.link->link_ip : ZERO_IP);
-                status[i].via_dev = on->curr_rt_lndev && on->curr_rt_lndev->key.dev ? on->curr_rt_lndev->key.dev->name_phy_cfg.str : "";
+                status[i].viaIp = (on->curr_rt_lndev ? on->curr_rt_lndev->key.link->link_ip : ZERO_IP);
+                status[i].viaDev = on->curr_rt_lndev && on->curr_rt_lndev->key.dev ? on->curr_rt_lndev->key.dev->name_phy_cfg.str : "";
                 status[i].metric = (on->curr_rt_local ? (on->curr_rt_local->mr.umetric) : (on == &self ? UMETRIC_MAX : 0));
                 status[i].myIid4x = on->dhn->myIID4orig;
                 status[i].descSqn = on->descSqn;
@@ -2282,7 +2282,7 @@ void bmx(void)
                         continue;
 
                 schedule_tx_task(&dev->dummy_lndev, FRAME_TYPE_DEV_ADV, SCHEDULE_UNKNOWN_MSGS_SIZE, 0, 0, 0, 0);
-                schedule_tx_task(&dev->dummy_lndev, FRAME_TYPE_DESC_ADV, ntohs(self.desc->dsc_tlvs_len) + sizeof ( struct msg_description_adv), 0, 0, myIID4me, 0);
+                schedule_tx_task(&dev->dummy_lndev, FRAME_TYPE_DESC_ADV, ntohs(self.desc->extensionLen) + sizeof ( struct msg_description_adv), 0, 0, myIID4me, 0);
         }
 
         initializing = NO;
@@ -2346,7 +2346,7 @@ void bmx(void)
 
                                 id = on->global_id;
 
-                                dbgf_all( DBGT_INFO, "trying to unblock %s...", on->desc->global_id.name);
+                                dbgf_all( DBGT_INFO, "trying to unblock %s...", on->desc->globalId.name);
 
                                 IDM_T tlvs_res;
                                 if ((tlvs_res = process_description_tlvs
@@ -2360,7 +2360,7 @@ void bmx(void)
                                 }
 
                                 dbgf_track(DBGT_INFO, "unblocking %s %s !",
-                                        on->desc->global_id.name, tlvs_res == TLV_RX_DATA_DONE ? "success" : "failed");
+                                        on->desc->globalId.name, tlvs_res == TLV_RX_DATA_DONE ? "success" : "failed");
 
                         }
 

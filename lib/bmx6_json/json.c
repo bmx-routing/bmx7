@@ -122,12 +122,12 @@ void json_description_event_hook(int32_t cb_id, struct orig_node *on)
         json_object *jorig = json_object_new_object();
 
         json_object *jhash = json_object_new_string(memAsHexString(((char*) &(on->dhn->dhash)), sizeof (on->dhn->dhash)));
-        json_object_object_add(jorig, "sha", jhash);
+        json_object_object_add(jorig, "descSha", jhash);
 
         json_object *jblocked = json_object_new_int(on->blocked);
         json_object_object_add(jorig, "blocked", jblocked);
 
-        uint16_t tlvs_len = ntohs(on->desc->dsc_tlvs_len);
+        uint16_t tlvs_len = ntohs(on->desc->extensionLen);
         struct msg_description_adv * desc_buff = debugMalloc(sizeof (struct msg_description_adv) +tlvs_len, -300361);
         desc_buff->transmitterIID4x = htons(on->dhn->myIID4orig);
         memcpy(&desc_buff->desc, on->desc, sizeof (struct description) +tlvs_len);

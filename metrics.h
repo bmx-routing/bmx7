@@ -38,7 +38,7 @@
 #define MAX_METRIC_ALGO_RESERVED      ((ALGO_T)-1);
 #define DEF_METRIC_ALGO               TYP_METRIC_ALGO_VB
 
-#define ARG_PATH_METRIC_ALGO "path_metricalgo"
+#define ARG_PATH_METRIC_ALGO "metricAlgo"
 #define CHR_PATH_METRIC_ALGO 'M'
 #define HELP_PATH_METRIC_ALGO "set metric algo for routing towards myself:\n        0:HopCount  1:MP (M=1 /R=0 /T=1 /t=1 <=> TQ) 2:EP  4:MB  8:EB (M=8 /R=1 /r=1 /T=1 /t=1 <=> ETT)  16:VB"
 
@@ -50,43 +50,44 @@
 
 
 #define DEF_PATH_RP_EXP_NUMERATOR     1
-#define ARG_PATH_RP_EXP_NUMERATOR     "rp_exp_numerator"
+#define ARG_PATH_RP_EXP_NUMERATOR     "rxExpNumerator"
 #define CHR_PATH_RP_EXP_NUMERATOR     'R'
 
 #define DEF_PATH_RP_EXP_DIVISOR       2
-#define ARG_PATH_RP_EXP_DIVISOR       "rp_exp_divisor"
+#define ARG_PATH_RP_EXP_DIVISOR       "rxExpDivisor"
 #define CHR_PATH_RP_EXP_DIVISOR       'r'
 
 #define DEF_PATH_TP_EXP_NUMERATOR     1
-#define ARG_PATH_TP_EXP_NUMERATOR     "tp_exp_numerator"
+#define ARG_PATH_TP_EXP_NUMERATOR     "txExpNumerator"
 #define CHR_PATH_TP_EXP_NUMERATOR     'T'
 
 #define DEF_PATH_TP_EXP_DIVISOR       1
-#define ARG_PATH_TP_EXP_DIVISOR       "tp_exp_divisor"
+#define ARG_PATH_TP_EXP_DIVISOR       "txExpDivisor"
 #define CHR_PATH_TP_EXP_DIVISOR       't'
 
 #define MAX_PATH_WINDOW 250      /* 250 TBD: should not be larger until ogm->ws and neigh_node.packet_count (and related variables) is only 8 bit */
 #define MIN_PATH_WINDOW 1
 #define DEF_PATH_WINDOW 5        /* NBRF: NeighBor Ranking sequence Frame) sliding packet range of received orginator messages in squence numbers (should be a multiple of our word size) */
-#define ARG_PATH_WINDOW "path_window"
+#define ARG_PATH_WINDOW "pathWindow"
 //extern int32_t my_path_window; // my path window size used to quantify the end to end path quality between me and other nodes
 
 #define MIN_PATH_LOUNGE 0
 #define MAX_PATH_LOUNGE 10
 #define DEF_PATH_LOUNGE 1
-#define ARG_PATH_LOUNGE "path_lounge"
+#define ARG_PATH_LOUNGE "pathLounge"
 //extern int32_t my_path_lounge;
 
 
 #define DEF_PATH_REGRESSION_SLOW 1
 #define MIN_PATH_REGRESSION_SLOW 1
 #define MAX_PATH_REGRESSION_SLOW 255
-#define ARG_PATH_REGRESSION_SLOW "path_regression"
+#define ARG_PATH_REGRESSION_SLOW "pathRegression"
 
 
 
-#define RP_LINK_LOUNGE 0  /* may also be rtq_link_lounge */
+//#define RP_LINK_LOUNGE 0  /* may also be rtq_link_lounge */
 
+/*
 // this deactivates OGM-Acks on the link:
 #define MIN_LINK_IGNORE_MIN  0
 #define MAX_LINK_IGNORE_MIN  100
@@ -100,27 +101,27 @@
 #define DEF_LINK_IGNORE_MAX  100
 #define ARG_LINK_IGNORE_MAX "link_ignore_max"
 //extern int32_t link_ignore_max;
-
+*/
 
 
 #define MIN_PATH_HYST	0
 #define MAX_PATH_HYST	255
 #define DEF_PATH_HYST	0
-#define ARG_PATH_HYST   "path_hysteresis"
+#define ARG_PATH_HYST   "pathHysteresis"
 //extern int32_t my_path_hystere;
 
 
 #define MIN_LATE_PENAL 0
 #define MAX_LATE_PENAL 100
 #define DEF_LATE_PENAL 1
-#define ARG_LATE_PENAL "lateness_penalty"
+#define ARG_LATE_PENAL "latenessPenalty"
 //extern int32_t my_late_penalty;
 
 
 #define DEF_HOP_PENALTY 0 //(U8_MAX/20) <=>  5% penalty on metric per hop
 #define MIN_HOP_PENALTY 0 // smaller values than 4 do not show effect
 #define MAX_HOP_PENALTY U8_MAX
-#define ARG_HOP_PENALTY "hop_penalty"
+#define ARG_HOP_PENALTY "hopPenalty"
 #define MAX_HOP_PENALTY_PRECISION_EXP 8
 //extern int32_t my_hop_penalty;
 
@@ -128,12 +129,12 @@
 #define DEF_NEW_RT_DISMISSAL 99
 #define MIN_NEW_RT_DISMISSAL 0
 #define MAX_NEW_RT_DISMISSAL 200
-#define ARG_NEW_RT_DISMISSAL "new_router_dismissal"
+#define ARG_NEW_RT_DISMISSAL "newRouterDismissal"
 #define HLP_NEW_RT_DISMISSAL "dismiss new routers according to specified percentage"
 
 #define MIN_PATH_UMETRIC_MIN UMETRIC_MIN__NOT_ROUTABLE
 #define MAX_PATH_UMETRIC_MIN I32_MAX
-#define ARG_PATH_UMETRIC_MIN "path_metric_min"
+#define ARG_PATH_UMETRIC_MIN "pathMetricMin"
 #define DEF_PATH_UMETRIC_MIN MIN_PATH_UMETRIC_MIN
 
 #define RP_ADV_DELAY_TOLERANCE 3000
@@ -148,10 +149,10 @@
 #define MAX_METRIC_FLAGS          (0x1)
 
 #define DEF_PATH_METRIC_FLAGS     (0x0)
-#define ARG_PATH_METRIC_FLAGS     "path_metric_flags"
+#define ARG_PATH_METRIC_FLAGS     "pathMetricFlags"
 
 #define DEF_LINK_METRIC_FLAGS     (0x0)
-#define ARG_LINK_METRIC_FLAGS     "link_metric_flags"
+#define ARG_LINK_METRIC_FLAGS     "linkMetricFlags"
 
 
 

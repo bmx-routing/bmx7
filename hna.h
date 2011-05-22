@@ -19,7 +19,7 @@
 
 
 
-#define ARG_UHNA "unicast_hna"
+#define ARG_UHNA "hna"
 
 #define ARG_UHNA_NETWORK     "network"
 
@@ -32,7 +32,7 @@
 #define DEF_UHNA_METRIC      0
 #define ARG_UHNA_METRIC      "metric"
 
-#define ARG_NIIT          "niit_source"
+#define ARG_NIIT          "niitSource"
 #define HLP_NIIT          "specify niit4to6 source IP address (IP MUST be assigned to niit4to6 interface!)"
 #define DEF_NIIT_PREFIX   { { { 0,0,0,0,0,0,0,0,0,0,0xFF,0xFF,0,0,0,0 } } }
 #define DEF_NIIT_4TO6_DEV "niit4to6"

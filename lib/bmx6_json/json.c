@@ -54,14 +54,24 @@ json_object * fields_dbg_json(uint16_t relevance, uint16_t data_size, uint8_t *d
         assertion(-501247, (format && data ));
 
         uint32_t msgs_size = 0;
+        uint32_t msgs = 0;
         struct field_iterator it = {.format = format, .data = data, .data_size = data_size, .min_msg_size = min_msg_size};
         
         json_object *jfields = NULL;
-
+        json_object *jarray = NULL;
 
         while ((msgs_size = field_iterate(&it)) == SUCCESS) {
 
                 if (format[it.field].field_relevance >= relevance) {
+
+                        if (it.field == 0) {
+                                msgs++;
+
+                                if (msgs > 1) {
+                                        json_object_array_add(jarray, jfields);
+                                        jfields = NULL;
+                                }
+                        }
 
                         json_object *jfield_val;
 
@@ -80,7 +90,18 @@ json_object * fields_dbg_json(uint16_t relevance, uint16_t data_size, uint8_t *d
         }
 
         assertion(-501248, (data_size ? msgs_size == data_size : msgs_size == min_msg_size));
-        return jfields;
+
+        if ( msgs == 1 ) {
+
+                return jfields;
+
+        } else if (msgs > 1) {
+                
+                json_object_array_add(jarray, jfields);
+                return jarray;
+        }
+        
+        return NULL;
 }
 
 
@@ -347,10 +368,45 @@ int32_t update_json_options(IDM_T show_options, IDM_T show_parameters, char *fil
 STATIC_FUNC
 void json_config_event_hook(int32_t cb_id, struct orig_node *on)
 {
-        update_json_options(0, 1, JSON_PARAMETERS_FILE);
+        TRACE_FUNCTION_CALL;
 
+        update_json_options(0, 1, JSON_PARAMETERS_FILE);
 }
 
+STATIC_FUNC
+int32_t opt_json_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
+{
+        TRACE_FUNCTION_CALL;
+
+        if ( cmd == OPT_APPLY ) {
+
+                struct status_handl *handl = NULL;
+                uint32_t data_len;
+                char status_name[sizeof (handl->status_name)] = {0};
+                strcpy(status_name, &opt->long_name[strlen("json_")]);
+
+                if ((handl = avl_find_item(&status_tree, status_name)) && (data_len = ((*(handl->frame_creator))(handl)))) {
+                        
+                        dbg_printf(cn, "%s:\n", handl->status_name);
+
+                        json_object *jorig = json_object_new_object();
+
+                        json_object *jdesc_fields = NULL;
+
+                        if ((jdesc_fields = fields_dbg_json(
+                                FIELD_RELEVANCE_HIGH, data_len, handl->data, handl->min_msg_size, handl->format))) {
+
+                                json_object_object_add(jorig, handl->status_name, jdesc_fields);
+                        }
+
+                        dbg_printf(cn, "%s\n", json_object_to_json_string(jorig));
+
+                        json_object_put(jorig);
+                }
+	}
+
+	return SUCCESS;
+}
 
 
 STATIC_FUNC
@@ -425,6 +481,18 @@ static struct opt_type json_options[]= {
 	
 	{ODI,0,ARG_JSON_SUBDIR,		0,5, A_PS1N,A_ADM,A_INI,A_CFA,A_ANY,	0,		0,		0,		0,DEF_JSON_SUBDIR,	opt_json_dir,
                 ARG_DIR_FORM, "set json subdirectory withing runtime_dir (currently only default value allowed)"}
+        ,
+	{ODI,0,"json_status",		0,  5,A_PS0,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_json_status,
+			0,		"show status in json format\n"}
+        ,
+	{ODI,0,"json_interfaces",	0,  5,A_PS0,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_json_status,
+			0,		"show interfaces in json format\n"}
+        ,
+	{ODI,0,"json_links",	        0,  5,A_PS0,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_json_status,
+			0,		"show links in json format\n"}
+        ,
+	{ODI,0,"json_originators",	0,  5,A_PS0,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_json_status,
+			0,		"show originators in json format\n"}
 
 	
 };

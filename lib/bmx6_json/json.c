@@ -84,7 +84,6 @@ json_object * fields_dbg_json(uint16_t relevance, uint16_t data_size, uint8_t *d
 }
 
 
-
 STATIC_FUNC
 void json_description_event_hook(int32_t cb_id, struct orig_node *on)
 {
@@ -343,6 +342,12 @@ int32_t update_json_options(void)
 
 
 
+STATIC_FUNC
+void json_config_event_hook(int32_t cb_id, struct orig_node *on)
+{
+        update_json_options();
+
+}
 
 
 
@@ -402,7 +407,6 @@ int32_t opt_json_dir(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct op
                 strcpy(json_dir, tmp_dir);
                 strcpy(json_desc_dir, tmp_desc_dir);
 
-                update_json_options();
 
         }
 	return SUCCESS;
@@ -451,6 +455,7 @@ struct plugin* get_plugin( void ) {
 	json_plugin.cb_cleanup = json_cleanup;
         json_plugin.cb_plugin_handler[PLUGIN_CB_DESCRIPTION_CREATED] = (void (*) (int32_t, void*)) json_description_event_hook;
         json_plugin.cb_plugin_handler[PLUGIN_CB_DESCRIPTION_DESTROY] = (void (*) (int32_t, void*)) json_description_event_hook;
+        json_plugin.cb_plugin_handler[PLUGIN_CB_CONF] = (void (*) (int32_t, void*)) json_config_event_hook;
 
 	return &json_plugin;
 }

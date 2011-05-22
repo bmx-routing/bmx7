@@ -3080,9 +3080,10 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
                         } else if (!strcmp(c->c_opt->long_name, ARG_DEV_BITRATE_MAX) && cmd == OPT_APPLY) {
 
                                 if (c->c_val) {
-                                        /*unsigned long long*/ UMETRIC_T ull = strtoul(c->c_val, NULL, 10);
+                                        char *endptr;
+                                        unsigned long long ull = strtoul(c->c_val, &endptr, 10);
 
-                                        if (ull > UMETRIC_MAX || ull < UMETRIC_FM8_MIN) {
+                                        if (ull > UMETRIC_MAX || ull < UMETRIC_FM8_MIN || *endptr != '\0') {
 
                                                 dbgf_sys(DBGT_ERR, "%s %c%s MUST be within [%ju ... %ju]",
                                                         dev->label_cfg.str, LONG_OPT_ARG_DELIMITER_CHAR, c->c_opt->long_name, UMETRIC_FM8_MIN, UMETRIC_MAX);
@@ -3097,9 +3098,10 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
                         } else if (!strcmp(c->c_opt->long_name, ARG_DEV_BITRATE_MIN) && cmd == OPT_APPLY) {
 
                                 if (c->c_val) {
-                                        unsigned long long ull = strtoul(c->c_val, NULL, 10);
+                                        char *endptr;
+                                        unsigned long long ull = strtoul(c->c_val, &endptr, 10);
 
-                                        if (ull > UMETRIC_MAX || ull < UMETRIC_FM8_MIN) {
+                                        if (ull > UMETRIC_MAX || ull < UMETRIC_FM8_MIN || *endptr != '\0') {
 
                                                 dbgf_sys(DBGT_ERR, "%s %c%s given with illegal value",
                                                         dev->label_cfg.str, LONG_OPT_ARG_DELIMITER_CHAR, c->c_opt->long_name);
@@ -3176,7 +3178,7 @@ static struct opt_type ip_options[]=
 			ARG_PREFIX_FORM,HLP_LLOCAL_PREFIX}
         ,
 
-	{ODI,0,ARG_DEV,		        0,  5,A_PM1N,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0, 		0,		0,0, 		opt_dev,
+	{ODI,0,ARG_DEV,		        'i',  5,A_PM1N,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0, 		0,		0,0, 		opt_dev,
 			"<interface-name>", HLP_DEV}
         ,
 /*
@@ -3190,11 +3192,17 @@ static struct opt_type ip_options[]=
 	{ODI,ARG_DEV,ARG_DEV_LL,	 'l',5,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		MIN_DEV_LL,	MAX_DEV_LL,     DEF_DEV_LL,0,	opt_dev,
 			ARG_VALUE_FORM,	HLP_DEV_LL}
         ,
-	{ODI,ARG_DEV,ARG_DEV_BITRATE_MAX,'b',5,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,              0,              0,0,              opt_dev,
-			ARG_VALUE_FORM,	HLP_DEV_BITRATE_MAX}
-        ,
 	{ODI,ARG_DEV,ARG_DEV_GLOBAL_PREFIX,0, 5,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,  0,		0,              0,              0,0,              opt_dev,
 			ARG_VALUE_FORM,	HLP_DEV_GLOBAL_PREFIX}
+        ,
+	{ODI,ARG_DEV,ARG_DEV_LLOCAL_PREFIX,0, 5,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,  0,		0,              0,              0,0,              opt_dev,
+			ARG_VALUE_FORM,	HLP_DEV_GLOBAL_PREFIX}
+        ,
+	{ODI,ARG_DEV,ARG_DEV_BITRATE_MAX,'r',5,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,              0,              0,0,              opt_dev,
+			ARG_VALUE_FORM,	HLP_DEV_BITRATE_MAX}
+        ,
+	{ODI,ARG_DEV,ARG_DEV_BITRATE_MAX, 0, 5,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,              0,              0,0,              opt_dev,
+			ARG_VALUE_FORM,	HLP_DEV_BITRATE_MAX}
 
         ,
 /*

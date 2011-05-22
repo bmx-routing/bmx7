@@ -95,13 +95,13 @@ typedef struct ifname IFNAME_T;
 #define TYP_DEV_CHANNEL_EXCLUSIVE 255
 #define MAX_DEV_CHANNEL           255
 
-#define ARG_DEV_BITRATE_MAX       "bitrateMax"
+#define ARG_DEV_BITRATE_MAX       "rateMax"
 #define DEF_DEV_BITRATE_MAX         56000000
 #define DEF_DEV_BITRATE_MAX_LAN   1000000000
 #define DEF_DEV_BITRATE_MAX_WIFI    56000000
 #define HLP_DEV_BITRATE_MAX       "set maximum bandwidth as bits/sec of dev"
 
-#define ARG_DEV_BITRATE_MIN       "bitrateMin"
+#define ARG_DEV_BITRATE_MIN       "rateMin"
 #define DEF_DEV_BITRATE_MIN          6000000
 #define DEF_DEV_BITRATE_MIN_LAN   1000000000
 #define DEF_DEV_BITRATE_MIN_WIFI     6000000

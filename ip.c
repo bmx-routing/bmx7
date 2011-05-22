@@ -2132,7 +2132,7 @@ void dev_activate( struct dev_node *dev )
 
 	//trigger plugins interested in changed interface configuration
         cb_plugin_hooks(PLUGIN_CB_BMX_DEV_EVENT, dev);
-        cb_plugin_hooks(PLUGIN_CB_CONF, NULL);
+//        cb_plugin_hooks(PLUGIN_CB_CONF, NULL);
 
 	return;
 
@@ -2553,7 +2553,7 @@ static void dev_check(IDM_T kernel_ip_config_changed)
                 cb_plugin_hooks(PLUGIN_CB_SYS_DEV_EVENT, NULL);
         }
 
-        cb_plugin_hooks(PLUGIN_CB_CONF, NULL);
+//        cb_plugin_hooks(PLUGIN_CB_CONF, NULL);
 }
 
 

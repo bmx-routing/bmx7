@@ -388,10 +388,7 @@ int32_t opt_json_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
 
                 if ((handl = avl_find_item(&status_tree, status_name)) && (data_len = ((*(handl->frame_creator))(handl)))) {
                         
-                        dbg_printf(cn, "%s:\n", handl->status_name);
-
                         json_object *jorig = json_object_new_object();
-
                         json_object *jdesc_fields = NULL;
 
                         if ((jdesc_fields = fields_dbg_json(

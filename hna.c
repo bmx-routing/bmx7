@@ -760,7 +760,7 @@ int32_t hna_init( void )
         tlv_handl.min_msg_size = sizeof (struct description_msg_hna4);
         tlv_handl.fixed_msg_size = 1;
         tlv_handl.is_relevant = 1;
-        tlv_handl.name = "DESC_EXT_UHNA4";
+        tlv_handl.name = "HNA4_EXTENSION";
         tlv_handl.tx_frame_handler = create_description_tlv_hna;
         tlv_handl.rx_frame_handler = process_description_tlv_hna;
         tlv_handl.msg_format = hna4_format;
@@ -771,7 +771,7 @@ int32_t hna_init( void )
         tlv_handl.min_msg_size = sizeof (struct description_msg_hna6);
         tlv_handl.fixed_msg_size = 1;
         tlv_handl.is_relevant = 1;
-        tlv_handl.name = "DESC_EXT_UHNA6";
+        tlv_handl.name = "HNA6_EXTENSION";
         tlv_handl.tx_frame_handler = create_description_tlv_hna;
         tlv_handl.rx_frame_handler = process_description_tlv_hna;
         tlv_handl.msg_format = hna6_format;

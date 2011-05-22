@@ -417,7 +417,7 @@ static struct opt_type json_options[]= {
 //        ord parent long_name          shrt Attributes				*ival		min		max		default		*func,*syntax,*help
 	
 	{ODI,0,ARG_JSON_SUBDIR,		0,5, A_PS1N,A_ADM,A_INI,A_CFA,A_ANY,	0,		0,		0,		0,DEF_JSON_SUBDIR,	opt_json_dir,
-                ARG_DIR_FORM, "set json subdirectorywithing runtime_dir (currently only default value allowed)"}
+                ARG_DIR_FORM, "set json subdirectory withing runtime_dir (currently only default value allowed)"}
 
 	
 };

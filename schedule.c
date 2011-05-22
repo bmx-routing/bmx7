@@ -194,7 +194,10 @@ TIME_T task_next( void )
 {
         TRACE_FUNCTION_CALL;
 
-	struct list_node *list_pos, *tmp_pos, *prev_pos = (struct list_node*)&task_list;
+        struct list_node *list_pos, *tmp_pos, *prev_pos;
+
+task_next_again:
+        prev_pos = (struct list_node*) &task_list;
 
 	list_for_each_safe( list_pos, tmp_pos, &task_list ) {
 			
@@ -212,6 +215,9 @@ TIME_T task_next( void )
 
                         CHECK_INTEGRITY();
 
+                        //dbgf_track(DBGT_INFO, "executed %p", task );
+
+                        goto task_next_again;
                         return 0;
 			
 		} else {
@@ -255,9 +261,9 @@ loop4Event:
 			
 		selected = select( receive_max_sock + 1, &tmp_wait_set, NULL, NULL, &tv );
 
-                dbgf_all(DBGT_INFO, "select=%d", selected);
-	
 		upd_time( &(pb.i.tv_stamp) );
+
+                //dbgf_track(DBGT_INFO, "select=%d", selected);
 		
 		//omit debugging here since event could be a closed -d4 ctrl socket 
 		//which should be removed before debugging
@@ -287,7 +293,6 @@ loop4Event:
 			upd_time( NULL );
 			
 			goto wait4Event_end;
-		
 		}
 	
 		if ( selected == 0 ) {
@@ -302,8 +307,7 @@ loop4Event:
 			}
 					
 			//if ( LESS_U32( return_time, bmx_time ) )
-			dbg_mute( 50, DBGL_CHANGES, DBGT_WARN, 
-			     "select() returned %d without reason!! return_time %d, curr_time %d", 
+                        dbgf_track(DBGT_WARN, "select() returned %d without reason!! return_time %d, curr_time %d",
 			     selected, return_time, bmx_time );
 				
 			goto loop4Event;

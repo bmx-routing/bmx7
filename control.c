@@ -1626,8 +1626,8 @@ int32_t check_apply_parent_option(uint8_t del, uint8_t cmd, uint8_t _save, struc
 {
 	
 	int32_t ret;
-	
-	paranoia( -500102, ( (cmd != OPT_CHECK  &&  cmd != OPT_APPLY)  ||  opt->parent_name ) );
+
+        paranoia(-500102, IMPLIES((cmd == OPT_CHECK || cmd == OPT_APPLY), opt && opt->parent_name));
 	
 	struct opt_parent *p = add_opt_parent( &Patch_opt );
 
@@ -2934,7 +2934,7 @@ int32_t opt_debug(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_p
 			check_apply_parent_option( ADD, OPT_APPLY, 0, get_option( 0, 0, ARG_STATUS ), 0, cn );
 			check_apply_parent_option( ADD, OPT_APPLY, 0, get_option( 0, 0, ARG_INTERFACES ), 0, cn );
 			check_apply_parent_option( ADD, OPT_APPLY, 0, get_option( 0, 0, ARG_LINKS ), 0, cn );
-			check_apply_parent_option( ADD, OPT_APPLY, 0, get_option( 0, 0, ARG_LOCALS ), 0, cn );
+//			check_apply_parent_option( ADD, OPT_APPLY, 0, get_option( 0, 0, ARG_LOCALS ), 0, cn );
 			check_apply_parent_option( ADD, OPT_APPLY, 0, get_option( 0, 0, ARG_ORIGINATORS ), 0, cn );
 /*
 		} else if ( ival == DBGL_SERVICES  ) {

@@ -191,12 +191,16 @@ void checkLeak(void)
 
 }
 
-void *_debugMalloc(uint32_t length, int32_t tag) {
+void *_debugMalloc(uint32_t length, int32_t tag)
+{
 	
 	unsigned char *memory;
 	struct chunkHeader *chunkHeader;
 	MAGIC_TRAILER_T *chunkTrailer;
 	unsigned char *chunk;
+
+        if (!length)
+                return NULL;
 
 	memory = malloc(length + sizeof(struct chunkHeader) + sizeof(MAGIC_TRAILER_T));
 
@@ -231,43 +235,35 @@ void *_debugMalloc(uint32_t length, int32_t tag) {
 
 void *_debugRealloc(void *memoryParameter, uint32_t length, int32_t tag)
 {
-	
-	unsigned char *memory;
-	struct chunkHeader *chunkHeader=NULL;
-	MAGIC_TRAILER_T *chunkTrailer;
-	unsigned char *result;
-	uint32_t copyLength;
+
+        unsigned char *result = _debugMalloc(length, tag);
+
 
 	if (memoryParameter) { /* if memoryParameter==NULL, realloc() should work like malloc() !! */
-		memory = memoryParameter;
-		chunkHeader = (struct chunkHeader *)(memory - sizeof(struct chunkHeader));
 
-		if (chunkHeader->magicNumberHeader != MAGIC_NUMBER_HEADER)
-{
+                struct chunkHeader *chunkHeader =
+                        (struct chunkHeader *) (((unsigned char *) memoryParameter) - sizeof (struct chunkHeader));
+
+                MAGIC_TRAILER_T * chunkTrailer =
+                        (MAGIC_TRAILER_T *) (((unsigned char *) memoryParameter) + chunkHeader->length);
+
+		if (chunkHeader->magicNumberHeader != MAGIC_NUMBER_HEADER) {
                         dbgf_sys(DBGT_ERR, "invalid magic number in header: %08x, malloc tag = %d",
 			     chunkHeader->magicNumberHeader, chunkHeader->tag );
 			cleanup_all( -500078 );
                 }
 
-                chunkTrailer = (MAGIC_TRAILER_T *) (memory + chunkHeader->length);
-
-		if (*chunkTrailer != MAGIC_NUMBER_TRAILOR)
-{
+                if (*chunkTrailer != MAGIC_NUMBER_TRAILOR) {
                         dbgf_sys(DBGT_ERR, "invalid magic number in trailer: %08x, malloc tag = %d",
 			     *chunkTrailer, chunkHeader->tag );
 			cleanup_all( -500079 );
 		}
-	}
 
+                uint32_t copyLength = (length < chunkHeader->length) ? length : chunkHeader->length;
 
-	result = _debugMalloc(length, tag);
-	if (memoryParameter) {
-		copyLength = length;
+                if (copyLength)
+                        memcpy(result, memoryParameter, copyLength);
 
-		if (copyLength > chunkHeader->length)
-			copyLength = chunkHeader->length;
-
-		memcpy(result, memoryParameter, copyLength);
 		debugFree(memoryParameter, -300280);
 	}
 
@@ -276,17 +272,14 @@ void *_debugRealloc(void *memoryParameter, uint32_t length, int32_t tag)
 
 void _debugFree(void *memoryParameter, int tag)
 {
-	
-	unsigned char *memory;
-	struct chunkHeader *chunkHeader;
 	MAGIC_TRAILER_T *chunkTrailer;
 	struct chunkHeader *walker;
 	struct chunkHeader *previous;
 
-	memory = memoryParameter;
-	chunkHeader = (struct chunkHeader *)(memory - sizeof(struct chunkHeader));
+        struct chunkHeader *chunkHeader =
+                (struct chunkHeader *) (((unsigned char *) memoryParameter) - sizeof (struct chunkHeader));
 
-	if (chunkHeader->magicNumberHeader != MAGIC_NUMBER_HEADER)
+        if (chunkHeader->magicNumberHeader != MAGIC_NUMBER_HEADER)
 	{
 		dbgf_sys(DBGT_ERR,
 		     "invalid magic number in header: %08x, malloc tag = %d, free tag = %d, malloc size = %d",
@@ -318,7 +311,7 @@ void _debugFree(void *memoryParameter, int tag)
 		previous->next = walker->next;
 
 
-	chunkTrailer = (MAGIC_TRAILER_T *)(memory + chunkHeader->length);
+        chunkTrailer = (MAGIC_TRAILER_T *) (((unsigned char *) memoryParameter) + chunkHeader->length);
 
 	if (*chunkTrailer != MAGIC_NUMBER_TRAILOR) {
                 dbgf_sys(DBGT_ERR, "invalid magic number in trailer: %08x, malloc tag = %d, free tag = %d, malloc size = %d",
@@ -353,11 +346,9 @@ void debugMemory( struct ctrl_node *cn )
 
 void *_debugMalloc(uint32_t length, int32_t tag)
 {
-	void *result;
+        void *result = malloc(length);
 
-	result = malloc(length);
-
-	if (result == NULL)
+        if (result == NULL && length)
 	{
 		dbg_sys(DBGT_ERR, "Cannot allocate %u bytes, malloc tag = %d", length, tag );
 		cleanup_all( -500072 );
@@ -368,11 +359,9 @@ void *_debugMalloc(uint32_t length, int32_t tag)
 
 void *_debugRealloc(void *memory, uint32_t length, int32_t tag)
 {
-	void *result;
+        void *result = realloc(memory, length);
 
-	result = realloc(memory, length);
-
-	if (result == NULL) {
+        if (result == NULL && length) {
 		dbg_sys(DBGT_ERR, "Cannot re-allocate %u bytes, malloc tag = %d", length, tag );
 		cleanup_all( -500071 );
 	}

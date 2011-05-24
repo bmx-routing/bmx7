@@ -215,17 +215,17 @@ char *umetric_to_human(UMETRIC_T val) {
 #define UMETRIC_TO_HUMAN_ARRAYS 4
         static char out[UMETRIC_TO_HUMAN_ARRAYS][12] = {{0},{0},{0},{0}};
         static uint8_t p=0;
-        p = ((p + 1) % UMETRIC_TO_HUMAN_ARRAYS);
 
         if (val < UMETRIC_MIN__NOT_ROUTABLE) {
-                sprintf(out[p], "INVALID");
+                return "INVALID";
         } else if (val <= UMETRIC_MIN__NOT_ROUTABLE) {
-                sprintf(out[p], "noROUTE");
+                return "noROUTE";
         } else if (val <= UMETRIC_ROUTABLE) {
-                sprintf(out[p], "ROUTE  ");
+                return "ROUTE  ";
         } else if (val > UMETRIC_MAX) {
-                sprintf(out[p], "INFINTE");
+                return "INFINTE";
         } else {
+                p = ((p + 1) % UMETRIC_TO_HUMAN_ARRAYS);
 
                 if (val < 100000) {
                         sprintf(out[p], "%ju", val);
@@ -236,8 +236,10 @@ char *umetric_to_human(UMETRIC_T val) {
                 } else if (val < 100000000000000) {
                         sprintf(out[p], "%juG", val/1000000000);
                 }
+
+                return out[p];
         }
-        return out[p];
+        return NULL;
 }
 
 FMETRIC_U16_T fmetric_u8_to_fmu16( FMETRIC_U8_T fmu8 ) {

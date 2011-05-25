@@ -1337,10 +1337,9 @@ static const int32_t field_standard_sizes[FIELD_TYPE_END] = FIELD_STANDARD_SIZES
 
 int64_t field_get_value(const struct field_format *format, uint16_t min_msg_size, uint8_t *data, uint32_t pos_bit, uint32_t bits)
 {
-        uint8_t field_type = format->field_type;
         uint8_t host_order = format->field_host_order;
 
-        assertion(-501221, (field_type == FIELD_TYPE_UINT || field_type == FIELD_TYPE_HEX || field_type == FIELD_TYPE_STRING_SIZE));
+        assertion(-501221, (format->field_type == FIELD_TYPE_UINT || format->field_type == FIELD_TYPE_HEX || format->field_type == FIELD_TYPE_STRING_SIZE));
         assertion(-501222, (bits <= 32));
 
         if ((bits % 8) == 0) {
@@ -1496,8 +1495,8 @@ uint32_t field_iterate(struct field_iterator *it)
 
                 uint8_t field_type = format->field_type;
                 uint32_t field_bits = format->field_bits ? format->field_bits : it->var_bits;
-                int32_t std_bits = field_standard_sizes[field_type];
-
+                int32_t std_bits;
+                std_bits = field_standard_sizes[field_type];
 
                 assertion(-501172, IMPLIES(field_type == FIELD_TYPE_STRING_SIZE, !it->var_bits));
 

@@ -947,7 +947,8 @@ void schedule_or_purge_ogm_aggregations(IDM_T purge_all)
 
                                                 dbgf_sys(DBGT_ERR,
                                                         "%s with %s curr_rn and PENDING ogm_sqn=%d but path_metric=%jd < USABLE=%jd",
-                                                        on->id.name, on->curr_rt_local ? " " : "NO", on->ogmSqn_next,
+                                                        globalIdAsString(&on->global_id),
+                                                        on->curr_rt_local ? " " : "NO", on->ogmSqn_next,
                                                         on->curr_rt_local ? on->curr_rt_local->mr.umetric : 0, on->path_metricalgo->umetric_min);
 
                                                 ASSERTION( -500473, (0));

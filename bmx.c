@@ -1388,6 +1388,7 @@ char *field_dbg_value(const struct field_format *format, uint16_t min_msg_size, 
         assertion(-501200, (format && min_msg_size && data && bits));
 
         uint8_t field_type = format->field_type;
+        char *val = NULL;
 
         if (field_type == FIELD_TYPE_UINT || field_type == FIELD_TYPE_HEX || field_type == FIELD_TYPE_STRING_SIZE) {
 
@@ -1403,60 +1404,62 @@ char *field_dbg_value(const struct field_format *format, uint16_t min_msg_size, 
                                 snprintf(uint32_out, sizeof (uint32_out), "%ji", field_val);
 
                         assertion(-501243, (strlen(uint32_out) < sizeof (uint32_out)));
-                        return uint32_out;
+                        val = uint32_out;
 
 
                 } else {
-                        return memAsHexString(&data[pos_bit / 8], bits / 8);
+                        val = memAsHexString(&data[pos_bit / 8], bits / 8);
                 }
 
         } else if (field_type == FIELD_TYPE_IP4) {
 
-                return ip4AsStr(*((IP4_T*) & data[pos_bit / 8]));
+                val = ip4AsStr(*((IP4_T*) & data[pos_bit / 8]));
 
         } else if (field_type == FIELD_TYPE_IPX4) {
 
-                return ipXAsStr(AF_INET, (IPX_T*) & data[pos_bit / 8]);
+                val =  ipXAsStr(AF_INET, (IPX_T*) & data[pos_bit / 8]);
 
         } else if (field_type == FIELD_TYPE_IPX6) {
 
-                return ipXAsStr(AF_INET6, (IPX_T*) & data[pos_bit / 8]);
+                val =  ipXAsStr(AF_INET6, (IPX_T*) & data[pos_bit / 8]);
 
         } else if (field_type == FIELD_TYPE_IPX) {
 
-                return ipXAsStr(af_cfg, (IPX_T*) & data[pos_bit / 8]);
+                val = ipXAsStr(af_cfg, (IPX_T*) & data[pos_bit / 8]);
 
         } else if (field_type == FIELD_TYPE_MAC) {
 
-                return macAsStr((MAC_T*)&data[pos_bit / 8]);
+                val = macAsStr((MAC_T*) & data[pos_bit / 8]);
 
         } else if (field_type == FIELD_TYPE_STRING_BINARY) {
 
-                return memAsHexString(&data[pos_bit / 8], bits / 8);
+                val =  memAsHexString(&data[pos_bit / 8], bits / 8);
 
         } else if (field_type == FIELD_TYPE_STRING_CHAR) {
 
-                return memAsCharString((char*) &data[pos_bit / 8], bits / 8);
+                val = memAsCharString((char*) &data[pos_bit / 8], bits / 8);
 
         } else if (field_type == FIELD_TYPE_POINTER_CHAR) {
 
-                return memAsCharString(*((char**) (&data[pos_bit / 8])), strlen(*((char**) (&data[pos_bit / 8]))));
+                val = memAsCharString(*((char**) (&data[pos_bit / 8])), strlen(*((char**) (&data[pos_bit / 8]))));
 
         } else if (field_type == FIELD_TYPE_POINTER_GLOBAL_ID) {
 
-                return globalIdAsString(*((GLOBAL_ID_T**) (&data[pos_bit / 8])));
+                val = globalIdAsString(*((GLOBAL_ID_T**) (&data[pos_bit / 8])));
 
         } else if (field_type == FIELD_TYPE_GLOBAL_ID) {
 
-                return globalIdAsString(((GLOBAL_ID_T*) (&data[pos_bit / 8])));
+                val = globalIdAsString(((GLOBAL_ID_T*) (&data[pos_bit / 8])));
 
         } else if (field_type == FIELD_TYPE_UMETRIC) {
 
-                return umetric_to_human(*((UMETRIC_T*) (&data[pos_bit / 8])));
+                val = umetric_to_human(*((UMETRIC_T*) (&data[pos_bit / 8])));
+        } else {
+
+                assertion(-501202, 0);
         }
 
-        assertion(-501202, 0);
-        return NULL;
+        return val ? val : "ERROR";
 }
 
 
@@ -1609,10 +1612,12 @@ void fields_dbg_table(struct ctrl_node *cn, uint16_t relevance, uint16_t data_si
         assertion(-500000, (fields && fields <= FIELD_FORMAT_MAX_ITEMS));
 
         struct field_iterator it1 = {.format = format, .data = data, .data_size = data_size, .min_msg_size = min_msg_size};
+
         while (field_iterate(&it1) == SUCCESS) {
 
-                field_string_sizes[it1.field] = max_i32(field_string_sizes[it1.field], strlen(
-                        field_dbg_value(&format[it1.field], min_msg_size, data, it1.field_bit_pos, it1.field_bits)));
+                char *val = field_dbg_value(&format[it1.field], min_msg_size, data, it1.field_bit_pos, it1.field_bits);
+
+                field_string_sizes[it1.field] = max_i32(field_string_sizes[it1.field], strlen(val));
         }
 
         uint8_t i = 0;

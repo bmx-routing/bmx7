@@ -1781,7 +1781,7 @@ static int32_t link_status_creator(struct status_handl *handl)
 
                 struct orig_node *on = local->neigh ? local->neigh->dhn->on : NULL;
 
-                for (link_it = NULL; (link = avl_iterate_item(&local->link_tree, &link_it));) {
+                for (link_it = NULL; on && (link = avl_iterate_item(&local->link_tree, &link_it));) {
                         struct link_dev_node *lndev = NULL;
 
                         while ((lndev = list_iterate(&link->lndev_list, lndev))) {

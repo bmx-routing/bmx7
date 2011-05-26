@@ -41,6 +41,7 @@
 
 #define CODE_CATEGORY_NAME "json"
 
+static int32_t json_update_interval = DEF_JSON_UPDATE;
 
 static char json_dir[MAX_PATH_SIZE] = JSON_ILLEGAL_DIR;
 static char json_desc_dir[MAX_PATH_SIZE] = JSON_ILLEGAL_DIR;
@@ -374,6 +375,9 @@ void json_config_event_hook(int32_t cb_id, struct orig_node *on)
         update_json_options(0, 1, JSON_PARAMETERS_FILE);
 }
 
+
+
+
 STATIC_FUNC
 int32_t opt_json_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
 {
@@ -383,11 +387,12 @@ int32_t opt_json_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
 
                 struct status_handl *handl = NULL;
                 uint32_t data_len;
-                char status_name[sizeof (handl->status_name)] = {0};
+
+                char status_name[sizeof (((struct status_handl *) NULL)->status_name)] = {0};
                 strcpy(status_name, &opt->long_name[strlen("json_")]);
 
                 if ((handl = avl_find_item(&status_tree, status_name)) && (data_len = ((*(handl->frame_creator))(handl)))) {
-                        
+
                         json_object *jorig = json_object_new_object();
                         json_object *jdesc_fields = NULL;
 
@@ -397,25 +402,56 @@ int32_t opt_json_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
                                 json_object_object_add(jorig, handl->status_name, jdesc_fields);
                         }
 
-                        dbg_printf(cn, "%s\n", json_object_to_json_string(jorig));
+                        const char * data = json_object_to_json_string(jorig);
 
+                        if (cn)
+                                dbg_printf(cn, "%s\n", data);
+
+                        if (json_update_interval) {
+                                int fd;
+                                char path_name[MAX_PATH_SIZE + 20] = "";
+                                sprintf(path_name, "%s/%s", json_dir, status_name);
+
+                                if ((fd = open(path_name, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) < 0) {
+                                        dbgf_sys(DBGT_ERR, "could not open %s - %s", path_name, strerror(errno));
+                                } else {
+                                        int written = write(fd, data, strlen(data));
+
+                                        if (written != (int)strlen(data)) {
+                                                dbgf_sys(DBGT_ERR, "only %d of %d bytes written to %s",
+                                                        written, strlen(data), path_name);
+                                        }
+                                        close(fd);
+                                }
+                        }
                         json_object_put(jorig);
                 }
 	}
-
 	return SUCCESS;
 }
 
 
 STATIC_FUNC
-int32_t opt_json_dir(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
+void update_json_status(void *data)
 {
-        if (cmd == OPT_CHECK || cmd == OPT_APPLY) {
+        assertion(-501254, (strcmp(json_dir, JSON_ILLEGAL_DIR)));
+        assertion(-500000, (json_update_interval));
 
-                if (strcmp(patch->p_val, opt->sdef))
-                        return FAILURE;
-        }
+        task_register(json_update_interval, update_json_status, NULL, -300000);
 
+        check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_JSON_STATUS), 0, NULL);
+        check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_JSON_INTERFACES), 0, NULL);
+        check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_JSON_LINKS), 0, NULL);
+        check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_JSON_ORIGINATORS), 0, NULL);
+
+
+}
+
+STATIC_FUNC
+int32_t opt_json_update_interval(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
+{
+
+        static int32_t current_update_interval = 0;
 
         if (cmd == OPT_SET_POST && initializing) {
 
@@ -466,30 +502,38 @@ int32_t opt_json_dir(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct op
                 update_json_options(1, 0, JSON_OPTIONS_FILE);
 
         }
+
+
+        if (cmd == OPT_SET_POST && current_update_interval != json_update_interval) {
+
+                if (json_update_interval)
+                        task_register(MAX(10, json_update_interval), update_json_status, NULL, -300000);
+                else
+                        task_remove(update_json_status, NULL);
+
+        }
+
 	return SUCCESS;
 }
-
-
-
 
 
 
 static struct opt_type json_options[]= {
 //        ord parent long_name          shrt Attributes				*ival		min		max		default		*func,*syntax,*help
 	
-	{ODI,0,ARG_JSON_SUBDIR,		0,5, A_PS1N,A_ADM,A_INI,A_CFA,A_ANY,	0,		0,		0,		0,DEF_JSON_SUBDIR,	opt_json_dir,
-                ARG_DIR_FORM, "set json subdirectory withing runtime_dir (currently only default value allowed)"}
+	{ODI,0,ARG_JSON_UPDATE,		0,  5,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&json_update_interval,	MIN_JSON_UPDATE,MAX_JSON_UPDATE,DEF_JSON_UPDATE,0,opt_json_update_interval,
+                ARG_VALUE_FORM, "disable or periodically update json-status files every given milliseconds."}
         ,
-	{ODI,0,"json_status",		0,  5,A_PS0,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_json_status,
+	{ODI,0,ARG_JSON_STATUS,		0,  5,A_PS0,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_json_status,
 			0,		"show status in json format\n"}
         ,
-	{ODI,0,"json_interfaces",	0,  5,A_PS0,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_json_status,
+	{ODI,0,ARG_JSON_INTERFACES,	0,  5,A_PS0,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_json_status,
 			0,		"show interfaces in json format\n"}
         ,
-	{ODI,0,"json_links",	        0,  5,A_PS0,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_json_status,
+	{ODI,0,ARG_JSON_LINKS,	        0,  5,A_PS0,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_json_status,
 			0,		"show links in json format\n"}
         ,
-	{ODI,0,"json_originators",	0,  5,A_PS0,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_json_status,
+	{ODI,0,ARG_JSON_ORIGINATORS,	0,  5,A_PS0,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_json_status,
 			0,		"show originators in json format\n"}
 
 	

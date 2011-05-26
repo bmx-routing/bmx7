@@ -27,8 +27,13 @@
 #define DEF_JSON_SUBDIR "json"
 #define DEF_JSON_DESC_SUBDIR "descriptions"
 
+#define ARG_JSON_UPDATE "jsonUpdateInterval"
+#define DEF_JSON_UPDATE 10000
+#define MIN_JSON_UPDATE 0
+#define MAX_JSON_UPDATE 1000000
 
 
-
-
-
+#define ARG_JSON_STATUS      "json_status"
+#define ARG_JSON_INTERFACES  "json_interfaces"
+#define ARG_JSON_LINKS       "json_links"
+#define ARG_JSON_ORIGINATORS "json_originators"

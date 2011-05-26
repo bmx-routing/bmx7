@@ -505,8 +505,8 @@ void schedule_tx_task(struct link_dev_node *dest_lndev, uint16_t frame_type, int
 
         assertion(-501047, (!cleaning_up)); // this function MUST NOT be called during cleanup
         assertion(-500756, (dest_lndev && dest_lndev->key.dev));
-        ASSERTION(-500713, (iid_get_node_by_myIID4x(myIID4me)));
-        ASSERTION(-500714, (!myIID4x || iid_get_node_by_myIID4x(myIID4x)));
+        ASSERTION(-500713, (initializing || iid_get_node_by_myIID4x(myIID4me)));
+        ASSERTION(-500714, IMPLIES(myIID4x, iid_get_node_by_myIID4x(myIID4x)));
         assertion(-501090, (frame_msgs_len >= SCHEDULE_MIN_MSG_SIZE));
         assertion(-501091, (dest_lndev->key.dev->active));
         assertion(-501092, (dest_lndev->key.dev->linklayer != TYP_DEV_LL_LO));

@@ -1771,11 +1771,11 @@ static int32_t link_status_creator(struct status_handl *handl)
         struct avl_node *link_it, *local_it;
         struct link_node *link;
         struct local_node *local;
-        uint32_t status_size = link_dev_tree.items * sizeof (struct link_status);
+        uint32_t max_size = link_dev_tree.items * sizeof (struct link_status);
         uint32_t i = 0;
 
-        struct link_status *status = ((struct link_status*) (handl->data = debugRealloc(handl->data, status_size, -300358)));
-        memset(status, 0, status_size);
+        struct link_status *status = ((struct link_status*) (handl->data = debugRealloc(handl->data, max_size, -300358)));
+        memset(status, 0, max_size);
 
         for (local_it = NULL; (local = avl_iterate_item(&local_tree, &local_it));) {
 
@@ -1811,13 +1811,12 @@ static int32_t link_status_creator(struct status_handl *handl)
                                 status[i].lastLinkAdv = ((TIME_T) (bmx_time - local->link_adv_time)) / 1000;
 
                                 i++;
-                                assertion(-501225, (status_size >= i * sizeof (struct link_status)));
+                                assertion(-501225, (max_size >= i * sizeof (struct link_status)));
                         }
                 }
         }
 
-        assertion(-501226, (status_size == i * sizeof (struct link_status)));
-        return status_size;
+        return i * sizeof (struct link_status);
 }
 
 

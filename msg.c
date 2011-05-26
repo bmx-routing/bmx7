@@ -2985,6 +2985,8 @@ void tx_packet(void *devp)
                         it.ttn = list_entry(lpos, struct tx_task_node, list);
                         item++;
 
+                        dbgf_all(DBGT_INFO, "%s type=%d =%s", dev->label_cfg.str, it.frame_type, handl->name);
+
                         assertion(-500440, (it.ttn->task.type == it.frame_type));
 
                         ASSERTION(-500918, (IMPLIES(!handl->is_advertisement, it.ttn->task.link &&
@@ -2994,7 +2996,6 @@ void tx_packet(void *devp)
                                 it.ttn->task.dev == avl_find_item(&dev_ip_tree, &it.ttn->task.dev->llocal_ip_key))));
 
 
-                        dbgf_all(DBGT_INFO, "%s type=%d =%s", dev->label_cfg.str, it.frame_type, handl->name);
 
                         if (it.ttn->tx_iterations <= 0) {
 

@@ -443,8 +443,6 @@ void update_json_status(void *data)
         check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_JSON_INTERFACES), 0, NULL);
         check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_JSON_LINKS), 0, NULL);
         check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_JSON_ORIGINATORS), 0, NULL);
-
-
 }
 
 STATIC_FUNC
@@ -510,6 +508,8 @@ int32_t opt_json_update_interval(uint8_t cmd, uint8_t _save, struct opt_type *op
                         task_register(MAX(10, json_update_interval), update_json_status, NULL, -300000);
                 else
                         task_remove(update_json_status, NULL);
+
+                current_update_interval = json_update_interval;
 
         }
 

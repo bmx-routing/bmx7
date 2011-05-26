@@ -143,7 +143,7 @@
 
 #define FRAME_TYPE_DEV_REQ      6
 #define FRAME_TYPE_DEV_ADV      7
-#define FRAME_TYPE_LINK_REQ     8
+#define FRAME_TYPE_LINK_REQ_ADV     8
 #define FRAME_TYPE_LINK_ADV     9
 
 #define FRAME_TYPE_RP_ADV      11

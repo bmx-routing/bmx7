@@ -523,7 +523,7 @@ void schedule_tx_task(struct link_dev_node *dest_lndev, uint16_t frame_type, int
         dbgf((( /* debug interesting frame types: */ frame_type == FRAME_TYPE_PROBLEM_ADV ||
                 frame_type == FRAME_TYPE_HASH_REQ || frame_type == FRAME_TYPE_HASH_ADV ||
                 frame_type == FRAME_TYPE_DESC_REQ ||frame_type == FRAME_TYPE_DESC_ADV ||
-                frame_type == FRAME_TYPE_LINK_REQ || frame_type == FRAME_TYPE_LINK_ADV ||
+                frame_type == FRAME_TYPE_LINK_REQ_ADV || frame_type == FRAME_TYPE_LINK_ADV ||
                 frame_type == FRAME_TYPE_DEV_REQ || frame_type == FRAME_TYPE_DEV_ADV)
                 ? DBGL_CHANGES : DBGL_ALL), DBGT_INFO,
                  "%s to NB=%s local_id=0x%X via dev=%s frame_msgs_len=%d u16=%d u32=%d myIID4x=%d neighIID4x=%d ",
@@ -2699,7 +2699,7 @@ IDM_T rx_frames(struct packet_buff *pb)
                 if (local->neigh)
                         memset(local->neigh->ogm_aggregations_not_acked, 0, sizeof (local->neigh->ogm_aggregations_not_acked));
 
-                schedule_tx_task(&pb->i.iif->dummy_lndev, FRAME_TYPE_LINK_REQ, SCHEDULE_MIN_MSG_SIZE, 0, local->local_id, 0, 0);
+                schedule_tx_task(&pb->i.iif->dummy_lndev, FRAME_TYPE_LINK_REQ_ADV, SCHEDULE_MIN_MSG_SIZE, 0, local->local_id, 0, 0);
         }
 
 
@@ -3670,7 +3670,8 @@ int32_t init_msg( void )
         register_frame_handler(packet_frame_handler, FRAME_TYPE_DEV_ADV, &handl);
 
 
-        handl.name = "LINK_REQ";
+        handl.name = "LINK_REQ_ADV";
+        handl.is_advertisement = 1;
         handl.tx_iterations = &link_req_tx_iters;
 //        handl.tx_rp_min = &UMETRIC_NBDISCOVERY_MIN;
         handl.min_msg_size = sizeof (struct msg_link_req);
@@ -3678,7 +3679,7 @@ int32_t init_msg( void )
         handl.tx_task_interval_min = CONTENT_MIN_TX_INTERVAL__CHECK_FOR_REDUNDANCY;
         handl.tx_msg_handler = tx_msg_link_req;
         handl.rx_msg_handler = rx_msg_link_req;
-        register_frame_handler(packet_frame_handler, FRAME_TYPE_LINK_REQ, &handl);
+        register_frame_handler(packet_frame_handler, FRAME_TYPE_LINK_REQ_ADV, &handl);
 
         handl.name = "LINK_ADV";
         handl.is_advertisement = 1;

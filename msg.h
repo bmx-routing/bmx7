@@ -23,6 +23,7 @@
 
 
 
+
 #define MIN_UDPD_SIZE 128 //(6+4+(22+8)+32)+184=72+56=128
 #define DEF_UDPD_SIZE 512 //512
 #define MAX_UDPD_SIZE (MIN( 1400, MAX_PACKET_SIZE))
@@ -181,9 +182,9 @@
 #define HLP_DESCRIPTION_TYPE     "show description extension(s) of given type (0..253=type 254=none 255=all) \n"
 
 #define ARG_RELEVANCE "relevance"
-#define DEF_RELEVANCE 2
-#define MAX_RELEVANCE 2
-#define MIN_RELEVANCE 0
+#define DEF_RELEVANCE FIELD_RELEVANCE_HIGH
+#define MAX_RELEVANCE FIELD_RELEVANCE_HIGH
+#define MIN_RELEVANCE FIELD_RELEVANCE_LOW
 
 
 struct frame_header_short { // 2 bytes

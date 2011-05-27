@@ -1822,74 +1822,6 @@ static int32_t link_status_creator(struct status_handl *handl)
 }
 
 
-/*
-
-
-struct local_status {
-        LOCAL_ID_T local_id;
-        GLOBAL_ID_T *global_id;
-        uint8_t routes;
-        uint8_t wants_ogms;
-        uint8_t link_adv_4_him;
-        uint8_t link_adv_4_me;
-        DEVADV_SQN_T dev_adv_sqn;
-        DEVADV_SQN_T dev_adv_sqn_diff;
-        LINKADV_SQN_T link_adv_sqn;
-        LINKADV_SQN_T link_adv_sqn_diff;
-        TIME_T last_link_adv;
-};
-
-static const struct field_format local_status_format[] = {
-        FIELD_FORMAT_INIT(FIELD_TYPE_HEX,               local_status, local_id,         1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, local_status, global_id,        1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              local_status, routes,           1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              local_status, wants_ogms,       1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              local_status, link_adv_4_him,   1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              local_status, link_adv_4_me,    1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              local_status, dev_adv_sqn,      1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              local_status, dev_adv_sqn_diff, 1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              local_status, link_adv_sqn,     1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              local_status, link_adv_sqn_diff,1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              local_status, last_link_adv,    1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_END
-};
-
-static int32_t locals_status_creator(struct status_handl *handl)
-{
-        struct avl_node *it;
-        struct local_node *local;
-        uint32_t status_size = local_tree.items * sizeof (struct local_status);
-        uint32_t i = 0;
-
-        struct local_status *status = ((struct local_status*) (handl->data = debugRealloc(handl->data, status_size, -300358)));
-        memset(status, 0, status_size);
-
-
-        for (it = NULL; (local = avl_iterate_item(&local_tree, &it));) {
-
-                struct orig_node *on = local->neigh ? local->neigh->dhn->on : NULL;
-
-                status[i].local_id = ntohl(local->local_id);
-                status[i].global_id = &on->global_id;
-                status[i].routes = local->orig_routes;
-                status[i].wants_ogms = local->rp_ogm_request_rcvd;
-                status[i].link_adv_4_him = local->link_adv_msg_for_him;
-                status[i].link_adv_4_me =  local->link_adv_msg_for_me;
-                status[i].dev_adv_sqn = local->dev_adv_sqn;
-                status[i].dev_adv_sqn_diff = ((DEVADV_SQN_T) (local->link_adv_dev_sqn_ref - local->dev_adv_sqn));
-                status[i].link_adv_sqn = local->link_adv_sqn;
-                status[i].link_adv_sqn_diff = ((LINKADV_SQN_T) (local->packet_link_sqn_ref - local->link_adv_sqn));
-                status[i].last_link_adv = ((TIME_T) (bmx_time - local->link_adv_time)) / 1000;
-                i++;
-        }
-        return status_size;
-}
-
-
-
-
-*/
-
 
 
 
@@ -1981,148 +1913,27 @@ int32_t opt_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_
 
         if ( cmd == OPT_APPLY ) {
 
-/*
-                if (!strcmp(opt->long_name, ARG_VERSION)) {
-
-                } else if (!strcmp(opt->long_name, ARG_STATUS)) {
-
-                } else  if ( !strcmp( opt->long_name, ARG_LINKS ) ) {
-
-#define DBG_STATUS4_LINK_HEAD "%-16s %-10s %3s %3s %8s %8s %9s %5s %5s %4s %-5s\n"
-#define DBG_STATUS6_LINK_HEAD "%-30s %-10s %3s %3s %8s %8s %9s %5s %5s %4s %-5s\n"
-#define DBG_STATUS4_LINK_INFO "%-16s %-10s %3ju %3ju %8X %8X %9X %5d %5d %4d %2s %2s\n"
-#define DBG_STATUS6_LINK_INFO "%-30s %-10s %3ju %3ju %8X %8X %9X %5d %5d %4d %2s %2s\n"
-
-                        dbg_printf(cn, (af_cfg == AF_INET ? DBG_STATUS4_LINK_HEAD : DBG_STATUS6_LINK_HEAD),
-                                "LinkLocalIP", "viaIF", "RP", "TP",
-                                "myDevIDX", "nbDevIDX", "nbLocalID", "nbIID", "lSqn", "lVld", "best");
-
-                        struct avl_node *it;
-                        struct link_node *link;
-
-                        for (it = NULL; (link = avl_iterate_item(&link_tree, &it));) {
-
-                                struct link_dev_node *lndev = NULL;
-
-                                while ((lndev = list_iterate(&link->lndev_list, lndev))) {
-
-                                        dbg_printf(cn, (af_cfg == AF_INET ? DBG_STATUS4_LINK_INFO : DBG_STATUS6_LINK_INFO),
-                                                ipXAsStr(af_cfg, &link->link_ip),
-                                                lndev->key.dev->label_cfg.str,
-                                                ((lndev->timeaware_rx_probe *100) / UMETRIC_MAX),
-                                                ((lndev->timeaware_tx_probe *100) / UMETRIC_MAX),
-                                                lndev->key.dev->dev_adv_idx, link->key.dev_idx, ntohl(link->key.local_id),
-                                                link->local->neigh ? link->local->neigh->neighIID4me : 0,
-                                                link->hello_sqn_max,
-                                                ((TIME_T)(bmx_time - link->hello_time_max)) / 1000,
-                                                (lndev == link->local->best_rp_lndev ? "Rp" : " "),
-                                                (lndev == link->local->best_tp_lndev ? "Tp" : " ")
-                                                );
-                                }
-
-                        }
-                        dbg_printf(cn, "\n");
-
-
-                } else  if ( !strcmp( opt->long_name, ARG_LOCALS ) ) {
-
-#define DBG_STATUS4_LOCAL_HEAD "%-8s %-40s %3s %9s %11s %3s %6s %1s %7s %1s %7s\n"
-#define DBG_STATUS6_LOCAL_HEAD "%-8s %-40s %3s %9s %11s %3s %6s %1s %7s %1s %7s\n"
-#define DBG_STATUS4_LOCAL_INFO "%8X %-40s %3d %9d %11d %3d %6d %1d %7d %1d %7d\n"
-#define DBG_STATUS6_LOCAL_INFO "%8X %-40s %3d %9d %11d %3d %6d %1d %7d %1d %7d\n"
-
-                        dbg_printf(cn, (af_cfg == AF_INET ? DBG_STATUS4_LOCAL_HEAD : DBG_STATUS6_LOCAL_HEAD),
-                                "localID", "globalId",
-                                "RTs", "wantsOGMs", "linkAdv4Him", "4Me", "devAdv", "d", "linkAdv", "d", "lastAdv");
-
-                        struct avl_node *it;
-                        struct local_node *local;
-
-                        for (it = NULL; (local = avl_iterate_item(&local_tree, &it));) {
-
-                                struct orig_node *on = local->neigh ? local->neigh->dhn->on : NULL;
-
-                                dbg_printf(cn, (af_cfg == AF_INET ? DBG_STATUS4_LOCAL_INFO : DBG_STATUS6_LOCAL_INFO),
-                                        ntohl(local->local_id),
-                                        globalIdAsString(&on->global_id), local->orig_routes, local->rp_ogm_request_rcvd,
-                                        local->link_adv_msg_for_him, local->link_adv_msg_for_me,
-
-                                        local->dev_adv_sqn, ((DEVADV_SQN_T) (local->link_adv_dev_sqn_ref - local->dev_adv_sqn)),
-                                        local->link_adv_sqn, ((LINKADV_SQN_T) (local->packet_link_sqn_ref - local->link_adv_sqn)),
-                                        ((TIME_T)(bmx_time - local->link_adv_time)) / 1000
-                                        );
-                        }
-
-                        dbg_printf(cn, "\n");
-
-                } else if (!strcmp(opt->long_name, ARG_ORIGINATORS)) {
-
-#define DBG_STATUS4_ORIG_HEAD "%-40s %-16s %3s %-16s %-10s %7s %5s %5s %5s %1s %5s %4s\n"
-#define DBG_STATUS6_ORIG_HEAD "%-40s %-40s %3s %-40s %-10s %7s %5s %5s %5s %1s %5s %4s\n"
-#define DBG_STATUS4_ORIG_INFO "%-40s %-16s %3d %-16s %-10s %7s %5d %5d %5d %1d %5d %4d\n"
-#define DBG_STATUS6_ORIG_INFO "%-40s %-40s %3d %-40s %-10s %7s %5d %5d %5d %1d %5d %4d\n"
-#define DBG_STATUS4_ORIG_TAIL "%-40s %-16d %3d %-16s %-10s %7s %5s %5s %5s %1s %5s %4d\n"
-#define DBG_STATUS6_ORIG_TAIL "%-40s %-40d %3d %-40s %-10s %7s %5s %5s %5s %1s %5s %4d\n"
-
-                        struct avl_node *it;
-                        struct orig_node *on;
-                        UMETRIC_T total_metric = 0;
-                        uint32_t  total_lref = 0;
-                        uint32_t  total_router = 0;
-                        char *empty = "";
-
-                        dbg_printf(cn, (af_cfg == AF_INET ? DBG_STATUS4_ORIG_HEAD : DBG_STATUS6_ORIG_HEAD),
-                                "globalId", "primaryIP", "RTs", "currRT", "viaDev",
-                                "metric", "myIID", "desc#", "ogm#", "d", "lUpd", "lRef");
-
-                        for (it = NULL; (on = avl_iterate_item(&orig_tree, &it));) {
-
-                                dbg_printf(cn, (af_cfg == AF_INET ? DBG_STATUS4_ORIG_INFO : DBG_STATUS6_ORIG_INFO),
-                                        globalIdAsString(&on->global_id),
-                                        on->blocked ? "BLOCKED" : on->primary_ip_str,
-                                        on->rt_tree.items,
-                                        ipXAsStr(af_cfg, (on->curr_rt_lndev ? &on->curr_rt_lndev->key.link->link_ip : &ZERO_IP)),
-                                        on->curr_rt_lndev && on->curr_rt_lndev->key.dev ? on->curr_rt_lndev->key.dev->name_phy_cfg.str : " ",
-                                        umetric_to_human(on->curr_rt_local ? (on->curr_rt_local->mr.umetric) : (on == &self ? UMETRIC_MAX : 0)),
-                                        on->dhn->myIID4orig, on->descSqn,
-                                        on->ogmSqn_next,
-                                        (on->ogmSqn_maxRcvd - on->ogmSqn_next),
-                                        (bmx_time - on->updated_timestamp) / 1000,
-                                        (bmx_time - on->dhn->referred_by_me_timestamp) / 1000
-                                        );
-
-                                if (on != &self) {
-                                        total_metric += (on->curr_rt_local ? on->curr_rt_local->mr.umetric : 0);
-                                        total_lref += (bmx_time - on->dhn->referred_by_me_timestamp) / 1000;
-                                        total_router += on->rt_tree.items;
-                                }
-
-                        }
-                        total_metric = orig_tree.items > 1 ? total_metric / (orig_tree.items - 1) : 0;
-                        total_router = orig_tree.items > 1 ? total_router / (orig_tree.items - 1) : 0;
-                        dbg_printf(cn, (af_cfg == AF_INET ? DBG_STATUS4_ORIG_TAIL : DBG_STATUS6_ORIG_TAIL),
-                                "Averages:", orig_tree.items, total_router, empty, empty,
-                                umetric_to_human(total_metric),
-                                empty, empty, empty, empty, empty,
-                                orig_tree.items > 1 ? ((total_lref + ((orig_tree.items - 1) / 2)) / (orig_tree.items - 1)) : 0);
-
-
-		} else {
-			return FAILURE;
-                }
-
-*/
-
 
                 struct status_handl *handl = NULL;
                 uint32_t data_len;
                 char status_name[sizeof (handl->status_name)] = {0};
                 strcpy(status_name, opt->long_name);
 
+                int32_t relevance = DEF_RELEVANCE;
+                struct opt_child *c = NULL;
+
+                while ((c = list_iterate(&patch->childs_instance_list, c))) {
+
+                        if (!strcmp(c->c_opt->long_name, ARG_RELEVANCE)) {
+                                relevance = strtol(c->c_val, NULL, 10);
+                        }
+		}
+
+
                 if ((handl = avl_find_item(&status_tree, status_name)) && (data_len = ((*(handl->frame_creator))(handl)))) {
 
                         dbg_printf(cn, "%s:\n", handl->status_name);
-                        fields_dbg_table(cn, FIELD_RELEVANCE_HIGH, data_len, handl->data, handl->min_msg_size, handl->format);
+                        fields_dbg_table(cn, relevance, data_len, handl->data, handl->min_msg_size, handl->format);
                 }
 	}
 
@@ -2173,13 +1984,12 @@ static struct opt_type bmx_options[]=
 	{ODI,0,ARG_INTERFACES,	        0,  5,A_PS0,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
 			0,		"show interfaces\n"},
 
-	{ODI,0,ARG_LINKS,		0,  5,A_PS0,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
+	{ODI,0,ARG_LINKS,		0,  5,A_PS0N,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
 			0,		"show links\n"},
+	{ODI,ARG_LINKS,ARG_RELEVANCE,   'r',5,A_CS1,A_USR,A_DYN,A_ARG,A_ANY,	0,	       MIN_RELEVANCE,   MAX_RELEVANCE,  DEF_RELEVANCE,0, opt_status,
+			ARG_VALUE_FORM,	HLP_DESCRIPTION_TYPE}
+        ,
 
-/*
-	{ODI,0,ARG_LOCALS,      	0,  5,A_PS0,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
-			0,		"show locals\n"},
-*/
 
 	{ODI,0,ARG_ORIGINATORS,	        0,  5,A_PS0,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
 			0,		"show originators\n"},

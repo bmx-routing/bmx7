@@ -470,82 +470,92 @@ void json_description_event_hook(int32_t cb_id, struct orig_node *on)
         dbgf_all(DBGT_INFO, "cb_id=%d", cb_id);
 
         if (cb_id == PLUGIN_CB_DESCRIPTION_DESTROY) {
-                dbgf_track(DBGT_WARN, "removing destroyed json-description of orig=%s", globalIdAsString(&on->global_id));
+
                 char rm_file[MAX_PATH_SIZE];
                 sprintf(rm_file, "%s/%s", json_desc_dir, globalIdAsString(&on->global_id));
+
+                dbgf_track(DBGT_WARN, "removing destroyed json-description %s", rm_file);
+
                 if (remove(rm_file) != 0) {
                         dbgf_sys(DBGT_ERR, "could not remove %s: %s \n", rm_file, strerror(errno));
                 }
-                return;
-        }
 
-        int fd;
-        char file_name[MAX_PATH_SIZE] = "";
+        } else {
 
-        sprintf(file_name, "%s/%s", json_desc_dir, globalIdAsString(&on->global_id));
+                int fd;
+                char file_name[MAX_PATH_SIZE] = "";
 
-        if ((fd = open(file_name, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) < 0) { //check permissions of generated file
+                sprintf(file_name, "%s/%s", json_desc_dir, globalIdAsString(&on->global_id));
 
-		dbgf_sys(DBGT_ERR, "could not open %s - %s", file_name, strerror(errno) );
-                return;
-	}
+                if ((fd = open(file_name, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) < 0) { //check permissions of generated file
 
-        json_object *jorig = json_object_new_object();
-
-        json_object *jhash = json_object_new_string(memAsHexString(((char*) &(on->dhn->dhash)), sizeof (on->dhn->dhash)));
-        json_object_object_add(jorig, "descSha", jhash);
-
-        json_object *jblocked = json_object_new_int(on->blocked);
-        json_object_object_add(jorig, "blocked", jblocked);
-
-        uint16_t tlvs_len = ntohs(on->desc->extensionLen);
-        struct msg_description_adv * desc_buff = debugMalloc(sizeof (struct msg_description_adv) +tlvs_len, -300361);
-        desc_buff->transmitterIID4x = htons(on->dhn->myIID4orig);
-        memcpy(&desc_buff->desc, on->desc, sizeof (struct description) +tlvs_len);
-
-        json_object *jdesc_fields = NULL;
-
-        if ((jdesc_fields = fields_dbg_json(
-                FIELD_RELEVANCE_MEDI, sizeof (struct msg_description_adv) +tlvs_len, (uint8_t*) desc_buff,
-                packet_frame_handler[FRAME_TYPE_DESC_ADV].min_msg_size,
-                packet_frame_handler[FRAME_TYPE_DESC_ADV].msg_format))) {
-
-                if (tlvs_len) {
-
-                        struct rx_frame_iterator it = {
-                                .caller = __FUNCTION__, .on = on, .cn = NULL, .op = TLV_OP_PLUGIN_MIN,
-                                .handls = description_tlv_handl, .handl_max = BMX_DSC_TLV_MAX, .process_filter = FRAME_TYPE_PROCESS_ALL,
-                                .frames_in = (((uint8_t*) on->desc) + sizeof (struct description)), .frames_length = tlvs_len
-                        };
-
-                        json_object *jextensions = NULL;
-
-                        while (rx_frame_iterate(&it) > TLV_RX_DATA_DONE) {
-                                json_object * jext_fields;
-
-                                if ((jext_fields = fields_dbg_json(
-                                        FIELD_RELEVANCE_MEDI, it.frame_msgs_length, it.msg,
-                                        it.handls[it.frame_type].min_msg_size, it.handls[it.frame_type].msg_format))) {
-
-                                        json_object *jext = json_object_new_object();
-                                        json_object_object_add(jext, it.handls[it.frame_type].name, jext_fields);
-
-                                        jextensions = jextensions ? jextensions : json_object_new_array();
-
-                                        json_object_array_add(jextensions, jext);
-                                }
-                        }
-                        if (jextensions)
-                                json_object_object_add(jdesc_fields, "extensions", jextensions);
+                        dbgf_sys(DBGT_ERR, "could not open %s - %s", file_name, strerror(errno));
+                        return;
                 }
-                json_object_object_add(jorig, packet_frame_handler[FRAME_TYPE_DESC_ADV].name, jdesc_fields);
+
+                json_object *jorig = json_object_new_object();
+
+                json_object *jhash = json_object_new_string(memAsHexString(((char*) &(on->dhn->dhash)), sizeof (on->dhn->dhash)));
+                
+                json_object_object_add(jorig, "descSha", jhash);
+
+                json_object *jblocked = json_object_new_int(on->blocked);
+                json_object_object_add(jorig, "blocked", jblocked);
+
+                uint16_t tlvs_len = ntohs(on->desc->extensionLen);
+                struct msg_description_adv * desc_buff =
+                        debugMalloc(sizeof (struct msg_description_adv) +tlvs_len, -300361);
+
+                desc_buff->transmitterIID4x = htons(on->dhn->myIID4orig);
+                memcpy(&desc_buff->desc, on->desc, sizeof (struct description) +tlvs_len);
+
+                json_object *jdesc_fields = NULL;
+
+                if ((jdesc_fields = fields_dbg_json(
+                        FIELD_RELEVANCE_MEDI, sizeof (struct msg_description_adv) +tlvs_len, (uint8_t*) desc_buff,
+                        packet_frame_handler[FRAME_TYPE_DESC_ADV].min_msg_size,
+                        packet_frame_handler[FRAME_TYPE_DESC_ADV].msg_format))) {
+
+                        if (tlvs_len) {
+
+                                struct rx_frame_iterator it = {
+                                        .caller = __FUNCTION__, .on = on, .cn = NULL, .op = TLV_OP_PLUGIN_MIN,
+                                        .handls = description_tlv_handl, .handl_max = BMX_DSC_TLV_MAX,
+                                        .process_filter = FRAME_TYPE_PROCESS_ALL,
+                                        .frames_in = (((uint8_t*) on->desc) + sizeof (struct description)),
+                                        .frames_length = tlvs_len
+                                };
+
+                                json_object *jextensions = NULL;
+
+                                while (rx_frame_iterate(&it) > TLV_RX_DATA_DONE) {
+                                        json_object * jext_fields;
+
+                                        if ((jext_fields = fields_dbg_json(
+                                                FIELD_RELEVANCE_MEDI, it.frame_msgs_length, it.msg,
+                                                it.handls[it.frame_type].min_msg_size,
+                                                it.handls[it.frame_type].msg_format))) {
+
+                                                json_object *jext = json_object_new_object();
+                                                json_object_object_add(jext, it.handls[it.frame_type].name, jext_fields);
+
+                                                jextensions = jextensions ? jextensions : json_object_new_array();
+
+                                                json_object_array_add(jextensions, jext);
+                                        }
+                                }
+                                if (jextensions)
+                                        json_object_object_add(jdesc_fields, "extensions", jextensions);
+                        }
+                        json_object_object_add(jorig, packet_frame_handler[FRAME_TYPE_DESC_ADV].name, jdesc_fields);
+                }
+
+                dprintf(fd, "%s\n", json_object_to_json_string(jorig));
+
+                json_object_put(jorig);
+                debugFree(desc_buff, -300362);
+                close(fd);
         }
-
-        dprintf(fd, "%s\n", json_object_to_json_string(jorig));
-
-        json_object_put(jorig);
-        debugFree(desc_buff, -300362);
-        close(fd);
 
         json_originator_event_hook(cb_id, on);
 }

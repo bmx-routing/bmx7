@@ -379,62 +379,76 @@ void json_links_event_hook(int32_t cb_id, void* data)
 
 
 STATIC_FUNC
-void json_originator_event_hook(int32_t cb_id, struct orig_node *on)
+void json_originator_event_hook(int32_t cb_id, struct orig_node *orig)
 {
-        if(!on)
-                return;
+        struct orig_node *on;
 
         char path_name[MAX_PATH_SIZE];
 
         if (cb_id == PLUGIN_CB_DESCRIPTION_DESTROY) {
-                dbgf_track(DBGT_WARN, "removing destroyed json-description of orig=%s", globalIdAsString(&on->global_id));
-                sprintf(path_name, "%s/%s", json_orig_dir, globalIdAsString(&on->global_id));
-                if (remove(path_name) != 0) {
-                        dbgf_sys(DBGT_ERR, "could not remove %s: %s \n", path_name, strerror(errno));
+
+                if ((on = orig)) {
+                        dbgf_track(DBGT_WARN, "removing destroyed json-description of orig=%s",
+                                globalIdAsString(&on->global_id));
+
+                        sprintf(path_name, "%s/%s", json_orig_dir, globalIdAsString(&on->global_id));
+                        if (remove(path_name) != 0) {
+                                dbgf_sys(DBGT_ERR, "could not remove %s: %s \n", path_name, strerror(errno));
+                        }
                 }
                 return;
-        }
-
-        int fd;
-        sprintf(path_name, "%s/%s", json_orig_dir, globalIdAsString(&on->global_id));
-
-        if ((fd = open(path_name, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) < 0) {
-
-                dbgf_sys(DBGT_ERR, "could not open %s - %s", path_name, strerror(errno));
 
         } else {
 
-                struct ctrl_node *cn = create_ctrl_node(fd, NULL, YES/*we are root*/);
+                struct avl_node *it = NULL;
+                while (orig ? (on = orig) : (on = avl_iterate_item(&orig_tree, &it))) {
 
-//                check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_JSON_ORIGINATORS), 0, cn);
-                struct status_handl *handl = NULL;
-                uint32_t data_len;
+                        int fd;
+                        sprintf(path_name, "%s/%s", json_orig_dir, globalIdAsString(&on->global_id));
 
-                char status_name[sizeof (((struct status_handl *) NULL)->status_name)] = ARG_ORIGINATORS;
+                        if ((fd = open(path_name, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) < 0) {
 
-                if ((handl = avl_find_item(&status_tree, status_name)) && (data_len = ((*(handl->frame_creator))(handl, on)))) {
+                                dbgf_sys(DBGT_ERR, "could not open %s - %s", path_name, strerror(errno));
 
-                        json_object *jorig = json_object_new_object();
-                        json_object *jdesc_fields = NULL;
+                        } else {
 
-                        if ((jdesc_fields = fields_dbg_json(
-                                FIELD_RELEVANCE_HIGH, data_len, handl->data, handl->min_msg_size, handl->format))) {
+                                struct ctrl_node *cn = create_ctrl_node(fd, NULL, YES/*we are root*/);
 
-                                json_object_object_add(jorig, handl->status_name, jdesc_fields);
+                                struct status_handl *handl = NULL;
+                                uint32_t data_len;
+
+                                char status_name[sizeof (((struct status_handl *) NULL)->status_name)] = ARG_ORIGINATORS;
+
+                                if ((handl = avl_find_item(&status_tree, status_name)) &&
+                                        (data_len = ((*(handl->frame_creator))(handl, on)))) {
+
+                                        json_object *jorig = json_object_new_object();
+                                        json_object *jdesc_fields = NULL;
+
+                                        if ((jdesc_fields = fields_dbg_json(
+                                                FIELD_RELEVANCE_HIGH, data_len, handl->data, handl->min_msg_size, handl->format))) {
+
+                                                json_object_object_add(jorig, handl->status_name, jdesc_fields);
+                                        }
+
+                                        const char * data = json_object_to_json_string(jorig);
+
+                                        if (cn)
+                                                dbg_printf(cn, "%s\n", data);
+
+                                        json_object_put(jorig);
+                                }
+
+
+                                close_ctrl_node(CTRL_CLOSE_STRAIGHT, cn);
                         }
 
-                        const char * data = json_object_to_json_string(jorig);
-
-                        if (cn)
-                                dbg_printf(cn, "%s\n", data);
-
-                        json_object_put(jorig);
+                        if (orig)
+                                break;
                 }
-
-
-                close_ctrl_node(CTRL_CLOSE_STRAIGHT, cn);
         }
 }
+
 
 STATIC_FUNC
 void json_route_change_hook(uint8_t del, struct orig_node *on)

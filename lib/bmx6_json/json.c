@@ -45,6 +45,7 @@ static int32_t json_update_interval = DEF_JSON_UPDATE;
 
 static char json_dir[MAX_PATH_SIZE] = JSON_ILLEGAL_DIR;
 static char json_desc_dir[MAX_PATH_SIZE] = JSON_ILLEGAL_DIR;
+static char json_orig_dir[MAX_PATH_SIZE] = JSON_ILLEGAL_DIR;
 
 
 STATIC_FUNC
@@ -106,98 +107,6 @@ json_object * fields_dbg_json(uint16_t relevance, uint16_t data_size, uint8_t *d
         return NULL;
 }
 
-
-STATIC_FUNC
-void json_description_event_hook(int32_t cb_id, struct orig_node *on)
-{
-        TRACE_FUNCTION_CALL;
-
-        assertion(-500000, (on));
-        assertion(-501249, IMPLIES(cb_id == PLUGIN_CB_DESCRIPTION_CREATED, (on && on->desc)));
-        assertion(-501250, (cb_id == PLUGIN_CB_DESCRIPTION_DESTROY || cb_id == PLUGIN_CB_DESCRIPTION_CREATED));
-        assertion(-501251, IMPLIES(initializing, cb_id == PLUGIN_CB_DESCRIPTION_CREATED));
-        assertion(-501252, (strcmp(json_desc_dir, JSON_ILLEGAL_DIR)));
-
-        dbgf_all(DBGT_INFO, "cb_id=%d", cb_id);
-
-        if (cb_id == PLUGIN_CB_DESCRIPTION_DESTROY) {
-                dbgf_track(DBGT_WARN, "removing destroyed json-description of orig=%s", globalIdAsString(&on->global_id));
-                char rm_file[MAX_PATH_SIZE];
-                sprintf(rm_file, "%s/%s", json_desc_dir, globalIdAsString(&on->global_id));
-                if (remove(rm_file) != 0) {
-                        dbgf_sys(DBGT_ERR, "could not remove %s: %s \n", rm_file, strerror(errno));
-                }
-                return;
-        }
-
-        int fd;
-        char file_name[MAX_PATH_SIZE] = "";
-
-        sprintf(file_name, "%s/%s", json_desc_dir, globalIdAsString(&on->global_id));
-
-        if ((fd = open(file_name, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) < 0) { //check permissions of generated file
-
-		dbgf_sys(DBGT_ERR, "could not open %s - %s", file_name, strerror(errno) );
-                return;
-	}
-
-        json_object *jorig = json_object_new_object();
-
-        json_object *jhash = json_object_new_string(memAsHexString(((char*) &(on->dhn->dhash)), sizeof (on->dhn->dhash)));
-        json_object_object_add(jorig, "descSha", jhash);
-
-        json_object *jblocked = json_object_new_int(on->blocked);
-        json_object_object_add(jorig, "blocked", jblocked);
-
-        uint16_t tlvs_len = ntohs(on->desc->extensionLen);
-        struct msg_description_adv * desc_buff = debugMalloc(sizeof (struct msg_description_adv) +tlvs_len, -300361);
-        desc_buff->transmitterIID4x = htons(on->dhn->myIID4orig);
-        memcpy(&desc_buff->desc, on->desc, sizeof (struct description) +tlvs_len);
-
-        json_object *jdesc_fields = NULL;
-
-        if ((jdesc_fields = fields_dbg_json(
-                FIELD_RELEVANCE_MEDI, sizeof (struct msg_description_adv) +tlvs_len, (uint8_t*) desc_buff,
-                packet_frame_handler[FRAME_TYPE_DESC_ADV].min_msg_size,
-                packet_frame_handler[FRAME_TYPE_DESC_ADV].msg_format))) {
-
-                if (tlvs_len) {
-
-                        struct rx_frame_iterator it = {
-                                .caller = __FUNCTION__, .on = on, .cn = NULL, .op = TLV_OP_PLUGIN_MIN,
-                                .handls = description_tlv_handl, .handl_max = BMX_DSC_TLV_MAX, .process_filter = FRAME_TYPE_PROCESS_ALL,
-                                .frames_in = (((uint8_t*) on->desc) + sizeof (struct description)), .frames_length = tlvs_len
-                        };
-
-                        json_object *jextensions = NULL;
-
-                        while (rx_frame_iterate(&it) > TLV_RX_DATA_DONE) {
-                                json_object * jext_fields;
-
-                                if ((jext_fields = fields_dbg_json(
-                                        FIELD_RELEVANCE_MEDI, it.frame_msgs_length, it.msg,
-                                        it.handls[it.frame_type].min_msg_size, it.handls[it.frame_type].msg_format))) {
-
-                                        json_object *jext = json_object_new_object();
-                                        json_object_object_add(jext, it.handls[it.frame_type].name, jext_fields);
-
-                                        jextensions = jextensions ? jextensions : json_object_new_array();
-
-                                        json_object_array_add(jextensions, jext);
-                                }
-                        }
-                        if (jextensions)
-                                json_object_object_add(jdesc_fields, "extensions", jextensions);
-                }
-                json_object_object_add(jorig, packet_frame_handler[FRAME_TYPE_DESC_ADV].name, jdesc_fields);
-        }
-
-        dprintf(fd, "%s\n", json_object_to_json_string(jorig));
-
-        json_object_put(jorig);
-        debugFree(desc_buff, -300362);
-        close(fd);
-}
 
 
 STATIC_FUNC
@@ -367,70 +276,13 @@ int32_t update_json_options(IDM_T show_options, IDM_T show_parameters, char *fil
 
 
 
-
-
-STATIC_FUNC
-int32_t opt_json_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
-{
-        TRACE_FUNCTION_CALL;
-
-        if ( cmd == OPT_APPLY ) {
-
-                struct status_handl *handl = NULL;
-                uint32_t data_len;
-
-                char status_name[sizeof (((struct status_handl *) NULL)->status_name)] = {0};
-                strcpy(status_name, &opt->long_name[strlen("json_")]);
-
-                if ((handl = avl_find_item(&status_tree, status_name)) && (data_len = ((*(handl->frame_creator))(handl)))) {
-
-                        json_object *jorig = json_object_new_object();
-                        json_object *jdesc_fields = NULL;
-
-                        if ((jdesc_fields = fields_dbg_json(
-                                FIELD_RELEVANCE_HIGH, data_len, handl->data, handl->min_msg_size, handl->format))) {
-
-                                json_object_object_add(jorig, handl->status_name, jdesc_fields);
-                        }
-
-                        const char * data = json_object_to_json_string(jorig);
-
-                        if (cn)
-                                dbg_printf(cn, "%s\n", data);
-
-                        json_object_put(jorig);
-                }
-	}
-	return SUCCESS;
-}
-
-STATIC_FUNC
-void json_status_event_hook(int32_t cb_id, void* data)
-{
-        TRACE_FUNCTION_CALL;
-        assertion(-500000, (cb_id == PLUGIN_CB_STATUS));
-
-        int fd;
-        char path_name[MAX_PATH_SIZE + 20] = "";
-        sprintf(path_name, "%s/%s", json_dir, ARG_STATUS);
-
-        if ((fd = open(path_name, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) < 0) {
-
-                dbgf_sys(DBGT_ERR, "could not open %s - %s", path_name, strerror(errno));
-
-        } else {
-
-                struct ctrl_node *cn = create_ctrl_node(fd, NULL, YES/*we are root*/);
-
-                check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_JSON_STATUS), 0, cn);
-
-                close_ctrl_node(CTRL_CLOSE_STRAIGHT, cn);
-        }
-}
-
 STATIC_FUNC
 void json_dev_event_hook(int32_t cb_id, void* data)
 {
+
+        if (!json_update_interval)
+                return;
+
         TRACE_FUNCTION_CALL;
 
         int fd;
@@ -454,6 +306,9 @@ void json_dev_event_hook(int32_t cb_id, void* data)
 STATIC_FUNC
 void json_config_event_hook(int32_t cb_id, void *data)
 {
+        if (!json_update_interval)
+                return;
+
         TRACE_FUNCTION_CALL;
 
         update_json_options(0, 1, JSON_PARAMETERS_FILE);
@@ -463,6 +318,209 @@ void json_config_event_hook(int32_t cb_id, void *data)
 
 
 
+STATIC_FUNC
+void json_status_event_hook(int32_t cb_id, void* data)
+{
+        if (!json_update_interval)
+                return;
+
+        TRACE_FUNCTION_CALL;
+
+        int fd;
+        char path_name[MAX_PATH_SIZE + 20] = "";
+        sprintf(path_name, "%s/%s", json_dir, ARG_STATUS);
+
+        if ((fd = open(path_name, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) < 0) {
+
+                dbgf_sys(DBGT_ERR, "could not open %s - %s", path_name, strerror(errno));
+
+        } else {
+
+                struct ctrl_node *cn = create_ctrl_node(fd, NULL, YES/*we are root*/);
+
+                check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_JSON_STATUS), 0, cn);
+
+                close_ctrl_node(CTRL_CLOSE_STRAIGHT, cn);
+        }
+}
+
+STATIC_FUNC
+void json_links_event_hook(int32_t cb_id, void* data)
+{
+        if (!json_update_interval)
+                return;
+
+        TRACE_FUNCTION_CALL;
+
+        int fd;
+        char path_name[MAX_PATH_SIZE + 20] = "";
+        sprintf(path_name, "%s/%s", json_dir, ARG_LINKS);
+
+        if ((fd = open(path_name, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) < 0) {
+
+                dbgf_sys(DBGT_ERR, "could not open %s - %s", path_name, strerror(errno));
+
+        } else {
+
+                struct ctrl_node *cn = create_ctrl_node(fd, NULL, YES/*we are root*/);
+
+                check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_JSON_LINKS), 0, cn);
+
+                close_ctrl_node(CTRL_CLOSE_STRAIGHT, cn);
+        }
+}
+
+STATIC_FUNC
+void json_originator_event_hook(int32_t cb_id, struct orig_node *on)
+{
+        if(!on)
+                return;
+
+        char path_name[MAX_PATH_SIZE];
+
+        if (cb_id == PLUGIN_CB_DESCRIPTION_DESTROY) {
+                dbgf_track(DBGT_WARN, "removing destroyed json-description of orig=%s", globalIdAsString(&on->global_id));
+                sprintf(path_name, "%s/%s", json_orig_dir, globalIdAsString(&on->global_id));
+                if (remove(path_name) != 0) {
+                        dbgf_sys(DBGT_ERR, "could not remove %s: %s \n", path_name, strerror(errno));
+                }
+                return;
+        }
+
+        int fd;
+        sprintf(path_name, "%s/%s", json_orig_dir, globalIdAsString(&on->global_id));
+
+        if ((fd = open(path_name, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) < 0) {
+
+                dbgf_sys(DBGT_ERR, "could not open %s - %s", path_name, strerror(errno));
+
+        } else {
+
+                struct ctrl_node *cn = create_ctrl_node(fd, NULL, YES/*we are root*/);
+
+//                check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_JSON_ORIGINATORS), 0, cn);
+                struct status_handl *handl = NULL;
+                uint32_t data_len;
+
+                char status_name[sizeof (((struct status_handl *) NULL)->status_name)] = ARG_ORIGINATORS;
+
+                if ((handl = avl_find_item(&status_tree, status_name)) && (data_len = ((*(handl->frame_creator))(handl, on)))) {
+
+                        json_object *jorig = json_object_new_object();
+                        json_object *jdesc_fields = NULL;
+
+                        if ((jdesc_fields = fields_dbg_json(
+                                FIELD_RELEVANCE_HIGH, data_len, handl->data, handl->min_msg_size, handl->format))) {
+
+                                json_object_object_add(jorig, handl->status_name, jdesc_fields);
+                        }
+
+                        const char * data = json_object_to_json_string(jorig);
+
+                        if (cn)
+                                dbg_printf(cn, "%s\n", data);
+
+                        json_object_put(jorig);
+                }
+
+
+                close_ctrl_node(CTRL_CLOSE_STRAIGHT, cn);
+        }
+}
+
+STATIC_FUNC
+void json_description_event_hook(int32_t cb_id, struct orig_node *on)
+{
+        TRACE_FUNCTION_CALL;
+
+        assertion(-500000, (on));
+        assertion(-501249, IMPLIES(cb_id == PLUGIN_CB_DESCRIPTION_CREATED, (on && on->desc)));
+        assertion(-501250, (cb_id == PLUGIN_CB_DESCRIPTION_DESTROY || cb_id == PLUGIN_CB_DESCRIPTION_CREATED));
+        assertion(-501251, IMPLIES(initializing, cb_id == PLUGIN_CB_DESCRIPTION_CREATED));
+        assertion(-501252, (strcmp(json_desc_dir, JSON_ILLEGAL_DIR)));
+
+        dbgf_all(DBGT_INFO, "cb_id=%d", cb_id);
+
+        if (cb_id == PLUGIN_CB_DESCRIPTION_DESTROY) {
+                dbgf_track(DBGT_WARN, "removing destroyed json-description of orig=%s", globalIdAsString(&on->global_id));
+                char rm_file[MAX_PATH_SIZE];
+                sprintf(rm_file, "%s/%s", json_desc_dir, globalIdAsString(&on->global_id));
+                if (remove(rm_file) != 0) {
+                        dbgf_sys(DBGT_ERR, "could not remove %s: %s \n", rm_file, strerror(errno));
+                }
+                return;
+        }
+
+        int fd;
+        char file_name[MAX_PATH_SIZE] = "";
+
+        sprintf(file_name, "%s/%s", json_desc_dir, globalIdAsString(&on->global_id));
+
+        if ((fd = open(file_name, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) < 0) { //check permissions of generated file
+
+		dbgf_sys(DBGT_ERR, "could not open %s - %s", file_name, strerror(errno) );
+                return;
+	}
+
+        json_object *jorig = json_object_new_object();
+
+        json_object *jhash = json_object_new_string(memAsHexString(((char*) &(on->dhn->dhash)), sizeof (on->dhn->dhash)));
+        json_object_object_add(jorig, "descSha", jhash);
+
+        json_object *jblocked = json_object_new_int(on->blocked);
+        json_object_object_add(jorig, "blocked", jblocked);
+
+        uint16_t tlvs_len = ntohs(on->desc->extensionLen);
+        struct msg_description_adv * desc_buff = debugMalloc(sizeof (struct msg_description_adv) +tlvs_len, -300361);
+        desc_buff->transmitterIID4x = htons(on->dhn->myIID4orig);
+        memcpy(&desc_buff->desc, on->desc, sizeof (struct description) +tlvs_len);
+
+        json_object *jdesc_fields = NULL;
+
+        if ((jdesc_fields = fields_dbg_json(
+                FIELD_RELEVANCE_MEDI, sizeof (struct msg_description_adv) +tlvs_len, (uint8_t*) desc_buff,
+                packet_frame_handler[FRAME_TYPE_DESC_ADV].min_msg_size,
+                packet_frame_handler[FRAME_TYPE_DESC_ADV].msg_format))) {
+
+                if (tlvs_len) {
+
+                        struct rx_frame_iterator it = {
+                                .caller = __FUNCTION__, .on = on, .cn = NULL, .op = TLV_OP_PLUGIN_MIN,
+                                .handls = description_tlv_handl, .handl_max = BMX_DSC_TLV_MAX, .process_filter = FRAME_TYPE_PROCESS_ALL,
+                                .frames_in = (((uint8_t*) on->desc) + sizeof (struct description)), .frames_length = tlvs_len
+                        };
+
+                        json_object *jextensions = NULL;
+
+                        while (rx_frame_iterate(&it) > TLV_RX_DATA_DONE) {
+                                json_object * jext_fields;
+
+                                if ((jext_fields = fields_dbg_json(
+                                        FIELD_RELEVANCE_MEDI, it.frame_msgs_length, it.msg,
+                                        it.handls[it.frame_type].min_msg_size, it.handls[it.frame_type].msg_format))) {
+
+                                        json_object *jext = json_object_new_object();
+                                        json_object_object_add(jext, it.handls[it.frame_type].name, jext_fields);
+
+                                        jextensions = jextensions ? jextensions : json_object_new_array();
+
+                                        json_object_array_add(jextensions, jext);
+                                }
+                        }
+                        if (jextensions)
+                                json_object_object_add(jdesc_fields, "extensions", jextensions);
+                }
+                json_object_object_add(jorig, packet_frame_handler[FRAME_TYPE_DESC_ADV].name, jdesc_fields);
+        }
+
+        dprintf(fd, "%s\n", json_object_to_json_string(jorig));
+
+        json_object_put(jorig);
+        debugFree(desc_buff, -300362);
+        close(fd);
+
+        json_originator_event_hook(cb_id, on);
+}
 
 
 STATIC_FUNC
@@ -473,6 +531,10 @@ void update_json_status(void *data)
 
         task_register(json_update_interval, update_json_status, NULL, -300000);
 
+        json_status_event_hook(0, NULL);
+        json_dev_event_hook(0, NULL);
+        json_links_event_hook(0, NULL);
+        json_originator_event_hook(0, NULL);
 /*
         check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_JSON_STATUS), 0, NULL);
         check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_JSON_INTERFACES), 0, NULL);
@@ -480,6 +542,46 @@ void update_json_status(void *data)
         check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_JSON_ORIGINATORS), 0, NULL);
 */
 }
+
+
+
+
+
+STATIC_FUNC
+int32_t opt_json_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
+{
+        TRACE_FUNCTION_CALL;
+
+        if ( cmd == OPT_APPLY ) {
+
+                struct status_handl *handl = NULL;
+                uint32_t data_len;
+
+                char status_name[sizeof (((struct status_handl *) NULL)->status_name)] = {0};
+                strcpy(status_name, &opt->long_name[strlen("json_")]);
+
+                if ((handl = avl_find_item(&status_tree, status_name)) && (data_len = ((*(handl->frame_creator))(handl, NULL)))) {
+
+                        json_object *jorig = json_object_new_object();
+                        json_object *jdesc_fields = NULL;
+
+                        if ((jdesc_fields = fields_dbg_json(
+                                FIELD_RELEVANCE_HIGH, data_len, handl->data, handl->min_msg_size, handl->format))) {
+
+                                json_object_object_add(jorig, handl->status_name, jdesc_fields);
+                        }
+
+                        const char * data = json_object_to_json_string(jorig);
+
+                        if (cn)
+                                dbg_printf(cn, "%s\n", data);
+
+                        json_object_put(jorig);
+                }
+	}
+	return SUCCESS;
+}
+
 
 STATIC_FUNC
 int32_t opt_json_update_interval(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
@@ -491,13 +593,17 @@ int32_t opt_json_update_interval(uint8_t cmd, uint8_t _save, struct opt_type *op
 
                 char tmp_dir[MAX_PATH_SIZE];
                 char tmp_desc_dir[MAX_PATH_SIZE];
+                char tmp_orig_dir[MAX_PATH_SIZE];
 
                 assertion(-501255, (strlen(run_dir) > 3));
+
 
                 sprintf(tmp_dir, "%s/%s", run_dir, DEF_JSON_SUBDIR);
 
                 if (check_dir(tmp_dir, YES/*create*/, YES/*writable*/) == FAILURE)
 			return FAILURE;
+
+
 
                 sprintf(tmp_desc_dir, "%s/%s", tmp_dir, DEF_JSON_DESC_SUBDIR);
 
@@ -530,11 +636,45 @@ int32_t opt_json_update_interval(uint8_t cmd, uint8_t _save, struct opt_type *op
                         }
                 }
 
+
+
+                sprintf(tmp_orig_dir, "%s/%s", tmp_dir, DEF_JSON_ORIG_SUBDIR);
+
+                if (check_dir(tmp_orig_dir, YES/*create*/, YES/*writable*/) == FAILURE) {
+
+                        return FAILURE;
+
+                } else {
+
+                        struct dirent *d;
+                        DIR *dir = opendir(tmp_orig_dir);
+
+                        while ((d = readdir(dir))) {
+
+                                char rm_file[MAX_PATH_SIZE];
+                                sprintf(rm_file, "%s/%s", tmp_orig_dir, d->d_name);
+
+                                if (validate_name_string(d->d_name, strlen(d->d_name)+1) == SUCCESS) {
+
+                                        dbgf_sys(DBGT_WARN, "removing stale json file: %s \n", rm_file);
+
+                                        if (remove(rm_file) != 0) {
+                                                dbgf_sys(DBGT_ERR, "could not remove %s: %s \n", rm_file, strerror(errno));
+                                                return FAILURE;
+                                        }
+
+                                } else {
+                                        dbgf_all(DBGT_ERR, "keeping non-json file: %s\n", rm_file);
+                                }
+                        }
+                }
+
+
                 strcpy(json_dir, tmp_dir);
                 strcpy(json_desc_dir, tmp_desc_dir);
+                strcpy(json_orig_dir, tmp_orig_dir);
 
                 update_json_options(1, 0, JSON_OPTIONS_FILE);
-
         }
 
 
@@ -609,6 +749,7 @@ struct plugin* get_plugin( void ) {
 //      json_plugin.cb_plugin_handler[PLUGIN_CB_CONF] = json_dev_event_hook;
         json_plugin.cb_plugin_handler[PLUGIN_CB_BMX_DEV_EVENT] = json_dev_event_hook;
         json_plugin.cb_plugin_handler[PLUGIN_CB_STATUS] = json_status_event_hook;
+        json_plugin.cb_plugin_handler[PLUGIN_CB_LINKS_EVENT] = json_links_event_hook;
 
 	return &json_plugin;
 }

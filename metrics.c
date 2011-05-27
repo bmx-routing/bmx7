@@ -818,6 +818,7 @@ void lndev_assign_best(struct local_node *only_local, struct link_dev_node *only
                 if(only_local)
                         break;
         }
+
 }
 
 
@@ -1325,7 +1326,7 @@ int32_t opt_link_metric(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
 
 
                 lndev_assign_best(NULL, NULL);
-
+                cb_plugin_hooks(PLUGIN_CB_LINKS_EVENT, NULL);
 
                 my_link_window_prev = my_link_window;
         }

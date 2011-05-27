@@ -26,6 +26,7 @@
 #define JSON_ILLEGAL_DIR "/tmp/ILLEGAL"
 #define DEF_JSON_SUBDIR "json"
 #define DEF_JSON_DESC_SUBDIR "descriptions"
+#define DEF_JSON_ORIG_SUBDIR "originators"
 
 #define ARG_JSON_UPDATE "jsonUpdateInterval"
 #define DEF_JSON_UPDATE 10000

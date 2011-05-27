@@ -688,7 +688,7 @@ struct status_handl {
         char status_name[16];
         uint8_t *data;
 
-	int32_t (*frame_creator) (struct status_handl *status_handl);
+	int32_t (*frame_creator) (struct status_handl *status_handl, void *data);
 
 	const struct field_format *format;
 };
@@ -709,7 +709,7 @@ uint32_t fields_dbg_lines(struct ctrl_node *cn, uint16_t relevance, uint16_t dat
 uint32_t field_iterate(struct field_iterator *it);
 
 void register_status_handl(uint16_t min_msg_size, const struct field_format* format, char *name,
-                            int32_t(*creator) (struct status_handl *status_handl));
+                            int32_t(*creator) (struct status_handl *status_handl, void *data));
 
 struct task_node {
 	struct list_node list;

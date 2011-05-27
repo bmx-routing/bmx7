@@ -618,6 +618,8 @@ void purge_link_node(struct link_node_key *only_link_key, struct dev_node *only_
         }
 
         lndev_assign_best(NULL, NULL);
+        cb_plugin_hooks(PLUGIN_CB_LINKS_EVENT, NULL);
+
 
         if (removed_link_adv)
                 update_my_link_adv(LINKADV_CHANGES_REMOVED);
@@ -947,6 +949,7 @@ struct link_dev_node *get_link_dev_node(struct packet_buff *pb)
                 avl_insert(&link_dev_tree, lndev, -300220);
 
                 lndev_assign_best(link->local, lndev);
+                cb_plugin_hooks(PLUGIN_CB_LINKS_EVENT, NULL);
 
         }
 
@@ -1651,7 +1654,7 @@ void fields_dbg_table(struct ctrl_node *cn, uint16_t relevance, uint16_t data_si
 
 
 void register_status_handl(uint16_t min_msg_size, const struct field_format* format, char *name,
-                            int32_t(*creator) (struct status_handl *status_handl))
+                            int32_t(*creator) (struct status_handl *status_handl, void *data))
 {
         struct status_handl *handl = debugMalloc(sizeof (struct status_handl), -300000);
         memset(handl, 0, sizeof (handl));
@@ -1693,7 +1696,7 @@ static const struct field_format bmx_status_format[] = {
         FIELD_FORMAT_END
 };
 
-static int32_t bmx_status_creator(struct status_handl *handl)
+static int32_t bmx_status_creator(struct status_handl *handl, void *data)
 {
         struct bmx_status *status = (struct bmx_status *) (handl->data = debugRealloc(handl->data, sizeof (struct bmx_status), -300000));
         sprintf(status->version, "%s-%s", BMX_BRANCH, BRANCH_VERSION);
@@ -1768,7 +1771,7 @@ static const struct field_format link_status_format[] = {
         FIELD_FORMAT_END
 };
 
-static int32_t link_status_creator(struct status_handl *handl)
+static int32_t link_status_creator(struct status_handl *handl, void *data)
 {
         struct avl_node *link_it, *local_it;
         struct link_node *link;
@@ -1858,16 +1861,16 @@ static const struct field_format orig_status_format[] = {
         FIELD_FORMAT_END
 };
 
-static int32_t orig_status_creator(struct status_handl *handl)
+static int32_t orig_status_creator(struct status_handl *handl, void *data)
 {
-        struct avl_node *it;
-        struct orig_node *on;
-        uint32_t status_size = orig_tree.items * sizeof (struct orig_status);
+        struct avl_node *it = NULL;
+        struct orig_node *on = data;
+        uint32_t status_size = (data ? 1 : orig_tree.items) * sizeof (struct orig_status);
         uint32_t i = 0;
         struct orig_status *status = ((struct orig_status*) (handl->data = debugRealloc(handl->data, status_size, -300000)));
         memset(status, 0, status_size);
 
-        for (it = NULL; (on = avl_iterate_item(&orig_tree, &it));) {
+        while (data ? (on = data) : (on = avl_iterate_item(&orig_tree, &it))) {
                 status[i].globalId = &on->global_id;
                 status[i].blocked = on->blocked;
                 status[i].primaryIp = on->primary_ip;
@@ -1882,6 +1885,8 @@ static int32_t orig_status_creator(struct status_handl *handl)
                 status[i].lastDesc = (bmx_time - on->updated_timestamp) / 1000;
                 status[i].lastRef = (bmx_time - on->dhn->referred_by_me_timestamp) / 1000;
                 i++;
+                if(data)
+                        break;
         }
         return status_size;
 }
@@ -1930,7 +1935,7 @@ int32_t opt_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_
 		}
 
 
-                if ((handl = avl_find_item(&status_tree, status_name)) && (data_len = ((*(handl->frame_creator))(handl)))) {
+                if ((handl = avl_find_item(&status_tree, status_name)) && (data_len = ((*(handl->frame_creator))(handl, NULL)))) {
 
                         dbg_printf(cn, "%s:\n", handl->status_name);
                         fields_dbg_table(cn, relevance, data_len, handl->data, handl->min_msg_size, handl->format);
@@ -2211,7 +2216,6 @@ void bmx(void)
 			s_curr_cpu_time = (TIME_T)clock();
 			s_curr_avg_cpu_load = ( (s_curr_cpu_time - s_last_cpu_time) / (TIME_T)(bmx_time - seldom_timeout) );
 			s_last_cpu_time = s_curr_cpu_time;
-                        cb_plugin_hooks(PLUGIN_CB_STATUS, NULL);
 
 			seldom_timeout = bmx_time;
 		}

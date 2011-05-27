@@ -601,7 +601,7 @@ struct plugin* get_plugin( void ) {
         json_plugin.cb_plugin_handler[PLUGIN_CB_CONF] = (void (*) (int32_t, void*)) json_config_event_hook;
         json_plugin.cb_plugin_handler[PLUGIN_CB_STATUS] = json_status_event_hook;
         json_plugin.cb_plugin_handler[PLUGIN_CB_BMX_DEV_EVENT] = json_dev_event_hook;
-        json_plugin.cb_plugin_handler[PLUGIN_CB_SYS_DEV_EVENT] = json_dev_event_hook;
+        json_plugin.cb_plugin_handler[PLUGIN_CB_CONF] = json_dev_event_hook;
 
 	return &json_plugin;
 }

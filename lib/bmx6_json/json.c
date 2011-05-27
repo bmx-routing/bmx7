@@ -370,6 +370,14 @@ void json_links_event_hook(int32_t cb_id, void* data)
         }
 }
 
+
+
+
+
+
+
+
+
 STATIC_FUNC
 void json_originator_event_hook(int32_t cb_id, struct orig_node *on)
 {
@@ -426,6 +434,12 @@ void json_originator_event_hook(int32_t cb_id, struct orig_node *on)
 
                 close_ctrl_node(CTRL_CLOSE_STRAIGHT, cn);
         }
+}
+
+STATIC_FUNC
+void json_route_change_hook(uint8_t del, struct orig_node *on)
+{
+        json_originator_event_hook(0, on);
 }
 
 STATIC_FUNC
@@ -680,11 +694,15 @@ int32_t opt_json_update_interval(uint8_t cmd, uint8_t _save, struct opt_type *op
 
         if (cmd == OPT_SET_POST && current_update_interval != json_update_interval) {
 
-                if(current_update_interval)
+                if(current_update_interval) {
                         task_remove(update_json_status, NULL);
+                        set_route_change_hooks(json_route_change_hook, DEL);
+                }
 
-                if (json_update_interval)
+                if (json_update_interval){
                         task_register(MAX(10, json_update_interval), update_json_status, NULL, -300000);
+                        set_route_change_hooks(json_route_change_hook, ADD);
+                }
 
                 current_update_interval = json_update_interval;
 
@@ -718,7 +736,10 @@ static struct opt_type json_options[]= {
 
 
 static void json_cleanup( void ) {
-	
+
+        if (json_update_interval) {
+                set_route_change_hooks(json_route_change_hook, DEL);
+        }
 	
 }
 

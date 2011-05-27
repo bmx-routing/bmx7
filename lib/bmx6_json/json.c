@@ -423,12 +423,36 @@ void json_status_event_hook(int32_t cb_id, void* data)
         sprintf(path_name, "%s/%s", json_dir, ARG_STATUS);
 
         if ((fd = open(path_name, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) < 0) {
+
                 dbgf_sys(DBGT_ERR, "could not open %s - %s", path_name, strerror(errno));
+
         } else {
 
                 struct ctrl_node *cn = create_ctrl_node(fd, NULL, YES/*we are root*/);
 
                 check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_JSON_STATUS), 0, cn);
+
+                close_ctrl_node(CTRL_CLOSE_STRAIGHT, cn);
+        }
+}
+
+void json_dev_event_hook(int32_t cb_id, void* data)
+{
+        TRACE_FUNCTION_CALL;
+
+        int fd;
+        char path_name[MAX_PATH_SIZE + 20] = "";
+        sprintf(path_name, "%s/%s", json_dir, ARG_INTERFACES);
+
+        if ((fd = open(path_name, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) < 0) {
+
+                dbgf_sys(DBGT_ERR, "could not open %s - %s", path_name, strerror(errno));
+
+        } else {
+
+                struct ctrl_node *cn = create_ctrl_node(fd, NULL, YES/*we are root*/);
+
+                check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_JSON_INTERFACES), 0, cn);
 
                 close_ctrl_node(CTRL_CLOSE_STRAIGHT, cn);
         }
@@ -576,6 +600,8 @@ struct plugin* get_plugin( void ) {
         json_plugin.cb_plugin_handler[PLUGIN_CB_DESCRIPTION_DESTROY] = (void (*) (int32_t, void*)) json_description_event_hook;
         json_plugin.cb_plugin_handler[PLUGIN_CB_CONF] = (void (*) (int32_t, void*)) json_config_event_hook;
         json_plugin.cb_plugin_handler[PLUGIN_CB_STATUS] = json_status_event_hook;
+        json_plugin.cb_plugin_handler[PLUGIN_CB_BMX_DEV_EVENT] = json_dev_event_hook;
+        json_plugin.cb_plugin_handler[PLUGIN_CB_SYS_DEV_EVENT] = json_dev_event_hook;
 
 	return &json_plugin;
 }

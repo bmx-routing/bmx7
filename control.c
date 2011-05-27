@@ -2312,10 +2312,10 @@ int32_t call_option(uint8_t ad, uint8_t cmd, uint8_t save, struct opt_type *opt,
 
         assertion(-500104, (ad == ADD || ad == DEL));
         assertion(-500103, IMPLIES(cmd == OPT_PATCH || cmd == OPT_ADJUST || cmd == OPT_CHECK || cmd == OPT_APPLY, patch));
-        assertion(-500147, IMPLIES(cmd == OPT_PATCH || cmd == OPT_ADJUST || cmd == OPT_CHECK || cmd == OPT_APPLY, cn));
+//        assertion(-500147, IMPLIES(cmd == OPT_PATCH || cmd == OPT_ADJUST || cmd == OPT_CHECK || cmd == OPT_APPLY, cn));
 
         if ((cmd == OPT_PATCH || cmd == OPT_ADJUST || cmd == OPT_CHECK || cmd == OPT_APPLY) &&
-                !cn->authorized && opt->auth_t == A_ADM)
+                cn && !cn->authorized && opt->auth_t == A_ADM)
 	{
 		dbg_cn( cn, DBGL_SYS, DBGT_ERR, "insufficient permissions to use command %s",  opt->long_name );
 		return FAILURE;

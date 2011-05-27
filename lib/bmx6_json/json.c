@@ -367,15 +367,6 @@ int32_t update_json_options(IDM_T show_options, IDM_T show_parameters, char *fil
 
 
 
-STATIC_FUNC
-void json_config_event_hook(int32_t cb_id, struct orig_node *on)
-{
-        TRACE_FUNCTION_CALL;
-
-        update_json_options(0, 1, JSON_PARAMETERS_FILE);
-}
-
-
 
 
 STATIC_FUNC
@@ -413,6 +404,7 @@ int32_t opt_json_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
 	return SUCCESS;
 }
 
+STATIC_FUNC
 void json_status_event_hook(int32_t cb_id, void* data)
 {
         TRACE_FUNCTION_CALL;
@@ -436,6 +428,7 @@ void json_status_event_hook(int32_t cb_id, void* data)
         }
 }
 
+STATIC_FUNC
 void json_dev_event_hook(int32_t cb_id, void* data)
 {
         TRACE_FUNCTION_CALL;
@@ -457,6 +450,20 @@ void json_dev_event_hook(int32_t cb_id, void* data)
                 close_ctrl_node(CTRL_CLOSE_STRAIGHT, cn);
         }
 }
+
+STATIC_FUNC
+void json_config_event_hook(int32_t cb_id, void *data)
+{
+        TRACE_FUNCTION_CALL;
+
+        update_json_options(0, 1, JSON_PARAMETERS_FILE);
+
+        json_dev_event_hook(cb_id, data);
+}
+
+
+
+
 
 STATIC_FUNC
 void update_json_status(void *data)
@@ -598,10 +605,10 @@ struct plugin* get_plugin( void ) {
 	json_plugin.cb_cleanup = json_cleanup;
         json_plugin.cb_plugin_handler[PLUGIN_CB_DESCRIPTION_CREATED] = (void (*) (int32_t, void*)) json_description_event_hook;
         json_plugin.cb_plugin_handler[PLUGIN_CB_DESCRIPTION_DESTROY] = (void (*) (int32_t, void*)) json_description_event_hook;
-        json_plugin.cb_plugin_handler[PLUGIN_CB_CONF] = (void (*) (int32_t, void*)) json_config_event_hook;
-        json_plugin.cb_plugin_handler[PLUGIN_CB_STATUS] = json_status_event_hook;
+        json_plugin.cb_plugin_handler[PLUGIN_CB_CONF] = json_config_event_hook;
+//      json_plugin.cb_plugin_handler[PLUGIN_CB_CONF] = json_dev_event_hook;
         json_plugin.cb_plugin_handler[PLUGIN_CB_BMX_DEV_EVENT] = json_dev_event_hook;
-        json_plugin.cb_plugin_handler[PLUGIN_CB_CONF] = json_dev_event_hook;
+        json_plugin.cb_plugin_handler[PLUGIN_CB_STATUS] = json_status_event_hook;
 
 	return &json_plugin;
 }

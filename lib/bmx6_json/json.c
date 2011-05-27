@@ -504,10 +504,11 @@ int32_t opt_json_update_interval(uint8_t cmd, uint8_t _save, struct opt_type *op
 
         if (cmd == OPT_SET_POST && current_update_interval != json_update_interval) {
 
+                if(current_update_interval)
+                        task_remove(update_json_status, NULL);
+
                 if (json_update_interval)
                         task_register(MAX(10, json_update_interval), update_json_status, NULL, -300000);
-                else
-                        task_remove(update_json_status, NULL);
 
                 current_update_interval = json_update_interval;
 

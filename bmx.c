@@ -670,6 +670,8 @@ void free_orig_node(struct orig_node *on)
         }
 
         avl_remove(&orig_tree, &on->global_id, -300200);
+        cb_plugin_hooks(PLUGIN_CB_STATUS, NULL);
+
         avl_remove(&blocked_tree, &on->global_id, -300201);
 
         if (on->desc)
@@ -2245,6 +2247,8 @@ void init_orig_node(struct orig_node *on, GLOBAL_ID_T *id)
         AVL_INIT_TREE(on->rt_tree, struct router_node, local_key);
 
         avl_insert(&orig_tree, on, -300148);
+
+        cb_plugin_hooks(PLUGIN_CB_STATUS, NULL);
 }
 
 

@@ -2790,7 +2790,7 @@ static const struct field_format dev_status_format[] = {
         FIELD_FORMAT_END
 };
 
-static int32_t dev_status_creator(struct status_handl *handl)
+static int32_t dev_status_creator(struct status_handl *handl, void* data)
 {
         struct avl_node *it = NULL;
         struct dev_node *dev;

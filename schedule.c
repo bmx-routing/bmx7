@@ -116,12 +116,11 @@ static void check_selects(void)
 
 void task_register(TIME_T timeout, void (* task) (void *), void *data, int32_t tag)
 {
-#define REGISTER_TASK_TIMEOUT_MAX MIN( 100000, TIME_MAX>>2)
 
         TRACE_FUNCTION_CALL;
 
         assertion(-500475, (task_remove(task, data) == FAILURE));
-        assertion(-500989, (timeout < REGISTER_TASK_TIMEOUT_MAX ));
+        assertion(-500989, (timeout <= REGISTER_TASK_TIMEOUT_MAX ));
 
 	struct list_node *list_pos, *prev_pos = (struct list_node *)&task_list;
 	struct task_node *tmp_tn = NULL;

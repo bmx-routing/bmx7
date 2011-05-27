@@ -31,7 +31,7 @@
 #define ARG_JSON_UPDATE "jsonUpdateInterval"
 #define DEF_JSON_UPDATE 10000
 #define MIN_JSON_UPDATE 0
-#define MAX_JSON_UPDATE 1000000
+#define MAX_JSON_UPDATE REGISTER_TASK_TIMEOUT_MAX
 
 
 #define ARG_JSON_STATUS      "json_status"

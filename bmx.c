@@ -2395,10 +2395,9 @@ void bmx(void)
 
 			/* generating cpu load statistics... */
 			s_curr_cpu_time = (TIME_T)clock();
-
 			s_curr_avg_cpu_load = ( (s_curr_cpu_time - s_last_cpu_time) / (TIME_T)(bmx_time - seldom_timeout) );
-
 			s_last_cpu_time = s_curr_cpu_time;
+                        cb_plugin_hooks(PLUGIN_CB_STATUS, NULL);
 
 			seldom_timeout = bmx_time;
 		}

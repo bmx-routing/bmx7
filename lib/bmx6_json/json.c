@@ -407,29 +407,32 @@ int32_t opt_json_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
                         if (cn)
                                 dbg_printf(cn, "%s\n", data);
 
-                        if (json_update_interval) {
-                                int fd;
-                                char path_name[MAX_PATH_SIZE + 20] = "";
-                                sprintf(path_name, "%s/%s", json_dir, status_name);
-
-                                if ((fd = open(path_name, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) < 0) {
-                                        dbgf_sys(DBGT_ERR, "could not open %s - %s", path_name, strerror(errno));
-                                } else {
-                                        int written = write(fd, data, strlen(data));
-
-                                        if (written != (int)strlen(data)) {
-                                                dbgf_sys(DBGT_ERR, "only %d of %d bytes written to %s",
-                                                        written, strlen(data), path_name);
-                                        }
-                                        close(fd);
-                                }
-                        }
                         json_object_put(jorig);
                 }
 	}
 	return SUCCESS;
 }
 
+void json_status_event_hook(int32_t cb_id, void* data)
+{
+        TRACE_FUNCTION_CALL;
+        assertion(-500000, (cb_id == PLUGIN_CB_STATUS));
+
+        int fd;
+        char path_name[MAX_PATH_SIZE + 20] = "";
+        sprintf(path_name, "%s/%s", json_dir, ARG_STATUS);
+
+        if ((fd = open(path_name, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) < 0) {
+                dbgf_sys(DBGT_ERR, "could not open %s - %s", path_name, strerror(errno));
+        } else {
+
+                struct ctrl_node *cn = create_ctrl_node(fd, NULL, YES/*we are root*/);
+
+                check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_JSON_STATUS), 0, cn);
+
+                close_ctrl_node(CTRL_CLOSE_STRAIGHT, cn);
+        }
+}
 
 STATIC_FUNC
 void update_json_status(void *data)
@@ -439,10 +442,12 @@ void update_json_status(void *data)
 
         task_register(json_update_interval, update_json_status, NULL, -300000);
 
+/*
         check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_JSON_STATUS), 0, NULL);
         check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_JSON_INTERFACES), 0, NULL);
         check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_JSON_LINKS), 0, NULL);
         check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_JSON_ORIGINATORS), 0, NULL);
+*/
 }
 
 STATIC_FUNC
@@ -570,6 +575,7 @@ struct plugin* get_plugin( void ) {
         json_plugin.cb_plugin_handler[PLUGIN_CB_DESCRIPTION_CREATED] = (void (*) (int32_t, void*)) json_description_event_hook;
         json_plugin.cb_plugin_handler[PLUGIN_CB_DESCRIPTION_DESTROY] = (void (*) (int32_t, void*)) json_description_event_hook;
         json_plugin.cb_plugin_handler[PLUGIN_CB_CONF] = (void (*) (int32_t, void*)) json_config_event_hook;
+        json_plugin.cb_plugin_handler[PLUGIN_CB_STATUS] = json_status_event_hook;
 
 	return &json_plugin;
 }

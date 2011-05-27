@@ -3418,6 +3418,7 @@ void update_my_description_adv(void)
         my_description_changed = NO;
 
         cb_plugin_hooks(PLUGIN_CB_DESCRIPTION_CREATED, &self);
+        cb_plugin_hooks(PLUGIN_CB_STATUS, NULL);
 }
 
 

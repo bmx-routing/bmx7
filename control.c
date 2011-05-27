@@ -2419,13 +2419,12 @@ int32_t call_option(uint8_t ad, uint8_t cmd, uint8_t save, struct opt_type *opt,
 	
 call_option_failure:
 	
-	dbg_cn( cn, DBGL_SYS, DBGT_ERR, 
-	        "--%s  %s  Failed ! "
-	        "( diff:%d ad:%d val:%d min:%d max:%d def:%d  %s %d %d %d )",
+	dbg_cn( cn, DBGL_SYS, DBGT_ERR,
+                "--%s  %s  Failed ! ( diff:%d ad:%d val:%d min:%d max:%d def:%d  %s %d %d %d )",
 	        opt->long_name ? opt->long_name : "-", in ? in: "-",
 	        patch ? patch->p_diff : -1,
-	        ad, opt->ival ? *(opt->ival) : 0, opt->imin, opt->imax, opt->idef,
-	        opt_cmd2str[cmd], opt->opt_t, !initializing, wordlen(in)  );
+                ad, opt->ival ? *(opt->ival) : 0, opt->imin, opt->imax, opt->idef,
+                opt_cmd2str[cmd], opt->opt_t, !initializing, wordlen(in));
 	
 	return FAILURE;
 }
@@ -2803,7 +2802,7 @@ apply_args_error:
 	snprintf( argument, MIN( sizeof(argument), wordlen(s)+1 ), "%s", s );
 	
 	//otherwise invalid sysntax identified only by apply_stream_opts is not printed;
-	dbg_cn( cn, DBGL_SYS, DBGT_ERR, "invalid argument: %s", argument ); 
+	dbgf_cn( cn, DBGL_SYS, DBGT_ERR, "invalid argument: %s", argument );
 	
 	return FAILURE;
 	
@@ -2821,8 +2820,8 @@ void apply_init_args(int argc, char *argv[])
 	struct ctrl_node *cn = create_ctrl_node( STDOUT_FILENO, NULL, (getuid() | getgid())/*are we root*/ ? NO : YES );
 	
 	if ( ( apply_stream_opts( stream_opts, OPT_CHECK, YES/*load cfg*/, cn ) == FAILURE )  ||
-	     ( apply_stream_opts( stream_opts, OPT_APPLY, YES/*load cfg*/, cn ) == FAILURE ) )
-		cleanup_all( CLEANUP_FAILURE );
+                (apply_stream_opts(stream_opts, OPT_APPLY, YES/*load cfg*/, cn) == FAILURE))
+                cleanup_all(CLEANUP_FAILURE);
 	
 	respect_opt_order( OPT_APPLY, 0, 99, NULL, NO/*load_cofig*/, OPT_POST, 0/*probably closed*/ );
 	

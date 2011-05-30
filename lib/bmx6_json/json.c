@@ -42,6 +42,7 @@
 #define CODE_CATEGORY_NAME "json"
 
 static int32_t json_update_interval = DEF_JSON_UPDATE;
+static int32_t current_update_interval = 0;
 
 static char json_dir[MAX_PATH_SIZE] = JSON_ILLEGAL_DIR;
 static char json_desc_dir[MAX_PATH_SIZE] = JSON_ILLEGAL_DIR;
@@ -625,7 +626,6 @@ STATIC_FUNC
 int32_t opt_json_update_interval(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
 {
 
-        static int32_t current_update_interval = 0;
 
         if (cmd == OPT_SET_POST && initializing) {
 
@@ -759,9 +759,10 @@ static struct opt_type json_options[]= {
 };
 
 
-static void json_cleanup( void ) {
+static void json_cleanup( void )
+{
 
-        if (json_update_interval) {
+        if (current_update_interval) {
                 set_route_change_hooks(json_route_change_hook, DEL);
         }
 	

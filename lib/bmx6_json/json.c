@@ -280,7 +280,7 @@ STATIC_FUNC
 void json_dev_event_hook(int32_t cb_id, void* data)
 {
 
-        if (!json_update_interval)
+        if (!json_update_interval || terminating)
                 return;
 
         TRACE_FUNCTION_CALL;
@@ -306,7 +306,7 @@ void json_dev_event_hook(int32_t cb_id, void* data)
 STATIC_FUNC
 void json_config_event_hook(int32_t cb_id, void *data)
 {
-        if (!json_update_interval)
+        if (!json_update_interval || terminating)
                 return;
 
         TRACE_FUNCTION_CALL;
@@ -321,7 +321,7 @@ void json_config_event_hook(int32_t cb_id, void *data)
 STATIC_FUNC
 void json_status_event_hook(int32_t cb_id, void* data)
 {
-        if (!json_update_interval)
+        if (!json_update_interval || terminating)
                 return;
 
         TRACE_FUNCTION_CALL;
@@ -347,7 +347,7 @@ void json_status_event_hook(int32_t cb_id, void* data)
 STATIC_FUNC
 void json_links_event_hook(int32_t cb_id, void* data)
 {
-        if (!json_update_interval)
+        if (!json_update_interval || terminating)
                 return;
 
         TRACE_FUNCTION_CALL;

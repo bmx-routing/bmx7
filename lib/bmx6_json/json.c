@@ -394,14 +394,14 @@ static void recv_inotify_event(int fd)
 
         int rcvd;
 
-        while ((rcvd = recv(fd, &ievent, sizeof (ievent), 0)) > 0) {
+        while ((rcvd = read(fd, &ievent, sizeof (ievent))) > 0) {
 
                 char *name = NULL;
 
                 if (ievent.len > 0) {
                         name = debugMalloc(ievent.len + 1, -300000);
                         memset(name, 0, ievent.len + 1);
-                        recv(fd, name, ievent.len, 0);
+                        rcvd = read(fd, name, ievent.len);
                 }
 
                 dbgf_track(DBGT_INFO, "detected changes in extensions file: %s/%s", json_extension_dir, name);

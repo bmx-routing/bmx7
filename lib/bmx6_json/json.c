@@ -389,32 +389,21 @@ static void recv_inotify_event(int fd)
 
         assertion(-500000, (fd > -1 && fd == extensions_fd));
 
-        struct inotify_event ievent;
-        memset(&ievent, 0, sizeof (ievent));
+        int ilen = 1024;
+
+        void *ibuff = debugMalloc(ilen, -300000);
 
         int rcvd;
 
-        while ((rcvd = read(fd, &ievent, sizeof (ievent))) > 0) {
+        while ((rcvd = read(fd, ibuff, ilen)) == 0 || rcvd == EINVAL) {
 
-                char *name = NULL;
+                ibuff = debugRealloc(ibuff, (ilen = ilen * 2), -300000);
 
-                if (ievent.len > 0) {
-                        name = debugMalloc(ievent.len + 1, -300000);
-                        memset(name, 0, ievent.len + 1);
-                        rcvd = read(fd, name, ievent.len);
-                }
-
-                dbgf_track(DBGT_INFO, "detected changes in extensions file: %s/%s", json_extension_dir, name);
-
-                if (name)
-                        debugFree(name, -300000);
-
-                memset(&ievent, 0, sizeof (ievent));
+                assertion(-500000, (ilen <= (1024 * 16)));
         }
 
-        if(rcvd < 0) {
-                dbgf_sys(DBGT_ERR, "rcvd()=%d: %s \n", rcvd, strerror(errno));
-        }
+
+        debugFree(ibuff, -300000);
 }
 
 

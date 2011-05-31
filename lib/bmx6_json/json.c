@@ -385,12 +385,16 @@ static void recv_inotify_event(int fd)
 {
         TRACE_FUNCTION_CALL;
 
-        dbgf_track(DBGT_INFO, "detected changes in extensions directory %s", json_extension_dir);
+        dbgf_track(DBGT_INFO, "detected changes in extensions directory: %s", json_extension_dir);
+
+        assertion(-500000, (fd > -1 && fd == extensions_fd));
 
         struct inotify_event ievent;
         memset(&ievent, 0, sizeof (ievent));
 
-        while (recv(fd, &ievent, sizeof (ievent), 0) > 0) {
+        int rcvd;
+
+        while ((rcvd = recv(fd, &ievent, sizeof (ievent), 0)) > 0) {
 
                 char *name = NULL;
 
@@ -400,12 +404,16 @@ static void recv_inotify_event(int fd)
                         recv(fd, name, ievent.len, 0);
                 }
 
-                dbgf_track(DBGT_INFO, "detected changes in extensions directory %s/%s", json_extension_dir, name);
+                dbgf_track(DBGT_INFO, "detected changes in extensions file: %s/%s", json_extension_dir, name);
 
                 if (name)
                         debugFree(name, -300000);
 
                 memset(&ievent, 0, sizeof (ievent));
+        }
+
+        if(rcvd < 0) {
+                dbgf_sys(DBGT_ERR, "rcvd()=%d: %s \n", rcvd, strerror(errno));
         }
 }
 

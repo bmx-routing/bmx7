@@ -29,6 +29,7 @@
 #include <stdint.h>
 #include <json/json.h>
 #include <dirent.h>
+#include <sys/inotify.h>
 
 #include "bmx.h"
 #include "msg.h"
@@ -44,9 +45,13 @@
 static int32_t json_update_interval = DEF_JSON_UPDATE;
 static int32_t current_update_interval = 0;
 
-static char json_dir[MAX_PATH_SIZE] = JSON_ILLEGAL_DIR;
-static char json_desc_dir[MAX_PATH_SIZE] = JSON_ILLEGAL_DIR;
-static char json_orig_dir[MAX_PATH_SIZE] = JSON_ILLEGAL_DIR;
+static char *json_dir = NULL;
+static char *json_desc_dir = NULL;
+static char *json_orig_dir = NULL;
+static char *json_extension_dir = NULL;
+
+static int extensions_fd = -1;
+static int extensions_wd = -1;
 
 
 STATIC_FUNC
@@ -113,7 +118,7 @@ json_object * fields_dbg_json(uint16_t relevance, uint16_t data_size, uint8_t *d
 STATIC_FUNC
 int32_t update_json_options(IDM_T show_options, IDM_T show_parameters, char *file_name)
 {
-        assertion(-501254, (strcmp(json_dir, JSON_ILLEGAL_DIR)));
+        assertion(-501254, (json_dir));
 
         int fd;
         char path_name[MAX_PATH_SIZE + 20] = "";
@@ -376,6 +381,33 @@ void json_links_event_hook(int32_t cb_id, void* data)
 
 
 
+static void recv_inotify_event(int fd)
+{
+        TRACE_FUNCTION_CALL;
+
+        dbgf_track(DBGT_INFO, "detected changes in extensions directory %s", json_extension_dir);
+
+        struct inotify_event ievent;
+        memset(&ievent, 0, sizeof (ievent));
+
+        while (recv(fd, &ievent, sizeof (ievent), 0) > 0) {
+
+                char *name = NULL;
+
+                if (ievent.len > 0) {
+                        name = debugMalloc(ievent.len + 1, -300000);
+                        memset(name, 0, ievent.len + 1);
+                        recv(fd, name, ievent.len, 0);
+                }
+
+                dbgf_track(DBGT_INFO, "detected changes in extensions directory %s/%s", json_extension_dir, name);
+
+                if (name)
+                        debugFree(name, -300000);
+
+                memset(&ievent, 0, sizeof (ievent));
+        }
+}
 
 
 
@@ -383,8 +415,8 @@ STATIC_FUNC
 void json_originator_event_hook(int32_t cb_id, struct orig_node *orig)
 {
         struct orig_node *on;
-
         char path_name[MAX_PATH_SIZE];
+        assertion(-501252, (json_orig_dir));
 
         if (cb_id == PLUGIN_CB_DESCRIPTION_DESTROY) {
 
@@ -466,7 +498,7 @@ void json_description_event_hook(int32_t cb_id, struct orig_node *on)
         assertion(-501249, IMPLIES(cb_id == PLUGIN_CB_DESCRIPTION_CREATED, (on && on->desc)));
         assertion(-501250, (cb_id == PLUGIN_CB_DESCRIPTION_DESTROY || cb_id == PLUGIN_CB_DESCRIPTION_CREATED));
         assertion(-501251, IMPLIES(initializing, cb_id == PLUGIN_CB_DESCRIPTION_CREATED));
-        assertion(-501252, (strcmp(json_desc_dir, JSON_ILLEGAL_DIR)));
+        assertion(-501252, (json_desc_dir));
 
         dbgf_all(DBGT_INFO, "cb_id=%d", cb_id);
 
@@ -565,7 +597,7 @@ void json_description_event_hook(int32_t cb_id, struct orig_node *on)
 STATIC_FUNC
 void update_json_status(void *data)
 {
-        assertion(-501254, (strcmp(json_dir, JSON_ILLEGAL_DIR)));
+        assertion(-501254, (json_dir));
         assertion(-500000, (json_update_interval));
 
         task_register(json_update_interval, update_json_status, NULL, -300000);
@@ -627,23 +659,49 @@ int32_t opt_json_update_interval(uint8_t cmd, uint8_t _save, struct opt_type *op
 {
 
 
-        if (cmd == OPT_SET_POST && initializing) {
+        if (cmd == OPT_SET_POST && current_update_interval != json_update_interval) {
 
-                char tmp_dir[MAX_PATH_SIZE];
-                char tmp_desc_dir[MAX_PATH_SIZE];
-                char tmp_orig_dir[MAX_PATH_SIZE];
+                if(current_update_interval) {
+                        task_remove(update_json_status, NULL);
+                        set_route_change_hooks(json_route_change_hook, DEL);
+                }
+
+                if (json_update_interval){
+                        task_register(MAX(10, json_update_interval), update_json_status, NULL, -300000);
+                        set_route_change_hooks(json_route_change_hook, ADD);
+                }
+
+                current_update_interval = json_update_interval;
+
+        }
+
+	return SUCCESS;
+}
+
+STATIC_FUNC
+int32_t opt_json_desc_extension(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
+{
+
+        // this function is used to initialize all json directories
+
+        static char tmp_json_dir[MAX_PATH_SIZE];
+        static char tmp_desc_dir[MAX_PATH_SIZE];
+        static char tmp_orig_dir[MAX_PATH_SIZE];
+        static char tmp_extensions_dir[MAX_PATH_SIZE];
+
+        if (initializing && !json_dir && (cmd == OPT_CHECK || cmd == OPT_APPLY || cmd == OPT_SET_POST)) {
 
                 assertion(-501255, (strlen(run_dir) > 3));
 
 
-                sprintf(tmp_dir, "%s/%s", run_dir, DEF_JSON_SUBDIR);
+                sprintf(tmp_json_dir, "%s/%s", run_dir, DEF_JSON_SUBDIR);
 
-                if (check_dir(tmp_dir, YES/*create*/, YES/*writable*/) == FAILURE)
+                if (check_dir(tmp_json_dir, YES/*create*/, YES/*writable*/) == FAILURE)
 			return FAILURE;
 
 
 
-                sprintf(tmp_desc_dir, "%s/%s", tmp_dir, DEF_JSON_DESC_SUBDIR);
+                sprintf(tmp_desc_dir, "%s/%s", tmp_json_dir, DEF_JSON_DESC_SUBDIR);
 
                 if (check_dir(tmp_desc_dir, YES/*create*/, YES/*writable*/) == FAILURE) {
 
@@ -655,7 +713,7 @@ int32_t opt_json_update_interval(uint8_t cmd, uint8_t _save, struct opt_type *op
                         DIR *dir = opendir(tmp_desc_dir);
 
                         while ((d = readdir(dir))) {
-                                
+
                                 char rm_file[MAX_PATH_SIZE];
                                 sprintf(rm_file, "%s/%s", tmp_desc_dir, d->d_name);
 
@@ -676,7 +734,7 @@ int32_t opt_json_update_interval(uint8_t cmd, uint8_t _save, struct opt_type *op
 
 
 
-                sprintf(tmp_orig_dir, "%s/%s", tmp_dir, DEF_JSON_ORIG_SUBDIR);
+                sprintf(tmp_orig_dir, "%s/%s", tmp_json_dir, DEF_JSON_ORIG_SUBDIR);
 
                 if (check_dir(tmp_orig_dir, YES/*create*/, YES/*writable*/) == FAILURE) {
 
@@ -707,41 +765,69 @@ int32_t opt_json_update_interval(uint8_t cmd, uint8_t _save, struct opt_type *op
                         }
                 }
 
+                sprintf(tmp_extensions_dir, "%s/%s", tmp_json_dir, DEF_JSON_EXTENSIONS_SUBDIR);
 
-                strcpy(json_dir, tmp_dir);
-                strcpy(json_desc_dir, tmp_desc_dir);
-                strcpy(json_orig_dir, tmp_orig_dir);
+
+
+                if (check_dir(tmp_extensions_dir, YES/*create*/, YES/*writable*/) == FAILURE) {
+
+                        return FAILURE;
+
+                } else if ((extensions_fd = inotify_init1(IN_NONBLOCK)) < 0) {
+
+                        dbgf_sys(DBGT_ERR, "inotify_init() failed: %s \n", strerror(errno));
+                        return FAILURE;
+
+                } else if ((extensions_wd = inotify_add_watch(extensions_fd, tmp_extensions_dir,
+                        IN_CREATE | IN_DELETE | IN_DELETE_SELF | IN_MODIFY | IN_MOVE_SELF | IN_MOVED_FROM | IN_MOVED_TO)) < 0) {
+
+                        dbgf_sys(DBGT_ERR, "inotify_add_watch(%s) failed: %s \n", tmp_extensions_dir, strerror(errno));
+                        return FAILURE;
+
+                }
+
+
+
+                json_dir =  tmp_json_dir;
+                json_desc_dir = tmp_desc_dir;
+                json_orig_dir = tmp_orig_dir;
+                json_extension_dir = tmp_extensions_dir;
+
+        }
+
+        if (cmd == OPT_CHECK || cmd == OPT_APPLY) {
+
+                if (!json_extension_dir)
+                        return FAILURE;
+
+                if (validate_name_string(patch->p_val, strlen(patch->p_val) + 1) != SUCCESS)
+                        return FAILURE;
+
+
+        }
+
+        if (cmd == OPT_SET_POST && initializing) {
 
                 update_json_options(1, 0, JSON_OPTIONS_FILE);
-        }
+
+                if (extensions_fd > 0)
+                        set_fd_hook(extensions_fd, recv_inotify_event, ADD);
 
 
-        if (cmd == OPT_SET_POST && current_update_interval != json_update_interval) {
-
-                if(current_update_interval) {
-                        task_remove(update_json_status, NULL);
-                        set_route_change_hooks(json_route_change_hook, DEL);
-                }
-
-                if (json_update_interval){
-                        task_register(MAX(10, json_update_interval), update_json_status, NULL, -300000);
-                        set_route_change_hooks(json_route_change_hook, ADD);
-                }
-
-                current_update_interval = json_update_interval;
 
         }
 
-	return SUCCESS;
+        return SUCCESS;
 }
-
-
 
 static struct opt_type json_options[]= {
 //        ord parent long_name          shrt Attributes				*ival		min		max		default		*func,*syntax,*help
 	
 	{ODI,0,ARG_JSON_UPDATE,		0,  5,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&json_update_interval,	MIN_JSON_UPDATE,MAX_JSON_UPDATE,DEF_JSON_UPDATE,0,opt_json_update_interval,
                 ARG_VALUE_FORM, "disable or periodically update json-status files every given milliseconds."}
+        ,
+	{ODI,0,ARG_JSON_DESC_EXTENSION,	0,  5,A_PM1N,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_json_desc_extension,
+			ARG_PREFIX_FORM,"add arbitrary ascii data to description"}
         ,
 	{ODI,0,ARG_JSON_STATUS,		0,  5,A_PS0,A_USR,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_json_status,
 			0,		"show status in json format\n"}
@@ -755,6 +841,7 @@ static struct opt_type json_options[]= {
 	{ODI,0,ARG_JSON_ORIGINATORS,	0,  5,A_PS0,A_USR,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_json_status,
 			0,		"show originators in json format\n"}
 
+
 	
 };
 
@@ -765,7 +852,19 @@ static void json_cleanup( void )
         if (current_update_interval) {
                 set_route_change_hooks(json_route_change_hook, DEL);
         }
-	
+
+        if (extensions_fd > -1) {
+
+                if( extensions_wd > -1) {
+                        inotify_rm_watch(extensions_fd, extensions_wd);
+                        extensions_wd = -1;
+                }
+
+                set_fd_hook(extensions_fd, recv_inotify_event, DEL);
+
+                close(extensions_fd);
+                extensions_fd = -1;
+        }
 }
 
 static int32_t json_init( void ) {

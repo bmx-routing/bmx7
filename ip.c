@@ -2796,7 +2796,7 @@ static int32_t dev_status_creator(struct status_handl *handl, void* data)
         struct dev_node *dev;
         uint32_t status_size = dev_name_tree.items * sizeof (struct dev_status);
         uint32_t i = 0;
-        struct dev_status *status = ((struct dev_status*) (handl->data = debugRealloc(handl->data, status_size, -300000)));
+        struct dev_status *status = ((struct dev_status*) (handl->data = debugRealloc(handl->data, status_size, -300367)));
         memset(status, 0, status_size);
 
         while ((dev = avl_iterate_item(&dev_name_tree, &it))) {

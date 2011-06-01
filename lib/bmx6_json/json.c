@@ -202,17 +202,17 @@ void check_for_changed_sms(void)
                 } else {
 
                         if (sms) {
-                                avl_remove(&json_sms_tree, sms->name, -300000);
-                                debugFree(sms, -300000);
+                                avl_remove(&json_sms_tree, sms->name, -300378);
+                                debugFree(sms, -300369);
                         }
 
-                        sms = debugMalloc(sizeof (struct description_msg_json_sms) +len, -300000);
+                        sms = debugMalloc(sizeof (struct description_msg_json_sms) +len, -300370);
                         memset(sms, 0, sizeof (struct description_msg_json_sms) +len);
                         strcpy(sms->name, name);
                         sms->text_len = len;
                         sms->stale = 0;
                         memcpy(sms->text, data, len);
-                        avl_insert(&json_sms_tree, sms, -300000);
+                        avl_insert(&json_sms_tree, sms, -300371);
 
                 }
 
@@ -226,8 +226,8 @@ void check_for_changed_sms(void)
                 while ((sms = avl_next_item(&json_sms_tree, name))) {
                         memcpy(name, sms->name, sizeof (sms->name));
                         if (sms->stale) {
-                                avl_remove(&json_sms_tree, sms->name, -300000);
-                                debugFree(sms, -300000);
+                                avl_remove(&json_sms_tree, sms->name, -300373);
+                                debugFree(sms, -300374);
                         }
                 }
 
@@ -241,19 +241,19 @@ void json_inotify_event_hook(int fd)
 {
         TRACE_FUNCTION_CALL;
 
-        dbgf_track(DBGT_INFO, "detected changes in extensions directory: %s", json_smsTx_dir);
+        dbgf_track(DBGT_INFO, "detected changes in directory: %s", json_smsTx_dir);
 
-        assertion(-500000, (fd > -1 && fd == extensions_fd));
+        assertion(-501258, (fd > -1 && fd == extensions_fd));
 
         int ilen = 1024;
-        char *ibuff = debugMalloc(ilen, -300000);
+        char *ibuff = debugMalloc(ilen, -300375);
         int rcvd;
         int processed = 0;
 
         while ((rcvd = read(fd, ibuff, ilen)) == 0 || rcvd == EINVAL) {
 
-                ibuff = debugRealloc(ibuff, (ilen = ilen * 2), -300000);
-                assertion(-500000, (ilen <= (1024 * 16)));
+                ibuff = debugRealloc(ibuff, (ilen = ilen * 2), -300376);
+                assertion(-501259, (ilen <= (1024 * 16)));
         }
 
         if (rcvd > 0) {
@@ -265,8 +265,8 @@ void json_inotify_event_hook(int fd)
                         processed += (sizeof (struct inotify_event) +ievent->len);
 
                         if (ievent->mask & (IN_DELETE_SELF | IN_DELETE)) {
-                                dbgf_sys(DBGT_ERR, "extensions directory %s has been removed \n", json_smsTx_dir);
-                                cleanup_all(-500000);
+                                dbgf_sys(DBGT_ERR, "directory %s has been removed \n", json_smsTx_dir);
+                                cleanup_all(-501260);
                         }
                 }
 
@@ -274,7 +274,7 @@ void json_inotify_event_hook(int fd)
                 dbgf_sys(DBGT_ERR, "read()=%d: \n", rcvd, strerror(errno));
         }
 
-        debugFree(ibuff, -300000);
+        debugFree(ibuff, -300377);
 
         check_for_changed_sms();
 }
@@ -721,7 +721,7 @@ void json_description_event_hook(int32_t cb_id, struct orig_node *on)
 {
         TRACE_FUNCTION_CALL;
 
-        assertion(-500000, (on));
+        assertion(-501261, (on));
         assertion(-501249, IMPLIES(cb_id == PLUGIN_CB_DESCRIPTION_CREATED, (on && on->desc)));
         assertion(-501250, (cb_id == PLUGIN_CB_DESCRIPTION_DESTROY || cb_id == PLUGIN_CB_DESCRIPTION_CREATED));
         assertion(-501251, IMPLIES(initializing, cb_id == PLUGIN_CB_DESCRIPTION_CREATED));
@@ -829,9 +829,9 @@ STATIC_FUNC
 void update_json_status(void *data)
 {
         assertion(-501254, (json_dir));
-        assertion(-500000, (json_update_interval));
+        assertion(-501262, (json_update_interval));
 
-        task_register(json_update_interval, update_json_status, NULL, -300000);
+        task_register(json_update_interval, update_json_status, NULL, -300378);
 
         json_status_event_hook(0, NULL);
         json_dev_event_hook(0, NULL);
@@ -898,7 +898,7 @@ int32_t opt_json_update_interval(uint8_t cmd, uint8_t _save, struct opt_type *op
                 }
 
                 if (json_update_interval){
-                        task_register(MAX(10, json_update_interval), update_json_status, NULL, -300000);
+                        task_register(MAX(10, json_update_interval), update_json_status, NULL, -300379);
                         set_route_change_hooks(json_route_change_hook, ADD);
                 }
 
@@ -996,8 +996,8 @@ int32_t opt_json_sms(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct op
 
                 update_json_options(1, 0, JSON_OPTIONS_FILE);
 
-                if (extensions_fd > 0)
-                        set_fd_hook(extensions_fd, json_inotify_event_hook, ADD);
+                assertion(-501263, (extensions_fd > 0));
+                set_fd_hook(extensions_fd, json_inotify_event_hook, ADD);
 
         }
 

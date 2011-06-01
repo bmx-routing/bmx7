@@ -1289,7 +1289,7 @@ void cleanup_all(int32_t status)
                         avl_remove(&status_tree, handl->status_name, -300357);
                         if (handl->data)
                                 debugFree(handl->data, -300359);
-                        debugFree(handl, -300000);
+                        debugFree(handl, -300363);
                 }
 
                 purge_link_route_orig_nodes(NULL, NO);
@@ -1614,7 +1614,7 @@ void fields_dbg_table(struct ctrl_node *cn, uint16_t relevance, uint16_t data_si
 
         uint16_t field_string_sizes[FIELD_FORMAT_MAX_ITEMS] = {0};
         uint32_t fields = field_format_get_items(format);
-        assertion(-500000, (fields && fields <= FIELD_FORMAT_MAX_ITEMS));
+        assertion(-501256, (fields && fields <= FIELD_FORMAT_MAX_ITEMS));
 
         struct field_iterator it1 = {.format = format, .data = data, .data_size = data_size, .min_msg_size = min_msg_size};
 
@@ -1656,7 +1656,7 @@ void fields_dbg_table(struct ctrl_node *cn, uint16_t relevance, uint16_t data_si
 void register_status_handl(uint16_t min_msg_size, const struct field_format* format, char *name,
                             int32_t(*creator) (struct status_handl *status_handl, void *data))
 {
-        struct status_handl *handl = debugMalloc(sizeof (struct status_handl), -300000);
+        struct status_handl *handl = debugMalloc(sizeof (struct status_handl), -300364);
         memset(handl, 0, sizeof (handl));
 
         handl->min_msg_size = min_msg_size;
@@ -1698,7 +1698,7 @@ static const struct field_format bmx_status_format[] = {
 
 static int32_t bmx_status_creator(struct status_handl *handl, void *data)
 {
-        struct bmx_status *status = (struct bmx_status *) (handl->data = debugRealloc(handl->data, sizeof (struct bmx_status), -300000));
+        struct bmx_status *status = (struct bmx_status *) (handl->data = debugRealloc(handl->data, sizeof (struct bmx_status), -300365));
         sprintf(status->version, "%s-%s", BMX_BRANCH, BRANCH_VERSION);
         status->compatibility = COMPATIBILITY_VERSION;
         status->codeVersion = CODE_VERSION;
@@ -1867,7 +1867,7 @@ static int32_t orig_status_creator(struct status_handl *handl, void *data)
         struct orig_node *on = data;
         uint32_t status_size = (data ? 1 : orig_tree.items) * sizeof (struct orig_status);
         uint32_t i = 0;
-        struct orig_status *status = ((struct orig_status*) (handl->data = debugRealloc(handl->data, status_size, -300000)));
+        struct orig_status *status = ((struct orig_status*) (handl->data = debugRealloc(handl->data, status_size, -300366)));
         memset(status, 0, status_size);
 
         while (data ? (on = data) : (on = avl_iterate_item(&orig_tree, &it))) {
@@ -1900,7 +1900,7 @@ int32_t opt_version(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt
 	if ( cmd != OPT_APPLY )
 		return SUCCESS;
 
-        assertion(-500000, !strcmp(opt->long_name, ARG_VERSION));
+        assertion(-501257, !strcmp(opt->long_name, ARG_VERSION));
 
         dbg_printf(cn, "%s-%s compatibility=%d codeVersion=%d\n",
                         BMX_BRANCH, BRANCH_VERSION, COMPATIBILITY_VERSION, CODE_VERSION);

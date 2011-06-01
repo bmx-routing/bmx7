@@ -1054,7 +1054,7 @@ void rx_packet( struct packet_buff *pb );
 /*
  * ASSERTION / PARANOIA ERROR CODES:
  * Negative numbers are used as SIGSEV error codes !
- * Currently used numbers are: -500000 -500001 ... -501255
+ * Currently used numbers are: -500000 -500001 ... -501264
  */
 
 #ifdef NO_ASSERTIONS

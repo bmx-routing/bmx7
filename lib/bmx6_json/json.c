@@ -166,6 +166,8 @@ void check_for_changed_sms(void)
         char name[MAX_JSON_SMS_NAME_LEN];
         char data[MAX_JSON_SMS_DATA_LEN + 1];
 
+        dbgf_track(DBGT_INFO, "begin");
+
         while ((sms = avl_iterate_item(&json_sms_tree, &an))) {
                 sms->stale = 1;
         }
@@ -213,7 +215,6 @@ void check_for_changed_sms(void)
                         sms->stale = 0;
                         memcpy(sms->text, data, len);
                         avl_insert(&json_sms_tree, sms, -300371);
-
                 }
 
                 found_sms++;
@@ -221,6 +222,8 @@ void check_for_changed_sms(void)
 
 
         if (found_sms != matching_sms || found_sms != json_sms_tree.items) {
+
+                dbgf_track(DBGT_INFO, "sms found=%d matching=%d items=%d", found_sms, matching_sms, json_sms_tree.items);
 
                 memset(name, 0, sizeof (name));
                 while ((sms = avl_next_item(&json_sms_tree, name))) {
@@ -1073,6 +1076,13 @@ static void json_cleanup( void )
                 close(extensions_fd);
                 extensions_fd = -1;
         }
+
+        while (json_sms_tree.items) {
+                struct json_sms *sms = avl_first_item(&json_sms_tree);
+                avl_remove(&json_sms_tree, sms->name, -300381);
+                debugFree(sms, -300382);
+        }
+
 }
 
 

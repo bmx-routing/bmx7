@@ -56,7 +56,7 @@ static int extensions_fd = -1;
 static int extensions_wd = -1;
 
 
-static AVL_TREE(json_sms_tree, struct description_msg_json_sms, name );
+static AVL_TREE(json_sms_tree, struct json_sms, name );
 
 
 STATIC_FUNC
@@ -206,8 +206,8 @@ void check_for_changed_sms(void)
                                 debugFree(sms, -300369);
                         }
 
-                        sms = debugMalloc(sizeof (struct description_msg_json_sms) +len, -300370);
-                        memset(sms, 0, sizeof (struct description_msg_json_sms) +len);
+                        sms = debugMalloc(sizeof (struct json_sms) +len, -300370);
+                        memset(sms, 0, sizeof (struct json_sms) +len);
                         strcpy(sms->name, name);
                         sms->text_len = len;
                         sms->stale = 0;

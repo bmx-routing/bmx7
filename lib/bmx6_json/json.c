@@ -196,7 +196,7 @@ void check_for_changed_sms(void)
                         close(fd);
                         continue;
 
-                } else if ((sms = avl_find_item(&json_sms_tree, name)) && sms->text_len == len && !strcmp(sms->text, data)) {
+                } else if ((sms = avl_find_item(&json_sms_tree, name)) && sms->text_len == len && !memcmp(sms->text, data, len)) {
 
                         matching_sms++;
                         sms->stale = 0;
@@ -1019,10 +1019,17 @@ int32_t opt_json_sms(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct op
                 if (validate_name_string(patch->p_val, strlen(patch->p_val) + 1) != SUCCESS)
                         return FAILURE;
 
+
         }
 
-        if (cmd == OPT_SET_POST) {
+        static IDM_T sms_applied = NO;
 
+        if (cmd == OPT_APPLY) {
+                sms_applied = YES;
+        }
+
+        if (cmd == OPT_SET_POST && sms_applied) {
+                sms_applied = NO;
                 check_for_changed_sms();
         }
 

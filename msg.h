@@ -682,11 +682,12 @@ struct msg_ogm_ack {
  */
 
 
-#define BMX_DSC_TLV_METRIC      0x00
-#define BMX_DSC_TLV_UHNA4       0x01
-#define BMX_DSC_TLV_UHNA6       0x02
+#define BMX_DSC_TLV_METRIC     0x00
+#define BMX_DSC_TLV_UHNA4      0x01
+#define BMX_DSC_TLV_UHNA6      0x02
+#define BMX_DSC_TLV_JSON_SMS   0x10
 #define BMX_DSC_TLV_MAX        (FRAME_TYPE_ARRSZ-1)
-#define BMX_DSC_TLV_ARRSZ       FRAME_TYPE_ARRSZ
+#define BMX_DSC_TLV_ARRSZ      (FRAME_TYPE_ARRSZ)
 
 
 

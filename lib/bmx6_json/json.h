@@ -59,9 +59,9 @@ struct description_msg_json_sms {
 } __attribute__((packed));
 
 #define DESCRIPTION_MSG_JSON_SMS_FORMAT { \
-{FIELD_TYPE_STRING_CHAR,   -1, (8*16), 1, FIELD_RELEVANCE_HIGH, "name"}, \
-{FIELD_TYPE_STRING_SIZE,   -1, 16,     0, FIELD_RELEVANCE_LOW,  "len"},  \
-{FIELD_TYPE_STRING_BINARY, -1, 0,      1, FIELD_RELEVANCE_LOW,  "data" },  \
+{FIELD_TYPE_STRING_CHAR,   -1, (8*MAX_JSON_SMS_NAME_LEN), 1, FIELD_RELEVANCE_HIGH, "name"}, \
+{FIELD_TYPE_STRING_SIZE,   -1, 16,                        0, FIELD_RELEVANCE_LOW,  "len"},  \
+{FIELD_TYPE_STRING_BINARY, -1, 0,                         1, FIELD_RELEVANCE_LOW,  "data" },  \
 FIELD_FORMAT_END }
 
 

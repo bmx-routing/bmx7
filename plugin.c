@@ -94,7 +94,7 @@ void _set_thread_hook(int32_t cb_type, void (*cb_handler) (void), int8_t del, st
 		}
 	}
 
-        assertion(-500145, (!del));
+        assertion(-501265, (!del));
 
         cbn = debugMalloc(sizeof ( struct cb_node), -300027);
         memset(cbn, 0, sizeof ( struct cb_node));
@@ -205,7 +205,7 @@ void **get_plugin_data(void *data, uint8_t data_type, int32_t registry)
         TRACE_FUNCTION_CALL;
 	
 	if ( data_type >= PLUGIN_DATA_SIZE  ||  registry > plugin_data_registries[data_type] ) {
-		cleanup_all( -500145 );
+		cleanup_all( -501266 );
 		//dbgf_sys(DBGT_ERR, "requested to deliver data for unknown registry !");
 		//return NULL;
 	}

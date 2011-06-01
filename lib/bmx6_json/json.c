@@ -297,7 +297,7 @@ int create_description_sms(struct tx_frame_iterator *it)
         while ((sms = avl_iterate_item(&json_sms_tree, &an))) {
 
                 if (pos + sizeof (struct description_msg_json_sms) + sms->text_len > max_size) {
-                        dbgf_sys(DBGT_ERR, "Failed adding descriptionExtensionSms=%s/%s", json_smsTx_dir, sms->name);
+                        dbgf_sys(DBGT_ERR, "Failed adding descriptionSms=%s/%s", json_smsTx_dir, sms->name);
                         continue;
                 }
 
@@ -309,7 +309,12 @@ int create_description_sms(struct tx_frame_iterator *it)
                 memcpy(msg->text, sms->text, sms->text_len);
 
                 pos += (sizeof (struct description_msg_json_sms) + sms->text_len);
+
+                dbgf_track(DBGT_INFO, "added descriptionSms=%s/%s text_len=%d total_len=%d",
+                        json_smsTx_dir, sms->name, sms->text_len, pos);
+
         }
+
 
         return pos;
 }
@@ -982,6 +987,7 @@ int32_t opt_json_sms(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct op
                         return FAILURE;
                 }
 
+                set_fd_hook(extensions_fd, json_inotify_event_hook, ADD);
 
                 json_dir =  tmp_json_dir;
                 json_desc_dir = tmp_desc_dir;
@@ -995,9 +1001,6 @@ int32_t opt_json_sms(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct op
         if (cmd == OPT_SET_POST && initializing) {
 
                 update_json_options(1, 0, JSON_OPTIONS_FILE);
-
-                assertion(-501263, (extensions_fd > 0));
-                set_fd_hook(extensions_fd, json_inotify_event_hook, ADD);
 
         }
 

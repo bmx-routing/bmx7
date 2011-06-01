@@ -283,8 +283,6 @@ void json_inotify_event_hook(int fd)
 STATIC_FUNC
 int create_description_sms(struct tx_frame_iterator *it)
 {
-        assertion(-500765, (it->frame_type == BMX_DSC_TLV_UHNA4 || it->frame_type == BMX_DSC_TLV_UHNA6));
-        assertion(-501106, (af_cfg == AF_INET || af_cfg == AF_INET6));
 
         struct avl_node *an = NULL;
         struct json_sms *sms;

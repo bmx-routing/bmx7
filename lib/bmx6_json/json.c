@@ -291,6 +291,9 @@ int create_description_sms(struct tx_frame_iterator *it)
         uint16_t max_size = tx_iterator_cache_data_space(it);
         int pos = 0;
 
+        if (!json_sms_tree.items)
+                return TLV_TX_DATA_IGNORED;
+
         while ((sms = avl_iterate_item(&json_sms_tree, &an))) {
 
                 if (pos + sizeof (struct description_msg_json_sms) +sms->text_len > max_size) {

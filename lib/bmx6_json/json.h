@@ -21,8 +21,8 @@
 #define JSON_PARAMETERS_FILE "parameters"
 #define DEF_JSON_DESC_SUBDIR "descriptions"
 #define DEF_JSON_ORIG_SUBDIR "originators"
-#define DEF_JSON_SMS_RX_SUBDIR "smsSend"
-#define DEF_JSON_SMS_TX_SUBDIR "smsRcvd"
+#define DEF_JSON_SMS_RX_SUBDIR "smsRcvd"
+#define DEF_JSON_SMS_TX_SUBDIR "smsSend"
 
 
 #define ARG_JSON_STATUS         "json_status"

@@ -296,7 +296,7 @@ int create_description_sms(struct tx_frame_iterator *it)
 
         while ((sms = avl_iterate_item(&json_sms_tree, &an))) {
 
-                if (pos + sizeof (struct description_msg_json_sms) +sms->text_len > max_size) {
+                if (pos + sizeof (struct description_msg_json_sms) + sms->text_len > max_size) {
                         dbgf_sys(DBGT_ERR, "Failed adding descriptionExtensionSms=%s/%s", json_smsTx_dir, sms->name);
                         continue;
                 }
@@ -308,7 +308,7 @@ int create_description_sms(struct tx_frame_iterator *it)
                 msg->text_len = htons(sms->text_len);
                 memcpy(msg->text, sms->text, sms->text_len);
 
-                pos += sms->text_len;
+                pos += (sizeof (struct description_msg_json_sms) + sms->text_len);
         }
 
         return pos;

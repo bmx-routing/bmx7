@@ -183,7 +183,7 @@ void check_for_changed_sms(void)
 
 
 
-                if ((fd = open(path_name, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) < 0) {
+                if ((fd = open(path_name, O_RDONLY, 0)) < 0) {
 
                         dbgf_sys(DBGT_INFO, "could not open %s - %s", path_name, strerror(errno));
                         continue;

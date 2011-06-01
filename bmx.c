@@ -1514,7 +1514,7 @@ uint32_t field_iterate(struct field_iterator *it)
 
 //                assertion(-501186, IMPLIES(it->fixed_msg_size && it->data_size, it->data_size % it->fixed_msg_size == 0));
 //                assertion(-501187, IMPLIES(it->fixed_msg_size, field_type != FIELD_TYPE_STRING_SIZE || !format->field_bits));
-                assertion(-501188, IMPLIES(!format->field_bits && it->data_size, it->var_bits));
+//                assertion(-501188, IMPLIES(!format->field_bits && it->data_size, it->var_bits));
                 assertion(-501189, IMPLIES(!format->field_bits, field_type == FIELD_TYPE_STRING_CHAR || field_type == FIELD_TYPE_STRING_BINARY));
 
 
@@ -1531,7 +1531,7 @@ uint32_t field_iterate(struct field_iterator *it)
 //                assertion(-501182, (it->min_msg_size * 8 >= it->field_bit_pos + field_bits));
 
                 assertion(-501183, IMPLIES(it->data_size, it->min_msg_size <= it->data_size));
-                assertion(-501184, IMPLIES(it->data_size, field_bits));
+//                assertion(-501184, IMPLIES(it->data_size, field_bits));
                 assertion(-501185, IMPLIES(it->data_size, it->field_bit_pos + field_bits  <= it->data_size * 8));
 
                 assertion(-501190, IMPLIES(!format->field_host_order, (field_bits == 16 || field_bits == 32)));

@@ -1994,7 +1994,7 @@ static struct opt_type bmx_options[]=
 	{ODI,ARG_LINKS,ARG_RELEVANCE,   'r',5,A_CS1,A_USR,A_DYN,A_ARG,A_ANY,	0,	       MIN_RELEVANCE,   MAX_RELEVANCE,  DEF_RELEVANCE,0, opt_status,
 			ARG_VALUE_FORM,	HLP_ARG_RELEVANCE}
         ,
-	{ODI,0,ARG_ORIGINATORS,	        0,  5,A_PS0,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
+	{ODI,0,ARG_ORIGINATORS,	        0,  5,A_PS0N,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
 			0,		"show originators\n"},
 	{ODI,ARG_ORIGINATORS,ARG_RELEVANCE,'r',5,A_CS1,A_USR,A_DYN,A_ARG,A_ANY,	0,	       MIN_RELEVANCE,   MAX_RELEVANCE,  DEF_RELEVANCE,0, opt_status,
 			ARG_VALUE_FORM,	HLP_ARG_RELEVANCE}

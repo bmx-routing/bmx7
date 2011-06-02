@@ -231,8 +231,8 @@ void check_for_changed_sms(const char * func)
                 while ((sms = avl_next_item(&json_sms_tree, name))) {
                         memcpy(name, sms->name, sizeof (sms->name));
                         if (sms->stale) {
-                                dbgf_track(DBGT_INFO, "new sms=%s size=%d/%s! updating description...",
-                                        json_smsTx_dir, p->p_val, sms->text_len);
+                                dbgf_track(DBGT_INFO, "removed sms=%s/%s size=%d! updating description...",
+                                        json_smsTx_dir, sms->name, sms->text_len);
 
                                 avl_remove(&json_sms_tree, sms->name, -300373);
                                 debugFree(sms, -300374);
@@ -1006,7 +1006,7 @@ int32_t opt_json_sms(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct op
 
 
 
-        if (cmd == OPT_SET_POST && initializing) {
+        if (cmd == OPT_POST && initializing) {
 
                 update_json_options(1, 0, JSON_OPTIONS_FILE);
 
@@ -1033,7 +1033,7 @@ int32_t opt_json_sms(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct op
                 sms_applied = YES;
         }
 
-        if (cmd == OPT_SET_POST && sms_applied) {
+        if (cmd == OPT_POST && sms_applied) {
                 sms_applied = NO;
                 check_for_changed_sms(__FUNCTION__);
         }

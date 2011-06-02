@@ -166,7 +166,7 @@ void check_for_changed_sms(const char * func)
         char name[MAX_JSON_SMS_NAME_LEN];
         char data[MAX_JSON_SMS_DATA_LEN + 1];
 
-        dbgf_track(DBGT_INFO, "called by %s", func);
+        dbgf_all(DBGT_INFO, "called by %s", func);
 
         while ((sms = avl_iterate_item(&json_sms_tree, &an))) {
                 sms->stale = 1;
@@ -187,7 +187,7 @@ void check_for_changed_sms(const char * func)
 
                 if ((fd = open(path_name, O_RDONLY, 0)) < 0) {
 
-                        dbgf_sys(DBGT_INFO, "could not open %s - %s", path_name, strerror(errno));
+                        dbgf_all(DBGT_INFO, "could not open %s - %s", path_name, strerror(errno));
                         continue;
 
                 } else if ((len = read(fd, data, sizeof (data))) < 0 || len > MAX_JSON_SMS_DATA_LEN) {
@@ -215,6 +215,8 @@ void check_for_changed_sms(const char * func)
                         sms->stale = 0;
                         memcpy(sms->text, data, len);
                         avl_insert(&json_sms_tree, sms, -300371);
+
+                        dbgf_track(DBGT_INFO, "new sms=%s size=%d! updating description..-", path_name, sms->text_len);
                 }
 
                 found_sms++;
@@ -223,12 +225,15 @@ void check_for_changed_sms(const char * func)
 
         if (found_sms != matching_sms || found_sms != json_sms_tree.items) {
 
-                dbgf_track(DBGT_INFO, "sms found=%d matching=%d items=%d", found_sms, matching_sms, json_sms_tree.items);
+                dbgf_all(DBGT_INFO, "sms found=%d matching=%d items=%d", found_sms, matching_sms, json_sms_tree.items);
 
                 memset(name, 0, sizeof (name));
                 while ((sms = avl_next_item(&json_sms_tree, name))) {
                         memcpy(name, sms->name, sizeof (sms->name));
                         if (sms->stale) {
+                                dbgf_track(DBGT_INFO, "new sms=%s size=%d/%s! updating description...",
+                                        json_smsTx_dir, p->p_val, sms->text_len);
+
                                 avl_remove(&json_sms_tree, sms->name, -300373);
                                 debugFree(sms, -300374);
                         }

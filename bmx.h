@@ -231,7 +231,7 @@ extern int32_t dad_to;
 #define ARG_DROP_ALL_PACKETS "dropAllPackets"
 
 
-#define MIN_DHASH_TO 300000 //300000
+#define MIN_DHASH_TO 300000
 #define DHASH_TO_TOLERANCE_FK 10
 
 

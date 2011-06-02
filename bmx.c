@@ -1642,7 +1642,7 @@ void fields_dbg_table(struct ctrl_node *cn, uint16_t relevance, uint16_t data_si
                 }
         }
 
-        char * out = debugMalloc(((rows * bytes_per_row) + 1), -300000);
+        char * out = debugMalloc(((rows * bytes_per_row) + 1), -300383);
         memset(out, ' ', (rows * bytes_per_row));
 
         uint32_t i = 0, pos = 0;
@@ -1686,7 +1686,7 @@ void fields_dbg_table(struct ctrl_node *cn, uint16_t relevance, uint16_t data_si
         }
         out[pos++] = '\0';
         dbg_printf(cn, "%s", out);
-
+        debugFree(out, -300384);
 }
 
 

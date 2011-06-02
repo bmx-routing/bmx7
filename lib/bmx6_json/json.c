@@ -153,7 +153,7 @@ IDM_T rm_dir_content(char* dir_name)
 
 
 STATIC_FUNC
-void check_for_changed_sms(void)
+void check_for_changed_sms(const char * func)
 {
         uint16_t found_sms = 0;
         uint16_t matching_sms = 0;
@@ -166,7 +166,7 @@ void check_for_changed_sms(void)
         char name[MAX_JSON_SMS_NAME_LEN];
         char data[MAX_JSON_SMS_DATA_LEN + 1];
 
-        dbgf_track(DBGT_INFO, "begin");
+        dbgf_track(DBGT_INFO, "called by %s", func);
 
         while ((sms = avl_iterate_item(&json_sms_tree, &an))) {
                 sms->stale = 1;
@@ -279,7 +279,7 @@ void json_inotify_event_hook(int fd)
 
         debugFree(ibuff, -300377);
 
-        check_for_changed_sms();
+        check_for_changed_sms(__FUNCTION__);
 }
 
 
@@ -656,10 +656,10 @@ void json_originator_event_hook(int32_t cb_id, struct orig_node *orig)
         if (cb_id == PLUGIN_CB_DESCRIPTION_DESTROY) {
 
                 if ((on = orig)) {
-                        dbgf_track(DBGT_WARN, "removing destroyed json-description of orig=%s",
-                                globalIdAsString(&on->global_id));
-
                         sprintf(path_name, "%s/%s", json_orig_dir, globalIdAsString(&on->global_id));
+
+                        dbgf_track(DBGT_WARN, "removing destroyed orig=%s", path_name);
+
                         if (remove(path_name) != 0) {
                                 dbgf_sys(DBGT_ERR, "could not remove %s: %s \n", path_name, strerror(errno));
                         }
@@ -1030,7 +1030,7 @@ int32_t opt_json_sms(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct op
 
         if (cmd == OPT_SET_POST && sms_applied) {
                 sms_applied = NO;
-                check_for_changed_sms();
+                check_for_changed_sms(__FUNCTION__);
         }
 
 

@@ -952,7 +952,7 @@ int32_t opt_json_sms(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct op
                 if (check_dir(tmp_orig_dir, YES/*create*/, YES/*writable*/) == FAILURE)
                         return FAILURE;
 
-                else if (rm_dir_content(tmp_orig_dir) == FAILURE)
+                else if (cmd == OPT_SET_POST && rm_dir_content(tmp_orig_dir) == FAILURE)
                         return FAILURE;
 
 
@@ -962,7 +962,7 @@ int32_t opt_json_sms(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct op
                 if (check_dir(tmp_desc_dir, YES/*create*/, YES/*writable*/) == FAILURE)
                         return FAILURE;
 
-                else if (rm_dir_content(tmp_desc_dir) == FAILURE)
+                else if (cmd == OPT_SET_POST && rm_dir_content(tmp_desc_dir) == FAILURE)
                         return FAILURE;
 
 
@@ -972,7 +972,7 @@ int32_t opt_json_sms(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct op
                 if (check_dir(tmp_sms_rx_dir, YES/*create*/, YES/*writable*/) == FAILURE)
                         return FAILURE;
 
-                else if (rm_dir_content(tmp_sms_rx_dir) == FAILURE)
+                else if (cmd == OPT_SET_POST && rm_dir_content(tmp_sms_rx_dir) == FAILURE)
                         return FAILURE;
 
 

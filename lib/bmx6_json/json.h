@@ -21,8 +21,8 @@
 #define JSON_PARAMETERS_FILE "parameters"
 #define DEF_JSON_DESC_SUBDIR "descriptions"
 #define DEF_JSON_ORIG_SUBDIR "originators"
-#define DEF_JSON_SMS_RX_SUBDIR "smsRcvd"
-#define DEF_JSON_SMS_TX_SUBDIR "smsSend"
+#define DEF_JSON_SMS_RX_SUBDIR "rcvdSms"
+#define DEF_JSON_SMS_TX_SUBDIR "sendSms"
 
 
 #define ARG_JSON_STATUS         "json_status"
@@ -40,7 +40,7 @@
 #define MIN_JSON_UPDATE 0
 #define MAX_JSON_UPDATE REGISTER_TASK_TIMEOUT_MAX
 
-#define ARG_JSON_SMS "jsonSms"
+#define ARG_JSON_SMS "syncSms"
 #define MAX_JSON_SMS_NAME_LEN 16
 #define MAX_JSON_SMS_DATA_LEN 240
 #define TLV_OP_CUSTOM_JSON_SMS  (TLV_OP_CUSTOM_MIN + 0)

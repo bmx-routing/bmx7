@@ -1796,7 +1796,7 @@ static const struct field_format link_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, lastHelloSqn,     1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, lastHelloAdv,     1, FIELD_RELEVANCE_MEDI),
 
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, nbLocalId,        1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_HEX,               link_status, nbLocalId,        1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, nbIid4Me,         1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, linkAdv4Him,      1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, linkAdv4Me,       1, FIELD_RELEVANCE_MEDI),
@@ -1843,7 +1843,7 @@ static int32_t link_status_creator(struct status_handl *handl, void *data)
                                 status[i].lastHelloSqn = link->hello_sqn_max;
                                 status[i].lastHelloAdv = ((TIME_T) (bmx_time - link->hello_time_max)) / 1000;
 
-                                status[i].nbLocalId = ntohl(link->key.local_id);
+                                status[i].nbLocalId = link->key.local_id;
                                 status[i].nbIid4Me = local->neigh ? local->neigh->neighIID4me : 0;
                                 status[i].linkAdv4Him = local->link_adv_msg_for_him;
                                 status[i].linkAdv4Me = local->link_adv_msg_for_me;

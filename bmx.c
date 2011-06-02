@@ -1613,42 +1613,80 @@ void fields_dbg_table(struct ctrl_node *cn, uint16_t relevance, uint16_t data_si
         assertion(-501209, (format && data && cn));
 
         uint16_t field_string_sizes[FIELD_FORMAT_MAX_ITEMS] = {0};
-        uint32_t fields = field_format_get_items(format);
-        assertion(-501256, (fields && fields <= FIELD_FORMAT_MAX_ITEMS));
+        uint32_t columns = field_format_get_items(format);
+        uint32_t rows = 1/*the headline*/, bytes_per_row = 1/*the trailing '\n' or '\0'*/;
 
-        struct field_iterator it1 = {.format = format, .data = data, .data_size = data_size, .min_msg_size = min_msg_size};
+        assertion(-501256, (columns && columns <= FIELD_FORMAT_MAX_ITEMS));
 
-        while (field_iterate(&it1) == SUCCESS) {
+        struct field_iterator i1 = {.format = format, .data = data, .data_size = data_size, .min_msg_size = min_msg_size};
 
-                char *val = field_dbg_value(&format[it1.field], min_msg_size, data, it1.field_bit_pos, it1.field_bits);
+        while (field_iterate(&i1) == SUCCESS) {
 
-                field_string_sizes[it1.field] = max_i32(field_string_sizes[it1.field], strlen(val));
+                if (format[i1.field].field_relevance >= relevance) {
+
+                        char *val = field_dbg_value(&format[i1.field], min_msg_size, data, i1.field_bit_pos, i1.field_bits);
+
+                        field_string_sizes[i1.field] = max_i32(field_string_sizes[i1.field], strlen(val));
+
+                        if (i1.field == 0) {
+                                rows++;
+                                bytes_per_row = 1;
+                        }
+
+                        if (rows == 2) {
+                                field_string_sizes[i1.field] =
+                                        max_i32(field_string_sizes[i1.field], strlen(format[i1.field].field_name));
+                        }
+
+                        bytes_per_row += field_string_sizes[i1.field] + 1/* the separating ' '*/;
+                }
         }
 
-        uint8_t i = 0;
-        for (i = 0; i < fields; i++) {
+        char * out = debugMalloc(((rows * bytes_per_row) + 1), -300000);
+        memset(out, ' ', (rows * bytes_per_row));
 
-                field_string_sizes[i] = max_i32(field_string_sizes[i], strlen(format[i].field_name));
+        uint32_t i = 0, pos = 0;
+
+        for (i = 0; i < columns; i++) {
 
                 if (format[i].field_relevance >= relevance) {
-                        dbg_printf(cn, "%s", format[i].field_name);
-                        dbg_spaces(cn, field_string_sizes[i] - strlen(format[i].field_name) + (i == fields - 1 ? 0 : 1));
+
+                        memcpy(&out[pos], format[i].field_name, strlen(format[i].field_name));
+                        pos += field_string_sizes[i] + 1;
+
+                        //dbg_printf(cn, "%s", format[i].field_name);
+                        //dbg_spaces(cn, field_string_sizes[i] - strlen(format[i].field_name) + (i == columns - 1 ? 0 : 1));
+                }
+                if (i == columns - 1) {
+                        out[pos++] = '\n';
+                        //dbg_printf(cn, "\n");
                 }
         }
-        dbg_printf(cn, "\n");
 
-        struct field_iterator it2 = {.format = format, .data = data, .data_size = data_size, .min_msg_size = min_msg_size};
-        while(field_iterate(&it2) == SUCCESS) {
 
-                if (format[it2.field].field_relevance >= relevance) {
-                        char *val = field_dbg_value(&format[it2.field], min_msg_size, data, it2.field_bit_pos, it2.field_bits);
-                        dbg_spaces(cn, field_string_sizes[it2.field] - strlen(val));
-                        dbg_printf(cn, "%s%s", val, (it2.field == fields - 1 ? "" : " "));
+
+        struct field_iterator i2 = {.format = format, .data = data, .data_size = data_size, .min_msg_size = min_msg_size};
+        while(field_iterate(&i2) == SUCCESS) {
+
+                if (format[i2.field].field_relevance >= relevance) {
+
+                        char *val = field_dbg_value(&format[i2.field], min_msg_size, data, i2.field_bit_pos, i2.field_bits);
+
+                        memcpy(&out[pos], val, strlen(val));
+                        pos += field_string_sizes[i2.field]+ (i2.field == columns - 1 ? 0 : 1);
+
+                        //dbg_spaces(cn, field_string_sizes[i2.field] - strlen(val));
+                        //dbg_printf(cn, "%s%s", val, (i2.field == columns - 1 ? "" : " "));
                 }
 
-                if (it2.field == fields - 1)
-                        dbg_printf(cn, "\n");
+                if (i2.field == columns - 1) {
+                        out[pos++] = '\n';
+                        //dbg_printf(cn, "\n");
+                }
         }
+        out[pos++] = '\0';
+        dbg_printf(cn, "%s", out);
+
 }
 
 

@@ -647,6 +647,13 @@ enum {
         FIELD_RELEVANCE_HIGH
 };
 
+#define ARG_RELEVANCE "relevance"
+#define DEF_RELEVANCE FIELD_RELEVANCE_HIGH
+#define MAX_RELEVANCE FIELD_RELEVANCE_HIGH
+#define MIN_RELEVANCE FIELD_RELEVANCE_LOW
+#define HLP_ARG_RELEVANCE        "filter for given minimum relevance"
+
+
 struct field_format {
 	uint16_t field_type;
         int32_t field_pos; // -1 means relative to previous 

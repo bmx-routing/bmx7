@@ -181,10 +181,6 @@
 #define MAX_DESCRIPTION_TYPE     FRAME_TYPE_PROCESS_ALL
 #define HLP_DESCRIPTION_TYPE     "show description extension(s) of given type (0..253=type 254=none 255=all) \n"
 
-#define ARG_RELEVANCE "relevance"
-#define DEF_RELEVANCE FIELD_RELEVANCE_HIGH
-#define MAX_RELEVANCE FIELD_RELEVANCE_HIGH
-#define MIN_RELEVANCE FIELD_RELEVANCE_LOW
 
 
 struct frame_header_short { // 2 bytes

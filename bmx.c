@@ -1987,18 +1987,18 @@ static struct opt_type bmx_options[]=
 */
 
 	{ODI,0,ARG_INTERFACES,	        0,  5,A_PS0,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
-			0,		"show interfaces\n"},
-
+			0,		"show interfaces\n"}
+        ,
 	{ODI,0,ARG_LINKS,		0,  5,A_PS0N,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
 			0,		"show links\n"},
 	{ODI,ARG_LINKS,ARG_RELEVANCE,   'r',5,A_CS1,A_USR,A_DYN,A_ARG,A_ANY,	0,	       MIN_RELEVANCE,   MAX_RELEVANCE,  DEF_RELEVANCE,0, opt_status,
-			ARG_VALUE_FORM,	HLP_DESCRIPTION_TYPE}
+			ARG_VALUE_FORM,	HLP_ARG_RELEVANCE}
         ,
-
-
 	{ODI,0,ARG_ORIGINATORS,	        0,  5,A_PS0,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
 			0,		"show originators\n"},
-                        
+	{ODI,ARG_ORIGINATORS,ARG_RELEVANCE,'r',5,A_CS1,A_USR,A_DYN,A_ARG,A_ANY,	0,	       MIN_RELEVANCE,   MAX_RELEVANCE,  DEF_RELEVANCE,0, opt_status,
+			ARG_VALUE_FORM,	HLP_ARG_RELEVANCE}
+        ,
 	{ODI,0,ARG_TTL,			't',5,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&my_ttl,	MIN_TTL,	MAX_TTL,	DEF_TTL,0,	opt_update_description,
 			ARG_VALUE_FORM,	"set time-to-live (TTL) for OGMs"}
         ,

@@ -3538,7 +3538,7 @@ struct opt_type msg_options[]=
 			"<NAME>",	"only show description of nodes with given name"}
         ,
 	{ODI,ARG_DESCRIPTIONS,ARG_RELEVANCE,       'r',5,A_CS1,A_USR,A_DYN,A_ARG,A_ANY,	0,		0,	0,0,		0, opt_show_descriptions,
-			ARG_VALUE_FORM,	"only show description with given relevance"}
+			ARG_VALUE_FORM,	HLP_ARG_RELEVANCE}
 
 };
 

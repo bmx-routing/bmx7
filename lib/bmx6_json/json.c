@@ -267,7 +267,7 @@ void json_inotify_event_hook(int fd)
 
                         processed += (sizeof (struct inotify_event) +ievent->len);
 
-                        if (ievent->mask & (IN_DELETE_SELF | IN_DELETE)) {
+                        if (ievent->mask & (IN_DELETE_SELF)) {
                                 dbgf_sys(DBGT_ERR, "directory %s has been removed \n", json_smsTx_dir);
                                 cleanup_all(-501260);
                         }

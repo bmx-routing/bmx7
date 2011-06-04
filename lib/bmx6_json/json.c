@@ -981,17 +981,23 @@ int32_t opt_json_sms(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct op
 
                 if (check_dir(tmp_sms_tx_dir, YES/*create*/, YES/*writable*/) == FAILURE) {
 
+                        dbgf_sys(DBGT_ERR, "failed checking dir=%s: %s\n", tmp_sms_tx_dir, strerror(errno));
                         return FAILURE;
 
-                } else if ((extensions_fd = inotify_init1(IN_NONBLOCK)) < 0) {
+                } else if ((extensions_fd = inotify_init()) < 0) {
 
-                        dbgf_sys(DBGT_ERR, "inotify_init() failed: %s \n", strerror(errno));
+                        dbg_sys(DBGT_ERR, "failed init inotify socket: %s", strerror(errno));
+                        return FAILURE;
+
+                } else if (fcntl(extensions_fd, F_SETFL, O_NONBLOCK) < 0) {
+
+                        dbgf_sys(DBGT_ERR, "failed setting inotify non-blocking: %s", strerror(errno));
                         return FAILURE;
 
                 } else if ((extensions_wd = inotify_add_watch(extensions_fd, tmp_sms_tx_dir,
                         IN_CREATE | IN_DELETE | IN_DELETE_SELF | IN_MODIFY | IN_MOVE_SELF | IN_MOVED_FROM | IN_MOVED_TO)) < 0) {
 
-                        dbgf_sys(DBGT_ERR, "inotify_add_watch(%s) failed: %s \n", tmp_sms_tx_dir, strerror(errno));
+                        dbgf_sys(DBGT_ERR, "failed adding watch for dir=%s: %s \n", tmp_sms_tx_dir, strerror(errno));
                         return FAILURE;
                 }
 

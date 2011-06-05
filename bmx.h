@@ -557,7 +557,8 @@ enum ADGSN {
 #define FAILURE -1
 
 
-#define MAX_SELECT_TIMEOUT_MS 400 /* MUST be smaller than (1000/2) to fit into max tv_usec */
+#define MAX_SELECT_TIMEOUT_MS 1100 /* MUST be smaller than (1000/2) to fit into max tv_usec */
+#define MAX_SELECT_SAFETY_MS 200 /* MUST be smaller than (1000/2) to fit into max tv_usec */
 #define CRITICAL_PURGE_TIME_DRIFT 5
 
 

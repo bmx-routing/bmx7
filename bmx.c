@@ -65,7 +65,7 @@ IDM_T initializing = YES;
 IDM_T cleaning_up = NO;
 
 static struct timeval start_time_tv;
-static struct timeval ret_tv, new_tv, diff_tv, acceptable_m_tv, acceptable_p_tv, max_tv = {0,(2000*MAX_SELECT_TIMEOUT_MS)};
+static struct timeval curr_tv;
 
 
 static RNG rng;
@@ -1121,14 +1121,17 @@ void trace_function_call(const char *func)
 
 void upd_time(struct timeval *precise_tv)
 {
+        static const struct timeval MAX_TV = {(((MAX_SELECT_TIMEOUT_MS + MAX_SELECT_SAFETY_MS) / 1000)), (((MAX_SELECT_TIMEOUT_MS + MAX_SELECT_SAFETY_MS) % 1000)*1000)};
 
-	timeradd( &max_tv, &new_tv, &acceptable_p_tv );
-	timercpy( &acceptable_m_tv, &new_tv );
-	gettimeofday( &new_tv, NULL );
+        struct timeval bmx_tv, diff_tv, acceptable_max_tv, acceptable_min_tv = curr_tv;
 
-	if ( timercmp( &new_tv, &acceptable_p_tv, > ) ) {
+        timeradd( &MAX_TV, &curr_tv, &acceptable_max_tv );
 
-		timersub( &new_tv, &acceptable_p_tv, &diff_tv );
+	gettimeofday( &curr_tv, NULL );
+
+	if ( timercmp( &curr_tv, &acceptable_max_tv, > ) ) {
+
+		timersub( &curr_tv, &acceptable_max_tv, &diff_tv );
 		timeradd( &start_time_tv, &diff_tv, &start_time_tv );
 
                 dbg_sys(DBGT_WARN, "critical system time drift detected: ++ca %ld s, %ld us! Correcting reference!",
@@ -1137,9 +1140,9 @@ void upd_time(struct timeval *precise_tv)
                 if ( diff_tv.tv_sec > CRITICAL_PURGE_TIME_DRIFT )
                         purge_link_route_orig_nodes(NULL, NO);
 
-	} else 	if ( timercmp( &new_tv, &acceptable_m_tv, < ) ) {
+	} else 	if ( timercmp( &curr_tv, &acceptable_min_tv, < ) ) {
 
-		timersub( &acceptable_m_tv, &new_tv, &diff_tv );
+		timersub( &acceptable_min_tv, &curr_tv, &diff_tv );
 		timersub( &start_time_tv, &diff_tv, &start_time_tv );
 
                 dbg_sys(DBGT_WARN, "critical system time drift detected: --ca %ld s, %ld us! Correcting reference!",
@@ -1150,16 +1153,15 @@ void upd_time(struct timeval *precise_tv)
 
 	}
 
-	timersub( &new_tv, &start_time_tv, &ret_tv );
+	timersub( &curr_tv, &start_time_tv, &bmx_tv );
 
 	if ( precise_tv ) {
-		precise_tv->tv_sec = ret_tv.tv_sec;
-		precise_tv->tv_usec = ret_tv.tv_usec;
+		precise_tv->tv_sec = bmx_tv.tv_sec;
+		precise_tv->tv_usec = bmx_tv.tv_usec;
 	}
 
-	bmx_time = ( (ret_tv.tv_sec * 1000) + (ret_tv.tv_usec / 1000) );
-	bmx_time_sec = ret_tv.tv_sec;
-
+	bmx_time = ( (bmx_tv.tv_sec * 1000) + (bmx_tv.tv_usec / 1000) );
+	bmx_time_sec = bmx_tv.tv_sec;
 }
 
 char *get_human_uptime(uint32_t reference)
@@ -2273,7 +2275,7 @@ int main(int argc, char *argv[])
 
 
 	gettimeofday( &start_time_tv, NULL );
-	gettimeofday( &new_tv, NULL );
+        curr_tv = start_time_tv;
 
 	upd_time( NULL );
 

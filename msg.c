@@ -3135,6 +3135,7 @@ void tx_packets( void *unused ) {
 
         TIME_T dev_interval = (my_tx_interval / 10) / dev_ip_tree.items;
         TIME_T dev_next = 0;
+        int8_t linklayer;
 
         dbgf_all(DBGT_INFO, " ");
 
@@ -3146,20 +3147,31 @@ void tx_packets( void *unused ) {
         //remove_task(tx_packet, NULL);
         task_register((my_tx_interval + rand_num(my_tx_interval / 10) - (my_tx_interval / 20)), tx_packets, NULL, -300353);
 
-        for (an = NULL; (dev = avl_iterate_item(&dev_ip_tree, &an));) {
 
-                if (dev->linklayer == TYP_DEV_LL_LO)
-                        continue;
+        for (linklayer = TYP_DEV_LL_LAN; linklayer <= TYP_DEV_LL_WIFI; linklayer++) {
 
-                if (dev->tx_task) {
-                        dbgf_sys(DBGT_ERR, "previously scheduled tx_packet( dev=%s ) still pending!", dev->label_cfg.str);
-                } else {
-                        dev->tx_task = tx_packet;
-                        task_register(dev_next, tx_packet, dev, -300354);
+                for (an = NULL; (dev = avl_iterate_item(&dev_ip_tree, &an));) {
+
+                        if (dev->linklayer != linklayer) {
+
+                                continue;
+
+                        } else if (dev->tx_task) {
+
+                                dbgf_sys(DBGT_ERR, "previously scheduled tx_packet( dev=%s ) still pending!", dev->label_cfg.str);
+                                continue;
+
+                        } else if (dev->linklayer == TYP_DEV_LL_LAN) {
+
+                                tx_packet(dev);
+
+                        } else {
+                                dev->tx_task = tx_packet;
+                                task_register(dev_next, tx_packet, dev, -300354);
+
+                                dev_next += dev_interval;
+                        }
                 }
-
-                dev_next += dev_interval;
-
         }
 }
 

@@ -157,17 +157,17 @@
 
 
 
-struct mandatory_tlv_metricalgo {
+struct mandatory_tlv_metricalgo { // 16 bytes
 
-	FMETRIC_U16_T fmetric_u16_min;
+	FMETRIC_U16_T fmetric_u16_min;      // 2 bytes
 
-	uint16_t reserved;
+	uint16_t reserved;                  // 2 bytes
 
-	ALGO_T algo_type;
+	ALGO_T algo_type;                   // 2 bytes
 
-	uint16_t flags;
+        uint16_t flags;                     // 2 bytes
 
-#if __BYTE_ORDER == __LITTLE_ENDIAN
+#if __BYTE_ORDER == __LITTLE_ENDIAN         // 1 byte
 	unsigned int tp_exp_divisor : 2;
 	unsigned int tp_exp_numerator : 2;
 	unsigned int rp_exp_divisor : 2;
@@ -181,13 +181,13 @@ struct mandatory_tlv_metricalgo {
 # error "Please fix <bits/endian.h>"
 #endif
 
-	uint8_t reserved2;
-	uint8_t path_window_size;
-	uint8_t path_lounge_size;
-	uint8_t regression;
-	uint8_t hystere;
-	uint8_t hop_penalty;
-	uint8_t late_penalty;
+        uint8_t reserved2;                  // 1 byte
+	uint8_t path_window_size;           // 1 byte
+	uint8_t path_lounge_size;           // 1 byte
+	uint8_t regression;                 // 1 byte
+	uint8_t hystere;                    // 1 byte
+	uint8_t hop_penalty;                // 1 byte
+	uint8_t late_penalty;               // 1 byte
 
 } __attribute__((packed));
 

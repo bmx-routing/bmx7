@@ -33,10 +33,11 @@
  * dont touch this for compatibility reasons:
  */
 
-#define CODE_VERSION 5             // to be incremented after each critical code change
+#define CODE_VERSION 6             // to be incremented after each critical code change
 #define BMX_BRANCH "BMX6"
 #define BRANCH_VERSION "0.1-alpha" //put exactly one distinct word inside the string like "0.3-pre-alpha" or "0.3-rc1" or "0.3"
-#define COMPATIBILITY_VERSION 14
+
+#define COMPATIBILITY_VERSION 15   //due to changed msg.h: msg_hello_adv
 
 /*
  * from iid.h:
@@ -381,7 +382,7 @@ typedef uint8_t  FRAME_TYPE_T;
 
 
 
-struct packet_header // 12 bytes
+struct packet_header // 17 bytes
 {
 	uint8_t    bmx_version;      //  8
 	uint8_t    reserved;         //  8  reserved
@@ -389,12 +390,13 @@ struct packet_header // 12 bytes
 
 	IID_T      transmitterIID;   // 16 IID of transmitter node
 
-	LINKADV_SQN_T link_adv_sqn;     // 16 used for processing: link_adv, lq_adv, rp_adv, ogm_adv, ogm_ack
+	LINKADV_SQN_T link_adv_sqn;  // 16 used for processing: link_adv, lq_adv, rp_adv, ogm_adv, ogm_ack
 
 	PKT_SQN_T  pkt_sqn;          // 32
+
 	LOCAL_ID_T local_id;         // 32
 	
-	DEVADV_IDX_T   dev_idx;          //  8
+	DEVADV_IDX_T   dev_idx;      //  8
 
 //	uint8_t    reserved_for_2byte_alignement;  //  8
 

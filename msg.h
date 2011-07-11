@@ -433,14 +433,9 @@ struct msg_problem_adv { // 4 bytes
 
 struct msg_hello_adv { // 2 bytes
 	HELLO_SQN_T hello_sqn;
-	uint8_t reserved;
+//	uint8_t reserved; !!!!!!!!!!!!!!!!!!!!!!!!!!
 } __attribute__((packed));
 
-//struct msg_hello_reply { // 4 bytes
-//	HELLO_SQN_T hello_sqn;  // 4 + 12 bits
-//	IID_T transmitterIID4x;             // 16 bits
-//	DEVADV_SQN_T dev_sqn_ref;
-//} __attribute__((packed));
 
 
 #define DEVADV_MSG_IGNORED -1
@@ -448,13 +443,13 @@ struct msg_hello_adv { // 2 bytes
 
 struct msg_dev_adv { // 26 byte
 
-	DEVADV_IDX_T dev_idx;
-	uint8_t channel;
-	FMETRIC_U8_T tx_bitrate_min;
-	FMETRIC_U8_T tx_bitrate_max;
+	DEVADV_IDX_T dev_idx;        // 1 byte
+	uint8_t channel;             // 1 byte
+	FMETRIC_U8_T tx_bitrate_min; // 1 byte
+	FMETRIC_U8_T tx_bitrate_max; // 1 byte
 
-	IPX_T llip;  // 16 byte
-	MAC_T mac;   // 6 byte
+	IPX_T llip;                  // 16 byte
+	MAC_T mac;                   // 6 byte
 } __attribute__((packed));
 
 struct hdr_dev_adv { // 2 byte
@@ -570,23 +565,23 @@ struct msg_dhash_adv { // 2 + X bytes
 
 
 
-struct description {
-	GLOBAL_ID_T globalId;
+struct description { // 48 bytes
+	GLOBAL_ID_T globalId; // 32 bytes
 
-	uint16_t codeVersion;
-	uint16_t capabilities;
+        uint16_t codeVersion; // 2 bytes
+	uint16_t capabilities;// 2 bytes
 
-	DESC_SQN_T descSqn;
+        DESC_SQN_T descSqn;   // 2 bytes
 
-	OGM_SQN_T ogmSqnMin;
-	OGM_SQN_T ogmSqnRange;
+	OGM_SQN_T ogmSqnMin;  // 2 bytes
+	OGM_SQN_T ogmSqnRange;// 2 bytes
 
-	uint16_t txInterval;
+	uint16_t txInterval;  // 2 bytes
 
-	uint8_t reservedTtl;
-	uint8_t reserved;
+	uint8_t reservedTtl;  // 1 byte
+        uint8_t reserved;     // 1 byte
 
-        uint16_t extensionLen;
+        uint16_t extensionLen;// 2 bytes
 //	uint8_t extensionData[];
 } __attribute__((packed));
 
@@ -595,13 +590,13 @@ struct description {
 #define MSG_DESCRIPTION0_ADV_HASHED_SIZE   (sizeof( GLOBAL_ID_T) + (4 * sizeof(uint32_t)))
 #define MSG_DESCRIPTION0_ADV_SIZE  (MSG_DESCRIPTION0_ADV_UNHASHED_SIZE + MSG_DESCRIPTION0_ADV_HASHED_SIZE)
 
-struct msg_description_adv {
+struct msg_description_adv { // IPv6: >= 92 bytes
 	
 	// the unhashed part:
-	IID_T    transmitterIID4x; // orig_sid
+	IID_T    transmitterIID4x; // 2 bytes
 
 	// the hashed pard:
-	struct description desc;
+	struct description desc;   // 48 bytes + extension frames (>= (metric-algo:2+16 bytes + hna6: 2+(x*22) bytes  ))
 
 } __attribute__((packed));
 
@@ -668,8 +663,8 @@ struct hdr_ogm_adv { // 2 bytes
 
 struct msg_ogm_ack {
 //	IID_T transmitterIID4x;
-	OGM_DEST_T ogm_destination;
-	AGGREG_SQN_T aggregation_sqn;
+	OGM_DEST_T ogm_destination;   // 1 byte
+	AGGREG_SQN_T aggregation_sqn; // 1 byte
 } __attribute__((packed));
 /*
  * reception triggers:

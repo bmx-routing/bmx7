@@ -1473,8 +1473,6 @@ void check_proc_sys_net(char *file, int32_t desired, int32_t *backup)
         FILE *f;
 	int32_t state = 0;
 	char filename[MAX_PATH_SIZE];
-	int trash;
-
 
 	sprintf( filename, "/proc/sys/net/%s", file );
 
@@ -1485,7 +1483,9 @@ void check_proc_sys_net(char *file, int32_t desired, int32_t *backup)
 		return;
 	}
 
-	trash=fscanf(f, "%d", &state);
+	if(fscanf(f, "%d", &state) < 0 ) {
+                 dbgf_track(DBGT_WARN, "%s", strerror(errno));
+        }
 	fclose(f);
 
 	if ( backup )

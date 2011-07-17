@@ -255,7 +255,6 @@ void close_ctrl_node(uint8_t cmd, struct ctrl_node *cn)
 {
 
 	struct list_node* list_pos, *list_prev, *list_tmp;
-	ssize_t trash;
 
 	list_prev = (struct list_node *)&ctrl_list;
 	
@@ -274,8 +273,11 @@ void close_ctrl_node(uint8_t cmd, struct ctrl_node *cn)
                                 dbgf_all(DBGT_INFO, "closed ctrl node fd %d with cmd %d", cn_tmp->fd, cmd);
 				
 				
-				if ( cmd == CTRL_CLOSE_SUCCESS )
-					trash=write( cn_tmp->fd, CONNECTION_END_STR, strlen(CONNECTION_END_STR) );
+				if ( cmd == CTRL_CLOSE_SUCCESS ) {
+                                        if (write(cn_tmp->fd, CONNECTION_END_STR, strlen(CONNECTION_END_STR)) < 0) {
+                                                dbgf_track(DBGT_WARN, "%s", strerror(errno));
+                                        }
+                                }
 				
 				if ( cmd != CTRL_CLOSE_DELAY ) {
 					close( cn_tmp->fd );
@@ -320,7 +322,7 @@ void accept_ctrl_node(void)
 	
 	struct sockaddr addr;
 	socklen_t addr_size = sizeof(struct sockaddr);
-	int32_t unix_opts;
+
 		
 	int fd = accept( unix_sock, (struct sockaddr *)&addr, &addr_size);
 	
@@ -330,7 +332,7 @@ void accept_ctrl_node(void)
 	}
 	
 	/* make unix socket non blocking */
-	unix_opts = fcntl( fd, F_GETFL, 0 );
+//      int32_t unix_opts = fcntl(fd, F_GETFL, 0);
 //	fcntl( fd, F_SETFL, unix_opts | O_NONBLOCK );
 	
 	create_ctrl_node( fd, NULL, YES );
@@ -1796,7 +1798,6 @@ int32_t opt_connect_client_to_daemon(uint8_t cmd, struct opt_type *opt, struct c
 	
 	char tmp_path[MAX_PATH_SIZE+20] = "";
 	char unix_buff[MAX_UNIX_MSG_SIZE+1] = "";
-	int trash;
 	
 	dbgf_all( DBGT_INFO, "cmd %s, opt_name %s, stream %s", 
 	          opt_cmd2str[cmd], opt->long_name, curr_strm_pos );
@@ -1868,19 +1869,19 @@ int32_t opt_connect_client_to_daemon(uint8_t cmd, struct opt_type *opt, struct c
 				     tmp_path, strerror(errno) );
 				
 				cleanup_all( CLEANUP_FAILURE );
-				
 			}
 			
 			if ( write( unix_sock, unix_buff, strlen( unix_buff ) ) < 0 ) {
-				
 				dbg_sys(DBGT_ERR, "can't write to unix socket: %s", strerror(errno) );
 				cleanup_all( CLEANUP_FAILURE );
-				
 			}
 			
-			if ( loop_mode )
-				trash=system( "clear" );
-			
+			if ( loop_mode ) {
+                                if ( system( "clear" ) < 0 ) {
+                                        dbgf_track(DBGT_WARN, "%s", strerror(errno));
+                                }
+                        }
+
 			int32_t recv_buff_len = 0;
 
                         while (!terminating) {
@@ -1904,7 +1905,6 @@ int32_t opt_connect_client_to_daemon(uint8_t cmd, struct opt_type *opt, struct c
 					recv_buff_len = read( unix_sock, unix_buff, MAX_UNIX_MSG_SIZE );
 					
 					if ( recv_buff_len > 0 ) {
-						ssize_t trash;
 						char *p;
 						unix_buff[recv_buff_len] = '\0';
 						
@@ -1912,12 +1912,16 @@ int32_t opt_connect_client_to_daemon(uint8_t cmd, struct opt_type *opt, struct c
 							*p='\0';
 
 							//printf( "%s", unix_buff );
-                                                        trash = write(STDOUT_FILENO, unix_buff, strlen(unix_buff));
+                                                        if (write(STDOUT_FILENO, unix_buff, strlen(unix_buff)) < 0) {
+                                                                dbgf_track(DBGT_WARN, "%s", strerror(errno));
+                                                        }
 							break;
 							
                                                 }
-						//printf( "%s", unix_buff );
-                                                trash = write(STDOUT_FILENO, unix_buff, strlen(unix_buff));
+                                                //printf( "%s", unix_buff );
+                                                if (write(STDOUT_FILENO, unix_buff, strlen(unix_buff)) < 0) {
+                                                        dbgf_track(DBGT_WARN, "%s", strerror(errno));
+                                                }
 					}
 					
 				} while ( recv_buff_len > 0 );

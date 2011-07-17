@@ -455,11 +455,7 @@ IDM_T init_plugin(void)
 	
 //	set_snd_ext_hook( 0, NULL, YES ); //ensure correct initialization of extension hooks
 //	reg_plugin_data( PLUGIN_DATA_SIZE );// ensure correct initialization of plugin_data
-	
-	struct plugin *p;
-	
-	p=NULL
-                ;
+	                ;
 #ifndef NO_DYN_PLUGIN
 	// first try loading config plugin, if succesfull, continue loading optinal plugins depending on config
 	activate_dyn_plugin( BMX_LIB_CONFIG );

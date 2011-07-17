@@ -526,8 +526,6 @@ void purge_link_node(struct link_node_key *only_link_key, struct dev_node *only_
 
                 struct list_node *pos, *tmp, *prev = (struct list_node *) & link->lndev_list;
                 
-                IDM_T removed_link_lndev = NO;
-
                 link_key_it = link->key;
 
                 list_for_each_safe(pos, tmp, &link->lndev_list)
@@ -560,7 +558,6 @@ void purge_link_node(struct link_node_key *only_link_key, struct dev_node *only_
                                 list_del_next(&link->lndev_list, prev);
                                 avl_remove(&link_dev_tree, &lndev->key, -300221);
                                 debugFree(lndev, -300044);
-                                removed_link_lndev = YES;
 
                         } else {
                                 prev = pos;
@@ -607,11 +604,6 @@ void purge_link_node(struct link_node_key *only_link_key, struct dev_node *only_
 
                         debugFree( link, -300045 );
                 }
-
-/*
-                if (local && removed_link_lndev)
-                        lndev_assign_best(local, NULL);
-*/
 
                 if (only_link_key)
                         break;
@@ -1712,7 +1704,7 @@ void register_status_handl(uint16_t min_msg_size, const struct field_format* for
 
 
 struct bmx_status {
-        char version[strlen(BMX_BRANCH) + strlen("-") + strlen(BRANCH_VERSION) + 1];
+        char version[(sizeof(BMX_BRANCH)-1) + (sizeof("-")-1) + (sizeof(BRANCH_VERSION)-1) + 1];
         uint16_t compatibility;
         uint16_t codeVersion;
         GLOBAL_ID_T *globalId;
@@ -2075,7 +2067,7 @@ char *globalIdAsString( struct GLOBAL_ID *id ) {
         if ( id ) {
                 uint8_t i;
 #define MAX_IDS_PER_PRINTF 4
-                static char id_str[MAX_IDS_PER_PRINTF][GLOBAL_ID_NAME_LEN + strlen(".") + (GLOBAL_ID_PKID_LEN * 2) + 1];
+                static char id_str[MAX_IDS_PER_PRINTF][GLOBAL_ID_NAME_LEN + (sizeof(".")-1) + (GLOBAL_ID_PKID_LEN * 2) + 1];
                 static uint8_t a = 0;
 
                 a = (a + 1) % MAX_IDS_PER_PRINTF;

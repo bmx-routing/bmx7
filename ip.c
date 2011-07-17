@@ -582,6 +582,7 @@ IDM_T kernel_if_fix(IDM_T purge_all, uint16_t curr_sqn)
                 index = iln->index;
                 IPX_T addr = ZERO_IP;
                 struct if_addr_node *ian;
+                IDM_T addr_changed = 0;
 
                 while ((ian = avl_next_item(&iln->if_addr_tree, &addr))) {
 
@@ -609,8 +610,12 @@ IDM_T kernel_if_fix(IDM_T purge_all, uint16_t curr_sqn)
 
                                 changed += ian->changed;
 
+                                addr_changed = YES;
+
                         }
                 }
+
+                struct dev_node *dev = dev_get_by_name(iln->name.str);
 
                 if (purge_all || curr_sqn != iln->update_sqn) {
 
@@ -626,14 +631,15 @@ IDM_T kernel_if_fix(IDM_T purge_all, uint16_t curr_sqn)
                         changed++;
 
 
-                } else if (iln->changed) {
-
-                        struct dev_node *dev = dev_get_by_name(iln->name.str);
+                } else if (iln->changed || (addr_changed && dev && !dev->if_llocal_addr && !dev->if_global_addr)) {
 
                         if (dev)
                                 dev->hard_conf_changed = YES;
 
                         changed += iln->changed;
+
+                        dbgf_sys(DBGT_WARN, "link=%s dev=%s configuration CHANGED",
+                                iln->name.str, dev ? dev->label_cfg.str : "ERROR");
 
                 }
         }
@@ -791,7 +797,7 @@ void kernel_if_addr_config(struct nlmsghdr *nlhdr, uint16_t index_sqn)
                 memcmp(&old_ian->ip_mcast, &ip_mcast, alen)
                 ) {
 
-                dbgf_all(DBGT_INFO, "%s addr %s CHANGED", label.str, ipXAsStr(family, &ip_addr));
+                dbgf_track(DBGT_INFO, "%s addr %s CHANGED", label.str, ipXAsStr(family, &ip_addr));
 
                 if (new_ian->dev) {
                         new_ian->dev->hard_conf_changed = YES;
@@ -899,7 +905,8 @@ int kernel_if_link_config(struct nlmsghdr *nlhdr, uint16_t update_sqn)
                 memcmp(&old_ilx->addr, RTA_DATA(tb[IFLA_ADDRESS]), MIN(alen, (int)sizeof(old_ilx->addr))) ||
                 memcmp(&old_ilx->name, &devname, sizeof (devname))) {
 
-                dbgf_all(DBGT_INFO, "link %s addr %s CHANGED", devname.str, memAsHexString(RTA_DATA(tb[IFLA_ADDRESS]), alen));
+                dbgf_track(DBGT_INFO, "link=%s status type or flags or addr=%s CHANGED",
+                        devname.str, memAsHexString(RTA_DATA(tb[IFLA_ADDRESS]), alen));
 
                 changed++;
         }
@@ -907,8 +914,8 @@ int kernel_if_link_config(struct nlmsghdr *nlhdr, uint16_t update_sqn)
         new_ilx->type = if_link_info->ifi_type;
         new_ilx->flags = if_link_info->ifi_flags;
 
-        new_ilx->addr = addr;
         new_ilx->alen = alen;
+        new_ilx->addr = addr;
 
         new_ilx->name = devname;
 
@@ -2533,8 +2540,10 @@ static void dev_check(IDM_T kernel_ip_config_changed)
 				cleanup_all( CLEANUP_FAILURE );
                         }
 
-                        dbg_sys(DBGT_WARN, "not using interface %s (retrying later): %s %s",
-                                dev->label_cfg.str, iff_up ? "UP" : "DOWN", dev->hard_conf_changed ? "CHANGED" : "UNCHANGED");
+                        dbg_sys(DBGT_WARN, "not using interface %s (retrying later): %s %s ila=%d iln=%d",
+                                dev->label_cfg.str, iff_up ? "UP" : "DOWN",
+                                dev->hard_conf_changed ? "CHANGED" : "UNCHANGED",
+                                dev->if_llocal_addr ? 1 : 0, dev->if_llocal_addr && dev->if_llocal_addr->iln ? 1 : 0);
 
                 }
 
@@ -2583,7 +2592,7 @@ static void recv_ifevent_netlink_sk(int sk)
 	while( recvmsg (sk, &msg, 0) > 0 );
 
         //do NOT delay checking of interfaces to not miss ifdown/up of interfaces !!
-        if (kernel_if_config()) //just call if changed!
+        if (kernel_if_config() == YES) //just call if changed!
                 dev_check(YES);
 
 }
@@ -3135,7 +3144,8 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
 
                 // will always be called whenever a dev-parameter is changed (due to OPT_POST and opt_dev_changed)
                 // is it needed by another option ?
-                dev_check(initializing ? kernel_if_config() : NO); 
+                dev_check(initializing ? kernel_if_config() == YES : NO);
+
         }
 
 	return SUCCESS;

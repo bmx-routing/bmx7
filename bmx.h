@@ -1076,8 +1076,10 @@ void rx_packet( struct packet_buff *pb );
 
 #else//NO_ASSERTIONS
 
-#define paranoia( code , problem ) do { if ( (problem) ) { cleanup_all( code ); } }while(0)
+
+//#define paranoia( code , problem ) do { if ( (problem) ) { cleanup_all( code ); } }while(0)
 #define assertion( code , condition ) do { if ( !(condition) ) { cleanup_all( code ); } }while(0)
+#define assertion_dbg( code , condition, ... ) do { if ( !(condition) ) { dbgf_sys(DBGT_ERR, __VA_ARGS__ ); cleanup_all( code ); } }while(0)
 
 #ifdef EXTREME_PARANOIA
 #define ASSERTION( code , condition ) do { if ( !(condition) ) { cleanup_all( code ); } }while(0)

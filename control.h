@@ -260,7 +260,7 @@ extern struct list_head opt_list;
 #define A_END	0x03
 // may appera anywhere in command stream but consumes remaining arguments
 #define A_EAT	0x04
-// must appear as last argunent and cosumes remaining arguments
+// if appears as last argument then removes the trailing quit argument
 #define A_ETE	0x05
 
 

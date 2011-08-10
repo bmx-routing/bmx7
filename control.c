@@ -1138,7 +1138,29 @@ void register_option(struct opt_type *opt, const char * category_name)
 	struct opt_type *tmp_opt = NULL;
 	struct list_node *tmp_pos;
 	
-	// these are the valid combinations:
+        assertion(-501227, (opt->long_name));
+
+        assertion_dbg(-501267,
+                !get_option((opt->parent_name ? get_option(NULL, NO, opt->parent_name) : NULL), NO, opt->long_name),
+                "%s", opt->long_name);
+        assertion_dbg(-501268, IMPLIES(opt->short_name,
+                !get_option((opt->parent_name ? get_option(NULL, NO, opt->parent_name) : NULL), YES, &opt->short_name)),
+                "%s", opt->long_name);
+
+	// arg_t A_PS0 with no function can only be YES/NO:
+        assertion(-500111, IMPLIES(opt->opt_t == A_PS0 && opt->ival, opt->imin == NO && opt->imax == YES && opt->idef == NO));
+        assertion(-501228, IMPLIES(opt->opt_t == A_PS0N, !opt->ival && !opt->imin && !opt->imax && !opt->idef));
+
+	// arg_t A_PS0 can not be stored
+        assertion(-500112, IMPLIES(opt->opt_t == A_PS0 || opt->opt_t == A_PS0N, opt->cfg_t == A_ARG));
+
+        assertion(-500113, (opt->order >= 0 || opt->order <= 99));
+
+        assertion(-501229, IMPLIES(opt->parent_name, !strchr(opt->parent_name, '-')));
+        assertion(-501230, IMPLIES(opt->long_name, !strchr(opt->long_name, '-')));
+
+
+        // these are the valid combinations:
 	if ( !( 
 		//ival is validated and if valid assigned by call_option()
 	        (  (opt->ival) &&  (opt->call_custom_option) &&  (opt->long_name) ) ||
@@ -1152,21 +1174,6 @@ void register_option(struct opt_type *opt, const char * category_name)
 		goto failure;
 
 
-        assertion(-501227, (opt->long_name));
-	
-	// arg_t A_PS0 with no function can only be YES/NO:
-        assertion(-500111, IMPLIES(opt->opt_t == A_PS0 && opt->ival, opt->imin == NO && opt->imax == YES && opt->idef == NO));
-        assertion(-501228, IMPLIES(opt->opt_t == A_PS0N, !opt->ival && !opt->imin && !opt->imax && !opt->idef));
-	
-	// arg_t A_PS0 can not be stored
-        assertion(-500112, IMPLIES(opt->opt_t == A_PS0 || opt->opt_t == A_PS0N, opt->cfg_t == A_ARG));
-
-        assertion(-500113, (opt->order >= 0 || opt->order <= 99));
-
-        assertion(-501229, IMPLIES(opt->parent_name, !strchr(opt->parent_name, '-')));
-        assertion(-501230, IMPLIES(opt->long_name, !strchr(opt->long_name, '-')));
-	
-	
 	memset( &(opt->d), 0, sizeof( struct opt_data ) );
 
         opt->d.category_name = category_name;
@@ -1328,22 +1335,15 @@ struct opt_type *get_option(struct opt_type *parent_opt, uint8_t short_opt, char
 		
 		if ( !opt->long_name )
 			continue;
-		
-		else if ( !short_opt  &&  len == (int)strlen( opt->long_name )  &&  !strncasecmp( s, opt->long_name, len ) )
+
+                else if (!short_opt && len == (int) strlen(opt->long_name) && !strncasecmp(s, opt->long_name, len))
 			break;
-		
-		else if ( !short_opt  &&  len == 1  &&  s[0] == opt->short_name  &&   !initializing  &&  opt->dyn_t != A_INI )
+
+                else if (!short_opt && len == 1 && s[0] == opt->short_name)
 			break;
-		
-		else if ( !short_opt  &&  len == 1  &&  s[0] == opt->short_name  &&  initializing  &&  opt->dyn_t != A_DYN )
+
+                else if (short_opt && s[0] == opt->short_name)
 			break;
-		
-		else if ( short_opt  &&  s[0] == opt->short_name  &&   !initializing  &&  opt->dyn_t != A_INI )
-			break;
-		
-		else if ( short_opt  &&  s[0] == opt->short_name  &&  initializing  &&  opt->dyn_t != A_DYN )
-			break;
-		
 		
 		opt = NULL;
 	}
@@ -1637,7 +1637,7 @@ int32_t check_apply_parent_option(uint8_t del, uint8_t cmd, uint8_t _save, struc
                 call_option(del, OPT_ADJUST, _save, opt, p, in, cn) == FAILURE ||
                 call_option(del, cmd, _save, opt, p, in, cn) == FAILURE)
                 ret = FAILURE;
-	
+
 	del_opt_parent( &Patch_opt, p );
 	
 	dbgf_all( DBGT_INFO, "del:%d, %s, save:%d, %s %s returns: %d",
@@ -2048,7 +2048,7 @@ int32_t call_opt_apply(uint8_t cmd, uint8_t save, struct opt_type *opt, struct o
 		
 		dbg_cn( cn, DBGL_SYS, DBGT_ERR, "--%s%s%c can %s be applied at startup",
 		        opt->long_name, opt->short_name ? ", -" : "", opt->short_name ? opt->short_name : ' ',
-		        !initializing ? "ONLY" : "NOT"  );
+		        initializing ? "NOT" : "ONLY"  );
 		
 		goto call_opt_apply_error;
 	}
@@ -2331,13 +2331,11 @@ int32_t call_option(uint8_t ad, uint8_t cmd, uint8_t save, struct opt_type *opt,
 		return FAILURE;
 	}
 	
-	
-	if ( (opt->pos_t==A_END || opt->pos_t==A_ETE)  &&  in  &&  !is_end_of_cmd_stream( opt, in ) ) {
-		
-		if ( cn ) {
-			dbg_cn( cn, DBGL_CHANGES, DBGT_ERR, "--%s%s%c MUST be last option before line feed", 
-			        opt->long_name, opt->short_name?", -":"", opt->short_name?opt->short_name:' ' );
-		}
+
+        if ((opt->pos_t == A_END) && in && !is_end_of_cmd_stream(opt, in)) {
+
+                dbg_cn(cn, DBGL_SYS, DBGT_ERR, "--%s%s%c MUST be last option before line feed",
+                        opt->long_name, opt->short_name ? ", -" : "", opt->short_name ? opt->short_name : ' ');
 		
 		goto call_option_failure;
 	}
@@ -2347,11 +2345,14 @@ int32_t call_option(uint8_t ad, uint8_t cmd, uint8_t save, struct opt_type *opt,
 		
 		if ( (call_opt_patch( ad, opt, patch, in, cn )) == FAILURE )
 			goto call_option_failure;
-		
-		if ( ( opt->pos_t == A_EAT || opt->pos_t == A_ETE )  &&  in )
+
+                if (opt->pos_t == A_EAT && in) {
 			return strlen( in );
-		else 
+                } else if (opt->pos_t == A_ETE && in && is_end_of_cmd_stream(opt, in)) {
+                        return strlen(in);
+                } else {
 			return SUCCESS;
+                }
 		
 		
 	} else if ( cmd == OPT_ADJUST ) {
@@ -2386,8 +2387,9 @@ int32_t call_option(uint8_t ad, uint8_t cmd, uint8_t save, struct opt_type *opt,
                         }
                 }
 
-                if (cmd == OPT_APPLY && opt->opt_t == A_PS1N && patch->p_diff == ADD && patch->p_val &&
-                        opt->d.parents_instance_list.items >= 1) {
+                //TODO: this is not nice! But needed to avoid having multiple tracked instances of a PS1N option!
+
+                if (cmd == OPT_APPLY && opt->opt_t == A_PS1N && opt->dyn_t != A_INI && patch->p_diff == ADD && patch->p_val && opt->d.parents_instance_list.items >= 1) {
 
                         assertion(-501140, (opt->d.parents_instance_list.items == 1));
 
@@ -2566,18 +2568,17 @@ int8_t apply_stream_opts(char *s, uint8_t cmd, uint8_t load_cfg, struct ctrl_nod
 			state=LONG_OPT;
 			
 		} else if ( state == SHORT_OPT  &&  wordlen(s) >=1 ) {
-			
-			if ( !(opt = get_option( NULL, YES, s )) )
+
+                        if (!(opt = get_option(NULL, YES, s)))
 				goto apply_args_error;
-			
-			if ( (order=respect_opt_order( cmd, order, opt->order, opt, Load_config, OPT_SET_POST, cn )) < 0 )
-				goto apply_args_error;
-			
+
+                        if ((order = respect_opt_order(cmd, order, opt->order, opt, Load_config, OPT_SET_POST, cn)) < 0)
+                                goto apply_args_error;
+
 			if ( opt->opt_t == A_PS0 ) {
 				
-				if ( (pb=check_apply_parent_option( ADD, cmd, 0/*save*/, opt, s, cn )) == FAILURE )
-					goto apply_args_error;
-				
+				if ( (pb=check_apply_parent_option( ADD, cmd, 0/*save*/, opt, s, cn )) == FAILURE)
+                                        goto apply_args_error;
 				
 				if ( pb ) {
 					s+=pb;
@@ -2594,14 +2595,14 @@ int8_t apply_stream_opts(char *s, uint8_t cmd, uint8_t load_cfg, struct ctrl_nod
 
                         } else if (opt->opt_t == A_PS0N) {
 
-                                        patch = add_opt_parent(&Patch_opt);
+                                patch = add_opt_parent(&Patch_opt);
 
-                                        if ((pb = call_option(ADD, OPT_PATCH, 0/*save*/, opt, patch, s, cn)) == FAILURE)
-                                                goto apply_args_error;
+                                if ((pb = call_option(ADD, OPT_PATCH, 0/*save*/, opt, patch, s, cn)) == FAILURE)
+                                        goto apply_args_error;
 
-                                        pmn_s = s;
-                                        s += pb;
-                                        state = LONG_OPT_WHAT;
+                                pmn_s = s;
+                                s += pb;
+                                state = LONG_OPT_WHAT;
 
 
                         } else if (opt->opt_t == A_PS1 || opt->opt_t == A_PS1N || opt->opt_t == A_PM1N) {
@@ -2610,10 +2611,10 @@ int8_t apply_stream_opts(char *s, uint8_t cmd, uint8_t load_cfg, struct ctrl_nod
 				
 				if ( wordlen(s) > 1  &&  s[0] == '=' )
 					s++;
-				
-				if ( wordlen(s) == 0  &&  !(s = nextword(s)) )
-					goto apply_args_error;
-				
+
+                                if (wordlen(s) == 0 && !(s = nextword(s)))
+                                        goto apply_args_error;
+
 				state = LONG_OPT_VAL;
 			}
 			
@@ -2623,10 +2624,9 @@ int8_t apply_stream_opts(char *s, uint8_t cmd, uint8_t load_cfg, struct ctrl_nod
 			opt = get_option( NULL, NO, s );
 			
 			if ( opt ) {
-				
-				if ( (order=respect_opt_order( cmd, order, opt->order, opt, Load_config, OPT_SET_POST, cn )) < 0 )
+
+                                if ((order = respect_opt_order(cmd, order, opt->order, opt, Load_config, OPT_SET_POST, cn)) < 0)
 					goto apply_args_error;
-				
 				
 				if ( opt->opt_t == A_PS0 ) {
 
@@ -2658,19 +2658,18 @@ int8_t apply_stream_opts(char *s, uint8_t cmd, uint8_t load_cfg, struct ctrl_nod
 						
 					} else {
 						
-						if ( (s=nextword(s)) == NULL )
-							goto apply_args_error;
-						
-					}
-					
-					state = LONG_OPT_VAL;
-					
-				} else {
-					goto apply_args_error;
-				}
-				
+						if ( (s=nextword(s)) == NULL)
+                                                        goto apply_args_error;
+
+                                        }
+
+                                        state = LONG_OPT_VAL;
+
+                                } else {
+                                        goto apply_args_error;
+                                }
+
 			} else {
-				
 				goto apply_args_error;
 			}
 			
@@ -2808,7 +2807,6 @@ apply_args_error:
 	dbgf_cn( cn, DBGL_SYS, DBGT_ERR, "invalid argument: %s", argument );
 	
 	return FAILURE;
-	
 }
 
 void apply_init_args(int argc, char *argv[])
@@ -2872,30 +2870,22 @@ int32_t opt_show_parameter(uint8_t cmd, uint8_t _save, struct opt_type *opt, str
 }
 
 
-STATIC_FUNC
-int32_t opt_no_fork(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
-{
-	
-	if ( cmd == OPT_APPLY ) {
-		
-		debug_level = strtol( patch->p_val, NULL , 10);
-		
-		activate_debug_system();
-	
-	} else if ( cmd == OPT_POST && initializing ) {
-		
-		activate_debug_system();
-		
-	}
-	
-	return SUCCESS;
-}
 
 STATIC_FUNC
 int32_t opt_debug(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
 {
-	
-	if ( cmd == OPT_APPLY ) {
+
+        if (initializing && cmd == OPT_POST) {
+		
+		activate_debug_system();
+
+        } else if (initializing && cmd == OPT_APPLY) {
+		
+		debug_level = strtol( patch->p_val, NULL , 10);
+		
+		activate_debug_system();
+
+        } else if (!initializing && cmd == OPT_APPLY) {
 		
 		int ival = strtol( patch->p_val, NULL , 10);
 		
@@ -3043,24 +3033,22 @@ static struct opt_type control_options[]=
 {
 //        ord parent long_name          shrt Attributes				*ival		min		max		default		*func,*syntax,*help
 		
-	{ODI,0,ARG_HELP,		'h',0,A_PS0,A_USR,A_DYI,A_ARG,A_END,	0,		0, 		0,		0,0, 		opt_help,
+	{ODI,0,ARG_HELP,		'h',0,A_PS0,A_USR,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_help,
 			0,		"summarize help"},
 		
-	{ODI,0,ARG_VERBOSE_HELP,	'H',0,A_PS0,A_USR,A_DYI,A_ARG,A_END,	0,		0, 		0,		0,0, 		opt_help,
+	{ODI,0,ARG_VERBOSE_HELP,	'H',0,A_PS0,A_USR,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_help,
 			0,		"show help"},
 		
-	{ODI,0,ARG_EXP,		        'x',0,A_PS0,A_USR,A_DYI,A_ARG,A_END,	0,		0, 		0,		0,0, 		opt_help,
+	{ODI,0,ARG_EXP,		        'x',0,A_PS0,A_USR,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_help,
 			0,		"summarize advanced and experimental options"},
 		
-	{ODI,0,ARG_VERBOSE_EXP,	        'X',0,A_PS0,A_USR,A_DYI,A_ARG,A_END,	0,		0, 		0,		0,0, 		opt_help,
+	{ODI,0,ARG_VERBOSE_EXP,	        'X',0,A_PS0,A_USR,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_help,
 			0,		"show advanced and experimental options"},
 		
 	{ODI,0,ARG_TEST,		0,  0,A_PS0,A_ADM,A_DYI,A_ARG,A_ANY,	&Testing,	0, 		1,		0,0, 		0,
 			0,		"test remaining args and provide feedback about projected success (without applying them)"},
 		
-	{ODI,0,ARG_NO_FORK,		'd',0,A_PS1,A_ADM,A_INI,A_ARG,A_ANY,	0,		DBGL_MIN, 	DBGL_MAX,	-1,0, 		opt_no_fork,
-			ARG_VALUE_FORM,	"print debug information instead of forking to background\n" },
-	{ODI,0,ARG_DEBUG,		'd',0,A_PS1,A_ADM,A_DYN,A_ARG,A_ETE,	0,		DBGL_MIN, 	DBGL_MAX,	-1,0, 		opt_debug,
+	{ODI,0,ARG_DEBUG,		'd',0,A_PS1,A_ADM,A_DYI,A_ARG,A_ETE,	0,		DBGL_MIN, 	DBGL_MAX,	-1,0, 		opt_debug,
 			ARG_VALUE_FORM,	"show debug information:\n"
 			"	 0  : system\n"
 //			"	 1  : routes\n"

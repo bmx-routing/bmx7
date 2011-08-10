@@ -256,7 +256,7 @@ int uci_get_sect_name( uint8_t create, struct ctrl_node *cn, struct uci_context 
 	dbgf_all( DBGT_INFO, "%s %s %s.*.%s==%s",
 	     create?"create":"get", sect_name, conf_name, opt_name, opt_val );
 	
-	paranoia( -500020, ( !conf_name  ||  !sect_type  ||  !sect_name  ) );
+	assertion( -500020, ( conf_name  &&  sect_type  &&  sect_name  ) );
 	
 	uint8_t named_section = wordlen(sect_name) ? YES : NO;
 		
@@ -370,7 +370,7 @@ int bmx_save_config ( uint8_t del, struct opt_type *opt, char *p_val, char *c_va
 	
 	char sect_name[MAX_ARG_SIZE]="";
 	
-	paranoia( -500102, !opt );
+	assertion( -500102, opt );
 	
 	if ( !bmx_ctx  ||  !bmx_conf_name  ||  opt->cfg_t == A_ARG  )
 		return SUCCESS;
@@ -471,8 +471,8 @@ int bmx_load_config ( uint8_t cmd, struct opt_type *opt, struct ctrl_node *cn ) 
 		
 	if ( !opt->long_name  ||  opt->cfg_t == A_ARG  )
 		return SUCCESS;
-	
-	paranoia( -500138, ( cmd != OPT_CHECK  &&  cmd != OPT_APPLY ) );
+
+        assertion(-500138, (cmd == OPT_CHECK || cmd == OPT_APPLY));
 	
 	
 	if ( opt->opt_t == A_PS1 ) {

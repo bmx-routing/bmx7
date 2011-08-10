@@ -221,7 +221,7 @@ void cache_description(struct description *desc, struct description_hash *dhash)
         dbgf_all( DBGT_INFO, "%8X..", dhash->h.u32[0]);
 
 
-        paranoia(-500261, (description_cache_tree.items > DEF_DESC0_CACHE_SIZE));
+        assertion(-500261, (description_cache_tree.items <= DEF_DESC0_CACHE_SIZE));
 
         if ( description_cache_tree.items == DEF_DESC0_CACHE_SIZE ) {
 
@@ -238,7 +238,7 @@ void cache_description(struct description *desc, struct description_hash *dhash)
                 }
         }
 
-        paranoia(-500273, (desc_len != sizeof ( struct description) + ntohs(desc->extensionLen)));
+        assertion(-500273, (desc_len == sizeof ( struct description) + ntohs(desc->extensionLen)));
 
         dcn = debugMalloc(sizeof ( struct description_cache_node), -300104);
         dcn->description = debugMalloc(desc_len, -300105);

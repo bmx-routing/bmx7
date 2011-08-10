@@ -220,7 +220,7 @@ void _iid_set(struct iid_repos *rep, IID_T IIDpos, IID_T myIID4x, IID_NODE_T *dh
                 }
         }
 
-        paranoia(-500244, (min > rep->max_free));
+        assertion(-500244, (min <= rep->max_free));
 
         rep->min_free = min;
 

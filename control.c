@@ -703,7 +703,7 @@ void dbg_printf(struct ctrl_node *cn, char *last, ...)
 /*
 
         // CONNECTION_END_CHR is reserved for signaling connection end
-        paranoia(-500146, (strchr(s, CONNECTION_END_CHR)));
+        assertion(-500146, (!strchr(s, CONNECTION_END_CHR)));
 
         errno = 0;
 
@@ -1236,7 +1236,7 @@ failure:
 	      (tmp_opt && tmp_opt->long_name)?tmp_opt->long_name:"??",
 	      (opt && opt->short_name)?opt->short_name:'?', (opt && opt->long_name) ?opt->long_name:"??" );
 	
-	paranoia( -500091, YES );
+	assertion( -500091, NO );
 }
 
 STATIC_FUNC
@@ -1373,9 +1373,9 @@ struct opt_child *get_opt_child(struct opt_type *opt, struct opt_parent *p)
 	
 	struct list_node *pos;
 	
-	paranoia( -500026, ( opt->opt_t != A_CS1 ) );
-	
-	paranoia( -500119, ( !p ) );
+	assertion( -500026, ( opt->opt_t == A_CS1 ) );
+
+        assertion(-500119, (p));
 	
 	
 	list_for_each( pos, &(p->childs_instance_list) ) {
@@ -1551,8 +1551,8 @@ struct opt_parent *get_opt_parent_val(struct opt_type *opt, char *val)
 	struct opt_parent *p = NULL;
 	struct list_node *pos;
 
-        paranoia(-500118, (opt->cfg_t == A_ARG));
-        paranoia(-500117, ((opt->opt_t == A_PS0 || opt->opt_t == A_PS1) && opt->d.parents_instance_list.items > 1));
+        assertion(-500118, (opt->cfg_t != A_ARG));
+        assertion(-500117, ((opt->opt_t != A_PS0 && opt->opt_t != A_PS1) || opt->d.parents_instance_list.items <= 1));
 	
 	list_for_each( pos, &(opt->d.parents_instance_list) ) {
 		
@@ -1572,8 +1572,8 @@ struct opt_parent *get_opt_parent_ref(struct opt_type *opt, char *ref)
 	struct opt_parent *p = NULL;
 	struct list_node *pos;
 
-        paranoia(-500124, (opt->cfg_t == A_ARG));
-        paranoia(-500116, ((opt->opt_t == A_PS0 || opt->opt_t == A_PS1) && opt->d.parents_instance_list.items > 1));
+        assertion(-500124, (opt->cfg_t != A_ARG));
+        assertion(-500116, ((opt->opt_t != A_PS0 && opt->opt_t != A_PS1) || opt->d.parents_instance_list.items <= 1));
 	
 	list_for_each( pos, &(opt->d.parents_instance_list) ) {
 		
@@ -1629,7 +1629,7 @@ int32_t check_apply_parent_option(uint8_t del, uint8_t cmd, uint8_t _save, struc
 	
 	int32_t ret;
 
-        paranoia(-500102, IMPLIES((cmd == OPT_CHECK || cmd == OPT_APPLY), opt && opt->parent_name));
+        assertion(-500102, !IMPLIES((cmd == OPT_CHECK || cmd == OPT_APPLY), opt && opt->parent_name));
 	
 	struct opt_parent *p = add_opt_parent( &Patch_opt );
 
@@ -2155,8 +2155,8 @@ int32_t track_opt_parent(uint8_t cmd, uint8_t save, struct opt_type *p_opt, stru
 	struct list_node *pos;
         struct opt_parent *p_reftr = get_opt_parent_ref(p_opt, (p_opt->opt_t == A_PS1N || p_opt->opt_t == A_PM1N) ? p_patch->p_ref : NULL);
         struct opt_parent *p_track = get_opt_parent_val(p_opt, (p_opt->opt_t == A_PS1N || p_opt->opt_t == A_PM1N) ? p_patch->p_val : NULL);
-	
-	paranoia( -500125, ( p_reftr && p_track && p_reftr != p_track ) );
+
+        assertion(-500125, !(p_reftr && p_track && p_reftr != p_track));
 	
 	p_track = p_track ? p_track : p_reftr;
 	
@@ -2217,7 +2217,7 @@ int32_t track_opt_parent(uint8_t cmd, uint8_t save, struct opt_type *p_opt, stru
                         changed = YES;
 			
 		} else {
-			paranoia( -500121, YES );
+			assertion( -500121, NO );
 		}
 		
 		if ( cmd == OPT_APPLY  &&  changed  &&  p_opt->auth_t == A_ADM )
@@ -2277,7 +2277,7 @@ int32_t track_opt_parent(uint8_t cmd, uint8_t save, struct opt_type *p_opt, stru
 					
 				} else {
 					
-					paranoia( -500122, YES );
+					assertion( -500122, NO );
 				}
 				
 				if ( cmd == OPT_APPLY  &&  changed_child  &&  c_patch->c_opt->auth_t == A_ADM )
@@ -2441,10 +2441,9 @@ int respect_opt_order(uint8_t test, int8_t last, int8_t next, struct opt_type *o
 	
 	dbgf_all( DBGT_INFO, "%s, cmd: %s, last %d, next %d, opt %s  load %d",
 	          opt_cmd2str[ test ], opt_cmd2str[ cmd ], last, next, on?on->long_name:"???", load );
-	
-	paranoia( -500002, ( test != OPT_CHECK  &&  test != OPT_APPLY ) );
-	
-	paranoia( -500107, ( cmd == OPT_CHECK  ||  cmd == OPT_APPLY ) );
+
+        assertion(-500002, (test == OPT_CHECK || test == OPT_APPLY));
+        assertion(-500107, (cmd != OPT_CHECK && cmd != OPT_APPLY));
 	
 	
 	if ( next == 0 )

@@ -223,7 +223,7 @@ void avl_insert(struct avl_tree *tree, void *node, int32_t tag)
                 it->link[upd[top - 1]] = avl_create_node(node, tag);
                 it->link[upd[top - 1]]->up = it;
 
-                paranoia(-500178, (it->link[upd[top - 1]] == NULL));
+                assertion(-500178, (it->link[upd[top - 1]]));
 
                 // Walk back up the search path
                 while (--top >= 0 && !done) {
@@ -373,8 +373,8 @@ void *avl_remove(struct avl_tree *tree, void *key, int32_t tag)
                         dbgf_sys(DBGT_ERR, "up(top) %p  link %p   lh %d   rh %d",
                                 (void*)(up[top]), (void*)((up[top]) ? (up[top]->link[!upd[top]]) : NULL), lh, rh);
 
-                        paranoia(-500187, (!(up[top])));
-                        paranoia(-500188, (!(up[top]->link[!upd[top]])));
+                        assertion(-500187, (up[top]));
+                        assertion(-500188, (up[top]->link[!upd[top]]));
                 }
 
                 // if (lh - rh <= -2):  rebalance here and upper path

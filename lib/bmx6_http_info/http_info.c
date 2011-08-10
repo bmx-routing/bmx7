@@ -142,7 +142,7 @@ static void http_info_rcv_tcp_connect( int32_t fd_in ) {
 	if ( !fd_in )
 		return;
 	
-	paranoia( -500155, ( fd_in != http_info_tcp_sock_in ) );
+	assertion( -500155, ( fd_in == http_info_tcp_sock_in ) );
 	
 	if ( fd_in != http_info_tcp_sock_in ) {
 		dbgf( DBGL_SYS, DBGT_ERR, "rcvd invalid fd %d - should be %d", fd_in, http_info_tcp_sock_in );

@@ -165,7 +165,7 @@ void * plist_iterate(struct list_head *head, struct plist_node **pln)
 
 static struct plist_node *plist_node_create(void *item)
 {
-        paranoia(-500266, (!item));
+        assertion(-500266, (item));
         struct plist_node *plh = debugMalloc(sizeof ( struct plist_node), -300113);
 
         plh->item = item;

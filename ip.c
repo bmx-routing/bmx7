@@ -3206,13 +3206,13 @@ static struct opt_type ip_options[]=
 			ARG_VALUE_FORM,	HLP_DEV_GLOBAL_PREFIX}
         ,
 	{ODI,ARG_DEV,ARG_DEV_LLOCAL_PREFIX,0, 5,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,  0,		0,              0,              0,0,              opt_dev,
-			ARG_VALUE_FORM,	HLP_DEV_GLOBAL_PREFIX}
+			ARG_VALUE_FORM,	HLP_DEV_LLOCAL_PREFIX}
         ,
 	{ODI,ARG_DEV,ARG_DEV_BITRATE_MAX,'r',5,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,              0,              0,0,              opt_dev,
 			ARG_VALUE_FORM,	HLP_DEV_BITRATE_MAX}
         ,
-	{ODI,ARG_DEV,ARG_DEV_BITRATE_MAX, 0, 5,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,              0,              0,0,              opt_dev,
-			ARG_VALUE_FORM,	HLP_DEV_BITRATE_MAX}
+	{ODI,ARG_DEV,ARG_DEV_BITRATE_MIN, 0, 5,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,              0,              0,0,              opt_dev,
+			ARG_VALUE_FORM,	HLP_DEV_BITRATE_MIN}
 
         ,
 /*

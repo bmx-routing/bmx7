@@ -105,6 +105,7 @@ typedef struct ifname IFNAME_T;
 #define DEF_DEV_BITRATE_MIN          6000000
 #define DEF_DEV_BITRATE_MIN_LAN   1000000000
 #define DEF_DEV_BITRATE_MIN_WIFI     6000000
+#define HLP_DEV_BITRATE_MIN       "set minimum bandwidth as bits/sec of dev"
 
 
 

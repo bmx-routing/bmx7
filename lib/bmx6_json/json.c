@@ -145,6 +145,19 @@ int32_t update_json_options(IDM_T show_options, IDM_T show_parameters, char *fil
 
                 if (show_options) {
 
+                        json_object *jopt_relevance = json_object_new_int(p_opt->relevance);
+                        json_object_object_add(jopt, "relevance", jopt_relevance);
+
+                        json_object *jopt_configurable = json_object_new_int(p_opt->cfg_t == A_CFA);
+                        json_object_object_add(jopt, "configurable", jopt_configurable);
+
+                        json_object *jopt_dynamic = json_object_new_int(p_opt->dyn_t == A_DYN || p_opt->dyn_t == A_DYI);
+                        json_object_object_add(jopt, "dynamic", jopt_dynamic);
+
+                        json_object *jopt_multi = json_object_new_int(p_opt->opt_t == A_PM1N);
+                        json_object_object_add(jopt, "multioption", jopt_multi);
+
+
                         if (p_opt->opt_t != A_PS0 && p_opt->imin != p_opt->imax) {
 
                                 json_object *jopt_min = json_object_new_int(p_opt->imin);

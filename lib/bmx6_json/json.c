@@ -1052,22 +1052,22 @@ int32_t opt_json_sms(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct op
 static struct opt_type json_options[]= {
 //        ord parent long_name          shrt Attributes				*ival		min		max		default		*func,*syntax,*help
 	
-	{ODI,0,ARG_JSON_UPDATE,		0,  5,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&json_update_interval,	MIN_JSON_UPDATE,MAX_JSON_UPDATE,DEF_JSON_UPDATE,0,opt_json_update_interval,
+	{ODI,0,ARG_JSON_UPDATE,		0,  5,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&json_update_interval,	MIN_JSON_UPDATE,MAX_JSON_UPDATE,DEF_JSON_UPDATE,0,opt_json_update_interval,
                 ARG_VALUE_FORM, "disable or periodically update json-status files every given milliseconds."}
         ,
-	{ODI,0,ARG_JSON_SMS,	        0,  5,A_PM1N,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_json_sms,
+	{ODI,0,ARG_JSON_SMS,	        0,  5,2,A_PM1N,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_json_sms,
 			ARG_PREFIX_FORM,"add arbitrary ascii data to description"}
         ,
-	{ODI,0,ARG_JSON_STATUS,		0,  5,A_PS0,A_USR,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_json_status,
+	{ODI,0,ARG_JSON_STATUS,		0,  5,2,A_PS0,A_USR,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_json_status,
 			0,		"show status in json format\n"}
         ,
-	{ODI,0,ARG_JSON_INTERFACES,	0,  5,A_PS0,A_USR,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_json_status,
+	{ODI,0,ARG_JSON_INTERFACES,	0,  5,2,A_PS0,A_USR,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_json_status,
 			0,		"show interfaces in json format\n"}
         ,
-	{ODI,0,ARG_JSON_LINKS,	        0,  5,A_PS0,A_USR,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_json_status,
+	{ODI,0,ARG_JSON_LINKS,	        0,  5,2,A_PS0,A_USR,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_json_status,
 			0,		"show links in json format\n"}
         ,
-	{ODI,0,ARG_JSON_ORIGINATORS,	0,  5,A_PS0,A_USR,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_json_status,
+	{ODI,0,ARG_JSON_ORIGINATORS,	0,  5,2,A_PS0,A_USR,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_json_status,
 			0,		"show originators in json format\n"}
 
 

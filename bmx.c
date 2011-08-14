@@ -2007,55 +2007,50 @@ static struct opt_type bmx_options[]=
 {
 //        ord parent long_name          shrt Attributes				*ival		min		max		default		*func,*syntax,*help
 
-	{ODI,0,ARG_VERSION,		'v',0,A_PS0,A_USR,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_version,
+	{ODI,0,ARG_VERSION,		'v',0,2,A_PS0,A_USR,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_version,
 			0,		"show version"},
 
-	{ODI,0,ARG_STATUS,		0,  5,A_PS0,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
+	{ODI,0,ARG_STATUS,		0,  5,2,A_PS0,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
 			0,		"show status\n"},
 
-/*
-	{ODI,0,ARG_ROUTES,		0,  5,A_PS0,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
-			0,		"show routes\n"},
-*/
-
-	{ODI,0,ARG_INTERFACES,	        0,  5,A_PS0,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
+	{ODI,0,ARG_INTERFACES,	        0,  5,2,A_PS0,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
 			0,		"show interfaces\n"}
         ,
-	{ODI,0,ARG_LINKS,		0,  5,A_PS0N,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
+	{ODI,0,ARG_LINKS,		0,  5,2,A_PS0N,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
 			0,		"show links\n"},
-	{ODI,ARG_LINKS,ARG_RELEVANCE,   'r',5,A_CS1,A_USR,A_DYN,A_ARG,A_ANY,	0,	       MIN_RELEVANCE,   MAX_RELEVANCE,  DEF_RELEVANCE,0, opt_status,
+	{ODI,ARG_LINKS,ARG_RELEVANCE,   'r',5,1,A_CS1,A_USR,A_DYN,A_ARG,A_ANY,	0,	       MIN_RELEVANCE,   MAX_RELEVANCE,  DEF_RELEVANCE,0, opt_status,
 			ARG_VALUE_FORM,	HLP_ARG_RELEVANCE}
         ,
-	{ODI,0,ARG_ORIGINATORS,	        0,  5,A_PS0N,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
+	{ODI,0,ARG_ORIGINATORS,	        0,  5,2,A_PS0N,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
 			0,		"show originators\n"},
-	{ODI,ARG_ORIGINATORS,ARG_RELEVANCE,'r',5,A_CS1,A_USR,A_DYN,A_ARG,A_ANY,	0,	       MIN_RELEVANCE,   MAX_RELEVANCE,  DEF_RELEVANCE,0, opt_status,
+	{ODI,ARG_ORIGINATORS,ARG_RELEVANCE,'r',5,1,A_CS1,A_USR,A_DYN,A_ARG,A_ANY,	0,	       MIN_RELEVANCE,   MAX_RELEVANCE,  DEF_RELEVANCE,0, opt_status,
 			ARG_VALUE_FORM,	HLP_ARG_RELEVANCE}
         ,
-	{ODI,0,ARG_TTL,			't',5,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&my_ttl,	MIN_TTL,	MAX_TTL,	DEF_TTL,0,	opt_update_description,
+	{ODI,0,ARG_TTL,			't',5,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&my_ttl,	MIN_TTL,	MAX_TTL,	DEF_TTL,0,	opt_update_description,
 			ARG_VALUE_FORM,	"set time-to-live (TTL) for OGMs"}
         ,
-        {ODI,0,ARG_TX_INTERVAL,         0,  5, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &my_tx_interval, MIN_TX_INTERVAL, MAX_TX_INTERVAL, DEF_TX_INTERVAL,0, opt_update_description,
+        {ODI,0,ARG_TX_INTERVAL,         0,  5,1, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &my_tx_interval, MIN_TX_INTERVAL, MAX_TX_INTERVAL, DEF_TX_INTERVAL,0, opt_update_description,
 			ARG_VALUE_FORM,	"set aggregation interval (SHOULD be smaller than the half of your and others OGM interval)"}
         ,
-        {ODI,0,ARG_OGM_INTERVAL,        'o',5, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &my_ogm_interval,  MIN_OGM_INTERVAL,   MAX_OGM_INTERVAL,   DEF_OGM_INTERVAL,0,   0,
+        {ODI,0,ARG_OGM_INTERVAL,        'o',5,1, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &my_ogm_interval,  MIN_OGM_INTERVAL,   MAX_OGM_INTERVAL,   DEF_OGM_INTERVAL,0,   0,
 			ARG_VALUE_FORM,	"set interval in ms with which new originator message (OGM) are send"}
         ,
-	{ODI,0,ARG_OGM_PURGE_TO,    	0,  5,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&ogm_purge_to,	MIN_OGM_PURGE_TO,	MAX_OGM_PURGE_TO,	DEF_OGM_PURGE_TO,0,	0,
+	{ODI,0,ARG_OGM_PURGE_TO,    	0,  5,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&ogm_purge_to,	MIN_OGM_PURGE_TO,	MAX_OGM_PURGE_TO,	DEF_OGM_PURGE_TO,0,	0,
 			ARG_VALUE_FORM,	"timeout in ms for purging stale originators"}
         ,
-	{ODI,0,ARG_LINK_PURGE_TO,    	0,  5,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&link_purge_to,	MIN_LINK_PURGE_TO,MAX_LINK_PURGE_TO,DEF_LINK_PURGE_TO,0,0,
+	{ODI,0,ARG_LINK_PURGE_TO,    	0,  5,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&link_purge_to,	MIN_LINK_PURGE_TO,MAX_LINK_PURGE_TO,DEF_LINK_PURGE_TO,0,0,
 			ARG_VALUE_FORM,	"timeout in ms for purging stale originators"}
         ,
-	{ODI,0,ARG_DAD_TO,        	0,  5,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&dad_to,	MIN_DAD_TO,	MAX_DAD_TO,	DEF_DAD_TO,0,	0,
+	{ODI,0,ARG_DAD_TO,        	0,  5,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&dad_to,	MIN_DAD_TO,	MAX_DAD_TO,	DEF_DAD_TO,0,	0,
 			ARG_VALUE_FORM,	"duplicate address (DAD) detection timout in ms"}
         ,
-	{ODI,0,"flush_all",		0,  5,A_PS0,A_ADM,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_purge,
+	{ODI,0,"flush_all",		0,  5,2,A_PS0,A_ADM,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_purge,
 			0,		"purge all neighbors and routes on the fly"}
         ,
-	{ODI,0,ARG_DROP_ALL_FRAMES,     0,  5,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&drop_all_frames,	MIN_DROP_ALL_FRAMES,	MAX_DROP_ALL_FRAMES,	DEF_DROP_ALL_FRAMES,0,	0,
+	{ODI,0,ARG_DROP_ALL_FRAMES,     0,  5,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&drop_all_frames,	MIN_DROP_ALL_FRAMES,	MAX_DROP_ALL_FRAMES,	DEF_DROP_ALL_FRAMES,0,	0,
 			ARG_VALUE_FORM,	"drop all received frames (but process packet header)"}
         ,
-	{ODI,0,ARG_DROP_ALL_PACKETS,     0,  5,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&drop_all_packets,	MIN_DROP_ALL_PACKETS,	MAX_DROP_ALL_PACKETS,	DEF_DROP_ALL_PACKETS,0,	0,
+	{ODI,0,ARG_DROP_ALL_PACKETS,     0, 5,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&drop_all_packets,	MIN_DROP_ALL_PACKETS,	MAX_DROP_ALL_PACKETS,	DEF_DROP_ALL_PACKETS,0,	0,
 			ARG_VALUE_FORM,	"drop all received packets"}
 
 };

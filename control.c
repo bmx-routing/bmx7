@@ -1022,113 +1022,6 @@ int8_t is_valid_opt_ival(struct opt_type *opt, char *s, struct ctrl_node *cn)
 
 
 
-
-STATIC_FUNC
-void show_opts_help(uint8_t all_opts, uint8_t verbose, struct ctrl_node *cn)
-{
-	struct list_node *list_pos;
-        const char *category = NULL;
-	
-	dbg_printf(cn, "\n");
-	dbg_printf(cn, "Usage: %s [LONGOPT=[%c]VAL] | -[SHORTOPT[SHORTOPT...] [%c]VAL] ...\n",
-	           prog_name, ARG_RESET_CHAR , ARG_RESET_CHAR);
-	dbg_printf(cn, "  e.g. %s %s=eth1 %s=wlan0 %s=wlan0 d=3\n", prog_name, ARG_DEV, ARG_DEV, ARG_DEV);
-	dbg_printf(cn, "  e.g. %s -c %s %s %s %s \n", prog_name, ARG_STATUS, ARG_INTERFACES, ARG_LINKS, ARG_ORIGINATORS);
-        dbg_printf(cn, "  e.g. %s -c %s %s=%cwlan1 %s \n", prog_name, ARG_STATUS, ARG_DEV, ARG_RESET_CHAR, ARG_INTERFACES );
-	dbg_printf(cn, "\n");
-	
-
-	list_for_each( list_pos, &opt_list ) {
-		
-		struct list_node *pos;
-		struct opt_type *opt = (struct opt_type *)list_entry( list_pos, struct opt_data, list );
-                char sn[5], st[3 * MAX_ARG_SIZE];
-		
-		if ( !( all_opts  ||  opt->short_name ) )
-			continue;
-
-                if (category != opt->d.category_name) {
-                        category = opt->d.category_name;
-                        dbg_printf(cn, "\n\n%s options  (order=%d):\n", category, opt->order);
-		}
-		
-		if ( opt->long_name  &&  opt->help  &&  !opt->parent_name ) {
-			
-
-			if ( opt->short_name )
-				snprintf( sn,5, ", -%c", opt->short_name );
-			else 
-				*sn = '\0';
-			
-			sprintf( st, "--%s%s %s ", opt->long_name, sn, opt->syntax ? opt->syntax: "" );
-
-
-			dbg_printf( cn, "\n%-40s ", st);
-
-                        if (opt->opt_t != A_PS0 && opt->imin != opt->imax) {
-                                dbg_printf(cn, "def: %-6d  range: [ %d %s %d ]",
-                                        opt->idef, opt->imin, opt->imin + 1 == opt->imax ? "," : "...", opt->imax);
-                        } else if (opt->sdef) {
-                                dbg_printf(cn, "def: %s", opt->sdef);
-                        }
-
-                        dbg_printf( cn, "\n");
-
-
-			if ( verbose )
-				dbg_printf( cn, "	%s\n", opt->help );
-			
-		}
-		
-		
-		list_for_each( pos, &opt->d.childs_type_list ) {
-			
-			struct opt_type *c_opt = (struct opt_type *)list_entry( pos, struct opt_data, list );
-			
-			if ( !c_opt->parent_name  ||  !c_opt->help )
-				continue;
-			
-
-                        if ( c_opt->short_name )
-				snprintf( sn,5, ", %s%c", LONG_OPT_ARG_DELIMITER_STR, c_opt->short_name );
-			else
-				*sn = '\0';
-
-			sprintf( st, "  %s%s%s %s ",
-                                LONG_OPT_ARG_DELIMITER_STR, c_opt->long_name, sn, c_opt->syntax ? c_opt->syntax : "");
-
-
-			dbg_printf( cn, "%-40s ", st);
-
-                        if (c_opt->opt_t != A_PS0 && c_opt->imin != c_opt->imax) {
-                                dbg_printf(cn, "def: %-6d  range: [ %d %s %d ]",
-                                        c_opt->idef, c_opt->imin, c_opt->imin + 1 == c_opt->imax ? "," : "...", c_opt->imax);
-                        } else if (c_opt->sdef) {
-                                dbg_printf(cn, "def: %s", c_opt->sdef);
-                        }
-
-			dbg_printf( cn, "\n");
-
-                        if ( verbose )
-				dbg_printf( cn, "	        %s\n", c_opt->help );
-
-		}
-	}
-	
-	dbg_printf( cn, "\n");
-	
-	if ( all_opts ) {
-		dbg_printf( cn, "Environment variables (e.g. sudo %s=/usr/src/bmx6/lib %s -d3 eth0:bmx ):\n",
-		            BMX_ENV_LIB_PATH, prog_name );
-		
-		dbg_printf(cn, "\t%s\n", BMX_ENV_LIB_PATH );
-		dbg_printf(cn, "\t%s\n", BMX_ENV_DEBUG );
-	}
-	
-	dbg_printf( cn, "\n");
-	
-}
-
 STATIC_FUNC
 void register_option(struct opt_type *opt, const char * category_name)
 {
@@ -2901,36 +2794,14 @@ int32_t opt_debug(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_p
 			add_dbgl_node( cn, ival );
 			return SUCCESS;
 			
-/*
-		} else if ( ival == DBGL_ROUTES ) {
-			
-			check_apply_parent_option( ADD, OPT_APPLY, _save, get_option( 0, 0, ARG_ROUTES ), 0, cn );
-			
-		} else if ( ival == DBGL_LINKS ) {
-			
-			check_apply_parent_option( ADD, OPT_APPLY, _save, get_option( 0, 0, ARG_LINKS ), 0, cn );
-*/
 		} else if ( ival == DBGL_DETAILS ) {
 			
 			check_apply_parent_option( ADD, OPT_APPLY, 0, get_option( 0, 0, ARG_STATUS ), 0, cn );
 			check_apply_parent_option( ADD, OPT_APPLY, 0, get_option( 0, 0, ARG_INTERFACES ), 0, cn );
 			check_apply_parent_option( ADD, OPT_APPLY, 0, get_option( 0, 0, ARG_LINKS ), 0, cn );
-//			check_apply_parent_option( ADD, OPT_APPLY, 0, get_option( 0, 0, ARG_LOCALS ), 0, cn );
 			check_apply_parent_option( ADD, OPT_APPLY, 0, get_option( 0, 0, ARG_ORIGINATORS ), 0, cn );
-/*
-		} else if ( ival == DBGL_SERVICES  ) {
-			
-			check_apply_parent_option( ADD, OPT_APPLY, _save, get_option( 0, 0, ARG_SERVICES ), 0, cn );
-			
-		} else if ( ival == DBGL_HNAS ) {
-			
-			check_apply_parent_option( ADD, OPT_APPLY, _save, get_option( 0, 0, ARG_HNAS ), 0, cn );
-			
-		} else if ( ival == DBGL_GATEWAYS ) {
-			
-			check_apply_parent_option( ADD, OPT_APPLY, _save, get_option( 0, 0, ARG_GATEWAYS ), 0, cn );
-*/
-		} else if ( ival == DBGL_PROFILE ) {
+
+                } else if ( ival == DBGL_PROFILE ) {
 			
 #if defined MEMORY_USAGE
 			debugMemory( cn );
@@ -2951,29 +2822,118 @@ int32_t opt_help(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
 	
 	if ( !cn  )
 		return FAILURE;
-	
-	
-	if ( !strcmp(opt->long_name, ARG_VERBOSE_HELP)) {
-		
-		show_opts_help( NO, YES, cn );
-		
-	} else if ( !strcmp(opt->long_name, ARG_HELP) ) {
-		
-		show_opts_help( NO, NO, cn );
-		
-	} else if ( !strcmp(opt->long_name, ARG_VERBOSE_EXP) ) {
-		
-		show_opts_help( YES, YES, cn );
-		
-	} else if ( !strcmp(opt->long_name, ARG_EXP) ) {
-		
-		show_opts_help( YES, NO, cn );
-		
-	} else {
-		
-		show_opts_help( NO, NO, cn );
+
+        uint8_t relevance = DEF_RELEVANCE;
+        uint8_t verbose = !strcmp(opt->long_name, ARG_VERBOSE_HELP);
+        struct opt_child *c = NULL;
+
+        while ((c = list_iterate(&patch->childs_instance_list, c))) {
+
+                if (!strcmp(c->c_opt->long_name, ARG_RELEVANCE)) {
+                        relevance = strtol(c->c_val, NULL, 10);
+                }
+        }
+
+        struct list_node *list_pos;
+        const char *category = NULL;
+
+	dbg_printf(cn, "\n");
+	dbg_printf(cn, "Usage: %s [LONGOPT=[%c]VAL] | -[SHORTOPT[SHORTOPT...] [%c]VAL] ...\n",
+	           prog_name, ARG_RESET_CHAR , ARG_RESET_CHAR);
+	dbg_printf(cn, "  e.g. %s %s=eth1 %s=wlan0 %s=wlan0 d=3\n", prog_name, ARG_DEV, ARG_DEV, ARG_DEV);
+	dbg_printf(cn, "  e.g. %s -c %s %s %s %s \n", prog_name, ARG_STATUS, ARG_INTERFACES, ARG_LINKS, ARG_ORIGINATORS);
+        dbg_printf(cn, "  e.g. %s -c %s %s=%cwlan1 %s \n", prog_name, ARG_STATUS, ARG_DEV, ARG_RESET_CHAR, ARG_INTERFACES );
+	dbg_printf(cn, "\n");
+
+	list_for_each( list_pos, &opt_list ) {
+
+		struct list_node *pos;
+		struct opt_type *opt = (struct opt_type *)list_entry( list_pos, struct opt_data, list );
+                char sn[5], st[3 * MAX_ARG_SIZE];
+
+                if (relevance > opt->relevance)
+			continue;
+
+                if (category != opt->d.category_name) {
+                        category = opt->d.category_name;
+                        dbg_printf(cn, "\n\n%s options  (order=%d):\n", category, opt->order);
+		}
+
+		if ( opt->long_name  &&  opt->help  &&  !opt->parent_name ) {
+
+
+			if ( opt->short_name )
+				snprintf( sn,5, ", -%c", opt->short_name );
+			else
+				*sn = '\0';
+
+			sprintf( st, "--%s%s %s ", opt->long_name, sn, opt->syntax ? opt->syntax: "" );
+
+
+			dbg_printf( cn, "\n%-40s ", st);
+
+                        if (opt->opt_t != A_PS0 && opt->imin != opt->imax) {
+                                dbg_printf(cn, "def: %-6d  range: [ %d %s %d ]",
+                                        opt->idef, opt->imin, opt->imin + 1 == opt->imax ? "," : "...", opt->imax);
+                        } else if (opt->sdef) {
+                                dbg_printf(cn, "def: %s", opt->sdef);
+                        }
+
+                        dbg_printf( cn, "\n");
+
+
+			if ( verbose )
+				dbg_printf( cn, "	%s\n", opt->help );
+
+		}
+
+
+		list_for_each( pos, &opt->d.childs_type_list ) {
+
+			struct opt_type *c_opt = (struct opt_type *)list_entry( pos, struct opt_data, list );
+
+			if ( !c_opt->parent_name  ||  !c_opt->help )
+				continue;
+
+
+                        if ( c_opt->short_name )
+				snprintf( sn,5, ", %s%c", LONG_OPT_ARG_DELIMITER_STR, c_opt->short_name );
+			else
+				*sn = '\0';
+
+			sprintf( st, "  %s%s%s %s ",
+                                LONG_OPT_ARG_DELIMITER_STR, c_opt->long_name, sn, c_opt->syntax ? c_opt->syntax : "");
+
+
+			dbg_printf( cn, "%-40s ", st);
+
+                        if (c_opt->opt_t != A_PS0 && c_opt->imin != c_opt->imax) {
+                                dbg_printf(cn, "def: %-6d  range: [ %d %s %d ]",
+                                        c_opt->idef, c_opt->imin, c_opt->imin + 1 == c_opt->imax ? "," : "...", c_opt->imax);
+                        } else if (c_opt->sdef) {
+                                dbg_printf(cn, "def: %s", c_opt->sdef);
+                        }
+
+			dbg_printf( cn, "\n");
+
+                        if ( verbose )
+				dbg_printf( cn, "	        %s\n", c_opt->help );
+
+		}
 	}
-	
+
+	dbg_printf( cn, "\n");
+
+	if ( relevance != MAX_RELEVANCE ) {
+                dbg_printf(cn, "Environment variables (e.g. sudo %s=/usr/src/bmx6/lib %s -d3 eth0:bmx ):\n",
+		            BMX_ENV_LIB_PATH, prog_name );
+
+		dbg_printf(cn, "\t%s\n", BMX_ENV_LIB_PATH );
+		dbg_printf(cn, "\t%s\n", BMX_ENV_DEBUG );
+	}
+
+	dbg_printf( cn, "\n");
+
 	if ( initializing )
 		cleanup_all(CLEANUP_SUCCESS);
 	
@@ -3033,22 +2993,21 @@ static struct opt_type control_options[]=
 {
 //        ord parent long_name          shrt Attributes				*ival		min		max		default		*func,*syntax,*help
 		
-	{ODI,0,ARG_HELP,		'h',0,A_PS0,A_USR,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_help,
+	{ODI,0,ARG_HELP,		'h',0,2,A_PS0N,A_USR,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_help,
 			0,		"summarize help"},
+	{ODI,ARG_HELP,ARG_RELEVANCE,    'r',0,2,A_CS1,A_USR,A_DYI,A_ARG,A_ANY,	0,	       MIN_RELEVANCE,   MAX_RELEVANCE,  DEF_RELEVANCE,0, opt_help,
+			ARG_VALUE_FORM,	HLP_ARG_RELEVANCE}
+        ,
+	{ODI,0,ARG_VERBOSE_HELP,	'H',0,2,A_PS0N,A_USR,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_help,
+			0,		"show verbose help"},
+	{ODI,ARG_VERBOSE_HELP,ARG_RELEVANCE,'r',0,2,A_CS1,A_USR,A_DYI,A_ARG,A_ANY,	0,	       MIN_RELEVANCE,   MAX_RELEVANCE,  DEF_RELEVANCE,0, opt_help,
+			ARG_VALUE_FORM,	HLP_ARG_RELEVANCE}
+        ,
 		
-	{ODI,0,ARG_VERBOSE_HELP,	'H',0,A_PS0,A_USR,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_help,
-			0,		"show help"},
-		
-	{ODI,0,ARG_EXP,		        'x',0,A_PS0,A_USR,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_help,
-			0,		"summarize advanced and experimental options"},
-		
-	{ODI,0,ARG_VERBOSE_EXP,	        'X',0,A_PS0,A_USR,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_help,
-			0,		"show advanced and experimental options"},
-		
-	{ODI,0,ARG_TEST,		0,  0,A_PS0,A_ADM,A_DYI,A_ARG,A_ANY,	&Testing,	0, 		1,		0,0, 		0,
+	{ODI,0,ARG_TEST,		0,  0,1,A_PS0,A_ADM,A_DYI,A_ARG,A_ANY,	&Testing,	0, 		1,		0,0, 		0,
 			0,		"test remaining args and provide feedback about projected success (without applying them)"},
 		
-	{ODI,0,ARG_DEBUG,		'd',0,A_PS1,A_ADM,A_DYI,A_ARG,A_ETE,	0,		DBGL_MIN, 	DBGL_MAX,	-1,0, 		opt_debug,
+	{ODI,0,ARG_DEBUG,		'd',0,2,A_PS1,A_ADM,A_DYI,A_ARG,A_ETE,	0,		DBGL_MIN, 	DBGL_MAX,	-1,0, 		opt_debug,
 			ARG_VALUE_FORM,	"show debug information:\n"
 			"	 0  : system\n"
 //			"	 1  : routes\n"
@@ -3063,33 +3022,33 @@ static struct opt_type control_options[]=
 			"	11  : testing"
                         "       12  : traffic dump"},
 	
-	{ODI,0,ARG_RUN_DIR,		0,  2,A_PS1,A_ADM,A_INI,A_CFA,A_ANY,	0,		0,		0,		0,DEF_RUN_DIR,	opt_run_dir,
+	{ODI,0,ARG_RUN_DIR,		0,  2,1,A_PS1,A_ADM,A_INI,A_CFA,A_ANY,	0,		0,		0,		0,DEF_RUN_DIR,	opt_run_dir,
 			ARG_DIR_FORM,	"set runtime DIR of "BMX_PID_FILE", "BMX_UNIX_SOCK_FILE", ... - default: " DEF_RUN_DIR " (must be defined before --" ARG_CONNECT ")."},
 		
 		
 		
-	{ODI,0,"loop_mode",		'l',3,A_PS0,A_ADM,A_INI,A_ARG,A_ANY,	&loop_mode,	0, 		1,		0,0, 		0,
+	{ODI,0,"loop_mode",		'l',3,1,A_PS0,A_ADM,A_INI,A_ARG,A_ANY,	&loop_mode,	0, 		1,		0,0, 		0,
 			0,		"put client daemon in loop mode to periodically refresh debug information"},
 		
 #ifndef LESS_OPTIONS
-	{ODI,0,"loop_interval",		0,  3,A_PS1,A_ADM,A_INI,A_ARG,A_ANY,	&loop_interval,	MIN_LOOP_INTERVAL,MAX_LOOP_INTERVAL,DEF_LOOP_INTERVAL,0,0,
+	{ODI,0,"loop_interval",		0,  3,1,A_PS1,A_ADM,A_INI,A_ARG,A_ANY,	&loop_interval,	MIN_LOOP_INTERVAL,MAX_LOOP_INTERVAL,DEF_LOOP_INTERVAL,0,0,
 			ARG_VALUE_FORM,	"periodicity in ms with which client daemon in loop-mode refreshes debug information"},
 #endif
 		
 		
-	{ODI,0,ARG_CONNECT,		'c',3,A_PS0,A_ADM,A_INI,A_ARG,A_EAT,	0,		0, 		0,		0,0, 		opt_connect_daemon_to_unix_sock,
+	{ODI,0,ARG_CONNECT,		'c',3,2,A_PS0,A_ADM,A_INI,A_ARG,A_EAT,	0,		0, 		0,		0,0, 		opt_connect_daemon_to_unix_sock,
 			0,		"set client mode. Connect and forward remaining args to main routing daemon"},
 
 	//order=5: so when used during startup it also shows the config-file options	
-	{ODI,0,ARG_SHOW_PARAMETER,	'p',5,A_PS0,A_ADM,A_DYI,A_ARG,A_ANY,	0,		0,		0,		0,0, 		opt_show_parameter,
+	{ODI,0,ARG_SHOW_PARAMETER,	'p',5,2,A_PS0,A_ADM,A_DYI,A_ARG,A_ANY,	0,		0,		0,		0,0, 		opt_show_parameter,
 			0,		"show configured parameters"}
         ,
 
-        {ODI,0,"dbg_mute_timeout",	0,  5,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&dbg_mute_to,	0,		10000000,	100000,0,		0,
+        {ODI,0,"dbg_mute_timeout",	0,  5,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&dbg_mute_to,	0,		10000000,	100000,0,		0,
 			ARG_VALUE_FORM,	"set timeout in ms for muting frequent messages"},
 
 		
-	{ODI,0,ARG_QUIT,CHR_QUIT,    5,A_PS0,A_USR,A_DYN,A_ARG,A_END,	        0,		0, 		0,		0,0, 		opt_quit_connection,0,0}
+	{ODI,0,ARG_QUIT,CHR_QUIT,    5,0,A_PS0,A_USR,A_DYN,A_ARG,A_END,	        0,		0, 		0,		0,0, 		opt_quit_connection,0,0}
 };
 
 void init_control(void)

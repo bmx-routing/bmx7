@@ -861,14 +861,14 @@ int32_t opt_show_conf(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct o
 static struct opt_type config_options[]= {
 //        ord parent long_name          shrt Attributes				*ival		min		max		default		*func,*syntax,*help
 	
-	{ODI,0,ARG_CONFIG_FILE,	        'f',1,A_PS1,A_ADM,A_INI,A_ARG,A_ANY,	0,		0, 		0,		0,DEF_CONF_FILE,opt_conf_file,
+	{ODI,0,ARG_CONFIG_FILE,	        'f',1,1,A_PS1,A_ADM,A_INI,A_ARG,A_ANY,	0,		0, 		0,		0,DEF_CONF_FILE,opt_conf_file,
 			ARG_FILE_FORM,	"use non-default config file. If defined, this must be the first given option.\n"
                         "	use --" ARG_CONFIG_FILE "=" ARG_NO_CONFIG_FILE " or -f" ARG_NO_CONFIG_FILE " to disable"},
 	
-	{ODI,0,ARG_RELOAD_CONFIG,	0,  1,A_PS0,A_ADM,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_conf_reload,
+	{ODI,0,ARG_RELOAD_CONFIG,	0,  1,1,A_PS0,A_ADM,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_conf_reload,
 			0,		"dynamically reload config file"},
 	
-	{ODI,0,ARG_SHOW_CONFIG,	        0,  5,A_PS0,A_ADM,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_show_conf,
+	{ODI,0,ARG_SHOW_CONFIG,	        0,  5,1,A_PS0,A_ADM,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_show_conf,
 			0,		"show current config as it could be saved to " ARG_CONFIG_FILE }
 };
 

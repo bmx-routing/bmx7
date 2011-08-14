@@ -320,7 +320,7 @@ struct opt_type {
 
 	char short_name;
 	int8_t order;  // enforces an order during the init process,  (0==anytime????), 1..99: in this order. Might become removed
-	
+        uint8_t relevance;
 	uint8_t opt_t;
 	
 	uint8_t auth_t;
@@ -349,9 +349,7 @@ struct opt_type {
 	
 	char	*syntax;
 	char	*help;
-	
-};
-
+	};
 
 
 enum opt_cmd {

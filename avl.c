@@ -669,7 +669,7 @@ static struct opt_type msg_options[]=
 {
 //        ord parent long_name          shrt Attributes				*ival		min		max		default		*func,*syntax,*help
 
-	{ODI,0,"tree",  	        0, 5,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&tree_max,	0,	        20,	        1,0,	        opt_tree,
+	{ODI,0,"tree",  	        0, 5,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&tree_max,	0,	        20,	        1,0,	        opt_tree,
 			ARG_VALUE_FORM,	"show tree with given number of elements"}
 
 };

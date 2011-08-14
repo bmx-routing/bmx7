@@ -1715,7 +1715,7 @@ void dev_reconfigure_soft(struct dev_node *dev)
                 }
         }
 
-        dbg(bmx_time ? DBGL_CHANGES : DBGL_SYS, DBGT_INFO,
+        dbgf(bmx_time ? DBGL_CHANGES : DBGL_SYS, DBGT_INFO,
                 "enabled %sprimary %s %ju %s=%s MAC: %s link-local %s/%d global %s/%d brc %s",
                 dev == primary_dev_cfg ? "" : "non-",
                 dev->linklayer == TYP_DEV_LL_LO ? "loopback" : (

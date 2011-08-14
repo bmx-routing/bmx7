@@ -2149,8 +2149,6 @@ void bmx(void)
         update_my_description_adv();
 
         for (an = NULL; (dev = avl_iterate_item(&dev_ip_tree, &an));) {
-                if (dev->linklayer == TYP_DEV_LL_LO)
-                        continue;
 
                 schedule_tx_task(&dev->dummy_lndev, FRAME_TYPE_DEV_ADV, SCHEDULE_UNKNOWN_MSGS_SIZE, 0, 0, 0, 0);
                 schedule_tx_task(&dev->dummy_lndev, FRAME_TYPE_DESC_ADV, ntohs(self.desc->extensionLen) + sizeof ( struct msg_description_adv), 0, 0, myIID4me, 0);

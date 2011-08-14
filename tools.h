@@ -84,7 +84,7 @@ void wordCopy( char *out, char *in );
 uint32_t wordlen ( char *s );
 int32_t check_file( char *path, uint8_t write, uint8_t exec );
 int32_t check_dir( char *path, uint8_t create, uint8_t write );
-
+int32_t rm_dir_content(char* dir_name);
 
 
 void init_tools(void);

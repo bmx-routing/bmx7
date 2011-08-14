@@ -21,9 +21,6 @@
 #define JSON_PARAMETERS_FILE "parameters"
 #define DEF_JSON_DESC_SUBDIR "descriptions"
 #define DEF_JSON_ORIG_SUBDIR "originators"
-#define DEF_JSON_SMS_RX_SUBDIR "rcvdSms"
-#define DEF_JSON_SMS_TX_SUBDIR "sendSms"
-
 
 #define ARG_JSON_STATUS         "json_status"
 #define ARG_JSON_INTERFACES     "json_interfaces"
@@ -39,29 +36,5 @@
 #define DEF_JSON_UPDATE 10000
 #define MIN_JSON_UPDATE 0
 #define MAX_JSON_UPDATE REGISTER_TASK_TIMEOUT_MAX
-
-#define ARG_JSON_SMS "syncSms"
-#define MAX_JSON_SMS_NAME_LEN 16
-#define MAX_JSON_SMS_DATA_LEN 240
-#define TLV_OP_CUSTOM_JSON_SMS  (TLV_OP_CUSTOM_MIN + 0)
-
-struct json_sms {
-	char name[MAX_JSON_SMS_NAME_LEN];
-        uint16_t stale;
-	uint16_t text_len;
-        char text[];
-};
-
-struct description_msg_json_sms {
-	char name[MAX_JSON_SMS_NAME_LEN];
-	uint16_t text_len;
-        char text[];
-} __attribute__((packed));
-
-#define DESCRIPTION_MSG_JSON_SMS_FORMAT { \
-{FIELD_TYPE_STRING_CHAR,   -1, (8*MAX_JSON_SMS_NAME_LEN), 1, FIELD_RELEVANCE_HIGH, "name"}, \
-{FIELD_TYPE_STRING_SIZE,   -1, 16,                        0, FIELD_RELEVANCE_LOW,  "len"},  \
-{FIELD_TYPE_STRING_BINARY, -1, 0,                         1, FIELD_RELEVANCE_LOW,  "data" },  \
-FIELD_FORMAT_END }
 
 

@@ -22,6 +22,7 @@
 #include <errno.h>
 #include <arpa/inet.h>
 #include <sys/types.h>
+#include <dirent.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -453,6 +454,8 @@ int32_t check_file( char *path, uint8_t write, uint8_t exec ) {
 	return FAILURE;
 }
 
+
+
 int32_t check_dir( char *path, uint8_t create, uint8_t write ) {
 
 	struct stat fstat;
@@ -483,6 +486,33 @@ int32_t check_dir( char *path, uint8_t create, uint8_t write ) {
 }
 
 
+int32_t rm_dir_content(char* dir_name)
+{
+
+        struct dirent *d;
+        DIR *dir = opendir(dir_name);
+
+        while ((d = readdir(dir))) {
+
+                char rm_file[MAX_PATH_SIZE];
+                sprintf(rm_file, "%s/%s", dir_name, d->d_name);
+
+                if (validate_name_string(d->d_name, strlen(d->d_name) + 1) == SUCCESS) {
+
+                        dbgf_sys(DBGT_WARN, "removing stale file: %s \n", rm_file);
+
+                        if (remove(rm_file) != 0) {
+                                dbgf_sys(DBGT_ERR, "could not remove file %s: %s \n", rm_file, strerror(errno));
+                                return FAILURE;
+                        }
+
+                } else {
+                        dbgf_all(DBGT_ERR, "keeping file: %s\n", rm_file);
+                }
+        }
+
+        return SUCCESS;
+}
 
 
 uint32_t wordlen ( char *s ) {

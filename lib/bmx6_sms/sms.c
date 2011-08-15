@@ -315,29 +315,32 @@ int32_t opt_json_sms(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct op
                 assertion(-501255, (strlen(run_dir) > 3));
 
                 sprintf(tmp_sms_dir, "%s/%s", run_dir, DEF_SMS_SUBDIR);
+                sprintf(tmp_sms_rx_dir, "%s/%s", tmp_sms_dir, DEF_SMS_RX_SUBDIR);
+                sprintf(tmp_sms_tx_dir, "%s/%s", tmp_sms_dir, DEF_SMS_TX_SUBDIR);
 
                 if (check_dir(tmp_sms_dir, YES/*create*/, YES/*writable*/) == FAILURE)
 			return FAILURE;
 
-
-                sprintf(tmp_sms_rx_dir, "%s/%s", tmp_sms_dir, DEF_SMS_RX_SUBDIR);
-
                 if (check_dir(tmp_sms_rx_dir, YES/*create*/, YES/*writable*/) == FAILURE)
                         return FAILURE;
 
-                else if (cmd == OPT_SET_POST && rm_dir_content(tmp_sms_rx_dir) == FAILURE)
+                if (check_dir(tmp_sms_tx_dir, YES/*create*/, YES/*writable*/) == FAILURE)
                         return FAILURE;
 
+                sms_dir =  tmp_sms_dir;
+                json_smsTx_dir = tmp_sms_tx_dir;
+                json_smsRx_dir = tmp_sms_rx_dir;
+        }
 
 
-                sprintf(tmp_sms_tx_dir, "%s/%s", tmp_sms_dir, DEF_SMS_TX_SUBDIR);
+        if (initializing && cmd == OPT_SET_POST) {
 
-                if (check_dir(tmp_sms_tx_dir, YES/*create*/, YES/*writable*/) == FAILURE) {
+                assertion( -500000, sms_dir );
 
-                        dbgf_sys(DBGT_ERR, "failed checking dir=%s: %s\n", tmp_sms_tx_dir, strerror(errno));
+                if (rm_dir_content(tmp_sms_rx_dir) == FAILURE)
                         return FAILURE;
 
-                } else if (1 || (extensions_fd = inotify_init()) < 0) {
+                if (1 || (extensions_fd = inotify_init()) < 0) {
 
                         dbg_sys(DBGT_WARN, "failed init inotify socket: %s! Using %d ms polling instead! You should enable inotify support in your kernel!",
                                 strerror(errno), SMS_POLLING_INTERVAL);
@@ -358,10 +361,6 @@ int32_t opt_json_sms(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct op
 
                         set_fd_hook(extensions_fd, json_inotify_event_hook, ADD);
                 }
-
-                sms_dir =  tmp_sms_dir;
-                json_smsTx_dir = tmp_sms_tx_dir;
-                json_smsRx_dir = tmp_sms_rx_dir;
         }
 
 
@@ -386,8 +385,8 @@ int32_t opt_json_sms(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct op
         }
 
         if (cmd == OPT_POST && sms_applied) {
-                sms_applied = NO;
 
+                sms_applied = NO;
                 check_for_changed_sms(NULL);
         }
 

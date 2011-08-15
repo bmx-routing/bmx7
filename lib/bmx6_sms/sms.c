@@ -339,7 +339,7 @@ int32_t opt_json_sms(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct op
 
                 } else if (1 || (extensions_fd = inotify_init()) < 0) {
 
-                        dbg_sys(DBGT_WARN, "failed init inotify socket: %s! Using %s ms polling instead! You should enable inotify support in your kernel!",
+                        dbg_sys(DBGT_WARN, "failed init inotify socket: %s! Using %d ms polling instead! You should enable inotify support in your kernel!",
                                 strerror(errno), SMS_POLLING_INTERVAL);
                         extensions_fd = -1;
 

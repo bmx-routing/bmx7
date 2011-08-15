@@ -340,7 +340,7 @@ int32_t opt_json_sms(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct op
                 if (rm_dir_content(tmp_sms_rx_dir) == FAILURE)
                         return FAILURE;
 
-                if (1 || (extensions_fd = inotify_init()) < 0) {
+                if ((extensions_fd = inotify_init()) < 0) {
 
                         dbg_sys(DBGT_WARN, "failed init inotify socket: %s! Using %d ms polling instead! You should enable inotify support in your kernel!",
                                 strerror(errno), SMS_POLLING_INTERVAL);

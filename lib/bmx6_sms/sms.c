@@ -34,7 +34,7 @@
 #include "bmx.h"
 #include "msg.h"
 #include "plugin.h"
-//#include "schedule.h"
+#include "schedule.h"
 #include "tools.h"
 //#include "ip.h"
 #include "sms.h"
@@ -59,7 +59,7 @@ static AVL_TREE(json_sms_tree, struct json_sms, name );
 
 
 STATIC_FUNC
-void check_for_changed_sms(const char * func)
+void check_for_changed_sms(void *unused)
 {
         uint16_t found_sms = 0;
         uint16_t matching_sms = 0;
@@ -72,7 +72,13 @@ void check_for_changed_sms(const char * func)
         char name[MAX_JSON_SMS_NAME_LEN];
         char data[MAX_JSON_SMS_DATA_LEN + 1];
 
-        dbgf_all(DBGT_INFO, "called by %s", func);
+        dbgf_all(DBGT_INFO, "begin");
+
+        if (extensions_fd > -1) {
+                task_remove(check_for_changed_sms, NULL);
+                task_register(SMS_POLLING_INTERVAL, check_for_changed_sms, NULL, 300000);
+        }
+
 
         while ((sms = avl_iterate_item(&json_sms_tree, &an))) {
                 sms->stale = 1;
@@ -190,7 +196,7 @@ void json_inotify_event_hook(int fd)
 
         debugFree(ibuff, -300377);
 
-        check_for_changed_sms(__FUNCTION__);
+        check_for_changed_sms(NULL);
 }
 
 
@@ -331,10 +337,11 @@ int32_t opt_json_sms(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct op
                         dbgf_sys(DBGT_ERR, "failed checking dir=%s: %s\n", tmp_sms_tx_dir, strerror(errno));
                         return FAILURE;
 
-                } else if ((extensions_fd = inotify_init()) < 0) {
+                } else if (1 || (extensions_fd = inotify_init()) < 0) {
 
-                        dbg_sys(DBGT_ERR, "failed init inotify socket: %s", strerror(errno));
-                        return FAILURE;
+                        dbg_sys(DBGT_WARN, "failed init inotify socket: %s! Using %s ms polling instead! You should enable inotify support in your kernel!",
+                                strerror(errno), SMS_POLLING_INTERVAL);
+                        extensions_fd = -1;
 
                 } else if (fcntl(extensions_fd, F_SETFL, O_NONBLOCK) < 0) {
 
@@ -346,9 +353,11 @@ int32_t opt_json_sms(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct op
 
                         dbgf_sys(DBGT_ERR, "failed adding watch for dir=%s: %s \n", tmp_sms_tx_dir, strerror(errno));
                         return FAILURE;
-                }
 
-                set_fd_hook(extensions_fd, json_inotify_event_hook, ADD);
+                } else {
+
+                        set_fd_hook(extensions_fd, json_inotify_event_hook, ADD);
+                }
 
                 sms_dir =  tmp_sms_dir;
                 json_smsTx_dir = tmp_sms_tx_dir;
@@ -378,7 +387,8 @@ int32_t opt_json_sms(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct op
 
         if (cmd == OPT_POST && sms_applied) {
                 sms_applied = NO;
-                check_for_changed_sms(__FUNCTION__);
+
+                check_for_changed_sms(NULL);
         }
 
 
@@ -409,6 +419,8 @@ static void sms_cleanup( void )
 
                 close(extensions_fd);
                 extensions_fd = -1;
+        } else {
+                task_remove(check_for_changed_sms, NULL);
         }
 
         while (json_sms_tree.items) {

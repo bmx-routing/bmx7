@@ -24,6 +24,8 @@
 #define MAX_JSON_SMS_NAME_LEN 16
 #define MAX_JSON_SMS_DATA_LEN 240
 
+#define SMS_POLLING_INTERVAL 5000
+
 struct json_sms {
 	char name[MAX_JSON_SMS_NAME_LEN];
         uint16_t stale;

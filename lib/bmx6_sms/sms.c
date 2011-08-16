@@ -72,7 +72,7 @@ void check_for_changed_sms(void *unused)
         char name[MAX_JSON_SMS_NAME_LEN];
         char data[MAX_JSON_SMS_DATA_LEN + 1];
 
-        dbgf_track(DBGT_INFO, "checking...");
+        dbgf_all(DBGT_INFO, "checking...");
 
         if (extensions_fd == -1) {
                 task_remove(check_for_changed_sms, NULL);

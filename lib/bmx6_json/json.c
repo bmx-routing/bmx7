@@ -610,13 +610,24 @@ int32_t opt_json_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
                 char status_name[sizeof (((struct status_handl *) NULL)->status_name)] = {0};
                 strcpy(status_name, &opt->long_name[strlen("json_")]);
 
+                uint8_t relevance = DEF_RELEVANCE;
+                struct opt_child *c = NULL;
+
+                while ((c = list_iterate(&patch->childs_instance_list, c))) {
+
+                        if (!strcmp(c->c_opt->long_name, ARG_RELEVANCE)) {
+                                relevance = strtol(c->c_val, NULL, 10);
+                        }
+                }
+
+
                 if ((handl = avl_find_item(&status_tree, status_name)) && (data_len = ((*(handl->frame_creator))(handl, NULL)))) {
 
                         json_object *jorig = json_object_new_object();
                         json_object *jdesc_fields = NULL;
 
                         if ((jdesc_fields = fields_dbg_json(
-                                FIELD_RELEVANCE_HIGH, data_len, handl->data, handl->min_msg_size, handl->format))) {
+                                relevance, data_len, handl->data, handl->min_msg_size, handl->format))) {
 
                                 json_object_object_add(jorig, handl->status_name, jdesc_fields);
                         }
@@ -707,20 +718,29 @@ static struct opt_type json_options[]= {
 	{ODI,0,ARG_JSON_UPDATE,		0,  5,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&json_update_interval,	MIN_JSON_UPDATE,MAX_JSON_UPDATE,DEF_JSON_UPDATE,0,opt_json_update_interval,
                 ARG_VALUE_FORM, "disable or periodically update json-status files every given milliseconds."}
         ,
-	{ODI,0,ARG_JSON_STATUS,		0,  5,2,A_PS0,A_USR,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_json_status,
+	{ODI,0,ARG_JSON_STATUS,		0,  5,2,A_PS0N,A_USR,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_json_status,
 			0,		"show status in json format\n"}
         ,
-	{ODI,0,ARG_JSON_INTERFACES,	0,  5,2,A_PS0,A_USR,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_json_status,
+	{ODI,ARG_JSON_STATUS,ARG_RELEVANCE,'r',5,1,A_CS1,A_USR,A_DYI,A_ARG,A_ANY,0,	       MIN_RELEVANCE,   MAX_RELEVANCE,  DEF_RELEVANCE,0, opt_json_status,
+			ARG_VALUE_FORM,	HLP_ARG_RELEVANCE}
+        ,
+	{ODI,0,ARG_JSON_INTERFACES,	0,  5,2,A_PS0N,A_USR,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_json_status,
 			0,		"show interfaces in json format\n"}
         ,
-	{ODI,0,ARG_JSON_LINKS,	        0,  5,2,A_PS0,A_USR,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_json_status,
+	{ODI,ARG_JSON_INTERFACES,ARG_RELEVANCE,'r',5,1,A_CS1,A_USR,A_DYI,A_ARG,A_ANY,0,	       MIN_RELEVANCE,   MAX_RELEVANCE,  DEF_RELEVANCE,0, opt_json_status,
+			ARG_VALUE_FORM,	HLP_ARG_RELEVANCE}
+        ,
+	{ODI,0,ARG_JSON_LINKS,	        0,  5,2,A_PS0N,A_USR,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_json_status,
 			0,		"show links in json format\n"}
         ,
-	{ODI,0,ARG_JSON_ORIGINATORS,	0,  5,2,A_PS0,A_USR,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_json_status,
+	{ODI,ARG_JSON_LINKS,ARG_RELEVANCE,'r',5,1,A_CS1,A_USR,A_DYI,A_ARG,A_ANY,0,	       MIN_RELEVANCE,   MAX_RELEVANCE,  DEF_RELEVANCE,0, opt_json_status,
+			ARG_VALUE_FORM,	HLP_ARG_RELEVANCE}
+        ,
+	{ODI,0,ARG_JSON_ORIGINATORS,	0,  5,2,A_PS0N,A_USR,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_json_status,
 			0,		"show originators in json format\n"}
-
-
-	
+        ,
+	{ODI,ARG_JSON_ORIGINATORS,ARG_RELEVANCE,'r',5,1,A_CS1,A_USR,A_DYI,A_ARG,A_ANY,0,	       MIN_RELEVANCE,   MAX_RELEVANCE,  DEF_RELEVANCE,0, opt_json_status,
+			ARG_VALUE_FORM,	HLP_ARG_RELEVANCE}
 };
 
 

@@ -2834,6 +2834,8 @@ int32_t opt_help(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
                 }
         }
 
+
+
         struct list_node *list_pos;
         const char *category = NULL;
 
@@ -2892,7 +2894,7 @@ int32_t opt_help(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
 
 			struct opt_type *c_opt = (struct opt_type *)list_entry( pos, struct opt_data, list );
 
-			if ( !c_opt->parent_name  ||  !c_opt->help )
+			if ( relevance > c_opt->relevance || !c_opt->parent_name  ||  !c_opt->help )
 				continue;
 
 

@@ -420,7 +420,6 @@ int create_description_tlv_hna(struct tx_frame_iterator *it)
 }
 
 
-
 STATIC_FUNC
 void configure_uhna ( IDM_T del, struct uhna_key* key, struct orig_node *on ) {
 
@@ -607,58 +606,32 @@ int32_t opt_uhna(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
         IPX_T ipX;
 	uint8_t mask;
         uint32_t metric = 0;
-        struct uhna_key key;
 	char new[IPXNET_STR_LEN];
 
 	if ( cmd == OPT_ADJUST  ||  cmd == OPT_CHECK  ||  cmd == OPT_APPLY ) {
 
+                uint8_t family = 0;
+                struct uhna_key key;
+                struct uhna_node *un;
+
                 assertion(-501109, (af_cfg == AF_INET || af_cfg == AF_INET6));
 
-                uint8_t family = 0;
+                dbgf_all(DBGT_INFO, "af_cfg=%s diff=%d cmd=%s  save=%d  opt=%s  patch=%s",
+                        family2Str(af_cfg), patch->p_diff, opt_cmd2str[cmd], _save, opt->long_name, patch->p_val);
 
-		dbgf_all(DBGT_INFO, "diff=%d cmd =%s  save=%d  opt=%s  patch=%s",
-		        patch->p_diff, opt_cmd2str[cmd], _save, opt->long_name, patch->p_val);
+                if (str2netw(patch->p_val, &ipX, '/', cn, &mask, &family) == FAILURE ||
+                        family != af_cfg ||
+                        is_ip_forbidden(&ipX, family) || ip_netmask_validate(&ipX, mask, family, NO) == FAILURE) {
 
-
-                if (strchr(patch->p_val, '/')) {
-
-                        if (str2netw(patch->p_val, &ipX, '/', cn, &mask, &family) == FAILURE)
-                                family = 0;
-
-			// the unnamed UHNA
-                        dbgf_all(DBGT_INFO, "unnamed %s %s diff=%d cmd=%s  save=%d  opt=%s  patch=%s",
-                                ARG_UHNA, family2Str(family), patch->p_diff, opt_cmd2str[cmd], _save, opt->long_name, patch->p_val);
-
-                        if ( family != AF_INET && family != AF_INET6)
-                                return FAILURE;
-
-                        if (af_cfg && af_cfg != family)
-                                return FAILURE;
-                        else
-                                af_cfg = family;
-
-                        if (is_ip_forbidden(&ipX, family) || ip_netmask_validate(&ipX, mask, family, NO) == FAILURE) {
-                                dbg_cn(cn, DBGL_SYS, DBGT_ERR,
-                                        "invalid prefix %s/%d", ipXAsStr(family, &ipX), mask);
-                                return FAILURE;
-                        }
-
-                        sprintf(new, "%s/%d", ipXAsStr(family, &ipX), mask);
-
-			set_opt_parent_val( patch, new );
-
-			if ( cmd == OPT_ADJUST )
-				return SUCCESS;
-
-		} else {
+                        dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "invalid prefix: %s", patch->p_val);
                         return FAILURE;
-
                 }
 
+                sprintf(new, "%s/%d", ipXAsStr(family, &ipX), mask);
+
+                set_opt_parent_val(patch, new);
 
                 set_uhna_key(&key, family, mask, &ipX, metric);
-
-                struct uhna_node *un;
 
                 if (patch->p_diff != DEL && (un = (avl_find_item(&global_uhna_tree, &key)))) {
 
@@ -670,9 +643,8 @@ int32_t opt_uhna(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
                         return FAILURE;
 		}
 
-		if ( cmd == OPT_APPLY )
+                if (cmd == OPT_APPLY)
                         configure_uhna((patch->p_diff == DEL ? DEL : ADD), &key, &self);
-
 
 
 	} else if ( cmd == OPT_UNREGISTER ) {
@@ -687,9 +659,6 @@ int32_t opt_uhna(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
 	return SUCCESS;
 
 }
-
-
-
 
 
 STATIC_FUNC

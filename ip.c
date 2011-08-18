@@ -111,7 +111,7 @@ static IDM_T opt_dev_changed = YES;
 
 struct dev_node *primary_dev_cfg = NULL;
 
-uint8_t af_cfg = 0;
+uint8_t af_cfg = AF_INET;
 
 IDM_T niit_enabled = NO;
 
@@ -2677,11 +2677,7 @@ int32_t opt_ip_version(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
 	TRACE_FUNCTION_CALL;
 
 
-        if( cmd == OPT_REGISTER ) {
-
-                af_cfg = AF_INET;
-
-        } else if (cmd == OPT_CHECK) {
+        if (cmd == OPT_CHECK) {
 
                 if (!initializing)
                         return FAILURE;

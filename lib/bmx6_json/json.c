@@ -650,47 +650,48 @@ int32_t opt_json_update_interval(uint8_t cmd, uint8_t _save, struct opt_type *op
 
         // this function is used to initialize all json directories
 
-        static char tmp_json_dir[MAX_PATH_SIZE];
-        static char tmp_desc_dir[MAX_PATH_SIZE];
-        static char tmp_orig_dir[MAX_PATH_SIZE];
-
         if (initializing && !json_dir && (cmd == OPT_CHECK || cmd == OPT_APPLY || cmd == OPT_SET_POST)) {
+
+                static char tmp_json_dir[MAX_PATH_SIZE];
+                static char tmp_desc_dir[MAX_PATH_SIZE];
+                static char tmp_orig_dir[MAX_PATH_SIZE];
 
                 assertion(-501255, (strlen(run_dir) > 3));
 
                 sprintf(tmp_json_dir, "%s/%s", run_dir, DEF_JSON_SUBDIR);
+                sprintf(tmp_orig_dir, "%s/%s", tmp_json_dir, DEF_JSON_ORIG_SUBDIR);
+                sprintf(tmp_desc_dir, "%s/%s", tmp_json_dir, DEF_JSON_DESC_SUBDIR);
+
+                if (check_dir(run_dir, YES/*create*/, YES/*writable*/) == FAILURE)
+                        return FAILURE;
 
                 if (check_dir(tmp_json_dir, YES/*create*/, YES/*writable*/) == FAILURE)
 			return FAILURE;
 
-
-
-                sprintf(tmp_orig_dir, "%s/%s", tmp_json_dir, DEF_JSON_ORIG_SUBDIR);
-
                 if (check_dir(tmp_orig_dir, YES/*create*/, YES/*writable*/) == FAILURE)
                         return FAILURE;
-
-                else if (cmd == OPT_SET_POST && rm_dir_content(tmp_orig_dir) == FAILURE)
-                        return FAILURE;
-
-
-
-                sprintf(tmp_desc_dir, "%s/%s", tmp_json_dir, DEF_JSON_DESC_SUBDIR);
 
                 if (check_dir(tmp_desc_dir, YES/*create*/, YES/*writable*/) == FAILURE)
                         return FAILURE;
 
-                else if (cmd == OPT_SET_POST && rm_dir_content(tmp_desc_dir) == FAILURE)
+                json_dir =  tmp_json_dir;
+                json_orig_dir = tmp_orig_dir;
+                json_desc_dir = tmp_desc_dir;
+
+        }
+
+        if (initializing && cmd == OPT_SET_POST) {
+
+                assertion(-500000, (json_dir && json_orig_dir && json_desc_dir));
+
+                if (rm_dir_content(json_orig_dir) == FAILURE)
                         return FAILURE;
 
-
-                json_dir =  tmp_json_dir;
-                json_desc_dir = tmp_desc_dir;
-                json_orig_dir = tmp_orig_dir;
+                if (rm_dir_content(json_desc_dir) == FAILURE)
+                        return FAILURE;
 
                 update_json_options(1, 0, JSON_OPTIONS_FILE);
         }
-
 
         if (cmd == OPT_SET_POST && current_update_interval != json_update_interval) {
 
@@ -705,7 +706,6 @@ int32_t opt_json_update_interval(uint8_t cmd, uint8_t _save, struct opt_type *op
                 }
 
                 current_update_interval = json_update_interval;
-
         }
 
 	return SUCCESS;

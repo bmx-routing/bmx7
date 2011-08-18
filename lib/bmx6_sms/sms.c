@@ -44,8 +44,8 @@
 #define CODE_CATEGORY_NAME "sms"
 
 
-static char *json_smsTx_dir = NULL;
-static char *json_smsRx_dir = NULL;
+static char *smsTx_dir = NULL;
+static char *smsRx_dir = NULL;
 
 static int extensions_fd = -1;
 static int extensions_wd = -1;
@@ -93,7 +93,7 @@ void check_for_changed_sms(void *unused)
 
                 int fd = -1;
                 char path_name[MAX_PATH_SIZE + 20] = "";
-                sprintf(path_name, "%s/%s", json_smsTx_dir, p->p_val);
+                sprintf(path_name, "%s/%s", smsTx_dir, p->p_val);
 
 
 
@@ -144,7 +144,7 @@ void check_for_changed_sms(void *unused)
                         memcpy(name, sms->name, sizeof (sms->name));
                         if (sms->stale) {
                                 dbgf_track(DBGT_INFO, "removed sms=%s/%s size=%d! updating description...",
-                                        json_smsTx_dir, sms->name, sms->text_len);
+                                        smsTx_dir, sms->name, sms->text_len);
 
                                 avl_remove(&json_sms_tree, sms->name, -300373);
                                 debugFree(sms, -300374);
@@ -161,7 +161,7 @@ void json_inotify_event_hook(int fd)
 {
         TRACE_FUNCTION_CALL;
 
-        dbgf_track(DBGT_INFO, "detected changes in directory: %s", json_smsTx_dir);
+        dbgf_track(DBGT_INFO, "detected changes in directory: %s", smsTx_dir);
 
         assertion(-501258, (fd > -1 && fd == extensions_fd));
 
@@ -185,7 +185,7 @@ void json_inotify_event_hook(int fd)
                         processed += (sizeof (struct inotify_event) +ievent->len);
 
                         if (ievent->mask & (IN_DELETE_SELF)) {
-                                dbgf_sys(DBGT_ERR, "directory %s has been removed \n", json_smsTx_dir);
+                                dbgf_sys(DBGT_ERR, "directory %s has been removed \n", smsTx_dir);
                                 cleanup_all(-501260);
                         }
                 }
@@ -217,7 +217,7 @@ int create_description_sms(struct tx_frame_iterator *it)
         while ((sms = avl_iterate_item(&json_sms_tree, &an))) {
 
                 if (pos + sizeof (struct description_msg_sms) + sms->text_len > max_size) {
-                        dbgf_sys(DBGT_ERR, "Failed adding descriptionSms=%s/%s", json_smsTx_dir, sms->name);
+                        dbgf_sys(DBGT_ERR, "Failed adding descriptionSms=%s/%s", smsTx_dir, sms->name);
                         continue;
                 }
 
@@ -231,7 +231,7 @@ int create_description_sms(struct tx_frame_iterator *it)
                 pos += (sizeof (struct description_msg_sms) + sms->text_len);
 
                 dbgf_track(DBGT_INFO, "added descriptionSms=%s/%s text_len=%d total_len=%d",
-                        json_smsTx_dir, sms->name, sms->text_len, pos);
+                        smsTx_dir, sms->name, sms->text_len, pos);
 
         }
 
@@ -263,7 +263,7 @@ int process_description_sms(struct rx_frame_iterator *it)
                         return TLV_RX_DATA_FAILURE;
 
                 char path_name[MAX_PATH_SIZE];
-                sprintf(path_name, "%s/%s:%s", json_smsRx_dir, globalIdAsString(&on->global_id), sms->name);
+                sprintf(path_name, "%s/%s:%s", smsRx_dir, globalIdAsString(&on->global_id), sms->name);
                 int fd;
 
                 if (op == TLV_OP_DEL) {
@@ -306,17 +306,21 @@ int32_t opt_json_sms(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct op
         // this function is used to initialize all json directories
 
         static char *sms_dir = NULL;
-        static char tmp_sms_dir[MAX_PATH_SIZE];
-        static char tmp_sms_tx_dir[MAX_PATH_SIZE];
-        static char tmp_sms_rx_dir[MAX_PATH_SIZE];
 
         if (initializing && !sms_dir && (cmd == OPT_CHECK || cmd == OPT_APPLY || cmd == OPT_SET_POST)) {
+
+                static char tmp_sms_dir[MAX_PATH_SIZE];
+                static char tmp_sms_tx_dir[MAX_PATH_SIZE];
+                static char tmp_sms_rx_dir[MAX_PATH_SIZE];
 
                 assertion(-501255, (strlen(run_dir) > 3));
 
                 sprintf(tmp_sms_dir, "%s/%s", run_dir, DEF_SMS_SUBDIR);
                 sprintf(tmp_sms_rx_dir, "%s/%s", tmp_sms_dir, DEF_SMS_RX_SUBDIR);
                 sprintf(tmp_sms_tx_dir, "%s/%s", tmp_sms_dir, DEF_SMS_TX_SUBDIR);
+
+                if (check_dir(run_dir, YES/*create*/, YES/*writable*/) == FAILURE)
+			return FAILURE;
 
                 if (check_dir(tmp_sms_dir, YES/*create*/, YES/*writable*/) == FAILURE)
 			return FAILURE;
@@ -328,16 +332,16 @@ int32_t opt_json_sms(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct op
                         return FAILURE;
 
                 sms_dir =  tmp_sms_dir;
-                json_smsTx_dir = tmp_sms_tx_dir;
-                json_smsRx_dir = tmp_sms_rx_dir;
+                smsTx_dir = tmp_sms_tx_dir;
+                smsRx_dir = tmp_sms_rx_dir;
         }
 
 
         if (initializing && cmd == OPT_SET_POST) {
 
-                assertion( -500000, sms_dir );
+                assertion(-500000, (sms_dir && smsTx_dir && smsRx_dir));
 
-                if (rm_dir_content(tmp_sms_rx_dir) == FAILURE)
+                if (rm_dir_content(smsRx_dir) == FAILURE)
                         return FAILURE;
 
                 if ((extensions_fd = inotify_init()) < 0) {
@@ -351,10 +355,10 @@ int32_t opt_json_sms(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct op
                         dbgf_sys(DBGT_ERR, "failed setting inotify non-blocking: %s", strerror(errno));
                         return FAILURE;
 
-                } else if ((extensions_wd = inotify_add_watch(extensions_fd, tmp_sms_tx_dir,
+                } else if ((extensions_wd = inotify_add_watch(extensions_fd, smsTx_dir,
                         IN_CREATE | IN_DELETE | IN_DELETE_SELF | IN_MODIFY | IN_MOVE_SELF | IN_MOVED_FROM | IN_MOVED_TO)) < 0) {
 
-                        dbgf_sys(DBGT_ERR, "failed adding watch for dir=%s: %s \n", tmp_sms_tx_dir, strerror(errno));
+                        dbgf_sys(DBGT_ERR, "failed adding watch for dir=%s: %s \n", smsTx_dir, strerror(errno));
                         return FAILURE;
 
                 } else {
@@ -367,7 +371,7 @@ int32_t opt_json_sms(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct op
 
         if (cmd == OPT_CHECK || cmd == OPT_APPLY) {
 
-                if (!json_smsTx_dir)
+                if (!smsTx_dir)
                         return FAILURE;
 
                 if (strlen(patch->p_val) >= MAX_JSON_SMS_NAME_LEN)

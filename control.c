@@ -2968,10 +2968,8 @@ int32_t opt_run_dir(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt
 		
 		if ( check_dir( tmp_dir, YES/*create*/, YES/*writable*/ ) == FAILURE )
 			return FAILURE;
-		
-		if ( cmd == OPT_APPLY ) {
-			strcpy( run_dir, tmp_dir );
-		}	
+
+                strcpy(run_dir, tmp_dir);
 		
 	} else 	if ( cmd == OPT_SET_POST  &&  initializing ) {
 		

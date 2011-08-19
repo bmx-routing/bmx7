@@ -45,8 +45,8 @@
 
 #define CODE_CATEGORY_NAME "ip"
 
-int32_t base_port = DEF_BASE_PORT;
-
+uint8_t af_cfg = DEF_IP_FAMILY;
+//static int32_t ip_version = DEF_IP_VERSION;
 
 
 static int32_t ip_prio_offset_cfg = DEF_IP_RULE_OFFSET;
@@ -55,9 +55,10 @@ static int32_t ip_prio_rules_cfg = DEF_IP_PRIO_RULES;
 int32_t ip_throw_rules_cfg = DEF_IP_THROW_RULES;
 int32_t ip_policy_rt_cfg = DEF_IP_POLICY_ROUTING;
 
-static int32_t ip_version = DEF_IP_VERSION;
 
 int32_t policy_routing = POLICY_RT_UNSET;
+
+static int32_t base_port = DEF_BASE_PORT;
 
 static int32_t Lo_rule = DEF_LO_RULE;
 
@@ -111,7 +112,6 @@ static IDM_T opt_dev_changed = YES;
 
 struct dev_node *primary_dev_cfg = NULL;
 
-uint8_t af_cfg = AF_INET;
 
 IDM_T niit_enabled = NO;
 
@@ -3152,7 +3152,7 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
 static struct opt_type ip_options[]=
 {
 //        ord parent long_name          shrt, order, relevance, Attributes...	*ival		min		max		default		*func,*syntax,*help
-	{ODI,0,ARG_IP,	                'I',3,2, A_PS1N,A_ADM,A_INI,A_CFA,A_ANY,	&ip_version,    MIN_IP_VERSION, MAX_IP_VERSION, DEF_IP_VERSION,0,  opt_ip_version,
+	{ODI,0,ARG_IP,	                'I',3,2, A_PS1N,A_ADM,A_INI,A_CFA,A_ANY,	NULL,    0,0,0,/*MIN_IP_VERSION, MAX_IP_VERSION,*/ DEF_IP_VERSION,  opt_ip_version,
 			ARG_VALUE_FORM,	"select ip protocol Version 4 or 6"}
         ,
 

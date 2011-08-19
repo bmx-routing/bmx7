@@ -110,15 +110,14 @@ typedef struct ifname IFNAME_T;
 
 
 #define ARG_IP "ipVersion"
-#define MIN_IP_VERSION 4
-#define MAX_IP_VERSION 6
-#define DEF_IP_VERSION 4
+#define DEF_IP_VERSION "6"
+#define DEF_IP_FAMILY AF_INET6
 
 #define DEF_IP_POLICY_ROUTING 1
 #define ARG_IP_POLICY_ROUTING "policyRouting"
 
 #define ARG_IP_THROW_RULES "throwRules"
-#define DEF_IP_THROW_RULES 1
+#define DEF_IP_THROW_RULES 0
 
 #define ARG_IP_PRIO_RULES "prioRules"
 #define DEF_IP_PRIO_RULES 1
@@ -153,7 +152,7 @@ typedef struct ifname IFNAME_T;
 
 
 
-extern int32_t base_port;
+//extern int32_t base_port;
 #define ARG_BASE_PORT "basePort"
 #define DEF_BASE_PORT 6240
 #define MIN_BASE_PORT 1025

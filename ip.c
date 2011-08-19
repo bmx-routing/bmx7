@@ -1242,7 +1242,7 @@ IDM_T ip(uint8_t family, uint8_t cmd, int8_t del, uint8_t quiet, const IPX_T *NE
 #ifndef NO_DEBUG_ALL
         struct if_link_node *oif_iln = oif_idx ? avl_find_item(&if_link_tree, &oif_idx) : NULL;
 
-        dbgf_all( DBGT_INFO, "%s %s %s %s/%-2d  iif %s  table %d  prio %d  oif %s  via %s  src %s (using nl_sock %d)",
+        dbgf_track( DBGT_INFO, "%s %s %s %s/%-2d  iif %s  table %d  prio %d  oif %s  via %s  src %s (using nl_sock %d)",
                 family2Str(family), trackt2str(cmd), del2str(del), ipXAsStr(family, net), nmask,
                 iifname ? iifname->str : NULL, table, prio, oif_iln ? oif_iln->name.str : "---",
                 via ? ipXAsStr(family, via) : "---", src ? ipXAsStr(family, src) : "---", nlsock);
@@ -2218,7 +2218,7 @@ int update_interface_rules(void)
         assertion(-501119, (af_cfg == AF_INET || af_cfg == AF_INET6));
         assertion(-501130, (policy_routing != POLICY_RT_UNSET));
 
-        ip_flush_tracked(IP_THROW_MY_HNA);
+//        ip_flush_tracked(IP_THROW_MY_HNA);
         ip_flush_tracked(IP_THROW_MY_NET);
 
         struct avl_node *lan = NULL;
@@ -2728,7 +2728,7 @@ int32_t opt_ip_version(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                 policy_routing = (ip_policy_rt_cfg && is_policy_rt_supported(af_cfg)) ? POLICY_RT_ENABLED : POLICY_RT_DISABLED;
 
 
-        } else if (cmd == OPT_POST && initializing) {
+//        } else if (cmd == OPT_POST && initializing) {
 
                 assertion(-501121, (af_cfg == AF_INET || af_cfg == AF_INET6));
                 assertion(-501131, (policy_routing != POLICY_RT_UNSET));
@@ -2743,7 +2743,7 @@ int32_t opt_ip_version(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                         );
 
 		// add rule for hosts and announced interfaces and networks
-                if (policy_routing == POLICY_RT_ENABLED && ip_prio_rules_cfg && primary_dev_cfg) {
+                if (policy_routing == POLICY_RT_ENABLED && ip_prio_rules_cfg /*&& primary_dev_cfg*/) {
 
                         ip_flush_routes();
                         ip_flush_rules();

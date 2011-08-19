@@ -78,7 +78,7 @@ void niit_dev_event_hook(int32_t cb_id, void* unused)
         struct orig_node *on;
         IDM_T has_niit4to6_address = 0;
 
-        if (!niit_enabled || af_cfg != AF_INET6)
+        if (!niit_enabled || af_cfg() == AF_INET)
                 return;
 
         while ((iln = avl_iterate_item(&if_link_tree, &an))) {
@@ -300,7 +300,7 @@ void set_uhna_to_key(struct uhna_key *key, struct description_msg_hna4 *uhna4, s
         if (uhna4) {
 
                 IPX_T ipX;
-                ip42X(&ipX, uhna4->ip4);
+                ip4ToX(&ipX, uhna4->ip4);
 
                 set_uhna_key(key, AF_INET, uhna4->prefixlen, &ipX, ntohl(uhna4->metric));
 
@@ -383,7 +383,6 @@ STATIC_FUNC
 int create_description_tlv_hna(struct tx_frame_iterator *it)
 {
         assertion(-500765, (it->frame_type == BMX_DSC_TLV_UHNA4 || it->frame_type == BMX_DSC_TLV_UHNA6));
-        assertion(-501106, (af_cfg == AF_INET || af_cfg == AF_INET6));
 
         uint8_t *data = tx_iterator_cache_msg_ptr(it);
         uint16_t max_size = tx_iterator_cache_data_space(it);
@@ -395,7 +394,7 @@ int create_description_tlv_hna(struct tx_frame_iterator *it)
         struct dev_node *dev;
         int pos = 0;
 
-        if (af_cfg != family || !is_ip_set(&self.primary_ip))
+        if (af_cfg() != family || !is_ip_set(&self.primary_ip))
                 return TLV_TX_DATA_IGNORED;
 
         pos = _create_tlv_hna(family, data, max_size, pos, &self.primary_ip, 0, max_prefixlen);
@@ -419,6 +418,9 @@ int create_description_tlv_hna(struct tx_frame_iterator *it)
         return pos;
 }
 
+STATIC_FUNC
+void configure_tunnel ( IDM_T del, struct uhna_key* key, struct orig_node *on ) {
+}
 
 STATIC_FUNC
 void configure_uhna ( IDM_T del, struct uhna_key* key, struct orig_node *on ) {
@@ -481,13 +483,12 @@ int process_description_tlv_hna(struct rx_frame_iterator *it)
 {
         ASSERTION(-500357, (it->frame_type == BMX_DSC_TLV_UHNA4 || it->frame_type == BMX_DSC_TLV_UHNA6));
         assertion(-500588, (it->on));
-        assertion(-501107, (af_cfg == AF_INET || af_cfg == AF_INET6));
 
         struct orig_node *on = it->on;
         uint8_t op = it->op;
         uint8_t family = (it->frame_type == BMX_DSC_TLV_UHNA4 ? AF_INET : AF_INET6);
 
-        if (af_cfg != family) {
+        if (af_cfg() != family) {
                 dbgf_sys(DBGT_ERR, "invalid family %s", family2Str(family));
                 return TLV_RX_DATA_BLOCKED;
         }
@@ -517,7 +518,7 @@ int process_description_tlv_hna(struct rx_frame_iterator *it)
 
                         if (pos == 0 && key.family == family) {
                                 on->primary_ip = ZERO_IP;
-                                ip2Str(family, &ZERO_IP, on->primary_ip_str);
+                                ipXToStr(family, &ZERO_IP, on->primary_ip_str);
                         }
 
                 } else if (op == TLV_OP_TEST) {
@@ -552,7 +553,7 @@ int process_description_tlv_hna(struct rx_frame_iterator *it)
 
                         if (pos == 0 && key.family == family) {
                                 on->primary_ip = key.glip;
-                                ip2Str(key.family, &key.glip, on->primary_ip_str);
+                                ipXToStr(key.family, &key.glip, on->primary_ip_str);
                         }
 
                         configure_uhna(ADD, &key, on);
@@ -614,13 +615,11 @@ int32_t opt_uhna(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
                 struct uhna_key key;
                 struct uhna_node *un;
 
-                assertion(-501109, (af_cfg == AF_INET || af_cfg == AF_INET6));
-
                 dbgf_all(DBGT_INFO, "af_cfg=%s diff=%d cmd=%s  save=%d  opt=%s  patch=%s",
-                        family2Str(af_cfg), patch->p_diff, opt_cmd2str[cmd], _save, opt->long_name, patch->p_val);
+                        family2Str(af_cfg()), patch->p_diff, opt_cmd2str[cmd], _save, opt->long_name, patch->p_val);
 
                 if (str2netw(patch->p_val, &ipX, '/', cn, &mask, &family) == FAILURE ||
-                        family != af_cfg ||
+                        family != af_cfg() ||
                         is_ip_forbidden(&ipX, family) || ip_netmask_validate(&ipX, mask, family, NO) == FAILURE) {
 
                         dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "invalid prefix: %s", patch->p_val);
@@ -665,6 +664,58 @@ int32_t opt_uhna(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
 
 
 STATIC_FUNC
+int32_t opt_tunnel(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
+{
+        IPX_T ipX;
+	uint8_t mask;
+        uint32_t metric = 0;
+	char new[IPXNET_STR_LEN];
+        static struct uhna_node *tunnel = NULL;
+
+	if ( cmd == OPT_ADJUST  ||  cmd == OPT_CHECK  ||  cmd == OPT_APPLY ) {
+
+                uint8_t family = 0;
+                struct uhna_key key;
+
+                dbgf_all(DBGT_INFO, "diff=%d cmd=%s  save=%d  opt=%s  patch=%s",
+                        patch->p_diff, opt_cmd2str[cmd], _save, opt->long_name, patch->p_val);
+
+                if (str2netw(patch->p_val, &ipX, '/', cn, &mask, &family) == FAILURE ||
+                        family != AF_INET6 ||
+                        is_ip_forbidden(&ipX, family) || ip_netmask_validate(&ipX, mask, family, NO) == FAILURE) {
+
+                        dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "invalid prefix: %s", patch->p_val);
+                        return FAILURE;
+                }
+
+                sprintf(new, "%s/%d", ipXAsStr(family, &ipX), mask);
+
+                set_opt_parent_val(patch, new);
+
+                set_uhna_key(&key, family, mask, &ipX, metric);
+
+                if (cmd == OPT_ADJUST)
+                        return SUCCESS;
+
+                if (cmd == OPT_APPLY)
+                        configure_tunnel((patch->p_diff == DEL ? DEL : ADD), &key, &self);
+
+
+	} else if ( cmd == OPT_UNREGISTER ) {
+
+                if(tunnel)
+                        configure_tunnel(DEL, &tunnel->key, &self);
+
+	}
+
+	return SUCCESS;
+
+}
+
+
+
+
+STATIC_FUNC
 struct opt_type hna_options[]= {
 //     		ord parent long_name   shrt Attributes				*ival		min		max		default		*function
 
@@ -691,7 +742,6 @@ struct opt_type hna_options[]= {
 STATIC_FUNC
 void hna_route_change_hook(uint8_t del, struct orig_node *on)
 {
-        assertion(-501110, (af_cfg == AF_INET || af_cfg == AF_INET6));
 
         dbgf_all(DBGT_INFO, "global_id=%s", globalIdAsString(&on->global_id));
 
@@ -700,7 +750,7 @@ void hna_route_change_hook(uint8_t del, struct orig_node *on)
 
         process_description_tlvs(NULL, on, on->desc,
                 del ? TLV_OP_CUSTOM_HNA_ROUTE_DEL : TLV_OP_CUSTOM_HNA_ROUTE_ADD,
-                af_cfg == AF_INET ? BMX_DSC_TLV_UHNA4 : BMX_DSC_TLV_UHNA6, NULL);
+                af_cfg() == AF_INET ? BMX_DSC_TLV_UHNA4 : BMX_DSC_TLV_UHNA6, NULL);
 
 }
 

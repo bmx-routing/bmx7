@@ -469,7 +469,7 @@ void purge_orig_router(struct orig_node *only_orig, struct link_dev_node *only_l
 
                         dbgf_track(DBGT_INFO, "only_orig=%s only_lndev=%s,%s only_useless=%d purging metric=%ju router=%X (%s)",
                                 only_orig ? globalIdAsString(&only_orig->global_id) : "---",
-                                only_lndev ? ipXAsStr(af_cfg, &only_lndev->key.link->link_ip):"---",
+                                only_lndev ? ipFAsStr(&only_lndev->key.link->link_ip):"---",
                                 only_lndev ? only_lndev->key.dev->label_cfg.str : "...",
                                 only_useless,rt->mr.umetric,
                                 ntohl(rt->local_key->local_id),
@@ -536,7 +536,7 @@ void purge_link_node(struct link_node_key *only_link_key, struct dev_node *only_
                                 (!only_expired || (((TIME_T) (bmx_time - lndev->pkt_time_max)) > (TIME_T) link_purge_to))) {
 
                                 dbgf_track(DBGT_INFO, "purging lndev link=%s dev=%s",
-                                        ipXAsStr(af_cfg, &link->link_ip), lndev->key.dev->label_cfg.str);
+                                        ipFAsStr( &link->link_ip), lndev->key.dev->label_cfg.str);
 
                                 purge_orig_router(NULL, lndev, NO);
 
@@ -569,7 +569,7 @@ void purge_link_node(struct link_node_key *only_link_key, struct dev_node *only_
                 if (!link->lndev_list.items) {
 
                         dbgf_track(DBGT_INFO, "purging: link local_id=%X link_ip=%s dev_idx=%d only_dev=%s",
-                                ntohl(link->key.local_id), ipXAsStr(af_cfg, &link->link_ip),
+                                ntohl(link->key.local_id), ipFAsStr( &link->link_ip),
                                  link->key.dev_idx, only_dev ? only_dev->label_cfg.str : "???");
 
                         struct avl_node *dev_avl;
@@ -822,7 +822,7 @@ struct link_node *get_link_node(struct packet_buff *pb)
                                 dbgf_sys(DBGT_WARN,
                                         "DAD-Alert (local_id collision, this can happen)! NB=%s via dev=%s"
                                         "cached llIP=%s local_id=%X dev_idx=0x%X ! sending problem adv...",
-                                        pb->i.llip_str, pb->i.iif->label_cfg.str, ipXAsStr(af_cfg, &link->link_ip),
+                                        pb->i.llip_str, pb->i.iif->label_cfg.str, ipFAsStr( &link->link_ip),
                                         ntohl(pb->i.link_key.local_id), pb->i.link_key.dev_idx);
 
                                 // be carefull here. Errornous PROBLEM_ADVs cause neighboring nodes to cease!!!
@@ -839,7 +839,7 @@ struct link_node *get_link_node(struct packet_buff *pb)
 
                         dbgf_sys(DBGT_WARN, "Reinitialized! NB=%s via dev=%s "
                                 "cached llIP=%s local_id=%X dev_idx=0x%X ! Reinitializing link_node...",
-                                pb->i.llip_str, pb->i.iif->label_cfg.str, ipXAsStr(af_cfg, &link->link_ip),
+                                pb->i.llip_str, pb->i.iif->label_cfg.str, ipFAsStr( &link->link_ip),
                                 ntohl(pb->i.link_key.local_id), pb->i.link_key.dev_idx);
 
                         purge_link_node(&link->key, NULL, NO);
@@ -932,7 +932,7 @@ struct link_dev_node *get_link_dev_node(struct packet_buff *pb)
                 }
 
 
-                dbgf_track(DBGT_INFO, "creating new lndev %16s %s", ipXAsStr(af_cfg, &link->link_ip), dev->name_phy_cfg.str);
+                dbgf_track(DBGT_INFO, "creating new lndev %16s %s", ipFAsStr(&link->link_ip), dev->name_phy_cfg.str);
 
                 list_add_tail(&link->lndev_list, &lndev->list);
 
@@ -954,7 +954,6 @@ struct link_dev_node *get_link_dev_node(struct packet_buff *pb)
 void rx_packet( struct packet_buff *pb )
 {
         TRACE_FUNCTION_CALL;
-        assertion(-501105, (af_cfg == AF_INET || af_cfg == AF_INET6));
 
         struct dev_node *oif, *iif = pb->i.iif;
         
@@ -963,8 +962,8 @@ void rx_packet( struct packet_buff *pb )
 
         assertion(-500841, ((iif->active && iif->if_llocal_addr)));
 
-        if (af_cfg == AF_INET) {
-                ip42X(&pb->i.llip, (*((struct sockaddr_in*)&(pb->i.addr))).sin_addr.s_addr);
+        if (af_cfg() == AF_INET) {
+                ip4ToX(&pb->i.llip, (*((struct sockaddr_in*)&(pb->i.addr))).sin_addr.s_addr);
 
         } else {
                 pb->i.llip = (*((struct sockaddr_in6*) &(pb->i.addr))).sin6_addr;
@@ -986,7 +985,7 @@ void rx_packet( struct packet_buff *pb )
         pb->i.link_key.local_id = hdr->local_id;
 
 
-        ip2Str(af_cfg, &pb->i.llip, pb->i.llip_str);
+        ipFToStr(&pb->i.llip, pb->i.llip_str);
 
         dbgf_all(DBGT_INFO, "via %s %s %s size %d", iif->label_cfg.str, iif->ip_llocal_str, pb->i.llip_str, pkt_length);
 
@@ -1424,7 +1423,7 @@ char *field_dbg_value(const struct field_format *format, uint16_t min_msg_size, 
 
         } else if (field_type == FIELD_TYPE_IPX) {
 
-                val = ipXAsStr(af_cfg, (IPX_T*) & data[pos_bit / 8]);
+                val = ipFAsStr((IPX_T*) & data[pos_bit / 8]);
 
         } else if (field_type == FIELD_TYPE_MAC) {
 

@@ -214,7 +214,6 @@ extern const struct ort_data ort_dat[ORT_MAX + 1];
 
 
 extern struct dev_node *primary_dev_cfg;
-extern uint8_t af_cfg;
 extern IDM_T niit_enabled;
 
 extern int32_t ip_throw_rules_cfg;
@@ -406,17 +405,19 @@ enum {
 
 //usefult IP tools:
 
+
 char *family2Str(uint8_t family);
 
 #define ip6Str( addr_ptr ) ipXAsStr( AF_INET6, (addr_ptr))
 
 char *ipXAsStr(int family, const IPX_T *addr);
+char *ipFAsStr(const IPX_T *addr);
 char *ip4AsStr( IP4_T addr );
-void  ip2Str(int family, const IPX_T *addr, char *str);
-
+void  ipXToStr(int family, const IPX_T *addr, char *str);
+void ipFToStr(const IPX_T *addr, char *str);
 
 #define ipXto4( ipx ) ((ipx).s6_addr32[3])
-void ip42X(IPX_T *ipx, IP4_T ip4);
+void ip4ToX(IPX_T *ipx, IP4_T ip4);
 
 char* macAsStr(const MAC_T* mac);
 
@@ -435,6 +436,9 @@ IDM_T is_ip_net_equal(const IPX_T *netA, const IPX_T *netB, const uint8_t plen, 
 
 
 // core:
+uint8_t _af_cfg(const char *func);
+
+#define af_cfg() _af_cfg(__FUNCTION__)
 
 IDM_T ip(uint8_t family, uint8_t cmd, int8_t del, uint8_t quiet, const IPX_T *NET, uint8_t nmask,
         int8_t table_macro, int8_t prio_macro, IFNAME_T *iifname, int oif_idx, IPX_T *via, IPX_T *src, uint32_t metric);

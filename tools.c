@@ -402,7 +402,7 @@ IDM_T str2netw(char* args, IPX_T *ipX, char delimiter, struct ctrl_node *cn, uin
 
         if ((inet_pton(AF_INET, switch_arg, &in4) == 1) && (!maskp || *maskp <= 32)) {
 
-                ip42X(ipX, in4.s_addr);
+                ip4ToX(ipX, in4.s_addr);
 
                 if (familyp)
                         *familyp = AF_INET;

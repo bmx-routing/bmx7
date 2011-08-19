@@ -633,6 +633,9 @@ int32_t opt_uhna(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
 
                 set_uhna_key(&key, family, mask, &ipX, metric);
 
+                if (cmd == OPT_ADJUST)
+                        return SUCCESS;
+
                 if (patch->p_diff != DEL && (un = (avl_find_item(&global_uhna_tree, &key)))) {
 
 			dbg_cn( cn, DBGL_CHANGES, DBGT_ERR,

@@ -3476,7 +3476,7 @@ int32_t opt_show_descriptions(uint8_t cmd, uint8_t _save, struct opt_type *opt,
                         if (name && strcmp(name, on->desc->globalId.name))
                                 continue;
 
-                        dbg_printf(cn, "descSha=%s blocked=%d :\n",
+                        dbg_printf(cn, "\ndescSha=%s blocked=%d :\n",
                                 memAsHexString(((char*) &(on->dhn->dhash)), sizeof(on->dhn->dhash)), on->blocked ? 1 : 0);
 
                         uint16_t tlvs_len = ntohs(on->desc->extensionLen);

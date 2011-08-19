@@ -2552,6 +2552,7 @@ int32_t rx_frame_iterate(struct rx_frame_iterator *it)
                         return TLV_RX_DATA_FAILURE;
 
                 } else if (f_handl->is_relevant != fhs->is_relevant) {
+
                         dbgf_sys(DBGT_ERR, "%s - type=%s frame_length=%d from %s, signals %s but known as %s",
                                 it->caller, f_handl->name, f_len, pb ? pb->i.llip_str : "---",
                                 fhs->is_relevant ? "RELEVANT" : "IRRELEVANT",
@@ -3483,7 +3484,7 @@ int32_t opt_show_descriptions(uint8_t cmd, uint8_t _save, struct opt_type *opt,
                         desc_buff->transmitterIID4x = htons(on->dhn->myIID4orig);
                         memcpy(&desc_buff->desc, on->desc, sizeof (struct description) + tlvs_len);
                         
-                        dbg_printf(cn, "%s:", packet_frame_handler[FRAME_TYPE_DESC_ADV].name);
+                        dbg_printf(cn, " %s:", packet_frame_handler[FRAME_TYPE_DESC_ADV].name);
 
                         fields_dbg_lines(cn, relevance, sizeof (struct msg_description_adv) +tlvs_len, (uint8_t*) desc_buff,
                                 packet_frame_handler[FRAME_TYPE_DESC_ADV].min_msg_size,
@@ -3497,12 +3498,15 @@ int32_t opt_show_descriptions(uint8_t cmd, uint8_t _save, struct opt_type *opt,
                                 .frames_in = (((uint8_t*) on->desc) + sizeof (struct description)), .frames_length = tlvs_len
                         };
 
-                        while (rx_frame_iterate(&it) > TLV_RX_DATA_DONE) {
+                        int32_t it_result;
+                        while ((it_result = rx_frame_iterate(&it)) > TLV_RX_DATA_DONE) {
 
-                                dbg_printf(cn, " %s: ", it.handls[it.frame_type].name);
+                                if (it_result >= TLV_RX_DATA_PROCESSED) {
+                                        dbg_printf(cn, "\n %s: ", it.handls[it.frame_type].name);
 
-                                fields_dbg_lines(cn, relevance, it.frame_msgs_length, it.msg,
-                                        it.handls[it.frame_type].min_msg_size, it.handls[it.frame_type].msg_format);
+                                        fields_dbg_lines(cn, relevance, it.frame_msgs_length, it.msg,
+                                                it.handls[it.frame_type].min_msg_size, it.handls[it.frame_type].msg_format);
+                                }
                         }
                 }
 

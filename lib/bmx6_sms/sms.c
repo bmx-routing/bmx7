@@ -459,18 +459,18 @@ static int32_t sms_init( void ) {
 
 struct plugin* get_plugin( void ) {
 	
-	static struct plugin json_plugin;
+	static struct plugin sms_plugin;
 	
-	memset( &json_plugin, 0, sizeof ( struct plugin ) );
+	memset( &sms_plugin, 0, sizeof ( struct plugin ) );
 	
 
-	json_plugin.plugin_name = CODE_CATEGORY_NAME;
-	json_plugin.plugin_size = sizeof ( struct plugin );
-        json_plugin.plugin_code_version = CODE_VERSION;
-	json_plugin.cb_init = sms_init;
-	json_plugin.cb_cleanup = sms_cleanup;
+	sms_plugin.plugin_name = CODE_CATEGORY_NAME;
+	sms_plugin.plugin_size = sizeof ( struct plugin );
+        sms_plugin.plugin_code_version = CODE_VERSION;
+	sms_plugin.cb_init = sms_init;
+	sms_plugin.cb_cleanup = sms_cleanup;
 
-	return &json_plugin;
+	return &sms_plugin;
 }
 
 

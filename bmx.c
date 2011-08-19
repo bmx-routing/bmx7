@@ -1584,13 +1584,18 @@ uint32_t fields_dbg_lines(struct ctrl_node *cn, uint16_t relevance, uint16_t dat
 
                 if (data && cn) {
 
+                        if (it.field == 0)
+                                dbg_printf(cn, "\n   ");
+
                         if (format[it.field].field_relevance >= relevance) {
                                 dbg_printf(cn, " %s=%s", format[it.field].field_name,
                                         field_dbg_value(&format[it.field], min_msg_size, data, it.field_bit_pos, it.field_bits));
                         }
 
+/*
                         if (format[it.field + 1].field_type == FIELD_TYPE_END)
                                 dbg_printf(cn, "\n");
+*/
 
                 }
         }

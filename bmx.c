@@ -2321,7 +2321,6 @@ int main(int argc, char *argv[])
 
         init_ip();
 
-	init_bmx();
 
 	//init_schedule();
 
@@ -2363,6 +2362,7 @@ int main(int argc, char *argv[])
                 assertion(-500809, (0));
         }
 
+	init_bmx();
 
 	apply_init_args( argc, argv );
 

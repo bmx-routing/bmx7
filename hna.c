@@ -55,7 +55,7 @@ static int32_t out_tunnels = 0;
 STATIC_FUNC
 void hna_description_event_hook(int32_t cb_id, struct orig_node *on)
 {
-        if (on != &self)
+        if (on != self)
                 return;
 
         dbgf_all(DBGT_INFO, "cb_id=%d", cb_id);
@@ -135,7 +135,7 @@ void niit_dev_event_hook(int32_t cb_id, void* unused)
 
                 for (an = NULL; (on = avl_iterate_item(&orig_tree, &an));) {
 
-                        if (on == &self)
+                        if (on == self)
                                 continue;
 
                         if ((niit4to6_dev_idx = niit4to6_old_idx))
@@ -153,12 +153,12 @@ void niit_dev_event_hook(int32_t cb_id, void* unused)
                 dbgf_track(DBGT_INFO, "niit6to4_dev_idx=%d niit6to4_new_idx=%d", niit6to4_dev_idx, niit6to4_new_idx);
 
                 if (niit6to4_old_idx)
-                        process_description_tlvs(NULL, &self, self.desc, TLV_OP_CUSTOM_NIIT6TO4_DEL, BMX_DSC_TLV_UHNA6, NULL);
+                        process_description_tlvs(NULL, self, self->desc, TLV_OP_CUSTOM_NIIT6TO4_DEL, BMX_DSC_TLV_UHNA6, NULL);
 
                 niit6to4_dev_idx = niit6to4_new_idx;
 
                 if (niit6to4_new_idx)
-                        process_description_tlvs(NULL, &self, self.desc, TLV_OP_CUSTOM_NIIT6TO4_ADD, BMX_DSC_TLV_UHNA6, NULL);
+                        process_description_tlvs(NULL, self, self->desc, TLV_OP_CUSTOM_NIIT6TO4_ADD, BMX_DSC_TLV_UHNA6, NULL);
 
         }
 
@@ -284,7 +284,7 @@ IDM_T configure_route(IDM_T del, struct orig_node *on, struct uhna_key *key)
 
                 return ip(key->family, cmd, ADD, NO, &key->glip, key->prefixlen, table_macro, 0,
                         NULL, lndev->key.dev->if_llocal_addr->ifa.ifa_index,
-                        &(lndev->key.link->link_ip), &(self.primary_ip), ntohl(key->metric_nl));
+                        &(lndev->key.link->link_ip), &(self->primary_ip), ntohl(key->metric_nl));
 
         }
 }
@@ -400,10 +400,10 @@ int create_description_tlv_hna(struct tx_frame_iterator *it)
         struct dev_node *dev;
         int pos = 0;
 
-        if (af_cfg() != family || !is_ip_set(&self.primary_ip))
+        if (af_cfg() != family || !is_ip_set(&self->primary_ip))
                 return TLV_TX_DATA_IGNORED;
 
-        pos = _create_tlv_hna(family, data, max_size, pos, &self.primary_ip, 0, max_prefixlen);
+        pos = _create_tlv_hna(family, data, max_size, pos, &self->primary_ip, 0, max_prefixlen);
 
         for (an = NULL; (dev = avl_iterate_item(&dev_ip_tree, &an));) {
 
@@ -443,7 +443,7 @@ void configure_uhna ( IDM_T del, struct uhna_key* key, struct orig_node *on ) {
                 avl_remove(&global_uhna_tree, &un->key, -300212);
                 ASSERTION( -500233, (!avl_find( &global_uhna_tree, key)) ); // there should be only one element with this key
 
-                if (on == &self)
+                if (on == self)
                         avl_remove(&local_uhna_tree, &un->key, -300213);
 
         } else {
@@ -453,13 +453,13 @@ void configure_uhna ( IDM_T del, struct uhna_key* key, struct orig_node *on ) {
                 un->on = on;
                 avl_insert(&global_uhna_tree, un, -300149);
 
-                if (on == &self)
+                if (on == self)
                         avl_insert(&local_uhna_tree, un, -300150);
 
         }
 
 
-        if (on == &self) {
+        if (on == self) {
 
                 // update throw routes:
                 if (policy_routing == POLICY_RT_ENABLED && ip_throw_rules_cfg) {
@@ -660,13 +660,13 @@ int32_t opt_uhna(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
 			dbg_cn( cn, DBGL_CHANGES, DBGT_ERR,
                                 "UHNA %s/%d metric %d already blocked by global_id=%s !",
                                 ipXAsStr(key.family, &key.glip), mask, metric,
-                                (un->on == &self ? "MYSELF" : globalIdAsString(&un->on->global_id)));
+                                (un->on == self ? "MYSELF" : globalIdAsString(&un->on->global_id)));
 
                         return FAILURE;
 		}
 
                 if (cmd == OPT_APPLY)
-                        configure_uhna((patch->p_diff == DEL ? DEL : ADD), &key, &self);
+                        configure_uhna((patch->p_diff == DEL ? DEL : ADD), &key, self);
 
 
 	} else if ( cmd == OPT_UNREGISTER ) {
@@ -674,7 +674,7 @@ int32_t opt_uhna(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
                 struct uhna_node * un;
 
                 while ((un = avl_first_item(&global_uhna_tree)))
-                        configure_uhna(DEL, &un->key, &self);
+                        configure_uhna(DEL, &un->key, self);
 
 	}
 
@@ -794,7 +794,7 @@ int create_description_tlv_tunnel(struct tx_frame_iterator *it)
                 
 
                 ((struct description_msg_tunnel *) tx_iterator_cache_msg_ptr(it))->src = tunnel_src;
-                ((struct description_msg_tunnel *) tx_iterator_cache_msg_ptr(it))->dst = self.primary_ip;
+                ((struct description_msg_tunnel *) tx_iterator_cache_msg_ptr(it))->dst = self->primary_ip;
                 ((struct description_msg_tunnel *) tx_iterator_cache_msg_ptr(it))->type = TUN_TYPE_ANY;
                 dbgf_track(DBGT_INFO, "%s", ipFAsStr(&tunnel_src));
 
@@ -836,7 +836,7 @@ int32_t opt_tunnel_in(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct o
 
                 if ((tun = avl_find_item(&tunnel_in_tree, &ipX))) {
 
-                        setup_tunnel(DEL, &self, tun, NULL, 0);
+                        setup_tunnel(DEL, self, tun, NULL, 0);
 
                 } else {
 
@@ -856,7 +856,7 @@ int32_t opt_tunnel_in(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct o
 
                 if((tun = avl_find_item(&tunnel_in_tree, &ipX))) {
 
-                        setup_tunnel(DEL, &self, tun, NULL, 0);
+                        setup_tunnel(DEL, self, tun, NULL, 0);
                         avl_remove(&tunnel_in_tree, &tun->src, -300000);
                         debugFree(tun, -300000);
                 }
@@ -867,7 +867,7 @@ int32_t opt_tunnel_in(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct o
         if (  cmd == OPT_UNREGISTER ) {
 
                 while ((tun = avl_first_item(&tunnel_in_tree))) {
-                        setup_tunnel(DEL, &self, tun, NULL, 0);
+                        setup_tunnel(DEL, self, tun, NULL, 0);
                         avl_remove(&tunnel_in_tree, &tun->src, -300000);
                         debugFree(tun, -300000);
                 }

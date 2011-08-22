@@ -612,7 +612,7 @@ extern uint32_t s_curr_avg_cpu_load;
 
 extern IDM_T my_description_changed;
 
-extern struct orig_node self;
+extern struct orig_node *self;
 
 
 /**
@@ -1042,7 +1042,7 @@ struct neigh_node *is_described_neigh( struct link_node *link, IID_T transmitter
 
 void purge_link_route_orig_nodes(struct dev_node *only_dev, IDM_T only_expired);
 void free_orig_node(struct orig_node *on);
-void init_orig_node(struct orig_node *on, GLOBAL_ID_T *id);
+struct orig_node * init_orig_node(GLOBAL_ID_T *id);
 
 void purge_local_node(struct local_node *local);
 

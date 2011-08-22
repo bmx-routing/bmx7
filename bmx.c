@@ -78,7 +78,7 @@ uint32_t s_curr_avg_cpu_load = 0;
 
 IDM_T my_description_changed = YES;
 
-struct orig_node self;
+struct orig_node *self = NULL;
 
 LOCAL_ID_T my_local_id = LOCAL_ID_INVALID;
 
@@ -362,7 +362,7 @@ IDM_T update_local_neigh(struct packet_buff *pb, struct dhash_node *dhn)
 
         dbgf_all(DBGT_INFO, "local_id=0x%X  dhn->id=%s", local->local_id, globalIdAsString(&dhn->on->desc->globalId));
 
-        assertion(-500517, (dhn != self.dhn));
+        assertion(-500517, (dhn != self->dhn));
         ASSERTION(-500392, (pb->i.link == avl_find_item(&local->link_tree, &pb->i.link->key.dev_idx)));
         assertion(-500390, (dhn && dhn->on && dhn->on->dhn == dhn));
 
@@ -641,7 +641,7 @@ void free_orig_node(struct orig_node *on)
         TRACE_FUNCTION_CALL;
         dbgf_all(DBGT_INFO, "id=%s ip=%s", globalIdAsString(&on->global_id), on->primary_ip_str);
 
-        if ( on == &self)
+        if ( on == self)
                 return;
 
         //cb_route_change_hooks(DEL, on, 0, &on->ort.rt_key.llip);
@@ -665,6 +665,11 @@ void free_orig_node(struct orig_node *on)
 
         avl_remove(&orig_tree, &on->global_id, -300200);
         cb_plugin_hooks(PLUGIN_CB_STATUS, NULL);
+
+        uint16_t i;
+        for (i = 0; i < plugin_data_registries[PLUGIN_DATA_ORIG]; i++) {
+                assertion(-500000, (!on->plugin_data[i]));
+        }
 
         avl_remove(&blocked_tree, &on->global_id, -300201);
 
@@ -1270,12 +1275,14 @@ void cleanup_all(int32_t status)
 
 		cleanup_schedule();
 
-                if (self.dhn) {
-                        self.dhn->on = NULL;
-                        free_dhash_node(self.dhn);
+                if (self->dhn) {
+                        self->dhn->on = NULL;
+                        free_dhash_node(self->dhn);
                 }
 
-                avl_remove(&orig_tree, &(self.global_id), -300203);
+                avl_remove(&orig_tree, &(self->global_id), -300203);
+                debugFree(self, -300000);
+                self = NULL;
 
                 while (status_tree.items) {
                         struct status_handl *handl = avl_first_item(&status_tree);
@@ -1738,8 +1745,8 @@ static int32_t bmx_status_creator(struct status_handl *handl, void *data)
         sprintf(status->version, "%s-%s", BMX_BRANCH, BRANCH_VERSION);
         status->compatibility = COMPATIBILITY_VERSION;
         status->codeVersion = CODE_VERSION;
-        status->globalId = &self.global_id;
-        status->primaryIp = self.primary_ip;
+        status->globalId = &self->global_id;
+        status->primaryIp = self->primary_ip;
         status->myLocalId = my_local_id;
         status->uptime = get_human_uptime(0);
         sprintf(status->cpu, "%d.%1d", s_curr_avg_cpu_load / 10, s_curr_avg_cpu_load % 10);
@@ -1913,7 +1920,7 @@ static int32_t orig_status_creator(struct status_handl *handl, void *data)
                 status[i].routes = on->rt_tree.items;
                 status[i].viaIp = (on->curr_rt_lndev ? on->curr_rt_lndev->key.link->link_ip : ZERO_IP);
                 status[i].viaDev = on->curr_rt_lndev && on->curr_rt_lndev->key.dev ? on->curr_rt_lndev->key.dev->name_phy_cfg.str : "";
-                status[i].metric = (on->curr_rt_local ? (on->curr_rt_local->mr.umetric) : (on == &self ? UMETRIC_MAX : 0));
+                status[i].metric = (on->curr_rt_local ? (on->curr_rt_local->mr.umetric) : (on == self ? UMETRIC_MAX : 0));
                 status[i].myIid4x = on->dhn->myIID4orig;
                 status[i].descSqn = on->descSqn;
                 status[i].ogmSqn = on->ogmSqn_next;
@@ -2100,9 +2107,10 @@ char *globalIdAsString( struct GLOBAL_ID *id ) {
 }
 
 
-void init_orig_node(struct orig_node *on, GLOBAL_ID_T *id)
+struct orig_node *init_orig_node(GLOBAL_ID_T *id)
 {
         TRACE_FUNCTION_CALL;
+        struct orig_node *on = debugMalloc(sizeof ( struct orig_node) + (sizeof (void*) * plugin_data_registries[PLUGIN_DATA_ORIG]), -300128);
         memset(on, 0, sizeof ( struct orig_node));
         on->global_id = *id;
 
@@ -2111,6 +2119,8 @@ void init_orig_node(struct orig_node *on, GLOBAL_ID_T *id)
         avl_insert(&orig_tree, on, -300148);
 
         cb_plugin_hooks(PLUGIN_CB_STATUS, NULL);
+
+        return on;
 }
 
 
@@ -2134,14 +2144,14 @@ void init_bmx(void)
 
         RNG_GenerateBlock(&rng, &(id.pkid.u8[GLOBAL_ID_PKID_RAND_POS]), GLOBAL_ID_PKID_RAND_LEN);
 
-        init_orig_node(&self, &id);
+        self = init_orig_node(&id);
 
-        self.desc = (struct description *) my_desc0;
+        self->desc = (struct description *) my_desc0;
 
 
-        self.ogmSqn_rangeMin = ((OGM_SQN_MASK) & rand_num(OGM_SQN_MAX));
+        self->ogmSqn_rangeMin = ((OGM_SQN_MASK) & rand_num(OGM_SQN_MAX));
 
-        self.descSqn = ((DESC_SQN_MASK) & rand_num(DESC_SQN_MAX));
+        self->descSqn = ((DESC_SQN_MASK) & rand_num(DESC_SQN_MAX));
 
         register_options_array(bmx_options, sizeof ( bmx_options), CODE_CATEGORY_NAME);
 
@@ -2171,7 +2181,7 @@ void bmx(void)
         for (an = NULL; (dev = avl_iterate_item(&dev_ip_tree, &an));) {
 
                 schedule_tx_task(&dev->dummy_lndev, FRAME_TYPE_DEV_ADV, SCHEDULE_UNKNOWN_MSGS_SIZE, 0, 0, 0, 0);
-                schedule_tx_task(&dev->dummy_lndev, FRAME_TYPE_DESC_ADV, ntohs(self.desc->extensionLen) + sizeof ( struct msg_description_adv), 0, 0, myIID4me, 0);
+                schedule_tx_task(&dev->dummy_lndev, FRAME_TYPE_DESC_ADV, ntohs(self->desc->extensionLen) + sizeof ( struct msg_description_adv), 0, 0, myIID4me, 0);
         }
 
         initializing = NO;

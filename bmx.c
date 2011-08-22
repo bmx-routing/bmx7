@@ -2118,7 +2118,7 @@ struct orig_node *init_orig_node(GLOBAL_ID_T *id)
 {
         TRACE_FUNCTION_CALL;
         struct orig_node *on = debugMalloc(sizeof ( struct orig_node) + (sizeof (void*) * plugin_data_registries[PLUGIN_DATA_ORIG]), -300128);
-        memset(on, 0, sizeof ( struct orig_node));
+        memset(on, 0, sizeof ( struct orig_node) + (sizeof (void*) * plugin_data_registries[PLUGIN_DATA_ORIG]));
         on->global_id = *id;
 
         AVL_INIT_TREE(on->rt_tree, struct router_node, local_key);

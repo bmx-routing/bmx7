@@ -17,15 +17,13 @@
 
 
 #define DEF_JSON_SUBDIR "json"
+
 #define JSON_OPTIONS_FILE "options"
 #define JSON_PARAMETERS_FILE "parameters"
 #define DEF_JSON_DESC_SUBDIR "descriptions"
 #define DEF_JSON_ORIG_SUBDIR "originators"
 
-#define ARG_JSON_STATUS         "json_status"
-#define ARG_JSON_INTERFACES     "json_interfaces"
-#define ARG_JSON_LINKS          "json_links"
-#define ARG_JSON_ORIGINATORS    "json_originators"
+#define ARG_JSON_STATUS         "jshow"
 
 
 

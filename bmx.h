@@ -526,11 +526,10 @@ extern int32_t my_ttl;
 
 
 
+#define ARG_SHOW "show"
 #define ARG_ORIGINATORS "originators"
 #define ARG_STATUS "status"
 #define ARG_LINKS "links"
-#define ARG_LOCALS "locals"
-#define ARG_ROUTES "routes"
 #define ARG_INTERFACES "interfaces"
 
 #define ARG_THROW "throw"

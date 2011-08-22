@@ -54,7 +54,7 @@ json_object * fields_dbg_json(uint16_t relevance, uint16_t data_size, uint8_t *d
                     uint16_t min_msg_size, const struct field_format *format)
 {
         TRACE_FUNCTION_CALL;
-        assertion(-501247, (format && data ));
+        assertion(-501247, (format && data));
 
         uint32_t msgs_size = 0;
         uint32_t msgs = 0;
@@ -315,7 +315,7 @@ void json_dev_event_hook(int32_t cb_id, void* data)
 
                 struct ctrl_node *cn = create_ctrl_node(fd, NULL, YES/*we are root*/);
 
-                check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_JSON_INTERFACES), 0, cn);
+                check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_JSON_STATUS), ARG_INTERFACES, cn);
 
                 close_ctrl_node(CTRL_CLOSE_STRAIGHT, cn);
         }
@@ -354,7 +354,7 @@ void json_status_event_hook(int32_t cb_id, void* data)
 
                 struct ctrl_node *cn = create_ctrl_node(fd, NULL, YES/*we are root*/);
 
-                check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_JSON_STATUS), 0, cn);
+                check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_JSON_STATUS), ARG_STATUS, cn);
 
                 close_ctrl_node(CTRL_CLOSE_STRAIGHT, cn);
         }
@@ -380,7 +380,7 @@ void json_links_event_hook(int32_t cb_id, void* data)
 
                 struct ctrl_node *cn = create_ctrl_node(fd, NULL, YES/*we are root*/);
 
-                check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_JSON_LINKS), 0, cn);
+                check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_JSON_STATUS), ARG_LINKS, cn);
 
                 close_ctrl_node(CTRL_CLOSE_STRAIGHT, cn);
         }
@@ -585,12 +585,6 @@ void update_json_status(void *data)
         json_dev_event_hook(0, NULL);
         json_links_event_hook(0, NULL);
         json_originator_event_hook(0, NULL);
-/*
-        check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_JSON_STATUS), 0, NULL);
-        check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_JSON_INTERFACES), 0, NULL);
-        check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_JSON_LINKS), 0, NULL);
-        check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_JSON_ORIGINATORS), 0, NULL);
-*/
 }
 
 
@@ -602,13 +596,7 @@ int32_t opt_json_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
 {
         TRACE_FUNCTION_CALL;
 
-        if ( cmd == OPT_APPLY ) {
-
-                struct status_handl *handl = NULL;
-                uint32_t data_len;
-
-                char status_name[sizeof (((struct status_handl *) NULL)->status_name)] = {0};
-                strcpy(status_name, &opt->long_name[strlen("json_")]);
+        if (cmd == OPT_CHECK || cmd == OPT_APPLY) {
 
                 uint8_t relevance = DEF_RELEVANCE;
                 struct opt_child *c = NULL;
@@ -620,26 +608,40 @@ int32_t opt_json_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
                         }
                 }
 
+                struct status_handl *handl = NULL;
+                uint32_t data_len;
+                char status_name[sizeof (((struct status_handl *) NULL)->status_name)] = {0};
+//                memset(status_name, 0, sizeof(status_name));
+                strncpy(status_name, patch->p_val, sizeof (status_name));
 
-                if ((handl = avl_find_item(&status_tree, status_name)) && (data_len = ((*(handl->frame_creator))(handl, NULL)))) {
+                if ((handl = avl_find_item(&status_tree, status_name))) {
 
-                        json_object *jorig = json_object_new_object();
-                        json_object *jdesc_fields = NULL;
+                        if (cmd == OPT_APPLY && (data_len = ((*(handl->frame_creator))(handl, NULL)))) {
 
-                        if ((jdesc_fields = fields_dbg_json(
-                                relevance, data_len, handl->data, handl->min_msg_size, handl->format))) {
+                                json_object *jorig = json_object_new_object();
+                                json_object *jdesc_fields = NULL;
+                                
 
-                                json_object_object_add(jorig, handl->status_name, jdesc_fields);
+                                if ((jdesc_fields = fields_dbg_json(
+                                        relevance, data_len, handl->data, handl->min_msg_size, handl->format))) {
+
+                                        json_object_object_add(jorig, handl->status_name, jdesc_fields);
+                                }
+
+                                const char * data = json_object_to_json_string(jorig);
+
+                                if (cn)
+                                        dbg_printf(cn, "%s\n", data);
+
+                                json_object_put(jorig);
+
                         }
 
-                        const char * data = json_object_to_json_string(jorig);
-
-                        if (cn)
-                                dbg_printf(cn, "%s\n", data);
-
-                        json_object_put(jorig);
+                } else {
+                        return FAILURE;
                 }
 	}
+
 	return SUCCESS;
 }
 
@@ -718,28 +720,10 @@ static struct opt_type json_options[]= {
 	{ODI,0,ARG_JSON_UPDATE,		0,  5,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&json_update_interval,	MIN_JSON_UPDATE,MAX_JSON_UPDATE,DEF_JSON_UPDATE,0,opt_json_update_interval,
                 ARG_VALUE_FORM, "disable or periodically update json-status files every given milliseconds."}
         ,
-	{ODI,0,ARG_JSON_STATUS,		0,  5,2,A_PS0N,A_USR,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_json_status,
+	{ODI,0,ARG_JSON_STATUS,		0,  5,2,A_PS1N,A_USR,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_json_status,
 			0,		"show status in json format\n"}
         ,
 	{ODI,ARG_JSON_STATUS,ARG_RELEVANCE,'r',5,1,A_CS1,A_USR,A_DYI,A_ARG,A_ANY,0,	       MIN_RELEVANCE,   MAX_RELEVANCE,  DEF_RELEVANCE,0, opt_json_status,
-			ARG_VALUE_FORM,	HLP_ARG_RELEVANCE}
-        ,
-	{ODI,0,ARG_JSON_INTERFACES,	0,  5,2,A_PS0N,A_USR,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_json_status,
-			0,		"show interfaces in json format\n"}
-        ,
-	{ODI,ARG_JSON_INTERFACES,ARG_RELEVANCE,'r',5,1,A_CS1,A_USR,A_DYI,A_ARG,A_ANY,0,	       MIN_RELEVANCE,   MAX_RELEVANCE,  DEF_RELEVANCE,0, opt_json_status,
-			ARG_VALUE_FORM,	HLP_ARG_RELEVANCE}
-        ,
-	{ODI,0,ARG_JSON_LINKS,	        0,  5,2,A_PS0N,A_USR,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_json_status,
-			0,		"show links in json format\n"}
-        ,
-	{ODI,ARG_JSON_LINKS,ARG_RELEVANCE,'r',5,1,A_CS1,A_USR,A_DYI,A_ARG,A_ANY,0,	       MIN_RELEVANCE,   MAX_RELEVANCE,  DEF_RELEVANCE,0, opt_json_status,
-			ARG_VALUE_FORM,	HLP_ARG_RELEVANCE}
-        ,
-	{ODI,0,ARG_JSON_ORIGINATORS,	0,  5,2,A_PS0N,A_USR,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_json_status,
-			0,		"show originators in json format\n"}
-        ,
-	{ODI,ARG_JSON_ORIGINATORS,ARG_RELEVANCE,'r',5,1,A_CS1,A_USR,A_DYI,A_ARG,A_ANY,0,	       MIN_RELEVANCE,   MAX_RELEVANCE,  DEF_RELEVANCE,0, opt_json_status,
 			ARG_VALUE_FORM,	HLP_ARG_RELEVANCE}
 };
 

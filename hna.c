@@ -885,7 +885,6 @@ static int32_t tun_in_status_creator(struct status_handl *handl, void* data)
         uint32_t status_size = tunnel_in_tree.items * sizeof (struct tunnel_status);
         uint32_t i = 0;
         struct tunnel_status *status = ((struct tunnel_status*) (handl->data = debugRealloc(handl->data, status_size, -300000)));
-        memset(status, 0, status_size);
 
         while ((tun = avl_iterate_item(&tunnel_in_tree, &it)))
                 status[i++] = *tun;
@@ -898,17 +897,16 @@ static int32_t tun_out_status_creator(struct status_handl *handl, void* data)
         struct avl_node *it = NULL;
         struct orig_node *on = NULL;
         uint32_t status_size = out_tunnels * sizeof (struct tunnel_status);
-        uint32_t i = 0;
+        int32_t i = 0;
         struct tunnel_status *status = ((struct tunnel_status*) (handl->data = debugRealloc(handl->data, status_size, -300000)));
-        memset(status, 0, status_size);
+        struct orig_tunnel **tun;
 
         while ((on = avl_iterate_item(&orig_tree, &it))) {
 
-                struct orig_tunnel **tun = (struct orig_tunnel **) (get_plugin_data(on, PLUGIN_DATA_ORIG, data_orig_plugin_registry));
-
-                memcpy(&status[i], (*tun)->state, (*tun)->msgs * sizeof (struct tunnel_status));
-
-                i += (*tun)->msgs;
+                if (*(tun = (struct orig_tunnel **) (get_plugin_data(on, PLUGIN_DATA_ORIG, data_orig_plugin_registry)))) {
+                        assertion(-500000, (i + (*tun)->msgs <= out_tunnels));
+                        memcpy(&status[i += (*tun)->msgs], (*tun)->state, (*tun)->msgs * sizeof (struct tunnel_status));
+                }
         }
 
         return status_size;

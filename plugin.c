@@ -203,12 +203,9 @@ int32_t get_plugin_data_registry(uint8_t data_type)
 void **get_plugin_data(void *data, uint8_t data_type, int32_t registry)
 {
         TRACE_FUNCTION_CALL;
-	
-	if ( data_type >= PLUGIN_DATA_SIZE  ||  registry > plugin_data_registries[data_type] ) {
-		cleanup_all( -501266 );
-		//dbgf_sys(DBGT_ERR, "requested to deliver data for unknown registry !");
-		//return NULL;
-	}
+
+        assertion(-501284, (data_type < PLUGIN_DATA_SIZE));
+        assertion(-501285, (registry < plugin_data_registries[data_type]));
 		
 	if ( data_type == PLUGIN_DATA_ORIG )
 		return &(((struct orig_node*)data)->plugin_data[registry]);

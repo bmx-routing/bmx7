@@ -685,7 +685,7 @@ int32_t opt_json_update_interval(uint8_t cmd, uint8_t _save, struct opt_type *op
 
         if (initializing && cmd == OPT_SET_POST) {
 
-                assertion(-500000, (json_dir && json_orig_dir && json_desc_dir));
+                assertion(-501283, (json_dir && json_orig_dir && json_desc_dir));
 
                 if (rm_dir_content(json_orig_dir) == FAILURE)
                         return FAILURE;

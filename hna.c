@@ -696,8 +696,8 @@ void setup_tunnel(uint8_t del, struct orig_node *on, struct tunnel_status *state
 STATIC_FUNC
 int process_description_tlv_tunnel(struct rx_frame_iterator *it)
 {
-        ASSERTION(-500000, (it->frame_type == BMX_DSC_TLV_TUNNEL));
-        assertion(-500000, (it->on));
+        ASSERTION(-501270, (it->frame_type == BMX_DSC_TLV_TUNNEL));
+        assertion(-501271, (it->on));
 
         struct orig_node *on = it->on;
         uint8_t op = it->op;
@@ -715,9 +715,9 @@ int process_description_tlv_tunnel(struct rx_frame_iterator *it)
 
         if (op == TLV_OP_ADD) {
 
-                assertion(-500000, (!*tun));
+                assertion(-501272, (!*tun));
 
-                *tun = debugMalloc(sizeof (struct orig_tunnel) + (msgs * sizeof (struct tunnel_status)), -300000);
+                *tun = debugMalloc(sizeof (struct orig_tunnel) + (msgs * sizeof (struct tunnel_status)), -300387);
                 memset(*tun, 0, sizeof (struct orig_tunnel) + (msgs * sizeof (struct tunnel_status)));
                 (*tun)->msgs = msgs;
 
@@ -733,13 +733,13 @@ int process_description_tlv_tunnel(struct rx_frame_iterator *it)
 
                 if (op == TLV_OP_DEL) {
 
-                        assertion(-500000, (*tun) && (*tun)->msgs == msgs);
+                        assertion(-501273, (*tun) && (*tun)->msgs == msgs);
 
                         setup_tunnel(DEL, on, &(*tun)->state[p], NULL, 0);
 
                 } else if (op == TLV_OP_TEST) {
 
-                        assertion(-500000, (!*tun));
+                        assertion(-501274, (!*tun));
                         struct uhna_node *un;
 
                         if (
@@ -758,7 +758,7 @@ int process_description_tlv_tunnel(struct rx_frame_iterator *it)
 
                 } else if (op == TLV_OP_ADD) {
 
-                        assertion(-500000, (*tun));
+                        assertion(-501275, (*tun));
 
                         (*tun)->state[p].dst = msg->dst;
                         (*tun)->state[p].src = msg->src;
@@ -771,10 +771,10 @@ int process_description_tlv_tunnel(struct rx_frame_iterator *it)
 
         if (op == TLV_OP_DEL) {
 
-                assertion(-500000, (*tun));
-                assertion(-500000, (out_tunnels >= (*tun)->msgs));
+                assertion(-501276, (*tun));
+                assertion(-501277, (out_tunnels >= (*tun)->msgs));
                 out_tunnels -= (*tun)->msgs;
-                debugFree(*tun, -300000);
+                debugFree(*tun, -300388);
                 *tun = NULL;
         }
 
@@ -787,8 +787,8 @@ int process_description_tlv_tunnel(struct rx_frame_iterator *it)
 STATIC_FUNC
 int create_description_tlv_tunnel(struct tx_frame_iterator *it)
 {
-        assertion(-500000, (it->frame_type == BMX_DSC_TLV_TUNNEL));
-        assertion(-500000, ((int)sizeof (struct description_msg_tunnel) <= tx_iterator_cache_data_space(it)));
+        assertion(-501278, (it->frame_type == BMX_DSC_TLV_TUNNEL));
+        assertion(-501279, ((int)sizeof (struct description_msg_tunnel) <= tx_iterator_cache_data_space(it)));
 
         if (af_cfg() == AF_INET6 && is_ip_set(&tunnel_src)) {
                 
@@ -840,10 +840,10 @@ int32_t opt_tunnel_in(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct o
 
                 } else {
 
-                        tun = debugMalloc( sizeof(struct tunnel_status), -300000);
+                        tun = debugMalloc( sizeof(struct tunnel_status), -300389);
                         memset(tun, 0, sizeof(struct tunnel_status));
                         tun->src = ipX;
-                        avl_insert(&tunnel_in_tree, tun, -300000);
+                        avl_insert(&tunnel_in_tree, tun, -300390);
                 }
 
                 tun->type = TUN_TYPE_ANY;
@@ -857,8 +857,8 @@ int32_t opt_tunnel_in(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct o
                 if((tun = avl_find_item(&tunnel_in_tree, &ipX))) {
 
                         setup_tunnel(DEL, self, tun, NULL, 0);
-                        avl_remove(&tunnel_in_tree, &tun->src, -300000);
-                        debugFree(tun, -300000);
+                        avl_remove(&tunnel_in_tree, &tun->src, -300391);
+                        debugFree(tun, -300392);
                 }
 
                 my_description_changed = YES;
@@ -868,8 +868,8 @@ int32_t opt_tunnel_in(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct o
 
                 while ((tun = avl_first_item(&tunnel_in_tree))) {
                         setup_tunnel(DEL, self, tun, NULL, 0);
-                        avl_remove(&tunnel_in_tree, &tun->src, -300000);
-                        debugFree(tun, -300000);
+                        avl_remove(&tunnel_in_tree, &tun->src, -300393);
+                        debugFree(tun, -300394);
                 }
 
         }
@@ -884,7 +884,7 @@ static int32_t tun_in_status_creator(struct status_handl *handl, void* data)
         struct tunnel_status *tun;
         uint32_t status_size = tunnel_in_tree.items * sizeof (struct tunnel_status);
         uint32_t i = 0;
-        struct tunnel_status *status = ((struct tunnel_status*) (handl->data = debugRealloc(handl->data, status_size, -300000)));
+        struct tunnel_status *status = ((struct tunnel_status*) (handl->data = debugRealloc(handl->data, status_size, -300395)));
 
         while ((tun = avl_iterate_item(&tunnel_in_tree, &it)))
                 status[i++] = *tun;
@@ -898,14 +898,17 @@ static int32_t tun_out_status_creator(struct status_handl *handl, void* data)
         struct orig_node *on = NULL;
         uint32_t status_size = out_tunnels * sizeof (struct tunnel_status);
         int32_t i = 0;
-        struct tunnel_status *status = ((struct tunnel_status*) (handl->data = debugRealloc(handl->data, status_size, -300000)));
-        struct orig_tunnel **tun;
-
+        struct tunnel_status *status = ((struct tunnel_status*) (handl->data = debugRealloc(handl->data, status_size, -300396)));
+        
         while ((on = avl_iterate_item(&orig_tree, &it))) {
 
-                if (*(tun = (struct orig_tunnel **) (get_plugin_data(on, PLUGIN_DATA_ORIG, data_orig_plugin_registry)))) {
-                        assertion(-500000, (i + (*tun)->msgs <= out_tunnels));
-                        memcpy(&status[i += (*tun)->msgs], (*tun)->state, (*tun)->msgs * sizeof (struct tunnel_status));
+                struct orig_tunnel **tun = (struct orig_tunnel **)
+                        (get_plugin_data(on, PLUGIN_DATA_ORIG, data_orig_plugin_registry));
+
+                if (*tun) {
+                        assertion(-501280, ((i + (*tun)->msgs) <= out_tunnels));
+                        memcpy(&status[i], (*tun)->state, (*tun)->msgs * sizeof (struct tunnel_status));
+                        i += (*tun)->msgs;
                 }
         }
 

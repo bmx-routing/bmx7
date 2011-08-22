@@ -339,7 +339,7 @@ int32_t opt_json_sms(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct op
 
         if (initializing && cmd == OPT_SET_POST) {
 
-                assertion(-500000, (sms_dir && smsTx_dir && smsRx_dir));
+                assertion(-501286, (sms_dir && smsTx_dir && smsRx_dir));
 
                 if (rm_dir_content(smsRx_dir) == FAILURE)
                         return FAILURE;

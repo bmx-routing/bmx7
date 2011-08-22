@@ -668,7 +668,7 @@ void free_orig_node(struct orig_node *on)
 
         uint16_t i;
         for (i = 0; i < plugin_data_registries[PLUGIN_DATA_ORIG]; i++) {
-                assertion(-500000, (!on->plugin_data[i]));
+                assertion(-501269, (!on->plugin_data[i]));
         }
 
         avl_remove(&blocked_tree, &on->global_id, -300201);
@@ -1282,7 +1282,7 @@ void cleanup_all(int32_t status)
 
                 if (self) {
                         avl_remove(&orig_tree, &(self->global_id), -300203);
-                        debugFree(self, -300000);
+                        debugFree(self, -300386);
                         self = NULL;
                 }
 

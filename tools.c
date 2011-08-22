@@ -489,7 +489,7 @@ int32_t check_dir( char *path, uint8_t create, uint8_t write ) {
 int32_t rm_dir_content(char* dir_name)
 {
 
-        assertion(-500000, dir_name);
+        assertion(-501287, dir_name);
 
         struct dirent *d;
         DIR *dir = opendir(dir_name);

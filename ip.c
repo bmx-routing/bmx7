@@ -668,7 +668,7 @@ STATIC_INLINE_FUNC
 void kernel_if_addr_config(struct nlmsghdr *nlhdr, uint16_t index_sqn)
 {
         TRACE_FUNCTION_CALL;
-        assertion(-500000, (af_cfg()));
+        assertion(-501281, (af_cfg()));
 
         int len = nlhdr->nlmsg_len;
         struct ifaddrmsg *if_addr = NLMSG_DATA(nlhdr);
@@ -2702,7 +2702,7 @@ int32_t opt_ip_version(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
 
                 __af_cfg = (ip_tmp == 4) ? AF_INET : AF_INET6;
 
-                assertion_dbg(-500000, !_af_cfg_read, "af_cfg() already read by %s!", _af_cfg_read);
+                assertion_dbg(-501282, !_af_cfg_read, "af_cfg() already read by %s!", _af_cfg_read);
 
                 struct opt_child *c = NULL;
                 while ((c = list_iterate(&patch->childs_instance_list, c))) {

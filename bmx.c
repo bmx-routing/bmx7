@@ -969,7 +969,7 @@ void rx_packet( struct packet_buff *pb )
                 pb->i.llip = (*((struct sockaddr_in6*) &(pb->i.addr))).sin6_addr;
 
                 if (!is_ip_net_equal(&pb->i.llip, &IP6_LINKLOCAL_UC_PREF, IP6_LINKLOCAL_UC_PLEN, AF_INET6)) {
-                        dbgf_all(DBGT_ERR, "non-link-local IPv6 source address %s", ip6Str(&pb->i.llip));
+                        dbgf_all(DBGT_ERR, "non-link-local IPv6 source address %s", ip6AsStr(&pb->i.llip));
                         return;
                 }
         }
@@ -1947,7 +1947,6 @@ int32_t opt_version(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt
         return SUCCESS;
  }
 
-STATIC_FUNC
 int32_t opt_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
 {
         TRACE_FUNCTION_CALL;
@@ -2017,9 +2016,6 @@ static struct opt_type bmx_options[]=
 	{ODI,0,ARG_STATUS,		0,  5,2,A_PS0,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
 			0,		"show status\n"},
 
-	{ODI,0,ARG_INTERFACES,	        0,  5,2,A_PS0,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
-			0,		"show interfaces\n"}
-        ,
 	{ODI,0,ARG_LINKS,		0,  5,2,A_PS0N,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
 			0,		"show links\n"},
 	{ODI,ARG_LINKS,ARG_RELEVANCE,   'r',5,1,A_CS1,A_USR,A_DYN,A_ARG,A_ANY,	0,	       MIN_RELEVANCE,   MAX_RELEVANCE,  DEF_RELEVANCE,0, opt_status,

@@ -19,6 +19,9 @@
 
 
 
+
+
+
 #define ARG_UHNA "hna"
 
 #define ARG_UHNA_NETWORK     "network"
@@ -31,6 +34,13 @@
 #define MAX_UHNA_METRIC      U32_MAX
 #define DEF_UHNA_METRIC      0
 #define ARG_UHNA_METRIC      "metric"
+
+#define ARG_IN_TUN  "inTunnel"
+#define ARG_IN_TUNS "inTunnels"
+
+#define ARG_OUT_TUN "outTunnel"
+#define ARG_OUT_TUNS "outTunnels"
+
 
 #define ARG_NIIT          "niitSource"
 #define HLP_NIIT          "specify niit4to6 source IP address (IP MUST be assigned to niit4to6 interface!)"
@@ -45,6 +55,11 @@
 #define TLV_OP_CUSTOM_NIIT6TO4_DEL  (TLV_OP_CUSTOM_MIN + 3)
 #define TLV_OP_CUSTOM_HNA_ROUTE_ADD (TLV_OP_CUSTOM_MIN + 4)
 #define TLV_OP_CUSTOM_HNA_ROUTE_DEL (TLV_OP_CUSTOM_MIN + 5)
+
+#define TUN_TYPE_ANY 0
+#define TUN_TYPE_IP6IP6 1
+#define TUN_TYPE_IP4IP6 2
+#define TUN_TYPE_GRE 3
 
 struct uhna_key {
 	uint8_t family;
@@ -90,3 +105,40 @@ struct description_msg_hna6 {
 {FIELD_TYPE_UINT, -1,  32, 0, FIELD_RELEVANCE_HIGH, "metric" },   \
 FIELD_FORMAT_END }
 
+
+
+struct description_msg_tunnel {
+        IP6_T dst;
+        IP6_T src;
+        uint8_t type;
+} __attribute__((packed));
+
+#define DESCRIPTION_MSG_TUNNEL_FORMAT { \
+{FIELD_TYPE_IPX6, -1, 128, 1, FIELD_RELEVANCE_HIGH, "src" },  \
+{FIELD_TYPE_IPX6, -1, 128, 1, FIELD_RELEVANCE_HIGH, "dst" },  \
+{FIELD_TYPE_UINT, -1,   8, 1, FIELD_RELEVANCE_HIGH, "type" },  \
+FIELD_FORMAT_END }
+
+
+struct tunnel_status {
+        IP6_T src;
+        IP6_T dst;
+        uint8_t type;
+        uint8_t configured;
+        IFNAME_T name;
+};
+
+
+#define TUNNEL_STATUS_FORMAT { \
+        FIELD_FORMAT_INIT(FIELD_TYPE_IPX6,        tunnel_status, src,        1, FIELD_RELEVANCE_HIGH), \
+        FIELD_FORMAT_INIT(FIELD_TYPE_IPX6,        tunnel_status, dst,        1, FIELD_RELEVANCE_HIGH), \
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        tunnel_status, type,       1, FIELD_RELEVANCE_HIGH), \
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        tunnel_status, configured, 1, FIELD_RELEVANCE_HIGH), \
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR, tunnel_status, name,       1, FIELD_RELEVANCE_HIGH), \
+        FIELD_FORMAT_END }
+
+
+struct orig_tunnel {
+        uint16_t msgs;
+        struct tunnel_status state[];
+};

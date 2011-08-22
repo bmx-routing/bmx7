@@ -531,7 +531,6 @@ extern int32_t my_ttl;
 #define ARG_LINKS "links"
 #define ARG_LOCALS "locals"
 #define ARG_ROUTES "routes"
-#define ARG_INTERFACES "interfaces"
 
 #define ARG_THROW "throw"
 
@@ -1157,3 +1156,4 @@ char *get_human_uptime( uint32_t reference );
 
 IDM_T validate_param(int32_t probe, int32_t min, int32_t max, char *name);
 
+int32_t opt_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn);

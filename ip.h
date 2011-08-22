@@ -55,6 +55,7 @@ typedef struct ifname IFNAME_T;
 #define ARG_GLOBAL_PREFIX "globalPrefix"
 #define HLP_GLOBAL_PREFIX "specify global prefix for interfaces"
 
+#define ARG_INTERFACES "interfaces"
 
 
 #define ARG_DEV  		"dev"
@@ -408,7 +409,6 @@ enum {
 
 char *family2Str(uint8_t family);
 
-#define ip6Str( addr_ptr ) ipXAsStr( AF_INET6, (addr_ptr))
 
 char *ipXAsStr(int family, const IPX_T *addr);
 char *ipFAsStr(const IPX_T *addr);
@@ -421,6 +421,7 @@ void ip4ToX(IPX_T *ipx, IP4_T ip4);
 
 char* macAsStr(const MAC_T* mac);
 
+#define ip6AsStr( addr_ptr ) ipXAsStr( AF_INET6, addr_ptr)
 
 IDM_T is_mac_equal(const MAC_T *a, const MAC_T *b);
 

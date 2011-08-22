@@ -3189,6 +3189,10 @@ static struct opt_type ip_options[]=
 			ARG_VALUE_FORM,	"disable/enable autoconfiguration of lo rule"}
 #endif
         ,
+	{ODI,0,ARG_INTERFACES,	        0,  5,2,A_PS0,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
+			0,		"show interfaces\n"}
+        ,
+
 	{ODI,0,ARG_GLOBAL_PREFIX,	0,  5,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_dev_prefix,
 			ARG_PREFIX_FORM,HLP_GLOBAL_PREFIX}
         ,
@@ -3266,7 +3270,7 @@ void cleanup_ip(void)
         close_ifevent_netlink_sk();
 
         // if ever started succesfully in daemon mode...
-        if (!initializing && policy_routing == POLICY_RT_ENABLED && ip_prio_rules_cfg) {
+        if (policy_routing == POLICY_RT_ENABLED && ip_prio_rules_cfg) {
 
                 ip_flush_tracked( IP_ROUTE_FLUSH );
                 ip_flush_routes();

@@ -196,8 +196,9 @@ int32_t get_plugin_data_registry(uint8_t data_type)
 	if ( !initializing || data_type >= PLUGIN_DATA_SIZE )
 		return FAILURE;
 	
-	// do NOT return the incremented value! 
-        return (((plugin_data_registries[data_type])++));
+	// do NOT return the incremented value!
+        plugin_data_registries[data_type]++;
+        return ((plugin_data_registries[data_type]) - 1);
 }
 
 void **get_plugin_data(void *data, uint8_t data_type, int32_t registry)

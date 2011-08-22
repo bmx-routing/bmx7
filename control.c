@@ -2795,11 +2795,11 @@ int32_t opt_debug(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_p
 			return SUCCESS;
 			
 		} else if ( ival == DBGL_DETAILS ) {
-			
-			check_apply_parent_option( ADD, OPT_APPLY, 0, get_option( 0, 0, ARG_STATUS ), 0, cn );
-			check_apply_parent_option( ADD, OPT_APPLY, 0, get_option( 0, 0, ARG_INTERFACES ), 0, cn );
-			check_apply_parent_option( ADD, OPT_APPLY, 0, get_option( 0, 0, ARG_LINKS ), 0, cn );
-			check_apply_parent_option( ADD, OPT_APPLY, 0, get_option( 0, 0, ARG_ORIGINATORS ), 0, cn );
+
+                        check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_SHOW), ARG_STATUS, cn);
+                        check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_SHOW), ARG_INTERFACES, cn);
+                        check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_SHOW), ARG_LINKS, cn);
+                        check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_SHOW), ARG_ORIGINATORS, cn);
 
                 } else if ( ival == DBGL_PROFILE ) {
 			
@@ -2842,9 +2842,10 @@ int32_t opt_help(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
 	dbg_printf(cn, "\n");
 	dbg_printf(cn, "Usage: %s [LONGOPT=[%c]VAL] | -[SHORTOPT[SHORTOPT...] [%c]VAL] ...\n",
 	           prog_name, ARG_RESET_CHAR , ARG_RESET_CHAR);
-	dbg_printf(cn, "  e.g. %s %s=eth1 %s=wlan0 %s=wlan0 d=3\n", prog_name, ARG_DEV, ARG_DEV, ARG_DEV);
-	dbg_printf(cn, "  e.g. %s -c %s %s %s %s \n", prog_name, ARG_STATUS, ARG_INTERFACES, ARG_LINKS, ARG_ORIGINATORS);
-        dbg_printf(cn, "  e.g. %s -c %s %s=%cwlan1 %s \n", prog_name, ARG_STATUS, ARG_DEV, ARG_RESET_CHAR, ARG_INTERFACES );
+	dbg_printf(cn, "  e.g. %s %s=eth1 %s=wlan0 d=3\n", prog_name, ARG_DEV, ARG_DEV);
+        dbg_printf(cn, "  e.g. %s -c %s=%s %s=%s %s=%s %s=%s\n",
+                prog_name, ARG_SHOW, ARG_STATUS,  ARG_SHOW, ARG_INTERFACES,  ARG_SHOW, ARG_LINKS, ARG_SHOW, ARG_ORIGINATORS);
+        dbg_printf(cn, "  e.g. %s -c %s=%cwlan0 %s=%s \n", prog_name, ARG_DEV, ARG_RESET_CHAR, ARG_SHOW, ARG_INTERFACES );
 	dbg_printf(cn, "\n");
 
 	list_for_each( list_pos, &opt_list ) {

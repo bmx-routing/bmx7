@@ -2105,8 +2105,8 @@ void dev_activate( struct dev_node *dev )
         ip2Str(af_cfg, &dev->if_llocal_addr->ip_mcast, dev->ip_brc_str);
 
         if (dev == primary_dev_cfg) {
-                self.primary_ip = dev->if_global_addr->ip_addr;
-                ip2Str(af_cfg, &dev->if_global_addr->ip_addr, self.primary_ip_str);
+                self->primary_ip = dev->if_global_addr->ip_addr;
+                ip2Str(af_cfg, &dev->if_global_addr->ip_addr, self->primary_ip_str);
         }
 
         dev->active = YES;

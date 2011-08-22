@@ -256,7 +256,7 @@ IDM_T process_description_tlvs(struct packet_buff *pb, struct orig_node *on, str
         TRACE_FUNCTION_CALL;
         assertion(-500370, (op == TLV_OP_DEL || op == TLV_OP_TEST || op == TLV_OP_ADD || op == TLV_OP_DEBUG ||
                 (op >= TLV_OP_CUSTOM_MIN && op <= TLV_OP_CUSTOM_MAX) || (op >= TLV_OP_PLUGIN_MIN && op <= TLV_OP_PLUGIN_MAX)));
-        assertion(-500590, IMPLIES(on == &self, (op == TLV_OP_DEBUG ||
+        assertion(-500590, IMPLIES(on == self, (op == TLV_OP_DEBUG ||
                 (op >= TLV_OP_CUSTOM_MIN && op <= TLV_OP_CUSTOM_MAX) || (op >= TLV_OP_PLUGIN_MIN && op <= TLV_OP_PLUGIN_MAX))));
         assertion(-500807, (desc));
         assertion(-500829, IMPLIES(op == TLV_OP_DEL, !on->blocked));
@@ -404,7 +404,7 @@ IDM_T tx_task_obsolete(struct tx_task_node *tx_task)
 
 //                tx_task->send_ts = bmx_time;
 
-                self.dhn->referred_by_me_timestamp = bmx_time;
+                self->dhn->referred_by_me_timestamp = bmx_time;
 
                 if (dhn)
                         dhn->referred_by_me_timestamp = bmx_time;
@@ -676,7 +676,7 @@ void create_ogm_aggregation(void)
 
                 if (on && UXX_GT(OGM_SQN_MASK, on->ogmSqn_next, on->ogmSqn_send)) {
 
-                        if (on != &self && (!on->curr_rt_local || on->curr_rt_local->mr.umetric < on->path_metricalgo->umetric_min)) {
+                        if (on != self && (!on->curr_rt_local || on->curr_rt_local->mr.umetric < on->path_metricalgo->umetric_min)) {
 
                                 dbgf_sys(DBGT_WARN,
                                         "id=%s with %s curr_rn and PENDING ogm_sqn=%d but path_metric=%jd < USABLE=%jd",
@@ -1132,7 +1132,7 @@ int32_t tx_msg_description_adv(struct tx_frame_iterator *it)
 
         if (ttn->task.myIID4x == myIID4me) {
 
-                dhn = self.dhn;
+                dhn = self->dhn;
 
         } else if ((dhn = iid_get_node_by_myIID4x(ttn->task.myIID4x)) && dhn->on) {
 
@@ -1187,7 +1187,7 @@ int32_t tx_msg_dhash_adv(struct tx_frame_iterator *it)
         if (ttn->task.myIID4x == myIID4me) {
 
                 adv->transmitterIID4x = htons(myIID4me);
-                dhn = self.dhn;
+                dhn = self->dhn;
 
         } else if ((dhn = iid_get_node_by_myIID4x(ttn->task.myIID4x)) && dhn->on) {
 
@@ -2045,10 +2045,10 @@ int32_t rx_frame_ogm_advs(struct rx_frame_iterator *it)
                                 return FAILURE;
                         }
 
-                        if (dhn == self.dhn || on->blocked) {
+                        if (dhn == self->dhn || on->blocked) {
 
                                 dbgf_all(DBGT_WARN, "%s orig_sqn=%d/%d id=%s via link=%s neighIID4x=%d",
-                                        dhn == self.dhn ? "MYSELF" : "BLOCKED",
+                                        dhn == self->dhn ? "MYSELF" : "BLOCKED",
                                         ogm_sqn, on->ogmSqn_next, globalIdAsString(&on->global_id), pb->i.llip_str, neighIID4x);
 
                                 continue;
@@ -2182,7 +2182,7 @@ struct dhash_node *process_dhash_description_neighIID4x
         IDM_T is_transmitters_iid = (neighIID4x == pb->i.transmittersIID);
 
         assertion(-500688, (dhash));
-        assertion(-500689, (!(is_transmitters_iid && !memcmp(dhash, &(self.dhn->dhash), sizeof(*dhash))))); // cant be transmitters' and myselfs'
+        assertion(-500689, (!(is_transmitters_iid && !memcmp(dhash, &(self->dhn->dhash), sizeof(*dhash))))); // cant be transmitters' and myselfs'
 
         if (avl_find(&dhash_invalid_tree, dhash)) {
 
@@ -2205,7 +2205,7 @@ struct dhash_node *process_dhash_description_neighIID4x
                 } else if (local->neigh) {
                         // received via a known neighbor, and is NOT about the transmitter:
 
-                        if (orig_dhn == self.dhn) {
+                        if (orig_dhn == self->dhn) {
                                 // is about myself:
 
 
@@ -3184,13 +3184,13 @@ void schedule_my_originator_message( void* unused )
 {
         TRACE_FUNCTION_CALL;
 
-        if (((OGM_SQN_MASK) & (self.ogmSqn_next + OGM_SQN_STEP - self.ogmSqn_rangeMin)) >= self.ogmSqn_rangeSize)
+        if (((OGM_SQN_MASK) & (self->ogmSqn_next + OGM_SQN_STEP - self->ogmSqn_rangeMin)) >= self->ogmSqn_rangeSize)
                 my_description_changed = YES;
 
 
-        self.ogmSqn_maxRcvd = set_ogmSqn_toBeSend_and_aggregated(&self, UMETRIC_MAX, (self.ogmSqn_next + OGM_SQN_STEP), self.ogmSqn_send);
+        self->ogmSqn_maxRcvd = set_ogmSqn_toBeSend_and_aggregated(self, UMETRIC_MAX, (self->ogmSqn_next + OGM_SQN_STEP), self->ogmSqn_send);
 
-        dbgf_all(DBGT_INFO, "ogm_sqn %d", self.ogmSqn_next);
+        dbgf_all(DBGT_INFO, "ogm_sqn %d", self->ogmSqn_next);
 
         task_register(my_ogm_interval, schedule_my_originator_message, NULL, -300355);
 }
@@ -3265,8 +3265,7 @@ struct dhash_node * process_description(struct packet_buff *pb, struct descripti
 
         } else {
                 // create new orig:
-                on = debugMalloc( sizeof( struct orig_node ), -300128 );
-                init_orig_node(on, &desc->globalId);
+                on = init_orig_node(&desc->globalId);
         }
 
 
@@ -3351,38 +3350,38 @@ void update_my_description_adv(void)
         TRACE_FUNCTION_CALL;
         static uint8_t cache_data_array[MAX_UDPD_SIZE] = {0};
         struct description_hash dhash;
-        struct description *dsc = self.desc;
+        struct description *dsc = self->desc;
 
         if (terminating)
                 return;
 
         if (!initializing)
-                cb_plugin_hooks(PLUGIN_CB_DESCRIPTION_DESTROY, &self);
+                cb_plugin_hooks(PLUGIN_CB_DESCRIPTION_DESTROY, self);
 
         // put obligatory stuff:
         memset(dsc, 0, sizeof (struct description));
 
-        dsc->globalId = self.global_id;
+        dsc->globalId = self->global_id;
 
 
         // add some randomness to the ogm_sqn_range, that not all nodes invalidate at the same time:
         uint16_t random_range = ((DEF_OGM_SQN_RANGE - (DEF_OGM_SQN_RANGE/5)) > MIN_OGM_SQN_RANGE) ?
                 DEF_OGM_SQN_RANGE - rand_num(DEF_OGM_SQN_RANGE/5) : DEF_OGM_SQN_RANGE + rand_num(DEF_OGM_SQN_RANGE/5);
 
-        self.ogmSqn_rangeSize = ((OGM_SQN_MASK)&(random_range + OGM_SQN_STEP - 1));
+        self->ogmSqn_rangeSize = ((OGM_SQN_MASK)&(random_range + OGM_SQN_STEP - 1));
 
-        self.ogmSqn_rangeMin = ((OGM_SQN_MASK)&(self.ogmSqn_rangeMin + MAX_OGM_SQN_RANGE));
+        self->ogmSqn_rangeMin = ((OGM_SQN_MASK)&(self->ogmSqn_rangeMin + MAX_OGM_SQN_RANGE));
 
-        self.ogmSqn_maxRcvd = set_ogmSqn_toBeSend_and_aggregated(&self, UMETRIC_MAX,
-                (OGM_SQN_MASK)&(self.ogmSqn_rangeMin - (self.ogmSqn_next == self.ogmSqn_send ? OGM_SQN_STEP : 0)),
-                (OGM_SQN_MASK)&(self.ogmSqn_rangeMin - OGM_SQN_STEP));
+        self->ogmSqn_maxRcvd = set_ogmSqn_toBeSend_and_aggregated(self, UMETRIC_MAX,
+                (OGM_SQN_MASK)&(self->ogmSqn_rangeMin - (self->ogmSqn_next == self->ogmSqn_send ? OGM_SQN_STEP : 0)),
+                (OGM_SQN_MASK)&(self->ogmSqn_rangeMin - OGM_SQN_STEP));
 
-        dsc->ogmSqnMin = htons(self.ogmSqn_rangeMin);
-        dsc->ogmSqnRange = htons(self.ogmSqn_rangeSize);
+        dsc->ogmSqnMin = htons(self->ogmSqn_rangeMin);
+        dsc->ogmSqnRange = htons(self->ogmSqn_rangeSize);
         dsc->txInterval = htons(my_tx_interval);
 
         dsc->codeVersion = htons(CODE_VERSION);
-        dsc->descSqn = htons(++(self.descSqn));
+        dsc->descSqn = htons(++(self->descSqn));
         dsc->reservedTtl = my_ttl;
 
         // add all tlv options:
@@ -3417,9 +3416,9 @@ void update_my_description_adv(void)
         ShaUpdate(&bmx_sha, (byte*) dsc, (it.frames_out_pos + sizeof (struct description)));
         ShaFinal(&bmx_sha, (byte*) & dhash);
 
-        update_neigh_dhash( &self, &dhash );
+        update_neigh_dhash( self, &dhash );
 
-        myIID4me = self.dhn->myIID4orig;
+        myIID4me = self->dhn->myIID4orig;
         myIID4me_timestamp = bmx_time;
 
         if (desc_adv_tx_unsolicited) {
@@ -3433,7 +3432,7 @@ void update_my_description_adv(void)
 
         my_description_changed = NO;
 
-        cb_plugin_hooks(PLUGIN_CB_DESCRIPTION_CREATED, &self);
+        cb_plugin_hooks(PLUGIN_CB_DESCRIPTION_CREATED, self);
 //        cb_plugin_hooks(PLUGIN_CB_STATUS, NULL);
 
 }

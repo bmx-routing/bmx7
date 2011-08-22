@@ -1275,14 +1275,16 @@ void cleanup_all(int32_t status)
 
 		cleanup_schedule();
 
-                if (self->dhn) {
+                if (self && self->dhn) {
                         self->dhn->on = NULL;
                         free_dhash_node(self->dhn);
                 }
 
-                avl_remove(&orig_tree, &(self->global_id), -300203);
-                debugFree(self, -300000);
-                self = NULL;
+                if (self) {
+                        avl_remove(&orig_tree, &(self->global_id), -300203);
+                        debugFree(self, -300000);
+                        self = NULL;
+                }
 
                 while (status_tree.items) {
                         struct status_handl *handl = avl_first_item(&status_tree);

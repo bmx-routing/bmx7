@@ -1178,6 +1178,8 @@ IDM_T metricalgo_tlv_to_host(struct description_tlv_metricalgo *tlv_algo, struct
 }
 
 
+struct host_metricalgo my_hostmetricalgo;
+
 STATIC_FUNC
 int create_description_tlv_metricalgo(struct tx_frame_iterator *it)
 {
@@ -1204,13 +1206,16 @@ int create_description_tlv_metricalgo(struct tx_frame_iterator *it)
         tlv_algo.m.hop_penalty = my_hop_penalty;
         tlv_algo.m.late_penalty = my_late_penalty;
 
+/*
         if (self->path_metricalgo)
                 debugFree(self->path_metricalgo, -300282);
 
         self->path_metricalgo = debugMalloc(sizeof ( struct host_metricalgo), -300283);
+*/
 
+        memset(&my_hostmetricalgo, 0, sizeof (struct host_metricalgo));
 
-        if (metricalgo_tlv_to_host(&tlv_algo, self->path_metricalgo, sizeof (struct description_tlv_metricalgo)) == FAILURE)
+        if (metricalgo_tlv_to_host(&tlv_algo, &my_hostmetricalgo, sizeof (struct description_tlv_metricalgo)) == FAILURE)
                 cleanup_all(-500844);
 
         if (tx_iterator_cache_data_space(it) < ((int) sizeof (struct description_tlv_metricalgo))) {
@@ -1595,10 +1600,12 @@ int32_t init_metrics( void )
 STATIC_FUNC
 void cleanup_metrics( void )
 {
+/*
         if (self->path_metricalgo) {
                 debugFree(self->path_metricalgo, -300281);
                 self->path_metricalgo = NULL;
         }
+*/
 }
 
 

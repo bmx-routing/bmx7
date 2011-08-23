@@ -98,7 +98,7 @@ AVL_TREE(dhash_invalid_tree, struct dhash_node, dhash);
 LIST_SIMPEL( dhash_invalid_plist, struct plist_node, list, list );
 
 AVL_TREE(orig_tree, struct orig_node, global_id);
-AVL_TREE(blocked_tree, struct orig_node, global_id);
+static AVL_TREE(blocked_tree, struct orig_node, global_id);
 
 AVL_TREE(blacklisted_tree, struct black_node, dhash);
 
@@ -636,6 +636,26 @@ void purge_local_node(struct local_node *local)
 
 }
 
+void block_orig_node(IDM_T block, struct orig_node *on)
+{
+
+        if (block) {
+
+                on->blocked = YES;
+
+                if (!avl_find(&blocked_tree, &on->global_id))
+                        avl_insert(&blocked_tree, on, -300165);
+
+
+        } else {
+
+                on->blocked = NO;
+                avl_remove(&blocked_tree, &on->global_id, -300201);
+
+        }
+
+}
+
 void free_orig_node(struct orig_node *on)
 {
         TRACE_FUNCTION_CALL;
@@ -648,11 +668,10 @@ void free_orig_node(struct orig_node *on)
 
         purge_orig_router(on, NULL, NO);
 
-        if (on->desc)
-                cb_plugin_hooks(PLUGIN_CB_DESCRIPTION_DESTROY, on);
-
-        if (on->desc && !on->blocked)
+        if (on->desc && !on->blocked) {
+                //cb_plugin_hooks(PLUGIN_CB_DESCRIPTION_DESTROY, on);
                 process_description_tlvs(NULL, on, on->desc, TLV_OP_DEL, FRAME_TYPE_PROCESS_ALL, NULL);
+        }
 
         if ( on->dhn ) {
                 on->dhn->on = NULL;
@@ -671,7 +690,8 @@ void free_orig_node(struct orig_node *on)
                 assertion(-501269, (!on->plugin_data[i]));
         }
 
-        avl_remove(&blocked_tree, &on->global_id, -300201);
+
+        block_orig_node(NO, on);
 
         if (on->desc)
                 debugFree(on->desc, -300228);
@@ -702,6 +722,10 @@ void purge_link_route_orig_nodes(struct dev_node *only_dev, IDM_T only_expired)
                                 dbgf_all(DBGT_INFO, "id=%s referred before: %d > purge_to=%d",
                                         globalIdAsString(&dhn->on->global_id),
                                         ((TIME_T) (bmx_time - dhn->referred_by_me_timestamp)), (TIME_T) ogm_purge_to);
+
+
+                                if (dhn->on->desc && dhn->on != self)
+                                        cb_plugin_hooks(PLUGIN_CB_DESCRIPTION_DESTROY, dhn->on);
 
                                 free_orig_node(dhn->on);
 
@@ -2249,15 +2273,17 @@ void bmx(void)
 
                                 dbgf_all( DBGT_INFO, "trying to unblock %s...", on->desc->globalId.name);
 
-                                IDM_T tlvs_res;
-                                if ((tlvs_res = process_description_tlvs
-                                        (NULL, on, on->desc, TLV_OP_TEST, FRAME_TYPE_PROCESS_ALL, NULL)) ==
-                                        TLV_RX_DATA_DONE) {
+                                IDM_T tlvs_res = process_description_tlvs(NULL, on, on->desc, TLV_OP_TEST, FRAME_TYPE_PROCESS_ALL, NULL);
 
-                                        tlvs_res = process_description_tlvs
-                                                (NULL, on, on->desc, TLV_OP_ADD, FRAME_TYPE_PROCESS_ALL, NULL);
+                                if (tlvs_res == TLV_RX_DATA_DONE) {
+
+                                        tlvs_res = process_description_tlvs(NULL, on, on->desc, TLV_OP_ADD, FRAME_TYPE_PROCESS_ALL, NULL);
 
                                         assertion(-500364, (tlvs_res == TLV_RX_DATA_DONE)); // checked, so MUST SUCCEED!!
+
+                                        cb_plugin_hooks(PLUGIN_CB_DESCRIPTION_DESTROY, on);
+                                        cb_plugin_hooks(PLUGIN_CB_DESCRIPTION_CREATED, on);
+
                                 }
 
                                 dbgf_track(DBGT_INFO, "unblocking %s %s !",

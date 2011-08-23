@@ -736,23 +736,15 @@ int process_description_tlv_tunnel(struct rx_frame_iterator *it)
 
                         setup_tunnel(DEL, on, &(*tun)->state[p], NULL, 0);
 
-                } else if (op == TLV_OP_TEST) {
+                } else if (op == TLV_OP_TEST && (
+                        !is_ip_set(&msg[p].src) || is_ip_forbidden(&msg[p].src, AF_INET6) || find_overlapping_hna(&msg[p].src, 128) ||
+                        !is_ip_set(&msg[p].dst) || is_ip_forbidden(&msg[p].dst, AF_INET6) || find_overlapping_hna(&msg[p].dst, 128)
+                        )) {
 
-                        assertion(-501274, (!*tun));
-                        struct uhna_node *un;
+                        dbgf_sys(DBGT_ERR, "global_id=%s local=%s remote=%s type=%d is blocked ",
+                                globalIdAsString(&on->global_id), ip6AsStr(&msg[p].src), ip6AsStr(&msg[p].dst), msg[p].type);
 
-                        if (
-                                !is_ip_set(&msg[p].src) || is_ip_forbidden(&msg[p].src, AF_INET6) ||
-                                !((un = find_overlapping_hna(&msg[p].src, 128)) && un->on == on) ||
-                                !is_ip_set(&msg[p].dst) || is_ip_forbidden(&msg[p].dst, AF_INET6) ||
-                                !((un = find_overlapping_hna(&msg[p].dst, 128)) && un->on == on)
-                                ) {
-
-                                dbgf_sys(DBGT_ERR, "global_id=%s local=%s remote=%s type=%d is blocked ",
-                                        globalIdAsString(&on->global_id), ip6AsStr(&msg[p].src), ip6AsStr(&msg[p].dst), msg[p].type);
-
-                                return TLV_RX_DATA_IGNORED;
-                        }
+                        return TLV_RX_DATA_BLOCKED;
 
                 } else if (op == TLV_OP_ADD) {
 
@@ -1021,7 +1013,7 @@ int32_t hna_init( void )
         memset(&tlv_handl, 0, sizeof (tlv_handl));
         tlv_handl.min_msg_size = sizeof (struct description_msg_tunnel);
         tlv_handl.fixed_msg_size = 1;
-        tlv_handl.is_relevant = 0;
+        tlv_handl.is_relevant = 1;
         tlv_handl.name = "TUNNEL_EXTENSION";
         tlv_handl.tx_frame_handler = create_description_tlv_tunnel;
         tlv_handl.rx_frame_handler = process_description_tlv_tunnel;

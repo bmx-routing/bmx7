@@ -280,35 +280,21 @@ IDM_T process_description_tlvs(struct packet_buff *pb, struct orig_node *on, str
         if ((op >= TLV_OP_CUSTOM_MIN && op <= TLV_OP_CUSTOM_MAX) || (op >= TLV_OP_PLUGIN_MIN && op <= TLV_OP_PLUGIN_MAX))
                 return TLV_RX_DATA_DONE;
 
-        if (tlv_result == TLV_RX_DATA_BLOCKED) {
+        if (tlv_result == TLV_RX_DATA_BLOCKED || tlv_result == TLV_RX_DATA_FAILURE) {
 
-                assertion(-500356, (op == TLV_OP_TEST));
+                assertion(-500356, IMPLIES(tlv_result == TLV_RX_DATA_BLOCKED, op == TLV_OP_TEST));
 
-                dbgf_sys(DBGT_ERR, "%s frame_data_length=%d  BLOCKED",
-                        description_tlv_handl[it.frame_type].name, it.frame_data_length);
+                dbgf_sys(DBGT_WARN, "problematic description_ltv from %s, near type=%s frame_data_length=%d  pos=%d %s",
+                        pb ? pb->i.llip_str : "--", description_tlv_handl[it.frame_type].name,
+                        it.frame_data_length, it.frames_pos, tlv_result == TLV_RX_DATA_BLOCKED ? "BLOCKED" : "FAILURE");
 
-                on->blocked = YES;
+                block_orig_node(YES, on);
 
-                if (!avl_find(&blocked_tree, &on->global_id))
-                        avl_insert(&blocked_tree, on, -300165);
-
-                return TLV_RX_DATA_BLOCKED;
-
-
-        } else if (tlv_result == TLV_RX_DATA_FAILURE) {
-
-                dbgf_sys(DBGT_WARN,
-                        "rcvd problematic description_ltv from %s near: type=%s  frame_data_length=%d  pos=%d ",
-                        pb ? pb->i.llip_str : "---",
-                        description_tlv_handl[it.frame_type].name, it.frame_data_length, it.frames_pos);
-
-                return TLV_RX_DATA_FAILURE;
+                return tlv_result;
         }
 
-        if ( op == TLV_OP_ADD ) {
-                on->blocked = NO;
-                avl_remove(&blocked_tree, &on->global_id, -300211);
-        }
+        if (op == TLV_OP_ADD)
+                block_orig_node(NO, on);
 
         return TLV_RX_DATA_DONE;
 }
@@ -2040,7 +2026,13 @@ int32_t rx_frame_ogm_advs(struct rx_frame_iterator *it)
                                         on->ogmSqn_rangeMin, on->ogmSqn_rangeSize);
 
                                 purge_local_node(pb->i.link->local);
+
+/*
+                                if (on->desc)
+                                        cb_plugin_hooks(PLUGIN_CB_DESCRIPTION_DESTROY, on);
+
                                 free_orig_node(on);
+*/
 
                                 return FAILURE;
                         }
@@ -2624,15 +2616,17 @@ int32_t rx_frame_iterate(struct rx_frame_iterator *it)
                         int32_t receptor_result = (*(f_handl->rx_frame_handler)) (it);
 
                         if (receptor_result == TLV_RX_DATA_BLOCKED) {
+
                                 dbgf_sys(DBGT_ERR, "%s - rx_frame_handler(%s)=%d frame_msgs_len=%d : BLOCKED",
                                         it->caller, f_handl->name, receptor_result, it->frame_msgs_length );
 
                                 return TLV_RX_DATA_BLOCKED;
-                        }
 
-                        if (it->frame_msgs_length != receptor_result) {
+                        } else if (receptor_result != it->frame_msgs_length) {
+
                                 dbgf_sys(DBGT_ERR, "%s - rx_frame_handler(%s)=%d frame_msgs_len=%d : FAILURE",
                                         it->caller, f_handl->name, receptor_result, it->frame_msgs_length );
+
                                 return TLV_RX_DATA_FAILURE;
                         }
 
@@ -2671,6 +2665,7 @@ IDM_T rx_frames(struct packet_buff *pb)
                         packet_frame_handler[it.frame_type].name, it.frame_data_length, it_result, it.frames_pos);
                 return FAILURE;
         }
+
         struct local_node *local = pb->i.link->local;
 
         if (!is_described_neigh(pb->i.link, pb->i.transmittersIID)) {
@@ -3236,14 +3231,12 @@ struct dhash_node * process_description(struct packet_buff *pb, struct descripti
 
         if ((on = avl_find_item(&orig_tree, &desc->globalId))) {
 
-                dbgf_track(DBGT_INFO, "%s desc SQN=%d (old_sqn=%d) from id=%s via_dev=%s via_ip=%s",
-                        pb ? "RECEIVED NEW" : "CHECKING OLD (BLOCKED)", ntohs(desc->descSqn), on->descSqn,
-                        globalIdAsString(&desc->globalId),
-                        pb ? pb->i.iif->label_cfg.str : "---", pb ? pb->i.llip_str : "---");
+                dbgf_track(DBGT_INFO, "descSQN=%d (old_sqn=%d) from id=%s via_dev=%s via_ip=%s",
+                        ntohs(desc->descSqn), on->descSqn, globalIdAsString(&desc->globalId), pb->i.iif->label_cfg.str, pb->i.llip_str);
 
                 assertion(-500383, (on->dhn));
 
-                if (pb && ((TIME_T) (bmx_time - on->dhn->referred_by_me_timestamp)) < (TIME_T) dad_to) {
+                if (((TIME_T) (bmx_time - on->dhn->referred_by_me_timestamp)) < (TIME_T) dad_to) {
 
                         if (((DESC_SQN_MASK)&(ntohs(desc->descSqn) - (on->descSqn + 1))) > DEF_DESCRIPTION_DAD_RANGE) {
 
@@ -3273,42 +3266,41 @@ struct dhash_node * process_description(struct packet_buff *pb, struct descripti
 
         int32_t tlv_result;
 
-        if (pb) {
+        if (on->desc)
+                cb_plugin_hooks(PLUGIN_CB_DESCRIPTION_DESTROY, on);
 
-                if (on->desc && !on->blocked) {
-                        tlv_result = process_description_tlvs(pb, on, on->desc, TLV_OP_DEL, FRAME_TYPE_PROCESS_ALL, NULL);
-                        assertion(-500808, (tlv_result == TLV_RX_DATA_DONE));
-                }
-
-                on->updated_timestamp = bmx_time;
-                on->descSqn = ntohs(desc->descSqn);
-
-                on->ogmSqn_rangeMin = ntohs(desc->ogmSqnMin);
-                on->ogmSqn_rangeSize = ntohs(desc->ogmSqnRange);
-
-
-                on->ogmSqn_maxRcvd = (OGM_SQN_MASK & (on->ogmSqn_rangeMin - OGM_SQN_STEP));
-                set_ogmSqn_toBeSend_and_aggregated(on, on->ogmMetric_next, on->ogmSqn_maxRcvd, on->ogmSqn_maxRcvd);
-
+        if (on->desc && !on->blocked) {
+                tlv_result = process_description_tlvs(pb, on, on->desc, TLV_OP_DEL, FRAME_TYPE_PROCESS_ALL, NULL);
+                assertion(-500808, (tlv_result == TLV_RX_DATA_DONE));
         }
 
-        if ((tlv_result = process_description_tlvs(pb, on, desc, TLV_OP_TEST, FRAME_TYPE_PROCESS_ALL, NULL)) == TLV_RX_DATA_DONE) {
+        on->updated_timestamp = bmx_time;
+        on->descSqn = ntohs(desc->descSqn);
+
+        on->ogmSqn_rangeMin = ntohs(desc->ogmSqnMin);
+        on->ogmSqn_rangeSize = ntohs(desc->ogmSqnRange);
+
+
+        on->ogmSqn_maxRcvd = (OGM_SQN_MASK & (on->ogmSqn_rangeMin - OGM_SQN_STEP));
+        set_ogmSqn_toBeSend_and_aggregated(on, on->ogmMetric_next, on->ogmSqn_maxRcvd, on->ogmSqn_maxRcvd);
+
+
+        tlv_result = process_description_tlvs(pb, on, desc, TLV_OP_TEST, FRAME_TYPE_PROCESS_ALL, NULL);
+
+        if (tlv_result == TLV_RX_DATA_DONE) {
+
                 tlv_result = process_description_tlvs(pb, on, desc, TLV_OP_ADD, FRAME_TYPE_PROCESS_ALL, NULL);
                 assertion(-500831, (tlv_result == TLV_RX_DATA_DONE)); // checked, so MUST SUCCEED!!
+
+        } else if (tlv_result == TLV_RX_DATA_FAILURE) {
+
+                goto process_desc0_error;
         }
 
-        if (tlv_result == TLV_RX_DATA_FAILURE)
-                goto process_desc0_error;
-
-/*
-                // actually I want to accept descriptions without any primary IP:
-                if (!on->blocked && !ip_set(&on->ort.primary_ip))
-                        goto process_desc0_error;
-         */
 
 
         if (on->desc) {
-                cb_plugin_hooks(PLUGIN_CB_DESCRIPTION_DESTROY, on);
+                //cb_plugin_hooks(PLUGIN_CB_DESCRIPTION_DESTROY, on);
                 debugFree(on->desc, -300111);
         }
 
@@ -3322,7 +3314,9 @@ struct dhash_node * process_description(struct packet_buff *pb, struct descripti
         assertion(-500309, (on->dhn == avl_find_item(&dhash_tree, &on->dhn->dhash)));
         assertion(-500310, (on == avl_find_item(&orig_tree, &on->desc->globalId)));
 
-        cb_plugin_hooks(PLUGIN_CB_DESCRIPTION_CREATED, on);
+        if (on->desc)
+                cb_plugin_hooks(PLUGIN_CB_DESCRIPTION_CREATED, on);
+
 
         return on->dhn;
 

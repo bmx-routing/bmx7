@@ -527,8 +527,8 @@ int process_description_tlv_hna(struct rx_frame_iterator *it)
 
 
 
-                dbgf_all(DBGT_INFO, "%s %s %s=%s/%d %s=%d",
-                        tlv_op_str(op), family2Str(key.family), ARG_UHNA,
+                dbgf_track(DBGT_INFO, "%s %s %s %s=%s/%d %s=%d",
+                        tlv_op_str(op), family2Str(key.family), ARG_UHNA, globalIdAsString(&on->global_id),
                         ipXAsStr(key.family, &key.glip), key.prefixlen, ARG_UHNA_METRIC, ntohl(key.metric_nl));
 
                 if (op == TLV_OP_DEL) {
@@ -726,8 +726,8 @@ int process_description_tlv_tunnel(struct rx_frame_iterator *it)
 
         for (p = 0; p < msgs; p++) {
 
-                dbgf_track(DBGT_INFO, "op=%s %d/%d local=%s remote=%s type=%d",
-                        tlv_op_str(op), p, msgs, ip6AsStr(&msg->src), ip6AsStr(&msg->dst), msg->type);
+                dbgf_track(DBGT_INFO, "op=%s %s %d/%d local=%s remote=%s type=%d",
+                        tlv_op_str(op), globalIdAsString(&on->global_id), p, msgs, ip6AsStr(&msg->src), ip6AsStr(&msg->dst), msg->type);
 
 
                 if (op == TLV_OP_DEL) {
@@ -749,8 +749,7 @@ int process_description_tlv_tunnel(struct rx_frame_iterator *it)
                                 ) {
 
                                 dbgf_sys(DBGT_ERR, "global_id=%s local=%s remote=%s type=%d is blocked ",
-                                        globalIdAsString(&on->global_id),
-                                        ip6AsStr(&msg[p].src), ip6AsStr(&msg[p].dst), &msg[p].type);
+                                        globalIdAsString(&on->global_id), ip6AsStr(&msg[p].src), ip6AsStr(&msg[p].dst), msg[p].type);
 
                                 return TLV_RX_DATA_IGNORED;
                         }

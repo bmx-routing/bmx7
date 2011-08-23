@@ -726,8 +726,8 @@ int process_description_tlv_tunnel(struct rx_frame_iterator *it)
 
         for (p = 0; p < msgs; p++) {
 
-                dbgf_track(DBGT_INFO, "op=%s %s %d/%d local=%s remote=%s type=%d",
-                        tlv_op_str(op), globalIdAsString(&on->global_id), p, msgs, ip6AsStr(&msg->src), ip6AsStr(&msg->dst), msg->type);
+                dbgf_track(DBGT_INFO, "op=%s %s %d/%d local=%s remote=%s type=%d", tlv_op_str(op),
+                        globalIdAsString(&on->global_id), p, msgs, ip6AsStr(&msg[p].src), ip6AsStr(&msg[p].dst), msg[p].type);
 
 
                 if (op == TLV_OP_DEL) {
@@ -753,9 +753,9 @@ int process_description_tlv_tunnel(struct rx_frame_iterator *it)
 
                         assertion(-501275, (*tun));
 
-                        (*tun)->state[p].dst = msg->dst;
-                        (*tun)->state[p].src = msg->src;
-                        (*tun)->state[p].type = msg->type;
+                        (*tun)->state[p].dst = msg[p].dst;
+                        (*tun)->state[p].src = msg[p].src;
+                        (*tun)->state[p].type = msg[p].type;
 
                 } else {
                         assertion(-501289, (NO));
@@ -787,16 +787,16 @@ int create_description_tlv_tunnel(struct tx_frame_iterator *it)
 
                 struct tunnel_status *tun;
                 struct avl_node *an = NULL;
+                struct description_msg_tunnel *msg = ((struct description_msg_tunnel *) tx_iterator_cache_msg_ptr(it));
 
                 while ((tun = avl_iterate_item(&tunnel_in_tree, &an))) {
-
-                        struct description_msg_tunnel *msg = ((struct description_msg_tunnel *) tx_iterator_cache_msg_ptr(it));
 
                         msg->src = tun->src;
                         msg->dst = is_ip_set(&tun->dst) ? tun->dst : self->primary_ip;
                         msg->type = tun->type;
 
                         dbgf_track(DBGT_INFO, "src=%s dst=%s type=%d", ip6AsStr(&msg->src), ip6AsStr(&msg->dst), msg->type);
+                        msg++;
 
                 }
 

@@ -1299,6 +1299,14 @@ void cleanup_all(int32_t status)
 
 		cleanup_schedule();
 
+                purge_link_route_orig_nodes(NULL, NO);
+
+		cleanup_plugin();
+
+		cleanup_config();
+
+                cleanup_ip();
+
                 if (self && self->dhn) {
                         self->dhn->on = NULL;
                         free_dhash_node(self->dhn);
@@ -1317,14 +1325,6 @@ void cleanup_all(int32_t status)
                                 debugFree(handl->data, -300359);
                         debugFree(handl, -300363);
                 }
-
-                purge_link_route_orig_nodes(NULL, NO);
-
-		cleanup_plugin();
-
-		cleanup_config();
-
-                cleanup_ip();
 
                 purge_dhash_invalid_list(YES);
 

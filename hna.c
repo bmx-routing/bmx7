@@ -736,15 +736,18 @@ int process_description_tlv_tunnel(struct rx_frame_iterator *it)
 
                         setup_tunnel(DEL, on, &(*tun)->state[p], NULL, 0);
 
-                } else if (op == TLV_OP_TEST && (
-                        !is_ip_set(&msg[p].src) || is_ip_forbidden(&msg[p].src, AF_INET6) || find_overlapping_hna(&msg[p].src, 128) ||
-                        !is_ip_set(&msg[p].dst) || is_ip_forbidden(&msg[p].dst, AF_INET6) || find_overlapping_hna(&msg[p].dst, 128)
-                        )) {
+                } else if (op == TLV_OP_TEST) {
+                        
+                        if (
+                                !is_ip_set(&msg[p].src) || is_ip_forbidden(&msg[p].src, AF_INET6) || find_overlapping_hna(&msg[p].src, 128) ||
+                                !is_ip_set(&msg[p].dst) || is_ip_forbidden(&msg[p].dst, AF_INET6) || find_overlapping_hna(&msg[p].dst, 128)
+                                ) {
 
-                        dbgf_sys(DBGT_ERR, "global_id=%s local=%s remote=%s type=%d is blocked ",
-                                globalIdAsString(&on->global_id), ip6AsStr(&msg[p].src), ip6AsStr(&msg[p].dst), msg[p].type);
+                                dbgf_sys(DBGT_ERR, "global_id=%s local=%s remote=%s type=%d is blocked ",
+                                        globalIdAsString(&on->global_id), ip6AsStr(&msg[p].src), ip6AsStr(&msg[p].dst), msg[p].type);
 
-                        return TLV_RX_DATA_BLOCKED;
+                                return TLV_RX_DATA_BLOCKED;
+                        }
 
                 } else if (op == TLV_OP_ADD) {
 
@@ -755,7 +758,7 @@ int process_description_tlv_tunnel(struct rx_frame_iterator *it)
                         (*tun)->state[p].type = msg->type;
 
                 } else {
-                        assertion(-500000, (NO));
+                        assertion(-501289, (NO));
                 }
         }
 

@@ -26,6 +26,9 @@
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
 
+#include <sys/ioctl.h>
+//#include <net/if.h>
+
 
 
 #include "bmx.h"
@@ -681,15 +684,108 @@ int32_t opt_uhna(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
 
 }
 
+IDM_T _iptunnel(IDM_T del, uint8_t type, char *name, IPX_T *local, IPX_T *remote)
+{
+#define IPV6_DEFAULT_TNL_ENCAP_LIMIT 4
+#define DEFAULT_TNL_HOP_LIMIT	(64)
+
+#define SIOCGETTUNNEL   (SIOCDEVPRIVATE + 0)
+#define SIOCADDTUNNEL   (SIOCDEVPRIVATE + 1)
+#define SIOCDELTUNNEL   (SIOCDEVPRIVATE + 2)
+#define SIOCCHGTUNNEL   (SIOCDEVPRIVATE + 3)
+#define SIOCGETPRL      (SIOCDEVPRIVATE + 4)
+#define SIOCADDPRL      (SIOCDEVPRIVATE + 5)
+#define SIOCDELPRL      (SIOCDEVPRIVATE + 6)
+#define SIOCCHGPRL      (SIOCDEVPRIVATE + 7)
+#define SIOCGET6RD      (SIOCDEVPRIVATE + 8)
+#define SIOCADD6RD      (SIOCDEVPRIVATE + 9)
+#define SIOCDEL6RD      (SIOCDEVPRIVATE + 10)
+#define SIOCCHG6RD      (SIOCDEVPRIVATE + 11)
+
+
+        struct ip6_tnl_parm {
+                char name[IFNAMSIZ]; /* name of tunnel device */
+                int link; /* ifindex of underlying L2 interface */
+                __u8 proto; /* tunnel protocol */
+                __u8 encap_limit; /* encapsulation limit for tunnel */
+                __u8 hop_limit; /* hop limit for tunnel */
+                __be32 flowinfo; /* traffic class and flowlabel for tunnel */
+                __u32 flags; /* tunnel flags */
+                struct in6_addr laddr; /* local tunnel end-point address */
+                struct in6_addr raddr; /* remote tunnel end-point address */
+        };
+
+        dbgf_track(DBGT_INFO, "del=%d type=%d name=%s local=%s remote=%s",
+                del, type, name, ip6AsStr(local), ip6AsStr(remote));
+
+        struct ip6_tnl_parm p;
+        memset(&p, 0, sizeof (p));
+
+        p.hop_limit = DEFAULT_TNL_HOP_LIMIT;
+        p.encap_limit = IPV6_DEFAULT_TNL_ENCAP_LIMIT;
+
+        strncpy(p.name, name, IFNAMSIZ);
+
+        if (type == TUN_TYPE_ANY)
+                p.proto = IPPROTO_IP;
+        else if (type == TUN_TYPE_IP4IP6)
+                p.proto = IPPROTO_IPIP;
+        else if (type == TUN_TYPE_IP6IP6)
+                p.proto = IPPROTO_IPV6;
+
+        p.raddr = *remote;
+        p.laddr = *local;
+
+        struct ifreq ifr;
+        int fd;
+        int err;
+        memset(&ifr, 0, sizeof (ifr));
+        strncpy(ifr.ifr_name, del ? name : "ip6tnl0", IFNAMSIZ);
+        ifr.ifr_ifru.ifru_data = &p;
+        fd = socket(AF_INET6, SOCK_DGRAM, 0);
+        if ((err = ioctl(fd, del ? SIOCDELTUNNEL : SIOCADDTUNNEL, &ifr))) {
+                dbgf_sys(DBGT_ERR, "%s", strerror(errno));
+                return FAILURE;
+        }
+        close(fd);
+        return SUCCESS;
+}
 
 
 STATIC_FUNC
-void setup_tunnel(uint8_t del, struct orig_node *on, struct tunnel_status *state, IPX_T *dst, uint8_t prefixlen)
+void iptunnel(uint8_t del, struct orig_node *on, struct tunnel_status *tun)
 {
+        IPX_T *dst = del ? &tun->dst_conf : (is_ip_set(&tun->dst) ? &tun->dst : &self->primary_ip);
+        IPX_T *local = (on == self) ? dst : &tun->src;
+        IPX_T *remote = (on != self) ? dst : &tun->src;
 
-        if ((state->configured && !del) || (!state->configured && del))
-                return;
+        assertion(-501290, IMPLIES(!del && on != self, is_ip_set(&tun->dst)));
+        assertion(-501291, is_ip_set(dst));
 
+        if (del) {
+
+                if (!is_ip_set(&tun->dst_conf))
+                        return;
+
+                _iptunnel(DEL, tun->type, tun->name_conf.str, local, remote);
+                tun->dst_conf = ZERO_IP;
+
+        } else {
+
+                if (is_ip_set(&tun->dst_conf) && is_ip_equal(&tun->dst_conf, dst))
+                        return;
+
+                if(tun->type > TUN_TYPE_MAX)
+                        return;
+
+                memset(&tun->name_conf, 0, sizeof (tun->name_conf));
+                snprintf(tun->name_conf.str, IFNAMSIZ - 1, "bmx%.4X_%s%.4X", My_pid, (on == self ? "in" : "out"), on->dhn->myIID4orig);
+
+                if (_iptunnel(ADD, tun->type, tun->name_conf.str, local, remote) == SUCCESS)
+                        tun->dst_conf = *dst;
+                else
+                        tun->dst_conf = ZERO_IP;
+        }
 }
 
 STATIC_FUNC
@@ -734,7 +830,7 @@ int process_description_tlv_tunnel(struct rx_frame_iterator *it)
 
                         assertion(-501273, (*tun) && (*tun)->msgs == msgs);
 
-                        setup_tunnel(DEL, on, &(*tun)->state[p], NULL, 0);
+                        iptunnel(DEL, on, &(*tun)->state[p]);
 
                 } else if (op == TLV_OP_TEST) {
                         
@@ -791,8 +887,10 @@ int create_description_tlv_tunnel(struct tx_frame_iterator *it)
 
                 while ((tun = avl_iterate_item(&tunnel_in_tree, &an))) {
 
+                        iptunnel(ADD, self, tun);
+
                         msg->src = tun->src;
-                        msg->dst = is_ip_set(&tun->dst) ? tun->dst : self->primary_ip;
+                        msg->dst = tun->dst_conf;
                         msg->type = tun->type;
 
                         dbgf_track(DBGT_INFO, "src=%s dst=%s type=%d", ip6AsStr(&msg->src), ip6AsStr(&msg->dst), msg->type);
@@ -817,15 +915,19 @@ int32_t opt_tunnel_in(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct o
 	if ( cmd == OPT_ADJUST  ||  cmd == OPT_CHECK  ||  cmd == OPT_APPLY ) {
 
                 uint8_t family = 0;
+                struct uhna_node *un = NULL;;
 
                 dbgf_all(DBGT_INFO, "diff=%d cmd=%s  save=%d  opt=%s  patch=%s",
                         patch->p_diff, opt_cmd2str[cmd], _save, opt->long_name, patch->p_val);
 
                 if (str2netw(patch->p_val, &ipX, '/', cn, NULL, &family) == FAILURE ||
                         family != AF_INET6 ||
-                        is_ip_forbidden(&ipX, family) || ip_netmask_validate(&ipX, 128, family, NO) == FAILURE) {
+                        is_ip_forbidden(&ipX, family) || ip_netmask_validate(&ipX, 128, family, NO) == FAILURE ||
+                        ((un = find_overlapping_hna(&ipX, 128)) && un->on != self)) {
 
-                        dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "invalid prefix: %s", patch->p_val);
+                        dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "invalid prefix: %s or blocked by %s",
+                                patch->p_val, un ? globalIdAsString(&un->on->global_id) : "");
+                        
                         return FAILURE;
                 }
 
@@ -838,7 +940,7 @@ int32_t opt_tunnel_in(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct o
 
                 if ((tun = avl_find_item(&tunnel_in_tree, &ipX))) {
 
-                        setup_tunnel(DEL, self, tun, NULL, 0);
+                        iptunnel(DEL, self, tun);
 
                 } else {
 
@@ -851,6 +953,7 @@ int32_t opt_tunnel_in(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct o
                 tun->type = TUN_TYPE_ANY;
                 tun->dst = ZERO_IP; // to be exchanged for primary ip during setup_tunnel()
 
+
                 my_description_changed = YES;
         }
 
@@ -858,7 +961,7 @@ int32_t opt_tunnel_in(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct o
 
                 if((tun = avl_find_item(&tunnel_in_tree, &ipX))) {
 
-                        setup_tunnel(DEL, self, tun, NULL, 0);
+                        iptunnel(DEL, self, tun);
                         avl_remove(&tunnel_in_tree, &tun->src, -300391);
                         debugFree(tun, -300392);
                 }
@@ -869,7 +972,7 @@ int32_t opt_tunnel_in(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct o
         if (  cmd == OPT_UNREGISTER ) {
 
                 while ((tun = avl_first_item(&tunnel_in_tree))) {
-                        setup_tunnel(DEL, self, tun, NULL, 0);
+                        iptunnel(DEL, self, tun);
                         avl_remove(&tunnel_in_tree, &tun->src, -300393);
                         debugFree(tun, -300394);
                 }

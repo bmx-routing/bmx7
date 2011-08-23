@@ -56,6 +56,8 @@
 #define TLV_OP_CUSTOM_HNA_ROUTE_ADD (TLV_OP_CUSTOM_MIN + 4)
 #define TLV_OP_CUSTOM_HNA_ROUTE_DEL (TLV_OP_CUSTOM_MIN + 5)
 
+
+#define TUN_TYPE_MAX 0
 #define TUN_TYPE_ANY 0
 #define TUN_TYPE_IP6IP6 1
 #define TUN_TYPE_IP4IP6 2
@@ -123,18 +125,18 @@ FIELD_FORMAT_END }
 struct tunnel_status {
         IP6_T src;
         IP6_T dst;
+        IP6_T dst_conf;
         uint8_t type;
-        uint8_t configured;
-        IFNAME_T name;
+        IFNAME_T name_conf;
 };
 
 
 #define TUNNEL_STATUS_FORMAT { \
-        FIELD_FORMAT_INIT(FIELD_TYPE_IPX6,        tunnel_status, src,        1, FIELD_RELEVANCE_HIGH), \
-        FIELD_FORMAT_INIT(FIELD_TYPE_IPX6,        tunnel_status, dst,        1, FIELD_RELEVANCE_HIGH), \
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        tunnel_status, type,       1, FIELD_RELEVANCE_HIGH), \
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        tunnel_status, configured, 1, FIELD_RELEVANCE_HIGH), \
-        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR, tunnel_status, name,       1, FIELD_RELEVANCE_HIGH), \
+        FIELD_FORMAT_INIT(FIELD_TYPE_IPX6,        tunnel_status, src,       1, FIELD_RELEVANCE_HIGH), \
+        FIELD_FORMAT_INIT(FIELD_TYPE_IPX6,        tunnel_status, dst,       1, FIELD_RELEVANCE_HIGH), \
+        FIELD_FORMAT_INIT(FIELD_TYPE_IPX6,        tunnel_status, dst_conf,  1, FIELD_RELEVANCE_HIGH), \
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        tunnel_status, type,      1, FIELD_RELEVANCE_HIGH), \
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR, tunnel_status, name_conf, 1, FIELD_RELEVANCE_HIGH), \
         FIELD_FORMAT_END }
 
 

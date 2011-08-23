@@ -47,7 +47,6 @@ static int niit4to6_dev_idx = 0;
 static int niit6to4_dev_idx = 0;
 static IPX_T niit_prefix96 = DEF_NIIT_PREFIX;
 
-static IPX_T tunnel_src;
 static int32_t data_orig_plugin_registry = FAILURE;
 
 static int32_t out_tunnels = 0;
@@ -727,8 +726,8 @@ int process_description_tlv_tunnel(struct rx_frame_iterator *it)
 
         for (p = 0; p < msgs; p++) {
 
-                dbgf_all(DBGT_INFO, "op=%s local=%s remote=%s type=%d",
-                        tlv_op_str(op), ip6AsStr(&msg->src), ip6AsStr(&msg->dst), msg->type);
+                dbgf_track(DBGT_INFO, "op=%s %d/%d local=%s remote=%s type=%d",
+                        tlv_op_str(op), p, msgs, ip6AsStr(&msg->src), ip6AsStr(&msg->dst), msg->type);
 
 
                 if (op == TLV_OP_DEL) {
@@ -790,15 +789,24 @@ int create_description_tlv_tunnel(struct tx_frame_iterator *it)
         assertion(-501278, (it->frame_type == BMX_DSC_TLV_TUNNEL));
         assertion(-501279, ((int)sizeof (struct description_msg_tunnel) <= tx_iterator_cache_data_space(it)));
 
-        if (af_cfg() == AF_INET6 && is_ip_set(&tunnel_src)) {
-                
+        if (af_cfg() == AF_INET6 && tunnel_in_tree.items) {
 
-                ((struct description_msg_tunnel *) tx_iterator_cache_msg_ptr(it))->src = tunnel_src;
-                ((struct description_msg_tunnel *) tx_iterator_cache_msg_ptr(it))->dst = self->primary_ip;
-                ((struct description_msg_tunnel *) tx_iterator_cache_msg_ptr(it))->type = TUN_TYPE_ANY;
-                dbgf_track(DBGT_INFO, "%s", ipFAsStr(&tunnel_src));
+                struct tunnel_status *tun;
+                struct avl_node *an = NULL;
 
-                return (sizeof (struct description_msg_tunnel));
+                while ((tun = avl_iterate_item(&tunnel_in_tree, &an))) {
+
+                        struct description_msg_tunnel *msg = ((struct description_msg_tunnel *) tx_iterator_cache_msg_ptr(it));
+
+                        msg->src = tun->src;
+                        msg->dst = is_ip_set(&tun->dst) ? tun->dst : self->primary_ip;
+                        msg->type = tun->type;
+
+                        dbgf_track(DBGT_INFO, "src=%s dst=%s type=%d", ip6AsStr(&msg->src), ip6AsStr(&msg->dst), msg->type);
+
+                }
+
+                return tunnel_in_tree.items * (sizeof (struct description_msg_tunnel));
         }
 
         return TLV_TX_DATA_IGNORED;

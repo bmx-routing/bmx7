@@ -137,11 +137,11 @@ int32_t update_json_options(IDM_T show_options, IDM_T show_parameters, char *fil
                 if ((!show_options && !p_opt->d.parents_instance_list.items) || p_opt->parent_name)
                         continue;
 
-                assertion(-501240, (p_opt->long_name));
+                assertion(-501240, (p_opt->name));
 
                 json_object *jopt = json_object_new_object();
 
-                json_object *jopt_name = json_object_new_string(p_opt->long_name);
+                json_object *jopt_name = json_object_new_string(p_opt->name);
                 json_object_object_add(jopt, "name", jopt_name);
 
                 if (show_options) {
@@ -190,11 +190,11 @@ int32_t update_json_options(IDM_T show_options, IDM_T show_parameters, char *fil
 
                                 while ((c_opt = list_iterate(&p_opt->d.childs_type_list, c_opt))) {
 
-                                        assertion(-501241, (c_opt->parent_name && c_opt->long_name));
+                                        assertion(-501241, (c_opt->parent_name && c_opt->name));
 
                                         json_object *jchild = json_object_new_object();
 
-                                        json_object *jopt_name = json_object_new_string(c_opt->long_name);
+                                        json_object *jopt_name = json_object_new_string(c_opt->name);
                                         json_object_object_add(jchild, "name", jopt_name);
 
                                         if (c_opt->imin != c_opt->imax) {
@@ -235,7 +235,7 @@ int32_t update_json_options(IDM_T show_options, IDM_T show_parameters, char *fil
 
                         while ((p = list_iterate(&p_opt->d.parents_instance_list, p))) {
 
-                                assertion(-501231, (p_opt->long_name && p_opt->cfg_t != A_ARG));
+                                assertion(-501231, (p_opt->name && p_opt->cfg_t != A_ARG));
                                 json_object *jp = json_object_new_object();
 
                                 json_object *jp_val = json_object_new_string(p->p_val);
@@ -255,7 +255,7 @@ int32_t update_json_options(IDM_T show_options, IDM_T show_parameters, char *fil
 
                                                 json_object *jc = json_object_new_object();
 
-                                                json_object *jc_name = json_object_new_string(c->c_opt->long_name);
+                                                json_object *jc_name = json_object_new_string(c->c_opt->name);
                                                 json_object_object_add(jc, "name", jc_name);
 
                                                 json_object *jc_val = json_object_new_string(c->c_val);
@@ -604,7 +604,7 @@ int32_t opt_json_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
 
                 while ((c = list_iterate(&patch->childs_instance_list, c))) {
 
-                        if (!strcmp(c->c_opt->long_name, ARG_RELEVANCE)) {
+                        if (!strcmp(c->c_opt->name, ARG_RELEVANCE)) {
                                 relevance = strtol(c->c_val, NULL, 10);
                         }
                 }

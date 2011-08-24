@@ -778,7 +778,7 @@ int32_t opt_deprecated(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
 	
         if (cmd == OPT_ADJUST) {
                 dbg_sys(DBGT_WARN, "option --%s%s%c%sis DEPRECATED and ignored!",
-                        opt->long_name, opt->short_name ? ", -" : "",
+                        opt->name, opt->short_name ? ", -" : "",
                         opt->short_name ? opt->short_name : ' ', opt->short_name ? " " : "");
         }
 	
@@ -979,7 +979,7 @@ int32_t is_end_of_cmd_stream(struct opt_type *opt, char *s)
 	
 	if ( opt->opt_t != A_PS0 )
 		s = nextword(s);
-	else if ( wordlen(s)>1  &&  !strncasecmp( test, opt->long_name, wordlen(opt->long_name) ) )
+	else if ( wordlen(s)>1  &&  !strncasecmp( test, opt->name, wordlen(opt->name) ) )
 		s = nextword(s);
 	else if ( wordlen(s)>1 )
 		s = s+1;
@@ -1012,7 +1012,7 @@ int8_t is_valid_opt_ival(struct opt_type *opt, char *s, struct ctrl_node *cn)
 	{
 		
 		dbg_cn( cn, DBGL_SYS, DBGT_ERR, "--%s value %d is invalid! Must be %d <= <value> <= %d !",
-		        opt->long_name, ival, opt->imin, opt->imax );
+		        opt->name, ival, opt->imin, opt->imax );
 		
 		return FAILURE;
 	}
@@ -1026,19 +1026,19 @@ STATIC_FUNC
 void register_option(struct opt_type *opt, const char * category_name)
 {
 	
-	dbgf_all( DBGT_INFO, "%s", (opt&&opt->long_name) ? opt->long_name : "" );
+	dbgf_all( DBGT_INFO, "%s", (opt&&opt->name) ? opt->name : "" );
 	
 	struct opt_type *tmp_opt = NULL;
 	struct list_node *tmp_pos;
 	
-        assertion(-501227, (opt->long_name));
+        assertion(-501227, (opt->name));
 
         assertion_dbg(-501267,
-                !get_option((opt->parent_name ? get_option(NULL, NO, opt->parent_name) : NULL), NO, opt->long_name),
-                "%s", opt->long_name);
+                !get_option((opt->parent_name ? get_option(NULL, NO, opt->parent_name) : NULL), NO, opt->name),
+                "%s", opt->name);
         assertion_dbg(-501268, IMPLIES(opt->short_name,
                 !get_option((opt->parent_name ? get_option(NULL, NO, opt->parent_name) : NULL), YES, &opt->short_name)),
-                "%s", opt->long_name);
+                "%s", opt->name);
 
 	// arg_t A_PS0 with no function can only be YES/NO:
         assertion(-500111, IMPLIES(opt->opt_t == A_PS0 && opt->ival, opt->imin == NO && opt->imax == YES && opt->idef == NO));
@@ -1050,19 +1050,19 @@ void register_option(struct opt_type *opt, const char * category_name)
         assertion(-500113, (opt->order >= 0 || opt->order <= 99));
 
         assertion(-501229, IMPLIES(opt->parent_name, !strchr(opt->parent_name, '-')));
-        assertion(-501230, IMPLIES(opt->long_name, !strchr(opt->long_name, '-')));
+        assertion(-501230, IMPLIES(opt->name, !strchr(opt->name, '-')));
 
 
         // these are the valid combinations:
 	if ( !( 
 		//ival is validated and if valid assigned by call_option()
-	        (  (opt->ival) &&  (opt->call_custom_option) &&  (opt->long_name) ) ||
+	        (  (opt->ival) &&  (opt->call_custom_option) &&  (opt->name) ) ||
 		//ival is validated and if valid assigned
-	        (  (opt->ival) && !(opt->call_custom_option) &&  (opt->long_name) ) ||
+	        (  (opt->ival) && !(opt->call_custom_option) &&  (opt->name) ) ||
 		//call_option() is called
-	        ( !(opt->ival) &&  (opt->call_custom_option) &&  (opt->long_name) ) ||
+	        ( !(opt->ival) &&  (opt->call_custom_option) &&  (opt->name) ) ||
 	        //
-	        ( !(opt->ival) && !(opt->call_custom_option) && !(opt->long_name) && opt->help )
+	        ( !(opt->ival) && !(opt->call_custom_option) && !(opt->name) && opt->help )
 	      ) ) 
 		goto failure;
 
@@ -1079,7 +1079,7 @@ void register_option(struct opt_type *opt, const char * category_name)
 		list_for_each( tmp_pos, &opt_list ) {
 			tmp_opt = (struct opt_type *)list_entry( tmp_pos, struct opt_data, list );
 			
-			if ( tmp_opt->long_name == opt->parent_name )
+			if ( tmp_opt->name == opt->parent_name )
 				break;
 			else 
 				tmp_opt = NULL;
@@ -1122,7 +1122,7 @@ void register_option(struct opt_type *opt, const char * category_name)
 	
 	if ( opt->call_custom_option  &&  ((opt->call_custom_option)( OPT_REGISTER, 0, opt, 0,0 )) == FAILURE ) {
 		
-		dbgf_sys(DBGT_ERR, "%s failed!", opt->long_name );
+		dbgf_sys(DBGT_ERR, "%s failed!", opt->name );
 		goto failure;
 	}
 	
@@ -1133,8 +1133,8 @@ failure:
 
         dbgf_sys(DBGT_ERR, "invalid data,  tmp_opt: %c %s  - option %c %s",
 	      (tmp_opt && tmp_opt->short_name)?tmp_opt->short_name:'?',
-	      (tmp_opt && tmp_opt->long_name)?tmp_opt->long_name:"??",
-	      (opt && opt->short_name)?opt->short_name:'?', (opt && opt->long_name) ?opt->long_name:"??" );
+	      (tmp_opt && tmp_opt->name)?tmp_opt->name:"??",
+	      (opt && opt->short_name)?opt->short_name:'?', (opt && opt->name) ?opt->name:"??" );
 	
 	assertion( -500091, NO );
 }
@@ -1158,7 +1158,7 @@ void remove_option(struct opt_type *opt)
 			if ( !opt->parent_name  &&  opt->call_custom_option  &&  
 			     ((opt->call_custom_option)( OPT_UNREGISTER, 0, opt, 0,0 )) == FAILURE ) 
 			{
-				dbgf_sys(DBGT_ERR, "%s failed!", opt->long_name );
+				dbgf_sys(DBGT_ERR, "%s failed!", opt->name );
 			}
 
                         list_del_next(&opt_list, prev_pos);
@@ -1172,7 +1172,7 @@ void remove_option(struct opt_type *opt)
 		
 	}
 	
-	dbgf_sys(DBGT_ERR, "%s no matching opt found", opt->long_name );
+	dbgf_sys(DBGT_ERR, "%s no matching opt found", opt->name );
 }
 
 void register_options_array(struct opt_type *fixed_options, int size, const char *category_name)
@@ -1183,7 +1183,7 @@ void register_options_array(struct opt_type *fixed_options, int size, const char
 
         assertion(-500149, ((size % sizeof ( struct opt_type)) == 0));
 	
-	while ( i<i_max  &&  (fixed_options[i].long_name || fixed_options[i].help))
+	while ( i<i_max  &&  (fixed_options[i].name || fixed_options[i].help))
                 register_option(&(fixed_options[i++]), category_name);
 	
 }
@@ -1226,10 +1226,10 @@ struct opt_type *get_option(struct opt_type *parent_opt, uint8_t short_opt, char
 		
 		opt = (struct opt_type *)list_entry( list_pos, struct opt_data, list );
 		
-		if ( !opt->long_name )
+		if ( !opt->name )
 			continue;
 
-                else if (!short_opt && len == (int) strlen(opt->long_name) && !strncasecmp(s, opt->long_name, len))
+                else if (!short_opt && len == (int) strlen(opt->name) && !strncasecmp(s, opt->name, len))
 			break;
 
                 else if (!short_opt && len == 1 && s[0] == opt->short_name)
@@ -1241,10 +1241,10 @@ struct opt_type *get_option(struct opt_type *parent_opt, uint8_t short_opt, char
 		opt = NULL;
 	}
 	
-	if ( opt  &&  opt->long_name ) {
+	if ( opt  &&  opt->name ) {
 		dbgf_all( DBGT_INFO, 
 		          "Success! short_opt %d, opt: %s %c, type %d, dyn %d, ival %d, imin %d, imax %d, idef %d",
-		          short_opt, opt->long_name ? opt->long_name : "-", opt->short_name ? opt->short_name : '-',
+		          short_opt, opt->name ? opt->name : "-", opt->short_name ? opt->short_name : '-',
 		          opt->opt_t, opt->dyn_t,
 		          opt->ival ? *opt->ival : 0, opt->imin, opt->imax, opt->idef );
 		
@@ -1534,7 +1534,7 @@ int32_t check_apply_parent_option(uint8_t del, uint8_t cmd, uint8_t _save, struc
 	del_opt_parent( &Patch_opt, p );
 	
 	dbgf_all( DBGT_INFO, "del:%d, %s, save:%d, %s %s returns: %d",
-	          del, opt_cmd2str[cmd], _save, opt->long_name, in, ret );
+	          del, opt_cmd2str[cmd], _save, opt->name, in, ret );
 	
 	return ret;
 }
@@ -1545,7 +1545,7 @@ int32_t call_opt_patch(uint8_t ad, struct opt_type *opt, struct opt_parent *patc
 {
 	
 	dbgf_all( DBGT_INFO, "ad:%d opt:%s val:%s strm:%s",
-	          ad, opt->long_name, patch->p_val, strm );
+	          ad, opt->name, patch->p_val, strm );
 	
 	if ( opt->opt_t == A_PS0 || opt->opt_t == A_PS0N ) {
 		
@@ -1625,7 +1625,7 @@ int32_t cleanup_patch(struct opt_type *opt, struct opt_parent *patch, struct ctr
 	uint8_t del = patch->p_diff;
 	char *val = patch->p_val;
 	
-	dbgf_all( DBGT_INFO, "del %d  opt %s  val %s", del, opt->long_name, val );
+	dbgf_all( DBGT_INFO, "del %d  opt %s  val %s", del, opt->name, val );
 	
 	if ( opt->cfg_t == A_ARG )
 		return SUCCESS;
@@ -1693,7 +1693,7 @@ int32_t opt_connect_client_to_daemon(uint8_t cmd, struct opt_type *opt, struct c
 	char unix_buff[MAX_UNIX_MSG_SIZE+1] = "";
 	
 	dbgf_all( DBGT_INFO, "cmd %s, opt_name %s, stream %s", 
-	          opt_cmd2str[cmd], opt->long_name, curr_strm_pos );
+	          opt_cmd2str[cmd], opt->name, curr_strm_pos );
 	
 	if ( cmd == OPT_CHECK  ||  cmd == OPT_APPLY ) {
 		
@@ -1924,7 +1924,7 @@ int32_t call_opt_apply(uint8_t cmd, uint8_t save, struct opt_type *opt, struct o
 	struct opt_parent *patch = dup_opt_parent( &Patch_opt, _patch );
 	
 	dbgf_all(  DBGT_INFO, "%s save=%d %s p_diff=%d p_val:%s p_ref:%s strm:%s",
-	           opt_cmd2str[cmd], save, opt->long_name, patch->p_diff, patch->p_val, patch->p_ref, in );
+	           opt_cmd2str[cmd], save, opt->name, patch->p_diff, patch->p_val, patch->p_ref, in );
 	
 	if ( cleanup_patch( opt, patch, cn ) == FAILURE )
 		goto call_opt_apply_error;
@@ -1940,7 +1940,7 @@ int32_t call_opt_apply(uint8_t cmd, uint8_t save, struct opt_type *opt, struct o
 	if ( (initializing  &&  opt->dyn_t == A_DYN)  ||  ( !initializing  &&  opt->dyn_t == A_INI) ) {
 		
 		dbg_cn( cn, DBGL_SYS, DBGT_ERR, "--%s%s%c can %s be applied at startup",
-		        opt->long_name, opt->short_name ? ", -" : "", opt->short_name ? opt->short_name : ' ',
+		        opt->name, opt->short_name ? ", -" : "", opt->short_name ? opt->short_name : ' ',
 		        initializing ? "NOT" : "ONLY"  );
 		
 		goto call_opt_apply_error;
@@ -1968,7 +1968,7 @@ int32_t call_opt_apply(uint8_t cmd, uint8_t save, struct opt_type *opt, struct o
 		if ( opt->auth_t == A_ADM ) {
 
 			dbgf_all( DBGT_INFO, "--%-22s  %-30s  (%s order %d)",
-			          opt->long_name, patch->p_val, opt_cmd2str[ cmd ], opt->order );
+			          opt->name, patch->p_val, opt_cmd2str[ cmd ], opt->order );
 		}
 
                 if ( opt->ival  &&  patch->p_diff == DEL )
@@ -1986,7 +1986,7 @@ int32_t call_opt_apply(uint8_t cmd, uint8_t save, struct opt_type *opt, struct o
 			
 			dbg_cn( cn, DBGL_SYS, DBGT_ERR, 
 			        "failed setting the already succesfully tested option %s to %s",
-			        opt->long_name, patch->p_val );
+			        opt->name, patch->p_val );
 			
 			// this may happen when:
 			// - overwriting a config-file option with a startup-option (pain in the ass!)
@@ -2054,7 +2054,7 @@ int32_t track_opt_parent(uint8_t cmd, uint8_t save, struct opt_type *p_opt, stru
 	p_track = p_track ? p_track : p_reftr;
 	
 	dbgf_all(  DBGT_INFO, "%s %s save=%d patch_diff:%d patch_val:%s patch_ref:%s track_val:%s track_ref:%s", 
-	           opt_cmd2str[cmd], p_opt->long_name, save, p_patch->p_diff, 
+	           opt_cmd2str[cmd], p_opt->name, save, p_patch->p_diff,
 	           p_patch->p_val, p_patch->p_ref, p_track?p_track->p_val:"-", p_track?p_track->p_ref:"-");
 	
 	if ( p_patch->p_diff == DEL  &&  p_track ) {
@@ -2066,7 +2066,7 @@ int32_t track_opt_parent(uint8_t cmd, uint8_t save, struct opt_type *p_opt, stru
 			
 			del_opt_parent( p_opt, p_track );
 
-                        dbg_cn(cn, DBGL_CHANGES, DBGT_INFO, "--%-22s -", p_opt->long_name);
+                        dbg_cn(cn, DBGL_CHANGES, DBGT_INFO, "--%-22s -", p_opt->name);
 		}
 		
 	} else {
@@ -2115,7 +2115,7 @@ int32_t track_opt_parent(uint8_t cmd, uint8_t save, struct opt_type *p_opt, stru
 		
 		if ( cmd == OPT_APPLY  &&  changed  &&  p_opt->auth_t == A_ADM )
 			dbg_cn( cn, DBGL_CHANGES, DBGT_INFO, "--%-22s %c%-30s",
-			        p_opt->long_name, p_patch->p_diff==DEL?'-':' ', p_patch->p_val);
+			        p_opt->name, p_patch->p_diff==DEL?'-':' ', p_patch->p_val);
 		
 		if ( p_track ) {
 			
@@ -2141,7 +2141,7 @@ int32_t track_opt_parent(uint8_t cmd, uint8_t save, struct opt_type *p_opt, stru
 					
 					if ( save ) {
 						dbg_cn( cn, DBGL_SYS, DBGT_ERR, "--%s %s %s%s does not exist",
-						        p_opt->long_name, p_patch->p_val, LONG_OPT_ARG_DELIMITER_STR, c_patch->c_opt->long_name );
+						        p_opt->name, p_patch->p_val, LONG_OPT_ARG_DELIMITER_STR, c_patch->c_opt->name );
 						return FAILURE;
 					}
 					
@@ -2151,7 +2151,7 @@ int32_t track_opt_parent(uint8_t cmd, uint8_t save, struct opt_type *p_opt, stru
 				{
 					
 					dbgf_all( DBGT_INFO, "--%s %s %s%s %s already configured",
-					          p_opt->long_name, p_patch->p_val, LONG_OPT_ARG_DELIMITER_STR, c_patch->c_opt->long_name, c_patch->c_val );
+					          p_opt->name, p_patch->p_val, LONG_OPT_ARG_DELIMITER_STR, c_patch->c_opt->name, c_patch->c_val );
 					
 				} else if (  c_patch->c_val ) {
 					
@@ -2175,8 +2175,8 @@ int32_t track_opt_parent(uint8_t cmd, uint8_t save, struct opt_type *p_opt, stru
 				
 				if ( cmd == OPT_APPLY  &&  changed_child  &&  c_patch->c_opt->auth_t == A_ADM )
 					dbg_cn( cn, DBGL_CHANGES, DBGT_INFO, "--%-22s  %-30s  %s%-22s %c%-30s",
-					        p_opt->long_name, p_patch->p_val, LONG_OPT_ARG_DELIMITER_STR,
-					        c_patch->c_opt->long_name, c_patch->c_val?' ':'-', c_patch->c_val );
+					        p_opt->name, p_patch->p_val, LONG_OPT_ARG_DELIMITER_STR,
+					        c_patch->c_opt->name, c_patch->c_val?' ':'-', c_patch->c_val );
 				
 			}
 		}
@@ -2202,7 +2202,7 @@ int32_t call_option(uint8_t ad, uint8_t cmd, uint8_t save, struct opt_type *opt,
 {
 	
 	dbgf_all(  DBGT_INFO, "%s (cmd %s  del %d  save %d  parent_name %s order %d) p_val: %s in: %s",
-	           opt->long_name, opt_cmd2str[ cmd ], ad, save, opt->parent_name, opt->order, patch?patch->p_val:"-", in );
+	           opt->name, opt_cmd2str[ cmd ], ad, save, opt->parent_name, opt->order, patch?patch->p_val:"-", in );
 	
 	if ( !opt ) // might be NULL when referring to disabled plugin functionality
 		return SUCCESS;
@@ -2214,13 +2214,13 @@ int32_t call_option(uint8_t ad, uint8_t cmd, uint8_t save, struct opt_type *opt,
         if ((cmd == OPT_PATCH || cmd == OPT_ADJUST || cmd == OPT_CHECK || cmd == OPT_APPLY) &&
                 cn && !cn->authorized && opt->auth_t == A_ADM)
 	{
-		dbg_cn( cn, DBGL_SYS, DBGT_ERR, "insufficient permissions to use command %s",  opt->long_name );
+		dbg_cn( cn, DBGL_SYS, DBGT_ERR, "insufficient permissions to use command %s",  opt->name );
 		return FAILURE;
 	}
 	
 	if ( ad == DEL  &&  ( /*!on_the_fly this is what concurrent -r and -g configurations do || */
                 /* opt->dyn_t == A_INI this is what conf-reload tries   ||*/  opt->cfg_t == A_ARG ) ) {
-		dbg_sys(DBGT_ERR, "option %s can not be resetted during startup!", opt->long_name );
+		dbg_sys(DBGT_ERR, "option %s can not be resetted during startup!", opt->name );
 		return FAILURE;
 	}
 	
@@ -2228,7 +2228,7 @@ int32_t call_option(uint8_t ad, uint8_t cmd, uint8_t save, struct opt_type *opt,
         if ((opt->pos_t == A_END) && in && !is_end_of_cmd_stream(opt, in)) {
 
                 dbg_cn(cn, DBGL_SYS, DBGT_ERR, "--%s%s%c MUST be last option before line feed",
-                        opt->long_name, opt->short_name ? ", -" : "", opt->short_name ? opt->short_name : ' ');
+                        opt->name, opt->short_name ? ", -" : "", opt->short_name ? opt->short_name : ' ');
 		
 		goto call_option_failure;
 	}
@@ -2290,7 +2290,7 @@ int32_t call_option(uint8_t ad, uint8_t cmd, uint8_t save, struct opt_type *opt,
 
                         if (check_apply_parent_option(DEL, OPT_APPLY, save, opt, p_tmp->p_val, cn) == FAILURE) {
 
-                                dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "calling %s %s failed", opt->long_name, p_tmp->p_val);
+                                dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "calling %s %s failed", opt->name, p_tmp->p_val);
 
                                 return FAILURE;
                         }
@@ -2320,7 +2320,7 @@ call_option_failure:
 	
 	dbg_cn( cn, DBGL_SYS, DBGT_ERR,
                 "--%s  %s  Failed ! ( diff:%d ad:%d val:%d min:%d max:%d def:%d  %s %d %d %d )",
-	        opt->long_name ? opt->long_name : "-", in ? in: "-",
+	        opt->name ? opt->name : "-", in ? in: "-",
 	        patch ? patch->p_diff : -1,
                 ad, opt->ival ? *(opt->ival) : 0, opt->imin, opt->imax, opt->idef,
                 opt_cmd2str[cmd], opt->opt_t, !initializing, wordlen(in));
@@ -2335,7 +2335,7 @@ int respect_opt_order(uint8_t test, int8_t last, int8_t next, struct opt_type *o
 	struct opt_type *opt;
 	
 	dbgf_all( DBGT_INFO, "%s, cmd: %s, last %d, next %d, opt %s  load %d",
-	          opt_cmd2str[ test ], opt_cmd2str[ cmd ], last, next, on?on->long_name:"???", load );
+	          opt_cmd2str[ test ], opt_cmd2str[ cmd ], last, next, on?on->name:"???", load );
 
         assertion(-500002, (test == OPT_CHECK || test == OPT_APPLY));
         assertion(-500107, (cmd != OPT_CHECK && cmd != OPT_APPLY));
@@ -2349,7 +2349,7 @@ int respect_opt_order(uint8_t test, int8_t last, int8_t next, struct opt_type *o
 		// debug which option caused the problems !
 		dbg_cn( cn, DBGL_SYS, DBGT_ERR, 
 		        "--%s%s%c (order=%d option) MUST appear earlier in command sequence!",
-		        on?on->long_name:"???", on&&on->short_name?", ":"",on&&on->short_name?on->short_name:' ', next );
+		        on?on->name:"???", on&&on->short_name?", ":"",on&&on->short_name?on->short_name:' ', next );
 		
 		return FAILURE;
 	}
@@ -2367,7 +2367,7 @@ int respect_opt_order(uint8_t test, int8_t last, int8_t next, struct opt_type *o
 			if ( load_config_cb  &&  load_config_cb( test, opt, cn ) == FAILURE ) {
 				
 				dbgf_all( DBGT_ERR, "load_config_cb() %s failed", 
-				          opt->long_name );
+				          opt->name );
 				
 				return FAILURE;
 			}
@@ -2378,7 +2378,7 @@ int respect_opt_order(uint8_t test, int8_t last, int8_t next, struct opt_type *o
 			if ( call_option( ADD, cmd, 0/*save*/, opt, 0,0, cn ) == FAILURE ) {
 				
 				dbg_cn( cn, DBGL_SYS, DBGT_ERR, "call_option() %s cmd %s failed",
-				        opt->long_name, opt_cmd2str[cmd] );
+				        opt->name, opt_cmd2str[cmd] );
 				
 				return FAILURE;
 			}
@@ -2432,7 +2432,7 @@ int8_t apply_stream_opts(char *s, uint8_t cmd, uint8_t load_cfg, struct ctrl_nod
 	while ( s && strlen(s) >= 1 ) {
 		
 		dbgf_all( DBGT_INFO, "cmd: %-10s, state: %s opt: %s, wordlen: %d rest: %s",
-		          opt_cmd2str[cmd], state2str[state], opt?opt->long_name:"null", wordlen(s), s );
+		          opt_cmd2str[cmd], state2str[state], opt?opt->name:"null", wordlen(s), s );
 		
 		if ( Testing ) {
 			Testing = 0;
@@ -2609,7 +2609,7 @@ int8_t apply_stream_opts(char *s, uint8_t cmd, uint8_t load_cfg, struct ctrl_nod
 				
 				dbg_cn( cn, DBGL_SYS, DBGT_ERR, 
 				        "--%s %s can not be resetted and refined at the same time. Just omit %s%s!",
-				        opt->long_name, patch->p_val, LONG_OPT_ARG_DELIMITER_STR, argument );
+				        opt->name, patch->p_val, LONG_OPT_ARG_DELIMITER_STR, argument );
 				
 				goto apply_args_error;
 				
@@ -2742,14 +2742,14 @@ int32_t opt_show_parameter(uint8_t cmd, uint8_t _save, struct opt_type *opt, str
                         while ((p = list_iterate(&opt->d.parents_instance_list, p))) {
                                 struct opt_child *c = NULL;
 
-                                assertion(-501231, (opt->long_name && opt->cfg_t != A_ARG));
+                                assertion(-501231, (opt->name && opt->cfg_t != A_ARG));
                                 
-                                dbg_printf(cn, " %-22s %-20s %s%s\n", opt->long_name, p->p_val,
+                                dbg_printf(cn, " %-22s %-20s %s%s\n", opt->name, p->p_val,
                                         (p->p_ref ? "resolved from " : ""), (p->p_ref ? p->p_ref : ""));
 
                                 while ((c = list_iterate(&p->childs_instance_list, c))) {
                                         dbg_printf(cn, "    %s%-18s %-20s %s%s\n",
-                                                LONG_OPT_ARG_DELIMITER_STR, c->c_opt->long_name, c->c_val,
+                                                LONG_OPT_ARG_DELIMITER_STR, c->c_opt->name, c->c_val,
                                                 (c->c_ref ? "resolved from " : ""), (c->c_ref ? c->c_ref : ""));
                                 }
                         }
@@ -2824,12 +2824,12 @@ int32_t opt_help(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
 		return FAILURE;
 
         uint8_t relevance = DEF_RELEVANCE;
-        uint8_t verbose = !strcmp(opt->long_name, ARG_VERBOSE_HELP);
+        uint8_t verbose = !strcmp(opt->name, ARG_VERBOSE_HELP);
         struct opt_child *c = NULL;
 
         while ((c = list_iterate(&patch->childs_instance_list, c))) {
 
-                if (!strcmp(c->c_opt->long_name, ARG_RELEVANCE)) {
+                if (!strcmp(c->c_opt->name, ARG_RELEVANCE)) {
                         relevance = strtol(c->c_val, NULL, 10);
                 }
         }
@@ -2862,7 +2862,7 @@ int32_t opt_help(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
                         dbg_printf(cn, "\n\n%s options  (order=%d):\n", category, opt->order);
 		}
 
-		if ( opt->long_name  &&  opt->help  &&  !opt->parent_name ) {
+		if ( opt->name  &&  opt->help  &&  !opt->parent_name ) {
 
 
 			if ( opt->short_name )
@@ -2870,7 +2870,7 @@ int32_t opt_help(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
 			else
 				*sn = '\0';
 
-			sprintf( st, "--%s%s %s ", opt->long_name, sn, opt->syntax ? opt->syntax: "" );
+			sprintf( st, "--%s%s %s ", opt->name, sn, opt->syntax ? opt->syntax: "" );
 
 
 			dbg_printf( cn, "\n%-40s ", st);
@@ -2905,7 +2905,7 @@ int32_t opt_help(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
 				*sn = '\0';
 
 			sprintf( st, "  %s%s%s %s ",
-                                LONG_OPT_ARG_DELIMITER_STR, c_opt->long_name, sn, c_opt->syntax ? c_opt->syntax : "");
+                                LONG_OPT_ARG_DELIMITER_STR, c_opt->name, sn, c_opt->syntax ? c_opt->syntax : "");
 
 
 			dbg_printf( cn, "%-40s ", st);

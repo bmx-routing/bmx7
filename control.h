@@ -316,7 +316,7 @@ struct opt_type {
 	struct opt_data d; //MUST be first structure in opt_type to allow casting between struct opt_data and  struct opt_type
 	
 	char *parent_name;
-	char *long_name;
+	char *name;
 
 	char short_name;
 	int8_t order;  // enforces an order during the init process,  (0==anytime????), 1..99: in this order. Might become removed

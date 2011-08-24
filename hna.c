@@ -638,7 +638,7 @@ int32_t opt_uhna(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
                 struct uhna_node *un;
 
                 dbgf_all(DBGT_INFO, "af_cfg=%s diff=%d cmd=%s  save=%d  opt=%s  patch=%s",
-                        family2Str(af_cfg()), patch->p_diff, opt_cmd2str[cmd], _save, opt->long_name, patch->p_val);
+                        family2Str(af_cfg()), patch->p_diff, opt_cmd2str[cmd], _save, opt->name, patch->p_val);
 
                 if (str2netw(patch->p_val, &ipX, '/', cn, &mask, &family) == FAILURE ||
                         family != af_cfg() ||
@@ -931,7 +931,7 @@ int32_t opt_tunnel_in(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct o
                 char adjusted_src[IPXNET_STR_LEN];
 
                 dbgf_track(DBGT_INFO, "diff=%d cmd=%s  save=%d  opt=%s  patch=%s",
-                        patch->p_diff, opt_cmd2str[cmd], _save, opt->long_name, patch->p_val);
+                        patch->p_diff, opt_cmd2str[cmd], _save, opt->name, patch->p_val);
 
                 if (str2netw(patch->p_val, &src, '/', cn, NULL, &family) == FAILURE || family != AF_INET6 ||
                         is_ip_forbidden(&src, family) || ip_netmask_validate(&src, 128, family, NO) == FAILURE ||
@@ -952,13 +952,13 @@ int32_t opt_tunnel_in(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct o
                 while ((c = list_iterate(&patch->childs_instance_list, c))) {
 
                         dbgf_track(DBGT_INFO, "diff=%d cmd=%s opt=%s  patch=%s %s %s",
-                                patch->p_diff, opt_cmd2str[cmd], opt->long_name, patch->p_val, c->c_opt->long_name, c->c_val);
+                                patch->p_diff, opt_cmd2str[cmd], opt->name, patch->p_val, c->c_opt->name, c->c_val);
 
-                        if (c->c_val && !strcmp(c->c_opt->long_name, ARG_TUN_TYPE)) {
+                        if (c->c_val && !strcmp(c->c_opt->name, ARG_TUN_TYPE)) {
                                 
                                 type = strtol(c->c_val, NULL, 10);
 
-                        } else if (c->c_val && !strcmp(c->c_opt->long_name, ARG_TUN_NAME)) {
+                        } else if (c->c_val && !strcmp(c->c_opt->name, ARG_TUN_NAME)) {
 
                                 name = c->c_val;
 

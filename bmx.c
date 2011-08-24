@@ -1969,7 +1969,7 @@ int32_t opt_version(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt
 	if ( cmd != OPT_APPLY )
 		return SUCCESS;
 
-        assertion(-501257, !strcmp(opt->long_name, ARG_VERSION));
+        assertion(-501257, !strcmp(opt->name, ARG_VERSION));
 
         dbg_printf(cn, "%s-%s compatibility=%d codeVersion=%d\n",
                         BMX_BRANCH, BRANCH_VERSION, COMPATIBILITY_VERSION, CODE_VERSION);
@@ -1991,7 +1991,7 @@ int32_t opt_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_
 
                 while ((c = list_iterate(&patch->childs_instance_list, c))) {
 
-                        if (!strcmp(c->c_opt->long_name, ARG_RELEVANCE)) {
+                        if (!strcmp(c->c_opt->name, ARG_RELEVANCE)) {
                                 relevance = strtol(c->c_val, NULL, 10);
                         }
                 }

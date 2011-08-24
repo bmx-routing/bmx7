@@ -366,7 +366,7 @@ int bmx_derive_config ( char *reference, char *derivation, struct ctrl_node *cn 
 STATIC_FUNC
 int bmx_save_config ( uint8_t del, struct opt_type *opt, char *p_val, char *c_val, struct ctrl_node *cn ) {
 	
-	dbgf( DBGL_CHANGES, DBGT_INFO, "%s p:%s c:%s", opt->long_name, p_val, c_val );
+	dbgf( DBGL_CHANGES, DBGT_INFO, "%s p:%s c:%s", opt->name, p_val, c_val );
 	
 	char sect_name[MAX_ARG_SIZE]="";
 	
@@ -381,12 +381,12 @@ int bmx_save_config ( uint8_t del, struct opt_type *opt, char *p_val, char *c_va
 		
 		if ( del ) {
 			
-			return uci_remove( bmx_ctx, bmx_conf_name, DEF_SECT_NAME, opt->long_name, cn );
+			return uci_remove( bmx_ctx, bmx_conf_name, DEF_SECT_NAME, opt->name, cn );
 		
 		} else {
 			
 			uci_get_sect_name( YES/*create*/, cn, bmx_ctx, bmx_conf_name, DEF_SECT_NAME, DEF_SECT_TYPE, NULL, NULL );
-			return uci_save_option( bmx_ctx, bmx_conf_name, DEF_SECT_NAME, opt->long_name, c_val, cn );
+			return uci_save_option( bmx_ctx, bmx_conf_name, DEF_SECT_NAME, opt->name, c_val, cn );
                 }
 
         } else if (opt->opt_t == A_PS1N || opt->opt_t == A_PM1N) {
@@ -397,12 +397,12 @@ int bmx_save_config ( uint8_t del, struct opt_type *opt, char *p_val, char *c_va
 		
 		if ( uci_get_sect_name( ( del ? NO : YES/*create*/ ),
 		                        cn, bmx_ctx, 
-		                        bmx_conf_name, sect_name, opt->long_name, 
-		                        opt->long_name, p_val ) == FAILURE )
+		                        bmx_conf_name, sect_name, opt->name,
+		                        opt->name, p_val ) == FAILURE )
 		{
 			
 			dbgf_cn( cn, DBGL_SYS, DBGT_ERR, "unknown sect_name %s for %s %s",
-			        sect_name, opt->long_name, p_val );
+			        sect_name, opt->name, p_val );
 			
 			if ( del )
 				return SUCCESS;
@@ -414,7 +414,7 @@ int bmx_save_config ( uint8_t del, struct opt_type *opt, char *p_val, char *c_va
 			return uci_remove( bmx_ctx, bmx_conf_name, sect_name, NULL, cn );
 		
 		else
-			return uci_save_option( bmx_ctx, bmx_conf_name, sect_name, opt->long_name, c_val, cn );
+			return uci_save_option( bmx_ctx, bmx_conf_name, sect_name, opt->name, c_val, cn );
 		
 		
 	} else if ( opt->opt_t == A_CS1  &&  p_val ) {
@@ -422,36 +422,36 @@ int bmx_save_config ( uint8_t del, struct opt_type *opt, char *p_val, char *c_va
 		// all A_CS1-child options  like \ttl=20  from --dev eth0
 		
 		if ( uci_get_sect_name( NO/*create*/, cn, bmx_ctx, 
-		                        bmx_conf_name, sect_name, opt->d.parent_opt->long_name, 
-		                        opt->d.parent_opt->long_name, p_val ) == FAILURE ) 
+		                        bmx_conf_name, sect_name, opt->d.parent_opt->name,
+		                        opt->d.parent_opt->name, p_val ) == FAILURE )
 		{
 			
 			dbgf_cn( cn, DBGL_SYS, DBGT_ERR, 
 			        "unknown A_1 sect_name %s  sn %s %s  on %s %s",
-			        sect_name, opt->d.parent_opt->long_name, p_val, opt->long_name, c_val );
+			        sect_name, opt->d.parent_opt->name, p_val, opt->name, c_val );
 			
 			if ( del )
 				return SUCCESS;
 			
 			sect_name[0]=0;
 			if ( uci_get_sect_name( YES/*create*/, cn, bmx_ctx,
-			                        bmx_conf_name, sect_name, opt->d.parent_opt->long_name,
-			                        opt->d.parent_opt->long_name, p_val ) == FAILURE )
+			                        bmx_conf_name, sect_name, opt->d.parent_opt->name,
+			                        opt->d.parent_opt->name, p_val ) == FAILURE )
 				return FAILURE;
 			
 		}
 		
 		if ( del )
-			return uci_remove( bmx_ctx, bmx_conf_name, sect_name, opt->long_name, cn );
+			return uci_remove( bmx_ctx, bmx_conf_name, sect_name, opt->name, cn );
 		
 		else
-			return uci_save_option( bmx_ctx, bmx_conf_name, sect_name, opt->long_name, c_val, cn );
+			return uci_save_option( bmx_ctx, bmx_conf_name, sect_name, opt->name, c_val, cn );
 		
 		
 	} else {
 		
 		dbgf_cn( cn, DBGL_SYS, DBGT_ERR, "%20s %20s -- %20s %s",
-		        opt->d.parent_opt?opt->d.parent_opt->long_name:"--", p_val, opt->long_name, c_val  );
+		        opt->d.parent_opt?opt->d.parent_opt->name:"--", p_val, opt->name, c_val  );
 		
 		cleanup_all( -501004 );
 	}
@@ -469,7 +469,7 @@ int bmx_load_config ( uint8_t cmd, struct opt_type *opt, struct ctrl_node *cn ) 
 	if ( !bmx_ctx  ||  !bmx_conf_name )
 		return SUCCESS;
 		
-	if ( !opt->long_name  ||  opt->cfg_t == A_ARG  )
+	if ( !opt->name  ||  opt->cfg_t == A_ARG  )
 		return SUCCESS;
 
         assertion(-500138, (cmd == OPT_CHECK || cmd == OPT_APPLY));
@@ -477,7 +477,7 @@ int bmx_load_config ( uint8_t cmd, struct opt_type *opt, struct ctrl_node *cn ) 
 	
 	if ( opt->opt_t == A_PS1 ) {
 		
-		sprintf( name, "%s.%s.%s", bmx_conf_name, DEF_SECT_NAME, opt->long_name );
+		sprintf( name, "%s.%s.%s", bmx_conf_name, DEF_SECT_NAME, opt->name );
 		
 		dbgf_all( DBGT_INFO, "loading A_PS1-option: %s", name );
 		
@@ -488,7 +488,7 @@ int bmx_load_config ( uint8_t cmd, struct opt_type *opt, struct ctrl_node *cn ) 
 			{
 				dbgf_cn( cn, DBGL_SYS, DBGT_ERR, 
 				     "resetting A_PS1 %s.%s.%s to defaults failed", 
-				        bmx_conf_name, DEF_SECT_NAME, opt->long_name );
+				        bmx_conf_name, DEF_SECT_NAME, opt->name );
 				
 				return FAILURE;
 			}
@@ -500,7 +500,7 @@ int bmx_load_config ( uint8_t cmd, struct opt_type *opt, struct ctrl_node *cn ) 
 		} else if ( check_apply_parent_option( ADD, cmd, NO/*save*/, opt, optr.o->v.string, cn ) == FAILURE ) {
 		
 			dbgf_cn( cn, DBGL_SYS, DBGT_ERR, "loading A_PS1 %s.%s.%s=%s failed", 
-			        bmx_conf_name, DEF_SECT_NAME, opt->long_name, optr.o->v.string );
+			        bmx_conf_name, DEF_SECT_NAME, opt->name, optr.o->v.string );
 			
 			return FAILURE;
 		}
@@ -508,7 +508,7 @@ int bmx_load_config ( uint8_t cmd, struct opt_type *opt, struct ctrl_node *cn ) 
 
         } else if (opt->opt_t == A_PS1N || opt->opt_t == A_PM1N) {
 		
-		dbgf_all( DBGT_INFO, "loading A_PSN/A_PMN-option: %s", opt->long_name );
+		dbgf_all( DBGT_INFO, "loading A_PSN/A_PMN-option: %s", opt->name );
 		
 		struct uci_element *e;
 		struct uci_element *se;
@@ -537,10 +537,10 @@ int bmx_load_config ( uint8_t cmd, struct opt_type *opt, struct ctrl_node *cn ) 
 			
 			struct uci_section *s = uci_to_section(se);
 			
-			if ( strcmp( opt->long_name, s->type ) )
+			if ( strcmp( opt->name, s->type ) )
 				continue;
 			
-			sprintf( name, "%s.%s.%s", bmx_conf_name, s->e.name, opt->long_name );
+			sprintf( name, "%s.%s.%s", bmx_conf_name, s->e.name, opt->name );
 			
 			dbgf_all( DBGT_INFO, "looking up: %s", name );
 			
@@ -550,7 +550,7 @@ int bmx_load_config ( uint8_t cmd, struct opt_type *opt, struct ctrl_node *cn ) 
 				if ( cmd == OPT_APPLY ) {
 					dbgf_cn( cn, DBGL_SYS, DBGT_WARN, 
 					        "looking up %s.%s.%s failed", 
-					        bmx_conf_name, s->e.name, opt->long_name );
+					        bmx_conf_name, s->e.name, opt->name );
 				}
 				
 				continue;
@@ -565,7 +565,7 @@ int bmx_load_config ( uint8_t cmd, struct opt_type *opt, struct ctrl_node *cn ) 
 			if ( call_option( ADD, OPT_PATCH, NO/*save*/, opt, patch, config_sect_val, cn ) == FAILURE ) {
 				
 				dbgf_cn( cn, DBGL_SYS, DBGT_ERR, "setting sect %s.%s.%s=%s failed", 
-				        bmx_conf_name, s->e.name, opt->long_name, config_sect_val );
+				        bmx_conf_name, s->e.name, opt->name, config_sect_val );
 				
 				del_opt_parent( &Patch_opt, patch );
 				return FAILURE;
@@ -576,7 +576,7 @@ int bmx_load_config ( uint8_t cmd, struct opt_type *opt, struct ctrl_node *cn ) 
 				
 				struct opt_type *opt_arg = (struct opt_type*)list_entry( pos, struct opt_data, list );
 				
-				sprintf( name, "%s.%s.%s", bmx_conf_name, s->e.name, opt_arg->long_name );
+				sprintf( name, "%s.%s.%s", bmx_conf_name, s->e.name, opt_arg->name );
 				dbgf_all( DBGT_INFO, "looking up: %s", name );
 				
 				uint8_t del;
@@ -600,8 +600,8 @@ int bmx_load_config ( uint8_t cmd, struct opt_type *opt, struct ctrl_node *cn ) 
 					
 					dbgf_cn( cn, DBGL_SYS, DBGT_ERR, 
 					        "setting opt %s %s %s.%s.%s=%s failed", 
-					        opt->long_name, config_sect_val,
-					        bmx_conf_name, s->e.name, opt_arg->long_name, config_sect_opt_val );
+					        opt->name, config_sect_val,
+					        bmx_conf_name, s->e.name, opt_arg->name, config_sect_opt_val );
 					
 					del_opt_parent( &Patch_opt, patch );
 					return FAILURE;
@@ -610,8 +610,8 @@ int bmx_load_config ( uint8_t cmd, struct opt_type *opt, struct ctrl_node *cn ) 
 					
 					dbgf_all( DBGT_INFO, 
 					        "patched opt %s %s %s.%s.%s=%s", 
-					        opt->long_name, config_sect_val,
-					        bmx_conf_name, s->e.name, opt_arg->long_name, config_sect_opt_val );
+					        opt->name, config_sect_val,
+					        bmx_conf_name, s->e.name, opt_arg->name, config_sect_opt_val );
 				}
 				
 			}
@@ -621,7 +621,7 @@ int bmx_load_config ( uint8_t cmd, struct opt_type *opt, struct ctrl_node *cn ) 
 				
 				dbgf_cn( cn, DBGL_SYS, DBGT_ERR,
 					"configuring section %s.%s=%s failed",
-					bmx_conf_name, s->e.name, opt->long_name );
+					bmx_conf_name, s->e.name, opt->name );
 				
 				     del_opt_parent( &Patch_opt, patch );
 				     return FAILURE;
@@ -648,7 +648,7 @@ int bmx_load_config ( uint8_t cmd, struct opt_type *opt, struct ctrl_node *cn ) 
 				
 			} else if ( check_apply_parent_option( DEL, cmd, NO, opt, p_tmp->p_val, cn ) == FAILURE ) {
 				
-				dbgf_cn( cn, DBGL_SYS, DBGT_ERR, "calling %s %s failed", opt->long_name, p_tmp->p_val );
+				dbgf_cn( cn, DBGL_SYS, DBGT_ERR, "calling %s %s failed", opt->name, p_tmp->p_val );
 				
 				return FAILURE;
 			}
@@ -656,7 +656,7 @@ int bmx_load_config ( uint8_t cmd, struct opt_type *opt, struct ctrl_node *cn ) 
 		
 	} else {
 
-                dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "opt: %s illegal implementation!", opt->long_name);
+                dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "opt: %s illegal implementation!", opt->name);
 		
 		cleanup_all( -500137 );
 		
@@ -796,7 +796,7 @@ int32_t opt_conf_file ( uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
 						
 						dbgf_all(  DBGT_ERR, 
 							"bmx_load_config() %s %s failed", 
-						        test?"OPT_TEST":"OPT_SET",on->long_name );
+						        test?"OPT_TEST":"OPT_SET",on->name );
 						
 						return FAILURE;
 					}
@@ -827,25 +827,25 @@ int32_t opt_show_conf(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct o
                         while ((opt = list_iterate(&opt_list, opt))) {
                                 struct opt_parent *p = NULL;
 
-                                while (opt->long_name && (p = list_iterate(&opt->d.parents_instance_list, p))) {
+                                while (opt->name && (p = list_iterate(&opt->d.parents_instance_list, p))) {
                                         struct opt_child *c = NULL;
 
                                         if (!show_sections && opt->opt_t == A_PS1) {
 
                                                 dbg_printf(cn, "\toption '%s' '%s'\n",
-                                                        opt->long_name, (p->p_ref ? p->p_ref : p->p_val));
+                                                        opt->name, (p->p_ref ? p->p_ref : p->p_val));
 
                                         } else if (show_sections && (opt->opt_t == A_PS1N || opt->opt_t == A_PM1N)) {
 
-                                                dbg_printf(cn, "\nconfig '%s'\n", opt->long_name);
+                                                dbg_printf(cn, "\nconfig '%s'\n", opt->name);
                                                 dbg_printf(cn, "\toption '%s' '%s'\n",
-                                                        opt->long_name, (p->p_ref ? p->p_ref : p->p_val));
+                                                        opt->name, (p->p_ref ? p->p_ref : p->p_val));
                                         }
 
                                         while (show_sections && (c = list_iterate(&p->childs_instance_list, c))) {
 
                                                 dbg_printf(cn, "\toption '%s' '%s'\n",
-                                                        c->c_opt->long_name, (c->c_ref ? c->c_ref : c->c_val));
+                                                        c->c_opt->name, (c->c_ref ? c->c_ref : c->c_val));
 
                                         }
                                 }

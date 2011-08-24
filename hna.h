@@ -22,6 +22,7 @@
 
 
 
+
 #define ARG_UHNA "hna"
 
 #define ARG_UHNA_NETWORK     "network"
@@ -34,13 +35,6 @@
 #define MAX_UHNA_METRIC      U32_MAX
 #define DEF_UHNA_METRIC      0
 #define ARG_UHNA_METRIC      "metric"
-
-#define ARG_IN_TUN  "inTunnel"
-#define ARG_IN_TUNS "inTunnels"
-
-#define ARG_OUT_TUN "outTunnel"
-#define ARG_OUT_TUNS "outTunnels"
-
 
 #define ARG_NIIT          "niitSource"
 #define HLP_NIIT          "specify niit4to6 source IP address (IP MUST be assigned to niit4to6 interface!)"
@@ -56,12 +50,23 @@
 #define TLV_OP_CUSTOM_HNA_ROUTE_ADD (TLV_OP_CUSTOM_MIN + 4)
 #define TLV_OP_CUSTOM_HNA_ROUTE_DEL (TLV_OP_CUSTOM_MIN + 5)
 
+#define ARG_IN_TUN  "inTunnel"
+#define ARG_IN_TUNS "inTunnels"
 
-#define TUN_TYPE_MAX 0
+#define ARG_OUT_TUN "outTunnel"
+#define ARG_OUT_TUNS "outTunnels"
+
+#define ARG_TUN_NAME "name"
+#define ARG_TUN_TYPE "type"
+#define DEF_TUN_TYPE 0
+#define MIN_TUN_TYPE 0
+#define MAX_TUN_TYPE 0
 #define TUN_TYPE_ANY 0
 #define TUN_TYPE_IP6IP6 1
 #define TUN_TYPE_IP4IP6 2
 #define TUN_TYPE_GRE 3
+
+
 
 struct uhna_key {
 	uint8_t family;
@@ -123,20 +128,22 @@ FIELD_FORMAT_END }
 
 
 struct tunnel_status {
-        IP6_T src;
-        IP6_T dst;
-        IP6_T dst_conf;
+        IFNAME_T name;
+        uint8_t name_auto;
         uint8_t type;
-        IFNAME_T name_conf;
+        IP6_T src;
+        IP6_T dst_actual;
+        IP6_T dst_should;
 };
 
 
 #define TUNNEL_STATUS_FORMAT { \
-        FIELD_FORMAT_INIT(FIELD_TYPE_IPX6,        tunnel_status, src,       1, FIELD_RELEVANCE_HIGH), \
-        FIELD_FORMAT_INIT(FIELD_TYPE_IPX6,        tunnel_status, dst,       1, FIELD_RELEVANCE_HIGH), \
-        FIELD_FORMAT_INIT(FIELD_TYPE_IPX6,        tunnel_status, dst_conf,  1, FIELD_RELEVANCE_HIGH), \
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        tunnel_status, type,      1, FIELD_RELEVANCE_HIGH), \
-        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR, tunnel_status, name_conf, 1, FIELD_RELEVANCE_HIGH), \
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR, tunnel_status, name,        1, FIELD_RELEVANCE_HIGH), \
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        tunnel_status, name_auto,   1, FIELD_RELEVANCE_MEDI), \
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        tunnel_status, type,        1, FIELD_RELEVANCE_HIGH), \
+        FIELD_FORMAT_INIT(FIELD_TYPE_IPX6,        tunnel_status, src,         1, FIELD_RELEVANCE_HIGH), \
+        FIELD_FORMAT_INIT(FIELD_TYPE_IPX6,        tunnel_status, dst_actual,  1, FIELD_RELEVANCE_HIGH), \
+        FIELD_FORMAT_INIT(FIELD_TYPE_IPX6,        tunnel_status, dst_should,  1, FIELD_RELEVANCE_HIGH), \
         FIELD_FORMAT_END }
 
 

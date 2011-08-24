@@ -196,9 +196,11 @@ extern const MAC_T ZERO_MAC;
 extern const struct link_dev_key ZERO_LINK_KEY;
 
 extern const IP6_T   IP6_ALLROUTERS_MC_ADDR;
+extern const IP6_T   IP6_LOOPBACK_ADDR;
 
 extern const IP6_T   IP6_LINKLOCAL_UC_PREF;
-extern const uint8_t IP6_LINKLOCAL_UC_PLEN;
+extern const uint8_t IP6_LINKLOCAL_UC_PLEN
+;
 
 extern const IP6_T   IP6_MC_PREF;
 extern const uint8_t IP6_MC_PLEN;

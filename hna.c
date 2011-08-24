@@ -921,8 +921,8 @@ int32_t opt_tunnel_in(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct o
 {
         IPX_T src;
         struct tunnel_status *tun;
-        char *name = NULL;
-        int32_t type = TUN_TYPE_ANY;
+        struct opt_child *c = NULL;
+
 
 	if ( cmd == OPT_ADJUST  ||  cmd == OPT_CHECK  ||  cmd == OPT_APPLY ) {
 
@@ -946,51 +946,56 @@ int32_t opt_tunnel_in(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct o
                 sprintf(adjusted_src, "%s", ipXAsStr(family, &src));
                 set_opt_parent_val(patch, adjusted_src);
 
-
-                struct opt_child *c = NULL;
-
                 while ((c = list_iterate(&patch->childs_instance_list, c))) {
 
-                        dbgf_track(DBGT_INFO, "diff=%d cmd=%s opt=%s  patch=%s %s %s",
-                                patch->diff, opt_cmd2str[cmd], opt->name, patch->val, c->opt->name, c->val);
-
-                        if (c->val && !strcmp(c->opt->name, ARG_TUN_TYPE)) {
-                                
-                                type = strtol(c->val, NULL, 10);
-
-                        } else if (c->val && !strcmp(c->opt->name, ARG_TUN_NAME)) {
-
-                                name = c->val;
-
-                                if (strlen(name) >= sizeof (tun->name) || wordlen(name) != strlen(name) ||
-                                        validate_name_string(name, strlen(name)) != FAILURE
-                                        ) {
-                                        dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "invalid name: %s", name);
-                                        return FAILURE;
-                                }
-			}
-		}
+                        if (!strcmp(c->opt->name, ARG_TUN_NAME) && c->val && (
+                                strlen(c->val) >= sizeof (tun->name) ||
+                                validate_name_string(c->val, strlen(c->val)) != SUCCESS)) {
+                                dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "invalid name: %s", c->val);
+                                return FAILURE;
+                        }
+                }
         }
 
         if (cmd == OPT_APPLY) {
 
-                if((tun = avl_find_item(&tunnel_in_tree, &src))) {
+                if ((tun = avl_find_item(&tunnel_in_tree, &src)))
                         configureTunnel(DEL, self, tun);
+
+                if (patch->diff == DEL) {
                         avl_remove(&tunnel_in_tree, &tun->src, -300391);
                         debugFree(tun, -300392);
-                }
+                } else {
+                        if(!tun) {
+                                tun = debugMalloc(sizeof (struct tunnel_status), -300389);
+                                memset(tun, 0, sizeof (struct tunnel_status));
+                                tun->type = TUN_TYPE_ANY;
+                                tun->src = src;
+                                avl_insert(&tunnel_in_tree, tun, -300390);
+                        }
 
-                if (patch->diff != DEL) {
-                        tun = debugMalloc( sizeof(struct tunnel_status), -300389);
-                        memset(tun, 0, sizeof(struct tunnel_status));
-                        tun->src = src;
-                        avl_insert(&tunnel_in_tree, tun, -300390);
+                        while ((c = list_iterate(&patch->childs_instance_list, c))) {
 
-                        tun->type = type;
-                        if (name)
-                                strcpy(tun->name.str, name);
-                        else
-                                tun->name_auto = 1;
+                                dbgf_track(DBGT_INFO, "diff=%d cmd=%s opt=%s  patch=%s %s %s",
+                                        patch->diff, opt_cmd2str[cmd], opt->name, patch->val, c->opt->name, c->val);
+
+                                if (!strcmp(c->opt->name, ARG_TUN_TYPE)) {
+
+                                        if (c->val)
+                                                tun->type = strtol(c->val, NULL, 10);
+                                        else
+                                                tun->type =TUN_TYPE_ANY;
+
+                                } else if (!strcmp(c->opt->name, ARG_TUN_NAME)) {
+
+                                        memset(&tun->name, 0, sizeof (tun->name));
+                                        tun->name_auto = 0;
+                                        if (c->val)
+                                                strcpy(tun->name.str, c->val);
+                                        else
+                                                tun->name_auto = 1;
+                                }
+                        }
                 }
 
                 my_description_changed = YES;

@@ -54,6 +54,8 @@ static int32_t data_orig_plugin_registry = FAILURE;
 
 static int32_t out_tunnels = 0;
 
+static IFNAME_T tun_name_prefix = {{DEF_TUN_NAME_PREFIX}};
+
 STATIC_FUNC
 void hna_description_event_hook(int32_t cb_id, struct orig_node *on)
 {
@@ -718,9 +720,25 @@ void configureTunnel(uint8_t del, struct orig_node *on, struct tunnel_status *tu
                         return;
 
                 if (tun->name_auto) {
-                        memset(&tun->name, 0, sizeof (tun->name));
-                        snprintf(tun->name.str, IFNAMSIZ - 1, "bmx%.4X_%s%.4X", My_pid, (on == self ? "in" : "out"), on->dhn->myIID4orig);
+
+                        static uint16_t tun_idx = 0;
+                        struct if_link_node *iln = NULL;
+
+                        do {
+                                memset(&tun->name, 0, sizeof (tun->name));
+                                snprintf(tun->name.str, IFNAMSIZ - 1, "%s_%s%.4X",
+                                        tun_name_prefix.str, (on == self ? "in" : "out"), tun_idx++);
+
+                                struct avl_node *an = NULL;
+                                iln = NULL;
+                                //check if tun->name is already used:
+                                while ((iln = avl_iterate_item(&if_link_tree, &an)) && strcmp(iln->name.str, tun->name.str));
+
+                        } while (iln);
+
                 }
+
+                assertion(-501292, (strlen(tun->name.str)));
 
                 if (iptunnel(ADD, tun->name.str, IPPROTO_IP, local, remote) == SUCCESS)
                         tun->up = 1;
@@ -847,8 +865,9 @@ int create_description_tlv_tunnel(struct tx_frame_iterator *it)
 }
 
 
+
 STATIC_FUNC
-int32_t opt_tunnel_in(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
+int32_t opt_tun_in(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
 {
         IPX_T src;
         struct tunnel_status *tun;
@@ -883,8 +902,10 @@ int32_t opt_tunnel_in(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct o
                                 return FAILURE;
                         } else if (!strcmp(c->opt->name, ARG_TUN_NAME) && c->val && (
                                 strlen(c->val) >= sizeof (tun->name) ||
-                                validate_name_string(c->val, strlen(c->val)+1) != SUCCESS)) {
-                                dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "invalid name: %s", c->val);
+                                validate_name_string(c->val, strlen(c->val) + 1) != SUCCESS ||
+                                strncmp(tun_name_prefix.str, c->val, strlen(tun_name_prefix.str)))) {
+                                dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "invalid name: %s (MUST begin with: %s)",
+                                        c->val, tun_name_prefix.str);
                                 return FAILURE;
                         }
                 }
@@ -904,6 +925,7 @@ int32_t opt_tunnel_in(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct o
                                 memset(tun, 0, sizeof (struct tunnel_status));
                                 tun->type = TUN_TYPE_ANY;
                                 tun->src = src;
+                                tun->name_auto = 1;
                                 avl_insert(&tunnel_in_tree, tun, -300390);
                         }
 
@@ -922,10 +944,11 @@ int32_t opt_tunnel_in(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct o
                                 } else if (!strcmp(c->opt->name, ARG_TUN_NAME)) {
 
                                         memset(&tun->name, 0, sizeof (tun->name));
-                                        tun->name_auto = 0;
-                                        if (c->val)
+                                        
+                                        if (c->val) {
                                                 strcpy(tun->name.str, c->val);
-                                        else
+                                                tun->name_auto = 0;
+                                        } else
                                                 tun->name_auto = 1;
                                 }
                         }
@@ -945,6 +968,44 @@ int32_t opt_tunnel_in(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct o
         }
 
 	return SUCCESS;
+}
+
+
+STATIC_FUNC
+int32_t opt_tun_name(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
+{
+        if (cmd == OPT_CHECK) {
+
+                struct tunnel_status *tun;
+                struct avl_node *it = NULL;
+
+                if (strlen(patch->val) > MAX_TUN_NAME_PREFIX_LEN ||
+                        validate_name_string(patch->val, strlen(patch->val) + 1))
+                        return FAILURE;
+
+                while((tun = avl_iterate_item(&tunnel_in_tree, &it))) {
+                        if (!tun->name_auto && strncmp(patch->val, tun->name.str, strlen(patch->val)))
+                                return FAILURE;
+                }
+
+                sprintf(tun_name_prefix.str, patch->val); //MUST be configured before opt_tunnel_in is checked
+
+        } else if (cmd == OPT_POST && initializing) {
+
+                struct avl_node *an = NULL;
+                struct if_link_node *iln = NULL;
+
+                while ((iln = avl_iterate_item(&if_link_tree, &an))) {
+
+                        if (!strncmp(tun_name_prefix.str, iln->name.str, strlen(tun_name_prefix.str))) {
+                                dbgf_sys(DBGT_WARN, "removing orphan tunnel dev=%s", iln->name.str);
+                                iptunnel(DEL, iln->name.str, 0, NULL, NULL);
+                        }
+                }
+        }
+
+
+        return SUCCESS;
 }
 
 
@@ -1007,11 +1068,14 @@ struct opt_type hna_options[]= {
 	{ODI,0,ARG_NIIT,        	0,  5,2,A_PS1,A_ADM,A_INI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_niit,
 			ARG_ADDR_FORM,HLP_NIIT}
         ,
-	{ODI,0,ARG_IN_TUN,	 	0,5,2,A_PM1N,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_tunnel_in,
+	{ODI,0,ARG_TUN_NAME_PREFIX,    	0,  5,1,A_PS1,A_ADM,A_INI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_tun_name,
+			"<NAME>",       "specify first letters of tunnel names"}
+        ,
+	{ODI,0,ARG_IN_TUN,	 	0,5,2,A_PM1N,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_tun_in,
 			ARG_PREFIX_FORM,"configure one-way IPv6 tunnel by specifying (dummy) remote tunnel address"},
-	{ODI,ARG_IN_TUN,ARG_TUN_TYPE, 't',5,0,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		MIN_TUN_TYPE,   MAX_TUN_TYPE,   DEF_TUN_TYPE,0, opt_tunnel_in,
+	{ODI,ARG_IN_TUN,ARG_TUN_TYPE, 't',5,0,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		MIN_TUN_TYPE,   MAX_TUN_TYPE,   DEF_TUN_TYPE,0, opt_tun_in,
 			"<VAL>",	"specify type of tunnel"},
-	{ODI,ARG_IN_TUN,ARG_TUN_NAME, 'n',5,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,	        0,              0,0,            opt_tunnel_in,
+	{ODI,ARG_IN_TUN,ARG_TUN_NAME, 'n',5,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,	        0,              0,0,            opt_tun_in,
 			"<NAME>",	"specify name of tunnel"}
         ,
 	{ODI,0,ARG_OUT_TUNS,	        0,5,2,A_PS0,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,

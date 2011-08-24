@@ -293,6 +293,8 @@ IDM_T iptunnel(IDM_T del, char *name, uint8_t proto, IPX_T *local, IPX_T *remote
         struct ip6_tnl_parm p;
         struct ifreq ifr;
 
+        assertion(-501293, (name && strlen(name)));
+
         memset(&p, 0, sizeof (p));
         strncpy(p.name, name, IFNAMSIZ);
         p.hop_limit = DEFAULT_TNL_HOP_LIMIT;

@@ -50,6 +50,11 @@
 #define TLV_OP_CUSTOM_HNA_ROUTE_ADD (TLV_OP_CUSTOM_MIN + 4)
 #define TLV_OP_CUSTOM_HNA_ROUTE_DEL (TLV_OP_CUSTOM_MIN + 5)
 
+#define ARG_TUN_NAME_PREFIX "tunnelNamePrefix"
+#define MAX_TUN_NAME_PREFIX_LEN 7
+#define DEF_TUN_NAME_PREFIX "bmx6"
+
+
 #define ARG_IN_TUN  "inTunnel"
 #define ARG_IN_TUNS "inTunnels"
 

@@ -131,9 +131,9 @@ struct tunnel_status {
         IFNAME_T name;
         uint8_t name_auto;
         uint8_t type;
+        uint8_t up;
         IP6_T src;
-        IP6_T dst_actual;
-        IP6_T dst_should;
+        IP6_T dst;
 };
 
 
@@ -141,9 +141,9 @@ struct tunnel_status {
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR, tunnel_status, name,        1, FIELD_RELEVANCE_HIGH), \
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        tunnel_status, name_auto,   1, FIELD_RELEVANCE_MEDI), \
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        tunnel_status, type,        1, FIELD_RELEVANCE_HIGH), \
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        tunnel_status, up,          1, FIELD_RELEVANCE_HIGH), \
         FIELD_FORMAT_INIT(FIELD_TYPE_IPX6,        tunnel_status, src,         1, FIELD_RELEVANCE_HIGH), \
-        FIELD_FORMAT_INIT(FIELD_TYPE_IPX6,        tunnel_status, dst_actual,  1, FIELD_RELEVANCE_HIGH), \
-        FIELD_FORMAT_INIT(FIELD_TYPE_IPX6,        tunnel_status, dst_should,  1, FIELD_RELEVANCE_HIGH), \
+        FIELD_FORMAT_INIT(FIELD_TYPE_IPX6,        tunnel_status, dst,         1, FIELD_RELEVANCE_HIGH), \
         FIELD_FORMAT_END }
 
 

@@ -758,36 +758,41 @@ IDM_T iptunnel(IDM_T del, uint8_t type, char *name, IPX_T *local, IPX_T *remote)
 STATIC_FUNC
 void configureTunnel(uint8_t del, struct orig_node *on, struct tunnel_status *tun)
 {
-        IPX_T *dst = del ? &tun->dst_actual : (is_ip_set(&tun->dst_should) ? &tun->dst_should : &self->primary_ip);
-        IPX_T *local = (on == self) ? dst : &tun->src;
-        IPX_T *remote = (on != self) ? dst : &tun->src;
 
-        assertion(-501290, IMPLIES(!del && on != self, is_ip_set(&tun->dst_should)));
-        assertion(-501291, is_ip_set(dst));
+        assertion(-501292, (is_ip_set(&tun->src)));
+        assertion(-501290, IMPLIES(!del && on != self, is_ip_set(&tun->dst)));
+        assertion(-501293, IMPLIES(tun->up, is_ip_set(&tun->dst)));
+        assertion(-501294, IMPLIES(tun->up, tun->name.str[0]));
+        assertion(-501295, IMPLIES(tun->up, del));
 
         if (del) {
 
-                if (!is_ip_set(&tun->dst_actual))
+                if (!tun->up)
                         return;
 
-                iptunnel(DEL, tun->type, tun->name.str, local, remote);
-                tun->dst_actual = ZERO_IP;
+                iptunnel(DEL, tun->type, tun->name.str, (IPX_T*) & ZERO_IP, (IPX_T*) & ZERO_IP);
+                tun->up = 0;
 
         } else {
 
-                if (is_ip_set(&tun->dst_actual) && is_ip_equal(&tun->dst_actual, dst))
-                        return;
+                assertion(-501296, (on == self ? is_ip_set(&self->primary_ip): is_ip_set(&tun->dst)));
+
+                if(on==self)
+                        tun->dst = self->primary_ip;
+
+                IPX_T *local = (on == self) ? &tun->dst : &tun->src;
+                IPX_T *remote = (on == self) ? &tun->src : &tun->dst;
 
                 if(tun->type > MAX_TUN_TYPE)
                         return;
 
-                memset(&tun->name, 0, sizeof (tun->name));
-                snprintf(tun->name.str, IFNAMSIZ - 1, "bmx%.4X_%s%.4X", My_pid, (on == self ? "in" : "out"), on->dhn->myIID4orig);
+                if (tun->name_auto) {
+                        memset(&tun->name, 0, sizeof (tun->name));
+                        snprintf(tun->name.str, IFNAMSIZ - 1, "bmx%.4X_%s%.4X", My_pid, (on == self ? "in" : "out"), on->dhn->myIID4orig);
+                }
 
                 if (iptunnel(ADD, tun->type, tun->name.str, local, remote) == SUCCESS)
-                        tun->dst_actual = *dst;
-                else
-                        tun->dst_actual = ZERO_IP;
+                        tun->up = 1;
         }
 }
 
@@ -852,7 +857,7 @@ int process_description_tlv_tunnel(struct rx_frame_iterator *it)
 
                         assertion(-501275, (*tun));
 
-                        (*tun)->state[p].dst_should = msg[p].dst;
+                        (*tun)->state[p].dst = msg[p].dst;
                         (*tun)->state[p].src = msg[p].src;
                         (*tun)->state[p].type = msg[p].type;
 
@@ -890,10 +895,13 @@ int create_description_tlv_tunnel(struct tx_frame_iterator *it)
 
                 while ((tun = avl_iterate_item(&tunnel_in_tree, &an))) {
 
-                        configureTunnel(ADD, self, tun);
+                        if (tun->up && !is_ip_equal(&tun->dst, &self->primary_ip))
+                                configureTunnel(DEL, self, tun);
+                        if(!tun->up)
+                                configureTunnel(ADD, self, tun);
 
                         msg->src = tun->src;
-                        msg->dst = tun->dst_actual;
+                        msg->dst = tun->dst;
                         msg->type = tun->type;
 
                         dbgf_track(DBGT_INFO, "src=%s dst=%s type=%d", ip6AsStr(&msg->src), ip6AsStr(&msg->dst), msg->type);
@@ -922,11 +930,10 @@ int32_t opt_tunnel_in(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct o
                 struct uhna_node *un = NULL;;
                 char adjusted_src[IPXNET_STR_LEN];
 
-                dbgf_all(DBGT_INFO, "diff=%d cmd=%s  save=%d  opt=%s  patch=%s",
+                dbgf_track(DBGT_INFO, "diff=%d cmd=%s  save=%d  opt=%s  patch=%s",
                         patch->p_diff, opt_cmd2str[cmd], _save, opt->long_name, patch->p_val);
 
-                if (str2netw(patch->p_val, &src, '/', cn, NULL, &family) == FAILURE ||
-                        family != AF_INET6 ||
+                if (str2netw(patch->p_val, &src, '/', cn, NULL, &family) == FAILURE || family != AF_INET6 ||
                         is_ip_forbidden(&src, family) || ip_netmask_validate(&src, 128, family, NO) == FAILURE ||
                         ((un = find_overlapping_hna(&src, 128)) && un->on != self)) {
 
@@ -937,7 +944,6 @@ int32_t opt_tunnel_in(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct o
                 }
 
                 sprintf(adjusted_src, "%s", ipXAsStr(family, &src));
-
                 set_opt_parent_val(patch, adjusted_src);
 
 
@@ -945,17 +951,19 @@ int32_t opt_tunnel_in(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct o
 
                 while ((c = list_iterate(&patch->childs_instance_list, c))) {
 
-                        if (!strcmp(c->c_opt->long_name, ARG_TUN_TYPE)) {
+                        dbgf_track(DBGT_INFO, "diff=%d cmd=%s opt=%s  patch=%s %s %s",
+                                patch->p_diff, opt_cmd2str[cmd], opt->long_name, patch->p_val, c->c_opt->long_name, c->c_val);
+
+                        if (c->c_val && !strcmp(c->c_opt->long_name, ARG_TUN_TYPE)) {
                                 
                                 type = strtol(c->c_val, NULL, 10);
 
-                        } else if (!strcmp(c->c_opt->long_name, ARG_TUN_NAME)) {
+                        } else if (c->c_val && !strcmp(c->c_opt->long_name, ARG_TUN_NAME)) {
+
                                 name = c->c_val;
 
-                                if (cmd == OPT_CHECK && (
-                                        strlen(name) >= sizeof (tun->name) || wordlen(name) != strlen(name) ||
-                                        iptunnel(ADD, DEF_TUN_TYPE, name, (IPX_T*) & IP6_LOOPBACK_ADDR, (IPX_T*) & ZERO_IP) != SUCCESS ||
-                                        iptunnel(DEL, DEF_TUN_TYPE, name, (IPX_T*) & IP6_LOOPBACK_ADDR, (IPX_T*) & ZERO_IP) != SUCCESS)
+                                if (strlen(name) >= sizeof (tun->name) || wordlen(name) != strlen(name) ||
+                                        validate_name_string(name, strlen(name)) != FAILURE
                                         ) {
                                         dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "invalid name: %s", name);
                                         return FAILURE;
@@ -964,39 +972,25 @@ int32_t opt_tunnel_in(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct o
 		}
         }
 
-        if (cmd == OPT_APPLY && patch->p_diff == ADD) {
+        if (cmd == OPT_APPLY) {
 
-                if ((tun = avl_find_item(&tunnel_in_tree, &src))) {
-
+                if((tun = avl_find_item(&tunnel_in_tree, &src))) {
                         configureTunnel(DEL, self, tun);
+                        avl_remove(&tunnel_in_tree, &tun->src, -300391);
+                        debugFree(tun, -300392);
+                }
 
-                } else {
-
+                if (patch->p_diff != DEL) {
                         tun = debugMalloc( sizeof(struct tunnel_status), -300389);
                         memset(tun, 0, sizeof(struct tunnel_status));
                         tun->src = src;
                         avl_insert(&tunnel_in_tree, tun, -300390);
-                }
 
-                tun->type = type;
-                tun->dst_should = ZERO_IP; // to be exchanged for primary ip during setup_tunnel()
-                if (name)
-                        strcpy(tun->name.str, name);
-                else
-                        tun->name_auto = 1;
-
-
-
-                my_description_changed = YES;
-        }
-
-        if ((cmd == OPT_APPLY && patch->p_diff == DEL)) {
-
-                if((tun = avl_find_item(&tunnel_in_tree, &src))) {
-
-                        configureTunnel(DEL, self, tun);
-                        avl_remove(&tunnel_in_tree, &tun->src, -300391);
-                        debugFree(tun, -300392);
+                        tun->type = type;
+                        if (name)
+                                strcpy(tun->name.str, name);
+                        else
+                                tun->name_auto = 1;
                 }
 
                 my_description_changed = YES;

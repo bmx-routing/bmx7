@@ -90,7 +90,7 @@ static void http_info_rcv_tcp_data( struct ctrl_node *cn ) {
 		{
 			
 			dbgf( DBGL_CHANGES, DBGT_INFO, "rcvd %d bytes long HTTP request via fd %d: %s", 
-			      tcp_req_len, cn->fd, opt->long_name );
+			      tcp_req_len, cn->fd, opt->name );
 			
 			check_apply_parent_option( ADD, OPT_APPLY, 0, opt, 0, cn );
                         
@@ -115,7 +115,7 @@ static void http_info_rcv_tcp_data( struct ctrl_node *cn ) {
 				      opt->dyn_t != A_INI  &&
 				      opt->cfg_t == A_ARG )
 				{
-					dbg_printf( cn, "/%s\n\n", opt->long_name );
+					dbg_printf( cn, "/%s\n\n", opt->name );
 					
 				}
 			}

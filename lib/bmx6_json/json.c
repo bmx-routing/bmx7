@@ -238,11 +238,11 @@ int32_t update_json_options(IDM_T show_options, IDM_T show_parameters, char *fil
                                 assertion(-501231, (p_opt->name && p_opt->cfg_t != A_ARG));
                                 json_object *jp = json_object_new_object();
 
-                                json_object *jp_val = json_object_new_string(p->p_val);
+                                json_object *jp_val = json_object_new_string(p->val);
                                 json_object_object_add(jp, "value", jp_val);
 
-                                if (p->p_ref) {
-                                        json_object *jp_from = json_object_new_string(p->p_ref);
+                                if (p->ref) {
+                                        json_object *jp_from = json_object_new_string(p->ref);
                                         json_object_object_add(jp, "from", jp_from);
                                 }
 
@@ -255,14 +255,14 @@ int32_t update_json_options(IDM_T show_options, IDM_T show_parameters, char *fil
 
                                                 json_object *jc = json_object_new_object();
 
-                                                json_object *jc_name = json_object_new_string(c->c_opt->name);
+                                                json_object *jc_name = json_object_new_string(c->opt->name);
                                                 json_object_object_add(jc, "name", jc_name);
 
-                                                json_object *jc_val = json_object_new_string(c->c_val);
+                                                json_object *jc_val = json_object_new_string(c->val);
                                                 json_object_object_add(jc, "value", jc_val);
 
-                                                if (c->c_ref) {
-                                                        json_object *jc_from = json_object_new_string(c->c_ref);
+                                                if (c->ref) {
+                                                        json_object *jc_from = json_object_new_string(c->ref);
                                                         json_object_object_add(jp, "from", jc_from);
                                                 }
                                                 json_object_array_add(jcs, jc);
@@ -604,8 +604,8 @@ int32_t opt_json_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
 
                 while ((c = list_iterate(&patch->childs_instance_list, c))) {
 
-                        if (!strcmp(c->c_opt->name, ARG_RELEVANCE)) {
-                                relevance = strtol(c->c_val, NULL, 10);
+                        if (!strcmp(c->opt->name, ARG_RELEVANCE)) {
+                                relevance = strtol(c->val, NULL, 10);
                         }
                 }
 
@@ -613,7 +613,7 @@ int32_t opt_json_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
                 uint32_t data_len;
                 char status_name[sizeof (((struct status_handl *) NULL)->status_name)] = {0};
 //                memset(status_name, 0, sizeof(status_name));
-                strncpy(status_name, patch->p_val, sizeof (status_name));
+                strncpy(status_name, patch->val, sizeof (status_name));
 
                 if ((handl = avl_find_item(&status_tree, status_name))) {
 

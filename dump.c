@@ -336,12 +336,12 @@ int32_t opt_traffic_statistics(uint8_t cmd, uint8_t _save, struct opt_type *opt,
 
                 dbg_printf(cn, "%20s ( %% )     in ( %% )    out ( %% )  |   all ( %% )     in ( %% )    out ( %% )\n"," ");
 
-                if (!strcmp(patch->p_val, ARG_DUMP_ALL) || !strcmp(patch->p_val, ARG_DUMP_SUMMARY))
+                if (!strcmp(patch->val, ARG_DUMP_ALL) || !strcmp(patch->val, ARG_DUMP_SUMMARY))
                         dbg_traffic_statistics(&dump_all, cn, ARG_DUMP_ALL);
 
                 while ((dev = avl_iterate_item(&dev_name_tree, &an))) {
 
-                        if (strcmp(patch->p_val, ARG_DUMP_ALL) && strcmp(patch->p_val, dev->label_cfg.str))
+                        if (strcmp(patch->val, ARG_DUMP_ALL) && strcmp(patch->val, dev->label_cfg.str))
                                 continue;
 
                         struct dump_data **dump_dev_plugin_data =

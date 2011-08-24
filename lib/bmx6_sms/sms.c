@@ -89,11 +89,11 @@ void check_for_changed_sms(void *unused)
                 int len = 0;
 
                 memset(name, 0, sizeof (name));
-                strcpy(name, p->p_val);
+                strcpy(name, p->val);
 
                 int fd = -1;
                 char path_name[MAX_PATH_SIZE + 20] = "";
-                sprintf(path_name, "%s/%s", smsTx_dir, p->p_val);
+                sprintf(path_name, "%s/%s", smsTx_dir, p->val);
 
 
 
@@ -374,10 +374,10 @@ int32_t opt_json_sms(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct op
                 if (!smsTx_dir)
                         return FAILURE;
 
-                if (strlen(patch->p_val) >= MAX_JSON_SMS_NAME_LEN)
+                if (strlen(patch->val) >= MAX_JSON_SMS_NAME_LEN)
                         return FAILURE;
 
-                if (validate_name_string(patch->p_val, strlen(patch->p_val) + 1) != SUCCESS)
+                if (validate_name_string(patch->val, strlen(patch->val) + 1) != SUCCESS)
                         return FAILURE;
 
         }

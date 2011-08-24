@@ -529,8 +529,8 @@ int bmx_load_config ( uint8_t cmd, struct opt_type *opt, struct ctrl_node *cn ) 
 			p_tmp = list_entry( pos, struct opt_parent, list );
 			
 			struct opt_parent *p_dup = add_opt_parent(&tmp_conf_opt);
-			set_opt_parent_val ( p_dup, p_tmp->p_val );
-			set_opt_parent_ref ( p_dup, p_tmp->p_ref );
+			set_opt_parent_val ( p_dup, p_tmp->val );
+			set_opt_parent_ref ( p_dup, p_tmp->ref );
 		}
 		
 		uci_foreach_element( &(sptr.p->sections), se) {
@@ -629,7 +629,7 @@ int bmx_load_config ( uint8_t cmd, struct opt_type *opt, struct ctrl_node *cn ) 
 
 			// remove all (re)loaded opts from the cached list. They dont have to be resetted later on
                         if ((p_tmp = get_opt_parent_ref(&tmp_conf_opt, config_sect_val)) ||
-                                (p_tmp = get_opt_parent_val(&tmp_conf_opt, patch->p_val)))
+                                (p_tmp = get_opt_parent_val(&tmp_conf_opt, patch->val)))
                                 del_opt_parent(&tmp_conf_opt, p_tmp);
 
 			
@@ -641,14 +641,14 @@ int bmx_load_config ( uint8_t cmd, struct opt_type *opt, struct ctrl_node *cn ) 
 			
 			p_tmp = list_entry( pos, struct opt_parent, list );
 			
-			if ( wordsEqual( p_tmp->p_val, BMX_LIB_CONFIG ) ) {
+			if ( wordsEqual( p_tmp->val, BMX_LIB_CONFIG ) ) {
 				
 				dbg_mute( 40, DBGL_SYS, DBGT_WARN, "missing section %s with option %s %s in %s",
 				          ARG_PLUGIN, ARG_PLUGIN, BMX_LIB_CONFIG, bmx_conf_name );
 				
-			} else if ( check_apply_parent_option( DEL, cmd, NO, opt, p_tmp->p_val, cn ) == FAILURE ) {
+			} else if ( check_apply_parent_option( DEL, cmd, NO, opt, p_tmp->val, cn ) == FAILURE ) {
 				
-				dbgf_cn( cn, DBGL_SYS, DBGT_ERR, "calling %s %s failed", opt->name, p_tmp->p_val );
+				dbgf_cn( cn, DBGL_SYS, DBGT_ERR, "calling %s %s failed", opt->name, p_tmp->val );
 				
 				return FAILURE;
 			}
@@ -704,10 +704,10 @@ int32_t opt_conf_file ( uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
 		
 	} else if ( cmd == OPT_CHECK  ||  cmd == OPT_APPLY ) {
 	
-		if ( patch->p_diff == DEL )
+		if ( patch->diff == DEL )
 			return FAILURE;
 		
-		char *f = patch->p_val;
+		char *f = patch->val;
 		
 		if ( wordlen(f)+1 +strlen(UCI_CONFDIR)+1 >= MAX_PATH_SIZE )
 			return FAILURE;
@@ -833,19 +833,19 @@ int32_t opt_show_conf(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct o
                                         if (!show_sections && opt->opt_t == A_PS1) {
 
                                                 dbg_printf(cn, "\toption '%s' '%s'\n",
-                                                        opt->name, (p->p_ref ? p->p_ref : p->p_val));
+                                                        opt->name, (p->ref ? p->ref : p->val));
 
                                         } else if (show_sections && (opt->opt_t == A_PS1N || opt->opt_t == A_PM1N)) {
 
                                                 dbg_printf(cn, "\nconfig '%s'\n", opt->name);
                                                 dbg_printf(cn, "\toption '%s' '%s'\n",
-                                                        opt->name, (p->p_ref ? p->p_ref : p->p_val));
+                                                        opt->name, (p->ref ? p->ref : p->val));
                                         }
 
                                         while (show_sections && (c = list_iterate(&p->childs_instance_list, c))) {
 
                                                 dbg_printf(cn, "\toption '%s' '%s'\n",
-                                                        c->c_opt->name, (c->c_ref ? c->c_ref : c->c_val));
+                                                        c->opt->name, (c->ref ? c->ref : c->val));
 
                                         }
                                 }

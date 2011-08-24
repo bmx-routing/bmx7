@@ -2684,7 +2684,7 @@ int32_t opt_ip_version(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                 if (!initializing)
                         return FAILURE;
 
-                uint8_t ip_tmp = (patch->p_diff == ADD) ? strtol(patch->p_val, NULL, 10) : 0;
+                uint8_t ip_tmp = (patch->diff == ADD) ? strtol(patch->val, NULL, 10) : 0;
 
                 if (ip_tmp != 4 && ip_tmp != 6)
                         return FAILURE;
@@ -2699,32 +2699,32 @@ int32_t opt_ip_version(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                 struct opt_child *c = NULL;
                 while ((c = list_iterate(&patch->childs_instance_list, c))) {
 
-                        if (!c->c_val)
+                        if (!c->val)
                                 continue;
 
-                        int32_t val = strtol(c->c_val, NULL, 10);
+                        int32_t val = strtol(c->val, NULL, 10);
 
                         if (val) {
 
                                 if (is_policy_rt_supported() != val) {
 
                                         dbgf_sys(DBGT_ERR, "Kernel policy-routing support required for %s=%d %c%s=%d",
-                                                ARG_IP, ip_tmp, LONG_OPT_ARG_DELIMITER_CHAR, c->c_opt->name, val);
+                                                ARG_IP, ip_tmp, LONG_OPT_ARG_DELIMITER_CHAR, c->opt->name, val);
 
-                                        if (!strcmp(c->c_opt->name, ARG_IP_POLICY_ROUTING))
+                                        if (!strcmp(c->opt->name, ARG_IP_POLICY_ROUTING))
                                                 return FAILURE;
                                 }
                         }
 
-                        if (!strcmp(c->c_opt->name, ARG_IP_POLICY_ROUTING))
+                        if (!strcmp(c->opt->name, ARG_IP_POLICY_ROUTING))
                                 ip_policy_rt_cfg = val;
-                        else if (!strcmp(c->c_opt->name, ARG_IP_THROW_RULES))
+                        else if (!strcmp(c->opt->name, ARG_IP_THROW_RULES))
                                 ip_throw_rules_cfg = val;
-                        else if (!strcmp(c->c_opt->name, ARG_IP_PRIO_RULES))
+                        else if (!strcmp(c->opt->name, ARG_IP_PRIO_RULES))
                                 ip_prio_rules_cfg = val;
-                        else if (!strcmp(c->c_opt->name, ARG_IP_RULE_OFFSET))
+                        else if (!strcmp(c->opt->name, ARG_IP_RULE_OFFSET))
                                 ip_prio_offset_cfg = val;
-                        else if (!strcmp(c->c_opt->name, ARG_IP_TABLE_OFFSET))
+                        else if (!strcmp(c->opt->name, ARG_IP_TABLE_OFFSET))
                                 ip_table_offset_cfg = val;
 
                 }
@@ -2850,13 +2850,13 @@ int32_t opt_dev_prefix(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
         uint8_t mask = 0;
         IDM_T is_global_prefix = (!strcmp(opt->name, ARG_GLOBAL_PREFIX));
 
-        if ((cmd == OPT_ADJUST || cmd == OPT_CHECK || cmd == OPT_APPLY) && patch->p_diff == ADD) {
+        if ((cmd == OPT_ADJUST || cmd == OPT_CHECK || cmd == OPT_APPLY) && patch->diff == ADD) {
                 
                 char new[IPXNET_STR_LEN];
                 uint8_t family = 0;
 
                 if (
-                        str2netw(patch->p_val, &ipX, '/', cn, &mask, &family) == FAILURE ||
+                        str2netw(patch->val, &ipX, '/', cn, &mask, &family) == FAILURE ||
                         af_cfg() != family ||
                         is_ip_forbidden(&ipX, family) ||
                         ip_netmask_validate(&ipX, mask, family, NO) == FAILURE ||
@@ -2915,14 +2915,14 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
 
                 assertion(-501126, (af_cfg()));
 
-		if ( strlen(patch->p_val) >= IFNAMSIZ ) {
+		if ( strlen(patch->val) >= IFNAMSIZ ) {
 			dbg_cn( cn, DBGL_SYS, DBGT_ERR, "dev name MUST be smaller than %d chars", IFNAMSIZ );
 			return FAILURE;
                 }
 
                 char *colon_ptr;
                 char phy_name[IFNAMSIZ] = {0};
-                strcpy(phy_name, patch->p_val);
+                strcpy(phy_name, patch->val);
 
                 // if given interface is an alias then truncate to physical interface name:
                 if ((colon_ptr = strchr(phy_name, ':')) != NULL)
@@ -2931,15 +2931,15 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
 
                 dev = dev_get_by_name(phy_name);
 
-                if ( dev && strcmp(dev->label_cfg.str, patch->p_val)) {
+                if ( dev && strcmp(dev->label_cfg.str, patch->val)) {
                         dbg_cn(cn, DBGL_SYS, DBGT_ERR,
                                 "%s=%s (%s) already used for %s=%s %s!",
-                                opt->name, patch->p_val, phy_name, opt->name, dev->label_cfg.str, dev->ip_llocal_str);
+                                opt->name, patch->val, phy_name, opt->name, dev->label_cfg.str, dev->ip_llocal_str);
 
                         return FAILURE;
                 }
 
-		if ( patch->p_diff == DEL ) {
+		if ( patch->diff == DEL ) {
 
                         if (dev && dev == primary_dev_cfg) {
 
@@ -2978,7 +2978,7 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
                 if (!dev && cmd == OPT_APPLY) {
 
                         dbgf_track(DBGT_INFO, "cmd: %s opt: %s  %s instance %s",
-                                opt_cmd2str[cmd], opt->name, family2Str(af_cfg()), patch ? patch->p_val : "");
+                                opt_cmd2str[cmd], opt->name, family2Str(af_cfg()), patch ? patch->val : "");
 
                         uint32_t dev_size = sizeof (struct dev_node) + (sizeof (void*) * plugin_data_registries[PLUGIN_DATA_DEV]);
                         dev = debugMalloc(dev_size, -300002);
@@ -2987,7 +2987,7 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
                         if (!primary_dev_cfg)
                                 primary_dev_cfg = dev;
 
-                        strcpy(dev->label_cfg.str, patch->p_val);
+                        strcpy(dev->label_cfg.str, patch->val);
                         strcpy(dev->name_phy_cfg.str, phy_name);
 
                         avl_insert(&dev_name_tree, dev, -300144);
@@ -3029,19 +3029,19 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
                 struct opt_child *c = NULL;
                 while ((c = list_iterate(&patch->childs_instance_list, c))) {
 
-                        if (!strcmp(c->c_opt->name, ARG_DEV_GLOBAL_PREFIX) || !strcmp(c->c_opt->name, ARG_DEV_LLOCAL_PREFIX)) {
+                        if (!strcmp(c->opt->name, ARG_DEV_GLOBAL_PREFIX) || !strcmp(c->opt->name, ARG_DEV_LLOCAL_PREFIX)) {
 
-                                IDM_T is_global_prefix = (!strcmp(c->c_opt->name, ARG_DEV_GLOBAL_PREFIX));
+                                IDM_T is_global_prefix = (!strcmp(c->opt->name, ARG_DEV_GLOBAL_PREFIX));
                                 uint8_t mask = 0;
                                 IPX_T ipX = ZERO_IP;
 
-                                if (c->c_val) {
+                                if (c->val) {
 
                                         char new[IPXNET_STR_LEN];
                                         uint8_t family = 0;
 
                                         if (
-                                                str2netw(c->c_val, &ipX, '/', cn, &mask, &family) == FAILURE ||
+                                                str2netw(c->val, &ipX, '/', cn, &mask, &family) == FAILURE ||
                                                 family != af_cfg() || is_ip_forbidden(&ipX, family) ||
                                                 ip_netmask_validate(&ipX, mask, family, NO) == FAILURE ||
                                                 (family == AF_INET6 && (
@@ -3061,11 +3061,11 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
                                 if (cmd == OPT_APPLY) {
 
                                         dbgf_track(DBGT_INFO, "applying %s %s=%s/%d hard_conf_changed=%d",
-                                                dev->label_cfg.str, c->c_opt->name,
+                                                dev->label_cfg.str, c->opt->name,
                                                 ipFAsStr(&ipX), mask, dev->hard_conf_changed);
 
                                         if (is_global_prefix) {
-                                                if (c->c_val) {
+                                                if (c->val) {
                                                         dev->global_prefix_conf = ipX;
                                                         dev->global_prefix_length_conf = mask;
                                                 } else {
@@ -3073,7 +3073,7 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
                                                         dev->global_prefix_length_conf = 0;
                                                 }
                                         } else {
-                                                if (c->c_val) {
+                                                if (c->val) {
                                                         dev->llocal_prefix_conf = ipX;
                                                         dev->llocal_prefix_length_conf = mask;
                                                 } else {
@@ -3085,32 +3085,32 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
                                         dev->hard_conf_changed = YES;
                                 }
 
-                        } else if (!strcmp(c->c_opt->name, ARG_DEV_LL) && cmd == OPT_APPLY) {
+                        } else if (!strcmp(c->opt->name, ARG_DEV_LL) && cmd == OPT_APPLY) {
 
-                                if (c->c_val)
-                                        dev->linklayer_conf = strtol(c->c_val, NULL, 10);
+                                if (c->val)
+                                        dev->linklayer_conf = strtol(c->val, NULL, 10);
                                 else
                                         dev->linklayer_conf = OPT_CHILD_UNDEFINED;
 
                                 dev->hard_conf_changed = YES;
 
-                        } else if (!strcmp(c->c_opt->name, ARG_DEV_CHANNEL) && cmd == OPT_APPLY) {
+                        } else if (!strcmp(c->opt->name, ARG_DEV_CHANNEL) && cmd == OPT_APPLY) {
 
-                                if (c->c_val)
-                                        dev->channel_conf = strtol(c->c_val, NULL, 10);
+                                if (c->val)
+                                        dev->channel_conf = strtol(c->val, NULL, 10);
                                 else
                                         dev->channel_conf = OPT_CHILD_UNDEFINED;
 
-                        } else if (!strcmp(c->c_opt->name, ARG_DEV_BITRATE_MAX) && cmd == OPT_APPLY) {
+                        } else if (!strcmp(c->opt->name, ARG_DEV_BITRATE_MAX) && cmd == OPT_APPLY) {
 
-                                if (c->c_val) {
+                                if (c->val) {
                                         char *endptr;
-                                        unsigned long long ull = strtoul(c->c_val, &endptr, 10);
+                                        unsigned long long ull = strtoul(c->val, &endptr, 10);
 
                                         if (ull > UMETRIC_MAX || ull < UMETRIC_FM8_MIN || *endptr != '\0') {
 
                                                 dbgf_sys(DBGT_ERR, "%s %c%s MUST be within [%ju ... %ju]",
-                                                        dev->label_cfg.str, LONG_OPT_ARG_DELIMITER_CHAR, c->c_opt->name, UMETRIC_FM8_MIN, UMETRIC_MAX);
+                                                        dev->label_cfg.str, LONG_OPT_ARG_DELIMITER_CHAR, c->opt->name, UMETRIC_FM8_MIN, UMETRIC_MAX);
 
                                                 return FAILURE;
                                         }
@@ -3123,16 +3123,16 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
                                 }
 
 
-                        } else if (!strcmp(c->c_opt->name, ARG_DEV_BITRATE_MIN) && cmd == OPT_APPLY) {
+                        } else if (!strcmp(c->opt->name, ARG_DEV_BITRATE_MIN) && cmd == OPT_APPLY) {
 
-                                if (c->c_val) {
+                                if (c->val) {
                                         char *endptr;
-                                        unsigned long long ull = strtoul(c->c_val, &endptr, 10);
+                                        unsigned long long ull = strtoul(c->val, &endptr, 10);
 
                                         if (ull > UMETRIC_MAX || ull < UMETRIC_FM8_MIN || *endptr != '\0') {
 
                                                 dbgf_sys(DBGT_ERR, "%s %c%s given with illegal value",
-                                                        dev->label_cfg.str, LONG_OPT_ARG_DELIMITER_CHAR, c->c_opt->name);
+                                                        dev->label_cfg.str, LONG_OPT_ARG_DELIMITER_CHAR, c->opt->name);
 
                                                 return FAILURE;
                                         }
@@ -3143,10 +3143,10 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
                                 }
 
 
-                        } else if (!strcmp(c->c_opt->name, ARG_DEV_ANNOUNCE) && cmd == OPT_APPLY) {
+                        } else if (!strcmp(c->opt->name, ARG_DEV_ANNOUNCE) && cmd == OPT_APPLY) {
 
-                                if (c->c_val)
-                                        dev->announce = strtol(c->c_val, NULL, 10);
+                                if (c->val)
+                                        dev->announce = strtol(c->val, NULL, 10);
 
                                 dev->hard_conf_changed = YES;
                         }

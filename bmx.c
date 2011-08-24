@@ -1991,8 +1991,8 @@ int32_t opt_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_
 
                 while ((c = list_iterate(&patch->childs_instance_list, c))) {
 
-                        if (!strcmp(c->c_opt->name, ARG_RELEVANCE)) {
-                                relevance = strtol(c->c_val, NULL, 10);
+                        if (!strcmp(c->opt->name, ARG_RELEVANCE)) {
+                                relevance = strtol(c->val, NULL, 10);
                         }
                 }
 
@@ -2001,7 +2001,7 @@ int32_t opt_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_
                 struct status_handl *handl = NULL;
                 uint32_t data_len;
                 char status_name[sizeof (((struct status_handl *) NULL)->status_name)] = {0};
-                strncpy(status_name, patch->p_val, sizeof (status_name));
+                strncpy(status_name, patch->val, sizeof (status_name));
 
                 if ((handl = avl_find_item(&status_tree, status_name))) {
 

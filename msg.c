@@ -3450,14 +3450,14 @@ int32_t opt_show_descriptions(uint8_t cmd, uint8_t _save, struct opt_type *opt,
 
                 while ((c = list_iterate(&patch->childs_instance_list, c))) {
 
-                        if (!strcmp(c->c_opt->name, ARG_DESCRIPTION_TYPE)) {
-                                type_filter = strtol(c->c_val, NULL, 10);
+                        if (!strcmp(c->opt->name, ARG_DESCRIPTION_TYPE)) {
+                                type_filter = strtol(c->val, NULL, 10);
 
-                        } else if (!strcmp(c->c_opt->name, ARG_RELEVANCE)) {
-                                relevance = strtol(c->c_val, NULL, 10);
+                        } else if (!strcmp(c->opt->name, ARG_RELEVANCE)) {
+                                relevance = strtol(c->val, NULL, 10);
 
-                        } else if (!strcmp(c->c_opt->name, ARG_DESCRIPTION_NAME)) {
-                                name = c->c_val;
+                        } else if (!strcmp(c->opt->name, ARG_DESCRIPTION_NAME)) {
+                                name = c->val;
 			}
 		}
 

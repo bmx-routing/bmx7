@@ -1275,7 +1275,7 @@ struct opt_child *get_opt_child(struct opt_type *opt, struct opt_parent *p)
 		
 		struct opt_child *c = list_entry( pos, struct opt_child, list );
 		
-		if ( c->c_opt == opt )
+		if ( c->opt == opt )
 			return c;
 		
 	}
@@ -1286,32 +1286,32 @@ struct opt_child *get_opt_child(struct opt_type *opt, struct opt_parent *p)
 void set_opt_child_val(struct opt_child *c, char *val)
 {
 	
-	if ( val &&  c->c_val  &&  wordsEqual( c->c_val, val ) )
+	if ( val &&  c->val  &&  wordsEqual( c->val, val ) )
 		return;
 	
-	if ( c->c_val )
-		debugFree( c->c_val, -300053 );
+	if ( c->val )
+		debugFree( c->val, -300053 );
 	
-	c->c_val = NULL;
+	c->val = NULL;
 	
 	if ( val)
-                c->c_val = debugWordDup(val, -300013);
+                c->val = debugWordDup(val, -300013);
 }
 
 STATIC_FUNC
 void set_opt_child_ref(struct opt_child *c, char *ref)
 {
 	
-	if ( ref &&  c->c_ref  &&  wordsEqual( c->c_ref, ref ) )
+	if ( ref &&  c->ref  &&  wordsEqual( c->ref, ref ) )
 		return;
 	
-	if ( c->c_ref )
-		debugFree( c->c_ref, -300054 );
+	if ( c->ref )
+		debugFree( c->ref, -300054 );
 	
-	c->c_ref = NULL;
+	c->ref = NULL;
 	
 	if ( ref )
-		c->c_ref = debugWordDup( ref, -300014 );
+		c->ref = debugWordDup( ref, -300014 );
 }
 
 STATIC_FUNC
@@ -1341,7 +1341,7 @@ void del_opt_child(struct opt_parent *p, struct opt_type *opt)
 		
 		struct opt_child *c = list_entry( pos, struct opt_child, list );
 		
-		if ( !opt  ||  c->c_opt == opt )
+		if ( !opt  ||  c->opt == opt )
 			del_opt_child_save( prev, pos, p );
 		else
 			prev = pos;
@@ -1355,7 +1355,7 @@ struct opt_child *add_opt_child(struct opt_type *opt, struct opt_parent *p)
 	struct opt_child *c = debugMalloc( sizeof( struct opt_child ), -300017 );
 	memset( c, 0, sizeof(struct opt_child) );
 	
-	c->c_opt = opt;
+	c->opt = opt;
 	c->parent_instance = p;
         list_add_tail(&p->childs_instance_list, &c->list);
 	
@@ -1365,31 +1365,31 @@ struct opt_child *add_opt_child(struct opt_type *opt, struct opt_parent *p)
 void set_opt_parent_val(struct opt_parent *p, char *val)
 {
 	
-	if ( val &&  p->p_val  &&  wordsEqual( p->p_val, val ) )
+	if ( val &&  p->val  &&  wordsEqual( p->val, val ) )
 		return;
 	
-	if ( p->p_val )
-		debugFree( p->p_val, -300056 );
+	if ( p->val )
+		debugFree( p->val, -300056 );
 	
-	p->p_val = NULL;
+	p->val = NULL;
 	
 	if ( val)
-		p->p_val = debugWordDup( val, -300015 );
+		p->val = debugWordDup( val, -300015 );
 }
 
 void set_opt_parent_ref(struct opt_parent *p, char *ref)
 {
 	
-	if ( ref &&  p->p_ref  &&  wordsEqual( p->p_ref, ref ) )
+	if ( ref &&  p->ref  &&  wordsEqual( p->ref, ref ) )
 		return;
 	
-	if ( p->p_ref )
-		debugFree( p->p_ref, -300057 );
+	if ( p->ref )
+		debugFree( p->ref, -300057 );
 	
-	p->p_ref = NULL;
+	p->ref = NULL;
 	
 	if ( ref )
-		p->p_ref = debugWordDup( ref, -300016 );
+		p->ref = debugWordDup( ref, -300016 );
 }
 
 
@@ -1451,7 +1451,7 @@ struct opt_parent *get_opt_parent_val(struct opt_type *opt, char *val)
 		
 		p = list_entry( pos, struct opt_parent, list );
 		
-		if ( !val  ||  wordsEqual( p->p_val, val ) )
+		if ( !val  ||  wordsEqual( p->val, val ) )
 			return p;
 		
 	}
@@ -1472,7 +1472,7 @@ struct opt_parent *get_opt_parent_ref(struct opt_type *opt, char *ref)
 		
 		p = list_entry( pos, struct opt_parent, list );
 		
-		if ( ref  &&  wordsEqual( p->p_ref, ref ) )
+		if ( ref  &&  wordsEqual( p->ref, ref ) )
 			return p;
 		
 	}
@@ -1485,19 +1485,19 @@ struct opt_parent *dup_opt_parent(struct opt_type *opt, struct opt_parent *p)
 {
 	
 	struct opt_parent *dup_p = add_opt_parent( opt );
-	set_opt_parent_val ( dup_p, p->p_val );
-	set_opt_parent_ref ( dup_p, p->p_ref );
+	set_opt_parent_val ( dup_p, p->val );
+	set_opt_parent_ref ( dup_p, p->ref );
 	
-	dup_p->p_diff = p->p_diff;
+	dup_p->diff = p->diff;
 	
 	struct list_node *pos;
 	list_for_each( pos, &(p->childs_instance_list) ) {
 		
 		struct opt_child *c = list_entry( pos, struct opt_child, list );
 		
-		struct opt_child *dup_c = add_opt_child( c->c_opt, dup_p );
-		set_opt_child_val( dup_c, c->c_val );
-		set_opt_child_ref( dup_c, c->c_ref );
+		struct opt_child *dup_c = add_opt_child( c->opt, dup_p );
+		set_opt_child_val( dup_c, c->val );
+		set_opt_child_ref( dup_c, c->ref );
 	}
 	
 	return dup_p;
@@ -1545,11 +1545,11 @@ int32_t call_opt_patch(uint8_t ad, struct opt_type *opt, struct opt_parent *patc
 {
 	
 	dbgf_all( DBGT_INFO, "ad:%d opt:%s val:%s strm:%s",
-	          ad, opt->name, patch->p_val, strm );
+	          ad, opt->name, patch->val, strm );
 	
 	if ( opt->opt_t == A_PS0 || opt->opt_t == A_PS0N ) {
 		
-		patch->p_diff = ((ad==ADD) ? ADD : DEL);
+		patch->diff = ((ad==ADD) ? ADD : DEL);
 
         } else if (opt->opt_t == A_PS1 || opt->opt_t == A_PS1N || opt->opt_t == A_PM1N || opt->opt_t == A_CS1) {
 		
@@ -1582,13 +1582,13 @@ int32_t call_opt_patch(uint8_t ad, struct opt_type *opt, struct opt_parent *patc
 					
 					struct opt_parent *p_track = get_opt_parent_ref( opt, strm );
 					
-					if ( !p_track || !p_track->p_val ) {
+					if ( !p_track || !p_track->val ) {
 						dbg_cn( cn, DBGL_SYS, DBGT_ERR, 
 						        "Could not derive reference %s from tracked options", strm );
 						return FAILURE;
 					}
 					
-					strm = p_track->p_val;
+					strm = p_track->val;
 				}
 			}
 			
@@ -1602,7 +1602,7 @@ int32_t call_opt_patch(uint8_t ad, struct opt_type *opt, struct opt_parent *patc
 			set_opt_parent_val( patch, strm );
 			set_opt_parent_ref( patch, ref );
 			
-			patch->p_diff = ((ad==ADD) ? ADD : DEL);
+			patch->diff = ((ad==ADD) ? ADD : DEL);
 
                 } else if (opt->opt_t == A_CS1) {
 
@@ -1622,8 +1622,8 @@ STATIC_FUNC
 int32_t cleanup_patch(struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
 {
 	
-	uint8_t del = patch->p_diff;
-	char *val = patch->p_val;
+	uint8_t del = patch->diff;
+	char *val = patch->val;
 	
 	dbgf_all( DBGT_INFO, "del %d  opt %s  val %s", del, opt->name, val );
 	
@@ -1633,13 +1633,13 @@ int32_t cleanup_patch(struct opt_type *opt, struct opt_parent *patch, struct ctr
 	if ( opt->opt_t == A_PS0 ) {
 		
                 if ((del && !opt->d.parents_instance_list.items) || (!del && opt->d.parents_instance_list.items))
-			patch->p_diff = NOP;
+			patch->diff = NOP;
 		
 		
 	} else if ( opt->opt_t == A_PS1 ) {
 		
                 if ((del && !opt->d.parents_instance_list.items) || (!del && get_opt_parent_val(opt, val)))
-			patch->p_diff = NOP;
+			patch->diff = NOP;
 
 
         } else if (opt->opt_t == A_PS0N || opt->opt_t == A_PS1N || opt->opt_t == A_PM1N) {
@@ -1653,17 +1653,17 @@ int32_t cleanup_patch(struct opt_type *opt, struct opt_parent *patch, struct ctr
 			
 			struct opt_child *c = list_entry( c_pos, struct opt_child, list );
 			struct opt_child *c_track = NULL;
-			uint8_t c_del = c->c_val ? ADD : DEL;
+			uint8_t c_del = c->val ? ADD : DEL;
 			
 			p_track = NULL;
 			
-			dbgf_all(  DBGT_INFO, "p_val:%s", patch->p_val );
+			dbgf_all(  DBGT_INFO, "p_val:%s", patch->val );
 			
 			if ( (p_track = get_opt_parent_val( opt, val )) )
-				c_track = get_opt_child( c->c_opt, p_track );
+				c_track = get_opt_child( c->opt, p_track );
 			
 			if ( ( c_del  &&  !c_track )  ||
-			     ( !c_del  &&  c_track  &&  wordsEqual( c_track->c_val, c->c_val ) ) )
+			     ( !c_del  &&  c_track  &&  wordsEqual( c_track->val, c->val ) ) )
 			{
 				del_opt_child_save( c_prev, c_pos, patch );
 			} else {
@@ -1675,7 +1675,7 @@ int32_t cleanup_patch(struct opt_type *opt, struct opt_parent *patch, struct ctr
 		p_track = get_opt_parent_val( opt, val );
 		
 		if ( ( del  &&  !p_track )  ||  ( !del  &&  p_track ) )
-			patch->p_diff = NOP;
+			patch->diff = NOP;
 		
 	} else {
 		return FAILURE;
@@ -1924,12 +1924,12 @@ int32_t call_opt_apply(uint8_t cmd, uint8_t save, struct opt_type *opt, struct o
 	struct opt_parent *patch = dup_opt_parent( &Patch_opt, _patch );
 	
 	dbgf_all(  DBGT_INFO, "%s save=%d %s p_diff=%d p_val:%s p_ref:%s strm:%s",
-	           opt_cmd2str[cmd], save, opt->name, patch->p_diff, patch->p_val, patch->p_ref, in );
+	           opt_cmd2str[cmd], save, opt->name, patch->diff, patch->val, patch->ref, in );
 	
 	if ( cleanup_patch( opt, patch, cn ) == FAILURE )
 		goto call_opt_apply_error;
 	
-	if ( patch->p_diff == NOP  &&  LIST_EMPTY( &(patch->childs_instance_list) ) ) {
+	if ( patch->diff == NOP  &&  LIST_EMPTY( &(patch->childs_instance_list) ) ) {
 		del_opt_parent( &Patch_opt, patch );
 		return SUCCESS;
 	}
@@ -1968,17 +1968,17 @@ int32_t call_opt_apply(uint8_t cmd, uint8_t save, struct opt_type *opt, struct o
 		if ( opt->auth_t == A_ADM ) {
 
 			dbgf_all( DBGT_INFO, "--%-22s  %-30s  (%s order %d)",
-			          opt->name, patch->p_val, opt_cmd2str[ cmd ], opt->order );
+			          opt->name, patch->val, opt_cmd2str[ cmd ], opt->order );
 		}
 
-                if ( opt->ival  &&  patch->p_diff == DEL )
+                if ( opt->ival  &&  patch->diff == DEL )
 			*(opt->ival) = opt->idef;
 		
-		else if ( opt->opt_t == A_PS0  &&  opt->ival  &&  patch->p_diff == ADD )
+		else if ( opt->opt_t == A_PS0  &&  opt->ival  &&  patch->diff == ADD )
 			*(opt->ival) = opt->imax;
 		
-		else if ( opt->opt_t != A_PS0  &&  opt->ival  &&  patch->p_diff == ADD )
-			*(opt->ival) = strtol( patch->p_val, NULL , 10 );
+		else if ( opt->opt_t != A_PS0  &&  opt->ival  &&  patch->diff == ADD )
+			*(opt->ival) = strtol( patch->val, NULL , 10 );
 		
 		if ( opt->call_custom_option  &&  
 		     (opt->call_custom_option)( OPT_APPLY, save, opt, patch, cn ) == FAILURE )
@@ -1986,7 +1986,7 @@ int32_t call_opt_apply(uint8_t cmd, uint8_t save, struct opt_type *opt, struct o
 			
 			dbg_cn( cn, DBGL_SYS, DBGT_ERR, 
 			        "failed setting the already succesfully tested option %s to %s",
-			        opt->name, patch->p_val );
+			        opt->name, patch->val );
 			
 			// this may happen when:
 			// - overwriting a config-file option with a startup-option (pain in the ass!)
@@ -2046,23 +2046,23 @@ int32_t track_opt_parent(uint8_t cmd, uint8_t save, struct opt_type *p_opt, stru
 {
 	
 	struct list_node *pos;
-        struct opt_parent *p_reftr = get_opt_parent_ref(p_opt, (p_opt->opt_t == A_PS1N || p_opt->opt_t == A_PM1N) ? p_patch->p_ref : NULL);
-        struct opt_parent *p_track = get_opt_parent_val(p_opt, (p_opt->opt_t == A_PS1N || p_opt->opt_t == A_PM1N) ? p_patch->p_val : NULL);
+        struct opt_parent *p_reftr = get_opt_parent_ref(p_opt, (p_opt->opt_t == A_PS1N || p_opt->opt_t == A_PM1N) ? p_patch->ref : NULL);
+        struct opt_parent *p_track = get_opt_parent_val(p_opt, (p_opt->opt_t == A_PS1N || p_opt->opt_t == A_PM1N) ? p_patch->val : NULL);
 
         assertion(-500125, !(p_reftr && p_track && p_reftr != p_track));
 	
 	p_track = p_track ? p_track : p_reftr;
 	
 	dbgf_all(  DBGT_INFO, "%s %s save=%d patch_diff:%d patch_val:%s patch_ref:%s track_val:%s track_ref:%s", 
-	           opt_cmd2str[cmd], p_opt->name, save, p_patch->p_diff,
-	           p_patch->p_val, p_patch->p_ref, p_track?p_track->p_val:"-", p_track?p_track->p_ref:"-");
+	           opt_cmd2str[cmd], p_opt->name, save, p_patch->diff,
+	           p_patch->val, p_patch->ref, p_track?p_track->val:"-", p_track?p_track->ref:"-");
 	
-	if ( p_patch->p_diff == DEL  &&  p_track ) {
+	if ( p_patch->diff == DEL  &&  p_track ) {
 		
 		if ( cmd==OPT_APPLY ) {
 			
 			if ( save  &&  save_config_cb )
-				save_config_cb( DEL, p_opt, p_track->p_ref ? p_track->p_ref : p_track->p_val, NULL, cn );
+				save_config_cb( DEL, p_opt, p_track->ref ? p_track->ref : p_track->val, NULL, cn );
 			
 			del_opt_parent( p_opt, p_track );
 
@@ -2073,7 +2073,7 @@ int32_t track_opt_parent(uint8_t cmd, uint8_t save, struct opt_type *p_opt, stru
 		
 		uint8_t changed = NO;
 		
-		if ( p_patch->p_diff == DEL  &&  !p_track ) {
+		if ( p_patch->diff == DEL  &&  !p_track ) {
 			
 /*
 			if ( save ) {
@@ -2084,28 +2084,28 @@ int32_t track_opt_parent(uint8_t cmd, uint8_t save, struct opt_type *p_opt, stru
 			
 			return SUCCESS;
 			
-		} else if ( ( p_patch->p_diff == ADD  &&  p_patch->p_val  &&  p_track  &&  wordsEqual( p_patch->p_val, p_track->p_val ) )  &&
-		            ( (  p_patch->p_ref  &&   p_track->p_ref  &&  wordsEqual( p_patch->p_ref, p_track->p_ref) ) || 
-		              ( !p_patch->p_ref  &&  !p_track->p_ref ) ) ) 
+		} else if ( ( p_patch->diff == ADD  &&  p_patch->val  &&  p_track  &&  wordsEqual( p_patch->val, p_track->val ) )  &&
+		            ( (  p_patch->ref  &&   p_track->ref  &&  wordsEqual( p_patch->ref, p_track->ref) ) ||
+		              ( !p_patch->ref  &&  !p_track->ref ) ) )
 		{
 			
-		} else if (  p_patch->p_val  /*&&  (patch_c->c_ref || !patch_c->c_ref)*/ ) {
+		} else if (  p_patch->val  /*&&  (patch_c->c_ref || !patch_c->c_ref)*/ ) {
 			
 			if ( cmd == OPT_APPLY ) {
 				
 				if ( !p_track ) {
 					p_track = add_opt_parent( p_opt );
-					set_opt_parent_val( p_track, p_patch->p_val );
-					set_opt_parent_ref( p_track, p_patch->p_ref );
+					set_opt_parent_val( p_track, p_patch->val );
+					set_opt_parent_ref( p_track, p_patch->ref );
 				}
 				
 				if ( save  &&  save_config_cb )
 					save_config_cb( ADD, p_opt, 
-					                p_track->p_ref ? p_track->p_ref : p_track->p_val,
-					                p_patch->p_ref ? p_patch->p_ref : p_patch->p_val, cn );
+					                p_track->ref ? p_track->ref : p_track->val,
+					                p_patch->ref ? p_patch->ref : p_patch->val, cn );
 				
-				set_opt_parent_val( p_track, p_patch->p_val );
-				set_opt_parent_ref( p_track, p_patch->p_ref );
+				set_opt_parent_val( p_track, p_patch->val );
+				set_opt_parent_ref( p_track, p_patch->ref );
                         }
                         changed = YES;
 			
@@ -2115,55 +2115,55 @@ int32_t track_opt_parent(uint8_t cmd, uint8_t save, struct opt_type *p_opt, stru
 		
 		if ( cmd == OPT_APPLY  &&  changed  &&  p_opt->auth_t == A_ADM )
 			dbg_cn( cn, DBGL_CHANGES, DBGT_INFO, "--%-22s %c%-30s",
-			        p_opt->name, p_patch->p_diff==DEL?'-':' ', p_patch->p_val);
+			        p_opt->name, p_patch->diff==DEL?'-':' ', p_patch->val);
 		
 		if ( p_track ) {
 			
 			list_for_each( pos, &p_patch->childs_instance_list ) {
 				
 				uint8_t changed_child=NO;
-				char *save_val = p_track->p_ref ? p_track->p_ref : p_track->p_val;
+				char *save_val = p_track->ref ? p_track->ref : p_track->val;
 				struct opt_child *c_patch = list_entry( pos, struct opt_child, list );
-				struct opt_child *c_track = get_opt_child( c_patch->c_opt, p_track );
+				struct opt_child *c_track = get_opt_child( c_patch->opt, p_track );
 				
 				
-				if ( !c_patch->c_val  &&  c_track ) {
+				if ( !c_patch->val  &&  c_track ) {
 					
 					if ( cmd == OPT_APPLY ) {
-						if ( save  &&  save_config_cb  &&  c_track->c_opt->cfg_t != A_ARG )
-							save_config_cb( DEL, c_track->c_opt, save_val, c_track->c_ref ? c_track->c_ref : c_track->c_val, cn );
+						if ( save  &&  save_config_cb  &&  c_track->opt->cfg_t != A_ARG )
+							save_config_cb( DEL, c_track->opt, save_val, c_track->ref ? c_track->ref : c_track->val, cn );
 						
-						del_opt_child( p_track, c_track->c_opt );
+						del_opt_child( p_track, c_track->opt );
                                         }
                                         changed_child = changed = YES;
 					
-				} else if ( !c_patch->c_val  &&  !c_track ) {
+				} else if ( !c_patch->val  &&  !c_track ) {
 					
 					if ( save ) {
 						dbg_cn( cn, DBGL_SYS, DBGT_ERR, "--%s %s %s%s does not exist",
-						        p_opt->name, p_patch->p_val, LONG_OPT_ARG_DELIMITER_STR, c_patch->c_opt->name );
+						        p_opt->name, p_patch->val, LONG_OPT_ARG_DELIMITER_STR, c_patch->opt->name );
 						return FAILURE;
 					}
 					
-				} else if (   (  c_patch->c_val  &&  c_track  &&  wordsEqual(c_patch->c_val, c_track->c_val) )  &&
-				              ( (  c_patch->c_ref  &&  c_track->c_ref  &&  wordsEqual( c_patch->c_ref, c_track->c_ref) ) || 
-				                ( !c_patch->c_ref  &&  !c_track->c_ref ) ) ) 
+				} else if (   (  c_patch->val  &&  c_track  &&  wordsEqual(c_patch->val, c_track->val) )  &&
+				              ( (  c_patch->ref  &&  c_track->ref  &&  wordsEqual( c_patch->ref, c_track->ref) ) ||
+				                ( !c_patch->ref  &&  !c_track->ref ) ) )
 				{
 					
 					dbgf_all( DBGT_INFO, "--%s %s %s%s %s already configured",
-					          p_opt->name, p_patch->p_val, LONG_OPT_ARG_DELIMITER_STR, c_patch->c_opt->name, c_patch->c_val );
+					          p_opt->name, p_patch->val, LONG_OPT_ARG_DELIMITER_STR, c_patch->opt->name, c_patch->val );
 					
-				} else if (  c_patch->c_val ) {
+				} else if (  c_patch->val ) {
 					
 					if ( cmd == OPT_APPLY ) {
-						if ( save  &&  save_config_cb  &&  c_patch->c_opt->cfg_t != A_ARG )
-							save_config_cb( ADD, c_patch->c_opt, save_val, c_patch->c_ref ? c_patch->c_ref : c_patch->c_val, cn );
+						if ( save  &&  save_config_cb  &&  c_patch->opt->cfg_t != A_ARG )
+							save_config_cb( ADD, c_patch->opt, save_val, c_patch->ref ? c_patch->ref : c_patch->val, cn );
 						
 						if ( !c_track )
-							c_track = add_opt_child( c_patch->c_opt, p_track );
+							c_track = add_opt_child( c_patch->opt, p_track );
 						
-						set_opt_child_val( c_track, c_patch->c_val );
-						set_opt_child_ref( c_track, c_patch->c_ref );
+						set_opt_child_val( c_track, c_patch->val );
+						set_opt_child_ref( c_track, c_patch->ref );
 					}
 
                                         changed_child = changed = YES;
@@ -2173,10 +2173,10 @@ int32_t track_opt_parent(uint8_t cmd, uint8_t save, struct opt_type *p_opt, stru
 					assertion( -500122, NO );
 				}
 				
-				if ( cmd == OPT_APPLY  &&  changed_child  &&  c_patch->c_opt->auth_t == A_ADM )
+				if ( cmd == OPT_APPLY  &&  changed_child  &&  c_patch->opt->auth_t == A_ADM )
 					dbg_cn( cn, DBGL_CHANGES, DBGT_INFO, "--%-22s  %-30s  %s%-22s %c%-30s",
-					        p_opt->name, p_patch->p_val, LONG_OPT_ARG_DELIMITER_STR,
-					        c_patch->c_opt->name, c_patch->c_val?' ':'-', c_patch->c_val );
+					        p_opt->name, p_patch->val, LONG_OPT_ARG_DELIMITER_STR,
+					        c_patch->opt->name, c_patch->val?' ':'-', c_patch->val );
 				
 			}
 		}
@@ -2202,7 +2202,7 @@ int32_t call_option(uint8_t ad, uint8_t cmd, uint8_t save, struct opt_type *opt,
 {
 	
 	dbgf_all(  DBGT_INFO, "%s (cmd %s  del %d  save %d  parent_name %s order %d) p_val: %s in: %s",
-	           opt->name, opt_cmd2str[ cmd ], ad, save, opt->parent_name, opt->order, patch?patch->p_val:"-", in );
+	           opt->name, opt_cmd2str[ cmd ], ad, save, opt->parent_name, opt->order, patch?patch->val:"-", in );
 	
 	if ( !opt ) // might be NULL when referring to disabled plugin functionality
 		return SUCCESS;
@@ -2261,36 +2261,36 @@ int32_t call_option(uint8_t ad, uint8_t cmd, uint8_t save, struct opt_type *opt,
 
                 assertion(-500105, (!opt->parent_name));
 
-                assertion(-500128, (opt->cfg_t == A_ARG || patch->p_val ||
-                        (patch->p_diff == DEL && opt->opt_t != A_PS1N && opt->opt_t != A_PM1N)));
+                assertion(-500128, (opt->cfg_t == A_ARG || patch->val ||
+                        (patch->diff == DEL && opt->opt_t != A_PS1N && opt->opt_t != A_PM1N)));
 
                 if (opt->cfg_t != A_ARG && (opt->opt_t == A_PS1N || opt->opt_t == A_PM1N)) {
 			
-			struct opt_parent *p_reftr = get_opt_parent_ref( opt, patch->p_ref );
-			struct opt_parent *p_track = get_opt_parent_val( opt, patch->p_val );
+			struct opt_parent *p_reftr = get_opt_parent_ref( opt, patch->ref );
+			struct opt_parent *p_track = get_opt_parent_val( opt, patch->val );
 
                         assertion(-500129, IMPLIES((p_reftr && p_track), p_reftr == p_track));
 			
 			p_track = p_track ? p_track : p_reftr;
 			
-			if ( ( patch->p_diff == ADD  &&  patch->p_val  &&  p_track  &&
-                                !wordsEqual(patch->p_val, p_track->p_val)) && (patch->p_ref || p_track->p_ref)) {
+			if ( ( patch->diff == ADD  &&  patch->val  &&  p_track  &&
+                                !wordsEqual(patch->val, p_track->val)) && (patch->ref || p_track->ref)) {
 
-				check_apply_parent_option( DEL, cmd, save, opt, p_track->p_val, cn );
+				check_apply_parent_option( DEL, cmd, save, opt, p_track->val, cn );
                         }
                 }
 
                 //TODO: this is not nice! But needed to avoid having multiple tracked instances of a PS1N option!
 
-                if (cmd == OPT_APPLY && opt->opt_t == A_PS1N && opt->dyn_t != A_INI && patch->p_diff == ADD && patch->p_val && opt->d.parents_instance_list.items >= 1) {
+                if (cmd == OPT_APPLY && opt->opt_t == A_PS1N && opt->dyn_t != A_INI && patch->diff == ADD && patch->val && opt->d.parents_instance_list.items >= 1) {
 
                         assertion(-501140, (opt->d.parents_instance_list.items == 1));
 
                         struct opt_parent *p_tmp = list_get_first(&opt->d.parents_instance_list);
 
-                        if (check_apply_parent_option(DEL, OPT_APPLY, save, opt, p_tmp->p_val, cn) == FAILURE) {
+                        if (check_apply_parent_option(DEL, OPT_APPLY, save, opt, p_tmp->val, cn) == FAILURE) {
 
-                                dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "calling %s %s failed", opt->name, p_tmp->p_val);
+                                dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "calling %s %s failed", opt->name, p_tmp->val);
 
                                 return FAILURE;
                         }
@@ -2321,7 +2321,7 @@ call_option_failure:
 	dbg_cn( cn, DBGL_SYS, DBGT_ERR,
                 "--%s  %s  Failed ! ( diff:%d ad:%d val:%d min:%d max:%d def:%d  %s %d %d %d )",
 	        opt->name ? opt->name : "-", in ? in: "-",
-	        patch ? patch->p_diff : -1,
+	        patch ? patch->diff : -1,
                 ad, opt->ival ? *(opt->ival) : 0, opt->imin, opt->imax, opt->idef,
                 opt_cmd2str[cmd], opt->opt_t, !initializing, wordlen(in));
 	
@@ -2603,13 +2603,13 @@ int8_t apply_stream_opts(char *s, uint8_t cmd, uint8_t load_cfg, struct ctrl_nod
 
                         char* delmiter_ptr = index(s, LONG_OPT_ARG_DELIMITER_CHAR);
 			
-			if ( delmiter_ptr  &&  delmiter_ptr == nextword(s)  &&  patch->p_diff == DEL ) {
+			if ( delmiter_ptr  &&  delmiter_ptr == nextword(s)  &&  patch->diff == DEL ) {
 				
 				wordCopy( argument, delmiter_ptr+1 );
 				
 				dbg_cn( cn, DBGL_SYS, DBGT_ERR, 
 				        "--%s %s can not be resetted and refined at the same time. Just omit %s%s!",
-				        opt->name, patch->p_val, LONG_OPT_ARG_DELIMITER_STR, argument );
+				        opt->name, patch->val, LONG_OPT_ARG_DELIMITER_STR, argument );
 				
 				goto apply_args_error;
 				
@@ -2744,13 +2744,13 @@ int32_t opt_show_parameter(uint8_t cmd, uint8_t _save, struct opt_type *opt, str
 
                                 assertion(-501231, (opt->name && opt->cfg_t != A_ARG));
                                 
-                                dbg_printf(cn, " %-22s %-20s %s%s\n", opt->name, p->p_val,
-                                        (p->p_ref ? "resolved from " : ""), (p->p_ref ? p->p_ref : ""));
+                                dbg_printf(cn, " %-22s %-20s %s%s\n", opt->name, p->val,
+                                        (p->ref ? "resolved from " : ""), (p->ref ? p->ref : ""));
 
                                 while ((c = list_iterate(&p->childs_instance_list, c))) {
                                         dbg_printf(cn, "    %s%-18s %-20s %s%s\n",
-                                                LONG_OPT_ARG_DELIMITER_STR, c->c_opt->name, c->c_val,
-                                                (c->c_ref ? "resolved from " : ""), (c->c_ref ? c->c_ref : ""));
+                                                LONG_OPT_ARG_DELIMITER_STR, c->opt->name, c->val,
+                                                (c->ref ? "resolved from " : ""), (c->ref ? c->ref : ""));
                                 }
                         }
                 }
@@ -2774,13 +2774,13 @@ int32_t opt_debug(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_p
 
         } else if (initializing && cmd == OPT_APPLY) {
 		
-		debug_level = strtol( patch->p_val, NULL , 10);
+		debug_level = strtol( patch->val, NULL , 10);
 		
 		activate_debug_system();
 
         } else if (!initializing && cmd == OPT_APPLY) {
 		
-		int ival = strtol( patch->p_val, NULL , 10);
+		int ival = strtol( patch->val, NULL , 10);
 		
 		
 		if (  ival == DBGL_SYS || 
@@ -2829,8 +2829,8 @@ int32_t opt_help(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
 
         while ((c = list_iterate(&patch->childs_instance_list, c))) {
 
-                if (!strcmp(c->c_opt->name, ARG_RELEVANCE)) {
-                        relevance = strtol(c->c_val, NULL, 10);
+                if (!strcmp(c->opt->name, ARG_RELEVANCE)) {
+                        relevance = strtol(c->val, NULL, 10);
                 }
         }
 
@@ -2962,10 +2962,10 @@ int32_t opt_run_dir(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt
 	
 	if ( cmd == OPT_CHECK  ||  cmd == OPT_APPLY ) {
 		
-		if ( wordlen( patch->p_val )+1 >= MAX_PATH_SIZE  ||  patch->p_val[0] != '/' )
+		if ( wordlen( patch->val )+1 >= MAX_PATH_SIZE  ||  patch->val[0] != '/' )
 			return FAILURE;
 		
-		snprintf( tmp_dir, wordlen(patch->p_val)+1, "%s", patch->p_val );
+		snprintf( tmp_dir, wordlen(patch->val)+1, "%s", patch->val );
 		
 		if ( check_dir( tmp_dir, YES/*create*/, YES/*writable*/ ) == FAILURE )
 			return FAILURE;

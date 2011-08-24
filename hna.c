@@ -177,11 +177,11 @@ int32_t opt_niit(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
 
         if ( cmd == OPT_CHECK  ||  cmd == OPT_APPLY ) {
 
-                if ( patch->p_diff == DEL ) {
+                if ( patch->diff == DEL ) {
 
                         ipX = ZERO_IP;
 
-                } else if ( str2netw( patch->p_val, &ipX, '/', cn, NULL, &family ) == FAILURE  ) {
+                } else if ( str2netw( patch->val, &ipX, '/', cn, NULL, &family ) == FAILURE  ) {
 
                         return FAILURE;
 
@@ -638,13 +638,13 @@ int32_t opt_uhna(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
                 struct uhna_node *un;
 
                 dbgf_all(DBGT_INFO, "af_cfg=%s diff=%d cmd=%s  save=%d  opt=%s  patch=%s",
-                        family2Str(af_cfg()), patch->p_diff, opt_cmd2str[cmd], _save, opt->name, patch->p_val);
+                        family2Str(af_cfg()), patch->diff, opt_cmd2str[cmd], _save, opt->name, patch->val);
 
-                if (str2netw(patch->p_val, &ipX, '/', cn, &mask, &family) == FAILURE ||
+                if (str2netw(patch->val, &ipX, '/', cn, &mask, &family) == FAILURE ||
                         family != af_cfg() ||
                         is_ip_forbidden(&ipX, family) || ip_netmask_validate(&ipX, mask, family, NO) == FAILURE) {
 
-                        dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "invalid prefix: %s", patch->p_val);
+                        dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "invalid prefix: %s", patch->val);
                         return FAILURE;
                 }
 
@@ -657,7 +657,7 @@ int32_t opt_uhna(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
                 if (cmd == OPT_ADJUST)
                         return SUCCESS;
 
-                if (patch->p_diff != DEL && (un = find_overlapping_hna(&key.glip, key.prefixlen))) {
+                if (patch->diff != DEL && (un = find_overlapping_hna(&key.glip, key.prefixlen))) {
 
 			dbg_cn( cn, DBGL_CHANGES, DBGT_ERR,
                                 "UHNA %s/%d metric %d already blocked by global_id=%s !",
@@ -668,7 +668,7 @@ int32_t opt_uhna(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
 		}
 
                 if (cmd == OPT_APPLY)
-                        configure_uhna((patch->p_diff == DEL ? DEL : ADD), &key, self);
+                        configure_uhna((patch->diff == DEL ? DEL : ADD), &key, self);
 
 
 	} else if ( cmd == OPT_UNREGISTER ) {
@@ -931,14 +931,14 @@ int32_t opt_tunnel_in(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct o
                 char adjusted_src[IPXNET_STR_LEN];
 
                 dbgf_track(DBGT_INFO, "diff=%d cmd=%s  save=%d  opt=%s  patch=%s",
-                        patch->p_diff, opt_cmd2str[cmd], _save, opt->name, patch->p_val);
+                        patch->diff, opt_cmd2str[cmd], _save, opt->name, patch->val);
 
-                if (str2netw(patch->p_val, &src, '/', cn, NULL, &family) == FAILURE || family != AF_INET6 ||
+                if (str2netw(patch->val, &src, '/', cn, NULL, &family) == FAILURE || family != AF_INET6 ||
                         is_ip_forbidden(&src, family) || ip_netmask_validate(&src, 128, family, NO) == FAILURE ||
                         ((un = find_overlapping_hna(&src, 128)) && un->on != self)) {
 
                         dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "invalid prefix: %s or blocked by %s",
-                                patch->p_val, un ? globalIdAsString(&un->on->global_id) : "");
+                                patch->val, un ? globalIdAsString(&un->on->global_id) : "");
                         
                         return FAILURE;
                 }
@@ -952,15 +952,15 @@ int32_t opt_tunnel_in(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct o
                 while ((c = list_iterate(&patch->childs_instance_list, c))) {
 
                         dbgf_track(DBGT_INFO, "diff=%d cmd=%s opt=%s  patch=%s %s %s",
-                                patch->p_diff, opt_cmd2str[cmd], opt->name, patch->p_val, c->c_opt->name, c->c_val);
+                                patch->diff, opt_cmd2str[cmd], opt->name, patch->val, c->opt->name, c->val);
 
-                        if (c->c_val && !strcmp(c->c_opt->name, ARG_TUN_TYPE)) {
+                        if (c->val && !strcmp(c->opt->name, ARG_TUN_TYPE)) {
                                 
-                                type = strtol(c->c_val, NULL, 10);
+                                type = strtol(c->val, NULL, 10);
 
-                        } else if (c->c_val && !strcmp(c->c_opt->name, ARG_TUN_NAME)) {
+                        } else if (c->val && !strcmp(c->opt->name, ARG_TUN_NAME)) {
 
-                                name = c->c_val;
+                                name = c->val;
 
                                 if (strlen(name) >= sizeof (tun->name) || wordlen(name) != strlen(name) ||
                                         validate_name_string(name, strlen(name)) != FAILURE
@@ -980,7 +980,7 @@ int32_t opt_tunnel_in(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct o
                         debugFree(tun, -300392);
                 }
 
-                if (patch->p_diff != DEL) {
+                if (patch->diff != DEL) {
                         tun = debugMalloc( sizeof(struct tunnel_status), -300389);
                         memset(tun, 0, sizeof(struct tunnel_status));
                         tun->src = src;

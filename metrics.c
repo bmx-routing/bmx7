@@ -1355,13 +1355,13 @@ int32_t opt_path_metricalgo(uint8_t cmd, uint8_t _save, struct opt_type *opt, st
                 // other illegal option configurations will be cached by their MIN_... MAX_.. control.c architecture
 
                 test_algo.window_size = (cmd == OPT_REGISTER || strcmp(opt->name, ARG_PATH_WINDOW)) ?
-                        my_path_window : strtol(patch->p_val, NULL, 10);
+                        my_path_window : strtol(patch->val, NULL, 10);
 
                 test_algo.regression = (cmd == OPT_REGISTER || strcmp(opt->name, ARG_PATH_REGRESSION_SLOW)) ?
-                        my_path_regression : strtol(patch->p_val, NULL, 10);
+                        my_path_regression : strtol(patch->val, NULL, 10);
 
                 test_algo.umetric_min = (cmd == OPT_REGISTER || strcmp(opt->name, ARG_PATH_UMETRIC_MIN)) ?
-                        my_path_umetric_min : strtol(patch->p_val, NULL, 10);
+                        my_path_umetric_min : strtol(patch->val, NULL, 10);
 
                 test_algo.fmetric_u16_min = umetric_to_fmetric(test_algo.umetric_min);
 
@@ -1382,28 +1382,28 @@ int32_t opt_path_metricalgo(uint8_t cmd, uint8_t _save, struct opt_type *opt, st
                         test_algo.algo_tp_exp_numerator = DEF_PATH_TP_EXP_NUMERATOR;
                         test_algo.algo_tp_exp_divisor = DEF_PATH_TP_EXP_DIVISOR;
 
-                        if (patch->p_diff != DEL) {
+                        if (patch->diff != DEL) {
 
-                                test_algo.algo_type = strtol(patch->p_val, NULL, 10);
+                                test_algo.algo_type = strtol(patch->val, NULL, 10);
 
                                 struct opt_child *c = NULL;
                                 while ((c = list_iterate(&patch->childs_instance_list, c))) {
 
-                                        if (!c->c_val)
+                                        if (!c->val)
                                                 continue;
 
-                                        int32_t val = strtol(c->c_val, NULL, 10);
+                                        int32_t val = strtol(c->val, NULL, 10);
 
-                                        if (!strcmp(c->c_opt->name, ARG_PATH_RP_EXP_NUMERATOR))
+                                        if (!strcmp(c->opt->name, ARG_PATH_RP_EXP_NUMERATOR))
                                                 test_algo.algo_rp_exp_numerator = val;
 
-                                        if (!strcmp(c->c_opt->name, ARG_PATH_RP_EXP_DIVISOR))
+                                        if (!strcmp(c->opt->name, ARG_PATH_RP_EXP_DIVISOR))
                                                 test_algo.algo_rp_exp_divisor = val;
 
-                                        if (!strcmp(c->c_opt->name, ARG_PATH_TP_EXP_NUMERATOR))
+                                        if (!strcmp(c->opt->name, ARG_PATH_TP_EXP_NUMERATOR))
                                                 test_algo.algo_tp_exp_numerator = val;
 
-                                        if (!strcmp(c->c_opt->name, ARG_PATH_TP_EXP_DIVISOR))
+                                        if (!strcmp(c->opt->name, ARG_PATH_TP_EXP_DIVISOR))
                                                 test_algo.algo_tp_exp_divisor = val;
                                 }
                         }

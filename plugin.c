@@ -418,12 +418,12 @@ int32_t opt_plugin ( uint8_t cmd, uint8_t _save, struct opt_type *opt, struct op
 	
 	if ( cmd == OPT_CHECK ) {
 		
-		dbgf_all( DBGT_INFO, "about to load dl %s", patch->p_val );
+		dbgf_all( DBGT_INFO, "about to load dl %s", patch->val );
 		
-		if ( wordlen(patch->p_val)+1 >= MAX_PATH_SIZE  ||  patch->p_val[0] == '/' )
+		if ( wordlen(patch->val)+1 >= MAX_PATH_SIZE  ||  patch->val[0] == '/' )
 			return FAILURE;
 		
-		wordCopy( tmp_name, patch->p_val );
+		wordCopy( tmp_name, patch->val );
 		
 		if ( get_opt_parent_val( opt, tmp_name ) )
 			return SUCCESS;

@@ -271,14 +271,14 @@ struct opt_child {
 	
 	struct list_node list;
 	
-	struct opt_type *c_opt; // key,  pointing to related opt_type
+	struct opt_type *opt; // key,  pointing to related opt_type
 	struct opt_parent *parent_instance;
 	
-	char *c_val;
+	char *val;
 	
-	uint8_t p_diff; //ADD, DEL, NOP
+	uint8_t diff; //ADD, DEL, NOP
 	
-	char *c_ref;
+	char *ref;
 };
 
 
@@ -288,11 +288,11 @@ struct opt_parent {
 	
 	struct list_head childs_instance_list;
 	
-	char *p_val; //key
+	char *val; //key
 	
-	uint8_t p_diff; //ADD, DEL, NOP
+	uint8_t diff; //ADD, DEL, NOP
 	
-	char *p_ref;
+	char *ref;
 	
 };
 

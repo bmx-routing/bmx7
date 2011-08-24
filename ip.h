@@ -440,6 +440,9 @@ IDM_T is_ip_net_equal(const IPX_T *netA, const IPX_T *netB, const uint8_t plen, 
 
 
 // core:
+
+IDM_T iptunnel(IDM_T del, char *name, uint8_t proto, IPX_T *local, IPX_T *remote);
+
 uint8_t _af_cfg(const char *func);
 
 #define af_cfg() _af_cfg(__FUNCTION__)

@@ -262,6 +262,79 @@ IDM_T get_if_req(IFNAME_T *dev_name, struct ifreq *if_req, int siocgi_req)
 	return SUCCESS;
 }
 
+
+
+IDM_T iptunnel(IDM_T del, char *name, uint8_t proto, IPX_T *local, IPX_T *remote)
+{
+
+#define IPV6_DEFAULT_TNL_ENCAP_LIMIT 4
+#define DEFAULT_TNL_HOP_LIMIT	(64)
+
+#define SIOCGETTUNNEL   (SIOCDEVPRIVATE + 0)
+#define SIOCADDTUNNEL   (SIOCDEVPRIVATE + 1)
+#define SIOCDELTUNNEL   (SIOCDEVPRIVATE + 2)
+
+
+        struct ip6_tnl_parm {
+                char name[IFNAMSIZ]; /* name of tunnel device */
+                int link; /* ifindex of underlying L2 interface */
+                __u8 proto; /* tunnel protocol */
+                __u8 encap_limit; /* encapsulation limit for tunnel */
+                __u8 hop_limit; /* hop limit for tunnel */
+                __be32 flowinfo; /* traffic class and flowlabel for tunnel */
+                __u32 flags; /* tunnel flags */
+                struct in6_addr laddr; /* local tunnel end-point address */
+                struct in6_addr raddr; /* remote tunnel end-point address */
+        };
+
+        dbgf_track(DBGT_INFO, "del=%d proto=%d name=%s local=%s remote=%s",
+                del, proto, name, ip6AsStr(local), ip6AsStr(remote));
+
+        struct ip6_tnl_parm p;
+        struct ifreq ifr;
+
+        memset(&p, 0, sizeof (p));
+        strncpy(p.name, name, IFNAMSIZ);
+        p.hop_limit = DEFAULT_TNL_HOP_LIMIT;
+        p.encap_limit = IPV6_DEFAULT_TNL_ENCAP_LIMIT;
+        p.proto = proto;
+        p.raddr = *remote;
+        p.laddr = *local;
+
+        memset(&ifr, 0, sizeof (ifr));
+        strncpy(ifr.ifr_name, del ? name : "ip6tnl0", IFNAMSIZ);
+        ifr.ifr_ifru.ifru_data = &p;
+
+        if ((ioctl(rt_sock, del ? SIOCDELTUNNEL : SIOCADDTUNNEL, &ifr))) {
+                dbgf_sys(DBGT_ERR, "creating tunnel dev name=%s %s", name, strerror(errno));
+                return FAILURE;
+        }
+
+        if(!del) {
+                memset(&ifr, 0, sizeof (ifr));
+                strncpy(ifr.ifr_name, name, IFNAMSIZ);
+                if ((ioctl(rt_sock, SIOCGIFFLAGS, &ifr))) {
+                        dbgf_sys(DBGT_ERR, "getting tunnel flags name=%s %s", name, strerror(errno));
+                        iptunnel(DEL, name, 0, NULL, NULL);
+                        return FAILURE;
+                }
+
+                if ((ifr.ifr_flags & IFF_UP) != IFF_UP) {
+                        ifr.ifr_flags |= IFF_UP;
+                        if ((ioctl(rt_sock, SIOCSIFFLAGS, &ifr))) {
+                                dbgf_sys(DBGT_ERR, "setting tunnel flags name=%s %s", name, strerror(errno));
+                                iptunnel(DEL, name, 0, NULL, NULL);
+                                return FAILURE;
+                        }
+                }
+        }
+
+        return SUCCESS;
+}
+
+
+
+
 STATIC_FUNC
 uint32_t prio_macro_to_prio(int8_t prio_macro)
 {

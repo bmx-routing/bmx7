@@ -684,75 +684,6 @@ int32_t opt_uhna(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
 
 }
 
-IDM_T iptunnel(IDM_T del, uint8_t type, char *name, IPX_T *local, IPX_T *remote)
-{
-#define IPV6_DEFAULT_TNL_ENCAP_LIMIT 4
-#define DEFAULT_TNL_HOP_LIMIT	(64)
-
-#define SIOCGETTUNNEL   (SIOCDEVPRIVATE + 0)
-#define SIOCADDTUNNEL   (SIOCDEVPRIVATE + 1)
-#define SIOCDELTUNNEL   (SIOCDEVPRIVATE + 2)
-#define SIOCCHGTUNNEL   (SIOCDEVPRIVATE + 3)
-#define SIOCGETPRL      (SIOCDEVPRIVATE + 4)
-#define SIOCADDPRL      (SIOCDEVPRIVATE + 5)
-#define SIOCDELPRL      (SIOCDEVPRIVATE + 6)
-#define SIOCCHGPRL      (SIOCDEVPRIVATE + 7)
-#define SIOCGET6RD      (SIOCDEVPRIVATE + 8)
-#define SIOCADD6RD      (SIOCDEVPRIVATE + 9)
-#define SIOCDEL6RD      (SIOCDEVPRIVATE + 10)
-#define SIOCCHG6RD      (SIOCDEVPRIVATE + 11)
-
-
-        struct ip6_tnl_parm {
-                char name[IFNAMSIZ]; /* name of tunnel device */
-                int link; /* ifindex of underlying L2 interface */
-                __u8 proto; /* tunnel protocol */
-                __u8 encap_limit; /* encapsulation limit for tunnel */
-                __u8 hop_limit; /* hop limit for tunnel */
-                __be32 flowinfo; /* traffic class and flowlabel for tunnel */
-                __u32 flags; /* tunnel flags */
-                struct in6_addr laddr; /* local tunnel end-point address */
-                struct in6_addr raddr; /* remote tunnel end-point address */
-        };
-
-        dbgf_track(DBGT_INFO, "del=%d type=%d name=%s local=%s remote=%s",
-                del, type, name, ip6AsStr(local), ip6AsStr(remote));
-
-        struct ip6_tnl_parm p;
-        memset(&p, 0, sizeof (p));
-
-        p.hop_limit = DEFAULT_TNL_HOP_LIMIT;
-        p.encap_limit = IPV6_DEFAULT_TNL_ENCAP_LIMIT;
-
-        strncpy(p.name, name, IFNAMSIZ);
-
-        if (type == TUN_TYPE_ANY)
-                p.proto = IPPROTO_IP;
-        else if (type == TUN_TYPE_IP4IP6)
-                p.proto = IPPROTO_IPIP;
-        else if (type == TUN_TYPE_IP6IP6)
-                p.proto = IPPROTO_IPV6;
-
-        p.raddr = *remote;
-        p.laddr = *local;
-
-        struct ifreq ifr;
-        int fd;
-        int err;
-        memset(&ifr, 0, sizeof (ifr));
-        strncpy(ifr.ifr_name, del ? name : "ip6tnl0", IFNAMSIZ);
-        ifr.ifr_ifru.ifru_data = &p;
-
-        fd = socket(AF_INET6, SOCK_DGRAM, 0);
-        if ((err = ioctl(fd, del ? SIOCDELTUNNEL : SIOCADDTUNNEL, &ifr))) {
-                dbgf_sys(DBGT_ERR, "err=%d %s", err, strerror(errno));
-                close(fd);
-                return FAILURE;
-        }
-
-        close(fd);
-        return SUCCESS;
-}
 
 
 STATIC_FUNC
@@ -770,7 +701,7 @@ void configureTunnel(uint8_t del, struct orig_node *on, struct tunnel_status *tu
                 if (!tun->up)
                         return;
 
-                iptunnel(DEL, tun->type, tun->name.str, (IPX_T*) & ZERO_IP, (IPX_T*) & ZERO_IP);
+                iptunnel(DEL, tun->name.str, 0, NULL, NULL);
                 tun->up = 0;
 
         } else {
@@ -791,7 +722,7 @@ void configureTunnel(uint8_t del, struct orig_node *on, struct tunnel_status *tu
                         snprintf(tun->name.str, IFNAMSIZ - 1, "bmx%.4X_%s%.4X", My_pid, (on == self ? "in" : "out"), on->dhn->myIID4orig);
                 }
 
-                if (iptunnel(ADD, tun->type, tun->name.str, local, remote) == SUCCESS)
+                if (iptunnel(ADD, tun->name.str, IPPROTO_IP, local, remote) == SUCCESS)
                         tun->up = 1;
         }
 }

@@ -1674,8 +1674,8 @@ void dev_reconfigure_soft(struct dev_node *dev)
         assertion(-501031, (DEF_DEV_BITRATE_MAX_LAN >= DEF_DEV_BITRATE_MIN_LAN));
 
 
-        if (dev->umetric_max_conf != OPT_CHILD_UNDEFINED) {
-                dev->umetric_max = dev->umetric_max_configured;
+        if (dev->umetric_max_conf != (UMETRIC_MAX) OPT_CHILD_UNDEFINED) {
+                dev->umetric_max = dev->umetric_max_conf;
         } else {
                 if (dev->linklayer == TYP_DEV_LL_WIFI) {
                         dev->umetric_max = DEF_DEV_BITRATE_MAX_WIFI;
@@ -1686,17 +1686,9 @@ void dev_reconfigure_soft(struct dev_node *dev)
                 }
         }
 
-        if (dev->umetric_min_conf != OPT_CHILD_UNDEFINED) {
-                dev->umetric_min = dev->umetric_min_configured;
-        }
-
-        if (dev->umetric_min_conf == OPT_CHILD_UNDEFINED || dev->umetric_min > dev->umetric_max) {
-
-                if (dev->umetric_min_conf != OPT_CHILD_UNDEFINED) {
-                        dbgf_sys(DBGT_ERR, "dev=%s umetric_min=%ju > umetric_max=%ju ! Configuring defaults!",
-                                dev->label_cfg.str, dev->umetric_min, dev->umetric_max);
-                }
-
+        if (dev->umetric_min_conf != (UMETRIC_MAX) OPT_CHILD_UNDEFINED && dev->umetric_min_conf < dev->umetric_max) {
+                dev->umetric_min = dev->umetric_min_conf;
+        } else {
                 if (dev->linklayer == TYP_DEV_LL_WIFI) {
                         dev->umetric_min = (dev->umetric_max / (DEF_DEV_BITRATE_MAX_WIFI / DEF_DEV_BITRATE_MIN_WIFI));
                 } else if (dev->linklayer == TYP_DEV_LL_LAN) {
@@ -2792,6 +2784,7 @@ struct dev_status {
         char *multicastIp;
         HELLO_SQN_T helloSqn;
         uint8_t primary;
+        uint8_t announced;
 };
 
 static const struct field_format dev_status_format[] = {
@@ -2806,6 +2799,7 @@ static const struct field_format dev_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,              dev_status, multicastIp, 1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,                      dev_status, helloSqn,    1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,                      dev_status, primary,     1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,                      dev_status, announced,   1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_END
 };
 
@@ -2837,6 +2831,7 @@ static int32_t dev_status_creator(struct status_handl *handl, void* data)
                 status[i].multicastIp = dev->ip_brc_str;
                 status[i].helloSqn = dev->link_hello_sqn;
                 status[i].primary = (dev == primary_dev_cfg);
+                status[i].announced = dev->announce;
 
                 i++;
         }
@@ -3002,6 +2997,16 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
                         else
                                 dev->announce = DEF_DEV_ANNOUNCE;
 
+                        // some configurable interface values - initialized to unspecified:
+                        dev->linklayer_conf = OPT_CHILD_UNDEFINED;
+                        dev->channel_conf = OPT_CHILD_UNDEFINED;
+                        dev->umetric_max_conf = OPT_CHILD_UNDEFINED;
+                        dev->umetric_min_conf = OPT_CHILD_UNDEFINED;
+                        dev->global_prefix_conf = ZERO_IP;
+                        dev->global_prefix_length_conf = 0;
+                        dev->llocal_prefix_conf = ZERO_IP;
+                        dev->llocal_prefix_length_conf = 0;
+
                         dev->umetric_max = DEF_DEV_BITRATE_MAX;
 
                         dev->dummy_lndev.key.dev = dev;
@@ -3017,21 +3022,9 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
                         dbgf_all(DBGT_INFO, "assigned dev %s physical name %s", dev->label_cfg.str, dev->name_phy_cfg.str);
                 }
 
-                if (cmd == OPT_APPLY) {
-			// some configurable interface values - initialized to unspecified:
-                        dev->linklayer_conf = OPT_CHILD_UNDEFINED;
-                        dev->channel_conf = OPT_CHILD_UNDEFINED;
-                        dev->umetric_min_configured = 0;
-                        dev->umetric_min_conf = OPT_CHILD_UNDEFINED;
-                        dev->umetric_max_configured = 0;
-                        dev->umetric_max_conf = OPT_CHILD_UNDEFINED;
-                        dev->global_prefix_conf = ZERO_IP;
-                        dev->global_prefix_length_conf = 0;
-                        dev->llocal_prefix_conf = ZERO_IP;
-                        dev->llocal_prefix_length_conf = 0;
-
+                if (cmd == OPT_APPLY)
                         opt_dev_changed = dev->soft_conf_changed = YES;
-                }
+                
 
                 struct opt_child *c = NULL;
                 while ((c = list_iterate(&patch->childs_instance_list, c))) {
@@ -3049,8 +3042,7 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
 
                                         if (
                                                 str2netw(c->c_val, &ipX, '/', cn, &mask, &family) == FAILURE ||
-                                                family != af_cfg() ||
-                                                is_ip_forbidden(&ipX, family) ||
+                                                family != af_cfg() || is_ip_forbidden(&ipX, family) ||
                                                 ip_netmask_validate(&ipX, mask, family, NO) == FAILURE ||
                                                 (family == AF_INET6 && (
                                                 is_ip_net_equal(&ipX, &IP6_MC_PREF, IP6_MC_PLEN, AF_INET6) ||
@@ -3073,11 +3065,21 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
                                                 ipFAsStr(&ipX), mask, dev->hard_conf_changed);
 
                                         if (is_global_prefix) {
-                                                dev->global_prefix_conf = ipX;
-                                                dev->global_prefix_length_conf = mask;
+                                                if (c->c_val) {
+                                                        dev->global_prefix_conf = ipX;
+                                                        dev->global_prefix_length_conf = mask;
+                                                } else {
+                                                        dev->global_prefix_conf = ZERO_IP;
+                                                        dev->global_prefix_length_conf = 0;
+                                                }
                                         } else {
-                                                dev->llocal_prefix_conf = ipX;
-                                                dev->llocal_prefix_length_conf = mask;
+                                                if (c->c_val) {
+                                                        dev->llocal_prefix_conf = ipX;
+                                                        dev->llocal_prefix_length_conf = mask;
+                                                } else {
+                                                        dev->llocal_prefix_conf = ZERO_IP;
+                                                        dev->llocal_prefix_length_conf = 0;
+                                                }
                                         }
 
                                         dev->hard_conf_changed = YES;
@@ -3087,12 +3089,17 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
 
                                 if (c->c_val)
                                         dev->linklayer_conf = strtol(c->c_val, NULL, 10);
+                                else
+                                        dev->linklayer_conf = OPT_CHILD_UNDEFINED;
 
                                 dev->hard_conf_changed = YES;
 
                         } else if (!strcmp(c->c_opt->long_name, ARG_DEV_CHANNEL) && cmd == OPT_APPLY) {
 
-                                dev->channel_conf = strtol(c->c_val, NULL, 10);
+                                if (c->c_val)
+                                        dev->channel_conf = strtol(c->c_val, NULL, 10);
+                                else
+                                        dev->channel_conf = OPT_CHILD_UNDEFINED;
 
                         } else if (!strcmp(c->c_opt->long_name, ARG_DEV_BITRATE_MAX) && cmd == OPT_APPLY) {
 
@@ -3108,9 +3115,13 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
                                                 return FAILURE;
                                         }
 
-                                        dev->umetric_max_configured = ull;
-                                        dev->umetric_max_conf = 0;
+                                        
+
+                                        dev->umetric_max_conf = ull;
+                                } else {
+                                        dev->umetric_max_conf = OPT_CHILD_UNDEFINED;
                                 }
+
 
                         } else if (!strcmp(c->c_opt->long_name, ARG_DEV_BITRATE_MIN) && cmd == OPT_APPLY) {
 
@@ -3126,8 +3137,9 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
                                                 return FAILURE;
                                         }
 
-                                        dev->umetric_min_configured = ull;
-                                        dev->umetric_min_conf = 0;
+                                        dev->umetric_min_conf = ull;
+                                } else {
+                                        dev->umetric_min_conf = OPT_CHILD_UNDEFINED;
                                 }
 
 
@@ -3235,6 +3247,8 @@ static struct opt_type ip_options[]=
 void init_ip(void)
 {
         assertion(-500894, (is_zero(((char*)&ZERO_IP), sizeof (ZERO_IP))));
+        
+
 
         if (rtnl_open(&ip_rth) != SUCCESS) {
                 dbgf_sys(DBGT_ERR, "failed opening rtnl socket");

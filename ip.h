@@ -186,6 +186,7 @@ typedef struct ifname IFNAME_T;
 #define BMX_AFINET6 1
 #define ORT_MAX 1
 
+
 //#define IPV6_MC_ALL_ROUTERS "FF02::2"
 
 //#define IPV6_LINK_LOCAL_UNICAST_U32 0xFE800000
@@ -349,12 +350,12 @@ struct dev_node {
 	int16_t channel_conf;
 	int16_t channel;
 
-	int8_t umetric_min_conf;
-	UMETRIC_T umetric_min_configured;
+	UMETRIC_T umetric_min_conf;
+//	UMETRIC_T umetric_min_configured;
 	UMETRIC_T umetric_min;
 
-	int8_t umetric_max_conf;
-	UMETRIC_T umetric_max_configured;
+	UMETRIC_T umetric_max_conf;
+//	UMETRIC_T umetric_max_configured;
 	UMETRIC_T umetric_max;
 
 	IPX_T global_prefix_conf;

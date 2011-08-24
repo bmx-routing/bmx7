@@ -948,9 +948,11 @@ int32_t opt_tunnel_in(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct o
 
                 while ((c = list_iterate(&patch->childs_instance_list, c))) {
 
-                        if (!strcmp(c->opt->name, ARG_TUN_NAME) && c->val && (
+                        if (!strcmp(c->opt->name, ARG_TUN_TYPE) && c->val && strtol(c->val, NULL, 10) > MAX_TUN_TYPE) {
+                                return FAILURE;
+                        } else if (!strcmp(c->opt->name, ARG_TUN_NAME) && c->val && (
                                 strlen(c->val) >= sizeof (tun->name) ||
-                                validate_name_string(c->val, strlen(c->val)) != SUCCESS)) {
+                                validate_name_string(c->val, strlen(c->val)+1) != SUCCESS)) {
                                 dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "invalid name: %s", c->val);
                                 return FAILURE;
                         }
@@ -976,7 +978,7 @@ int32_t opt_tunnel_in(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct o
 
                         while ((c = list_iterate(&patch->childs_instance_list, c))) {
 
-                                dbgf_track(DBGT_INFO, "diff=%d cmd=%s opt=%s  patch=%s %s %s",
+                                dbgf_track(DBGT_INFO, "diff=%d cmd=%s opt=%s  patch=%s %s=%s",
                                         patch->diff, opt_cmd2str[cmd], opt->name, patch->val, c->opt->name, c->val);
 
                                 if (!strcmp(c->opt->name, ARG_TUN_TYPE)) {

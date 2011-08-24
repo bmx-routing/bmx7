@@ -287,8 +287,8 @@ IDM_T iptunnel(IDM_T del, char *name, uint8_t proto, IPX_T *local, IPX_T *remote
                 struct in6_addr raddr; /* remote tunnel end-point address */
         };
 
-        dbgf_track(DBGT_INFO, "del=%d proto=%d name=%s local=%s remote=%s",
-                del, proto, name, ip6AsStr(local), ip6AsStr(remote));
+        dbgf_track(DBGT_INFO, "del=%d name=%s proto=%d local=%s remote=%s",
+                del, name, proto, ip6AsStr(local), ip6AsStr(remote));
 
         struct ip6_tnl_parm p;
         struct ifreq ifr;
@@ -298,8 +298,11 @@ IDM_T iptunnel(IDM_T del, char *name, uint8_t proto, IPX_T *local, IPX_T *remote
         p.hop_limit = DEFAULT_TNL_HOP_LIMIT;
         p.encap_limit = IPV6_DEFAULT_TNL_ENCAP_LIMIT;
         p.proto = proto;
-        p.raddr = *remote;
-        p.laddr = *local;
+
+        if(remote)
+                p.raddr = *remote;
+        if(local)
+                p.laddr = *local;
 
         memset(&ifr, 0, sizeof (ifr));
         strncpy(ifr.ifr_name, del ? name : "ip6tnl0", IFNAMSIZ);

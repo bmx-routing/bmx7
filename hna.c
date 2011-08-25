@@ -200,6 +200,11 @@ int32_t opt_niit(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
         if (cmd == OPT_APPLY) {
                 niit_enabled = enabled;
                 niit_address = ipX;
+
+                niit_dev_event_hook(PLUGIN_CB_SYS_DEV_EVENT, NULL);
+
+                my_description_changed = YES;
+
         }
 
         return SUCCESS;
@@ -472,8 +477,6 @@ void configure_uhna ( IDM_T del, struct uhna_key* key, struct orig_node *on ) {
                         ip(key->family, IP_THROW_MY_HNA, del, NO, &key->glip, key->prefixlen, RT_TABLE_TUNS, 0, 0, 0, 0, 0, 0);
                 }
 
-                my_description_changed = YES;
-
         } else if (on->curr_rt_lndev) {
 
                 configure_route(del, on, key);
@@ -642,8 +645,7 @@ int32_t opt_uhna(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
                 dbgf_all(DBGT_INFO, "af_cfg=%s diff=%d cmd=%s  save=%d  opt=%s  patch=%s",
                         family2Str(af_cfg()), patch->diff, opt_cmd2str[cmd], _save, opt->name, patch->val);
 
-                if (str2netw(patch->val, &ipX, '/', cn, &mask, &family) == FAILURE ||
-                        family != af_cfg() ||
+                if (str2netw(patch->val, &ipX, '/', cn, &mask, &family) == FAILURE || family != af_cfg() ||
                         is_ip_forbidden(&ipX, family) || ip_netmask_validate(&ipX, mask, family, NO) == FAILURE) {
 
                         dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "invalid prefix: %s", patch->val);
@@ -669,8 +671,10 @@ int32_t opt_uhna(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
                         return FAILURE;
 		}
 
-                if (cmd == OPT_APPLY)
+                if (cmd == OPT_APPLY) {
                         configure_uhna((patch->diff == DEL ? DEL : ADD), &key, self);
+                        my_description_changed = YES;
+                }
 
 
 	} else if ( cmd == OPT_UNREGISTER ) {
@@ -1065,7 +1069,7 @@ struct opt_type hna_options[]= {
 			ARG_VALUE_FORM, "specify hna-metric of announcement (0 means highest preference)"}
 */
         ,
-	{ODI,0,ARG_NIIT,        	0,  5,2,A_PS1,A_ADM,A_INI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_niit,
+	{ODI,0,ARG_NIIT,        	0,  5,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_niit,
 			ARG_ADDR_FORM,HLP_NIIT}
         ,
 	{ODI,0,ARG_TUN_NAME_PREFIX,    	0,  5,1,A_PS1,A_ADM,A_INI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_tun_name,

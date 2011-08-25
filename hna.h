@@ -18,11 +18,6 @@
 
 
 
-
-
-
-
-
 #define ARG_UHNA "hna"
 
 #define ARG_UHNA_NETWORK     "network"
@@ -120,7 +115,6 @@ FIELD_FORMAT_END }
 
 
 struct gw_key {
-	uint8_t family;
 	uint8_t prefixlen;
 	IPX_T dst;
         IPX_T src;
@@ -128,9 +122,24 @@ struct gw_key {
 
 struct gw_node {
 	struct gw_key key;
-        UMETRIC_T bw;
 	struct orig_node *on;
+        UMETRIC_T bw;
+
 };
+
+struct description_msg_gw {
+        uint8_t prefixlen;
+        FMETRIC_U8_T bw;
+        IP6_T dst;
+        IP6_T src;
+} __attribute__((packed));
+
+#define DESCRIPTION_MSG_GW_FORMAT { \
+{FIELD_TYPE_UINT, -1,   8, 1, FIELD_RELEVANCE_HIGH, "prefixlen" },  \
+{FIELD_TYPE_UINT, -1,   8, 1, FIELD_RELEVANCE_HIGH, "bw" },  \
+{FIELD_TYPE_IPX,  -1, 128, 1, FIELD_RELEVANCE_HIGH, "dst" },  \
+{FIELD_TYPE_IPX,  -1, 128, 1, FIELD_RELEVANCE_HIGH, "src" },  \
+FIELD_FORMAT_END }
 
 
 

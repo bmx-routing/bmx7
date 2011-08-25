@@ -37,6 +37,7 @@
 #include "plugin.h"
 #include "hna.h"
 #include "tools.h"
+#include "metrics.h"
 
 #define CODE_CATEGORY_NAME "hna"
 
@@ -693,14 +694,60 @@ int32_t opt_uhna(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
 
 
 STATIC_FUNC
-void set_gw_key(struct gw_key *key, uint8_t family, uint8_t prefixlen, IPX_T *dst, IPX_T *src)
+int process_description_tlv_gw(struct rx_frame_iterator *it)
 {
-        memset( key, 0, sizeof(struct gw_key));
-        key->family = family;
-        key->prefixlen = prefixlen;
-        key->dst = *dst;
-        key->src = *src;
+
+        return it->frame_msgs_length;
 }
+
+
+
+
+STATIC_FUNC
+int create_description_tlv_gw(struct tx_frame_iterator *it)
+{
+
+        struct description_msg_gw *msg = ((struct description_msg_gw *) tx_iterator_cache_msg_ptr(it));
+        uint16_t m = 0, max = tx_iterator_cache_data_space(it) / sizeof (struct description_msg_gw);
+        struct opt_type *o = get_option(NULL, NO, ARG_GWIN);
+        struct opt_parent *p = NULL;
+        struct opt_child *c = NULL;
+
+        if (af_cfg() != AF_INET6)
+                return TLV_TX_DATA_IGNORED;
+
+        while ((p = list_iterate(&o->d.parents_instance_list, p)) && m <= max) {
+
+                struct tun_node *tun;
+                struct description_msg_gw gw;
+                memset(&gw, 0, sizeof (gw));
+
+                while ((c = list_iterate(&p->childs_instance_list, c))) {
+
+                        if (!strcmp(c->opt->name, ARG_GWIN_TUN)) {
+                                str2netw(c->val, &gw.src, NULL, NULL, NULL);
+                        } else if (!strcmp(c->opt->name, ARG_GWIN_BW)) {
+                                UMETRIC_T um = strtoul(c->val, NULL, 10);
+                                gw.bw = umetric_to_fmu8(&um);
+                        }
+                }
+
+                str2netw(p->val, &gw.dst, NULL, &gw.prefixlen, NULL);
+
+                if ((tun = avl_find_item(&tunnel_in_tree, &gw.src)) && tun->up) {
+                        dbgf_track(DBGT_INFO, "src=%s dst=%s", ip6AsStr(&gw.src), ip6AsStr(&gw.dst));
+                        msg[m++] = gw;
+                } else {
+                        continue;
+                }
+        }
+
+        if (m)
+                return m * sizeof (struct description_msg_gw);
+        else
+                return TLV_TX_DATA_IGNORED;
+}
+
 
 
 STATIC_FUNC
@@ -917,35 +964,30 @@ int process_description_tlv_tunnel(struct rx_frame_iterator *it)
 STATIC_FUNC
 int create_description_tlv_tunnel(struct tx_frame_iterator *it)
 {
-        assertion(-501278, (it->frame_type == BMX_DSC_TLV_TUNNEL));
-        assertion(-501279, ((int)sizeof (struct description_msg_tunnel) <= tx_iterator_cache_data_space(it)));
 
-        if (af_cfg() == AF_INET6 && tunnel_in_tree.items) {
+        if (af_cfg() != AF_INET6 || !tunnel_in_tree.items)
+                return TLV_TX_DATA_IGNORED;
 
-                struct tun_node *tun;
-                struct avl_node *an = NULL;
-                struct description_msg_tunnel *msg = ((struct description_msg_tunnel *) tx_iterator_cache_msg_ptr(it));
+        struct tun_node *tun;
+        struct avl_node *an = NULL;
+        struct description_msg_tunnel *msg = ((struct description_msg_tunnel *) tx_iterator_cache_msg_ptr(it));
 
-                while ((tun = avl_iterate_item(&tunnel_in_tree, &an))) {
+        while ((tun = avl_iterate_item(&tunnel_in_tree, &an))) {
 
-                        if (tun->up && !is_ip_equal(&tun->dst, &self->primary_ip))
-                                configureTunnel(DEL, self, tun);
-                        if(!tun->up)
-                                configureTunnel(ADD, self, tun);
+                if (tun->up && !is_ip_equal(&tun->dst, &self->primary_ip))
+                        configureTunnel(DEL, self, tun);
+                if (!tun->up)
+                        configureTunnel(ADD, self, tun);
 
-                        msg->src = tun->src;
-                        msg->dst = tun->dst;
-                        msg->type = tun->type;
+                msg->src = tun->src;
+                msg->dst = tun->dst;
+                msg->type = tun->type;
 
-                        dbgf_track(DBGT_INFO, "src=%s dst=%s type=%d", ip6AsStr(&msg->src), ip6AsStr(&msg->dst), msg->type);
-                        msg++;
-
-                }
-
-                return tunnel_in_tree.items * (sizeof (struct description_msg_tunnel));
+                dbgf_track(DBGT_INFO, "src=%s dst=%s type=%d", ip6AsStr(&msg->src), ip6AsStr(&msg->dst), msg->type);
+                msg++;
         }
 
-        return TLV_TX_DATA_IGNORED;
+        return tunnel_in_tree.items * (sizeof (struct description_msg_tunnel));
 }
 
 
@@ -1217,6 +1259,7 @@ int32_t hna_init( void )
         static const struct field_format hna4_format[] = DESCRIPTION_MSG_HNA4_FORMAT;
         static const struct field_format hna6_format[] = DESCRIPTION_MSG_HNA6_FORMAT;
         static const struct field_format tunnel_format[] = DESCRIPTION_MSG_TUNNEL_FORMAT;
+        static const struct field_format gw_format[] = DESCRIPTION_MSG_GW_FORMAT;
 
         static const struct field_format tunnel_status_format[] = TUNNEL_NODE_FORMAT;
 
@@ -1250,6 +1293,17 @@ int32_t hna_init( void )
         tlv_handl.rx_frame_handler = process_description_tlv_tunnel;
         tlv_handl.msg_format = tunnel_format;
         register_frame_handler(description_tlv_handl, BMX_DSC_TLV_TUNNEL, &tlv_handl);
+
+        memset(&tlv_handl, 0, sizeof (tlv_handl));
+        tlv_handl.min_msg_size = sizeof (struct description_msg_gw);
+        tlv_handl.fixed_msg_size = 1;
+        tlv_handl.is_relevant = 1;
+        tlv_handl.name = "GW_EXTENSION";
+        tlv_handl.tx_frame_handler = create_description_tlv_gw;
+        tlv_handl.rx_frame_handler = process_description_tlv_gw;
+        tlv_handl.msg_format = gw_format;
+        register_frame_handler(description_tlv_handl, BMX_DSC_TLV_GW, &tlv_handl);
+
 
         register_options_array(hna_options, sizeof ( hna_options), CODE_CATEGORY_NAME);
 

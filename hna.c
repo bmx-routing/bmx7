@@ -42,7 +42,7 @@
 
 static AVL_TREE(global_uhna_tree, struct uhna_node, key );
 static AVL_TREE(local_uhna_tree, struct uhna_node, key );
-static AVL_TREE(tunnel_in_tree, struct tunnel_status, src);
+static AVL_TREE(tunnel_in_tree, struct tun_node, src);
 
 static IPX_T niit_address;
 
@@ -50,7 +50,8 @@ static int niit4to6_dev_idx = 0;
 static int niit6to4_dev_idx = 0;
 static IPX_T niit_prefix96 = DEF_NIIT_PREFIX;
 
-static int32_t data_orig_plugin_registry = FAILURE;
+static int32_t tun_orig_registry = FAILURE;
+static int32_t gw_orig_registry = FAILURE;
 
 static int32_t out_tunnels = 0;
 
@@ -183,7 +184,7 @@ int32_t opt_niit(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
 
                         ipX = ZERO_IP;
 
-                } else if ( str2netw( patch->val, &ipX, '/', cn, NULL, &family ) == FAILURE  ) {
+                } else if ( str2netw( patch->val, &ipX, cn, NULL, &family ) == FAILURE  ) {
 
                         return FAILURE;
 
@@ -645,8 +646,7 @@ int32_t opt_uhna(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
                 dbgf_all(DBGT_INFO, "af_cfg=%s diff=%d cmd=%s  save=%d  opt=%s  patch=%s",
                         family2Str(af_cfg()), patch->diff, opt_cmd2str[cmd], _save, opt->name, patch->val);
 
-                if (str2netw(patch->val, &ipX, '/', cn, &mask, &family) == FAILURE || family != af_cfg() ||
-                        is_ip_forbidden(&ipX, family) || ip_netmask_validate(&ipX, mask, family, NO) == FAILURE) {
+                if (str2netw(patch->val, &ipX, cn, &mask, &family) == FAILURE || family != af_cfg()) {
 
                         dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "invalid prefix: %s", patch->val);
                         return FAILURE;
@@ -656,20 +656,22 @@ int32_t opt_uhna(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
 
                 set_opt_parent_val(patch, new);
 
-                set_uhna_key(&key, family, mask, &ipX, metric);
+                if (cmd == OPT_CHECK || cmd == OPT_APPLY) {
 
-                if (cmd == OPT_ADJUST)
-                        return SUCCESS;
+                        
+                        set_uhna_key(&key, family, mask, &ipX, metric);
 
-                if (patch->diff != DEL && (un = find_overlapping_hna(&key.glip, key.prefixlen))) {
 
-			dbg_cn( cn, DBGL_CHANGES, DBGT_ERR,
-                                "UHNA %s/%d metric %d already blocked by global_id=%s !",
-                                ipXAsStr(key.family, &key.glip), mask, metric,
-                                (un->on == self ? "MYSELF" : globalIdAsString(&un->on->global_id)));
+                        if (patch->diff != DEL && (un = find_overlapping_hna(&key.glip, key.prefixlen))) {
 
-                        return FAILURE;
-		}
+                                dbg_cn(cn, DBGL_CHANGES, DBGT_ERR,
+                                        "UHNA %s/%d metric %d already blocked by global_id=%s !",
+                                        ipXAsStr(key.family, &key.glip), mask, metric,
+                                        (un->on == self ? "MYSELF" : globalIdAsString(&un->on->global_id)));
+
+                                return FAILURE;
+                        }
+                }
 
                 if (cmd == OPT_APPLY) {
                         configure_uhna((patch->diff == DEL ? DEL : ADD), &key, self);
@@ -683,17 +685,95 @@ int32_t opt_uhna(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
 
                 while ((un = avl_first_item(&global_uhna_tree)))
                         configure_uhna(DEL, &un->key, self);
-
 	}
 
 	return SUCCESS;
-
 }
 
 
 
 STATIC_FUNC
-void configureTunnel(uint8_t del, struct orig_node *on, struct tunnel_status *tun)
+void set_gw_key(struct gw_key *key, uint8_t family, uint8_t prefixlen, IPX_T *dst, IPX_T *src)
+{
+        memset( key, 0, sizeof(struct gw_key));
+        key->family = family;
+        key->prefixlen = prefixlen;
+        key->dst = *dst;
+        key->src = *src;
+}
+
+
+STATIC_FUNC
+int32_t opt_gw(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
+{
+
+	if ( cmd == OPT_ADJUST  ||  cmd == OPT_CHECK  ||  cmd == OPT_APPLY ) {
+
+                uint8_t family = 0;
+                uint8_t mask;
+                IPX_T dst;
+
+                dbgf_all(DBGT_INFO, "af_cfg=%s diff=%d cmd=%s  save=%d  opt=%s  patch=%s",
+                        family2Str(af_cfg()), patch->diff, opt_cmd2str[cmd], _save, opt->name, patch->val);
+
+                if (str2netw(patch->val, &dst, cn, &mask, &family) == FAILURE) {
+                        dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "invalid %s=%s", ARG_GWIN, patch->val);
+                        return FAILURE;
+                }
+
+                if(cmd == OPT_ADJUST) {
+                        char adjusted_dst[IPXNET_STR_LEN];
+                        sprintf(adjusted_dst, "%s/%d", ipXAsStr(family, &dst), mask);
+                        set_opt_parent_val(patch, adjusted_dst);
+                }
+
+
+                struct opt_child *c = NULL;
+
+                while ((c = list_iterate(&patch->childs_instance_list, c))) {
+
+                        if (!strcmp(c->opt->name, ARG_GWIN_BW) && c->val && strtol(c->val, NULL, 10) > MAX_TUN_TYPE) {
+
+                                char *endptr;
+                                unsigned long long ull = strtoul(c->val, &endptr, 10);
+
+                                if (ull > UMETRIC_MAX || ull < UMETRIC_FM8_MIN || *endptr != '\0')
+                                        return FAILURE;
+
+                        } else if (!strcmp(c->opt->name, ARG_GWIN_TUN) && c->val) {
+
+                                IPX_T src;
+                                uint8_t family = 0;
+
+                                if (str2netw(c->val, &src, cn, NULL, &family) == FAILURE || family != AF_INET6) {
+                                        dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "invalid %s=%s", ARG_GWIN_TUN, c->val);
+                                        return FAILURE;
+                                }
+
+                                if (cmd == OPT_ADJUST) {
+                                        char adjusted_src[IPXNET_STR_LEN];
+                                        sprintf(adjusted_src, "%s", ipXAsStr(AF_INET6, &src));
+                                        set_opt_child_val(c, adjusted_src);
+                                }
+                        }
+                }
+
+
+
+
+                if (cmd == OPT_APPLY) {
+                        my_description_changed = YES;
+                }
+	}
+
+	return SUCCESS;
+}
+
+
+
+
+STATIC_FUNC
+void configureTunnel(uint8_t del, struct orig_node *on, struct tun_node *tun)
 {
 
         assertion(-501292, (is_ip_set(&tun->src)));
@@ -766,15 +846,15 @@ int process_description_tlv_tunnel(struct rx_frame_iterator *it)
                 return TLV_RX_DATA_IGNORED;
 
 
-        struct orig_tunnel **tun = (struct orig_tunnel **) (get_plugin_data(on, PLUGIN_DATA_ORIG, data_orig_plugin_registry));
+        struct orig_tuns **tun = (struct orig_tuns **) (get_plugin_data(on, PLUGIN_DATA_ORIG, tun_orig_registry));
 
 
         if (op == TLV_OP_ADD) {
 
                 assertion(-501272, (!*tun));
 
-                *tun = debugMalloc(sizeof (struct orig_tunnel) + (msgs * sizeof (struct tunnel_status)), -300387);
-                memset(*tun, 0, sizeof (struct orig_tunnel) + (msgs * sizeof (struct tunnel_status)));
+                *tun = debugMalloc(sizeof (struct orig_tuns) + (msgs * sizeof (struct tun_node)), -300387);
+                memset(*tun, 0, sizeof (struct orig_tuns) + (msgs * sizeof (struct tun_node)));
                 (*tun)->msgs = msgs;
 
                 out_tunnels += msgs;
@@ -791,7 +871,7 @@ int process_description_tlv_tunnel(struct rx_frame_iterator *it)
 
                         assertion(-501273, (*tun) && (*tun)->msgs == msgs);
 
-                        configureTunnel(DEL, on, &(*tun)->state[p]);
+                        configureTunnel(DEL, on, &(*tun)->tun[p]);
 
                 } else if (op == TLV_OP_TEST) {
                         
@@ -810,9 +890,9 @@ int process_description_tlv_tunnel(struct rx_frame_iterator *it)
 
                         assertion(-501275, (*tun));
 
-                        (*tun)->state[p].dst = msg[p].dst;
-                        (*tun)->state[p].src = msg[p].src;
-                        (*tun)->state[p].type = msg[p].type;
+                        (*tun)->tun[p].dst = msg[p].dst;
+                        (*tun)->tun[p].src = msg[p].src;
+                        (*tun)->tun[p].type = msg[p].type;
 
                 } else {
                         assertion(-501289, (NO));
@@ -842,7 +922,7 @@ int create_description_tlv_tunnel(struct tx_frame_iterator *it)
 
         if (af_cfg() == AF_INET6 && tunnel_in_tree.items) {
 
-                struct tunnel_status *tun;
+                struct tun_node *tun;
                 struct avl_node *an = NULL;
                 struct description_msg_tunnel *msg = ((struct description_msg_tunnel *) tx_iterator_cache_msg_ptr(it));
 
@@ -874,7 +954,7 @@ STATIC_FUNC
 int32_t opt_tun_in(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
 {
         IPX_T src;
-        struct tunnel_status *tun;
+        struct tun_node *tun;
         struct opt_child *c = NULL;
 
 
@@ -887,8 +967,7 @@ int32_t opt_tun_in(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_
                 dbgf_track(DBGT_INFO, "diff=%d cmd=%s  save=%d  opt=%s  patch=%s",
                         patch->diff, opt_cmd2str[cmd], _save, opt->name, patch->val);
 
-                if (str2netw(patch->val, &src, '/', cn, NULL, &family) == FAILURE || family != AF_INET6 ||
-                        is_ip_forbidden(&src, family) || ip_netmask_validate(&src, 128, family, NO) == FAILURE ||
+                if (str2netw(patch->val, &src, cn, NULL, &family) == FAILURE || family != AF_INET6 ||
                         ((un = find_overlapping_hna(&src, 128)) && un->on != self)) {
 
                         dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "invalid prefix: %s or blocked by %s",
@@ -925,8 +1004,8 @@ int32_t opt_tun_in(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_
                         debugFree(tun, -300392);
                 } else {
                         if(!tun) {
-                                tun = debugMalloc(sizeof (struct tunnel_status), -300389);
-                                memset(tun, 0, sizeof (struct tunnel_status));
+                                tun = debugMalloc(sizeof (struct tun_node), -300389);
+                                memset(tun, 0, sizeof (struct tun_node));
                                 tun->type = TUN_TYPE_ANY;
                                 tun->src = src;
                                 tun->name_auto = 1;
@@ -980,7 +1059,7 @@ int32_t opt_tun_name(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct op
 {
         if (cmd == OPT_CHECK) {
 
-                struct tunnel_status *tun;
+                struct tun_node *tun;
                 struct avl_node *it = NULL;
 
                 if (strlen(patch->val) > MAX_TUN_NAME_PREFIX_LEN ||
@@ -1016,10 +1095,10 @@ int32_t opt_tun_name(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct op
 static int32_t tun_in_status_creator(struct status_handl *handl, void* data)
 {
         struct avl_node *it = NULL;
-        struct tunnel_status *tun;
-        uint32_t status_size = tunnel_in_tree.items * sizeof (struct tunnel_status);
+        struct tun_node *tun;
+        uint32_t status_size = tunnel_in_tree.items * sizeof (struct tun_node);
         uint32_t i = 0;
-        struct tunnel_status *status = ((struct tunnel_status*) (handl->data = debugRealloc(handl->data, status_size, -300395)));
+        struct tun_node *status = ((struct tun_node*) (handl->data = debugRealloc(handl->data, status_size, -300395)));
 
         while ((tun = avl_iterate_item(&tunnel_in_tree, &it)))
                 status[i++] = *tun;
@@ -1031,18 +1110,18 @@ static int32_t tun_out_status_creator(struct status_handl *handl, void* data)
 {
         struct avl_node *it = NULL;
         struct orig_node *on = NULL;
-        uint32_t status_size = out_tunnels * sizeof (struct tunnel_status);
+        uint32_t status_size = out_tunnels * sizeof (struct tun_node);
         int32_t i = 0;
-        struct tunnel_status *status = ((struct tunnel_status*) (handl->data = debugRealloc(handl->data, status_size, -300396)));
+        struct tun_node *status = ((struct tun_node*) (handl->data = debugRealloc(handl->data, status_size, -300396)));
         
         while ((on = avl_iterate_item(&orig_tree, &it))) {
 
-                struct orig_tunnel **tun = (struct orig_tunnel **)
-                        (get_plugin_data(on, PLUGIN_DATA_ORIG, data_orig_plugin_registry));
+                struct orig_tuns **tun = (struct orig_tuns **)
+                        (get_plugin_data(on, PLUGIN_DATA_ORIG, tun_orig_registry));
 
                 if (*tun) {
                         assertion(-501280, ((i + (*tun)->msgs) <= out_tunnels));
-                        memcpy(&status[i], (*tun)->state, (*tun)->msgs * sizeof (struct tunnel_status));
+                        memcpy(&status[i], (*tun)->tun, (*tun)->msgs * sizeof (struct tun_node));
                         i += (*tun)->msgs;
                 }
         }
@@ -1076,7 +1155,7 @@ struct opt_type hna_options[]= {
 			"<NAME>",       "specify first letters of tunnel names"}
         ,
 	{ODI,0,ARG_IN_TUN,	 	0,5,2,A_PM1N,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_tun_in,
-			ARG_PREFIX_FORM,"configure one-way IPv6 tunnel by specifying (dummy) remote tunnel address"},
+			ARG_ADDR_FORM,  "configure one-way IPv6 tunnel by specifying (dummy) remote tunnel address"},
 	{ODI,ARG_IN_TUN,ARG_TUN_TYPE, 't',5,0,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		MIN_TUN_TYPE,   MAX_TUN_TYPE,   DEF_TUN_TYPE,0, opt_tun_in,
 			"<VAL>",	"specify type of tunnel"},
 	{ODI,ARG_IN_TUN,ARG_TUN_NAME, 'n',5,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,	        0,              0,0,            opt_tun_in,
@@ -1087,6 +1166,15 @@ struct opt_type hna_options[]= {
         ,
 	{ODI,0,ARG_IN_TUNS,	        0,5,2,A_PS0,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
 			0,		"show incoming tunnel status\n"}
+        ,
+	{ODI,0,ARG_GWIN,	 	0,5,2,A_PM1N,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_gw,
+			ARG_PREFIX_FORM,"specify HNA reachable via incoming tunnel"},
+	{ODI,ARG_GWIN,ARG_GWIN_TUN,     0,5,0,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,              0,              0,0,            opt_gw,
+			ARG_ADDR_FORM,	"specify incoming tunnel (by giving remote tunnel address)"},
+	{ODI,ARG_GWIN,ARG_GWIN_BW,      0,5,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,	        0,              0,0,            opt_gw,
+			ARG_VALUE_FORM,	"set bandwidth as bits/sec of tunnel HNA"}
+        ,
+
 
 };
 
@@ -1130,7 +1218,7 @@ int32_t hna_init( void )
         static const struct field_format hna6_format[] = DESCRIPTION_MSG_HNA6_FORMAT;
         static const struct field_format tunnel_format[] = DESCRIPTION_MSG_TUNNEL_FORMAT;
 
-        static const struct field_format tunnel_status_format[] = TUNNEL_STATUS_FORMAT;
+        static const struct field_format tunnel_status_format[] = TUNNEL_NODE_FORMAT;
 
 
         memset( &tlv_handl, 0, sizeof(tlv_handl));
@@ -1167,11 +1255,12 @@ int32_t hna_init( void )
 
         set_route_change_hooks(hna_route_change_hook, ADD);
 
-        data_orig_plugin_registry = get_plugin_data_registry(PLUGIN_DATA_ORIG);
+        tun_orig_registry = get_plugin_data_registry(PLUGIN_DATA_ORIG);
+        gw_orig_registry = get_plugin_data_registry(PLUGIN_DATA_ORIG);
 
-        register_status_handl(sizeof (struct tunnel_status), tunnel_status_format, ARG_IN_TUNS, tun_in_status_creator);
+        register_status_handl(sizeof (struct tun_node), tunnel_status_format, ARG_IN_TUNS, tun_in_status_creator);
 
-        register_status_handl(sizeof (struct tunnel_status), tunnel_status_format, ARG_OUT_TUNS, tun_out_status_creator);
+        register_status_handl(sizeof (struct tun_node), tunnel_status_format, ARG_OUT_TUNS, tun_out_status_creator);
 
 
         return SUCCESS;

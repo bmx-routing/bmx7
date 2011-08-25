@@ -350,9 +350,10 @@ uint8_t is_zero(void *data, int len)
 
 
 
-IDM_T str2netw(char* args, IPX_T *ipX, char delimiter, struct ctrl_node *cn, uint8_t *maskp, uint8_t *familyp)
+IDM_T str2netw(char* args, IPX_T *ipX,  struct ctrl_node *cn, uint8_t *maskp, uint8_t *familyp)
 {
 
+        const char delimiter = '/';
 	char *slashptr = NULL;
 
         char switch_arg[IP6NET_STR_LEN] = {0};
@@ -407,22 +408,25 @@ IDM_T str2netw(char* args, IPX_T *ipX, char delimiter, struct ctrl_node *cn, uin
                 if (familyp)
                         *familyp = AF_INET;
 
-                return SUCCESS;
-
-        } else
-
-                if ((inet_pton(AF_INET6, switch_arg, &in6) == 1) && (!maskp || *maskp <= 128)) {
+        } else if ((inet_pton(AF_INET6, switch_arg, &in6) == 1) && (!maskp || *maskp <= 128)) {
 
                 *ipX = in6;
 
                 if (familyp)
                         *familyp = AF_INET6;
 
-                return SUCCESS;
+        } else {
+
+                dbgf_all(DBGT_WARN, "invalid argument: %s: %s", args, strerror(errno));
+                return FAILURE;
+
         }
 
-        dbgf_all(DBGT_WARN, "invalid argument: %s: %s", args, strerror(errno));
-        return FAILURE;
+        if (is_ip_forbidden(ipX, *familyp) || ip_netmask_validate(ipX, (maskp ? *maskp : 128), *familyp, NO) == FAILURE)
+                return FAILURE;
+
+        return SUCCESS;
+
 }
 
 

@@ -72,6 +72,11 @@
 #define TUN_TYPE_GRE 3
 
 
+#define ARG_GWIN "gateway"
+#define ARG_GWIN_TUN "tun"
+#define ARG_GWIN_BW "bandwidth"
+
+
 
 struct uhna_key {
 	uint8_t family;
@@ -84,7 +89,6 @@ struct uhna_node {
 	struct uhna_key key;
 	struct orig_node *on;
 };
-
 
 struct description_msg_hna4 {
 	uint8_t prefixlen;
@@ -99,9 +103,6 @@ struct description_msg_hna4 {
 {FIELD_TYPE_IP4,  -1, 32, 1, FIELD_RELEVANCE_HIGH, "address" },  \
 {FIELD_TYPE_UINT, -1, 32, 0, FIELD_RELEVANCE_HIGH, "metric" },   \
 FIELD_FORMAT_END }
-
-
-
 
 struct description_msg_hna6 {
 	uint8_t prefixlen;
@@ -118,6 +119,22 @@ struct description_msg_hna6 {
 FIELD_FORMAT_END }
 
 
+struct gw_key {
+	uint8_t family;
+	uint8_t prefixlen;
+	IPX_T dst;
+        IPX_T src;
+};
+
+struct gw_node {
+	struct gw_key key;
+        UMETRIC_T bw;
+	struct orig_node *on;
+};
+
+
+
+
 
 struct description_msg_tunnel {
         IP6_T dst;
@@ -132,7 +149,7 @@ struct description_msg_tunnel {
 FIELD_FORMAT_END }
 
 
-struct tunnel_status {
+struct tun_node {
         IFNAME_T name;
         uint8_t name_auto;
         uint8_t type;
@@ -142,17 +159,17 @@ struct tunnel_status {
 };
 
 
-#define TUNNEL_STATUS_FORMAT { \
-        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR, tunnel_status, name,        1, FIELD_RELEVANCE_HIGH), \
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        tunnel_status, name_auto,   1, FIELD_RELEVANCE_MEDI), \
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        tunnel_status, type,        1, FIELD_RELEVANCE_HIGH), \
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        tunnel_status, up,          1, FIELD_RELEVANCE_HIGH), \
-        FIELD_FORMAT_INIT(FIELD_TYPE_IPX6,        tunnel_status, src,         1, FIELD_RELEVANCE_HIGH), \
-        FIELD_FORMAT_INIT(FIELD_TYPE_IPX6,        tunnel_status, dst,         1, FIELD_RELEVANCE_HIGH), \
+#define TUNNEL_NODE_FORMAT { \
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR, tun_node, name,        1, FIELD_RELEVANCE_HIGH), \
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        tun_node, name_auto,   1, FIELD_RELEVANCE_MEDI), \
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        tun_node, type,        1, FIELD_RELEVANCE_HIGH), \
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        tun_node, up,          1, FIELD_RELEVANCE_HIGH), \
+        FIELD_FORMAT_INIT(FIELD_TYPE_IPX6,        tun_node, src,         1, FIELD_RELEVANCE_HIGH), \
+        FIELD_FORMAT_INIT(FIELD_TYPE_IPX6,        tun_node, dst,         1, FIELD_RELEVANCE_HIGH), \
         FIELD_FORMAT_END }
 
 
-struct orig_tunnel {
+struct orig_tuns {
         uint16_t msgs;
-        struct tunnel_status state[];
+        struct tun_node tun[];
 };

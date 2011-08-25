@@ -2933,11 +2933,7 @@ int32_t opt_dev_prefix(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                 char new[IPXNET_STR_LEN];
                 uint8_t family = 0;
 
-                if (
-                        str2netw(patch->val, &ipX, '/', cn, &mask, &family) == FAILURE ||
-                        af_cfg() != family ||
-                        is_ip_forbidden(&ipX, family) ||
-                        ip_netmask_validate(&ipX, mask, family, NO) == FAILURE ||
+                if (str2netw(patch->val, &ipX, cn, &mask, &family) == FAILURE || family != af_cfg() ||
                         (family == AF_INET6 && (
                         is_ip_net_equal(&ipX, &IP6_MC_PREF, IP6_MC_PLEN, AF_INET6) ||
                         XOR(is_global_prefix, !is_ip_net_equal(&ipX, &IP6_LINKLOCAL_UC_PREF, IP6_LINKLOCAL_UC_PLEN, AF_INET6))))
@@ -3118,10 +3114,7 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
                                         char new[IPXNET_STR_LEN];
                                         uint8_t family = 0;
 
-                                        if (
-                                                str2netw(c->val, &ipX, '/', cn, &mask, &family) == FAILURE ||
-                                                family != af_cfg() || is_ip_forbidden(&ipX, family) ||
-                                                ip_netmask_validate(&ipX, mask, family, NO) == FAILURE ||
+                                        if (str2netw(c->val, &ipX, cn, &mask, &family) == FAILURE || family != af_cfg() ||
                                                 (family == AF_INET6 && (
                                                 is_ip_net_equal(&ipX, &IP6_MC_PREF, IP6_MC_PLEN, AF_INET6) ||
                                                 XOR(is_global_prefix, !is_ip_net_equal(&ipX, &IP6_LINKLOCAL_UC_PREF, IP6_LINKLOCAL_UC_PLEN, AF_INET6))))

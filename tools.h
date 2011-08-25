@@ -77,7 +77,7 @@ char* bits_print(uint8_t *array, uint16_t array_bit_size, uint16_t begin_bit, ui
 uint8_t is_zero(void *data, int len);
 
 
-IDM_T str2netw(char* args, IPX_T *ipX, char delimiter, struct ctrl_node *cn, uint8_t *maskp, uint8_t *familyp);
+IDM_T str2netw(char* args, IPX_T *ipX, struct ctrl_node *cn, uint8_t *maskp, uint8_t *familyp);
 
 int8_t wordsEqual ( char *a, char *b );
 void wordCopy( char *out, char *in );

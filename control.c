@@ -2601,11 +2601,13 @@ int8_t apply_stream_opts(char *s, uint8_t cmd, uint8_t load_cfg, struct ctrl_nod
                         if (opt->opt_t != A_PS0N && opt->opt_t != A_PS1N && opt->opt_t != A_PM1N)
 				goto apply_args_error;
 
-                        char* delmiter_ptr = index(s, LONG_OPT_ARG_DELIMITER_CHAR);
-			
-			if ( delmiter_ptr  &&  delmiter_ptr == nextword(s)  &&  patch->diff == DEL ) {
+                        
+                        char* nextword_ptr = nextword(s);
+                        char* delimiter_ptr = nextword_ptr ? index(nextword_ptr, LONG_OPT_ARG_DELIMITER_CHAR) : NULL;
+                        
+			if ( delimiter_ptr  &&  delimiter_ptr == nextword(s)  &&  patch->diff == DEL ) {
 				
-				wordCopy( argument, delmiter_ptr+1 );
+				wordCopy( argument, delimiter_ptr+1 );
 				
 				dbg_cn( cn, DBGL_SYS, DBGT_ERR, 
 				        "--%s %s can not be resetted and refined at the same time. Just omit %s%s!",
@@ -2613,11 +2615,10 @@ int8_t apply_stream_opts(char *s, uint8_t cmd, uint8_t load_cfg, struct ctrl_nod
 				
 				goto apply_args_error;
 				
-			} else if ( delmiter_ptr  &&  delmiter_ptr == nextword(s) ) {
+			} else if ( delimiter_ptr  &&  delimiter_ptr == nextword(s) ) {
 				
 				//nextword starts with slashp 
-				
-				s = delmiter_ptr+1;
+                                s = delimiter_ptr + 1;
 				state = LONG_OPT_ARG;
 				
 			} else {

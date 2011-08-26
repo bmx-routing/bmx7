@@ -1751,8 +1751,10 @@ void dev_reconfigure_soft(struct dev_node *dev)
         assertion(-501030, (DEF_DEV_BITRATE_MAX_WIFI > DEF_DEV_BITRATE_MIN_WIFI));
         assertion(-501031, (DEF_DEV_BITRATE_MAX_LAN >= DEF_DEV_BITRATE_MIN_LAN));
 
+        // STRANGE! But  if (dev->umetric_max_conf != ((UMETRIC_T)-1)) does not work! !!!!
+        static const UMETRIC_T UMETRIC_UNDEFINED  = OPT_CHILD_UNDEFINED;
 
-        if (dev->umetric_max_conf != (UMETRIC_MAX) OPT_CHILD_UNDEFINED) {
+        if (dev->umetric_max_conf != UMETRIC_UNDEFINED) {
                 dev->umetric_max = dev->umetric_max_conf;
         } else {
                 if (dev->linklayer == TYP_DEV_LL_WIFI) {
@@ -1760,11 +1762,11 @@ void dev_reconfigure_soft(struct dev_node *dev)
                 } else if (dev->linklayer == TYP_DEV_LL_LAN) {
                         dev->umetric_max = DEF_DEV_BITRATE_MAX_LAN;
                 } else if (dev->linklayer == TYP_DEV_LL_LO) {
-                        dev->umetric_max = umetric(0, 0);
+                        dev->umetric_max = UMETRIC_MAX;//umetric(0, 0);
                 }
         }
 
-        if (dev->umetric_min_conf != (UMETRIC_MAX) OPT_CHILD_UNDEFINED && dev->umetric_min_conf < dev->umetric_max) {
+        if (dev->umetric_min_conf != UMETRIC_UNDEFINED && dev->umetric_min_conf < dev->umetric_max) {
                 dev->umetric_min = dev->umetric_min_conf;
         } else {
                 if (dev->linklayer == TYP_DEV_LL_WIFI) {
@@ -1772,7 +1774,7 @@ void dev_reconfigure_soft(struct dev_node *dev)
                 } else if (dev->linklayer == TYP_DEV_LL_LAN) {
                         dev->umetric_min = (dev->umetric_max / (DEF_DEV_BITRATE_MAX_LAN / DEF_DEV_BITRATE_MIN_LAN));
                 } else if (dev->linklayer == TYP_DEV_LL_LO) {
-                        dev->umetric_min = umetric(0, 0);
+                        dev->umetric_min = UMETRIC_MAX;//umetric(0, 0);
                 }
         }
 
@@ -1791,13 +1793,13 @@ void dev_reconfigure_soft(struct dev_node *dev)
                 }
         }
 
-        dbgf(bmx_time ? DBGL_CHANGES : DBGL_SYS, DBGT_INFO,
-                "enabled %sprimary %s %ju %s=%s MAC: %s link-local %s/%d global %s/%d brc %s",
+        dbgf(initializing ? DBGL_SYS : DBGL_CHANGES, DBGT_INFO,
+                "enabled %sprimary %s umin=%s umax=%s umax=%ju umax_conf=%ju undef=%ju %s=%s MAC: %s link-local %s/%d global %s/%d brc %s",
                 dev == primary_dev_cfg ? "" : "non-",
                 dev->linklayer == TYP_DEV_LL_LO ? "loopback" : (
                 dev->linklayer == TYP_DEV_LL_WIFI ? "wireless" : (
                 dev->linklayer == TYP_DEV_LL_LAN ? "ethernet" : ("ILLEGAL"))),
-                dev->umetric_max,
+                umetric_to_human(dev->umetric_min), umetric_to_human(dev->umetric_max), dev->umetric_max, dev->umetric_max_conf, ((UMETRIC_T) OPT_CHILD_UNDEFINED),
                 ARG_DEV,
                 dev->label_cfg.str, macAsStr(&dev->mac),
                 dev->ip_llocal_str, dev->if_llocal_addr->ifa.ifa_prefixlen,
@@ -3074,14 +3076,14 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
                         // some configurable interface values - initialized to unspecified:
                         dev->linklayer_conf = OPT_CHILD_UNDEFINED;
                         dev->channel_conf = OPT_CHILD_UNDEFINED;
-                        dev->umetric_max_conf = OPT_CHILD_UNDEFINED;
-                        dev->umetric_min_conf = OPT_CHILD_UNDEFINED;
+                        dev->umetric_max_conf = (UMETRIC_T) OPT_CHILD_UNDEFINED;
+                        dev->umetric_min_conf = (UMETRIC_T) OPT_CHILD_UNDEFINED;
                         dev->global_prefix_conf = ZERO_IP;
                         dev->global_prefix_length_conf = 0;
                         dev->llocal_prefix_conf = ZERO_IP;
                         dev->llocal_prefix_length_conf = 0;
 
-                        dev->umetric_max = DEF_DEV_BITRATE_MAX;
+                        //dev->umetric_max = DEF_DEV_BITRATE_MAX;
 
                         dev->dummy_lndev.key.dev = dev;
                         
@@ -3190,7 +3192,7 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
 
                                         dev->umetric_max_conf = ull;
                                 } else {
-                                        dev->umetric_max_conf = OPT_CHILD_UNDEFINED;
+                                        dev->umetric_max_conf = (UMETRIC_T) OPT_CHILD_UNDEFINED;
                                 }
 
 

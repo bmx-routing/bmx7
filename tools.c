@@ -355,6 +355,7 @@ IDM_T str2netw(char* args, IPX_T *ipX,  struct ctrl_node *cn, uint8_t *maskp, ui
 
         const char delimiter = '/';
 	char *slashptr = NULL;
+        uint8_t family;
 
         char switch_arg[IP6NET_STR_LEN] = {0};
 
@@ -404,16 +405,12 @@ IDM_T str2netw(char* args, IPX_T *ipX,  struct ctrl_node *cn, uint8_t *maskp, ui
         if ((inet_pton(AF_INET, switch_arg, &in4) == 1) && (!maskp || *maskp <= 32)) {
 
                 ip4ToX(ipX, in4.s_addr);
-
-                if (familyp)
-                        *familyp = AF_INET;
+                family = AF_INET;
 
         } else if ((inet_pton(AF_INET6, switch_arg, &in6) == 1) && (!maskp || *maskp <= 128)) {
 
                 *ipX = in6;
-
-                if (familyp)
-                        *familyp = AF_INET6;
+                family = AF_INET6;
 
         } else {
 
@@ -422,8 +419,11 @@ IDM_T str2netw(char* args, IPX_T *ipX,  struct ctrl_node *cn, uint8_t *maskp, ui
 
         }
 
-        if (is_ip_forbidden(ipX, *familyp) || ip_netmask_validate(ipX, (maskp ? *maskp : 128), *familyp, NO) == FAILURE)
+        if (is_ip_forbidden(ipX, family) || ip_netmask_validate(ipX, (maskp ? *maskp : 128), family, NO) == FAILURE)
                 return FAILURE;
+
+        if (familyp)
+                *familyp = family;
 
         return SUCCESS;
 

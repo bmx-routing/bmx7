@@ -114,6 +114,8 @@ struct description_msg_hna6 {
 FIELD_FORMAT_END }
 
 
+
+
 struct gw_key {
 	uint8_t prefixlen;
 	IPX_T dst;
@@ -130,38 +132,37 @@ struct gw_node {
 struct description_msg_gw {
         uint8_t prefixlen;
         FMETRIC_U8_T bw;
-        IP6_T dst;
+        IP6_T hna;
         IP6_T src;
 } __attribute__((packed));
 
 #define DESCRIPTION_MSG_GW_FORMAT { \
 {FIELD_TYPE_UINT, -1,   8, 1, FIELD_RELEVANCE_HIGH, "prefixlen" },  \
 {FIELD_TYPE_UINT, -1,   8, 1, FIELD_RELEVANCE_HIGH, "bw" },  \
-{FIELD_TYPE_IPX,  -1, 128, 1, FIELD_RELEVANCE_HIGH, "dst" },  \
+{FIELD_TYPE_IPX,  -1, 128, 1, FIELD_RELEVANCE_HIGH, "hna" },  \
 {FIELD_TYPE_IPX,  -1, 128, 1, FIELD_RELEVANCE_HIGH, "src" },  \
 FIELD_FORMAT_END }
 
 
 
-
-
-struct description_msg_tunnel {
-        IP6_T dst;
-        IP6_T src;
-        uint8_t type;
-} __attribute__((packed));
-
-#define DESCRIPTION_MSG_TUNNEL_FORMAT { \
-{FIELD_TYPE_IPX6, -1, 128, 1, FIELD_RELEVANCE_HIGH, "src" },  \
-{FIELD_TYPE_IPX6, -1, 128, 1, FIELD_RELEVANCE_HIGH, "dst" },  \
-{FIELD_TYPE_UINT, -1,   8, 1, FIELD_RELEVANCE_HIGH, "type" },  \
-FIELD_FORMAT_END }
-
+/*
+//
+//struct description_msg_tunnel {
+//        IP6_T dst;
+//        IP6_T src;
+//        uint8_t type;
+//} __attribute__((packed));
+//
+//#define DESCRIPTION_MSG_TUNNEL_FORMAT { \
+//{FIELD_TYPE_IPX6, -1, 128, 1, FIELD_RELEVANCE_HIGH, "src" },  \
+//{FIELD_TYPE_IPX6, -1, 128, 1, FIELD_RELEVANCE_HIGH, "dst" },  \
+//{FIELD_TYPE_UINT, -1,   8, 1, FIELD_RELEVANCE_HIGH, "type" },  \
+//FIELD_FORMAT_END }
+*/
 
 struct tun_node {
         IFNAME_T name;
         uint8_t name_auto;
-        uint8_t type;
         uint8_t up;
         IP6_T src;
         IP6_T dst;
@@ -171,7 +172,6 @@ struct tun_node {
 #define TUNNEL_NODE_FORMAT { \
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR, tun_node, name,        1, FIELD_RELEVANCE_HIGH), \
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        tun_node, name_auto,   1, FIELD_RELEVANCE_MEDI), \
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        tun_node, type,        1, FIELD_RELEVANCE_HIGH), \
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        tun_node, up,          1, FIELD_RELEVANCE_HIGH), \
         FIELD_FORMAT_INIT(FIELD_TYPE_IPX6,        tun_node, src,         1, FIELD_RELEVANCE_HIGH), \
         FIELD_FORMAT_INIT(FIELD_TYPE_IPX6,        tun_node, dst,         1, FIELD_RELEVANCE_HIGH), \

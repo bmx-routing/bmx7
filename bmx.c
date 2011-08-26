@@ -1485,6 +1485,11 @@ char *field_dbg_value(const struct field_format *format, uint16_t min_msg_size, 
         } else if (field_type == FIELD_TYPE_UMETRIC) {
 
                 val = umetric_to_human(*((UMETRIC_T*) (&data[pos_bit / 8])));
+
+        } else if (field_type == FIELD_TYPE_FMETRIC8) {
+
+                val = umetric_to_human(fmetric_to_umetric(fmetric_u8_to_fmu16(*((FMETRIC_U8_T*) (&data[pos_bit / 8])))));
+
         } else {
 
                 assertion(-501202, 0);

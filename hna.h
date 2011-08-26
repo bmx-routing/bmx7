@@ -18,6 +18,8 @@
 
 
 
+
+
 #define ARG_UHNA "hna"
 
 #define ARG_UHNA_NETWORK     "network"
@@ -131,16 +133,16 @@ struct gw_node {
 
 struct description_msg_gw {
         uint8_t prefixlen;
-        FMETRIC_U8_T bw;
+        FMETRIC_U8_T bandwidth;
         IP6_T hna;
         IP6_T src;
 } __attribute__((packed));
 
 #define DESCRIPTION_MSG_GW_FORMAT { \
-{FIELD_TYPE_UINT, -1,   8, 1, FIELD_RELEVANCE_HIGH, "prefixlen" },  \
-{FIELD_TYPE_UINT, -1,   8, 1, FIELD_RELEVANCE_HIGH, "bw" },  \
-{FIELD_TYPE_IPX,  -1, 128, 1, FIELD_RELEVANCE_HIGH, "hna" },  \
-{FIELD_TYPE_IPX,  -1, 128, 1, FIELD_RELEVANCE_HIGH, "src" },  \
+{FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_HIGH, "prefixlen" },  \
+{FIELD_TYPE_FMETRIC8, -1,   8, 1, FIELD_RELEVANCE_HIGH, "bandwidth" },  \
+{FIELD_TYPE_IPX,      -1, 128, 1, FIELD_RELEVANCE_HIGH, "hna" },  \
+{FIELD_TYPE_IPX,      -1, 128, 1, FIELD_RELEVANCE_HIGH, "src" },  \
 FIELD_FORMAT_END }
 
 

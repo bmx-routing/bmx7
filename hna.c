@@ -920,7 +920,7 @@ int create_description_tlv_gw(struct tx_frame_iterator *it)
                                 str2netw(c->val, &gw.src, NULL, NULL, NULL);
                         } else if (!strcmp(c->opt->name, ARG_GWIN_BW)) {
                                 UMETRIC_T um = strtoul(c->val, NULL, 10);
-                                gw.bw = umetric_to_fmu8(&um);
+                                gw.bandwidth = umetric_to_fmu8(&um);
                         }
                 }
 

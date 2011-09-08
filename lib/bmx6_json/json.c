@@ -438,23 +438,15 @@ void json_originator_event_hook(int32_t cb_id, struct orig_node *orig)
                                 if ((handl = avl_find_item(&status_tree, status_name)) &&
                                         (data_len = ((*(handl->frame_creator))(handl, on)))) {
 
-                                        json_object *jorig = json_object_new_object();
                                         json_object *jdesc_fields = NULL;
 
-                                        if ((jdesc_fields = fields_dbg_json(
-                                                FIELD_RELEVANCE_HIGH, NO, data_len, handl->data, handl->min_msg_size, handl->format))) {
+                                        if ((jdesc_fields = fields_dbg_json(FIELD_RELEVANCE_HIGH, NO,
+                                                data_len, handl->data, handl->min_msg_size, handl->format))) {
 
-                                                json_object_object_add(jorig, handl->status_name, jdesc_fields);
+                                                dbg_printf(cn, "%s\n", json_object_to_json_string(jdesc_fields));
+                                                json_object_put(jdesc_fields);
                                         }
-
-                                        const char * data = json_object_to_json_string(jorig);
-
-                                        if (cn)
-                                                dbg_printf(cn, "%s\n", data);
-
-                                        json_object_put(jorig);
                                 }
-
 
                                 close_ctrl_node(CTRL_CLOSE_STRAIGHT, cn);
                         }

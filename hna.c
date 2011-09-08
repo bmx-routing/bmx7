@@ -899,7 +899,8 @@ STATIC_FUNC
 void configure_tun_out(IDM_T del, struct network_node *net, struct ctrl_node *cn)
 {
         dbgf_cn(cn, DBGL_CHANGES, DBGT_INFO, "%s %s: %s/%d %s",
-                del ? "DEL" : "ADD", net->networkName, net->network, net->prefixlen, globalIdAsString(&net->global_id));
+                del ? "DEL" : "ADD", net->networkName, ipXAsStr(net->family, &net->network), net->prefixlen,
+                globalIdAsString(&net->global_id));
 }
 
 STATIC_FUNC
@@ -945,10 +946,10 @@ int32_t opt_gw_out(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_
                                         uint8_t mask;
                                         IPX_T dst;
                                         char adjusted_dst[IPXNET_STR_LEN];
-
                                         
                                         if (str2netw(c->val, &dst, cn, &mask, &family) == FAILURE)
                                                 return FAILURE;
+
 
                                         sprintf(adjusted_dst, "%s/%d", ipXAsStr(family, &dst), mask);
                                         set_opt_child_val(c, adjusted_dst);
@@ -956,11 +957,13 @@ int32_t opt_gw_out(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_
                                         if (cmd == OPT_APPLY && net) {
                                                 net->network = dst;
                                                 net->prefixlen = mask;
+                                                net->family = family;
                                         }
 
                                 } else if (cmd == OPT_APPLY && net) {
-                                                net->network = ZERO_IP;
-                                                net->prefixlen = 0;
+                                        net->network = ZERO_IP;
+                                        net->prefixlen = 0;
+                                        net->family = 0;
                                 }
 
 
@@ -968,7 +971,8 @@ int32_t opt_gw_out(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_
 
                                 if (c->val) {
 
-                                        if (validate_name_string(c->val, strlen(c->val) + 1) != SUCCESS)
+                                        if (strlen(c->val) > GLOBAL_ID_NAME_LEN ||
+                                                validate_name_string(c->val, strlen(c->val) + 1) != SUCCESS)
                                                 return FAILURE;
 
                                         if (cmd == OPT_APPLY && net) {
@@ -984,10 +988,16 @@ int32_t opt_gw_out(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_
 
                                 if (c->val) {
 
-                                        if (hexStrToMem(c->val,
-                                                (cmd == OPT_APPLY && net) ? net->global_id.pkid.u8 : NULL,
-                                                GLOBAL_ID_PKID_LEN) == FAILURE)
+                                        uint8_t pkid[GLOBAL_ID_PKID_LEN] = {0};
+
+                                        if (hexStrToMem(c->val, pkid, GLOBAL_ID_PKID_LEN) == FAILURE)
                                                         return FAILURE;
+
+
+                                        set_opt_child_val(c, memAsHexString(pkid, GLOBAL_ID_PKID_LEN));
+
+                                        if (cmd == OPT_APPLY && net)
+                                                memcpy(&net->global_id.pkid, pkid, GLOBAL_ID_PKID_LEN);
 
                                 } else if (cmd == OPT_APPLY && net) {
                                         memset(&net->global_id.pkid, 0, GLOBAL_ID_PKID_LEN);

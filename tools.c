@@ -62,30 +62,36 @@ IDM_T hexStrToMem(char *s, uint8_t *m, uint16_t mLen)
 {
         assertion(-500000, (s && mLen));
 
-        int p = strlen(s);
-        char c[2] = {0, 0};
-        char *endptr;
+        int l = strlen(s);
+        int o = (2 * mLen) - l;
+        int p = 0;
 
         if(m)
                 memset(m, 0, mLen);
 
-        if (p > 2 * mLen)
+        if (l > 2 * mLen)
                 return FAILURE;
 
-        while ((--p) >= 0 && ((c[0] = s[p])) != 0) {
+        while (p < l) {
 
+                char *endptr;
+                char c[2] = {s[p], 0};
+                //c[0] = s[o];
                 long int i = strtol(c, &endptr, 16);
 
                 if (i > 15 || i < 0 || endptr != &(c[1]))
                         return FAILURE;
 
-                if (m) {
-                        if ((p % 2) == 0)
-                                m[(p / 2)] += i;
+                if(m) {
+                        if (((p + o) % 2) != 0)
+                                m[((p + o) / 2)] += i;
                         else
-                                m[(p / 2)] += (i << 4);
+                                m[((p + o) / 2)] += (i << 4);
                 }
+
+                p++;
         }
+
         return SUCCESS;
 }
 

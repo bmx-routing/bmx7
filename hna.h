@@ -136,6 +136,7 @@ struct network_node {
         char networkName[NETWORK_NAME_LEN];
         IP6_T network;
         uint8_t prefixlen;
+        uint8_t family;
         uint32_t ipmetric;
         GLOBAL_ID_T global_id;
 

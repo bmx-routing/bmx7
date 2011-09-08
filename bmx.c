@@ -2124,7 +2124,7 @@ char *globalIdAsString( struct GLOBAL_ID *id ) {
 
                 for (i = 0; !id->pkid.u8[i] && i < GLOBAL_ID_PKID_LEN; i++);
 
-                snprintf(id_str[a], GLOBAL_ID_NAME_LEN, "%s.%s",
+                sprintf(id_str[a], "%s.%s",
                         validate_name_string(id->name, GLOBAL_ID_NAME_LEN) == SUCCESS ? id->name : "ILLEGAL_HOSTNAME",
                         memAsHexString(&(id->pkid.u8[i]), GLOBAL_ID_PKID_LEN - i));
 

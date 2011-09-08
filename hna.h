@@ -20,6 +20,8 @@
 
 
 
+
+
 #define ARG_UHNA "hna"
 
 #define ARG_UHNA_NETWORK     "network"
@@ -39,7 +41,6 @@
 #define DEF_NIIT_4TO6_DEV "niit4to6"
 #define DEF_NIIT_6TO4_DEV "niit6to4"
 
-
 #define TLV_OP_CUSTOM_NIIT4TO6_ADD  (TLV_OP_CUSTOM_MIN + 0)
 #define TLV_OP_CUSTOM_NIIT4TO6_DEL  (TLV_OP_CUSTOM_MIN + 1)
 #define TLV_OP_CUSTOM_NIIT6TO4_ADD  (TLV_OP_CUSTOM_MIN + 2)
@@ -47,33 +48,29 @@
 #define TLV_OP_CUSTOM_HNA_ROUTE_ADD (TLV_OP_CUSTOM_MIN + 4)
 #define TLV_OP_CUSTOM_HNA_ROUTE_DEL (TLV_OP_CUSTOM_MIN + 5)
 
-#define ARG_TUN_NAME_PREFIX "tunnelNamePrefix"
+
+
+#define ARG_TUN_NAME_PREFIX "tunnelDevPrefix"
 #define MAX_TUN_NAME_PREFIX_LEN 7
 #define DEF_TUN_NAME_PREFIX "bmx6"
 
 
-#define ARG_IN_TUN  "inTunnel"
-#define ARG_IN_TUNS "inTunnels"
+#define ARG_TUN_IN_SRC  "tunnelSrc"
+#define ARG_TUN_IN_NAME "dev"
+#define ARG_TUNS_IN "gateways"
 
-#define ARG_OUT_TUN "outTunnel"
-#define ARG_OUT_TUNS "outTunnels"
+#define ARG_GW_IN "gateway"
+#define ARG_GW_IN_TUN "tunnelSrc"
+#define ARG_GW_IN_BW "bandwidth"
 
-#define ARG_TUN_NAME "name"
-#define ARG_TUN_TYPE "type"
-#define DEF_TUN_TYPE 0
-#define MIN_TUN_TYPE 0
-#define MAX_TUN_TYPE 0
-#define TUN_TYPE_ANY 0
-#define TUN_TYPE_IP6IP6 1
-#define TUN_TYPE_IP4IP6 2
-#define TUN_TYPE_GRE 3
+#define ARG_GW_OUT "tunnel"
+#define ARG_GW_OUT_NETWORK "network"
+#define ARG_GW_OUT_IPMETRIC "ipmetric"
+#define MAX_GW_OUT_IPMETRIC INT32_MAX
+#define ARG_GW_OUT_HOSTNAME "hostname"
+#define ARG_GW_OUT_PKID "pkid"
 
-
-#define ARG_GWIN "gateway"
-#define ARG_GWIN_TUN "tun"
-#define ARG_GWIN_BW "bandwidth"
-
-
+#define ARG_TUNS_OUT "tunnels"
 
 struct uhna_key {
 	uint8_t family;
@@ -117,20 +114,6 @@ FIELD_FORMAT_END }
 
 
 
-
-struct gw_key {
-	uint8_t prefixlen;
-	IPX_T dst;
-        IPX_T src;
-};
-
-struct gw_node {
-	struct gw_key key;
-	struct orig_node *on;
-        UMETRIC_T bw;
-
-};
-
 struct description_msg_gw {
         uint8_t prefixlen;
         FMETRIC_U8_T bandwidth;
@@ -146,41 +129,52 @@ struct description_msg_gw {
 FIELD_FORMAT_END }
 
 
+#define NETWORK_NAME_LEN 32
 
-/*
-//
-//struct description_msg_tunnel {
-//        IP6_T dst;
-//        IP6_T src;
-//        uint8_t type;
-//} __attribute__((packed));
-//
-//#define DESCRIPTION_MSG_TUNNEL_FORMAT { \
-//{FIELD_TYPE_IPX6, -1, 128, 1, FIELD_RELEVANCE_HIGH, "src" },  \
-//{FIELD_TYPE_IPX6, -1, 128, 1, FIELD_RELEVANCE_HIGH, "dst" },  \
-//{FIELD_TYPE_UINT, -1,   8, 1, FIELD_RELEVANCE_HIGH, "type" },  \
-//FIELD_FORMAT_END }
-*/
 
-struct tun_node {
-        IFNAME_T name;
-        uint8_t name_auto;
-        uint8_t up;
-        IP6_T src;
-        IP6_T dst;
+struct network_node {
+        char networkName[NETWORK_NAME_LEN];
+        IP6_T network;
+        uint8_t prefixlen;
+        uint32_t ipmetric;
+        GLOBAL_ID_T global_id;
+
+        struct tun_out_node *tun;
 };
 
 
+struct tun_out_node {
+        IFNAME_T name;
+        uint8_t name_auto;
+        uint8_t up;
+
+        struct orig_node *remote_on;
+        struct avl_tree network_tree;
+
+        IP6_T localTunAddress;
+};
+
+
+
+struct tun_in_node {
+        IFNAME_T name;
+        uint8_t name_auto;
+        uint8_t up;
+        IP6_T srcTunAddress;
+//        IP6_T dst;
+};
+
+
+
 #define TUNNEL_NODE_FORMAT { \
-        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR, tun_node, name,        1, FIELD_RELEVANCE_HIGH), \
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        tun_node, name_auto,   1, FIELD_RELEVANCE_MEDI), \
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        tun_node, up,          1, FIELD_RELEVANCE_HIGH), \
-        FIELD_FORMAT_INIT(FIELD_TYPE_IPX6,        tun_node, src,         1, FIELD_RELEVANCE_HIGH), \
-        FIELD_FORMAT_INIT(FIELD_TYPE_IPX6,        tun_node, dst,         1, FIELD_RELEVANCE_HIGH), \
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR, tun_in_node, name,          1, FIELD_RELEVANCE_HIGH), \
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        tun_in_node, name_auto,     1, FIELD_RELEVANCE_MEDI), \
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        tun_in_node, up,            1, FIELD_RELEVANCE_HIGH), \
+        FIELD_FORMAT_INIT(FIELD_TYPE_IPX6,        tun_in_node, srcTunAddress, 1, FIELD_RELEVANCE_HIGH), \
         FIELD_FORMAT_END }
 
 
 struct orig_tuns {
         uint16_t msgs;
-        struct tun_node tun[];
+        struct tun_in_node tun[];
 };

@@ -58,6 +58,38 @@ char* memAsHexString( const void* mem, uint32_t len)
         return out[c];
 }
 
+IDM_T hexStrToMem(char *s, uint8_t *m, uint16_t mLen)
+{
+        assertion(-500000, (s && mLen));
+
+        int p = strlen(s);
+        char c[2] = {0, 0};
+        char *endptr;
+
+        if(m)
+                memset(m, 0, mLen);
+
+        if (p > 2 * mLen)
+                return FAILURE;
+
+        while ((--p) >= 0 && ((c[0] = s[p])) != 0) {
+
+                long int i = strtol(c, &endptr, 16);
+
+                if (i > 15 || i < 0 || endptr != &(c[1]))
+                        return FAILURE;
+
+                if (m) {
+                        if ((p % 2) == 0)
+                                m[(p / 2)] += i;
+                        else
+                                m[(p / 2)] += (i << 4);
+                }
+        }
+        return SUCCESS;
+}
+
+
 IDM_T validate_char_string(const char* data, uint32_t len)
 {
 

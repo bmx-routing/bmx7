@@ -3345,7 +3345,7 @@ void init_ip(void)
 
         register_options_array(ip_options, sizeof ( ip_options), CODE_CATEGORY_NAME);
 
-        register_status_handl(sizeof (struct dev_status), dev_status_format, ARG_INTERFACES, dev_status_creator);
+        register_status_handl(sizeof (struct dev_status), 1, dev_status_format, ARG_INTERFACES, dev_status_creator);
 
 
 //        InitSha(&ip_sha);

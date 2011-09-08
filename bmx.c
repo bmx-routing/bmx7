@@ -1727,12 +1727,13 @@ void fields_dbg_table(struct ctrl_node *cn, uint16_t relevance, uint16_t data_si
 
 
 
-void register_status_handl(uint16_t min_msg_size, const struct field_format* format, char *name,
+void register_status_handl(uint16_t min_msg_size, IDM_T multiline, const struct field_format* format, char *name,
                             int32_t(*creator) (struct status_handl *status_handl, void *data))
 {
         struct status_handl *handl = debugMalloc(sizeof (struct status_handl), -300364);
         memset(handl, 0, sizeof (handl));
 
+        handl->multiline = multiline;
         handl->min_msg_size = min_msg_size;
         handl->format = format;
         strcpy(handl->status_name, name);
@@ -1823,7 +1824,7 @@ static const struct field_format link_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, rxRate,           1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, bestRxLink,       1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, txRate,           1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, bestTxLink,       1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, bestTxLink,       1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, routes,           1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wantsOgms,        1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, myDevIdx,         1, FIELD_RELEVANCE_MEDI),
@@ -2006,7 +2007,10 @@ int32_t opt_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_
                 struct status_handl *handl = NULL;
                 uint32_t data_len;
                 char status_name[sizeof (((struct status_handl *) NULL)->status_name)] = {0};
-                strncpy(status_name, patch->val, sizeof (status_name));
+                if (patch->val)
+                        strncpy(status_name, patch->val, sizeof (status_name));
+                else
+                        strncpy(status_name, opt->name, sizeof (status_name));
 
                 if ((handl = avl_find_item(&status_tree, status_name))) {
 
@@ -2069,21 +2073,14 @@ static struct opt_type bmx_options[]=
 			ARG_VALUE_FORM,	HLP_ARG_RELEVANCE}
         ,
 
-/*
 	{ODI,0,ARG_STATUS,		0,  5,2,A_PS0,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
 			0,		"show status\n"},
 
 	{ODI,0,ARG_LINKS,		0,  5,2,A_PS0N,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
 			0,		"show links\n"},
-	{ODI,ARG_LINKS,ARG_RELEVANCE,   'r',5,1,A_CS1,A_USR,A_DYN,A_ARG,A_ANY,	0,	       MIN_RELEVANCE,   MAX_RELEVANCE,  DEF_RELEVANCE,0, opt_status,
-			ARG_VALUE_FORM,	HLP_ARG_RELEVANCE}
-        ,
 	{ODI,0,ARG_ORIGINATORS,	        0,  5,2,A_PS0N,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
-			0,		"show originators\n"},
-	{ODI,ARG_ORIGINATORS,ARG_RELEVANCE,'r',5,1,A_CS1,A_USR,A_DYN,A_ARG,A_ANY,	0,	       MIN_RELEVANCE,   MAX_RELEVANCE,  DEF_RELEVANCE,0, opt_status,
-			ARG_VALUE_FORM,	HLP_ARG_RELEVANCE}
+			0,		"show originators\n"}
         ,
-*/
 	{ODI,0,ARG_TTL,			't',5,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&my_ttl,	MIN_TTL,	MAX_TTL,	DEF_TTL,0,	opt_update_description,
 			ARG_VALUE_FORM,	"set time-to-live (TTL) for OGMs"}
         ,
@@ -2102,7 +2099,7 @@ static struct opt_type bmx_options[]=
 	{ODI,0,ARG_DAD_TO,        	0,  5,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&dad_to,	MIN_DAD_TO,	MAX_DAD_TO,	DEF_DAD_TO,0,	0,
 			ARG_VALUE_FORM,	"duplicate address (DAD) detection timout in ms"}
         ,
-	{ODI,0,"flush_all",		0,  5,2,A_PS0,A_ADM,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_purge,
+	{ODI,0,"flushAll",		0,  5,2,A_PS0,A_ADM,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_purge,
 			0,		"purge all neighbors and routes on the fly"}
         ,
 	{ODI,0,ARG_DROP_ALL_FRAMES,     0,  5,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&drop_all_frames,	MIN_DROP_ALL_FRAMES,	MAX_DROP_ALL_FRAMES,	DEF_DROP_ALL_FRAMES,0,	0,
@@ -2186,10 +2183,10 @@ void init_bmx(void)
 
         register_options_array(bmx_options, sizeof ( bmx_options), CODE_CATEGORY_NAME);
 
-        register_status_handl(sizeof (struct bmx_status), bmx_status_format, ARG_STATUS, bmx_status_creator);
-        register_status_handl(sizeof (struct link_status), link_status_format, ARG_LINKS, link_status_creator);
+        register_status_handl(sizeof (struct bmx_status), 0, bmx_status_format, ARG_STATUS, bmx_status_creator);
+        register_status_handl(sizeof (struct link_status), 1, link_status_format, ARG_LINKS, link_status_creator);
         //register_status_handl(sizeof (struct local_status), local_status_format, ARG_LOCALS, locals_status_creator);
-        register_status_handl(sizeof (struct orig_status), orig_status_format, ARG_ORIGINATORS, orig_status_creator);
+        register_status_handl(sizeof (struct orig_status), 1, orig_status_format, ARG_ORIGINATORS, orig_status_creator);
 }
 
 

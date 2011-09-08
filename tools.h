@@ -44,7 +44,7 @@
 
 
 
-
+IDM_T hexStrToMem(char *s, uint8_t *m, uint16_t mLen);
 char* memAsHexString( const void* mem, uint32_t len);
 char* memAsCharString( const char* mem, uint32_t len);
 

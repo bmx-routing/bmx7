@@ -696,6 +696,7 @@ struct field_iterator {
 
 struct status_handl {
         uint16_t min_msg_size;
+        IDM_T multiline;
         char status_name[16];
         uint8_t *data;
 
@@ -719,7 +720,7 @@ uint32_t fields_dbg_lines(struct ctrl_node *cn, uint16_t relevance, uint16_t dat
 
 uint32_t field_iterate(struct field_iterator *it);
 
-void register_status_handl(uint16_t min_msg_size, const struct field_format* format, char *name,
+void register_status_handl(uint16_t min_msg_size, IDM_T multiline, const struct field_format* format, char *name,
                             int32_t(*creator) (struct status_handl *status_handl, void *data));
 
 struct task_node {

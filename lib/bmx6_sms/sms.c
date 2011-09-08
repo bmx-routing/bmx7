@@ -402,7 +402,7 @@ static struct opt_type sms_options[]= {
 //        ord parent long_name          shrt Attributes				*ival		min		max		default		*func,*syntax,*help
 	
 	{ODI,0,ARG_SMS,	        0,  5,2,A_PM1N,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_json_sms,
-			ARG_PREFIX_FORM,"add arbitrary file-data to description"}
+			ARG_FILE_FORM,"add arbitrary file-data to description"}
 	
 };
 

@@ -341,6 +341,8 @@ struct opt_type {
 #define ARG_VALUE_FORM	"<VAL>"
 #define ARG_FILE_FORM	"<FILE>"
 #define ARG_DIR_FORM	"<DIRECTORY>"
+#define ARG_NAME_FORM	"<NAME>"
+#define ARG_SHA2_FORM	"<SHA2>"
 #define ARG_PORT_FORM	"<PORT>"
 #define ARG_ADDR_FORM	"<ADDRESS>"
 #define ARG_PREFIX_FORM	"<NETADDR>/<PREFIX-LENGTH>"

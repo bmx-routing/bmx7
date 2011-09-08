@@ -51,14 +51,15 @@ static char *json_orig_dir = NULL;
 
 
 STATIC_FUNC
-json_object * fields_dbg_json(uint16_t relevance, uint16_t data_size, uint8_t *data,
+json_object * fields_dbg_json(uint8_t relevance, uint8_t force_array, uint16_t data_size, uint8_t *data,
                     uint16_t min_msg_size, const struct field_format *format)
 {
         TRACE_FUNCTION_CALL;
         assertion(-501247, (format && data));
 
         uint32_t msgs_size = 0;
-        uint32_t msgs = 0;
+        uint32_t columns = field_format_get_items(format);
+
         struct field_iterator it = {.format = format, .data = data, .data_size = data_size, .min_msg_size = min_msg_size};
 
         json_object *jfields = NULL;
@@ -66,17 +67,16 @@ json_object * fields_dbg_json(uint16_t relevance, uint16_t data_size, uint8_t *d
 
         while ((msgs_size = field_iterate(&it)) == SUCCESS) {
 
+                assertion(-500000, IMPLIES(it.field == 0, !jfields));
+/*
+                if (it.field == 0 && jfields) {
+                        jarray = jarray ? jarray : json_object_new_array();
+                        json_object_array_add(jarray, jfields);
+                        jfields = NULL;
+                }
+*/
+
                 if (format[it.field].field_relevance >= relevance) {
-
-                        if (it.field == 0) {
-                                msgs++;
-
-                                if (msgs >= 2) {
-                                        jarray = jarray ? jarray : json_object_new_array();
-                                        json_object_array_add(jarray, jfields);
-                                        jfields = NULL;
-                                }
-                        }
 
                         json_object *jfield_val;
 
@@ -92,21 +92,28 @@ json_object * fields_dbg_json(uint16_t relevance, uint16_t data_size, uint8_t *d
 
                         json_object_object_add(jfields, format[it.field].field_name, jfield_val);
                 }
+
+                if (force_array && it.field == (columns - 1)) {
+                        jarray = jarray ? jarray : json_object_new_array();
+                        json_object_array_add(jarray, jfields);
+                        jfields = NULL;
+                }
+
         }
 
         assertion(-501248, (data_size ? msgs_size == data_size : msgs_size == min_msg_size));
 
-        if ( msgs == 1 ) {
+        return jarray ? jarray : jfields;
 
-                return jfields;
-
-        } else if (msgs >= 2) {
-
+/*
+        if (jfields && (force_array || jarray)) {
+                jarray = jarray ? jarray : json_object_new_array();
                 json_object_array_add(jarray, jfields);
                 return jarray;
         }
 
-        return NULL;
+        return jfields;
+*/
 }
 
 
@@ -435,7 +442,7 @@ void json_originator_event_hook(int32_t cb_id, struct orig_node *orig)
                                         json_object *jdesc_fields = NULL;
 
                                         if ((jdesc_fields = fields_dbg_json(
-                                                FIELD_RELEVANCE_HIGH, data_len, handl->data, handl->min_msg_size, handl->format))) {
+                                                FIELD_RELEVANCE_HIGH, NO, data_len, handl->data, handl->min_msg_size, handl->format))) {
 
                                                 json_object_object_add(jorig, handl->status_name, jdesc_fields);
                                         }
@@ -521,7 +528,7 @@ void json_description_event_hook(int32_t cb_id, struct orig_node *on)
                 json_object *jdesc_fields = NULL;
 
                 if ((jdesc_fields = fields_dbg_json(
-                        FIELD_RELEVANCE_MEDI, sizeof (struct msg_description_adv) +tlvs_len, (uint8_t*) desc_buff,
+                        FIELD_RELEVANCE_MEDI, NO, sizeof (struct msg_description_adv) +tlvs_len, (uint8_t*) desc_buff,
                         packet_frame_handler[FRAME_TYPE_DESC_ADV].min_msg_size,
                         packet_frame_handler[FRAME_TYPE_DESC_ADV].msg_format))) {
 
@@ -538,10 +545,11 @@ void json_description_event_hook(int32_t cb_id, struct orig_node *on)
                                 json_object *jextensions = NULL;
 
                                 while (rx_frame_iterate(&it) > TLV_RX_DATA_DONE) {
+
                                         json_object * jext_fields;
 
                                         if ((jext_fields = fields_dbg_json(
-                                                FIELD_RELEVANCE_MEDI, it.frame_msgs_length, it.msg,
+                                                FIELD_RELEVANCE_MEDI, YES, it.frame_msgs_length, it.msg,
                                                 it.handls[it.frame_type].min_msg_size,
                                                 it.handls[it.frame_type].msg_format))) {
 
@@ -553,8 +561,10 @@ void json_description_event_hook(int32_t cb_id, struct orig_node *on)
                                                 json_object_array_add(jextensions, jext);
                                         }
                                 }
+
                                 if (jextensions)
                                         json_object_object_add(jdesc_fields, "extensions", jextensions);
+
                         }
                         json_object_object_add(jorig, packet_frame_handler[FRAME_TYPE_DESC_ADV].name, jdesc_fields);
                 }
@@ -604,15 +614,14 @@ int32_t opt_json_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
 
                 while ((c = list_iterate(&patch->childs_instance_list, c))) {
 
-                        if (!strcmp(c->opt->name, ARG_RELEVANCE)) {
+                        if (!strcmp(c->opt->name, ARG_RELEVANCE))
                                 relevance = strtol(c->val, NULL, 10);
-                        }
                 }
 
                 struct status_handl *handl = NULL;
                 uint32_t data_len;
                 char status_name[sizeof (((struct status_handl *) NULL)->status_name)] = {0};
-//                memset(status_name, 0, sizeof(status_name));
+
                 strncpy(status_name, patch->val, sizeof (status_name));
 
                 if ((handl = avl_find_item(&status_tree, status_name))) {
@@ -621,10 +630,9 @@ int32_t opt_json_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
 
                                 json_object *jorig = json_object_new_object();
                                 json_object *jdesc_fields = NULL;
-                                
 
-                                if ((jdesc_fields = fields_dbg_json(
-                                        relevance, data_len, handl->data, handl->min_msg_size, handl->format))) {
+                                if ((jdesc_fields = fields_dbg_json(relevance, handl->multiline,
+                                        data_len, handl->data, handl->min_msg_size, handl->format))) {
 
                                         json_object_object_add(jorig, handl->status_name, jdesc_fields);
                                 }

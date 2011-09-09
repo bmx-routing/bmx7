@@ -574,9 +574,12 @@ IDM_T is_ip_set(const IPX_T *ip)
         return (ip && !is_ip_equal(ip, &ZERO_IP));
 }
 
-IDM_T is_ip_forbidden( const IPX_T *ip, const uint8_t family )
+IDM_T is_ip_invalid( const IPX_T *ip, const uint8_t family )
 {
 	TRACE_FUNCTION_CALL;
+
+        if (!is_ip_set(ip))
+                return YES;
 
         if (family == AF_INET6 ) {
 
@@ -798,7 +801,7 @@ void kernel_if_addr_config(struct nlmsghdr *nlhdr, uint16_t index_sqn)
         if (family == AF_INET)
                 ip4ToX(&ip_addr, *((IP4_T*) (&ip_addr)));
 
-        if (is_ip_forbidden(&ip_addr, family)) // specially catch loopback ::1/128
+        if (is_ip_invalid(&ip_addr, family)) // specially catch loopback ::1/128
                 return;
 
 
@@ -1284,9 +1287,9 @@ IDM_T ip(uint8_t family, uint8_t cmd, int8_t del, uint8_t quiet, const IPX_T *NE
         assertion(-500653, (family == AF_INET || family == AF_INET6));
         assertion(-501102, (af_cfg() == family) || (niit_enabled && af_cfg() == AF_INET6 && family == AF_INET && !via));
         assertion(-501127, (IMPLIES(policy_routing == POLICY_RT_UNSET, (cmd == IP_RULE_TEST && initializing))));
-        assertion(-500650, ((NET && !is_ip_forbidden(NET, family))));
-        assertion(-500651, (!(via && is_ip_forbidden(via, family))));
-        assertion(-500652, (!(src && is_ip_forbidden(src, family))));
+        assertion(-500650, ((NET && !is_ip_invalid(NET, family))));
+        assertion(-500651, (!(via && is_ip_invalid(via, family))));
+        assertion(-500652, (!(src && is_ip_invalid(src, family))));
 
 
 	struct sockaddr_nl nladdr;

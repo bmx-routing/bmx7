@@ -457,7 +457,7 @@ IDM_T str2netw(char* args, IPX_T *ipX,  struct ctrl_node *cn, uint8_t *maskp, ui
 
         }
 
-        if (is_ip_forbidden(ipX, family) || ip_netmask_validate(ipX, (maskp ? *maskp : 128), family, NO) == FAILURE)
+        if (is_ip_invalid(ipX, family) || ip_netmask_validate(ipX, (maskp ? *maskp : 128), family, NO) == FAILURE)
                 return FAILURE;
 
         if (familyp)

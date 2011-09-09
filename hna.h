@@ -71,7 +71,6 @@
 
 
 struct net_key {
-	uint8_t family;
 	uint8_t prefixlen;
 	IPX_T net;
 };
@@ -107,9 +106,10 @@ FIELD_FORMAT_END }
 
 
 
+
 struct description_msg_tun_adv {
         IP6_T srcTunIp;
-        IP6_T network;
+        IPX_T network;
         uint8_t prefixlen;
         FMETRIC_U8_T bandwidth;
 } __attribute__((packed));
@@ -124,7 +124,7 @@ FIELD_FORMAT_END }
 
 struct tun_adv_node {
         IP6_T srcTunIp;
-        IP6_T network;
+        IPX_T network;
         uint8_t prefixlen;
         FMETRIC_U8_T bandwidth;
 
@@ -139,7 +139,7 @@ struct tun_adv_node {
 
 struct tun_search_node {
         char networkName[NETWORK_NAME_LEN];
-        IP6_T network;
+        IPX_T network;
         uint8_t prefixlen;
         uint8_t family;
         uint32_t ipmetric;

@@ -41,8 +41,8 @@
 
 #define CODE_CATEGORY_NAME "hna"
 
-static AVL_TREE(global_uhna_tree, struct uhna_node, key );
-static AVL_TREE(local_uhna_tree, struct uhna_node, key );
+static AVL_TREE(global_uhna_tree, struct hna_node, key );
+static AVL_TREE(local_uhna_tree, struct hna_node, key );
 
 static AVL_TREE(tunnel_in_tree, struct tun_in_node, srcTunIp);
 static AVL_TREE(network_tree, struct tun_search_node, networkName);
@@ -215,17 +215,17 @@ int32_t opt_niit(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
 }
 
 STATIC_FUNC
-IDM_T configure_niit4to6(IDM_T del, struct uhna_key *key)
+IDM_T configure_niit4to6(IDM_T del, struct net_key *key)
 {
 
         if (!niit4to6_dev_idx || !niit_enabled || key->family != AF_INET6 || key->prefixlen < 96 ||
-                !is_ip_net_equal(&key->glip, &niit_prefix96, 96, AF_INET6))
+                !is_ip_net_equal(&key->net, &niit_prefix96, 96, AF_INET6))
                 return SUCCESS;
 
-        dbgf_all(DBGT_INFO, "del=%d %s/%d", del, ipXAsStr(AF_INET6, &key->glip), key->prefixlen);
+        dbgf_all(DBGT_INFO, "del=%d %s/%d", del, ipXAsStr(AF_INET6, &key->net), key->prefixlen);
 
         IPX_T niit_glip4 = ZERO_IP;
-        niit_glip4.s6_addr32[3] = key->glip.s6_addr32[3];
+        niit_glip4.s6_addr32[3] = key->net.s6_addr32[3];
 
         // update network routes:
         if (del) {
@@ -245,24 +245,24 @@ IDM_T configure_niit4to6(IDM_T del, struct uhna_key *key)
 }
 
 STATIC_FUNC
-IDM_T configure_niit6to4(IDM_T del, struct uhna_key *key)
+IDM_T configure_niit6to4(IDM_T del, struct net_key *key)
 {
 
         if (!niit6to4_dev_idx || !niit_enabled || key->family != AF_INET6 || key->prefixlen < 96 ||
-                !is_ip_net_equal(&key->glip, &niit_prefix96, 96, AF_INET6))
+                !is_ip_net_equal(&key->net, &niit_prefix96, 96, AF_INET6))
                 return SUCCESS;
 
-        dbgf_track(DBGT_INFO, "del=%d %s/%d", del, ipXAsStr(AF_INET6, &key->glip), key->prefixlen);
+        dbgf_track(DBGT_INFO, "del=%d %s/%d", del, ipXAsStr(AF_INET6, &key->net), key->prefixlen);
 
         // update network routes:
         if (del) {
 
-                return ip(AF_INET6, IP_ROUTE_TUNS, DEL, NO, &key->glip, key->prefixlen, RT_TABLE_TUNS, 0,
+                return ip(AF_INET6, IP_ROUTE_TUNS, DEL, NO, &key->net, key->prefixlen, RT_TABLE_TUNS, 0,
                         NULL, 0, NULL, NULL, DEF_IP_METRIC);
 
         } else {
 
-                return ip(AF_INET6, IP_ROUTE_TUNS, ADD, NO, &key->glip, key->prefixlen, RT_TABLE_TUNS, 0,
+                return ip(AF_INET6, IP_ROUTE_TUNS, ADD, NO, &key->net, key->prefixlen, RT_TABLE_TUNS, 0,
                         NULL, niit6to4_dev_idx, NULL, &niit_address, DEF_IP_METRIC);
 
         }
@@ -274,17 +274,17 @@ IDM_T configure_niit6to4(IDM_T del, struct uhna_key *key)
 
 
 STATIC_FUNC
-IDM_T configure_route(IDM_T del, struct orig_node *on, struct uhna_key *key)
+IDM_T configure_route(IDM_T del, struct orig_node *on, struct net_key *key)
 {
 
-        IDM_T primary = is_ip_equal(&key->glip, &on->primary_ip);
+        IDM_T primary = is_ip_equal(&key->net, &on->primary_ip);
         uint8_t cmd = primary ? IP_ROUTE_HOST : IP_ROUTE_HNA;
         int32_t table_macro = primary ? RT_TABLE_HOSTS : RT_TABLE_NETS;
 
         // update network routes:
         if (del) {
 
-                return ip(key->family, cmd, DEL, NO, &key->glip, key->prefixlen, table_macro, 0,
+                return ip(key->family, cmd, DEL, NO, &key->net, key->prefixlen, table_macro, 0,
                         NULL, 0, NULL, NULL, DEF_IP_METRIC);
 
         } else {
@@ -295,7 +295,7 @@ IDM_T configure_route(IDM_T del, struct orig_node *on, struct uhna_key *key)
                 ASSERTION(-500239, (avl_find(&link_dev_tree, &(lndev->key))));
                 assertion(-500579, (lndev->key.dev->if_llocal_addr));
 
-                return ip(key->family, cmd, ADD, NO, &key->glip, key->prefixlen, table_macro, 0,
+                return ip(key->family, cmd, ADD, NO, &key->net, key->prefixlen, table_macro, 0,
                         NULL, lndev->key.dev->if_llocal_addr->ifa.ifa_index,
                         &(lndev->key.link->link_ip), &(self->primary_ip), DEF_IP_METRIC);
 
@@ -303,28 +303,28 @@ IDM_T configure_route(IDM_T del, struct orig_node *on, struct uhna_key *key)
 }
 
 STATIC_FUNC
-void set_uhna_key(struct uhna_key *key, uint8_t family, uint8_t prefixlen, IPX_T *glip)
+void set_net_key(struct net_key *key, uint8_t family, uint8_t prefixlen, IPX_T *glip)
 {
-        memset( key, 0, sizeof(struct uhna_key));
+        memset( key, 0, sizeof(struct net_key));
         key->family = family;
         key->prefixlen = prefixlen;
-        key->glip = *glip;
+        key->net = *glip;
 
 }
 
 STATIC_FUNC
-void set_uhna_to_key(struct uhna_key *key, struct description_msg_hna4 *uhna4, struct description_msg_hna6 *uhna6)
+void set_hna_to_key(struct net_key *key, struct description_msg_hna4 *uhna4, struct description_msg_hna6 *uhna6)
 {
         if (uhna4) {
 
                 IPX_T ipX;
                 ip4ToX(&ipX, uhna4->ip4);
 
-                set_uhna_key(key, AF_INET, uhna4->prefixlen, &ipX);
+                set_net_key(key, AF_INET, uhna4->prefixlen, &ipX);
 
         } else {
 
-                set_uhna_key(key, AF_INET6, uhna6->prefixlen, &uhna6->ip6);
+                set_net_key(key, AF_INET6, uhna6->prefixlen, &uhna6->ip6);
 
         }
 }
@@ -406,7 +406,7 @@ int create_description_tlv_hna(struct tx_frame_iterator *it)
         uint8_t max_prefixlen = ort_dat[ (AFINET2BMX(family)) ].max_prefixlen;
 
         struct avl_node *an;
-        struct uhna_node *un;
+        struct hna_node *un;
         struct dev_node *dev;
         int pos = 0;
 
@@ -428,7 +428,7 @@ int create_description_tlv_hna(struct tx_frame_iterator *it)
                 if (un->key.family != family)
                         continue;
 
-                pos = _create_tlv_hna(family, data, max_size, pos, &un->key.glip, un->key.prefixlen);
+                pos = _create_tlv_hna(family, data, max_size, pos, &un->key.net, un->key.prefixlen);
         }
 
         return pos;
@@ -439,9 +439,9 @@ int create_description_tlv_hna(struct tx_frame_iterator *it)
 
 
 STATIC_FUNC
-void configure_uhna ( IDM_T del, struct uhna_key* key, struct orig_node *on ) {
+void configure_hna ( IDM_T del, struct net_key* key, struct orig_node *on ) {
 
-        struct uhna_node *un = avl_find_item( &global_uhna_tree, key );
+        struct hna_node *un = avl_find_item( &global_uhna_tree, key );
 
         assertion(-500589, (on));
         assertion(-500236, ((del && un) != (!del && !un)));
@@ -458,7 +458,7 @@ void configure_uhna ( IDM_T del, struct uhna_key* key, struct orig_node *on ) {
 
         } else {
 
-                un = debugMalloc( sizeof (struct uhna_node), -300090 );
+                un = debugMalloc( sizeof (struct hna_node), -300090 );
                 un->key = *key;
                 un->on = on;
                 avl_insert(&global_uhna_tree, un, -300149);
@@ -473,9 +473,9 @@ void configure_uhna ( IDM_T del, struct uhna_key* key, struct orig_node *on ) {
 
                 // update throw routes:
                 if (policy_routing == POLICY_RT_ENABLED && ip_throw_rules_cfg) {
-                        ip(key->family, IP_THROW_MY_HNA, del, NO, &key->glip, key->prefixlen, RT_TABLE_HOSTS, 0, 0, 0, 0, 0, 0);
-                        ip(key->family, IP_THROW_MY_HNA, del, NO, &key->glip, key->prefixlen, RT_TABLE_NETS, 0, 0, 0, 0, 0, 0);
-                        ip(key->family, IP_THROW_MY_HNA, del, NO, &key->glip, key->prefixlen, RT_TABLE_TUNS, 0, 0, 0, 0, 0, 0);
+                        ip(key->family, IP_THROW_MY_HNA, del, NO, &key->net, key->prefixlen, RT_TABLE_HOSTS, 0, 0, 0, 0, 0, 0);
+                        ip(key->family, IP_THROW_MY_HNA, del, NO, &key->net, key->prefixlen, RT_TABLE_NETS, 0, 0, 0, 0, 0, 0);
+                        ip(key->family, IP_THROW_MY_HNA, del, NO, &key->net, key->prefixlen, RT_TABLE_TUNS, 0, 0, 0, 0, 0, 0);
                 }
 
         } else if (on->curr_rt_lndev) {
@@ -492,14 +492,14 @@ void configure_uhna ( IDM_T del, struct uhna_key* key, struct orig_node *on ) {
 
 
 STATIC_FUNC
-struct uhna_node * find_overlapping_hna( IPX_T *ipX, uint8_t prefixlen )
+struct hna_node * find_overlapping_hna( IPX_T *ipX, uint8_t prefixlen )
 {
-        struct uhna_node *un;
+        struct hna_node *un;
         struct avl_node *it = NULL;
 
         while ((un = avl_iterate_item(&global_uhna_tree, &it))) {
 
-                if (is_ip_net_equal(ipX, &un->key.glip, MIN(prefixlen, un->key.prefixlen), af_cfg()))
+                if (is_ip_net_equal(ipX, &un->key.net, MIN(prefixlen, un->key.prefixlen), af_cfg()))
                         return un;
 
         }
@@ -526,23 +526,23 @@ int process_description_tlv_hna(struct rx_frame_iterator *it)
 
         for (pos = 0; pos < it->frame_msgs_length; pos += msg_size) {
 
-                struct uhna_key key;
+                struct net_key key;
 
                 if (it->frame_type == BMX_DSC_TLV_UHNA4)
-                        set_uhna_to_key(&key, (struct description_msg_hna4 *) (it->frame_data + pos), NULL);
-
+                        set_hna_to_key(&key, (struct description_msg_hna4 *) (it->frame_data + pos), NULL);
                 else
-                        set_uhna_to_key(&key, NULL, (struct description_msg_hna6 *) (it->frame_data + pos));
+                        set_hna_to_key(&key, NULL, (struct description_msg_hna6 *) (it->frame_data + pos));
+
 
 
 
                 dbgf_track(DBGT_INFO, "%s %s %s %s=%s/%d",
                         tlv_op_str(op), family2Str(key.family), globalIdAsString(&on->global_id), ARG_UHNA,
-                        ipXAsStr(key.family, &key.glip), key.prefixlen);
+                        ipXAsStr(key.family, &key.net), key.prefixlen);
 
                 if (op == TLV_OP_DEL) {
 
-                        configure_uhna(DEL, &key, on);
+                        configure_hna(DEL, &key, on);
 
                         if (pos == 0 && key.family == family) {
                                 on->primary_ip = ZERO_IP;
@@ -551,22 +551,22 @@ int process_description_tlv_hna(struct rx_frame_iterator *it)
 
                 } else if (op == TLV_OP_TEST) {
 
-                        struct uhna_node *un = NULL;
+                        struct hna_node *un = NULL;
 
-                        if (is_ip_invalid(&key.glip, family) || (un = find_overlapping_hna(&key.glip, key.prefixlen))) {
+                        if (is_ip_invalid(&key.net, family) || (un = find_overlapping_hna(&key.net, key.prefixlen))) {
 
                                 dbgf_sys(DBGT_ERR,
                                         "global_id=%s %s=%s/%d blocked (by global_id=%s)",
                                         globalIdAsString(&on->global_id),
-                                        ARG_UHNA, ipXAsStr(key.family, &key.glip), key.prefixlen,
+                                        ARG_UHNA, ipXAsStr(key.family, &key.net), key.prefixlen,
                                         un ? globalIdAsString(&un->on->global_id) : "???");
 
                                 return TLV_RX_DATA_BLOCKED;
                         }
 
-                        if (is_ip_net_equal(&key.glip, &IP6_LINKLOCAL_UC_PREF, IP6_LINKLOCAL_UC_PLEN, AF_INET6)) {
+                        if (is_ip_net_equal(&key.net, &IP6_LINKLOCAL_UC_PREF, IP6_LINKLOCAL_UC_PLEN, AF_INET6)) {
 
-                                dbgf_sys(DBGT_ERR, "NO link-local addresses %s", ipXAsStr(key.family, &key.glip));
+                                dbgf_sys(DBGT_ERR, "NO link-local addresses %s", ipXAsStr(key.family, &key.net));
 
                                 return TLV_RX_DATA_BLOCKED;
                         }
@@ -578,11 +578,11 @@ int process_description_tlv_hna(struct rx_frame_iterator *it)
                         ASSERTION( -500359, (!avl_find(&global_uhna_tree, &key)));
 
                         if (pos == 0 && key.family == family) {
-                                on->primary_ip = key.glip;
-                                ipXToStr(key.family, &key.glip, on->primary_ip_str);
+                                on->primary_ip = key.net;
+                                ipXToStr(key.family, &key.net, on->primary_ip_str);
                         }
 
-                        configure_uhna(ADD, &key, on);
+                        configure_hna(ADD, &key, on);
 
 
                 } else if (op >= TLV_OP_CUSTOM_MIN) {
@@ -637,8 +637,8 @@ int32_t opt_uhna(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
 	if ( cmd == OPT_ADJUST  ||  cmd == OPT_CHECK  ||  cmd == OPT_APPLY ) {
 
                 uint8_t family = 0;
-                struct uhna_key key;
-                struct uhna_node *un;
+                struct net_key key;
+                struct hna_node *un;
 
                 dbgf_all(DBGT_INFO, "af_cfg=%s diff=%d cmd=%s  save=%d  opt=%s  patch=%s",
                         family2Str(af_cfg()), patch->diff, opt_cmd2str[cmd], _save, opt->name, patch->val);
@@ -656,14 +656,14 @@ int32_t opt_uhna(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
                 if (cmd == OPT_CHECK || cmd == OPT_APPLY) {
 
                         
-                        set_uhna_key(&key, family, mask, &ipX);
+                        set_net_key(&key, family, mask, &ipX);
 
 
-                        if (patch->diff != DEL && (un = find_overlapping_hna(&key.glip, key.prefixlen))) {
+                        if (patch->diff != DEL && (un = find_overlapping_hna(&key.net, key.prefixlen))) {
 
                                 dbg_cn(cn, DBGL_CHANGES, DBGT_ERR,
                                         "UHNA %s/%d already blocked by global_id=%s !",
-                                        ipXAsStr(key.family, &key.glip), mask,
+                                        ipXAsStr(key.family, &key.net), mask,
                                         (un->on == self ? "MYSELF" : globalIdAsString(&un->on->global_id)));
 
                                 return FAILURE;
@@ -671,17 +671,17 @@ int32_t opt_uhna(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
                 }
 
                 if (cmd == OPT_APPLY) {
-                        configure_uhna((patch->diff == DEL ? DEL : ADD), &key, self);
+                        configure_hna((patch->diff == DEL ? DEL : ADD), &key, self);
                         my_description_changed = YES;
                 }
 
 
 	} else if ( cmd == OPT_UNREGISTER ) {
 
-                struct uhna_node * un;
+                struct hna_node * un;
 
                 while ((un = avl_first_item(&global_uhna_tree)))
-                        configure_uhna(DEL, &un->key, self);
+                        configure_hna(DEL, &un->key, self);
 	}
 
 	return SUCCESS;
@@ -763,10 +763,6 @@ int process_description_tlv_tun_adv(struct rx_frame_iterator *it)
 
         for (m = 0; m < msgs; m++) {
 
-/*
-                struct uhna_key key;
-                set_uhna_key(&key, AF_INET6, 128, adv->srcTunAddress, 0);
-*/
 
                 if (op == TLV_OP_DEL) {
 
@@ -1065,7 +1061,7 @@ int32_t opt_tun_in(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_
 	if ( cmd == OPT_ADJUST  ||  cmd == OPT_CHECK  ||  cmd == OPT_APPLY ) {
 
                 uint8_t family = 0;
-                struct uhna_node *un = NULL;;
+                struct hna_node *un = NULL;;
                 char adjusted_src[IPXNET_STR_LEN];
 
                 

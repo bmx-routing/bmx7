@@ -70,15 +70,14 @@
 #define ARG_TUN_SEARCH_PKID "pkid"
 
 
-struct uhna_key {
+struct net_key {
 	uint8_t family;
 	uint8_t prefixlen;
-	IPX_T glip;
-	uint32_t metric_nl;
+	IPX_T net;
 };
 
-struct uhna_node {
-	struct uhna_key key;
+struct hna_node {
+	struct net_key key;
 	struct orig_node *on;
 };
 

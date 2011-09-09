@@ -30,10 +30,10 @@
 #define	MAX_UHNA_PREFIXLEN   32
 #define ARG_UHNA_PREFIXLEN   "prefixlen"
 
-#define MIN_UHNA_METRIC      0
-#define MAX_UHNA_METRIC      U32_MAX
-#define DEF_UHNA_METRIC      0
-#define ARG_UHNA_METRIC      "metric"
+#define MIN_IP_METRIC      0
+#define MAX_IP_METRIC      U32_MAX
+#define DEF_IP_METRIC      0
+#define ARG_IP_METRIC      "ipMetric"
 
 #define ARG_NIIT          "niitSource"
 #define HLP_NIIT          "specify niit4to6 source IP address (IP MUST be assigned to niit4to6 interface!)"
@@ -86,28 +86,24 @@ struct description_msg_hna4 {
 	uint8_t prefixlen;
 	uint8_t reserved;
 	IP4_T    ip4;
-	uint32_t metric;
 } __attribute__((packed));
 
 #define DESCRIPTION_MSG_HNA4_FORMAT { \
 {FIELD_TYPE_UINT, -1,  8, 1, FIELD_RELEVANCE_HIGH, "prefixlen"}, \
 {FIELD_TYPE_UINT, -1,  8, 1, FIELD_RELEVANCE_LOW,  "reserved"},  \
 {FIELD_TYPE_IP4,  -1, 32, 1, FIELD_RELEVANCE_HIGH, "address" },  \
-{FIELD_TYPE_UINT, -1, 32, 0, FIELD_RELEVANCE_HIGH, "metric" },   \
 FIELD_FORMAT_END }
 
 struct description_msg_hna6 {
 	uint8_t prefixlen;
 	uint8_t reserved;
 	IP6_T    ip6;
-	uint32_t metric;
 } __attribute__((packed));
 
 #define DESCRIPTION_MSG_HNA6_FORMAT { \
 {FIELD_TYPE_UINT, -1,   8, 1, FIELD_RELEVANCE_HIGH, "prefixlen"}, \
 {FIELD_TYPE_UINT, -1,   8, 1, FIELD_RELEVANCE_LOW,  "reserved"},  \
 {FIELD_TYPE_IPX6, -1, 128, 1, FIELD_RELEVANCE_HIGH, "address" },  \
-{FIELD_TYPE_UINT, -1,  32, 0, FIELD_RELEVANCE_HIGH, "metric" },   \
 FIELD_FORMAT_END }
 
 

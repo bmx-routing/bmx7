@@ -231,12 +231,12 @@ IDM_T configure_niit4to6(IDM_T del, struct uhna_key *key)
         if (del) {
 
                 return ip(AF_INET, IP_ROUTE_TUNS, DEL, NO, &niit_glip4, (key->prefixlen - 96), RT_TABLE_TUNS, 0,
-                        NULL, 0, NULL, NULL, ntohl(key->metric_nl));
+                        NULL, 0, NULL, NULL, DEF_IP_METRIC);
 
         } else {
 
                 return ip(AF_INET, IP_ROUTE_TUNS, ADD, NO, &niit_glip4, (key->prefixlen - 96), RT_TABLE_TUNS, 0,
-                        NULL, niit4to6_dev_idx, NULL, &niit_address, ntohl(key->metric_nl));
+                        NULL, niit4to6_dev_idx, NULL, &niit_address, DEF_IP_METRIC);
 
         }
 
@@ -258,12 +258,12 @@ IDM_T configure_niit6to4(IDM_T del, struct uhna_key *key)
         if (del) {
 
                 return ip(AF_INET6, IP_ROUTE_TUNS, DEL, NO, &key->glip, key->prefixlen, RT_TABLE_TUNS, 0,
-                        NULL, 0, NULL, NULL, ntohl(key->metric_nl));
+                        NULL, 0, NULL, NULL, DEF_IP_METRIC);
 
         } else {
 
                 return ip(AF_INET6, IP_ROUTE_TUNS, ADD, NO, &key->glip, key->prefixlen, RT_TABLE_TUNS, 0,
-                        NULL, niit6to4_dev_idx, NULL, &niit_address, ntohl(key->metric_nl));
+                        NULL, niit6to4_dev_idx, NULL, &niit_address, DEF_IP_METRIC);
 
         }
 
@@ -285,7 +285,7 @@ IDM_T configure_route(IDM_T del, struct orig_node *on, struct uhna_key *key)
         if (del) {
 
                 return ip(key->family, cmd, DEL, NO, &key->glip, key->prefixlen, table_macro, 0,
-                        NULL, 0, NULL, NULL, ntohl(key->metric_nl));
+                        NULL, 0, NULL, NULL, DEF_IP_METRIC);
 
         } else {
 
@@ -297,18 +297,17 @@ IDM_T configure_route(IDM_T del, struct orig_node *on, struct uhna_key *key)
 
                 return ip(key->family, cmd, ADD, NO, &key->glip, key->prefixlen, table_macro, 0,
                         NULL, lndev->key.dev->if_llocal_addr->ifa.ifa_index,
-                        &(lndev->key.link->link_ip), &(self->primary_ip), ntohl(key->metric_nl));
+                        &(lndev->key.link->link_ip), &(self->primary_ip), DEF_IP_METRIC);
 
         }
 }
 
 STATIC_FUNC
-void set_uhna_key(struct uhna_key *key, uint8_t family, uint8_t prefixlen, IPX_T *glip, uint32_t metric)
+void set_uhna_key(struct uhna_key *key, uint8_t family, uint8_t prefixlen, IPX_T *glip)
 {
         memset( key, 0, sizeof(struct uhna_key));
         key->family = family;
         key->prefixlen = prefixlen;
-        key->metric_nl = htonl(metric);
         key->glip = *glip;
 
 }
@@ -321,11 +320,11 @@ void set_uhna_to_key(struct uhna_key *key, struct description_msg_hna4 *uhna4, s
                 IPX_T ipX;
                 ip4ToX(&ipX, uhna4->ip4);
 
-                set_uhna_key(key, AF_INET, uhna4->prefixlen, &ipX, ntohl(uhna4->metric));
+                set_uhna_key(key, AF_INET, uhna4->prefixlen, &ipX);
 
         } else {
 
-                set_uhna_key(key, AF_INET6, uhna6->prefixlen, &uhna6->ip6, ntohl(uhna6->metric));
+                set_uhna_key(key, AF_INET6, uhna6->prefixlen, &uhna6->ip6);
 
         }
 }
@@ -333,7 +332,7 @@ void set_uhna_to_key(struct uhna_key *key, struct description_msg_hna4 *uhna4, s
 
 STATIC_FUNC
 int _create_tlv_hna(int family, uint8_t* data, uint16_t max_size, uint16_t pos,
-        IPX_T *ip, uint32_t metric, uint16_t prefixlen)
+        IPX_T *ip, uint16_t prefixlen)
 {
         int i;
         uint16_t msg_size = family == AF_INET ?
@@ -342,13 +341,13 @@ int _create_tlv_hna(int family, uint8_t* data, uint16_t max_size, uint16_t pos,
 
         if ((pos + msg_size) > max_size) {
 
-                dbgf_sys(DBGT_ERR, "unable to announce %s/%d metric %d due to limiting --%s=%d",
-                        ipXAsStr(family, ip), prefixlen, ntohl(metric), ARG_UDPD_SIZE, max_size);
+                dbgf_sys(DBGT_ERR, "unable to announce %s/%d due to limiting --%s=%d",
+                        ipXAsStr(family, ip), prefixlen, ARG_UDPD_SIZE, max_size);
 
                 return pos;
         }
 
-        dbgf_all(DBGT_INFO, "announce %s/%d metric %d ", ipXAsStr(family, ip), prefixlen, ntohl(metric));
+        dbgf_all(DBGT_INFO, "announce %s/%d", ipXAsStr(family, ip), prefixlen);
 
 
         assertion(-500610, (!(family == AF_INET6 &&
@@ -362,7 +361,6 @@ int _create_tlv_hna(int family, uint8_t* data, uint16_t max_size, uint16_t pos,
                 struct description_msg_hna4 hna4;
                 memset( &hna4, 0, sizeof(hna4));
                 hna4.ip4 = ipXto4(*ip);
-                hna4.metric = metric;
                 hna4.prefixlen = prefixlen;
 
                 for (i = 0; i < pos / msg_size; i++) {
@@ -379,7 +377,6 @@ int _create_tlv_hna(int family, uint8_t* data, uint16_t max_size, uint16_t pos,
                 struct description_msg_hna6 hna6;
                 memset( &hna6, 0, sizeof(hna6));
                 hna6.ip6 = *ip;
-                hna6.metric = metric;
                 hna6.prefixlen = prefixlen;
 
                 for (i = 0; i < pos / msg_size; i++) {
@@ -392,7 +389,7 @@ int _create_tlv_hna(int family, uint8_t* data, uint16_t max_size, uint16_t pos,
 
         }
 
-        dbgf_track(DBGT_INFO, "%s %s/%d metric %d", family2Str(family), ipXAsStr(family, ip), prefixlen, metric);
+        dbgf_track(DBGT_INFO, "%s %s/%d", family2Str(family), ipXAsStr(family, ip), prefixlen);
 
 
         return (pos + msg_size);
@@ -416,14 +413,14 @@ int create_description_tlv_hna(struct tx_frame_iterator *it)
         if (af_cfg() != family || !is_ip_set(&self->primary_ip))
                 return TLV_TX_DATA_IGNORED;
 
-        pos = _create_tlv_hna(family, data, max_size, pos, &self->primary_ip, 0, max_prefixlen);
+        pos = _create_tlv_hna(family, data, max_size, pos, &self->primary_ip, max_prefixlen);
 
         for (an = NULL; (dev = avl_iterate_item(&dev_ip_tree, &an));) {
 
                 if (!dev->active || !dev->announce)
                         continue;
 
-                pos = _create_tlv_hna(family, data, max_size, pos, &dev->if_global_addr->ip_addr, 0, max_prefixlen);
+                pos = _create_tlv_hna(family, data, max_size, pos, &dev->if_global_addr->ip_addr, max_prefixlen);
         }
 
         for (an = NULL; (un = avl_iterate_item(&local_uhna_tree, &an));) {
@@ -431,7 +428,7 @@ int create_description_tlv_hna(struct tx_frame_iterator *it)
                 if (un->key.family != family)
                         continue;
 
-                pos = _create_tlv_hna(family, data, max_size, pos, &un->key.glip, un->key.metric_nl, un->key.prefixlen);
+                pos = _create_tlv_hna(family, data, max_size, pos, &un->key.glip, un->key.prefixlen);
         }
 
         return pos;
@@ -539,9 +536,9 @@ int process_description_tlv_hna(struct rx_frame_iterator *it)
 
 
 
-                dbgf_track(DBGT_INFO, "%s %s %s %s=%s/%d %s=%d",
+                dbgf_track(DBGT_INFO, "%s %s %s %s=%s/%d",
                         tlv_op_str(op), family2Str(key.family), globalIdAsString(&on->global_id), ARG_UHNA,
-                        ipXAsStr(key.family, &key.glip), key.prefixlen, ARG_UHNA_METRIC, ntohl(key.metric_nl));
+                        ipXAsStr(key.family, &key.glip), key.prefixlen);
 
                 if (op == TLV_OP_DEL) {
 
@@ -559,10 +556,9 @@ int process_description_tlv_hna(struct rx_frame_iterator *it)
                         if (is_ip_invalid(&key.glip, family) || (un = find_overlapping_hna(&key.glip, key.prefixlen))) {
 
                                 dbgf_sys(DBGT_ERR,
-                                        "global_id=%s %s=%s/%d %s=%d blocked (by global_id=%s)",
+                                        "global_id=%s %s=%s/%d blocked (by global_id=%s)",
                                         globalIdAsString(&on->global_id),
                                         ARG_UHNA, ipXAsStr(key.family, &key.glip), key.prefixlen,
-                                        ARG_UHNA_METRIC, ntohl(key.metric_nl),
                                         un ? globalIdAsString(&un->on->global_id) : "???");
 
                                 return TLV_RX_DATA_BLOCKED;
@@ -636,7 +632,6 @@ int32_t opt_uhna(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
 {
         IPX_T ipX;
 	uint8_t mask;
-        uint32_t metric = 0;
 	char new[IPXNET_STR_LEN];
 
 	if ( cmd == OPT_ADJUST  ||  cmd == OPT_CHECK  ||  cmd == OPT_APPLY ) {
@@ -661,14 +656,14 @@ int32_t opt_uhna(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
                 if (cmd == OPT_CHECK || cmd == OPT_APPLY) {
 
                         
-                        set_uhna_key(&key, family, mask, &ipX, metric);
+                        set_uhna_key(&key, family, mask, &ipX);
 
 
                         if (patch->diff != DEL && (un = find_overlapping_hna(&key.glip, key.prefixlen))) {
 
                                 dbg_cn(cn, DBGL_CHANGES, DBGT_ERR,
-                                        "UHNA %s/%d metric %d already blocked by global_id=%s !",
-                                        ipXAsStr(key.family, &key.glip), mask, metric,
+                                        "UHNA %s/%d already blocked by global_id=%s !",
+                                        ipXAsStr(key.family, &key.glip), mask,
                                         (un->on == self ? "MYSELF" : globalIdAsString(&un->on->global_id)));
 
                                 return FAILURE;

@@ -2275,11 +2275,13 @@ void bmx(void)
 
                                 dbgf_all( DBGT_INFO, "trying to unblock %s...", on->desc->globalId.name);
 
-                                IDM_T tlvs_res = process_description_tlvs(NULL, on, on->desc, TLV_OP_TEST, FRAME_TYPE_PROCESS_ALL, NULL);
+                                IDM_T tlvs_res = process_description_tlvs(
+                                        NULL, on, on->desc, TLV_OP_TEST, FRAME_TYPE_PROCESS_ALL, NULL);
 
                                 if (tlvs_res == TLV_RX_DATA_DONE) {
 
-                                        tlvs_res = process_description_tlvs(NULL, on, on->desc, TLV_OP_ADD, FRAME_TYPE_PROCESS_ALL, NULL);
+                                        tlvs_res = process_description_tlvs(
+                                                NULL, on, on->desc, TLV_OP_ADD, FRAME_TYPE_PROCESS_ALL, NULL);
 
                                         assertion(-500364, (tlvs_res == TLV_RX_DATA_DONE)); // checked, so MUST SUCCEED!!
 

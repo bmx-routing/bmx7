@@ -291,29 +291,33 @@ char *tlv_op_str(uint8_t op);
  * this iterator is given the beginning of a frame area (e.g. the end of the packet_header)
  * then it iterates over the frames in that area */
 struct rx_frame_iterator {
-	// MUST be initialized:
-	// remains unchanged:
-	const char         *caller;
-	struct packet_buff *pb;
-	struct orig_node   *on;
-	struct ctrl_node   *cn;
-	uint8_t            *frames_in;
-	struct frame_handl *handls;
-	uint8_t             op;
-	uint8_t             process_filter;
-	uint8_t             handl_max;
-	int32_t             frames_length;
+    // MUST be initialized:
+    // remains unchanged:
+    const char *caller;
+    struct packet_buff *pb;
+    struct orig_node *on;
+    struct ctrl_node *cn;
+    uint8_t *frames_in;
+    struct frame_handl *handls;
+    uint8_t op;
+    uint8_t process_filter;
+    uint8_t handl_max;
+    int32_t frames_length;
 
-	// updated by rx..iterate():
-	int32_t             frames_pos;
+    // updated by rx..iterate():
+    int32_t frames_pos;
 
-	// set by rx..iterate(), and consumed by handl[].rx_tlv_handler
-	uint8_t             is_short_header;
-	uint8_t             frame_type;
-	int32_t             frame_data_length;
-	int32_t             frame_msgs_length;
-	uint8_t            *frame_data;
-	uint8_t            *msg;
+    // set by rx..iterate(), and consumed by handl[].rx_tlv_handler
+    uint8_t is_short_header;
+    uint8_t frame_type;
+    int32_t frame_data_length;
+    int32_t frame_msgs_length;
+    uint8_t *frame_data;
+    uint8_t *msg;
+
+    // allocated by handl[].rx_tlv_handler and freed by calling function of rx_frame_iterate() (e.g. process_description_tlvs())
+    void **misc_ptr;
+    uint32_t misc_uint;
 };
 
 

@@ -263,12 +263,13 @@ IDM_T process_description_tlvs(struct packet_buff *pb, struct orig_node *on, str
 
         int32_t tlv_result;
         uint16_t dsc_tlvs_len = ntohs(desc->extensionLen);
+        void *misc = NULL;
 
         struct rx_frame_iterator it = {
                 .caller = __FUNCTION__, .on = on, .cn = cn, .op = op, .pb = pb,
                 .handls = description_tlv_handl, .handl_max = (BMX_DSC_TLV_MAX), .process_filter = filter,
                 .frames_in = (((uint8_t*) desc) + sizeof (struct description)), .frames_pos = 0,
-                .frames_length = dsc_tlvs_len
+                .frames_length = dsc_tlvs_len, .misc_ptr = &misc
         };
 
         dbgf_all(DBGT_INFO, "op=%s id=%s dsc_sqn=%d size=%d ",
@@ -276,6 +277,9 @@ IDM_T process_description_tlvs(struct packet_buff *pb, struct orig_node *on, str
 
 
         while ((tlv_result = rx_frame_iterate(&it)) > TLV_RX_DATA_DONE);
+
+        if (misc)
+                debugFree(misc, -300406);
 
         if ((op >= TLV_OP_CUSTOM_MIN && op <= TLV_OP_CUSTOM_MAX) || (op >= TLV_OP_PLUGIN_MIN && op <= TLV_OP_PLUGIN_MAX))
                 return TLV_RX_DATA_DONE;

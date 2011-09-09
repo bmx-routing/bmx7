@@ -529,8 +529,6 @@ int process_description_tlv_hna(struct rx_frame_iterator *it)
                         set_hna_to_key(&key, NULL, (struct description_msg_hna6 *) (it->frame_data + pos));
 
 
-
-
                 dbgf_track(DBGT_INFO, "%s %s %s %s=%s/%d",
                         tlv_op_str(op), family2Str(family), globalIdAsString(&on->global_id), ARG_UHNA,
                         ipXAsStr(family, &key.net), key.prefixlen);
@@ -548,10 +546,10 @@ int process_description_tlv_hna(struct rx_frame_iterator *it)
 
                         struct hna_node *un = NULL;
 
-                        if (is_ip_invalid(&key.net, family) || (un = find_overlapping_hna(&key.net, key.prefixlen))) {
+                        if (is_ip_invalid(&key.net, family) || (un = find_overlapping_hna(&key.net, key.prefixlen)) ||
+                                is_ip_net_equal(&key.net, &IP6_LINKLOCAL_UC_PREF, IP6_LINKLOCAL_UC_PLEN, AF_INET6)) {
 
-                                dbgf_sys(DBGT_ERR,
-                                        "global_id=%s %s=%s/%d blocked (by global_id=%s)",
+                                dbgf_sys(DBGT_ERR, "global_id=%s %s=%s/%d blocked (by global_id=%s)",
                                         globalIdAsString(&on->global_id),
                                         ARG_UHNA, ipXAsStr(family, &key.net), key.prefixlen,
                                         un ? globalIdAsString(&un->on->global_id) : "???");
@@ -559,17 +557,26 @@ int process_description_tlv_hna(struct rx_frame_iterator *it)
                                 return TLV_RX_DATA_BLOCKED;
                         }
 
-                        if (is_ip_net_equal(&key.net, &IP6_LINKLOCAL_UC_PREF, IP6_LINKLOCAL_UC_PLEN, AF_INET6)) {
 
-                                dbgf_sys(DBGT_ERR, "NO link-local addresses %s", ipFAsStr( &key.net));
+                        // check if node announces the same key twice:
+                        assertion(-500000, (it->misc_ptr));
 
-                                return TLV_RX_DATA_BLOCKED;
+                        uint32_t i;
+                        struct net_key *k = (struct net_key*) *(it->misc_ptr);
+                        for (i = 0; i < it->misc_uint; i++) {
+                                if (!memcmp(&k[i], &key, sizeof (key)))
+                                        return TLV_RX_DATA_BLOCKED;
                         }
+
+                        *it->misc_ptr = debugRealloc(*it->misc_ptr, (i + 1) * sizeof (key), -300398);
+
+                        memcpy(&(((struct net_key*) *(it->misc_ptr))[i]), &key, sizeof(key));
+                        it->misc_uint = i + 1;
+
 
 
                 } else if (op == TLV_OP_ADD) {
 
-                        //TODO: return with TLVS_BLOCKED because this happens when node announces the same key twice !!!
                         ASSERTION( -500359, (!avl_find(&global_uhna_tree, &key)));
 
                         if (pos == 0) {
@@ -764,11 +771,11 @@ int process_description_tlv_tun_adv(struct rx_frame_iterator *it)
 
                 } else if (op == TLV_OP_TEST) {
 
-                        if (is_ip_invalid(&adv->srcTunIp, AF_INET6) || find_overlapping_hna(&adv->srcTunIp, 128))
+                        if (is_ip_invalid(&adv->srcTunIp, AF_INET6) || find_overlapping_hna(&adv->srcTunIp, 128) ||
+                                is_ip_net_equal(&adv->srcTunIp, &IP6_LINKLOCAL_UC_PREF, IP6_LINKLOCAL_UC_PLEN, AF_INET6))
                                 return TLV_RX_DATA_BLOCKED;
 
-                        if (is_ip_net_equal(&adv->srcTunIp, &IP6_LINKLOCAL_UC_PREF, IP6_LINKLOCAL_UC_PLEN, AF_INET6))
-                                return TLV_RX_DATA_BLOCKED;
+
 
                 } else if (op == TLV_OP_ADD) {
 
@@ -938,10 +945,10 @@ int32_t opt_gw_out(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_
                         }
                         
                         if (patch->diff != DEL && !net) {
-                                net = debugMalloc(sizeof (struct tun_search_node), -300000);
+                                net = debugMalloc(sizeof (struct tun_search_node), -300400);
                                 memset(net, 0, sizeof (struct tun_search_node));
                                 strcpy(net->networkName, name);
-                                avl_insert(&network_tree, net, -300000);
+                                avl_insert(&network_tree, net, -300401);
                         }
                 }
 
@@ -1020,8 +1027,8 @@ int32_t opt_gw_out(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_
         if (cmd == OPT_APPLY && net) {
 
                 if (patch->diff == DEL) {
-                        avl_remove(&network_tree, &net->networkName, -300000);
-                        debugFree(net, -300000);
+                        avl_remove(&network_tree, &net->networkName, -300402);
+                        debugFree(net, -300403);
                 } else {
                         configure_tun_out(ADD, net, cn);
                 }
@@ -1032,8 +1039,8 @@ int32_t opt_gw_out(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_
                 while ((net = avl_first_item(&network_tree))) {
 
                         configure_tun_out(DEL, net, cn);
-                        avl_remove(&network_tree, &net->networkName, -300000);
-                        debugFree(net, -300000);
+                        avl_remove(&network_tree, &net->networkName, -300404);
+                        debugFree(net, -300405);
                 }
         }
 

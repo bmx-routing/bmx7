@@ -50,27 +50,25 @@
 
 
 
-#define ARG_TUN_NAME_PREFIX "tunnelDevPrefix"
+#define ARG_TUN_NAME_PREFIX "tunnelName"
 #define MAX_TUN_NAME_PREFIX_LEN 7
 #define DEF_TUN_NAME_PREFIX "bmx6"
 
+#define ARG_TUN_SRC  "tunnelSource"
+#define ARG_TUN_SRC_NAME "dev"
+#define ARG_TUNS "tunnels"
 
-#define ARG_TUN_IN_SRC  "tunnelSrc"
-#define ARG_TUN_IN_NAME "dev"
-#define ARG_TUNS_IN "gateways"
+#define ARG_TUN_ADV "tunnelAdv"
+#define ARG_TUN_ADV_SRC "tunnelSrc"
+#define ARG_TUN_ADV_BW "bandwidth"
 
-#define ARG_GW_IN "gateway"
-#define ARG_GW_IN_TUN "tunnelSrc"
-#define ARG_GW_IN_BW "bandwidth"
+#define ARG_TUN_SEARCH "tunnelSearch"
+#define ARG_TUN_SEARCH_NETWORK "network"
+#define ARG_TUN_SEARCH_IPMETRIC "ipmetric"
+#define MAX_TUN_SEARCH_IPMETRIC INT32_MAX
+#define ARG_TUN_SEARCH_HOSTNAME "hostname"
+#define ARG_TUN_SEARCH_PKID "pkid"
 
-#define ARG_GW_OUT "tunnel"
-#define ARG_GW_OUT_NETWORK "network"
-#define ARG_GW_OUT_IPMETRIC "ipmetric"
-#define MAX_GW_OUT_IPMETRIC INT32_MAX
-#define ARG_GW_OUT_HOSTNAME "hostname"
-#define ARG_GW_OUT_PKID "pkid"
-
-#define ARG_TUNS_OUT "tunnels"
 
 struct uhna_key {
 	uint8_t family;
@@ -114,25 +112,37 @@ FIELD_FORMAT_END }
 
 
 
-struct description_msg_gw {
+struct description_msg_tun_adv {
+        IP6_T srcTunIp;
+        IP6_T network;
         uint8_t prefixlen;
         FMETRIC_U8_T bandwidth;
-        IP6_T hna;
-        IP6_T src;
 } __attribute__((packed));
 
-#define DESCRIPTION_MSG_GW_FORMAT { \
+#define DESCRIPTION_MSG_TUN_ADV_FORMAT { \
+{FIELD_TYPE_IPX,      -1, 128, 1, FIELD_RELEVANCE_HIGH, "srcTunIp" },  \
+{FIELD_TYPE_IPX,      -1, 128, 1, FIELD_RELEVANCE_HIGH, "network" },  \
 {FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_HIGH, "prefixlen" },  \
 {FIELD_TYPE_FMETRIC8, -1,   8, 1, FIELD_RELEVANCE_HIGH, "bandwidth" },  \
-{FIELD_TYPE_IPX,      -1, 128, 1, FIELD_RELEVANCE_HIGH, "hna" },  \
-{FIELD_TYPE_IPX,      -1, 128, 1, FIELD_RELEVANCE_HIGH, "src" },  \
 FIELD_FORMAT_END }
+
+
+struct tun_adv_node {
+        IP6_T srcTunIp;
+        IP6_T network;
+        uint8_t prefixlen;
+        FMETRIC_U8_T bandwidth;
+
+        struct tun_search_node *tun_search;
+        struct tun_out_node *tun_out;
+
+        struct orig_node *on;
+};
 
 
 #define NETWORK_NAME_LEN 32
 
-
-struct network_node {
+struct tun_search_node {
         char networkName[NETWORK_NAME_LEN];
         IP6_T network;
         uint8_t prefixlen;
@@ -140,42 +150,36 @@ struct network_node {
         uint32_t ipmetric;
         GLOBAL_ID_T global_id;
 
-        struct tun_out_node *tun;
+        struct tun_adv_node *tun_adv;
 };
 
 
 struct tun_out_node {
+        IP6_T srcTunIp;
         IFNAME_T name;
-        uint8_t name_auto;
-        uint8_t up;
 
-        struct orig_node *remote_on;
-        struct avl_tree network_tree;
+        struct avl_tree tun_adv_tree;
 
-        IP6_T localTunAddress;
+//        struct orig_node *on;
 };
 
 
 
 struct tun_in_node {
+        IP6_T srcTunIp;
+
         IFNAME_T name;
         uint8_t name_auto;
         uint8_t up;
-        IP6_T srcTunAddress;
-//        IP6_T dst;
 };
 
 
 
 #define TUNNEL_NODE_FORMAT { \
-        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR, tun_in_node, name,          1, FIELD_RELEVANCE_HIGH), \
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        tun_in_node, name_auto,     1, FIELD_RELEVANCE_MEDI), \
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        tun_in_node, up,            1, FIELD_RELEVANCE_HIGH), \
-        FIELD_FORMAT_INIT(FIELD_TYPE_IPX6,        tun_in_node, srcTunAddress, 1, FIELD_RELEVANCE_HIGH), \
+        FIELD_FORMAT_INIT(FIELD_TYPE_IPX6,        tun_in_node, srcTunIp,   1, FIELD_RELEVANCE_HIGH), \
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR, tun_in_node, name,       1, FIELD_RELEVANCE_HIGH), \
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        tun_in_node, name_auto,  1, FIELD_RELEVANCE_MEDI), \
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        tun_in_node, up,         1, FIELD_RELEVANCE_HIGH), \
         FIELD_FORMAT_END }
 
 
-struct orig_tuns {
-        uint16_t msgs;
-        struct tun_in_node tun[];
-};

@@ -44,8 +44,8 @@
 static AVL_TREE(global_uhna_tree, struct uhna_node, key );
 static AVL_TREE(local_uhna_tree, struct uhna_node, key );
 
-static AVL_TREE(tunnel_in_tree, struct tun_in_node, srcTunAddress);
-static AVL_TREE(network_tree, struct network_node, networkName);
+static AVL_TREE(tunnel_in_tree, struct tun_in_node, srcTunIp);
+static AVL_TREE(network_tree, struct tun_search_node, networkName);
 
 
 static IPX_T niit_address;
@@ -556,8 +556,7 @@ int process_description_tlv_hna(struct rx_frame_iterator *it)
 
                         struct uhna_node *un = NULL;
 
-                        if (!is_ip_set(&key.glip) || is_ip_forbidden( &key.glip, family ) ||
-                                (un = find_overlapping_hna(&key.glip, key.prefixlen))) {
+                        if (is_ip_invalid(&key.glip, family) || (un = find_overlapping_hna(&key.glip, key.prefixlen))) {
 
                                 dbgf_sys(DBGT_ERR,
                                         "global_id=%s %s=%s/%d %s=%d blocked (by global_id=%s)",
@@ -707,7 +706,7 @@ STATIC_FUNC
 void configure_tun_in(uint8_t del, struct orig_node *on, struct tun_in_node *tun)
 {
 
-        assertion(-501292, (is_ip_set(&tun->srcTunAddress)));
+        assertion(-501292, (is_ip_set(&tun->srcTunIp)));
         assertion(-500000, on && is_ip_set(&on->primary_ip));
         assertion(-501294, IMPLIES(tun->up, tun->name.str[0]));
         assertion(-501295, IMPLIES(tun->up, del));
@@ -723,8 +722,8 @@ void configure_tun_in(uint8_t del, struct orig_node *on, struct tun_in_node *tun
         } else {
 
 
-                IPX_T *local = (on == self) ? &on->primary_ip : &tun->srcTunAddress;
-                IPX_T *remote = (on == self) ? &tun->srcTunAddress : &on->primary_ip;
+                IPX_T *local = (on == self) ? &on->primary_ip : &tun->srcTunIp;
+                IPX_T *remote = (on == self) ? &tun->srcTunIp : &on->primary_ip;
 
 
                 if (tun->name_auto) {
@@ -755,19 +754,43 @@ void configure_tun_in(uint8_t del, struct orig_node *on, struct tun_in_node *tun
 
 
 STATIC_FUNC
-int process_description_tlv_gw(struct rx_frame_iterator *it)
+int process_description_tlv_tun_adv(struct rx_frame_iterator *it)
 {
         struct orig_node *on = it->on;
         uint8_t op = it->op;
         uint16_t msg_size = it->handls[it->frame_type].min_msg_size;
         uint16_t msgs = it->frame_msgs_length / msg_size;
-        uint16_t p = 0;
-        struct description_msg_gw *gw = (((struct description_msg_gw *) (it->frame_data)));
+        uint16_t m;
+        struct description_msg_tun_adv *adv = (((struct description_msg_tun_adv *) (it->frame_data)));
 
         if (af_cfg() != AF_INET6)
                 return TLV_RX_DATA_IGNORED;
 
+        for (m = 0; m < msgs; m++) {
 
+/*
+                struct uhna_key key;
+                set_uhna_key(&key, AF_INET6, 128, adv->srcTunAddress, 0);
+*/
+
+                if (op == TLV_OP_DEL) {
+
+
+                } else if (op == TLV_OP_TEST) {
+
+                        if (is_ip_invalid(&adv->srcTunIp, AF_INET6) || find_overlapping_hna(&adv->srcTunIp, 128))
+                                return TLV_RX_DATA_BLOCKED;
+
+                        if (is_ip_net_equal(&adv->srcTunIp, &IP6_LINKLOCAL_UC_PREF, IP6_LINKLOCAL_UC_PLEN, AF_INET6))
+                                return TLV_RX_DATA_BLOCKED;
+
+                } else if (op == TLV_OP_ADD) {
+
+
+                }
+
+                adv++;
+        }
 
         return it->frame_msgs_length;
 }
@@ -776,11 +799,11 @@ int process_description_tlv_gw(struct rx_frame_iterator *it)
 
 
 STATIC_FUNC
-int create_description_tlv_gw(struct tx_frame_iterator *it)
+int create_description_tlv_tun_adv(struct tx_frame_iterator *it)
 {
-        struct description_msg_gw *msg = ((struct description_msg_gw *) tx_iterator_cache_msg_ptr(it));
-        uint16_t m = 0, max = tx_iterator_cache_data_space(it) / sizeof (struct description_msg_gw);
-        struct opt_type *o = get_option(NULL, NO, ARG_GW_IN);
+        struct description_msg_tun_adv *msg = ((struct description_msg_tun_adv *) tx_iterator_cache_msg_ptr(it));
+        uint16_t m = 0, max = tx_iterator_cache_data_space(it) / sizeof (struct description_msg_tun_adv);
+        struct opt_type *o = get_option(NULL, NO, ARG_TUN_ADV);
         struct opt_parent *p = NULL;
         struct opt_child *c = NULL;
         struct tun_in_node *tun;
@@ -794,29 +817,29 @@ int create_description_tlv_gw(struct tx_frame_iterator *it)
 
         while ((p = list_iterate(&o->d.parents_instance_list, p)) && m <= max) {
 
-                struct description_msg_gw gw;
+                struct description_msg_tun_adv gw;
                 memset(&gw, 0, sizeof (gw));
 
                 while ((c = list_iterate(&p->childs_instance_list, c))) {
 
-                        if (!strcmp(c->opt->name, ARG_GW_IN_TUN)) {
-                                str2netw(c->val, &gw.src, NULL, NULL, NULL);
-                        } else if (!strcmp(c->opt->name, ARG_GW_IN_BW)) {
+                        if (!strcmp(c->opt->name, ARG_TUN_ADV_SRC)) {
+                                str2netw(c->val, &gw.srcTunIp, NULL, NULL, NULL);
+                        } else if (!strcmp(c->opt->name, ARG_TUN_ADV_BW)) {
                                 UMETRIC_T um = strtoul(c->val, NULL, 10);
                                 gw.bandwidth = umetric_to_fmu8(&um);
                         }
                 }
 
-                if (!is_ip_set(&gw.src) && (tun = avl_first_item(&tunnel_in_tree)))
-                        gw.src = tun->srcTunAddress;
+                if (!is_ip_set(&gw.srcTunIp) && (tun = avl_first_item(&tunnel_in_tree)))
+                        gw.srcTunIp = tun->srcTunIp;
 
-                str2netw(p->val, &gw.hna, NULL, &gw.prefixlen, NULL);
+                str2netw(p->val, &gw.network, NULL, &gw.prefixlen, NULL);
 
-                if ((tun = avl_find_item(&tunnel_in_tree, &gw.src)) && !tun->up)
+                if ((tun = avl_find_item(&tunnel_in_tree, &gw.srcTunIp)) && !tun->up)
                         configure_tun_in(ADD, self, tun);
 
                 if (tun && tun->up) {
-                        dbgf_track(DBGT_INFO, "src=%s dst=%s", ip6AsStr(&gw.src), ip6AsStr(&gw.hna));
+                        dbgf_track(DBGT_INFO, "src=%s dst=%s", ip6AsStr(&gw.srcTunIp), ip6AsStr(&gw.network));
                         msg[m++] = gw;
                 } else {
                         continue;
@@ -824,7 +847,7 @@ int create_description_tlv_gw(struct tx_frame_iterator *it)
         }
 
         if (m)
-                return m * sizeof (struct description_msg_gw);
+                return m * sizeof (struct description_msg_tun_adv);
         else
                 return TLV_TX_DATA_IGNORED;
 }
@@ -845,7 +868,7 @@ int32_t opt_gw_in(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_p
                         family2Str(af_cfg()), patch->diff, opt_cmd2str[cmd], _save, opt->name, patch->val);
 
                 if (str2netw(patch->val, &dst, cn, &mask, &family) == FAILURE) {
-                        dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "invalid %s=%s", ARG_GW_IN, patch->val);
+                        dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "invalid %s=%s", ARG_TUN_ADV, patch->val);
                         return FAILURE;
                 }
 
@@ -860,7 +883,7 @@ int32_t opt_gw_in(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_p
 
                 while ((c = list_iterate(&patch->childs_instance_list, c))) {
 
-                        if (!strcmp(c->opt->name, ARG_GW_IN_BW) && c->val) {
+                        if (!strcmp(c->opt->name, ARG_TUN_ADV_BW) && c->val) {
 
                                 char *endptr;
                                 unsigned long long ull = strtoul(c->val, &endptr, 10);
@@ -868,13 +891,13 @@ int32_t opt_gw_in(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_p
                                 if (ull > UMETRIC_MAX || ull < UMETRIC_FM8_MIN || *endptr != '\0')
                                         return FAILURE;
 
-                        } else if (!strcmp(c->opt->name, ARG_GW_IN_TUN) && c->val) {
+                        } else if (!strcmp(c->opt->name, ARG_TUN_ADV_SRC) && c->val) {
 
                                 IPX_T src;
                                 uint8_t family = 0;
 
                                 if (str2netw(c->val, &src, cn, NULL, &family) == FAILURE || family != AF_INET6) {
-                                        dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "invalid %s=%s", ARG_GW_IN_TUN, c->val);
+                                        dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "invalid %s=%s", ARG_TUN_ADV_SRC, c->val);
                                         return FAILURE;
                                 }
 
@@ -896,7 +919,7 @@ int32_t opt_gw_in(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_p
 }
 
 STATIC_FUNC
-void configure_tun_out(IDM_T del, struct network_node *net, struct ctrl_node *cn)
+void configure_tun_out(IDM_T del, struct tun_search_node *net, struct ctrl_node *cn)
 {
         dbgf_cn(cn, DBGL_CHANGES, DBGT_INFO, "%s %s: %s/%d %s",
                 del ? "DEL" : "ADD", net->networkName, ipXAsStr(net->family, &net->network), net->prefixlen,
@@ -906,7 +929,7 @@ void configure_tun_out(IDM_T del, struct network_node *net, struct ctrl_node *cn
 STATIC_FUNC
 int32_t opt_gw_out(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
 {
-        struct network_node *net = NULL;
+        struct tun_search_node *net = NULL;
 
         if (cmd == OPT_ADJUST || cmd == OPT_CHECK || cmd == OPT_APPLY) {
 
@@ -924,13 +947,13 @@ int32_t opt_gw_out(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_
                 if (cmd == OPT_APPLY) {
                         net = avl_find_item(&network_tree, name);
                         
-                        if (net && net->tun) {
+                        if (net && net->tun_adv) {
                                 configure_tun_out(DEL, net, cn);
                         }
                         
                         if (patch->diff != DEL && !net) {
-                                net = debugMalloc(sizeof (struct network_node), -300000);
-                                memset(net, 0, sizeof (struct network_node));
+                                net = debugMalloc(sizeof (struct tun_search_node), -300000);
+                                memset(net, 0, sizeof (struct tun_search_node));
                                 strcpy(net->networkName, name);
                                 avl_insert(&network_tree, net, -300000);
                         }
@@ -939,7 +962,7 @@ int32_t opt_gw_out(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_
 
                 while ((c = list_iterate(&patch->childs_instance_list, c))) {
 
-                        if (!strcmp(c->opt->name, ARG_GW_OUT_NETWORK)) {
+                        if (!strcmp(c->opt->name, ARG_TUN_SEARCH_NETWORK)) {
 
                                 if (c->val) {
                                         uint8_t family = 0;
@@ -967,7 +990,7 @@ int32_t opt_gw_out(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_
                                 }
 
 
-                        } else if (!strcmp(c->opt->name, ARG_GW_OUT_HOSTNAME) ) {
+                        } else if (!strcmp(c->opt->name, ARG_TUN_SEARCH_HOSTNAME) ) {
 
                                 if (c->val) {
 
@@ -984,7 +1007,7 @@ int32_t opt_gw_out(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_
                                         memset(net->global_id.name, 0, sizeof (net->global_id.name));
                                 }
 
-                        } else if (!strcmp(c->opt->name, ARG_GW_OUT_PKID)) {
+                        } else if (!strcmp(c->opt->name, ARG_TUN_SEARCH_PKID)) {
 
                                 if (c->val) {
 
@@ -1019,6 +1042,7 @@ int32_t opt_gw_out(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_
         }
 
         if (  cmd == OPT_UNREGISTER ) {
+
                 while ((net = avl_first_item(&network_tree))) {
 
                         configure_tun_out(DEL, net, cn);
@@ -1067,7 +1091,7 @@ int32_t opt_tun_in(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_
 
                 while ((c = list_iterate(&patch->childs_instance_list, c))) {
 
-                        if (!strcmp(c->opt->name, ARG_TUN_IN_NAME) && c->val && (
+                        if (!strcmp(c->opt->name, ARG_TUN_SRC_NAME) && c->val && (
                                 strlen(c->val) >= sizeof (tun->name) ||
                                 validate_name_string(c->val, strlen(c->val) + 1) != SUCCESS ||
                                 strncmp(tun_name_prefix.str, c->val, strlen(tun_name_prefix.str)))) {
@@ -1084,20 +1108,20 @@ int32_t opt_tun_in(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_
                         configure_tun_in(DEL, self, tun);
 
                 if (patch->diff == DEL) {
-                        avl_remove(&tunnel_in_tree, &tun->srcTunAddress, -300391);
+                        avl_remove(&tunnel_in_tree, &tun->srcTunIp, -300391);
                         debugFree(tun, -300392);
                 } else {
                         if(!tun) {
                                 tun = debugMalloc(sizeof (struct tun_in_node), -300389);
                                 memset(tun, 0, sizeof (struct tun_in_node));
-                                tun->srcTunAddress = src;
+                                tun->srcTunIp = src;
                                 tun->name_auto = 1;
                                 avl_insert(&tunnel_in_tree, tun, -300390);
                         }
 
                         while ((c = list_iterate(&patch->childs_instance_list, c))) {
 
-                                if (!strcmp(c->opt->name, ARG_TUN_IN_NAME)) {
+                                if (!strcmp(c->opt->name, ARG_TUN_SRC_NAME)) {
 
                                         memset(&tun->name, 0, sizeof (tun->name));
                                         
@@ -1117,7 +1141,7 @@ int32_t opt_tun_in(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_
 
                 while ((tun = avl_first_item(&tunnel_in_tree))) {
                         configure_tun_in(DEL, self, tun);
-                        avl_remove(&tunnel_in_tree, &tun->srcTunAddress, -300393);
+                        avl_remove(&tunnel_in_tree, &tun->srcTunIp, -300393);
                         debugFree(tun, -300394);
                 }
         }
@@ -1230,35 +1254,32 @@ struct opt_type hna_options[]= {
 	{ODI,0,ARG_TUN_NAME_PREFIX,    	0,  5,1,A_PS1,A_ADM,A_INI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_tun_name,
 			ARG_NAME_FORM, "specify first letters of local tunnel-interface names"}
         ,
-	{ODI,0,ARG_TUN_IN_SRC,	 	0,5,2,A_PM1N,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_tun_in,
+	{ODI,0,ARG_TUN_SRC,	 	0,5,2,A_PM1N,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_tun_in,
 			ARG_ADDR_FORM,  "configure one-way IPv6 tunnel by specifying to-be-used src address"},
-	{ODI,ARG_TUN_IN_SRC,ARG_TUN_IN_NAME,0,5,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,	        0,              0,0,            opt_tun_in,
+	{ODI,ARG_TUN_SRC,ARG_TUN_SRC_NAME,0,5,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,	        0,              0,0,            opt_tun_in,
 			ARG_NAME_FORM,	"specify name of tunnel interface"}
         ,
-	{ODI,0,ARG_TUNS_IN,	        0,5,2,A_PS0,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
+	{ODI,0,ARG_TUNS,	        0,5,2,A_PS0,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
 			0,		"show announced gateways and tunnels"}
         ,
 
-        {ODI,0,ARG_GW_IN,	 	0,5,2,A_PM1N,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_gw_in,
+        {ODI,0,ARG_TUN_ADV,	 	0,5,2,A_PM1N,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_gw_in,
 			ARG_PREFIX_FORM,"announce gateway tunnel to network"},
-	{ODI,ARG_GW_IN,ARG_GW_IN_TUN,     0,5,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,              0,              0,0,            opt_gw_in,
+	{ODI,ARG_TUN_ADV,ARG_TUN_ADV_SRC,     0,5,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,              0,              0,0,            opt_gw_in,
 			ARG_ADDR_FORM,	"specify incoming tunnel (by announcing to-be-used src address)"},
-	{ODI,ARG_GW_IN,ARG_GW_IN_BW,      0,5,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,	        0,              0,0,            opt_gw_in,
+	{ODI,ARG_TUN_ADV,ARG_TUN_ADV_BW,      0,5,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,	        0,              0,0,            opt_gw_in,
 			ARG_VALUE_FORM,	"announce bandwidth as bits/sec"}
         ,
-	{ODI,0,ARG_GW_OUT,	 	0,5,2,A_PM1N,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_gw_out,
+	{ODI,0,ARG_TUN_SEARCH,	 	0,5,2,A_PM1N,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_gw_out,
 		        ARG_NAME_FORM,"specify arbitrary but unique name for network which should be reached via tunnel depending on sub criterias"},
-	{ODI,ARG_GW_OUT,ARG_GW_OUT_NETWORK,0,5,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,              0,              0,0,            opt_gw_out,
+	{ODI,ARG_TUN_SEARCH,ARG_TUN_SEARCH_NETWORK,0,5,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,              0,              0,0,            opt_gw_out,
 			ARG_PREFIX_FORM, "specify network to be reached via tunnel"},
-	{ODI,ARG_GW_OUT,ARG_GW_OUT_IPMETRIC,0,5,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,		0,              MAX_GW_OUT_IPMETRIC,0,0,        opt_gw_out,
+	{ODI,ARG_TUN_SEARCH,ARG_TUN_SEARCH_IPMETRIC,0,5,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,		0,              MAX_TUN_SEARCH_IPMETRIC,0,0,        opt_gw_out,
 			ARG_VALUE_FORM, "specify ip metric for local routing table entries"},
-	{ODI,ARG_GW_OUT,ARG_GW_OUT_HOSTNAME,0,5,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,		0,              0,              0,0,            opt_gw_out,
+	{ODI,ARG_TUN_SEARCH,ARG_TUN_SEARCH_HOSTNAME,0,5,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,		0,              0,              0,0,            opt_gw_out,
 			ARG_NAME_FORM, "specify hotname of remote tunnel endpoint"},
-	{ODI,ARG_GW_OUT,ARG_GW_OUT_PKID,0,5,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,              0,              0,0,            opt_gw_out,
+	{ODI,ARG_TUN_SEARCH,ARG_TUN_SEARCH_PKID,0,5,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,              0,              0,0,            opt_gw_out,
 			ARG_SHA2_FORM, "specify pkid of remote tunnel endpoint"}
-        ,
-	{ODI,0,ARG_TUNS_OUT,	        0,5,2,A_PS0,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
-			0,		"show selected gateways and tunnels"}
         ,
 
 };
@@ -1301,8 +1322,7 @@ int32_t hna_init( void )
         
         static const struct field_format hna4_format[] = DESCRIPTION_MSG_HNA4_FORMAT;
         static const struct field_format hna6_format[] = DESCRIPTION_MSG_HNA6_FORMAT;
-//        static const struct field_format tunnel_format[] = DESCRIPTION_MSG_TUNNEL_FORMAT;
-        static const struct field_format gw_format[] = DESCRIPTION_MSG_GW_FORMAT;
+        static const struct field_format tun_adv_format[] = DESCRIPTION_MSG_TUN_ADV_FORMAT;
 
         static const struct field_format tunnel_status_format[] = TUNNEL_NODE_FORMAT;
 
@@ -1328,14 +1348,14 @@ int32_t hna_init( void )
         register_frame_handler(description_tlv_handl, BMX_DSC_TLV_UHNA6, &tlv_handl);
 
         memset(&tlv_handl, 0, sizeof (tlv_handl));
-        tlv_handl.min_msg_size = sizeof (struct description_msg_gw);
+        tlv_handl.min_msg_size = sizeof (struct description_msg_tun_adv);
         tlv_handl.fixed_msg_size = 1;
         tlv_handl.is_relevant = 1;
-        tlv_handl.name = "GW_EXTENSION";
-        tlv_handl.tx_frame_handler = create_description_tlv_gw;
-        tlv_handl.rx_frame_handler = process_description_tlv_gw;
-        tlv_handl.msg_format = gw_format;
-        register_frame_handler(description_tlv_handl, BMX_DSC_TLV_GW, &tlv_handl);
+        tlv_handl.name = "TUN_EXTENSION";
+        tlv_handl.tx_frame_handler = create_description_tlv_tun_adv;
+        tlv_handl.rx_frame_handler = process_description_tlv_tun_adv;
+        tlv_handl.msg_format = tun_adv_format;
+        register_frame_handler(description_tlv_handl, BMX_DSC_TLV_TUN_ADV, &tlv_handl);
 
 
         register_options_array(hna_options, sizeof ( hna_options), CODE_CATEGORY_NAME);
@@ -1345,7 +1365,7 @@ int32_t hna_init( void )
 //        tun_orig_registry = get_plugin_data_registry(PLUGIN_DATA_ORIG);
 //        gw_orig_registry = get_plugin_data_registry(PLUGIN_DATA_ORIG);
 
-        register_status_handl(sizeof (struct tun_in_node), 1, tunnel_status_format, ARG_TUNS_IN, tun_in_status_creator);
+        register_status_handl(sizeof (struct tun_in_node), 1, tunnel_status_format, ARG_TUNS, tun_in_status_creator);
 
 //        register_status_handl(sizeof (struct tun_node), tunnel_status_format, ARG_TUNS_OUT, tun_out_status_creator);
 

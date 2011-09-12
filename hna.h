@@ -22,6 +22,8 @@
 
 
 
+
+
 #define ARG_UHNA "hna"
 
 #define ARG_UHNA_NETWORK     "network"
@@ -123,23 +125,24 @@ FIELD_FORMAT_END }
 
 
 struct tun_adv_node {
+        struct orig_node *on;
+
         IP6_T srcTunIp;
         IPX_T network;
         uint8_t prefixlen;
         FMETRIC_U8_T bandwidth;
 
-        struct tun_search_node *tun_search;
-        struct tun_out_node *tun_out;
+        struct avl_tree tun_search_tree;
+        struct tunnel_node *tun_out;
 
-        struct orig_node *on;
 };
 
 
 #define NETWORK_NAME_LEN 32
 
 struct tun_search_node {
-        char networkName[NETWORK_NAME_LEN];
-        IPX_T network;
+        char netName[NETWORK_NAME_LEN];
+        IPX_T net;
         uint8_t prefixlen;
         uint8_t family;
         uint32_t ipmetric;
@@ -149,9 +152,11 @@ struct tun_search_node {
 };
 
 
-struct tun_out_node {
+struct tunnel_node {
         IP6_T srcTunIp;
         IFNAME_T name;
+        uint8_t name_auto;
+        uint8_t up;
 
         struct avl_tree tun_adv_tree;
 
@@ -160,21 +165,13 @@ struct tun_out_node {
 
 
 
-struct tun_in_node {
-        IP6_T srcTunIp;
-
-        IFNAME_T name;
-        uint8_t name_auto;
-        uint8_t up;
-};
-
-
 
 #define TUNNEL_NODE_FORMAT { \
-        FIELD_FORMAT_INIT(FIELD_TYPE_IPX6,        tun_in_node, srcTunIp,   1, FIELD_RELEVANCE_HIGH), \
-        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR, tun_in_node, name,       1, FIELD_RELEVANCE_HIGH), \
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        tun_in_node, name_auto,  1, FIELD_RELEVANCE_MEDI), \
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,        tun_in_node, up,         1, FIELD_RELEVANCE_HIGH), \
+        FIELD_FORMAT_INIT(FIELD_TYPE_IPX6,          tunnel_node, srcTunIp,     1, FIELD_RELEVANCE_HIGH), \
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,   tunnel_node, name,         1, FIELD_RELEVANCE_HIGH), \
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,          tunnel_node, name_auto,    1, FIELD_RELEVANCE_MEDI), \
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,          tunnel_node, up,           1, FIELD_RELEVANCE_HIGH), \
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_BINARY, tunnel_node, tun_adv_tree, 1, FIELD_RELEVANCE_LOW), \
         FIELD_FORMAT_END }
 
 

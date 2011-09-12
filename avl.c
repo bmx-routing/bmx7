@@ -278,7 +278,7 @@ void avl_insert(struct avl_tree *tree, void *node, int32_t tag)
 
 
 
-void *avl_remove(struct avl_tree *tree, void *key, int32_t tag)
+void *avl_remove_item(struct avl_tree *tree, void *key, void *item, int32_t tag)
 {
         struct avl_node *it = tree->root;
         struct avl_node *up[AVL_MAX_HEIGHT];
@@ -287,8 +287,9 @@ void *avl_remove(struct avl_tree *tree, void *key, int32_t tag)
         if (!it)
                 return NULL;
 
-        while ((cmp = memcmp(AVL_NODE_KEY(tree, it), key, tree->key_size)) ||
-                (it->link[0] && !memcmp(AVL_NODE_KEY(tree, it->link[0]), key, tree->key_size))) {
+        while ((!item || item != it->link[0]->item) && (
+                (cmp = memcmp(AVL_NODE_KEY(tree, it), key, tree->key_size) ||
+                (it->link[0] && !memcmp(AVL_NODE_KEY(tree, it->link[0]), key, tree->key_size))))) {
 
                 // Push direction and node onto stack
                 upd[top] = (cmp < 0);

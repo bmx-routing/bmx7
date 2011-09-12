@@ -80,8 +80,9 @@ struct avl_node *avl_iterate(struct avl_tree *tree, struct avl_node *it );
 void            *avl_iterate_item(struct avl_tree *tree, struct avl_node **it );
 
 void             avl_insert(struct avl_tree *tree, void *node, int32_t tag);
-void            *avl_remove(struct avl_tree *tree, void *key, int32_t tag);
-
+//void            *avl_remove(struct avl_tree *tree, void *key, int32_t tag);
+void            *avl_remove_item(struct avl_tree *tree, void *key, void *item, int32_t tag);
+#define         avl_remove( tree, key, tag ) avl_remove_item(tree, key, NULL, tag)
 void             init_avl(void);
 
 #ifdef AVL_DEBUG

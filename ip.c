@@ -1303,10 +1303,10 @@ IDM_T ip(uint8_t family, uint8_t cmd, int8_t del, uint8_t quiet, const IPX_T *NE
 
         assertion(-500653, (family == AF_INET || family == AF_INET6));
         assertion(-501102, (af_cfg() == family) || (niit_enabled && af_cfg() == AF_INET6 && family == AF_INET && !via));
-        assertion(-501127, (IMPLIES(policy_routing == POLICY_RT_UNSET, (cmd == IP_RULE_TEST && initializing))));
-        assertion(-500650, ((NET && is_ip_valid(NET, family))));
-        assertion(-500651, (!(via && !is_ip_valid(via, family))));
-        assertion(-500652, (!(src && !is_ip_valid(src, family))));
+        assertion(-501127, IMPLIES(policy_routing == POLICY_RT_UNSET, (cmd == IP_RULE_TEST && initializing)));
+        assertion(-500650, IMPLIES(NET, !is_ip_set(NET) || is_ip_valid(NET, family)));
+        assertion(-500651, IMPLIES(via, is_ip_valid(via, family)));
+        assertion(-500652, IMPLIES(src, is_ip_valid(src, family)));
 
 
 	struct sockaddr_nl nladdr;
@@ -1318,7 +1318,7 @@ IDM_T ip(uint8_t family, uint8_t cmd, int8_t del, uint8_t quiet, const IPX_T *NE
         uint32_t prio = prio_macro_to_prio(prio_macro);
         uint32_t table = table_macro_to_table(table_macro);
 
-        IPX_T net_dummy = *NET;
+        IPX_T net_dummy = NET ? *NET : ZERO_IP;
         IPX_T *net = &net_dummy;
 
         uint8_t more_data;
@@ -2258,7 +2258,7 @@ void ip_flush_routes( void )
 
 
         for (table_macro = RT_TABLE_MIN; table_macro <= RT_TABLE_MAX; table_macro++)
-                ip(af_cfg(), IP_ROUTE_FLUSH_ALL, DEL, YES/*quiet*/, &ZERO_IP, 0, table_macro, 0, 0, 0, 0, 0, 0);
+                ip(af_cfg(), IP_ROUTE_FLUSH_ALL, DEL, YES/*quiet*/, NULL, 0, table_macro, 0, 0, 0, 0, 0, 0);
 
 }
 
@@ -2273,7 +2273,7 @@ void ip_flush_rules(void)
 
         for (table_macro = RT_TABLE_MIN; table_macro <= RT_TABLE_MAX; table_macro++) {
 
-                while (ip(af_cfg(), IP_RULE_FLUSH, DEL, YES, &ZERO_IP, 0, table_macro, 0, 0, 0, 0, 0, 0) == SUCCESS) {
+                while (ip(af_cfg(), IP_RULE_FLUSH, DEL, YES, NULL, 0, table_macro, 0, 0, 0, 0, 0, 0) == SUCCESS) {
 
                         dbgf_sys(DBGT_ERR, "removed orphan %s rule to table %d", family2Str(af_cfg()), table_macro);
 
@@ -2750,9 +2750,9 @@ IDM_T is_policy_rt_supported(void)
 
         tested_family = family;
 
-        if (ip(family, IP_RULE_TEST, ADD, YES, &ZERO_IP, 0, RT_TABLE_HOSTS, RT_PRIO_HOSTS, 0, 0, 0, 0, 0) == SUCCESS) {
+        if (ip(family, IP_RULE_TEST, ADD, YES, NULL, 0, RT_TABLE_HOSTS, RT_PRIO_HOSTS, 0, 0, 0, 0, 0) == SUCCESS) {
 
-                ip(family, IP_RULE_TEST, DEL, YES, &ZERO_IP, 0, RT_TABLE_HOSTS, RT_PRIO_HOSTS, 0, 0, 0, 0, 0);
+                ip(family, IP_RULE_TEST, DEL, YES, NULL, 0, RT_TABLE_HOSTS, RT_PRIO_HOSTS, 0, 0, 0, 0, 0);
 
                 return (tested_policy_rt = YES);
 
@@ -2854,15 +2854,15 @@ int32_t opt_ip_version(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                         ip_flush_routes();
                         ip_flush_rules();
 
-                        ip(af_cfg(), IP_RULE_DEFAULT, ADD, NO, &ZERO_IP, 0, RT_TABLE_HOSTS, RT_PRIO_HOSTS, 0, 0, 0, 0, 0);
-                        ip(af_cfg(), IP_RULE_DEFAULT, ADD, NO, &ZERO_IP, 0, RT_TABLE_NETS, RT_PRIO_NETS, 0, 0, 0, 0, 0);
-                        ip(af_cfg(), IP_RULE_DEFAULT, ADD, NO, &ZERO_IP, 0, RT_TABLE_TUNS, RT_PRIO_TUNS, 0, 0, 0, 0, 0);
+                        ip(af_cfg(), IP_RULE_DEFAULT, ADD, NO, NULL, 0, RT_TABLE_HOSTS, RT_PRIO_HOSTS, 0, 0, 0, 0, 0);
+                        ip(af_cfg(), IP_RULE_DEFAULT, ADD, NO, NULL, 0, RT_TABLE_NETS, RT_PRIO_NETS, 0, 0, 0, 0, 0);
+                        ip(af_cfg(), IP_RULE_DEFAULT, ADD, NO, NULL, 0, RT_TABLE_TUNS, RT_PRIO_TUNS, 0, 0, 0, 0, 0);
 
                         if (niit_enabled && af_cfg() == AF_INET6) {
 
-                                ip(AF_INET, IP_RULE_DEFAULT, ADD, NO, &ZERO_IP, 0, RT_TABLE_HOSTS, RT_PRIO_HOSTS, 0, 0, 0, 0, 0);
-                                ip(AF_INET, IP_RULE_DEFAULT, ADD, NO, &ZERO_IP, 0, RT_TABLE_NETS, RT_PRIO_NETS, 0, 0, 0, 0, 0);
-                                ip(AF_INET, IP_RULE_DEFAULT, ADD, NO, &ZERO_IP, 0, RT_TABLE_TUNS, RT_PRIO_TUNS, 0, 0, 0, 0, 0);
+                                ip(AF_INET, IP_RULE_DEFAULT, ADD, NO, NULL, 0, RT_TABLE_HOSTS, RT_PRIO_HOSTS, 0, 0, 0, 0, 0);
+                                ip(AF_INET, IP_RULE_DEFAULT, ADD, NO, NULL, 0, RT_TABLE_NETS, RT_PRIO_NETS, 0, 0, 0, 0, 0);
+                                ip(AF_INET, IP_RULE_DEFAULT, ADD, NO, NULL, 0, RT_TABLE_TUNS, RT_PRIO_TUNS, 0, 0, 0, 0, 0);
                         }
 
 		}

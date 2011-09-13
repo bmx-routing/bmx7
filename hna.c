@@ -580,7 +580,7 @@ int process_description_tlv_hna(struct rx_frame_iterator *it)
 
 
                         // check if node announces the same key twice:
-                        assertion(-500000, (it->misc_ptr));
+                        assertion(-501294, (it->misc_ptr));
 
                         uint32_t i;
                         struct net_key *k = (struct net_key*) *(it->misc_ptr);
@@ -724,7 +724,7 @@ STATIC_FUNC
 void configure_tunnel(uint8_t del, struct orig_node *on, struct tunnel_node *tun)
 {
         assertion(-501292, (is_ip_set(&tun->srcTunIp)));
-        assertion(-500000, on && is_ip_set(&on->primary_ip));
+        assertion(-501295, on && is_ip_set(&on->primary_ip));
         assertion(-501294, IMPLIES(tun->up, tun->name.str[0]));
         assertion(-501295, IMPLIES(tun->up, del));
 
@@ -772,8 +772,8 @@ void configure_tunnel(uint8_t del, struct orig_node *on, struct tunnel_node *tun
 STATIC_FUNC
 void del_tun_out(struct tun_adv_node *tan, struct tun_search_node *tsn, struct ctrl_node *cn)
 {
-        assertion(-500000, tan);
-        assertion(-500000, IMPLIES(tan->tun_out || tan->tun_search_tree.items, tan->tun_out && tan->tun_search_tree.items));
+        assertion(-501296, tan);
+        assertion(-501297, IMPLIES(tan->tun_out || tan->tun_search_tree.items, tan->tun_out && tan->tun_search_tree.items));
 
         dbgf_cn(cn, DBGL_CHANGES, DBGT_INFO, "%s: %s/%d %s",
                 tsn ? tsn->netName : "", ipXAsStr(AF_INET6, &tan->network), tan->prefixlen, globalIdAsString(&tan->on->global_id));
@@ -787,21 +787,21 @@ void del_tun_out(struct tun_adv_node *tan, struct tun_search_node *tsn, struct c
 
                         struct tunnel_node *tun = tan->tun_out;
 
-                        assertion(-500000, (ttsn->tun_adv == tan));
-                        assertion(-500000, (tun && tun->up && tun->name_auto && tun->tun_adv_tree.items));
+                        assertion(-501298, (ttsn->tun_adv == tan));
+                        assertion(-501299, (tun && tun->up && tun->name_auto && tun->tun_adv_tree.items));
 
                         ttsn->tun_adv = NULL;
-                        avl_remove(&tan->tun_search_tree, ttsn->netName, -300000);
+                        avl_remove(&tan->tun_search_tree, ttsn->netName, -300408);
 
                         if (!tan->tun_search_tree.items) {
 
-                                avl_remove_item(&tun->tun_adv_tree, &tan->on, tan, -300000);
+                                avl_remove_item(&tun->tun_adv_tree, &tan->on, tan, -300409);
                                 tan->tun_out = NULL;
 
                                 if (!tun->tun_adv_tree.items) {
                                         configure_tunnel(DEL, tan->on, tun);
-                                        avl_remove(&tunnel_out_tree, &tun->srcTunIp, -300000);
-                                        debugFree(tun, -300000);
+                                        avl_remove(&tunnel_out_tree, &tun->srcTunIp, -300410);
+                                        debugFree(tun, -300411);
                                 }
                         }
                         it = NULL;
@@ -858,20 +858,20 @@ void set_tun_out(struct tun_search_node *tsn, struct tun_adv_node *tan)
                                 if (!best_tan->tun_out) {
                                         struct tunnel_node *tun = avl_find_item(&tunnel_out_tree, &best_tan->srcTunIp);
                                         if(!tun) {
-                                                tun = debugMalloc(sizeof(struct tunnel_node), -300000);
+                                                tun = debugMalloc(sizeof(struct tunnel_node), -300412);
                                                 memset(tun, 0, sizeof(struct tunnel_node));
                                                 tun->name_auto = 1;
                                                 tun->srcTunIp = best_tan->srcTunIp;
                                                 AVL_INIT_TREE(tun->tun_adv_tree, struct tun_adv_node, on);
                                                 configure_tunnel(ADD, best_tan->on, tun);
-                                                avl_insert(&tunnel_out_tree, tun, -300000);
+                                                avl_insert(&tunnel_out_tree, tun, -300413);
                                         }
                                         best_tan->tun_out = tun;
-                                        avl_insert(&tun->tun_adv_tree, best_tan, -300000);
+                                        avl_insert(&tun->tun_adv_tree, best_tan, -300414);
                                 }
 
                                 ttsn->tun_adv = best_tan;
-                                avl_insert(&best_tan->tun_search_tree, ttsn, -300000);
+                                avl_insert(&best_tan->tun_search_tree, ttsn, -300415);
                         }
                 }
         }
@@ -920,8 +920,8 @@ int process_description_tlv_tun_adv(struct rx_frame_iterator *it)
                         struct tun_adv_node *tan = next_tun_adv(on, &adv->srcTunIp, &adv->network, adv->prefixlen, 1, 0);
 
                         del_tun_out(tan, NULL, NULL);
-                        avl_remove_item(&tun_adv_tree, &on, tan, -300000);
-                        debugFree(tan, -300000);
+                        avl_remove_item(&tun_adv_tree, &on, tan, -300416);
+                        debugFree(tan, -300417);
 
                         set_tun_out(NULL, NULL);
 
@@ -936,7 +936,7 @@ int process_description_tlv_tun_adv(struct rx_frame_iterator *it)
 
                 } else if (op == TLV_OP_ADD) {
 
-                        struct tun_adv_node *tan = debugMalloc(sizeof (struct tun_adv_node), -300000);
+                        struct tun_adv_node *tan = debugMalloc(sizeof (struct tun_adv_node), -300418);
                         memset(tan, 0, sizeof (struct tun_adv_node));
                         tan->on = on;
                         tan->network = adv->network;
@@ -945,7 +945,7 @@ int process_description_tlv_tun_adv(struct rx_frame_iterator *it)
                         tan->bandwidth = adv->bandwidth;
                         AVL_INIT_TREE(tan->tun_search_tree, struct tun_search_node, netName);
 
-                        avl_insert(&tun_adv_tree, tan, -300000);
+                        avl_insert(&tun_adv_tree, tan, -300419);
 
                         set_tun_out(NULL, tan);
                 }

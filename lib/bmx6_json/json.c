@@ -67,7 +67,7 @@ json_object * fields_dbg_json(uint8_t relevance, uint8_t force_array, uint16_t d
 
         while ((msgs_size = field_iterate(&it)) == SUCCESS) {
 
-                assertion(-500000, IMPLIES(it.field == 0, !jfields));
+                assertion(-501230, IMPLIES(it.field == 0, !jfields));
 /*
                 if (it.field == 0 && jfields) {
                         jarray = jarray ? jarray : json_object_new_array();

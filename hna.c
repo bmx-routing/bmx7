@@ -45,6 +45,7 @@ static AVL_TREE(global_uhna_tree, struct hna_node, key );
 static AVL_TREE(local_uhna_tree, struct hna_node, key );
 
 static AVL_TREE(tunnel_in_tree, struct tunnel_node, srcTunIp);
+static AVL_TREE(tunnel_out_tree, struct tunnel_node, srcTunIp);
 static AVL_TREE(tun_search_tree, struct tun_search_node, netName);
 static AVL_TREE(tun_adv_tree, struct tun_adv_node, on);
 
@@ -80,7 +81,6 @@ void hna_description_event_hook(int32_t cb_id, struct orig_node *on)
                 process_description_tlvs(NULL, on, on->desc, TLV_OP_CUSTOM_NIIT6TO4_ADD, BMX_DSC_TLV_UHNA6, NULL);
         }
 }
-
 
 
 STATIC_FUNC
@@ -170,8 +170,28 @@ void niit_dev_event_hook(int32_t cb_id, void* unused)
                         process_description_tlvs(NULL, self, self->desc, TLV_OP_CUSTOM_NIIT6TO4_ADD, BMX_DSC_TLV_UHNA6, NULL);
 
         }
+}
+
+
+STATIC_FUNC
+void hna_dev_event_hook(int32_t cb_id, void* unused)
+{
+
+        niit_dev_event_hook(cb_id, unused);
+
+
+        struct tunnel_node *tun;
+        struct avl_node *an = NULL;
+        while ((tun = avl_iterate_item(&tunnel_in_tree, &an))) {
+
+                if (tun->up && is_ip_local(&tun->srcTunIp)) {
+                        dbgf_sys(DBGT_WARN, "ERROR:..");
+                        my_description_changed = YES;
+                }
+        }
 
 }
+
 
 STATIC_FUNC
 int32_t opt_niit(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
@@ -547,7 +567,7 @@ int process_description_tlv_hna(struct rx_frame_iterator *it)
 
                         struct hna_node *un = NULL;
 
-                        if (is_ip_invalid(&key.net, family) || (un = find_overlapping_hna(&key.net, key.prefixlen)) ||
+                        if (!is_ip_valid(&key.net, family) || (un = find_overlapping_hna(&key.net, key.prefixlen)) ||
                                 is_ip_net_equal(&key.net, &IP6_LINKLOCAL_UC_PREF, IP6_LINKLOCAL_UC_PLEN, AF_INET6)) {
 
                                 dbgf_sys(DBGT_ERR, "global_id=%s %s=%s/%d blocked (by global_id=%s)",
@@ -748,18 +768,7 @@ void configure_tunnel(uint8_t del, struct orig_node *on, struct tunnel_node *tun
                         tun->up = 1;
         }
 }
-STATIC_FUNC
-void set_tun_out(struct tun_search_node *tsn, struct tun_adv_node *tan)
-{
 
-        if (tsn) {
-                dbgf_track(DBGT_INFO, "%s: %s/%d %s",
-                        tsn->netName, ipXAsStr(tsn->family, &tsn->net), tsn->prefixlen, globalIdAsString(&tsn->global_id));
-        }
-
-
-
-}
 STATIC_FUNC
 void del_tun_out(struct tun_adv_node *tan, struct tun_search_node *tsn, struct ctrl_node *cn)
 {
@@ -791,6 +800,7 @@ void del_tun_out(struct tun_adv_node *tan, struct tun_search_node *tsn, struct c
 
                                 if (!tun->tun_adv_tree.items) {
                                         configure_tunnel(DEL, tan->on, tun);
+                                        avl_remove(&tunnel_out_tree, &tun->srcTunIp, -300000);
                                         debugFree(tun, -300000);
                                 }
                         }
@@ -798,6 +808,76 @@ void del_tun_out(struct tun_adv_node *tan, struct tun_search_node *tsn, struct c
                 }
         }
 }
+
+STATIC_FUNC
+void set_tun_out(struct tun_search_node *tsn, struct tun_adv_node *tan)
+{
+        struct tun_search_node *ttsn = NULL;
+        struct tun_adv_node *ttan = NULL;
+        struct avl_node *itsn = NULL, *itan = NULL;
+
+        if (tsn) {
+                dbgf_track(DBGT_INFO, "%s: %s/%d %s",
+                        tsn->netName, ipXAsStr(tsn->family, &tsn->net), tsn->prefixlen, globalIdAsString(&tsn->global_id));
+        }
+
+        while (IMPLIES(tsn, !ttsn) && (ttsn = tsn ? tsn : avl_iterate_item(&tun_search_tree, &itsn))) {
+
+                struct tun_adv_node *best_tan = NULL;
+
+                if (!tan && !tsn && ttsn->tun_adv)
+                        continue;
+
+                while (IMPLIES(tan, !ttan) && (ttan = tan ? tan : avl_iterate_item(&tun_adv_tree, &itan))) {
+
+                        struct orig_node *on = ttan->on;
+                        GLOBAL_ID_T *tan_gid = &on->global_id, *tsn_gid = &ttsn->global_id;
+                        UMETRIC_T linkQuality = UMETRIC_MAX;
+                        UMETRIC_T linkMax = fmetric_to_umetric(fmetric_u8_to_fmu16(ttan->bandwidth));
+                        UMETRIC_T pathMetric = on->curr_rt_local ? (on->curr_rt_local->mr.umetric) : 0;
+
+                        if (ttsn->prefixlen > tan->prefixlen ||
+                                !is_ip_net_equal(&ttsn->net, &tan->network, tan->prefixlen, AF_INET6) ||
+                                (strlen(tsn_gid->name) && strcmp(tsn_gid->name, tan_gid->name)) ||
+                                (!is_zero(&tsn_gid->pkid, GLOBAL_ID_PKID_LEN) && memcmp(&tsn_gid->pkid, &tan_gid->pkid, GLOBAL_ID_PKID_LEN)))
+                                continue;
+
+                        ttan->e2e_path = apply_metric_algo(&linkQuality, &linkMax, &pathMetric, on->path_metricalgo);
+
+                        if (!best_tan || (ttan->e2e_path > best_tan->e2e_path))
+                                best_tan = ttan;
+                }
+
+                if (best_tan != ttsn->tun_adv) {
+
+                        if(ttsn->tun_adv)
+                                del_tun_out(ttsn->tun_adv, ttsn, NULL);
+
+                        if (best_tan) {
+
+                                if (!best_tan->tun_out) {
+                                        struct tunnel_node *tun = avl_find_item(&tunnel_out_tree, &best_tan->srcTunIp);
+                                        if(!tun) {
+                                                tun = debugMalloc(sizeof(struct tunnel_node), -300000);
+                                                memset(tun, 0, sizeof(struct tunnel_node));
+                                                tun->name_auto = 1;
+                                                tun->srcTunIp = best_tan->srcTunIp;
+                                                AVL_INIT_TREE(tun->tun_adv_tree, struct tun_adv_node, on);
+                                                configure_tunnel(ADD, best_tan->on, tun);
+                                                avl_insert(&tunnel_out_tree, tun, -300000);
+                                        }
+                                        best_tan->tun_out = tun;
+                                        avl_insert(&tun->tun_adv_tree, best_tan, -300000);
+                                }
+
+                                ttsn->tun_adv = best_tan;
+                                avl_insert(&best_tan->tun_search_tree, ttsn, -300000);
+                        }
+                }
+        }
+}
+
+
 
 struct tun_adv_node *next_tun_adv(struct orig_node *on, IPX_T *src, IPX_T *net, uint8_t plen, IDM_T exact, struct avl_node **it) {
 
@@ -843,9 +923,12 @@ int process_description_tlv_tun_adv(struct rx_frame_iterator *it)
                         avl_remove_item(&tun_adv_tree, &on, tan, -300000);
                         debugFree(tan, -300000);
 
+                        set_tun_out(NULL, NULL);
+
                 } else if (op == TLV_OP_TEST) {
 
-                        if (is_ip_invalid(&adv->srcTunIp, AF_INET6) || find_overlapping_hna(&adv->srcTunIp, 128) ||
+                        if (avl_find(&tunnel_in_tree, &adv->srcTunIp) || avl_find(&tunnel_out_tree, &adv->srcTunIp) ||
+                                !is_ip_valid(&adv->srcTunIp, AF_INET6) || find_overlapping_hna(&adv->srcTunIp, 128) ||
                                 is_ip_net_equal(&adv->srcTunIp, &IP6_LINKLOCAL_UC_PREF, IP6_LINKLOCAL_UC_PLEN, AF_INET6))
                                 return TLV_RX_DATA_BLOCKED;
 
@@ -872,7 +955,6 @@ int process_description_tlv_tun_adv(struct rx_frame_iterator *it)
 
         return it->frame_msgs_length;
 }
-
 
 
 
@@ -913,8 +995,15 @@ int create_description_tlv_tun_adv(struct tx_frame_iterator *it)
 
                 str2netw(p->val, &gw.network, NULL, &gw.prefixlen, NULL);
 
-                if ((tun = avl_find_item(&tunnel_in_tree, &gw.srcTunIp)) && !tun->up)
-                        configure_tunnel(ADD, self, tun);
+                if ((tun = avl_find_item(&tunnel_in_tree, &gw.srcTunIp)) && !tun->up) {
+
+                        if (is_ip_local(&gw.srcTunIp)) {
+                                dbgf_sys(DBGT_WARN, "ERROR:..");
+                        } else {
+                                configure_tunnel(ADD, self, tun);
+                        }
+                }
+
 
                 if (tun && tun->up) {
                         dbgf_track(DBGT_INFO, "src=%s dst=%s", ip6AsStr(&gw.srcTunIp), ip6AsStr(&gw.network));
@@ -979,11 +1068,14 @@ int32_t opt_tun_adv(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt
                                         return FAILURE;
                                 }
 
-                                if (cmd == OPT_ADJUST) {
+//                                if (cmd == OPT_ADJUST) {
                                         char adjusted_src[IPXNET_STR_LEN];
                                         sprintf(adjusted_src, "%s", ipXAsStr(AF_INET6, &src));
                                         set_opt_child_val(c, adjusted_src);
-                                }
+//                                }
+
+                                if (avl_find(&tunnel_out_tree, &src))
+                                        return FAILURE;
                         }
                 }
 	}
@@ -1433,7 +1525,7 @@ struct plugin *hna_get_plugin( void ) {
         hna_plugin.plugin_code_version = CODE_VERSION;
         hna_plugin.cb_init = hna_init;
 	hna_plugin.cb_cleanup = hna_cleanup;
-        hna_plugin.cb_plugin_handler[PLUGIN_CB_SYS_DEV_EVENT] = niit_dev_event_hook;
+        hna_plugin.cb_plugin_handler[PLUGIN_CB_SYS_DEV_EVENT] = hna_dev_event_hook;
         hna_plugin.cb_plugin_handler[PLUGIN_CB_DESCRIPTION_CREATED] = (void (*) (int32_t, void*)) hna_description_event_hook;
         hna_plugin.cb_plugin_handler[PLUGIN_CB_DESCRIPTION_DESTROY] = (void (*) (int32_t, void*)) hna_description_event_hook;
 

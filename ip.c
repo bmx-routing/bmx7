@@ -574,32 +574,49 @@ IDM_T is_ip_set(const IPX_T *ip)
         return (ip && !is_ip_equal(ip, &ZERO_IP));
 }
 
-IDM_T is_ip_invalid( const IPX_T *ip, const uint8_t family )
+IDM_T is_ip_valid( const IPX_T *ip, const uint8_t family )
 {
 	TRACE_FUNCTION_CALL;
 
         if (!is_ip_set(ip))
-                return YES;
+                return NO;
 
         if (family == AF_INET6 ) {
 
-                if (!is_ip_equal(ip, &IP6_LOOPBACK_ADDR)) {
-
-                        return NO;
-                }
+                if (!is_ip_equal(ip, &IP6_LOOPBACK_ADDR))
+                        return YES;
+                
 
         } else if (family == AF_INET ) {
 
-                if (ipXto4(*ip) != INADDR_LOOPBACK &&
-                        ipXto4(*ip) != INADDR_NONE) {
-
-                        return NO;
-                }
+                if (ipXto4(*ip) != INADDR_LOOPBACK && ipXto4(*ip) != INADDR_NONE)
+                        return YES;
         }
 
-        return YES;
+        return NO;
 }
 
+IDM_T is_ip_local(IPX_T *ip)
+{
+
+        struct if_link_node *iln;
+        struct avl_node *lan = NULL;
+
+        while ((iln = avl_iterate_item(&if_link_tree, &lan))) {
+
+                if (iln->flags & IFF_UP)
+                        continue;
+
+                struct if_addr_node *ian;
+                struct avl_node *aan = NULL;
+
+                while ((ian = avl_iterate_item(&iln->if_addr_tree, &aan))) {
+                        if (is_ip_equal(&ian->ip_addr, ip))
+                                return YES;
+                }
+        }
+        return NO;
+}
 
 IDM_T ip_netmask_validate(IPX_T *ipX, uint8_t mask, uint8_t family, uint8_t force)
 {
@@ -801,7 +818,7 @@ void kernel_if_addr_config(struct nlmsghdr *nlhdr, uint16_t index_sqn)
         if (family == AF_INET)
                 ip4ToX(&ip_addr, *((IP4_T*) (&ip_addr)));
 
-        if (is_ip_invalid(&ip_addr, family)) // specially catch loopback ::1/128
+        if (!is_ip_valid(&ip_addr, family)) // specially catch loopback ::1/128
                 return;
 
 
@@ -1287,9 +1304,9 @@ IDM_T ip(uint8_t family, uint8_t cmd, int8_t del, uint8_t quiet, const IPX_T *NE
         assertion(-500653, (family == AF_INET || family == AF_INET6));
         assertion(-501102, (af_cfg() == family) || (niit_enabled && af_cfg() == AF_INET6 && family == AF_INET && !via));
         assertion(-501127, (IMPLIES(policy_routing == POLICY_RT_UNSET, (cmd == IP_RULE_TEST && initializing))));
-        assertion(-500650, ((NET && !is_ip_invalid(NET, family))));
-        assertion(-500651, (!(via && is_ip_invalid(via, family))));
-        assertion(-500652, (!(src && is_ip_invalid(src, family))));
+        assertion(-500650, ((NET && is_ip_valid(NET, family))));
+        assertion(-500651, (!(via && !is_ip_valid(via, family))));
+        assertion(-500652, (!(src && !is_ip_valid(src, family))));
 
 
 	struct sockaddr_nl nladdr;

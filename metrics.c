@@ -71,7 +71,7 @@ static int32_t my_link_window = DEF_HELLO_SQN_WINDOW;
 
 static
 void (*path_metric_algos[BIT_METRIC_ALGO_ARRSZ])
-(UMETRIC_T *path_out, struct link_dev_node *link, UMETRIC_T lp) = {NULL};
+(UMETRIC_T *path_out, UMETRIC_T *umetric_max, UMETRIC_T lp) = {NULL};
 
 static UMETRIC_T UMETRIC_MAX_SQRT;
 static UMETRIC_T U64_MAX_HALF_SQRT;
@@ -351,13 +351,13 @@ UMETRIC_T umetric_to_the_power_of_n(UMETRIC_T x, uint8_t n_exp_numerator, uint8_
 }
 
 STATIC_FUNC
-void path_metricalgo_MultiplyQuality(UMETRIC_T *path, struct link_dev_node *lndev, UMETRIC_T linkQuality)
+void path_metricalgo_MultiplyQuality(UMETRIC_T *path, UMETRIC_T *linkMax, UMETRIC_T linkQuality)
 {
         *path = umetric_multiply_normalized(*path, linkQuality);
 }
 
 STATIC_FUNC
-void path_metricalgo_ExpectedQuality(UMETRIC_T *path, struct link_dev_node *lndev, UMETRIC_T linkQuality)
+void path_metricalgo_ExpectedQuality(UMETRIC_T *path, UMETRIC_T *linkMax, UMETRIC_T linkQuality)
 {
         if (*path < 2 || linkQuality < 2)
                 *path = UMETRIC_MIN__NOT_ROUTABLE;
@@ -366,15 +366,15 @@ void path_metricalgo_ExpectedQuality(UMETRIC_T *path, struct link_dev_node *lnde
 }
 
 STATIC_FUNC
-void path_metricalgo_MultiplyBandwidth(UMETRIC_T *path, struct link_dev_node *lndev, UMETRIC_T linkQuality)
+void path_metricalgo_MultiplyBandwidth(UMETRIC_T *path, UMETRIC_T *linkMax, UMETRIC_T linkQuality)
 {
-        *path = umetric_multiply_normalized(MIN(*path, lndev->key.dev->umetric_max), linkQuality);
+        *path = umetric_multiply_normalized(MIN(*path, *linkMax), linkQuality);
 }
 
 STATIC_FUNC
-void path_metricalgo_ExpectedBandwidth(UMETRIC_T *path, struct link_dev_node *lndev, UMETRIC_T linkQuality)
+void path_metricalgo_ExpectedBandwidth(UMETRIC_T *path, UMETRIC_T *linkMax, UMETRIC_T linkQuality)
 {
-        UMETRIC_T linkBandwidth = umetric_multiply_normalized(lndev->key.dev->umetric_max, linkQuality);
+        UMETRIC_T linkBandwidth = umetric_multiply_normalized(*linkMax, linkQuality);
 
         if (*path < 2 || linkBandwidth < 2)
                 *path = UMETRIC_MIN__NOT_ROUTABLE;
@@ -383,7 +383,7 @@ void path_metricalgo_ExpectedBandwidth(UMETRIC_T *path, struct link_dev_node *ln
 }
 
 STATIC_FUNC
-void path_metricalgo_VectorBandwidth(UMETRIC_T *path, struct link_dev_node *lndev, UMETRIC_T linkQuality)
+void path_metricalgo_VectorBandwidth(UMETRIC_T *path, UMETRIC_T *linkMax, UMETRIC_T linkQuality)
 {
         assertion(-501085, (*path > UMETRIC_MIN__NOT_ROUTABLE));
 
@@ -392,7 +392,7 @@ void path_metricalgo_VectorBandwidth(UMETRIC_T *path, struct link_dev_node *lnde
         UMETRIC_T rootOfSum = 0;
         UMETRIC_T path_out = UMETRIC_MIN__NOT_ROUTABLE;
 
-        UMETRIC_T linkBandwidth = umetric_multiply_normalized(lndev->key.dev->umetric_max, linkQuality);
+        UMETRIC_T linkBandwidth = umetric_multiply_normalized(*linkMax, linkQuality);
         
         UMETRIC_T maxPrecisionScaler = MIN(*path, linkBandwidth) * U64_MAX_HALF_SQRT;
 
@@ -409,7 +409,7 @@ void path_metricalgo_VectorBandwidth(UMETRIC_T *path, struct link_dev_node *lnde
 
         dbgf_all( DBGT_INFO,
                 "pb=%-12ju max_extension=%-19ju (me/pb)^2=%-19ju lp=%-12ju link=%-12ju lb=%-12ju (me/lb)^2=%-19ju ufs=%-12ju UMETRIC_MIN=%ju -> path_out=%ju",
-                *path, maxPrecisionScaler, inverseSquaredPathBandwidth, linkQuality, lndev->key.dev->umetric_max,
+                *path, maxPrecisionScaler, inverseSquaredPathBandwidth, linkQuality, *linkMax,
                 linkBandwidth, inverseSquaredLinkQuality, rootOfSum, UMETRIC_MIN__NOT_ROUTABLE, path_out);
         
        *path = path_out;
@@ -418,20 +418,17 @@ void path_metricalgo_VectorBandwidth(UMETRIC_T *path, struct link_dev_node *lnde
 
 
 STATIC_FUNC
-void register_path_metricalgo(uint8_t algo_type_bit, void (*algo) (UMETRIC_T *path_out, struct link_dev_node *lndev, UMETRIC_T lp))
+void register_path_metricalgo(uint8_t algo_type_bit, void (*algo) (UMETRIC_T *path_out, UMETRIC_T *umetric_max, UMETRIC_T lp))
 {
         assertion(-500838, (!path_metric_algos[algo_type_bit]));
         assertion(-500839, (algo_type_bit < BIT_METRIC_ALGO_ARRSZ));
         path_metric_algos[algo_type_bit] = algo;
 }
 
-STATIC_FUNC
-UMETRIC_T apply_metric_algo(struct link_dev_node *lndev, const UMETRIC_T *path, struct host_metricalgo *algo)
+UMETRIC_T apply_metric_algo(UMETRIC_T *linkQuality, UMETRIC_T *linkMax, const UMETRIC_T *path, struct host_metricalgo *algo)
 {
         TRACE_FUNCTION_CALL;
 
-
-        assertion(-500823, (lndev->key.dev->umetric_max));
         assertion(-501037, ((*path & ~UMETRIC_MASK) == 0));
         assertion(-501038, (*path <= UMETRIC_MAX));
         assertion(-501039, (*path >= UMETRIC_MIN__NOT_ROUTABLE));
@@ -440,10 +437,6 @@ UMETRIC_T apply_metric_algo(struct link_dev_node *lndev, const UMETRIC_T *path, 
         ALGO_T algo_type = algo->algo_type;
         UMETRIC_T max_out = umetric_substract_min(path);
         UMETRIC_T path_out = *path;
-
-        UMETRIC_T tq = umetric_to_the_power_of_n(lndev->timeaware_tx_probe, algo->algo_tp_exp_numerator, algo->algo_tp_exp_divisor);
-        UMETRIC_T rq = umetric_to_the_power_of_n(lndev->timeaware_rx_probe, algo->algo_rp_exp_numerator, algo->algo_rp_exp_divisor);
-        UMETRIC_T tr = umetric_multiply_normalized(tq,rq);
 
         if (max_out <= UMETRIC_MIN__NOT_ROUTABLE)
                 return UMETRIC_MIN__NOT_ROUTABLE;
@@ -459,14 +452,10 @@ UMETRIC_T apply_metric_algo(struct link_dev_node *lndev, const UMETRIC_T *path, 
 
                         if (path_metric_algos[algo_type_bit]) {
 
-                                (*(path_metric_algos[algo_type_bit])) (&path_out, lndev, tr);
+                                (*(path_metric_algos[algo_type_bit])) (&path_out, linkMax, *linkQuality);
 
-                                dbgf_all( DBGT_INFO, "algo=%d rp=%-3ju%% tp=%-3ju%% in=%-12ju=%7s  out=%-12ju=%7s UMETRIC_MAX=%-12ju UMETRIC_LP_MAX=%-12ju",
-                                        algo_type_bit, 
-                                        ((lndev->timeaware_rx_probe * 100) / UMETRIC_MAX),
-                                        ((lndev->timeaware_tx_probe * 100) / UMETRIC_MAX),
-                                        *path, umetric_to_human(*path), path_out, umetric_to_human(path_out),
-                                        UMETRIC_MAX, UMETRIC_MAX );
+                                dbgf_all(DBGT_INFO, "algo=%d in=%-12ju=%7s  out=%-12ju=%7s",
+                                        algo_type_bit, *path, umetric_to_human(*path), path_out, umetric_to_human(path_out));
 
                         } else {
                                 unsupported_algos |= (0x01 << algo_type_bit);
@@ -481,7 +470,7 @@ UMETRIC_T apply_metric_algo(struct link_dev_node *lndev, const UMETRIC_T *path, 
                                 ARG_PATH_METRIC_ALGO, unsupported_algos, unsupported_algos, i);
 
                         while (i--)
-                                (*(path_metric_algos[BIT_METRIC_ALGO_EB])) (&path_out, lndev, tr);
+                                (*(path_metric_algos[BIT_METRIC_ALGO_EB])) (&path_out, linkMax, *linkQuality);
                 }
         }
 
@@ -494,16 +483,30 @@ UMETRIC_T apply_metric_algo(struct link_dev_node *lndev, const UMETRIC_T *path, 
 
 
         if (path_out > max_out) {
-                dbgf_all(DBGT_WARN,
-                        "out=%ju > out_max=%ju, %s=%d, path=%ju, dev=%s, link_MAX=%ju, RP=%ju, TP=%ju",
-                        path_out, max_out, ARG_PATH_METRIC_ALGO, algo->algo_type, *path,
-                        lndev->key.dev->label_cfg.str, lndev->key.dev->umetric_max,
-                        lndev->timeaware_rx_probe, lndev->timeaware_tx_probe);
+                dbgf_all(DBGT_WARN, "out=%ju > out_max=%ju, %s=%d, path=%ju",
+                        path_out, max_out, ARG_PATH_METRIC_ALGO, algo->algo_type, *path);
         }
 
 
         return MIN(path_out, max_out); // ensure out always decreases
 }
+
+
+STATIC_FUNC
+UMETRIC_T apply_lndev_metric_algo(struct link_dev_node *lndev, const UMETRIC_T *path, struct host_metricalgo *algo)
+{
+        TRACE_FUNCTION_CALL;
+
+        assertion(-500823, (lndev->key.dev->umetric_max));
+
+        UMETRIC_T tq = umetric_to_the_power_of_n(lndev->timeaware_tx_probe, algo->algo_tp_exp_numerator, algo->algo_tp_exp_divisor);
+        UMETRIC_T rq = umetric_to_the_power_of_n(lndev->timeaware_rx_probe, algo->algo_rp_exp_numerator, algo->algo_rp_exp_divisor);
+        UMETRIC_T lq = umetric_multiply_normalized(tq, rq);
+
+        return apply_metric_algo(&lq, &lndev->key.dev->umetric_max, path, algo);
+}
+
+
 
 STATIC_FUNC
 void _reconfigure_metric_record_position(const char *f, struct metric_record *rec, struct host_metricalgo *alg,
@@ -929,7 +932,7 @@ UMETRIC_T lndev_best_via_router(struct local_node *local, struct orig_node *on, 
         // find best path lndev for this local router:
         if (local->best_lndev) {
 
-                metric_best = apply_metric_algo(local->best_lndev, ogm_metric, on->path_metricalgo);
+                metric_best = apply_lndev_metric_algo(local->best_lndev, ogm_metric, on->path_metricalgo);
                 *path_lndev_best = local->best_lndev;
 
         } else {
@@ -943,7 +946,7 @@ UMETRIC_T lndev_best_via_router(struct local_node *local, struct orig_node *on, 
 
                         while ((lndev_tmp = list_iterate(&link->lndev_list, lndev_tmp))) {
 
-                                UMETRIC_T um = apply_metric_algo(lndev_tmp, ogm_metric, on->path_metricalgo);
+                                UMETRIC_T um = apply_lndev_metric_algo(lndev_tmp, ogm_metric, on->path_metricalgo);
 
                                 if (metric_best <= um) {
                                         metric_best = um;

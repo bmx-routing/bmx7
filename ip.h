@@ -431,7 +431,8 @@ IDM_T is_mac_equal(const MAC_T *a, const MAC_T *b);
 IDM_T is_ip_equal(const IPX_T *a, const IPX_T *b);
 IDM_T is_ip_set(const IPX_T *ip);
 
-IDM_T is_ip_invalid( const IPX_T *ip, const uint8_t family );
+IDM_T is_ip_valid( const IPX_T *ip, const uint8_t family );
+IDM_T is_ip_local(IPX_T *ip);
 
 IDM_T ip_netmask_validate(IPX_T *ipX, uint8_t mask, uint8_t family, uint8_t force);
 

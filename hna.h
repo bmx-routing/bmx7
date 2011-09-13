@@ -24,6 +24,8 @@
 
 
 
+
+
 #define ARG_UHNA "hna"
 
 #define ARG_UHNA_NETWORK     "network"
@@ -131,6 +133,7 @@ struct tun_adv_node {
         IPX_T network;
         uint8_t prefixlen;
         FMETRIC_U8_T bandwidth;
+        UMETRIC_T e2e_path;
 
         struct avl_tree tun_search_tree;
         struct tunnel_node *tun_out;

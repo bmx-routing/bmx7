@@ -654,7 +654,7 @@ struct msg_ogm_adv // 4 bytes
 
 struct hdr_ogm_adv { // 2 bytes
 	AGGREG_SQN_T aggregation_sqn;
-	uint8_t ogm_destination_array;
+	uint8_t ogm_dst_field_size;
 
 	struct msg_ogm_adv msg[];
 } __attribute__((packed));

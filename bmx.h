@@ -866,6 +866,7 @@ struct neigh_node {
 	struct iid_repos neighIID4x_repos;
 
 //	AGGREG_SQN_T ogm_aggregation_rcvd_set;
+        TIME_T ogm_new_aggregation_rcvd;
 	AGGREG_SQN_T ogm_aggregation_cleard_max;
 	uint8_t ogm_aggregations_not_acked[AGGREG_ARRAY_BYTE_SIZE];
 	uint8_t ogm_aggregations_rcvd[AGGREG_ARRAY_BYTE_SIZE];

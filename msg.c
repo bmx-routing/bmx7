@@ -1777,7 +1777,7 @@ int32_t tx_frame_ogm_advs(struct tx_frame_iterator *it)
                 assertion(-501144, (((int) ttn->frame_msgs_length) <= tx_iterator_cache_data_space(it)));
 
                 hdr->aggregation_sqn = sqn;
-                hdr->ogm_destination_array = oan->ogm_dest_bytes;
+                hdr->ogm_dst_field_size = oan->ogm_dest_bytes;
                 
                 if (oan->ogm_dest_bytes)
                         memcpy(tx_iterator_cache_msg_ptr(it), oan->ogm_dest_field, oan->ogm_dest_bytes);
@@ -1893,58 +1893,55 @@ int32_t rx_frame_ogm_advs(struct rx_frame_iterator *it)
         struct neigh_node *neigh = pb->i.link->local->neigh;
         uint8_t *ogm_destination_field = it->msg;
         AGGREG_SQN_T aggregation_sqn = hdr->aggregation_sqn;
-        uint16_t ogm_destination_bytes = hdr->ogm_destination_array;
+        uint16_t ogm_dst_field_size = hdr->ogm_dst_field_size;
 
-        if (ogm_destination_bytes > (OGM_DEST_ARRAY_BIT_SIZE / 8)) {
+        if (ogm_dst_field_size > (OGM_DEST_ARRAY_BIT_SIZE / 8) ||
+                it->frame_msgs_length < ((int) sizeof (struct msg_ogm_adv)) ||
+                ogm_dst_field_size > (it->frame_msgs_length - sizeof (struct msg_ogm_adv))) {
 
-                dbgf_sys(DBGT_ERR, "invalid ogm_destination_bytes=%d", ogm_destination_bytes);
+                dbgf_sys(DBGT_ERR, "invalid ogm_dst_field_size=%d frame_msgs_length=%d ",
+                        ogm_dst_field_size, it->frame_msgs_length);
                 return TLV_RX_DATA_FAILURE;
+        }
 
-        } else if (it->frame_msgs_length < ((int) sizeof (struct msg_ogm_adv)) ||
-                ogm_destination_bytes > (it->frame_msgs_length - sizeof (struct msg_ogm_adv))) {
-
-                dbgf_sys(DBGT_ERR, "invalid ogm_destination_bytes=%d frame_msgs_length=%d ",
-                        ogm_destination_bytes, it->frame_msgs_length);
-                return TLV_RX_DATA_FAILURE;
-
-        } else if (it->pb->i.link_sqn != local->link_adv_sqn) {
+        if (it->pb->i.link_sqn != local->link_adv_sqn) {
 
                 dbgf_track(DBGT_INFO, "rcvd link_sqn=%d != local->link_adv_sqn=%d",
                         it->pb->i.link_sqn, local->link_adv_sqn);
                 return it->frame_msgs_length;
 
-        } else if (ogm_destination_bytes > ((local->link_adv_msgs / 8) + ((local->link_adv_msgs % 8) ? 1 : 0))) {
+        } else if (ogm_dst_field_size > ((local->link_adv_msgs / 8) + ((local->link_adv_msgs % 8) ? 1 : 0))) {
 
-                dbgf_sys(DBGT_ERR, "invalid ogm_destination_bytes=%d link_adv_msgs=%d",
-                        ogm_destination_bytes, local->link_adv_msgs);
+                dbgf_sys(DBGT_ERR, "invalid ogm_dst_field_size=%d link_adv_msgs=%d",
+                        ogm_dst_field_size, local->link_adv_msgs);
                 return TLV_RX_DATA_FAILURE;
-
         }
 
         IDM_T only_process_sender_and_refresh_all = !local->orig_routes;
 
         IDM_T ack_sender = (local->link_adv_msg_for_me != LINKADV_MSG_IGNORED &&
-                local->link_adv_msg_for_me < (ogm_destination_bytes * 8) &&
-                bit_get(ogm_destination_field, (ogm_destination_bytes * 8), local->link_adv_msg_for_me));
+                local->link_adv_msg_for_me < (ogm_dst_field_size * 8) &&
+                bit_get(ogm_destination_field, (ogm_dst_field_size * 8), local->link_adv_msg_for_me));
 
         if (only_process_sender_and_refresh_all || !ack_sender) {
                 dbgf_all(DBGT_INFO, "not wanted: link_adv_msg_for_me=%d ogm_destination_bytes=%d orig_routes=%d",
-                        local->link_adv_msg_for_me, ogm_destination_bytes, local->orig_routes);
+                        local->link_adv_msg_for_me, ogm_dst_field_size, local->orig_routes);
         }
 
 
         // TODO: ogm_aggregations from this guy must be processed only for ogms from him if not being in his ogm_destination_array
         // to find out about the direct metric to him....
 
-        uint16_t msgs = (it->frame_msgs_length - ogm_destination_bytes) / sizeof (struct msg_ogm_adv);
-        struct msg_ogm_adv *ogm = (struct msg_ogm_adv*)(it->msg + ogm_destination_bytes);
+        uint16_t msgs = (it->frame_msgs_length - ogm_dst_field_size) / sizeof (struct msg_ogm_adv);
+        struct msg_ogm_adv *ogm = (struct msg_ogm_adv*)(it->msg + ogm_dst_field_size);
 
         dbgf_all(DBGT_INFO, " ");
 
 
-        if (((AGGREG_SQN_MASK)& (neigh->ogm_aggregation_cleard_max - aggregation_sqn)) >= AGGREG_SQN_CACHE_RANGE) {
+        if (!(neigh->ogm_new_aggregation_rcvd || neigh->ogm_aggregation_cleard_max /*ever used*/) ||
+                ((AGGREG_SQN_MASK)& (neigh->ogm_aggregation_cleard_max - aggregation_sqn)) >= AGGREG_SQN_CACHE_RANGE) {
 
-                if (neigh->ogm_aggregation_cleard_max &&
+                if ((neigh->ogm_new_aggregation_rcvd || neigh->ogm_aggregation_cleard_max /*ever used*/) &&
                         ((AGGREG_SQN_MASK)& (aggregation_sqn - neigh->ogm_aggregation_cleard_max)) > AGGREG_SQN_CACHE_WARN) {
 
                         dbgf_track(DBGT_WARN, "neigh=%s with unknown LOST aggregation_sqn=%d  max=%d  ogms=%d",
@@ -1962,7 +1959,8 @@ int32_t rx_frame_ogm_advs(struct rx_frame_iterator *it)
                 }
                 
                 neigh->ogm_aggregation_cleard_max = aggregation_sqn;
-
+                neigh->ogm_new_aggregation_rcvd = bmx_time;
+                
         } else {
 
                 if (bit_get(neigh->ogm_aggregations_rcvd, AGGREG_SQN_CACHE_RANGE, aggregation_sqn)) {
@@ -1975,10 +1973,11 @@ int32_t rx_frame_ogm_advs(struct rx_frame_iterator *it)
 
                         return it->frame_msgs_length;
 
-                } else if (((AGGREG_SQN_MASK)& (neigh->ogm_aggregation_cleard_max - aggregation_sqn)) > AGGREG_SQN_CACHE_WARN) {
+                } else /*if (((AGGREG_SQN_MASK)& (neigh->ogm_aggregation_cleard_max - aggregation_sqn)) > AGGREG_SQN_CACHE_WARN)*/ {
 
-                        dbgf_track(DBGT_WARN, "neigh=%s with unknown OLD aggregation_sqn=%d  max=%d  ogms=%d",
-                                pb->i.llip_str, aggregation_sqn, neigh->ogm_aggregation_cleard_max, msgs);
+                        dbgf_track(DBGT_WARN, "neigh=%s  orig=%s with unknown OLD aggregation_sqn=%d  max=%d  ogms=%d",
+                                pb->i.llip_str, globalIdAsString(&neigh->dhn->on->global_id),
+                                aggregation_sqn, neigh->ogm_aggregation_cleard_max, msgs);
                 }
         }
 

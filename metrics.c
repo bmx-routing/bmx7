@@ -874,7 +874,7 @@ void update_link_probe_record(struct link_dev_node *lndev, HELLO_SQN_T sqn, uint
                                 bits_get(lpr->hello_array, MAX_HELLO_SQN_WINDOW, 0, MAX_HELLO_SQN_WINDOW - 1),
                                 bits_print(lpr->hello_array, MAX_HELLO_SQN_WINDOW, 0, MAX_HELLO_SQN_WINDOW - 1));
                         
-                        bits_clear(lpr->hello_array, MAX_HELLO_SQN_WINDOW, prev_sqn_min, new_sqn_min_minus_one);
+                        bits_clear(lpr->hello_array, MAX_HELLO_SQN_WINDOW, prev_sqn_min, new_sqn_min_minus_one, HELLO_SQN_MASK);
 
                         dbgf_all(DBGT_INFO, "prev_min=%5d prev_max=%d new_min=%5d sqn=%5d sum=%3d bits=%3d %s\n",
                                 prev_sqn_min,lpr->hello_sqn_max, new_sqn_min_minus_one+1, sqn, lpr->hello_sum,
@@ -1323,7 +1323,7 @@ int32_t opt_link_metric(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
                                 HELLO_SQN_T new_sqn_min_minus_one = (HELLO_SQN_MASK)&(lpr->hello_sqn_max - my_link_window);
 
                                 lpr->hello_sum -= bits_get(lpr->hello_array, MAX_HELLO_SQN_WINDOW, prev_sqn_min, new_sqn_min_minus_one);
-                                bits_clear(lpr->hello_array, MAX_HELLO_SQN_WINDOW, prev_sqn_min, new_sqn_min_minus_one);
+                                bits_clear(lpr->hello_array, MAX_HELLO_SQN_WINDOW, prev_sqn_min, new_sqn_min_minus_one, HELLO_SQN_MASK);
                         }
 
                         assertion(-501053, (bits_get(lpr->hello_array, MAX_HELLO_SQN_WINDOW, 0, MAX_HELLO_SQN_WINDOW - 1) == lpr->hello_sum));

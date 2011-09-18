@@ -218,6 +218,7 @@ void init_set_bits_table256(void)
 
 
 // clears byte range between and including begin and end
+// accept overlap of begin and end
 void byte_clear(uint8_t *array, uint16_t array_size, uint16_t begin, uint16_t end)
 {
 
@@ -303,41 +304,38 @@ uint16_t bits_get(uint8_t *array, uint16_t array_bit_size, uint16_t begin_bit, u
 
 
 // clears bit range between and including begin and end
- void bits_clear(uint8_t *array, uint16_t array_bit_size, uint16_t begin_bit, uint16_t end_bit)
+ void bits_clear(uint8_t *array, uint16_t array_bit_size, uint16_t beg_bit, uint16_t end_bit, uint16_t range_mask)
 {
         assertion(-500435, (array_bit_size % 8 == 0));
-        assertion(-501060, ((uint16_t) (end_bit - begin_bit)) < array_bit_size);
+        assertion(-501060, ((range_mask & (end_bit - beg_bit)) < array_bit_size));
 
         uint16_t array_byte_size = array_bit_size / 8;
 
-/*
-        if (((uint16_t) (end_bit - begin_bit)) >= array_bit_size) {
-                memset(array, 0, array_byte_size);
-                return;
-        }
-*/
 
-        begin_bit = begin_bit % array_bit_size;
+        beg_bit = beg_bit % array_bit_size;
         end_bit = end_bit % array_bit_size;
 
-        uint16_t begin_byte = begin_bit/8;
+        uint16_t beg_byte = beg_bit/8;
         uint16_t end_byte = end_bit/8;
 
 
-        if (begin_byte != end_byte && ((begin_byte + 1) % array_byte_size) != end_byte)
-                byte_clear(array, array_byte_size, begin_byte + 1, end_byte - 1);
+        if (beg_byte == end_byte  ?  (beg_bit % 8) > (end_bit % 8)  :  (beg_byte + 1) % array_byte_size != end_byte)
+                byte_clear(array, array_byte_size, (beg_byte + 1) % array_byte_size, (end_byte - 1) % array_byte_size);
 
 
-        uint8_t begin_mask = ~(0xFF << (begin_bit % 8));   //eg 2: ~(11111100) = 00000011
-        uint8_t end_mask =   ~(0xFF >> (7-(end_bit % 8))); //eg 3: ~(00001111) = 11110000
+        uint8_t beg_mask = ~(0xFF << (beg_bit % 8));       //eg 2: ~(11111100) = 00000011
+        uint8_t end_mask = ~(0xFF >> (7 - (end_bit % 8))); //eg 3: ~(00001111) = 11110000
 
-        if (begin_byte == end_byte) {
+        if (beg_byte == end_byte) {
 
-                array[begin_byte] &= (begin_mask | end_mask);
+                if ((beg_bit % 8) <= (end_bit % 8))
+                        array[beg_byte] &= (beg_mask | end_mask);
+                else
+                        array[beg_byte] &= (beg_mask & end_mask);
 
         } else {
 
-                array[begin_byte] &= begin_mask;
+                array[beg_byte] &= beg_mask;
                 array[end_byte] &= end_mask;
         }
 }

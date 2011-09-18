@@ -1944,19 +1944,30 @@ int32_t rx_frame_ogm_advs(struct rx_frame_iterator *it)
                 if ((neigh->ogm_new_aggregation_rcvd || neigh->ogm_aggregation_cleard_max /*ever used*/) &&
                         ((AGGREG_SQN_MASK)& (aggregation_sqn - neigh->ogm_aggregation_cleard_max)) > AGGREG_SQN_CACHE_WARN) {
 
-                        dbgf_track(DBGT_WARN, "neigh=%s with unknown LOST aggregation_sqn=%d  max=%d  ogms=%d",
+                        dbgf_track(DBGT_WARN, "neigh=%s with NEW, unknown, and LOST aggregation_sqn=%d  max=%d  ogms=%d",
                                 pb->i.llip_str, aggregation_sqn, neigh->ogm_aggregation_cleard_max, msgs);
                 } else {
-                        dbgf_all(DBGT_INFO, "neigh=%s with unknown NEW aggregation_sqn=%d  max=%d  msgs=%d",
+                        dbgf_all(DBGT_INFO, "neigh=%s with NEW, unknown aggregation_sqn=%d  max=%d  msgs=%d",
                                 pb->i.llip_str, aggregation_sqn, neigh->ogm_aggregation_cleard_max, msgs);
                 }
 
-                if (((AGGREG_SQN_MASK)& (neigh->ogm_aggregation_cleard_max + 1 - aggregation_sqn)) >= AGGREG_SQN_CACHE_RANGE) {
+                if ((AGGREG_SQN_MASK & (aggregation_sqn - (neigh->ogm_aggregation_cleard_max + 1))) >= AGGREG_SQN_CACHE_RANGE) {
+
+                        memset(neigh->ogm_aggregations_rcvd, 0, AGGREG_SQN_CACHE_RANGE / 8);
+                        
+                } else {
+                        bits_clear(neigh->ogm_aggregations_rcvd, AGGREG_SQN_CACHE_RANGE,
+                                ((AGGREG_SQN_MASK)& (neigh->ogm_aggregation_cleard_max + 1)), aggregation_sqn, AGGREG_SQN_MASK);
+                }
+
+/*
+                if ((AGGREG_SQN_MASK& (neigh->ogm_aggregation_cleard_max + 1 - aggregation_sqn)) >= AGGREG_SQN_CACHE_RANGE) {
                         memset(neigh->ogm_aggregations_rcvd, 0, AGGREG_SQN_CACHE_RANGE / 8);
                 } else {
                         bits_clear(neigh->ogm_aggregations_rcvd, AGGREG_SQN_CACHE_RANGE,
-                                ((AGGREG_SQN_MASK)& (neigh->ogm_aggregation_cleard_max + 1)), aggregation_sqn);
+                                ((AGGREG_SQN_MASK)& (neigh->ogm_aggregation_cleard_max + 1)), aggregation_sqn, AGGREG_SQN_MASK);
                 }
+*/
                 
                 neigh->ogm_aggregation_cleard_max = aggregation_sqn;
                 neigh->ogm_new_aggregation_rcvd = bmx_time;
@@ -1965,7 +1976,7 @@ int32_t rx_frame_ogm_advs(struct rx_frame_iterator *it)
 
                 if (bit_get(neigh->ogm_aggregations_rcvd, AGGREG_SQN_CACHE_RANGE, aggregation_sqn)) {
 
-                        dbgf_all(DBGT_INFO, "neigh: id=%s via dev=%s with already KNOWN ogm_aggregation_sqn=%d",
+                        dbgf_all(DBGT_INFO, "neigh: id=%s via dev=%s with OLD, already KNOWN ogm_aggregation_sqn=%d",
                                 globalIdAsString(&neigh->dhn->on->global_id), pb->i.iif->label_cfg.str, aggregation_sqn);
 
                         if (ack_sender)
@@ -1975,7 +1986,7 @@ int32_t rx_frame_ogm_advs(struct rx_frame_iterator *it)
 
                 } else /*if (((AGGREG_SQN_MASK)& (neigh->ogm_aggregation_cleard_max - aggregation_sqn)) > AGGREG_SQN_CACHE_WARN)*/ {
 
-                        dbgf_track(DBGT_WARN, "neigh=%s  orig=%s with unknown OLD aggregation_sqn=%d  max=%d  ogms=%d",
+                        dbgf_track(DBGT_WARN, "neigh=%s  orig=%s with OLD, unknown aggregation_sqn=%d  max=%d  ogms=%d",
                                 pb->i.llip_str, globalIdAsString(&neigh->dhn->on->global_id),
                                 aggregation_sqn, neigh->ogm_aggregation_cleard_max, msgs);
                 }

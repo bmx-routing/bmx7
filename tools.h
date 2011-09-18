@@ -69,7 +69,7 @@ void bit_set(uint8_t *array, uint16_t array_bit_size, uint16_t bit, IDM_T value)
 
 uint16_t bits_get(uint8_t *array, uint16_t array_bit_size, uint16_t begin_bit, uint16_t end_bit);
 
-void bits_clear(uint8_t *array, uint16_t array_bit_size, uint16_t begin, uint16_t end);
+ void bits_clear(uint8_t *array, uint16_t array_bit_size, uint16_t beg_bit, uint16_t end_bit, uint16_t range_mask);
 
 char* bits_print(uint8_t *array, uint16_t array_bit_size, uint16_t begin_bit, uint16_t end_bit);
 

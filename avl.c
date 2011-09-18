@@ -278,129 +278,6 @@ void avl_insert(struct avl_tree *tree, void *node, int32_t tag)
 
 
 
-void *avl_remove(struct avl_tree *tree, void *key, int32_t tag)
-{
-        struct avl_node *it = tree->root;
-        struct avl_node *up[AVL_MAX_HEIGHT];
-        int upd[AVL_MAX_HEIGHT], top = 0, cmp;
-
-        if (!it)
-                return NULL;
-
-        while (((cmp = memcmp(AVL_NODE_KEY(tree, it), key, tree->key_size) ||
-                (it->link[0] && !memcmp(AVL_NODE_KEY(tree, it->link[0]), key, tree->key_size))))) {
-
-                // Push direction and node onto stack
-                upd[top] = (cmp < 0);
-                up[top] = it;
-                top++;
-
-                if (!(it = it->link[(cmp < 0)]))
-                        return NULL;
-
-        }
-
-        // remember and return the found node. It might have been another one than intended
-        void *node = it->item;
-
-        // Remove the node:
-        if (!(it->link[0] && it->link[1])) { // at least one child is NULL:
-
-                // Which child is not null?
-                int dir = !(it->link[0]);
-
-                /* Fix parent */
-                if (top) {
-                        up[top - 1]->link[upd[top - 1]] = it->link[dir];
-                        if (it->link[dir])
-                                it->link[dir]->up = up[top - 1];
-                } else {
-                        tree->root = it->link[dir];
-                        if (tree->root)
-                                tree->root->up = NULL;
-                }
-                debugFree(it, tag);
-
-        } else { // both childs NOT NULL:
-
-                // Find the inorder successor
-                struct avl_node *heir = it->link[1];
-
-                // Save the path
-                upd[top] = 1;
-                up[top] = it;
-                top++;
-
-                while (heir->link[0]) {
-                        upd[top] = 0;
-                        up[top] = heir;
-                        top++;
-                        heir = heir->link[0];
-                }
-
-                // Swap data
-                it->item = heir->item;
-
-                // Unlink successor and fix parent
-                up[top - 1]->link[ (up[top - 1] == it) ] = heir->link[1];
-
-                if ( heir->link[1])
-                        heir->link[1]->up = up[top - 1];
-
-                debugFree(heir, tag);
-        }
-
-        tree->items--;
-
-        // Walk back up the search path
-        while (--top >= 0) {
-                int lh = avl_height(up[top]->link[upd[top]]);
-                int rh = avl_height(up[top]->link[!upd[top]]);
-                int max = avl_max(lh, rh);
-
-                /* Update balance factors */
-                up[top]->balance = max + 1;
-
-
-                // Terminate or re-balance as necessary:
-                if (lh - rh >= 0)  // re-balance upper path...
-                        continue;
-
-                if (lh - rh == -1) // balance for upper path unchanged!
-                        break;
-
-                if (!(up[top]) || !(up[top]->link[!upd[top]])) {
-                        dbgf_sys(DBGT_ERR, "up(top) %p  link %p   lh %d   rh %d",
-                                (void*)(up[top]), (void*)((up[top]) ? (up[top]->link[!upd[top]]) : NULL), lh, rh);
-
-                        assertion(-500187, (up[top]));
-                        assertion(-500188, (up[top]->link[!upd[top]]));
-                }
-
-                // if (lh - rh <= -2):  rebalance here and upper path
-
-                struct avl_node *a = up[top]->link[!upd[top]]->link[upd[top]];
-                struct avl_node *b = up[top]->link[!upd[top]]->link[!upd[top]];
-
-                if (avl_height(a) <= avl_height(b))
-                        up[top] = avl_rotate_single(up[top], upd[top]);
-                else
-                        up[top] = avl_rotate_double(up[top], upd[top]);
-
-                // Fix parent:
-                if (top) {
-                        up[top - 1]->link[upd[top - 1]] = up[top];
-                        up[top]->up = up[top - 1];
-                } else {
-                        tree->root = up[0];
-                        tree->root->up = NULL;
-                }
-        }
-
-        return node;
-
-}
-
 void *avl_remove_item(struct avl_tree *tree, void *key, void *item, int32_t tag)
 {
         struct avl_node *it = tree->root;
@@ -411,8 +288,8 @@ void *avl_remove_item(struct avl_tree *tree, void *key, void *item, int32_t tag)
                 return NULL;
 
         while ((!item || item != it->link[0]->item) && (
-                (cmp = memcmp(AVL_NODE_KEY(tree, it), key, tree->key_size) ||
-                (it->link[0] && !memcmp(AVL_NODE_KEY(tree, it->link[0]), key, tree->key_size))))) {
+                (cmp = memcmp(AVL_NODE_KEY(tree, it), key, tree->key_size)) ||
+                (it->link[0] && !memcmp(AVL_NODE_KEY(tree, it->link[0]), key, tree->key_size)))) {
 
                 // Push direction and node onto stack
                 upd[top] = (cmp < 0);

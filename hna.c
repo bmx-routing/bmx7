@@ -836,8 +836,8 @@ void set_tun_out(struct tun_search_node *tsn, struct tun_adv_node *tan)
                         UMETRIC_T linkMax = fmetric_to_umetric(fmetric_u8_to_fmu16(ttan->bandwidth));
                         UMETRIC_T pathMetric = on->curr_rt_local ? (on->curr_rt_local->mr.umetric) : 0;
 
-                        if (ttsn->prefixlen > tan->prefixlen ||
-                                !is_ip_net_equal(&ttsn->net, &tan->network, tan->prefixlen, AF_INET6) ||
+                        if (ttsn->prefixlen > ttan->prefixlen ||
+                                !is_ip_net_equal(&ttsn->net, &ttan->network, ttan->prefixlen, AF_INET6) ||
                                 (strlen(tsn_gid->name) && strcmp(tsn_gid->name, tan_gid->name)) ||
                                 (!is_zero(&tsn_gid->pkid, GLOBAL_ID_PKID_LEN) && memcmp(&tsn_gid->pkid, &tan_gid->pkid, GLOBAL_ID_PKID_LEN)))
                                 continue;

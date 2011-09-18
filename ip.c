@@ -1231,6 +1231,7 @@ IDM_T iptrack(uint8_t family, uint8_t cmd, uint8_t quiet, int8_t del, IPX_T *net
 
                         struct track_node *rem_tn = NULL;
                         rem_tn = avl_remove(&iptrack_tree, &first_tn->k, -300250);
+                        assertion(-500000, (!rem_tn));
                         assertion(-500882, (rem_tn == first_tn));
                         debugFree(first_tn, -300072);
 
@@ -1341,7 +1342,7 @@ IDM_T ip(uint8_t family, uint8_t cmd, int8_t del, uint8_t quiet, const IPX_T *NE
         if ((cmd == IP_THROW_MY_HNA || cmd == IP_THROW_MY_NET) && (policy_routing != POLICY_RT_ENABLED || !ip_throw_rules_cfg))
 		return SUCCESS;;
 
-        if (iptrack(family, cmd, quiet, del,net, nmask, table_macro, prio_macro, iifname, metric) == NO)
+        if (iptrack(family, cmd, quiet, del, net, nmask, table_macro, prio_macro, iifname, metric) == NO)
                 return SUCCESS;
 
 

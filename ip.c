@@ -1162,6 +1162,7 @@ STATIC_FUNC
 IDM_T iptrack(uint8_t family, uint8_t cmd, uint8_t quiet, int8_t del, IPX_T *net, uint8_t mask, int8_t table_macro, int8_t prio_macro, IFNAME_T *iif, uint32_t metric)
 {
 	TRACE_FUNCTION_CALL;
+        assertion(-500000, (net));
         assertion(-500628, (cmd != IP_NOP));
         assertion(-500629, (del || (cmd != IP_ROUTE_FLUSH && cmd != IP_RULE_FLUSH)));
 
@@ -1176,7 +1177,7 @@ IDM_T iptrack(uint8_t family, uint8_t cmd, uint8_t quiet, int8_t del, IPX_T *net
 
         struct track_key sk;
         memset(&sk, 0, sizeof (sk));
-        sk.net = net ? *net : ZERO_IP;
+        sk.net = *net;
         sk.iif = iif ? *iif : ZERO_IFNAME;
         sk.prio_macro = prio_macro;
         sk.table_macro = table_macro;
@@ -1229,10 +1230,10 @@ IDM_T iptrack(uint8_t family, uint8_t cmd, uint8_t quiet, int8_t del, IPX_T *net
 
                 } else if (first_tn->items == 1) {
 
-                        struct track_node *rem_tn = NULL;
-                        rem_tn = avl_remove(&iptrack_tree, &first_tn->k, -300250);
+                        struct track_node *rem_tn = avl_remove(&iptrack_tree, &first_tn->k, -300250);
+                        assertion(-500000, (rem_tn));
                         assertion(-500882, (rem_tn == first_tn));
-                        debugFree(first_tn, -300072);
+                        debugFree(rem_tn, -300072);
 
                 } else if (first_tn->items > 1) {
 

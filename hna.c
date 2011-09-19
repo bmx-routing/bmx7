@@ -843,10 +843,15 @@ void set_tun_out(struct tun_search_node *tsn, struct tun_adv_node *tan)
                                 (!is_zero(&tsn_gid->pkid, GLOBAL_ID_PKID_LEN) && memcmp(&tsn_gid->pkid, &tan_gid->pkid, GLOBAL_ID_PKID_LEN)))
                                 continue;
 
-                        ttan->e2e_path = apply_metric_algo(&linkQuality, &linkMax, &pathMetric, on->path_metricalgo);
 
-                        if (!best_tan || (ttan->e2e_path > best_tan->e2e_path))
-                                best_tan = ttan;
+                        if (linkMax > UMETRIC_MIN__NOT_ROUTABLE && pathMetric > UMETRIC_MIN__NOT_ROUTABLE) {
+
+                                ttan->e2e_path =
+                                        apply_metric_algo(&linkQuality, &linkMax, &pathMetric, on->path_metricalgo);
+
+                                if (!best_tan || (ttan->e2e_path > best_tan->e2e_path))
+                                        best_tan = ttan;
+                        }
                 }
 
                 if (best_tan != ttsn->tun_adv) {
@@ -854,7 +859,7 @@ void set_tun_out(struct tun_search_node *tsn, struct tun_adv_node *tan)
                         if(ttsn->tun_adv)
                                 del_tun_out(ttsn->tun_adv, ttsn, NULL);
 
-                        if (best_tan) {
+                        if (best_tan && best_tan->e2e_path > UMETRIC_MIN__NOT_ROUTABLE) {
 
                                 if (!best_tan->tun_out) {
                                         struct tunnel_node *tun = avl_find_item(&tunnel_out_tree, &best_tan->srcTunIp);

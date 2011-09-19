@@ -38,6 +38,7 @@
 #include "hna.h"
 #include "tools.h"
 #include "metrics.h"
+#include "schedule.h"
 
 #define CODE_CATEGORY_NAME "hna"
 
@@ -811,34 +812,39 @@ void del_tun_out(struct tun_adv_node *tan, struct tun_search_node *tsn, struct c
 }
 
 STATIC_FUNC
-void set_tun_out(struct tun_search_node *tsn, struct tun_adv_node *tan)
+void set_tun_out(struct tun_search_node *sn)
 {
-        struct tun_search_node *ttsn = NULL;
-        struct tun_adv_node *ttan = NULL;
+
+        struct tun_search_node *tsn = NULL;
+        struct tun_adv_node *tan = NULL;
         struct avl_node *itsn = NULL, *itan = NULL;
 
-        if (tsn) {
+        task_remove((void(*)(void*))set_tun_out, NULL);
+        if (tun_search_tree.items)
+                task_register(5000, (void(*)(void*))set_tun_out, NULL, -300000);
+
+        if (sn) {
                 dbgf_track(DBGT_INFO, "%s: %s/%d %s",
-                        tsn->netName, ipXAsStr(tsn->family, &tsn->net), tsn->prefixlen, globalIdAsString(&tsn->global_id));
+                        sn->netName, ipXAsStr(sn->family, &sn->net), sn->prefixlen, globalIdAsString(&sn->global_id));
         }
 
-        while (IMPLIES(tsn, !ttsn) && (ttsn = tsn ? tsn : avl_iterate_item(&tun_search_tree, &itsn))) {
+        while (IMPLIES(sn, !tsn) && (tsn = sn ? sn : avl_iterate_item(&tun_search_tree, &itsn))) {
 
                 struct tun_adv_node *best_tan = NULL;
 
-                if (!tan && !tsn && ttsn->tun_adv)
+                if (!sn && tsn->tun_adv)
                         continue;
 
-                while (IMPLIES(tan, !ttan) && (ttan = tan ? tan : avl_iterate_item(&tun_adv_tree, &itan))) {
+                while ((tan = avl_iterate_item(&tun_adv_tree, &itan))) {
 
-                        struct orig_node *on = ttan->on;
-                        GLOBAL_ID_T *tan_gid = &on->global_id, *tsn_gid = &ttsn->global_id;
+                        struct orig_node *on = tan->on;
+                        GLOBAL_ID_T *tan_gid = &on->global_id, *tsn_gid = &tsn->global_id;
                         UMETRIC_T linkQuality = UMETRIC_MAX;
-                        UMETRIC_T linkMax = fmetric_to_umetric(fmetric_u8_to_fmu16(ttan->bandwidth));
+                        UMETRIC_T linkMax = fmetric_to_umetric(fmetric_u8_to_fmu16(tan->bandwidth));
                         UMETRIC_T pathMetric = on->curr_rt_local ? (on->curr_rt_local->mr.umetric) : 0;
 
-                        if (ttsn->prefixlen < ttan->prefixlen ||
-                                !is_ip_net_equal(&ttsn->net, &ttan->network, ttan->prefixlen, AF_INET6) ||
+                        if (tsn->prefixlen < tan->prefixlen ||
+                                !is_ip_net_equal(&tsn->net, &tan->network, tan->prefixlen, AF_INET6) ||
                                 (strlen(tsn_gid->name) && strcmp(tsn_gid->name, tan_gid->name)) ||
                                 (!is_zero(&tsn_gid->pkid, GLOBAL_ID_PKID_LEN) && memcmp(&tsn_gid->pkid, &tan_gid->pkid, GLOBAL_ID_PKID_LEN)))
                                 continue;
@@ -846,18 +852,18 @@ void set_tun_out(struct tun_search_node *tsn, struct tun_adv_node *tan)
 
                         if (linkMax > UMETRIC_MIN__NOT_ROUTABLE && pathMetric > UMETRIC_MIN__NOT_ROUTABLE) {
 
-                                ttan->e2e_path =
+                                tan->e2e_path =
                                         apply_metric_algo(&linkQuality, &linkMax, &pathMetric, on->path_metricalgo);
 
-                                if (!best_tan || (ttan->e2e_path > best_tan->e2e_path))
-                                        best_tan = ttan;
+                                if (!best_tan || (tan->e2e_path > best_tan->e2e_path))
+                                        best_tan = tan;
                         }
                 }
 
-                if (best_tan != ttsn->tun_adv) {
+                if (best_tan != tsn->tun_adv) {
 
-                        if(ttsn->tun_adv)
-                                del_tun_out(ttsn->tun_adv, ttsn, NULL);
+                        if(tsn->tun_adv)
+                                del_tun_out(tsn->tun_adv, tsn, NULL);
 
                         if (best_tan && best_tan->e2e_path > UMETRIC_MIN__NOT_ROUTABLE) {
 
@@ -876,8 +882,8 @@ void set_tun_out(struct tun_search_node *tsn, struct tun_adv_node *tan)
                                         avl_insert(&tun->tun_adv_tree, best_tan, -300414);
                                 }
 
-                                ttsn->tun_adv = best_tan;
-                                avl_insert(&best_tan->tun_search_tree, ttsn, -300415);
+                                tsn->tun_adv = best_tan;
+                                avl_insert(&best_tan->tun_search_tree, tsn, -300415);
                         }
                 }
         }
@@ -932,7 +938,7 @@ int process_description_tlv_tun_adv(struct rx_frame_iterator *it)
                         while ((tan = avl_remove_item(&tun_adv_tree, &on, NULL, -300416))) {
                                 del_tun_out(tan, NULL, NULL);
                                 debugFree(tan, -300417);
-                                set_tun_out(NULL, NULL); //TODO: only call once !!
+                                set_tun_out(NULL); //TODO: only call once !!
                         }
 
 
@@ -958,7 +964,7 @@ int process_description_tlv_tun_adv(struct rx_frame_iterator *it)
 
                         avl_insert(&tun_adv_tree, tan, -300419);
 
-                        set_tun_out(NULL, tan);
+                        set_tun_out(NULL);
                 }
 
                 adv++;
@@ -1212,7 +1218,7 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                         avl_remove(&tun_search_tree, &tsn->netName, -300402);
                         debugFree(tsn, -300403);
                 } else {
-                        set_tun_out(tsn, NULL);
+                        set_tun_out(tsn);
                 }
         }
 
@@ -1465,6 +1471,7 @@ void hna_route_change_hook(uint8_t del, struct orig_node *on)
 STATIC_FUNC
 void hna_cleanup( void )
 {
+        task_remove((void(*)(void*))set_tun_out, NULL);
         set_route_change_hooks(hna_route_change_hook, DEL);
 }
 

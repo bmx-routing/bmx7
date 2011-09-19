@@ -1142,7 +1142,7 @@ IDM_T rtnl_talk(void *req, int len, uint8_t family, uint8_t cmd, int8_t del, uin
                 nlsock = nlsock_default;
 
 
-        if (sendto(nlsock, &req, len, 0, (struct sockaddr *) & nladdr, sizeof (struct sockaddr_nl)) < 0) {
+        if (sendto(nlsock, req, len, 0, (struct sockaddr *) & nladdr, sizeof (struct sockaddr_nl)) < 0) {
 
                 dbg_sys(DBGT_ERR, "can't send netlink message to kernel: %s", strerror(errno));
                 EXITERROR(-501095, (0));

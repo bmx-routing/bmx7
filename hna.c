@@ -878,7 +878,8 @@ void set_tun_out(struct tun_search_node *tsn, struct tun_adv_node *tan)
 }
 
 
-
+/*
+STATIC_FUNC
 struct tun_adv_node *next_tun_adv(struct orig_node *on, IPX_T *src, IPX_T *net, uint8_t plen, IDM_T exact, struct avl_node **it) {
 
         struct tun_adv_node *tan;
@@ -897,6 +898,7 @@ struct tun_adv_node *next_tun_adv(struct orig_node *on, IPX_T *src, IPX_T *net, 
         }
         return NULL;
 }
+*/
 
 
 STATIC_FUNC
@@ -917,13 +919,16 @@ int process_description_tlv_tun_adv(struct rx_frame_iterator *it)
 
                 if (op == TLV_OP_DEL) {
 
-                        struct tun_adv_node *tan = next_tun_adv(on, &adv->srcTunIp, &adv->network, adv->prefixlen, 1, 0);
+                        struct tun_adv_node *tan;
 
-                        del_tun_out(tan, NULL, NULL);
-                        avl_remove_item(&tun_adv_tree, &on, tan, -300416);
-                        debugFree(tan, -300417);
+                        //adv = next_tun_adv(on, &adv->srcTunIp, &adv->network, adv->prefixlen, 1, 0);
 
-                        set_tun_out(NULL, NULL);
+                        while ((tan = avl_remove_item(&tun_adv_tree, &on, NULL, -300416))) {
+                                del_tun_out(tan, NULL, NULL);
+                                debugFree(tan, -300417);
+                                set_tun_out(NULL, NULL); //TODO: only call once !!
+                        }
+
 
                 } else if (op == TLV_OP_TEST) {
 
@@ -977,27 +982,27 @@ int create_description_tlv_tun_adv(struct tx_frame_iterator *it)
 
         while ((p = list_iterate(&o->d.parents_instance_list, p)) && m <= max) {
 
-                struct description_msg_tun_adv gw;
-                memset(&gw, 0, sizeof (gw));
+                struct description_msg_tun_adv adv;
+                memset(&adv, 0, sizeof (adv));
 
                 while ((c = list_iterate(&p->childs_instance_list, c))) {
 
                         if (!strcmp(c->opt->name, ARG_TUN_ADV_SRC)) {
-                                str2netw(c->val, &gw.srcTunIp, NULL, NULL, NULL);
+                                str2netw(c->val, &adv.srcTunIp, NULL, NULL, NULL);
                         } else if (!strcmp(c->opt->name, ARG_TUN_ADV_BW)) {
                                 UMETRIC_T um = strtoul(c->val, NULL, 10);
-                                gw.bandwidth = umetric_to_fmu8(&um);
+                                adv.bandwidth = umetric_to_fmu8(&um);
                         }
                 }
 
-                if (!is_ip_set(&gw.srcTunIp) && (tun = avl_first_item(&tunnel_in_tree)))
-                        gw.srcTunIp = tun->srcTunIp;
+                if (!is_ip_set(&adv.srcTunIp) && (tun = avl_first_item(&tunnel_in_tree)))
+                        adv.srcTunIp = tun->srcTunIp;
 
-                str2netw(p->val, &gw.network, NULL, &gw.prefixlen, NULL);
+                str2netw(p->val, &adv.network, NULL, &adv.prefixlen, NULL);
 
-                if ((tun = avl_find_item(&tunnel_in_tree, &gw.srcTunIp)) && !tun->up) {
+                if ((tun = avl_find_item(&tunnel_in_tree, &adv.srcTunIp)) && !tun->up) {
 
-                        if (is_ip_local(&gw.srcTunIp)) {
+                        if (is_ip_local(&adv.srcTunIp)) {
                                 dbgf_sys(DBGT_WARN, "ERROR:..");
                         } else {
                                 configure_tunnel(ADD, self, tun);
@@ -1006,8 +1011,8 @@ int create_description_tlv_tun_adv(struct tx_frame_iterator *it)
 
 
                 if (tun && tun->up) {
-                        dbgf_track(DBGT_INFO, "src=%s dst=%s", ip6AsStr(&gw.srcTunIp), ip6AsStr(&gw.network));
-                        msg[m++] = gw;
+                        dbgf_track(DBGT_INFO, "src=%s dst=%s", ip6AsStr(&adv.srcTunIp), ip6AsStr(&adv.network));
+                        msg[m++] = adv;
                 } else {
                         continue;
                 }

@@ -262,80 +262,45 @@ IDM_T get_if_req(IFNAME_T *dev_name, struct ifreq *if_req, int siocgi_req)
 	return SUCCESS;
 }
 
+int get_if_index(IFNAME_T *name) {
 
+        struct avl_node *an = NULL;
+        struct if_link_node *iln;
 
-IDM_T iptunnel(IDM_T del, char *name, uint8_t proto, IPX_T *local, IPX_T *remote)
-{
-
-#define IPV6_DEFAULT_TNL_ENCAP_LIMIT 4
-#define DEFAULT_TNL_HOP_LIMIT	(64)
-
-#define SIOCGETTUNNEL   (SIOCDEVPRIVATE + 0)
-#define SIOCADDTUNNEL   (SIOCDEVPRIVATE + 1)
-#define SIOCDELTUNNEL   (SIOCDEVPRIVATE + 2)
-
-
-        struct ip6_tnl_parm {
-                char name[IFNAMSIZ]; /* name of tunnel device */
-                int link; /* ifindex of underlying L2 interface */
-                __u8 proto; /* tunnel protocol */
-                __u8 encap_limit; /* encapsulation limit for tunnel */
-                __u8 hop_limit; /* hop limit for tunnel */
-                __be32 flowinfo; /* traffic class and flowlabel for tunnel */
-                __u32 flags; /* tunnel flags */
-                struct in6_addr laddr; /* local tunnel end-point address */
-                struct in6_addr raddr; /* remote tunnel end-point address */
-        };
-
-        dbgf_track(DBGT_INFO, "del=%d name=%s proto=%d local=%s remote=%s",
-                del, name, proto, ip6AsStr(local), ip6AsStr(remote));
-
-        struct ip6_tnl_parm p;
-        struct ifreq ifr;
-
-        assertion(-501293, (name && strlen(name)));
-
-        memset(&p, 0, sizeof (p));
-        strncpy(p.name, name, IFNAMSIZ);
-        p.hop_limit = DEFAULT_TNL_HOP_LIMIT;
-        p.encap_limit = IPV6_DEFAULT_TNL_ENCAP_LIMIT;
-        p.proto = proto;
-
-        if(remote)
-                p.raddr = *remote;
-        if(local)
-                p.laddr = *local;
-
-        memset(&ifr, 0, sizeof (ifr));
-        strncpy(ifr.ifr_name, del ? name : "ip6tnl0", IFNAMSIZ);
-        ifr.ifr_ifru.ifru_data = &p;
-
-        if ((ioctl(rt_sock, del ? SIOCDELTUNNEL : SIOCADDTUNNEL, &ifr))) {
-                dbgf_sys(DBGT_ERR, "creating tunnel dev name=%s %s", name, strerror(errno));
-                return FAILURE;
+        while ((iln = avl_iterate_item(&if_link_tree, &an))) {
+                if (!strcmp(iln->name.str, name->str))
+                        return iln->index;
         }
 
-        if(!del) {
-                memset(&ifr, 0, sizeof (ifr));
-                strncpy(ifr.ifr_name, name, IFNAMSIZ);
-                if ((ioctl(rt_sock, SIOCGIFFLAGS, &ifr))) {
-                        dbgf_sys(DBGT_ERR, "getting tunnel flags name=%s %s", name, strerror(errno));
-                        iptunnel(DEL, name, 0, NULL, NULL);
-                        return FAILURE;
-                }
-
-                if ((ifr.ifr_flags & IFF_UP) != IFF_UP) {
-                        ifr.ifr_flags |= IFF_UP;
-                        if ((ioctl(rt_sock, SIOCSIFFLAGS, &ifr))) {
-                                dbgf_sys(DBGT_ERR, "setting tunnel flags name=%s %s", name, strerror(errno));
-                                iptunnel(DEL, name, 0, NULL, NULL);
-                                return FAILURE;
-                        }
-                }
-        }
-
-        return SUCCESS;
+        return FAILURE;
 }
+
+
+STATIC_FUNC
+void add_rtattr(struct nlmsghdr *nlh, int rta_type, char *data, uint16_t data_len, uint16_t family)
+{
+	TRACE_FUNCTION_CALL;
+        IP4_T ip4;
+        if (family == AF_INET) {
+                ip4 = ipXto4((*((IPX_T*)data)));
+                data_len = sizeof (ip4);
+                data = (char*) & ip4;
+        }
+
+        struct rtattr *rta = (struct rtattr *)(((char *) nlh) + NLMSG_ALIGN(nlh->nlmsg_len));
+        int len = RTA_LENGTH(data_len);
+
+        nlh->nlmsg_len = NLMSG_ALIGN(nlh->nlmsg_len) + RTA_ALIGN(len);
+
+        assertion(-50173, (NLMSG_ALIGN(nlh->nlmsg_len) < RT_REQ_BUFFSIZE));
+        // if this fails then double req buff size !!
+
+        rta->rta_type = rta_type;
+        rta->rta_len = len;
+        memcpy( RTA_DATA(rta), data, data_len );
+}
+
+
 
 
 
@@ -1062,12 +1027,12 @@ static IDM_T kernel_if_config(void)
                 iov.iov_base = buf;
 
                 memset(&req, 0, sizeof (req));
-                req.nlmsghdr.nlmsg_len = sizeof (req);
-                req.nlmsghdr.nlmsg_type = rtm_type[info];
-                req.nlmsghdr.nlmsg_flags = NLM_F_ROOT | NLM_F_MATCH | NLM_F_REQUEST;
-                req.nlmsghdr.nlmsg_pid = 0;
-                req.nlmsghdr.nlmsg_seq = ip_rth.dump = ++ip_rth.seq;
-                req.rtgenmsg.rtgen_family = AF_UNSPEC;
+                req.nlh.nlmsg_len = sizeof (req);
+                req.nlh.nlmsg_type = rtm_type[info];
+                req.nlh.nlmsg_flags = NLM_F_ROOT | NLM_F_MATCH | NLM_F_REQUEST;
+                req.nlh.nlmsg_pid = 0;
+                req.nlh.nlmsg_seq = ip_rth.dump = ++ip_rth.seq;
+                req.rtg.rtgen_family = AF_UNSPEC;
 
                 if (send(ip_rth.fd, (void*) & req, sizeof (req), 0) < 0) {
                         dbgf_sys(DBGT_ERR, "failed");
@@ -1159,10 +1124,244 @@ static IDM_T kernel_if_config(void)
 
 
 STATIC_FUNC
+IDM_T rtnl_talk(void *req, int len, uint8_t family, uint8_t cmd, int8_t del, uint8_t quiet,
+        IPX_T *net, uint8_t nmask, IPX_T *via, int8_t table_macro)
+{
+        uint32_t table = table_macro_to_table(table_macro);
+        uint8_t more_data;
+	struct nlmsghdr *nh;
+        struct sockaddr_nl nladdr;
+        memset(&nladdr, 0, sizeof (struct sockaddr_nl));
+	nladdr.nl_family = AF_NETLINK;
+
+        int nlsock = 0;
+
+        if ( cmd == IP_ROUTE_FLUSH_ALL )
+                nlsock = nlsock_flush_all;
+        else
+                nlsock = nlsock_default;
+
+
+        if (sendto(nlsock, &req, len, 0, (struct sockaddr *) & nladdr, sizeof (struct sockaddr_nl)) < 0) {
+
+                dbg_sys(DBGT_ERR, "can't send netlink message to kernel: %s", strerror(errno));
+                EXITERROR(-501095, (0));
+		return FAILURE;
+        }
+
+        int max_retries = 10;
+
+        //TODO: see ip/libnetlink.c rtnl_talk() for HOWTO
+        while (1) {
+                struct msghdr msg;
+                char buf[4096]; // less causes lost messages !!??
+                memset(&msg, 0, sizeof (struct msghdr));
+
+                memset(&nladdr, 0, sizeof (struct sockaddr_nl));
+                nladdr.nl_family = AF_NETLINK;
+
+                memset(buf, 0, sizeof(buf));
+                struct iovec iov = {.iov_base = buf, .iov_len = sizeof (buf)};
+
+		msg.msg_name = (void *)&nladdr;
+		msg.msg_namelen = sizeof(nladdr);
+		msg.msg_iov = &iov;
+		msg.msg_iovlen = 1;
+		msg.msg_control = NULL;
+
+		errno=0;
+		int status = recvmsg( nlsock, &msg, 0 );
+
+                more_data = NO;
+
+		if ( status < 0 ) {
+
+			if ( errno == EINTR ) {
+
+                                dbgf_sys(DBGT_WARN, "(EINTR) %s", strerror(errno));
+
+                        } else if (errno == EWOULDBLOCK || errno == EAGAIN) {
+
+                                dbgf_sys(DBGT_ERR, "(EWOULDBLOCK || EAGAIN) %s", strerror(errno));
+
+                        } else {
+
+                                dbgf_sys(DBGT_ERR, "%s", strerror(errno));
+                        }
+
+                        if ( max_retries-- > 0 ) {
+                                usleep(500);
+                                continue;
+                        } else {
+                                dbgf_sys(DBGT_ERR, "giving up!");
+                                EXITERROR(-501096, (0));
+                                return FAILURE;
+                        }
+
+		} else if (status == 0) {
+                        dbgf_sys(DBGT_ERR, "netlink EOF");
+                        EXITERROR(-501097, (0));
+                        return FAILURE;
+                }
+
+                if (msg.msg_flags & MSG_TRUNC) {
+                        dbgf_track(DBGT_INFO, "MSG_TRUNC");
+                        more_data = YES;
+                }
+
+		nh = (struct nlmsghdr *)buf;
+
+		while ( NLMSG_OK(nh, (size_t)status) ) {
+
+                        if (nh->nlmsg_flags & NLM_F_MULTI) {
+                                dbgf_all( DBGT_INFO, "NLM_F_MULTI");
+                                more_data = YES;
+                        }
+
+                        if (nh->nlmsg_type == NLMSG_DONE) {
+                                dbgf_track(DBGT_INFO, "NLMSG_DONE");
+                                more_data = NO;
+                                break;
+
+                        } else if ((nh->nlmsg_type == NLMSG_ERROR) && (((struct nlmsgerr*) NLMSG_DATA(nh))->error != 0)) {
+
+                                dbgf(quiet ? DBGL_ALL : DBGL_SYS, quiet ? DBGT_INFO : DBGT_ERR,
+                                        "can't %s %s to %s/%i via %s table %i: %s",
+                                        del2str(del), trackt2str(cmd), ipXAsStr(family, net), nmask, ipXAsStr(family, via),
+                                        table, strerror(-((struct nlmsgerr*) NLMSG_DATA(nh))->error));
+                                EXITERROR(-501098, (cmd == IP_RULE_FLUSH || cmd == IP_ROUTE_FLUSH || cmd == IP_RULE_TEST));
+                                return FAILURE;
+                        }
+
+                        if (cmd == IP_ROUTE_FLUSH_ALL) {
+
+                                struct rtmsg *rtm = (struct rtmsg *) NLMSG_DATA(nh);
+                                struct rtattr *rtap = (struct rtattr *) RTM_RTA(rtm);
+                                int rtl = RTM_PAYLOAD(nh);
+
+                                while (family == table && RTA_OK(rtap, rtl)) {
+
+                                        if (rtap->rta_type == RTA_DST) {
+
+
+                                                IPX_T fip;
+
+                                                if (rtm->rtm_family == AF_INET6)
+                                                        fip = *((IPX_T *) RTA_DATA(rtap));
+                                                else
+                                                        ip4ToX(&fip, *((IP4_T *) RTA_DATA(rtap)));
+
+
+                                                ip(family, IP_ROUTE_FLUSH, DEL, YES, &fip, rtm->rtm_dst_len, table_macro, 0, 0, 0, 0, 0, 0);
+
+                                        }
+
+                                        rtap = RTA_NEXT(rtap, rtl);
+                                }
+                        }
+
+                        nh = NLMSG_NEXT(nh, status);
+		}
+
+                if ( more_data ) {
+                        dbgf_track(DBGT_INFO, "more data via netlink socket %d...", nlsock);
+                } else {
+                        break;
+                }
+        }
+
+        return SUCCESS;
+}
+
+IDM_T ipaddr(IDM_T del, IFNAME_T *name, IPX_T *ip, uint8_t prefixlen, IDM_T deprecated)
+{
+
+        struct ifamsg_req req;
+        struct ifa_cacheinfo cinfo;
+
+	memset(&req, 0, sizeof(req));
+
+        req.nlh.nlmsg_len = NLMSG_LENGTH(sizeof (struct ifaddrmsg));
+        req.nlh.nlmsg_flags = NLM_F_REQUEST | (del ? 0 : (NLM_F_CREATE|NLM_F_EXCL));
+        req.nlh.nlmsg_type = del ? RTM_DELADDR : RTM_NEWADDR;
+	req.ifa.ifa_family = af_cfg();
+        req.ifa.ifa_index = get_if_index(name);
+        req.ifa.ifa_prefixlen = prefixlen;
+        req.ifa.ifa_scope = 0;
+
+        add_rtattr(&req.nlh, IFA_LOCAL, (char*) ip, sizeof (IPX_T), req.ifa.ifa_family);
+
+        if(deprecated) {
+
+                memset(&cinfo, 0, sizeof (cinfo));
+		cinfo.ifa_prefered = 0;
+		cinfo.ifa_valid = INFINITY_LIFE_TIME;
+                add_rtattr(&req.nlh, IFA_CACHEINFO, (char*) &cinfo, sizeof (cinfo), 0);
+        }
+
+        return rtnl_talk(&req, req.nlh.nlmsg_len, af_cfg(), IP_ADDRESS, del, NO, ip, prefixlen, NULL, 0);
+}
+
+IDM_T iptunnel(IDM_T del, char *name, uint8_t proto, IPX_T *local, IPX_T *remote)
+{
+
+        dbgf_track(DBGT_INFO, "del=%d name=%s proto=%d local=%s remote=%s",
+                del, name, proto, ip6AsStr(local), ip6AsStr(remote));
+
+        struct ip6_tnl_parm p;
+        struct ifreq req;
+
+        assertion(-501293, (name && strlen(name)));
+
+        memset(&p, 0, sizeof (p));
+        strncpy(p.name, name, IFNAMSIZ);
+        p.hop_limit = DEFAULT_TNL_HOP_LIMIT;
+        p.encap_limit = IPV6_DEFAULT_TNL_ENCAP_LIMIT;
+        p.proto = proto;
+
+        if(remote)
+                p.raddr = *remote;
+        if(local)
+                p.laddr = *local;
+
+        memset(&req, 0, sizeof (req));
+        strncpy(req.ifr_name, del ? name : "ip6tnl0", IFNAMSIZ);
+        req.ifr_ifru.ifru_data = &p;
+
+        if ((ioctl(rt_sock, del ? SIOCDELTUNNEL : SIOCADDTUNNEL, &req))) {
+                dbgf_sys(DBGT_ERR, "creating tunnel dev name=%s %s", name, strerror(errno));
+                return FAILURE;
+        }
+
+        if(!del) {
+                memset(&req, 0, sizeof (req));
+                strncpy(req.ifr_name, name, IFNAMSIZ);
+                if ((ioctl(rt_sock, SIOCGIFFLAGS, &req))) {
+                        dbgf_sys(DBGT_ERR, "getting tunnel flags name=%s %s", name, strerror(errno));
+                        iptunnel(DEL, name, 0, NULL, NULL);
+                        return FAILURE;
+                }
+
+                if ((req.ifr_flags & IFF_UP) != IFF_UP) {
+                        req.ifr_flags |= IFF_UP;
+                        if ((ioctl(rt_sock, SIOCSIFFLAGS, &req))) {
+                                dbgf_sys(DBGT_ERR, "setting tunnel flags name=%s %s", name, strerror(errno));
+                                iptunnel(DEL, name, 0, NULL, NULL);
+                                return FAILURE;
+                        }
+                }
+        }
+
+        return SUCCESS;
+}
+
+
+
+STATIC_FUNC
 IDM_T iptrack(uint8_t family, uint8_t cmd, uint8_t quiet, int8_t del, IPX_T *net, uint8_t mask, int8_t table_macro, int8_t prio_macro, IFNAME_T *iif, uint32_t metric)
 {
 	TRACE_FUNCTION_CALL;
-        assertion(-500000, (net));
+        assertion(-501232, (net));
         assertion(-500628, (cmd != IP_NOP));
         assertion(-500629, (del || (cmd != IP_ROUTE_FLUSH && cmd != IP_RULE_FLUSH)));
 
@@ -1231,7 +1430,7 @@ IDM_T iptrack(uint8_t family, uint8_t cmd, uint8_t quiet, int8_t del, IPX_T *net
                 } else if (first_tn->items == 1) {
 
                         struct track_node *rem_tn = avl_remove(&iptrack_tree, &first_tn->k, -300250);
-                        assertion(-500000, (rem_tn));
+                        assertion(-501233, (rem_tn));
                         assertion(-500882, (rem_tn == first_tn));
                         debugFree(rem_tn, -300072);
 
@@ -1273,29 +1472,6 @@ IDM_T iptrack(uint8_t family, uint8_t cmd, uint8_t quiet, int8_t del, IPX_T *net
 }
 
 
-STATIC_FUNC
-void add_rtattr(struct rtmsg_req *req, int rta_type, char *data, uint16_t data_len, uint16_t family)
-{
-	TRACE_FUNCTION_CALL;
-        IP4_T ip4;
-        if (family == AF_INET) {
-                ip4 = ipXto4((*((IPX_T*)data)));
-                data_len = sizeof (ip4);
-                data = (char*) & ip4;
-        }
-
-        struct rtattr *rta = (struct rtattr *)(((char *) req) + NLMSG_ALIGN(req->nlh.nlmsg_len));
-
-        req->nlh.nlmsg_len = NLMSG_ALIGN( req->nlh.nlmsg_len ) + RTA_LENGTH(data_len);
-
-        assertion(-50173, (NLMSG_ALIGN(req->nlh.nlmsg_len) < sizeof ( struct rtmsg_req)));
-        // if this fails then double req buff size !!
-
-        rta->rta_type = rta_type;
-        rta->rta_len = RTA_LENGTH(data_len);
-        memcpy( RTA_DATA(rta), data, data_len );
-}
-
 
 IDM_T ip(uint8_t family, uint8_t cmd, int8_t del, uint8_t quiet, const IPX_T *NET, uint8_t nmask,
         int8_t table_macro, int8_t prio_macro, IFNAME_T *iifname, int oif_idx, IPX_T *via, IPX_T *src, uint32_t metric)
@@ -1305,14 +1481,12 @@ IDM_T ip(uint8_t family, uint8_t cmd, int8_t del, uint8_t quiet, const IPX_T *NE
         assertion(-500653, (family == AF_INET || family == AF_INET6));
         assertion(-501102, (af_cfg() == family) || (niit_enabled && af_cfg() == AF_INET6 && family == AF_INET && !via));
         assertion(-501127, IMPLIES(policy_routing == POLICY_RT_UNSET, (cmd == IP_RULE_TEST && initializing)));
-        assertion(-500000, (NET));
+        assertion(-501234, (NET));
         assertion(-500650, IMPLIES(is_ip_set(NET), is_ip_valid(NET, family)));
         assertion(-500651, IMPLIES(via, is_ip_valid(via, family)));
         assertion(-500652, IMPLIES(src, is_ip_valid(src, family)));
 
 
-	struct sockaddr_nl nladdr;
-	struct nlmsghdr *nh;
         struct rtmsg_req req;
 
         dbgf_all(DBGT_INFO, "1");
@@ -1322,15 +1496,6 @@ IDM_T ip(uint8_t family, uint8_t cmd, int8_t del, uint8_t quiet, const IPX_T *NE
 
         IPX_T net_dummy = *NET;
         IPX_T *net = &net_dummy;
-
-        uint8_t more_data;
-
-        int nlsock = 0;
-
-        if ( cmd == IP_ROUTE_FLUSH_ALL )
-                nlsock = nlsock_flush_all;
-        else
-                nlsock = nlsock_default;
         
         assertion(-500672, (ip_netmask_validate(net, nmask, family, NO) == SUCCESS));
 
@@ -1350,16 +1515,13 @@ IDM_T ip(uint8_t family, uint8_t cmd, int8_t del, uint8_t quiet, const IPX_T *NE
 #ifndef NO_DEBUG_ALL
         struct if_link_node *oif_iln = oif_idx ? avl_find_item(&if_link_tree, &oif_idx) : NULL;
 
-        dbgf_track( DBGT_INFO, "%s %s %s %s/%-2d  iif %s  table %d  prio %d  oif %s  via %s  src %s (using nl_sock %d)",
+        dbgf_track( DBGT_INFO, "%s %s %s %s/%-2d  iif %s  table %d  prio %d  oif %s  via %s  src %s ",
                 family2Str(family), trackt2str(cmd), del2str(del), ipXAsStr(family, net), nmask,
                 iifname ? iifname->str : NULL, table, prio, oif_iln ? oif_iln->name.str : "---",
-                via ? ipXAsStr(family, via) : "---", src ? ipXAsStr(family, src) : "---", nlsock);
+                via ? ipXAsStr(family, via) : "---", src ? ipXAsStr(family, src) : "---");
 #endif
 
-        memset(&nladdr, 0, sizeof (struct sockaddr_nl));
         memset(&req, 0, sizeof (req));
-
-	nladdr.nl_family = AF_NETLINK;
 
         req.nlh.nlmsg_len = NLMSG_LENGTH(sizeof(struct rtmsg));
 	req.nlh.nlmsg_pid = My_pid;
@@ -1389,17 +1551,17 @@ IDM_T ip(uint8_t family, uint8_t cmd, int8_t del, uint8_t quiet, const IPX_T *NE
 
                 if (is_ip_set(net)) {
                         req.rtm.rtm_dst_len = nmask;
-                        add_rtattr(&req, RTA_DST, (char*) net, sizeof (IPX_T), family);
+                        add_rtattr(&req.nlh, RTA_DST, (char*) net, sizeof (IPX_T), family);
                 }
 
                 if (via && !llocal)
-                        add_rtattr(&req, RTA_GATEWAY, (char*) via, sizeof (IPX_T), family);
+                        add_rtattr(&req.nlh, RTA_GATEWAY, (char*) via, sizeof (IPX_T), family);
 
                 if (oif_idx)
-                        add_rtattr(&req, RTA_OIF, (char*) & oif_idx, sizeof (oif_idx), 0);
+                        add_rtattr(&req.nlh, RTA_OIF, (char*) & oif_idx, sizeof (oif_idx), 0);
 
                 if (src)
-                        add_rtattr(&req, RTA_PREFSRC, (char*) src, sizeof (IPX_T), family);
+                        add_rtattr(&req.nlh, RTA_PREFSRC, (char*) src, sizeof (IPX_T), family);
 
 
 
@@ -1418,11 +1580,11 @@ IDM_T ip(uint8_t family, uint8_t cmd, int8_t del, uint8_t quiet, const IPX_T *NE
 
                 if (is_ip_set(net)) {
                         req.rtm.rtm_src_len = nmask;
-                        add_rtattr(&req, RTA_SRC, (char*) net, sizeof (IPX_T), family);
+                        add_rtattr(&req.nlh, RTA_SRC, (char*) net, sizeof (IPX_T), family);
                 }
 
                 if (iifname)
-                        add_rtattr(&req, RTA_IIF, iifname->str, strlen(iifname->str) + 1, 0);
+                        add_rtattr(&req.nlh, RTA_IIF, iifname->str, strlen(iifname->str) + 1, 0);
 
         } else {
 
@@ -1431,145 +1593,18 @@ IDM_T ip(uint8_t family, uint8_t cmd, int8_t del, uint8_t quiet, const IPX_T *NE
 
 
         if (prio)
-                add_rtattr(&req, RTA_PRIORITY, (char*) & prio, sizeof (prio), 0);
+                add_rtattr(&req.nlh, RTA_PRIORITY, (char*) & prio, sizeof (prio), 0);
 
         if (metric)
-                add_rtattr(&req, RTA_METRICS, (char*) & metric, sizeof (metric), 0);
+                add_rtattr(&req.nlh, RTA_METRICS, (char*) & metric, sizeof (metric), 0);
 
         errno = 0;
 
-        if (sendto(nlsock, &req, req.nlh.nlmsg_len, 0, (struct sockaddr *) & nladdr, sizeof (struct sockaddr_nl)) < 0) {
-
-                dbg_sys(DBGT_ERR, "can't send netlink message to kernel: %s", strerror(errno));
-                EXITERROR(-501095, (0));
-		return FAILURE;
-        }
-
-        int max_retries = 10;
-
-        //TODO: see ip/libnetlink.c rtnl_talk() for HOWTO
-        while (1) {
-                struct msghdr msg;
-                char buf[4096]; // less causes lost messages !!??
-                memset(&msg, 0, sizeof (struct msghdr));
-
-                memset(&nladdr, 0, sizeof (struct sockaddr_nl));
-                nladdr.nl_family = AF_NETLINK;
-
-                memset(buf, 0, sizeof(buf));
-                struct iovec iov = {.iov_base = buf, .iov_len = sizeof (buf)};
-
-		msg.msg_name = (void *)&nladdr;
-		msg.msg_namelen = sizeof(nladdr);
-		msg.msg_iov = &iov;
-		msg.msg_iovlen = 1;
-		msg.msg_control = NULL;
-
-		errno=0;
-		int status = recvmsg( nlsock, &msg, 0 );
-
-                more_data = NO;
-
-		if ( status < 0 ) {
-
-			if ( errno == EINTR ) {
-
-                                dbgf_sys(DBGT_WARN, "(EINTR) %s", strerror(errno));
-
-                        } else if (errno == EWOULDBLOCK || errno == EAGAIN) {
-                                
-                                dbgf_sys(DBGT_ERR, "(EWOULDBLOCK || EAGAIN) %s", strerror(errno));
-
-                        } else {
-
-                                dbgf_sys(DBGT_ERR, "%s", strerror(errno));
-                        }
-
-                        if ( max_retries-- > 0 ) {
-                                usleep(500);
-                                continue;
-                        } else {
-                                dbgf_sys(DBGT_ERR, "giving up!");
-                                EXITERROR(-501096, (0));
-                                return FAILURE;
-                        }
-
-		} else if (status == 0) {
-                        dbgf_sys(DBGT_ERR, "netlink EOF");
-                        EXITERROR(-501097, (0));
-                        return FAILURE;
-                }
-
-                if (msg.msg_flags & MSG_TRUNC) {
-                        dbgf_track(DBGT_INFO, "MSG_TRUNC");
-                        more_data = YES;
-                }
-
-		nh = (struct nlmsghdr *)buf;
-
-		while ( NLMSG_OK(nh, (size_t)status) ) {
-
-                        if (nh->nlmsg_flags & NLM_F_MULTI) {
-                                dbgf_all( DBGT_INFO, "NLM_F_MULTI");
-                                more_data = YES;
-                        }
-
-                        if (nh->nlmsg_type == NLMSG_DONE) {
-                                dbgf_track(DBGT_INFO, "NLMSG_DONE");
-                                more_data = NO;
-                                break;
-
-                        } else if ((nh->nlmsg_type == NLMSG_ERROR) && (((struct nlmsgerr*) NLMSG_DATA(nh))->error != 0)) {
-
-                                dbgf(quiet ? DBGL_ALL : DBGL_SYS, quiet ? DBGT_INFO : DBGT_ERR,
-                                        "can't %s %s to %s/%i via %s table %i: %s",
-                                        del2str(del), trackt2str(cmd), ipXAsStr(family, net), nmask, ipXAsStr(family, via),
-                                        table, strerror(-((struct nlmsgerr*) NLMSG_DATA(nh))->error));
-                                EXITERROR(-501098, (cmd == IP_RULE_FLUSH || cmd == IP_ROUTE_FLUSH || cmd == IP_RULE_TEST));
-                                return FAILURE;
-                        }
-
-                        if (cmd == IP_ROUTE_FLUSH_ALL) {
-
-                                struct rtmsg *rtm = (struct rtmsg *) NLMSG_DATA(nh);
-                                struct rtattr *rtap = (struct rtattr *) RTM_RTA(rtm);
-                                int rtl = RTM_PAYLOAD(nh);
-
-                                while (rtm->rtm_table == table && RTA_OK(rtap, rtl)) {
-
-                                        if (rtap->rta_type == RTA_DST) {
+        return rtnl_talk(&req, req.nlh.nlmsg_len, family, cmd, del, quiet, net, nmask, via, table_macro);
 
 
-                                                IPX_T fip;
 
-                                                if (family == AF_INET6)
-                                                        fip = *((IPX_T *) RTA_DATA(rtap));
-                                                else
-                                                        ip4ToX(&fip, *((IP4_T *) RTA_DATA(rtap)));
-
-
-                                                ip(family, IP_ROUTE_FLUSH, DEL, YES, &fip, rtm->rtm_dst_len, table_macro, 0, 0, 0, 0, 0, 0);
-
-                                        }
-
-                                        rtap = RTA_NEXT(rtap, rtl);
-                                }
-                        }
-
-                        nh = NLMSG_NEXT(nh, status);
-		}
-
-                if ( more_data ) {
-                        dbgf_track(DBGT_INFO, "more data via netlink socket %d...", nlsock);
-                } else {
-                        break;
-                }
-        }
-
-        return SUCCESS;
 }
-
-
 
 
 

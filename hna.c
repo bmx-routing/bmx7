@@ -766,8 +766,15 @@ void configure_tunnel(uint8_t del, struct orig_node *on, struct tunnel_node *tun
 
                 assertion(-501292, (strlen(tun->name.str)));
 
-                if (iptunnel(ADD, tun->name.str, IPPROTO_IP, local, remote) == SUCCESS)
+                if (iptunnel(ADD, tun->name.str, IPPROTO_IP, local, remote) == SUCCESS) {
                         tun->up = 1;
+
+                        if (on != self) {
+                                ipaddr(ADD, &tun->name, &tun->srcTunIp, 128, 1 /*deprecated*/);
+                                ipaddr(ADD, &tun->name, &on->primary_ip, 128, 0 /*deprecated*/);
+                        }
+
+                }
         }
 }
 

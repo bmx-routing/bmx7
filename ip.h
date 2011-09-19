@@ -16,6 +16,11 @@
  */
 
 
+/*
+ * The functions for manipulating kernel network configuration
+ * eg: ip(), iptunnel(), ipaddr() were
+ * inspired by iproute2 code from Alexey Kuznetsov
+ */
 
 #ifndef IFA_F_DADFAILED
 #define IFA_F_DADFAILED		0x08
@@ -241,15 +246,30 @@ extern struct avl_tree dev_name_tree;
 
 
 struct ip_req {
-	struct nlmsghdr nlmsghdr;
-	struct rtgenmsg rtgenmsg;
+	struct nlmsghdr nlh;
+	struct rtgenmsg rtg;
 };
+
+#define RT_REQ_BUFFSIZE 256
 
 struct rtmsg_req {
         struct nlmsghdr nlh;
         struct rtmsg rtm;
-        char buff[ 256 ];
+        char buff[RT_REQ_BUFFSIZE];
 };
+
+struct ifamsg_req {
+        struct nlmsghdr nlh;
+        struct ifaddrmsg ifa;
+        char buf[RT_REQ_BUFFSIZE];
+};
+
+//struct ifa_cacheinfo {
+//	__u32	ifa_prefered;
+//	__u32	ifa_valid;
+//	__u32	cstamp; /* created timestamp, hundredths of seconds */
+//	__u32	tstamp; /* updated timestamp, hundredths of seconds */
+//};
 
 struct rtnl_handle {
 	int			fd;
@@ -257,6 +277,27 @@ struct rtnl_handle {
 	struct sockaddr_nl	peer;
 	__u32			seq;
 	__u32			dump;
+};
+
+#define IPV6_DEFAULT_TNL_ENCAP_LIMIT 4
+#define DEFAULT_TNL_HOP_LIMIT	(64)
+
+#define SIOCGETTUNNEL   (SIOCDEVPRIVATE + 0)
+#define SIOCADDTUNNEL   (SIOCDEVPRIVATE + 1)
+#define SIOCDELTUNNEL   (SIOCDEVPRIVATE + 2)
+
+
+
+struct ip6_tnl_parm {
+        char name[IFNAMSIZ]; /* name of tunnel device */
+        int link; /* ifindex of underlying L2 interface */
+        __u8 proto; /* tunnel protocol */
+        __u8 encap_limit; /* encapsulation limit for tunnel */
+        __u8 hop_limit; /* hop limit for tunnel */
+        __be32 flowinfo; /* traffic class and flowlabel for tunnel */
+        __u32 flags; /* tunnel flags */
+        struct in6_addr laddr; /* local tunnel end-point address */
+        struct in6_addr raddr; /* remote tunnel end-point address */
 };
 
 
@@ -390,11 +431,13 @@ struct track_node {
 //ip() commands:
 enum {
 	IP_NOP,
+
 	IP_RULES,
 	IP_RULE_FLUSH,
 	IP_RULE_DEFAULT,    //basic rules to interfaces, host, and networks routing tables
 	IP_RULE_TEST,
 	IP_RULE_MAX,
+
 	IP_ROUTES,
 	IP_ROUTE_FLUSH_ALL,
 	IP_ROUTE_FLUSH,
@@ -403,7 +446,9 @@ enum {
 	IP_ROUTE_HOST,
 	IP_ROUTE_HNA,
 	IP_ROUTE_TUNS,
-	IP_ROUTE_MAX
+	IP_ROUTE_MAX,
+
+        IP_ADDRESS
 };
 
 
@@ -442,14 +487,15 @@ IDM_T is_ip_net_equal(const IPX_T *netA, const IPX_T *netB, const uint8_t plen, 
 
 // core:
 
+IDM_T ipaddr(IDM_T del, IFNAME_T *name, IPX_T *ip, uint8_t prefixlen, IDM_T deprecated);
 IDM_T iptunnel(IDM_T del, char *name, uint8_t proto, IPX_T *local, IPX_T *remote);
+
+IDM_T ip(uint8_t family, uint8_t cmd, int8_t del, uint8_t quiet, const IPX_T *NET, uint8_t nmask,
+        int8_t table_macro, int8_t prio_macro, IFNAME_T *iifname, int oif_idx, IPX_T *via, IPX_T *src, uint32_t metric);
 
 uint8_t _af_cfg(const char *func);
 
 #define af_cfg() _af_cfg(__FUNCTION__)
-
-IDM_T ip(uint8_t family, uint8_t cmd, int8_t del, uint8_t quiet, const IPX_T *NET, uint8_t nmask,
-        int8_t table_macro, int8_t prio_macro, IFNAME_T *iifname, int oif_idx, IPX_T *via, IPX_T *src, uint32_t metric);
 
 //static IDM_T kernel_if_config(void);
 

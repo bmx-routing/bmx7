@@ -18,8 +18,8 @@
 
 /*
  * The functions for manipulating kernel network configuration
- * eg: ip(), iptunnel(), ipaddr() were
- * inspired by iproute2 code from Alexey Kuznetsov
+ * [eg: ip(), iptunnel(), ipaddr(), rtnl_talk() ]
+ * were inspired by iproute2 code from Alexey Kuznetsov
  */
 
 #ifndef IFA_F_DADFAILED

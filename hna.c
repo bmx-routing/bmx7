@@ -724,7 +724,8 @@ STATIC_FUNC
 void configure_tunnel(uint8_t del, struct orig_node *on, struct tunnel_node *tun)
 {
         assertion(-501292, (is_ip_set(&tun->srcTunIp)));
-        assertion(-501295, on && is_ip_set(&on->primary_ip));
+        assertion(-501235, (on));
+        assertion(-501295, IMPLIES(!del, (is_ip_set(&on->primary_ip))));
         assertion(-501294, IMPLIES(tun->up, tun->name.str[0]));
         assertion(-501295, IMPLIES(tun->up, del));
 

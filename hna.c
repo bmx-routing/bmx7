@@ -969,7 +969,7 @@ int process_description_tlv_tun_adv(struct rx_frame_iterator *it)
                         memset(tan, 0, sizeof (struct tun_adv_node));
                         tan->on = on;
                         tan->network = adv->network;
-                        tan->prefixlen = adv->prefixlen;
+                        tan->prefixlen = adv->networkLen;
                         tan->srcTunIp = adv->srcTunIp;
                         tan->bandwidth = adv->bandwidth;
                         AVL_INIT_TREE(tan->tun_search_tree, struct tun_search_node, netName);
@@ -1009,20 +1009,24 @@ int create_description_tlv_tun_adv(struct tx_frame_iterator *it)
                 struct description_msg_tun_adv adv;
                 memset(&adv, 0, sizeof (adv));
 
+                str2netw(p->val, &adv.network, NULL, &adv.networkLen, NULL);
+
                 while ((c = list_iterate(&p->childs_instance_list, c))) {
 
                         if (!strcmp(c->opt->name, ARG_TUN_ADV_SRC)) {
                                 str2netw(c->val, &adv.srcTunIp, NULL, NULL, NULL);
                         } else if (!strcmp(c->opt->name, ARG_TUN_ADV_BW)) {
-                                UMETRIC_T um = strtoul(c->val, NULL, 10);
+                                UMETRIC_T um = strtoull(c->val, NULL, 10);
                                 adv.bandwidth = umetric_to_fmu8(&um);
+                        } else if (!strcmp(c->opt->name, ARG_TUN_ADV_PREFIX)) {
+                                str2netw(c->val, &adv.srcPrefix, NULL, &adv.srcPrefixLen, NULL);
+                        } else if (!strcmp(c->opt->name, ARG_TUN_ADV_PREFIX_MIN)) {
+                                adv.srcPrefixMin = strtoul(c->val, NULL, 10);
                         }
                 }
 
                 if (!is_ip_set(&adv.srcTunIp) && (tun = avl_first_item(&tunnel_in_tree)))
                         adv.srcTunIp = tun->srcTunIp;
-
-                str2netw(p->val, &adv.network, NULL, &adv.prefixlen, NULL);
 
                 if ((tun = avl_find_item(&tunnel_in_tree, &adv.srcTunIp)) && !tun->up) {
 
@@ -1056,21 +1060,21 @@ int32_t opt_tun_adv(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt
 
         if (cmd == OPT_ADJUST || cmd == OPT_CHECK) {
 
-                uint8_t family = 0;
+                uint8_t adv_family = 0;
                 uint8_t mask;
                 IPX_T dst;
 
                 dbgf_all(DBGT_INFO, "af_cfg=%s diff=%d cmd=%s  save=%d  opt=%s  patch=%s",
                         family2Str(af_cfg()), patch->diff, opt_cmd2str[cmd], _save, opt->name, patch->val);
 
-                if (str2netw(patch->val, &dst, cn, &mask, &family) == FAILURE) {
+                if (str2netw(patch->val, &dst, cn, &mask, &adv_family) == FAILURE) {
                         dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "invalid %s=%s", ARG_TUN_ADV, patch->val);
                         return FAILURE;
                 }
 
                 if(cmd == OPT_ADJUST) {
                         char adjusted_dst[IPXNET_STR_LEN];
-                        sprintf(adjusted_dst, "%s/%d", ipXAsStr(family, &dst), mask);
+                        sprintf(adjusted_dst, "%s/%d", ipXAsStr(adv_family, &dst), mask);
                         set_opt_parent_val(patch, adjusted_dst);
                 }
 
@@ -1090,21 +1094,39 @@ int32_t opt_tun_adv(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt
                         } else if (!strcmp(c->opt->name, ARG_TUN_ADV_SRC) && c->val) {
 
                                 IPX_T src;
-                                uint8_t family = 0;
+                                uint8_t src_family = 0;
+                                char adjusted_src[IPXNET_STR_LEN];
 
-                                if (str2netw(c->val, &src, cn, NULL, &family) == FAILURE || family != AF_INET6) {
+                                if (str2netw(c->val, &src, cn, NULL, &src_family) == FAILURE || src_family != AF_INET6) {
                                         dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "invalid %s=%s", ARG_TUN_ADV_SRC, c->val);
                                         return FAILURE;
                                 }
 
-//                                if (cmd == OPT_ADJUST) {
-                                        char adjusted_src[IPXNET_STR_LEN];
-                                        sprintf(adjusted_src, "%s", ipXAsStr(AF_INET6, &src));
-                                        set_opt_child_val(c, adjusted_src);
-//                                }
-
-                                if (avl_find(&tunnel_out_tree, &src))
+                                if (avl_find(&tunnel_out_tree, &src)) {
+                                        dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "%s=%s already used as local address",
+                                                ARG_TUN_ADV_SRC, ip6AsStr(&src));
                                         return FAILURE;
+                                }
+
+                                sprintf(adjusted_src, "%s", ip6AsStr(&src));
+                                set_opt_child_val(c, adjusted_src);
+
+                        } else if (!strcmp(c->opt->name, ARG_TUN_ADV_PREFIX) && c->val) {
+
+                                IPX_T prefix;
+                                uint8_t prefixlen = 0;
+                                uint8_t prefix_family = 0;
+                                char adjusted_prefix[IPXNET_STR_LEN];
+
+                                if (str2netw(c->val, &prefix, cn, &prefixlen, &prefix_family) == FAILURE ||
+                                        adv_family != prefix_family) {
+                                        dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "invalid %s=%s", ARG_TUN_ADV_PREFIX, c->val);
+                                        return FAILURE;
+                                }
+
+                                sprintf(adjusted_prefix, "%s", ipXAsStr(prefix_family, &prefix));
+                                set_opt_child_val(c, adjusted_prefix);
+
                         }
                 }
 	}
@@ -1427,7 +1449,7 @@ struct opt_type hna_options[]= {
 			ARG_NAME_FORM, "specify first letters of local tunnel-interface names"}
         ,
 	{ODI,0,ARG_TUN_SRC,	 	0,5,2,A_PM1N,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_tun_in,
-			ARG_ADDR_FORM,  "configure one-way IPv6 tunnel by specifying to-be-used src address"},
+			ARG_ADDR_FORM,  "configure one-way IPv6 tunnel by specifying tunnel-src address"},
 	{ODI,ARG_TUN_SRC,ARG_TUN_SRC_NAME,0,5,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,	        0,              0,0,            opt_tun_in,
 			ARG_NAME_FORM,	"specify name of tunnel interface"}
         ,
@@ -1436,11 +1458,15 @@ struct opt_type hna_options[]= {
         ,
 
         {ODI,0,ARG_TUN_ADV,	 	0,5,2,A_PM1N,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_tun_adv,
-			ARG_PREFIX_FORM,"announce gateway tunnel to network"},
+			ARG_PREFIX_FORM,"specify network reachable via this tunnel"},
 	{ODI,ARG_TUN_ADV,ARG_TUN_ADV_SRC,     0,5,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,		0,              0,              0,0,            opt_tun_adv,
-			ARG_ADDR_FORM,	"specify incoming tunnel (by announcing to-be-used src address)"},
+			ARG_ADDR_FORM,	"specify tunnel-src address (incoming tunnel interface)"},
 	{ODI,ARG_TUN_ADV,ARG_TUN_ADV_BW,      0,5,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,		0,	        0,              0,0,            opt_tun_adv,
-			ARG_VALUE_FORM,	"announce bandwidth as bits/sec"}
+			ARG_VALUE_FORM,	"specify bandwidth to network as bits/sec"},
+	{ODI,ARG_TUN_ADV,ARG_TUN_ADV_PREFIX,  0,5,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,		0,	        0,              0,0,            opt_tun_adv,
+			ARG_PREFIX_FORM,"specify routable source prefix (ingress filter)"},
+	{ODI,ARG_TUN_ADV,ARG_TUN_ADV_PREFIX_MIN,0,5,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,		0,	        128,            0,0,            opt_tun_adv,
+			ARG_VALUE_FORM, "specify source prefix len usable for address auto configuration (0 = NO autoconfig)"}
         ,
 	{ODI,0,ARG_TUN_SEARCH,	 	0,5,2,A_PM1N,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_tun_search,
 		        ARG_NAME_FORM,"specify arbitrary but unique name for network which should be reached via tunnel depending on sub criterias"},

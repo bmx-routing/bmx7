@@ -65,6 +65,8 @@
 #define ARG_TUN_ADV "tunnelAdv"
 #define ARG_TUN_ADV_SRC "tunnelSrc"
 #define ARG_TUN_ADV_BW "bandwidth"
+#define ARG_TUN_ADV_PREFIX "srcPrefix"
+#define ARG_TUN_ADV_PREFIX_MIN "srcPrefixMin"
 
 #define ARG_TUN_SEARCH "tunnelSearch"
 #define ARG_TUN_SEARCH_NETWORK "network"
@@ -114,8 +116,11 @@ FIELD_FORMAT_END }
 struct description_msg_tun_adv {
         IP6_T srcTunIp;
         IPX_T network;
-        uint8_t prefixlen;
+        uint8_t networkLen;
         FMETRIC_U8_T bandwidth;
+        IPX_T srcPrefix;
+        uint8_t srcPrefixLen;
+        uint8_t srcPrefixMin;
 } __attribute__((packed));
 
 #define DESCRIPTION_MSG_TUN_ADV_FORMAT { \
@@ -123,6 +128,9 @@ struct description_msg_tun_adv {
 {FIELD_TYPE_IPX,      -1, 128, 1, FIELD_RELEVANCE_HIGH, "network" },  \
 {FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_HIGH, "prefixlen" },  \
 {FIELD_TYPE_FMETRIC8, -1,   8, 1, FIELD_RELEVANCE_HIGH, "bandwidth" },  \
+{FIELD_TYPE_IPX,      -1, 128, 1, FIELD_RELEVANCE_HIGH, "srcPrefix" },  \
+{FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_HIGH, "srcPrefixLen" },  \
+{FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_HIGH, "srcPrefixMin" },  \
 FIELD_FORMAT_END }
 
 

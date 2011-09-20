@@ -784,34 +784,34 @@ void del_tun_out(struct tun_adv_node *tan, struct tun_search_node *tsn, struct c
 
         struct avl_node *it = NULL;
         struct tun_search_node *ttsn;
+        struct tunnel_node *tun = tan->tun_out;
 
         while((ttsn = avl_iterate_item( &tan->tun_search_tree, &it))) {
 
                 if (!tsn || tsn == ttsn) {
 
-                        struct tunnel_node *tun = tan->tun_out;
-
                         assertion(-501298, (ttsn->tun_adv == tan));
                         assertion(-501299, (tun && tun->up && tun->if_index && tun->name_auto && tun->tun_adv_tree.items));
 
-                        ip(ttsn->family, IP_ROUTE_TUNS, NO, DEL, &ttsn->net, ttsn->prefixlen,
+                        ip(ttsn->family, IP_ROUTE_TUNS, DEL, NO, &ttsn->net, ttsn->prefixlen,
                                 RT_TABLE_TUNS, 0, NULL, tun->if_index, NULL, NULL, ttsn->ipmetric);
 
                         ttsn->tun_adv = NULL;
                         avl_remove(&tan->tun_search_tree, ttsn->netName, -300408);
 
-                        if (!tan->tun_search_tree.items) {
-
-                                avl_remove_item(&tun->tun_adv_tree, &tan->on, tan, -300409);
-                                tan->tun_out = NULL;
-
-                                if (!tun->tun_adv_tree.items) {
-                                        configure_tunnel(DEL, tan->on, tun);
-                                        avl_remove(&tunnel_out_tree, &tun->srcTunIp, -300410);
-                                        debugFree(tun, -300411);
-                                }
-                        }
                         it = NULL;
+                }
+        }
+
+        if (!tan->tun_search_tree.items) {
+
+                avl_remove_item(&tun->tun_adv_tree, &tan->on, tan, -300409);
+                tan->tun_out = NULL;
+
+                if (!tun->tun_adv_tree.items) {
+                        configure_tunnel(DEL, tan->on, tun);
+                        avl_remove(&tunnel_out_tree, &tun->srcTunIp, -300410);
+                        debugFree(tun, -300411);
                 }
         }
 }
@@ -886,7 +886,6 @@ void set_tun_out(struct tun_search_node *sn)
 
                                                 ipaddr(ADD, tun->if_index, &tun->srcTunIp, 128, 1 /*deprecated*/);
                                                 ipaddr(ADD, tun->if_index, &self->primary_ip, 128, 0 /*deprecated*/);
-
                                         }
                                         best_tan->tun_out = tun;
                                         avl_insert(&tun->tun_adv_tree, best_tan, -300414);
@@ -895,9 +894,8 @@ void set_tun_out(struct tun_search_node *sn)
                                 tsn->tun_adv = best_tan;
                                 avl_insert(&best_tan->tun_search_tree, tsn, -300415);
 
-                                ip(tsn->family, IP_ROUTE_TUNS, NO, ADD, &tsn->net, tsn->prefixlen, RT_TABLE_TUNS, 0,
+                                ip(tsn->family, IP_ROUTE_TUNS, ADD, NO, &tsn->net, tsn->prefixlen, RT_TABLE_TUNS, 0,
                                         NULL, tsn->tun_adv->tun_out->if_index, NULL, NULL, tsn->ipmetric);
-
                         }
                 }
         }

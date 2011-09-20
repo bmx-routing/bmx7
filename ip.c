@@ -1150,7 +1150,7 @@ IDM_T rtnl_talk(void *req, int len, uint8_t family, uint8_t cmd, int8_t del, uin
 		return FAILURE;
         }
 
-        int max_retries = 10;
+        int max_retries = 100;
 
         //TODO: see ip/libnetlink.c rtnl_talk() for HOWTO
         while (1) {
@@ -1191,7 +1191,9 @@ IDM_T rtnl_talk(void *req, int len, uint8_t family, uint8_t cmd, int8_t del, uin
                         }
 
                         if ( max_retries-- > 0 ) {
-                                usleep(500);
+                                usleep(1000);
+                                wait_sec_msec(0,1);
+                                upd_time( NULL );
                                 continue;
                         } else {
                                 dbgf_sys(DBGT_ERR, "giving up!");

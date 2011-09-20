@@ -1296,12 +1296,14 @@ IDM_T ipaddr(IDM_T del, IFNAME_T *name, IPX_T *ip, uint8_t prefixlen, IDM_T depr
         add_rtattr(&req.nlh, IFA_LOCAL, (char*) ip, sizeof (IPX_T), req.ifa.ifa_family);
 
         if(deprecated) {
-
                 memset(&cinfo, 0, sizeof (cinfo));
 		cinfo.ifa_prefered = 0;
 		cinfo.ifa_valid = INFINITY_LIFE_TIME;
                 add_rtattr(&req.nlh, IFA_CACHEINFO, (char*) &cinfo, sizeof (cinfo), 0);
         }
+
+        dbgf_track(DBGT_INFO, "del=%d ifname=%s ifidx=%d ip=%s/%d deprecated=%d",
+                del, name->str, req.ifa.ifa_index, ipFAsStr(ip), prefixlen, deprecated);
 
         return rtnl_talk(&req, req.nlh.nlmsg_len, af_cfg(), IP_ADDRESS, del, NO, ip, prefixlen, NULL, 0);
 }

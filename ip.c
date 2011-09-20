@@ -1150,7 +1150,7 @@ IDM_T rtnl_talk(void *req, int len, uint8_t family, uint8_t cmd, int8_t del, uin
 		return FAILURE;
         }
 
-        int max_retries = 100;
+        int max_retries = 10;
 
         //TODO: see ip/libnetlink.c rtnl_talk() for HOWTO
         while (1) {
@@ -1191,8 +1191,7 @@ IDM_T rtnl_talk(void *req, int len, uint8_t family, uint8_t cmd, int8_t del, uin
                         }
 
                         if ( max_retries-- > 0 ) {
-                                usleep(1000);
-                                wait_sec_msec(0,1);
+                                usleep(500);
                                 upd_time( NULL );
                                 continue;
                         } else {
@@ -1287,7 +1286,7 @@ IDM_T ipaddr(IDM_T del, IFNAME_T *name, IPX_T *ip, uint8_t prefixlen, IDM_T depr
 	memset(&req, 0, sizeof(req));
 
         req.nlh.nlmsg_len = NLMSG_LENGTH(sizeof (struct ifaddrmsg));
-        req.nlh.nlmsg_flags = NLM_F_REQUEST | (del ? 0 : (NLM_F_CREATE|NLM_F_EXCL));
+        req.nlh.nlmsg_flags = NLM_F_REQUEST | NLM_F_ACK | (del ? 0 : (NLM_F_CREATE | NLM_F_EXCL));
         req.nlh.nlmsg_type = del ? RTM_DELADDR : RTM_NEWADDR;
 	req.ifa.ifa_family = af_cfg();
         req.ifa.ifa_index = if_nametoindex(name->str);  //get_if_index(&tun->name);

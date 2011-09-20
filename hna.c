@@ -720,7 +720,6 @@ int32_t opt_uhna(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
 
 
 
-
 STATIC_FUNC
 void configure_tunnel(uint8_t del, struct orig_node *on, struct tunnel_node *tun)
 {
@@ -770,6 +769,7 @@ void configure_tunnel(uint8_t del, struct orig_node *on, struct tunnel_node *tun
                         tun->up = 1;
 
                         if (on != self) {
+
                                 ipaddr(ADD, &tun->name, &tun->srcTunIp, 128, 1 /*deprecated*/);
                                 ipaddr(ADD, &tun->name, &on->primary_ip, 128, 0 /*deprecated*/);
                         }

@@ -272,6 +272,7 @@ int get_if_index(IFNAME_T *name) {
                         return iln->index;
         }
 
+        dbgf_sys(DBGT_ERR, "interface %s not found", name->str);
         return FAILURE;
 }
 
@@ -1273,6 +1274,8 @@ IDM_T rtnl_talk(void *req, int len, uint8_t family, uint8_t cmd, int8_t del, uin
         return SUCCESS;
 }
 
+extern unsigned int if_nametoindex (const char *);
+
 IDM_T ipaddr(IDM_T del, IFNAME_T *name, IPX_T *ip, uint8_t prefixlen, IDM_T deprecated)
 {
 
@@ -1285,7 +1288,8 @@ IDM_T ipaddr(IDM_T del, IFNAME_T *name, IPX_T *ip, uint8_t prefixlen, IDM_T depr
         req.nlh.nlmsg_flags = NLM_F_REQUEST | (del ? 0 : (NLM_F_CREATE|NLM_F_EXCL));
         req.nlh.nlmsg_type = del ? RTM_DELADDR : RTM_NEWADDR;
 	req.ifa.ifa_family = af_cfg();
-        req.ifa.ifa_index = get_if_index(name);
+        req.ifa.ifa_index = if_nametoindex(name->str);  //get_if_index(&tun->name);
+
         req.ifa.ifa_prefixlen = prefixlen;
         req.ifa.ifa_scope = 0;
 

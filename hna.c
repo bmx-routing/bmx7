@@ -803,7 +803,7 @@ void del_tun_out(struct tun_adv_node *tan, struct tun_search_node *tsn, struct c
                 }
         }
 
-        if (!tan->tun_search_tree.items) {
+        if (tun && !tan->tun_search_tree.items) {
 
                 avl_remove_item(&tun->tun_adv_tree, &tan->on, tan, -300409);
                 tan->tun_out = NULL;

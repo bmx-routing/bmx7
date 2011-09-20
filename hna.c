@@ -794,8 +794,8 @@ void del_tun_out(struct tun_adv_node *tan, struct tun_search_node *tsn, struct c
                         assertion(-501298, (ttsn->tun_adv == tan));
                         assertion(-501299, (tun && tun->up && tun->if_index && tun->name_auto && tun->tun_adv_tree.items));
 
-                        ip(tsn->family, IP_ROUTE_TUNS, NO, DEL, &tsn->net, tsn->prefixlen,
-                                RT_TABLE_TUNS, 0, NULL, tun->if_index, NULL, NULL, tsn->ipmetric);
+                        ip(ttsn->family, IP_ROUTE_TUNS, NO, DEL, &ttsn->net, ttsn->prefixlen,
+                                RT_TABLE_TUNS, 0, NULL, tun->if_index, NULL, NULL, ttsn->ipmetric);
 
                         ttsn->tun_adv = NULL;
                         avl_remove(&tan->tun_search_tree, ttsn->netName, -300408);

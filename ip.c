@@ -262,18 +262,10 @@ IDM_T get_if_req(IFNAME_T *dev_name, struct ifreq *if_req, int siocgi_req)
 	return SUCCESS;
 }
 
-int get_if_index(IFNAME_T *name) {
+extern unsigned int if_nametoindex (const char *);
 
-        struct avl_node *an = NULL;
-        struct if_link_node *iln;
-
-        while ((iln = avl_iterate_item(&if_link_tree, &an))) {
-                if (!strcmp(iln->name.str, name->str))
-                        return iln->index;
-        }
-
-        dbgf_sys(DBGT_ERR, "interface %s not found", name->str);
-        return FAILURE;
+uint32_t get_if_index(IFNAME_T *name) {
+        return if_nametoindex(name->str);
 }
 
 
@@ -1275,9 +1267,8 @@ IDM_T rtnl_talk(void *req, int len, uint8_t family, uint8_t cmd, int8_t del, uin
         return SUCCESS;
 }
 
-extern unsigned int if_nametoindex (const char *);
 
-IDM_T ipaddr(IDM_T del, IFNAME_T *name, IPX_T *ip, uint8_t prefixlen, IDM_T deprecated)
+IDM_T ipaddr(IDM_T del, uint32_t if_index, IPX_T *ip, uint8_t prefixlen, IDM_T deprecated)
 {
 
         struct ifamsg_req req;
@@ -1289,7 +1280,7 @@ IDM_T ipaddr(IDM_T del, IFNAME_T *name, IPX_T *ip, uint8_t prefixlen, IDM_T depr
         req.nlh.nlmsg_flags = NLM_F_REQUEST | NLM_F_ACK | (del ? 0 : (NLM_F_CREATE | NLM_F_EXCL));
         req.nlh.nlmsg_type = del ? RTM_DELADDR : RTM_NEWADDR;
 	req.ifa.ifa_family = af_cfg();
-        req.ifa.ifa_index = if_nametoindex(name->str);  //get_if_index(&tun->name);
+        req.ifa.ifa_index = if_index;
 
         req.ifa.ifa_prefixlen = prefixlen;
         req.ifa.ifa_scope = 0;
@@ -1303,8 +1294,7 @@ IDM_T ipaddr(IDM_T del, IFNAME_T *name, IPX_T *ip, uint8_t prefixlen, IDM_T depr
                 add_rtattr(&req.nlh, IFA_CACHEINFO, (char*) &cinfo, sizeof (cinfo), 0);
         }
 
-        dbgf_track(DBGT_INFO, "del=%d ifname=%s ifidx=%d ip=%s/%d deprecated=%d",
-                del, name->str, req.ifa.ifa_index, ipFAsStr(ip), prefixlen, deprecated);
+        dbgf_track(DBGT_INFO, "del=%d ifidx=%d ip=%s/%d deprecated=%d", del, if_index, ipFAsStr(ip), prefixlen, deprecated);
 
         return rtnl_talk(&req, req.nlh.nlmsg_len, af_cfg(), IP_ADDRESS, del, NO, ip, prefixlen, NULL, 0);
 }
@@ -1365,7 +1355,8 @@ IDM_T iptunnel(IDM_T del, char *name, uint8_t proto, IPX_T *local, IPX_T *remote
 
 
 STATIC_FUNC
-IDM_T iptrack(uint8_t family, uint8_t cmd, uint8_t quiet, int8_t del, IPX_T *net, uint8_t mask, int8_t table_macro, int8_t prio_macro, IFNAME_T *iif, uint32_t metric)
+IDM_T iptrack(uint8_t family, uint8_t cmd, uint8_t quiet, int8_t del, IPX_T *net, uint8_t mask, int8_t table_macro,
+        int8_t prio_macro, IFNAME_T *iif, uint32_t metric)
 {
 	TRACE_FUNCTION_CALL;
         assertion(-501232, (net));
@@ -1486,7 +1477,7 @@ IDM_T ip(uint8_t family, uint8_t cmd, int8_t del, uint8_t quiet, const IPX_T *NE
 	TRACE_FUNCTION_CALL;
 
         assertion(-500653, (family == AF_INET || family == AF_INET6));
-        assertion(-501102, (af_cfg() == family) || (niit_enabled && af_cfg() == AF_INET6 && family == AF_INET && !via));
+//        assertion(-501102, (af_cfg() == family) || (niit_enabled && af_cfg() == AF_INET6 && family == AF_INET && !via));
         assertion(-501127, IMPLIES(policy_routing == POLICY_RT_UNSET, (cmd == IP_RULE_TEST && initializing)));
         assertion(-501234, (NET));
         assertion(-500650, IMPLIES(is_ip_set(NET), is_ip_valid(NET, family)));

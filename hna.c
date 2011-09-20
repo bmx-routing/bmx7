@@ -767,12 +767,7 @@ void configure_tunnel(uint8_t del, struct orig_node *on, struct tunnel_node *tun
 
                 if (iptunnel(ADD, tun->name.str, IPPROTO_IP, local, remote) == SUCCESS) {
                         tun->up = 1;
-
-                        if (on != self) {
-
-                                ipaddr(ADD, &tun->name, &tun->srcTunIp, 128, 1 /*deprecated*/);
-                                ipaddr(ADD, &tun->name, &on->primary_ip, 128, 0 /*deprecated*/);
-                        }
+                        tun->if_index = get_if_index(&tun->name);
 
                 }
         }
@@ -797,7 +792,10 @@ void del_tun_out(struct tun_adv_node *tan, struct tun_search_node *tsn, struct c
                         struct tunnel_node *tun = tan->tun_out;
 
                         assertion(-501298, (ttsn->tun_adv == tan));
-                        assertion(-501299, (tun && tun->up && tun->name_auto && tun->tun_adv_tree.items));
+                        assertion(-501299, (tun && tun->up && tun->if_index && tun->name_auto && tun->tun_adv_tree.items));
+
+                        ip(tsn->family, IP_ROUTE_TUNS, NO, DEL, &tsn->net, tsn->prefixlen,
+                                RT_TABLE_TUNS, 0, NULL, tun->if_index, NULL, NULL, tsn->ipmetric);
 
                         ttsn->tun_adv = NULL;
                         avl_remove(&tan->tun_search_tree, ttsn->netName, -300408);
@@ -882,8 +880,13 @@ void set_tun_out(struct tun_search_node *sn)
                                                 tun->name_auto = 1;
                                                 tun->srcTunIp = best_tan->srcTunIp;
                                                 AVL_INIT_TREE(tun->tun_adv_tree, struct tun_adv_node, on);
-                                                configure_tunnel(ADD, best_tan->on, tun);
                                                 avl_insert(&tunnel_out_tree, tun, -300413);
+
+                                                configure_tunnel(ADD, best_tan->on, tun);
+
+                                                ipaddr(ADD, tun->if_index, &tun->srcTunIp, 128, 1 /*deprecated*/);
+                                                ipaddr(ADD, tun->if_index, &self->primary_ip, 128, 0 /*deprecated*/);
+
                                         }
                                         best_tan->tun_out = tun;
                                         avl_insert(&tun->tun_adv_tree, best_tan, -300414);
@@ -891,6 +894,10 @@ void set_tun_out(struct tun_search_node *sn)
 
                                 tsn->tun_adv = best_tan;
                                 avl_insert(&best_tan->tun_search_tree, tsn, -300415);
+
+                                ip(tsn->family, IP_ROUTE_TUNS, NO, ADD, &tsn->net, tsn->prefixlen, RT_TABLE_TUNS, 0,
+                                        NULL, tsn->tun_adv->tun_out->if_index, NULL, NULL, tsn->ipmetric);
+
                         }
                 }
         }

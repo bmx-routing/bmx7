@@ -486,8 +486,9 @@ IDM_T is_ip_net_equal(const IPX_T *netA, const IPX_T *netB, const uint8_t plen, 
 
 
 // core:
+uint32_t get_if_index(IFNAME_T *name);
 
-IDM_T ipaddr(IDM_T del, IFNAME_T *name, IPX_T *ip, uint8_t prefixlen, IDM_T deprecated);
+IDM_T ipaddr(IDM_T del, uint32_t if_index, IPX_T *ip, uint8_t prefixlen, IDM_T deprecated);
 IDM_T iptunnel(IDM_T del, char *name, uint8_t proto, IPX_T *local, IPX_T *remote);
 
 IDM_T ip(uint8_t family, uint8_t cmd, int8_t del, uint8_t quiet, const IPX_T *NET, uint8_t nmask,

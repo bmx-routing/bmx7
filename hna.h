@@ -160,6 +160,7 @@ struct tunnel_node {
         IFNAME_T name;
         uint8_t name_auto;
         uint8_t up;
+        uint32_t if_index;
 
         struct avl_tree tun_adv_tree;
 

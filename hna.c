@@ -933,6 +933,7 @@ int process_description_tlv_tun_adv(struct rx_frame_iterator *it)
         uint16_t msgs = it->frame_msgs_length / msg_size;
         uint16_t m;
         struct description_msg_tun_adv *adv = (((struct description_msg_tun_adv *) (it->frame_data)));
+        IDM_T used = NO;
 
         if (af_cfg() != AF_INET6)
                 return TLV_RX_DATA_IGNORED;
@@ -947,10 +948,16 @@ int process_description_tlv_tun_adv(struct rx_frame_iterator *it)
                         //adv = next_tun_adv(on, &adv->srcTunIp, &adv->network, adv->prefixlen, 1, 0);
 
                         while ((tan = avl_remove_item(&tun_adv_tree, &on, NULL, -300416))) {
+
+                                used |= (tan->tun_out) ? YES : NO;
+
                                 del_tun_out(tan, NULL, NULL);
                                 debugFree(tan, -300417);
-                                set_tun_out(NULL); //TODO: only call once !!
+
                         }
+
+                        if (used)
+                                set_tun_out(NULL);
 
 
                 } else if (op == TLV_OP_TEST) {

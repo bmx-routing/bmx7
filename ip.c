@@ -539,6 +539,9 @@ IDM_T is_ip_valid( const IPX_T *ip, const uint8_t family )
         if (!is_ip_set(ip))
                 return NO;
 
+        if (family != (is_zero((void*) ip, sizeof ( IPX_T) - sizeof (IP4_T)) ? AF_INET : AF_INET6))
+                return NO;
+
         if (family == AF_INET6 ) {
 
                 if (!is_ip_equal(ip, &IP6_LOOPBACK_ADDR))
@@ -2988,9 +2991,9 @@ int32_t opt_dev_prefix(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
         if ((cmd == OPT_ADJUST || cmd == OPT_CHECK || cmd == OPT_APPLY) && patch->diff == ADD) {
                 
                 char new[IPXNET_STR_LEN];
-                uint8_t family = 0;
+                uint8_t family = af_cfg();
 
-                if (str2netw(patch->val, &ipX, cn, &mask, &family) == FAILURE || family != af_cfg() ||
+                if (str2netw(patch->val, &ipX, cn, &mask, &family) == FAILURE || !is_ip_valid(&ipX, family) ||
                         (family == AF_INET6 && (
                         is_ip_net_equal(&ipX, &IP6_MC_PREF, IP6_MC_PLEN, AF_INET6) ||
                         XOR(is_global_prefix, !is_ip_net_equal(&ipX, &IP6_LINKLOCAL_UC_PREF, IP6_LINKLOCAL_UC_PLEN, AF_INET6))))
@@ -3169,9 +3172,9 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
                                 if (c->val) {
 
                                         char new[IPXNET_STR_LEN];
-                                        uint8_t family = 0;
+                                        uint8_t family = af_cfg();
 
-                                        if (str2netw(c->val, &ipX, cn, &mask, &family) == FAILURE || family != af_cfg() ||
+                                        if (str2netw(c->val, &ipX, cn, &mask, &family) == FAILURE || !is_ip_valid(&ipX, family) ||
                                                 (family == AF_INET6 && (
                                                 is_ip_net_equal(&ipX, &IP6_MC_PREF, IP6_MC_PLEN, AF_INET6) ||
                                                 XOR(is_global_prefix, !is_ip_net_equal(&ipX, &IP6_LINKLOCAL_UC_PREF, IP6_LINKLOCAL_UC_PLEN, AF_INET6))))

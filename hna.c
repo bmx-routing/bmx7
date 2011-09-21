@@ -209,7 +209,7 @@ int32_t opt_niit(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
 
                         ipX = ZERO_IP;
 
-                } else if ( str2netw( patch->val, &ipX, cn, NULL, &family ) == FAILURE  ) {
+                } else if (str2netw(patch->val, &ipX, cn, NULL, &family) == FAILURE || !is_ip_valid(&ipX, family)) {
 
                         return FAILURE;
 
@@ -660,15 +660,14 @@ int32_t opt_uhna(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
 
 	if ( cmd == OPT_ADJUST  ||  cmd == OPT_CHECK  ||  cmd == OPT_APPLY ) {
 
-                uint8_t family = 0;
+                uint8_t family = af_cfg();
                 struct net_key key;
                 struct hna_node *un;
 
                 dbgf_all(DBGT_INFO, "af_cfg=%s diff=%d cmd=%s  save=%d  opt=%s  patch=%s",
                         family2Str(af_cfg()), patch->diff, opt_cmd2str[cmd], _save, opt->name, patch->val);
 
-                if (str2netw(patch->val, &ipX, cn, &mask, &family) == FAILURE || family != af_cfg()) {
-
+                if (str2netw(patch->val, &ipX, cn, &mask, &family) == FAILURE || !is_ip_valid(&ipX, family)) {
                         dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "invalid prefix: %s", patch->val);
                         return FAILURE;
                 }
@@ -1094,10 +1093,10 @@ int32_t opt_tun_adv(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt
                         } else if (!strcmp(c->opt->name, ARG_TUN_ADV_SRC) && c->val) {
 
                                 IPX_T src;
-                                uint8_t src_family = 0;
+                                uint8_t src_family = AF_INET6;
                                 char adjusted_src[IPXNET_STR_LEN];
 
-                                if (str2netw(c->val, &src, cn, NULL, &src_family) == FAILURE || src_family != AF_INET6) {
+                                if (str2netw(c->val, &src, cn, NULL, &src_family) == FAILURE || !is_ip_valid(&src, AF_INET6)) {
                                         dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "invalid %s=%s", ARG_TUN_ADV_SRC, c->val);
                                         return FAILURE;
                                 }
@@ -1115,16 +1114,14 @@ int32_t opt_tun_adv(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt
 
                                 IPX_T prefix;
                                 uint8_t prefixlen = 0;
-                                uint8_t prefix_family = 0;
                                 char adjusted_prefix[IPXNET_STR_LEN];
 
-                                if (str2netw(c->val, &prefix, cn, &prefixlen, &prefix_family) == FAILURE ||
-                                        adv_family != prefix_family) {
+                                if (str2netw(c->val, &prefix, cn, &prefixlen, &adv_family) == FAILURE ) {
                                         dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "invalid %s=%s", ARG_TUN_ADV_PREFIX, c->val);
                                         return FAILURE;
                                 }
 
-                                sprintf(adjusted_prefix, "%s", ipXAsStr(prefix_family, &prefix));
+                                sprintf(adjusted_prefix, "%s", ipXAsStr(adv_family, &prefix));
                                 set_opt_child_val(c, adjusted_prefix);
 
                         }
@@ -1286,7 +1283,7 @@ int32_t opt_tun_in(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_
 
 	if ( cmd == OPT_ADJUST  ||  cmd == OPT_CHECK  ||  cmd == OPT_APPLY ) {
 
-                uint8_t family = 0;
+                uint8_t family = AF_INET6;
                 struct hna_node *un = NULL;;
                 char adjusted_src[IPXNET_STR_LEN];
 
@@ -1294,7 +1291,7 @@ int32_t opt_tun_in(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_
                 dbgf_track(DBGT_INFO, "diff=%d cmd=%s  save=%d  opt=%s  patch=%s",
                         patch->diff, opt_cmd2str[cmd], _save, opt->name, patch->val);
 
-                if (str2netw(patch->val, &src, cn, NULL, &family) == FAILURE || family != AF_INET6 ||
+                if (str2netw(patch->val, &src, cn, NULL, &family) == FAILURE || !is_ip_valid(&src, family) ||
                         ((un = find_overlapping_hna(&src, 128)) && un->on != self)) {
 
                         dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "invalid prefix: %s or blocked by %s",
@@ -1303,7 +1300,7 @@ int32_t opt_tun_in(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_
                         return FAILURE;
                 }
 
-                sprintf(adjusted_src, "%s", ipXAsStr(family, &src));
+                sprintf(adjusted_src, "%s", ip6AsStr(&src));
                 set_opt_parent_val(patch, adjusted_src);
 
                 while ((c = list_iterate(&patch->childs_instance_list, c))) {

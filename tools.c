@@ -386,7 +386,7 @@ uint8_t is_zero(void *data, int len)
 
 
 
-IDM_T str2netw(char* args, IPX_T *ipX,  struct ctrl_node *cn, uint8_t *maskp, uint8_t *familyp)
+IDM_T str2netw(char* args, IPX_T *ipX,  struct ctrl_node *cn, uint8_t *maskp, uint8_t *familyp, uint8_t is_addr)
 {
 
         const char delimiter = '/';
@@ -440,7 +440,7 @@ IDM_T str2netw(char* args, IPX_T *ipX,  struct ctrl_node *cn, uint8_t *maskp, ui
 
         if ((inet_pton(AF_INET, switch_arg, &in4) == 1) && (!maskp || *maskp <= 32)) {
 
-                ip4ToX(ipX, in4.s_addr);
+                *ipX = ip4ToX(in4.s_addr);
                 family = AF_INET;
 
         } else if ((inet_pton(AF_INET6, switch_arg, &in6) == 1) && (!maskp || *maskp <= 128)) {
@@ -455,8 +455,18 @@ IDM_T str2netw(char* args, IPX_T *ipX,  struct ctrl_node *cn, uint8_t *maskp, ui
 
         }
 
-        if (ip_netmask_validate(ipX, (maskp ? *maskp : 128), family, NO) == FAILURE)
-                return FAILURE;
+        if (is_addr) {
+                IPX_T netw = *ipX;
+                if (ip_netmask_validate(&netw, (maskp ? *maskp : (family == AF_INET ? 32 : 128)), family, YES) == FAILURE)
+                        return FAILURE;
+
+                if (maskp && *maskp != (family == AF_INET ? 32 : 128) && !memcmp(&netw, ipX, sizeof (netw)))
+                        return FAILURE;
+
+        } else {
+                if (ip_netmask_validate(ipX, (maskp ? *maskp : (family == AF_INET ? 32 : 128)), family, NO) == FAILURE)
+                        return FAILURE;
+        }
 
         if (familyp && (*familyp == AF_INET || *familyp == AF_INET6) && *familyp != family)
                 return FAILURE;

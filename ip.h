@@ -465,7 +465,7 @@ void  ipXToStr(int family, const IPX_T *addr, char *str);
 void ipFToStr(const IPX_T *addr, char *str);
 
 #define ipXto4( ipx ) ((ipx).s6_addr32[3])
-void ip4ToX(IPX_T *ipx, IP4_T ip4);
+IPX_T ip4ToX(IP4_T ip4);
 
 char* macAsStr(const MAC_T* mac);
 
@@ -488,7 +488,7 @@ IDM_T is_ip_net_equal(const IPX_T *netA, const IPX_T *netB, const uint8_t plen, 
 // core:
 uint32_t get_if_index(IFNAME_T *name);
 
-IDM_T ipaddr(IDM_T del, uint32_t if_index, IPX_T *ip, uint8_t prefixlen, IDM_T deprecated);
+IDM_T ipaddr(IDM_T del, uint32_t if_index, uint8_t family, IPX_T *ip, uint8_t prefixlen, IDM_T deprecated);
 IDM_T iptunnel(IDM_T del, char *name, uint8_t proto, IPX_T *local, IPX_T *remote);
 
 IDM_T ip(uint8_t family, uint8_t cmd, int8_t del, uint8_t quiet, const IPX_T *NET, uint8_t nmask,

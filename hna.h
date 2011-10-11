@@ -16,16 +16,6 @@
  */
 
 
-
-
-
-
-
-
-
-
-
-
 #define ARG_UHNA "hna"
 
 #define ARG_UHNA_NETWORK     "network"
@@ -39,7 +29,7 @@
 #define DEF_IP_METRIC      0
 #define ARG_IP_METRIC      "ipMetric"
 
-#define ARG_NIIT          "niitSource"
+#define ARG_NIIT          "niitAddress"
 #define HLP_NIIT          "specify niit4to6 source IP address (IP MUST be assigned to niit4to6 interface!)"
 #define DEF_NIIT_PREFIX   { { { 0,0,0,0,0,0,0,0,0,0,0xFF,0xFF,0,0,0,0 } } }
 #define DEF_NIIT_4TO6_DEV "niit4to6"
@@ -53,27 +43,42 @@
 #define TLV_OP_CUSTOM_HNA_ROUTE_DEL (TLV_OP_CUSTOM_MIN + 5)
 
 
+#define ARG_TUNS "tunnels"
 
-#define ARG_TUN_NAME_PREFIX "tunnelName"
+#define ARG_TUN_NAME_PREFIX "tunnelDevName"
 #define MAX_TUN_NAME_PREFIX_LEN 7
 #define DEF_TUN_NAME_PREFIX "bmx6"
 
-#define ARG_TUN_SRC  "tunnelSource"
-#define ARG_TUN_SRC_NAME "dev"
-#define ARG_TUNS "tunnels"
 
-#define ARG_TUN_ADV "tunnelAdv"
-#define ARG_TUN_ADV_SRC "tunnelSrc"
-#define ARG_TUN_ADV_BW "bandwidth"
-#define ARG_TUN_ADV_PREFIX "srcPrefix"
-#define ARG_TUN_ADV_PREFIX_MIN "srcPrefixMin"
 
-#define ARG_TUN_SEARCH "tunnelSearch"
-#define ARG_TUN_SEARCH_NETWORK "network"
-#define ARG_TUN_SEARCH_IPMETRIC "ipmetric"
-#define MAX_TUN_SEARCH_IPMETRIC INT32_MAX
-#define ARG_TUN_SEARCH_HOSTNAME "hostname"
-#define ARG_TUN_SEARCH_PKID "pkid"
+
+#define ARG_TUN_ADV  "tunnelInRemote"
+#define ARG_TUN_ADV_NAME "dev"
+
+#define ARG_TUN_ADV_INGRESS4 "ingressPrefix4"
+#define ARG_TUN_ADV_INGRESS6 "ingressPrefix6"
+
+#define ARG_TUN_ADV_SRC4_TYPE "srcType4"
+#define ARG_TUN_ADV_SRC4_MIN "srcPrefix4Min"
+
+#define ARG_TUN_ADV_SRC6_TYPE "srcType6"
+#define ARG_TUN_ADV_SRC6_MIN "srcPrefix6Min"
+
+
+
+#define ARG_TUN_NET "tunnelInNet"
+#define ARG_TUN_NET_LOCAL ARG_TUN_ADV
+#define ARG_TUN_NET_BW "bandwidth"
+
+#define ARG_TUN_SEARCH_NAME       "tunnelOut"
+#define ARG_TUN_SEARCH_NETWORK    "network"
+#define ARG_TUN_SEARCH_IP         "address"
+#define ARG_TUN_SEARCH_TYPE       "srcType"
+#define ARG_TUN_SEARCH_PREFIX_MIN  "srcRangeMin"
+#define ARG_TUN_SEARCH_IPMETRIC   "ipMetric"
+#define MAX_TUN_SEARCH_IPMETRIC   INT32_MAX
+#define ARG_TUN_SEARCH_HOSTNAME   "gwName"
+#define ARG_TUN_SEARCH_PKID       "gwId"
 
 
 struct net_key {
@@ -113,77 +118,208 @@ FIELD_FORMAT_END }
 
 
 
-struct description_msg_tun_adv {
-        IP6_T srcTunIp;
-        IPX_T network;
-        uint8_t networkLen;
-        FMETRIC_U8_T bandwidth;
-        IPX_T srcPrefix;
-        uint8_t srcPrefixLen;
-        uint8_t srcPrefixMin;
+
+struct description_msg_tun6_adv {
+        IP6_T localIp;
 } __attribute__((packed));
 
-#define DESCRIPTION_MSG_TUN_ADV_FORMAT { \
-{FIELD_TYPE_IPX,      -1, 128, 1, FIELD_RELEVANCE_HIGH, "srcTunIp" },  \
-{FIELD_TYPE_IPX,      -1, 128, 1, FIELD_RELEVANCE_HIGH, "network" },  \
-{FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_HIGH, "prefixlen" },  \
-{FIELD_TYPE_FMETRIC8, -1,   8, 1, FIELD_RELEVANCE_HIGH, "bandwidth" },  \
-{FIELD_TYPE_IPX,      -1, 128, 1, FIELD_RELEVANCE_HIGH, "srcPrefix" },  \
-{FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_HIGH, "srcPrefixLen" },  \
-{FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_HIGH, "srcPrefixMin" },  \
+
+#define DESCRIPTION_MSG_TUN6_ADV_FORMAT { \
+{FIELD_TYPE_IPX6,     -1, 128, 1, FIELD_RELEVANCE_HIGH, "localIp" },  \
 FIELD_FORMAT_END }
 
 
-struct tun_adv_node {
-        struct orig_node *on;
 
-        IP6_T srcTunIp;
-        IPX_T network;
-        uint8_t prefixlen;
+struct description_msg_tun4in6_ingress_adv {
+        uint8_t tun6Id;
+//        uint8_t srcType;
+//        uint8_t srcPrefixMin;
+        uint8_t ingressPrefixLen;
+        IP4_T   ingressPrefix;
+} __attribute__((packed));
+
+#define DESCRIPTION_MSG_TUN4IN6_INGRESS_ADV_FORMAT { \
+{FIELD_TYPE_FMETRIC8, -1,   8, 1, FIELD_RELEVANCE_MEDI, "tun6Id" },  \
+{FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_HIGH, "ingressPrefixLen" },  \
+{FIELD_TYPE_IP4,      -1,  32, 1, FIELD_RELEVANCE_HIGH, "ingressPrefix" },  \
+FIELD_FORMAT_END }
+
+struct description_msg_tun6in6_ingress_adv {
+        uint8_t tun6Id;
+//        uint8_t srcType;
+//        uint8_t srcPrefixMin;
+        uint8_t ingressPrefixLen;
+        IP6_T   ingressPrefix;
+} __attribute__((packed));
+
+#define DESCRIPTION_MSG_TUN6IN6_INGRESS_ADV_FORMAT { \
+{FIELD_TYPE_FMETRIC8, -1,   8, 1, FIELD_RELEVANCE_MEDI, "tun6Id" },  \
+{FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_HIGH, "ingressPrefixLen" },  \
+{FIELD_TYPE_IPX6,     -1, 128, 1, FIELD_RELEVANCE_HIGH, "ingressPrefix" },  \
+FIELD_FORMAT_END }
+
+
+
+#define TUN_SRC_TYPE_MIN           0x00
+#define TUN_SRC_TYPE_UNDEF         0x00
+#define TUN_SRC_TYPE_STATIC        0x01
+#define TUN_SRC_TYPE_AUTO          0x02
+#define TUN_SRC_TYPE_AHCP          0x03
+#define TUN_SRC_TYPE_MAX           0x03
+
+struct description_msg_tun4in6_src_adv {
+        uint8_t tun6Id;
+        uint8_t srcType;
+        uint8_t srcPrefixMin;
+        uint8_t srcPrefixLen;
+        IP4_T   srcPrefix;
+} __attribute__((packed));
+
+#define DESCRIPTION_MSG_TUN4IN6_SRC_ADV_FORMAT { \
+{FIELD_TYPE_FMETRIC8, -1,   8, 1, FIELD_RELEVANCE_MEDI, "tun6Id" },  \
+{FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_HIGH, "srcType" },  \
+{FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_HIGH, "srcPrefixMin" },  \
+{FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_HIGH, "srcPrefixLen" },  \
+{FIELD_TYPE_IP4,      -1,  32, 1, FIELD_RELEVANCE_HIGH, "srcPrefix" },  \
+FIELD_FORMAT_END }
+
+struct description_msg_tun6in6_src_adv {
+        uint8_t tun6Id;
+        uint8_t srcType;
+        uint8_t srcPrefixMin;
+        uint8_t srcPrefixLen;
+        IP6_T   srcPrefix;
+} __attribute__((packed));
+
+#define DESCRIPTION_MSG_TUN6IN6_SRC_ADV_FORMAT { \
+{FIELD_TYPE_FMETRIC8, -1,   8, 1, FIELD_RELEVANCE_MEDI, "tun6Id" },  \
+{FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_HIGH, "srcType" },  \
+{FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_HIGH, "srcPrefixMin" },  \
+{FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_HIGH, "srcPrefixLen" },  \
+{FIELD_TYPE_IPX6,     -1, 128, 1, FIELD_RELEVANCE_HIGH, "srcPrefix" },  \
+FIELD_FORMAT_END }
+
+
+
+
+struct description_msg_tun4in6_net_adv {
+        uint8_t tun6Id;
+        uint8_t reserved;
         FMETRIC_U8_T bandwidth;
-        UMETRIC_T e2e_path;
+        uint8_t networkLen;
+        IP4_T network;
+} __attribute__((packed));
 
-        struct avl_tree tun_search_tree;
-        struct tunnel_node *tun_out;
+#define DESCRIPTION_MSG_TUN4IN6_NET_ADV_FORMAT { \
+{FIELD_TYPE_FMETRIC8, -1,   8, 1, FIELD_RELEVANCE_MEDI, "tun6Id" },  \
+{FIELD_TYPE_FMETRIC8, -1,   8, 1, FIELD_RELEVANCE_LOW,  "reserved" },  \
+{FIELD_TYPE_FMETRIC8, -1,   8, 1, FIELD_RELEVANCE_HIGH, "bandwidth" },  \
+{FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_HIGH, "networklen" },  \
+{FIELD_TYPE_IP4,      -1,  32, 1, FIELD_RELEVANCE_HIGH, "network" },  \
+FIELD_FORMAT_END }
 
-};
+struct description_msg_tun6in6_net_adv {
+        uint8_t tun6Id;
+        uint8_t reserved;
+        FMETRIC_U8_T bandwidth;
+        uint8_t networkLen;
+        IP6_T network;
+} __attribute__((packed));
+
+#define DESCRIPTION_MSG_TUN6IN6_NET_ADV_FORMAT { \
+{FIELD_TYPE_FMETRIC8, -1,   8, 1, FIELD_RELEVANCE_MEDI, "tun6Id" },  \
+{FIELD_TYPE_FMETRIC8, -1,   8, 1, FIELD_RELEVANCE_LOW,  "reserved" },  \
+{FIELD_TYPE_FMETRIC8, -1,   8, 1, FIELD_RELEVANCE_HIGH, "bandwidth" },  \
+{FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_HIGH, "networklen" },  \
+{FIELD_TYPE_IPX6,     -1, 128, 1, FIELD_RELEVANCE_HIGH, "network" },  \
+FIELD_FORMAT_END }
+
+
+
 
 
 #define NETWORK_NAME_LEN 32
 
 struct tun_search_node {
         char netName[NETWORK_NAME_LEN];
-        IPX_T net;
-        uint8_t prefixlen;
+
         uint8_t family;
+        struct net_key network;
+        uint8_t networkMin;
         uint32_t ipmetric;
         GLOBAL_ID_T global_id;
+        struct net_key srcPrefix;
 
-        struct tun_adv_node *tun_adv;
+        uint8_t srcType;
+        uint8_t srcPrefixMin;
+        
+        struct tun_net_node *tun_net;
 };
 
+struct tun_net_node {
+        struct tunnel_node *tun;
+
+        uint8_t family;
+        struct net_key network;
+        FMETRIC_U8_T bandwidth;
+
+        UMETRIC_T e2eMetric;
+
+        struct avl_tree tun_search_tree;
+
+};
+
+struct tun_adv_key {
+        struct orig_node *on;
+        int16_t tun6Id;
+};
 
 struct tunnel_node {
-        IP6_T srcTunIp;
+
+        // the advertised part (by description_msg_tun6_adv):
+        IP6_T localIp;          // key for tunnel_in_tree
+
+        // the advertised part (by description_msg_src6in6_adv):
+        struct net_key ingress4Prefix;
+        struct net_key ingress6Prefix;
+
+        uint8_t src4Type;
+        uint8_t src4PrefixMin;
+
+        uint8_t src6Type;
+        uint8_t src6PrefixMin;
+
+        //the status:
+        struct tun_adv_key key; // key for tunnel_out_tree
         IFNAME_T name;
         uint8_t name_auto;
-        uint8_t up;
-        uint32_t if_index;
+        uint32_t upIfIdx;
 
-        struct avl_tree tun_adv_tree;
+        IPX_T src4Ip;
+        IPX_T src6Ip;
 
-//        struct orig_node *on;
+        struct avl_tree tun_net_tree;
 };
 
 
 
 
 #define TUNNEL_NODE_FORMAT { \
-        FIELD_FORMAT_INIT(FIELD_TYPE_IPX6,          tunnel_node, srcTunIp,     1, FIELD_RELEVANCE_HIGH), \
-        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,   tunnel_node, name,         1, FIELD_RELEVANCE_HIGH), \
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,          tunnel_node, name_auto,    1, FIELD_RELEVANCE_MEDI), \
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,          tunnel_node, up,           1, FIELD_RELEVANCE_HIGH), \
-        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_BINARY, tunnel_node, tun_adv_tree, 1, FIELD_RELEVANCE_LOW), \
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_BINARY, tunnel_node, key,           1, FIELD_RELEVANCE_LOW),  \
+        FIELD_FORMAT_INIT(FIELD_TYPE_IPX6,          tunnel_node, localIp,       1, FIELD_RELEVANCE_HIGH), \
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,          tunnel_node, src4Type,      1, FIELD_RELEVANCE_HIGH), \
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,          tunnel_node, src4PrefixMin, 1, FIELD_RELEVANCE_HIGH), \
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_BINARY, tunnel_node, ingress4Prefix,1, FIELD_RELEVANCE_HIGH), \
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,          tunnel_node, src6Type,      1, FIELD_RELEVANCE_HIGH), \
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,          tunnel_node, src6PrefixMin, 1, FIELD_RELEVANCE_HIGH), \
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_BINARY, tunnel_node, ingress6Prefix,1, FIELD_RELEVANCE_HIGH), \
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_BINARY, tunnel_node, key,           1, FIELD_RELEVANCE_LOW),  \
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,   tunnel_node, name,          1, FIELD_RELEVANCE_HIGH), \
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,          tunnel_node, name_auto,     1, FIELD_RELEVANCE_MEDI), \
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,          tunnel_node, upIfIdx,       1, FIELD_RELEVANCE_HIGH), \
+        FIELD_FORMAT_INIT(FIELD_TYPE_IPX6,          tunnel_node, src4Ip,        1, FIELD_RELEVANCE_HIGH), \
+        FIELD_FORMAT_INIT(FIELD_TYPE_IPX6,          tunnel_node, src6Ip,        1, FIELD_RELEVANCE_HIGH), \
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_BINARY, tunnel_node, tun_net_tree,  1, FIELD_RELEVANCE_LOW),  \
         FIELD_FORMAT_END }
 
 

@@ -542,11 +542,10 @@ void json_description_event_hook(int32_t cb_id, struct orig_node *on)
 
                                         if ((jext_fields = fields_dbg_json(
                                                 FIELD_RELEVANCE_MEDI, YES, it.frame_msgs_length, it.msg,
-                                                it.handls[it.frame_type].min_msg_size,
-                                                it.handls[it.frame_type].msg_format))) {
+                                                it.handl->min_msg_size, it.handl->msg_format))) {
 
                                                 json_object *jext = json_object_new_object();
-                                                json_object_object_add(jext, it.handls[it.frame_type].name, jext_fields);
+                                                json_object_object_add(jext, it.handl->name, jext_fields);
 
                                                 jextensions = jextensions ? jextensions : json_object_new_array();
 

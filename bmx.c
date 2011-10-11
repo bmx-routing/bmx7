@@ -992,7 +992,7 @@ void rx_packet( struct packet_buff *pb )
         assertion(-500841, ((iif->active && iif->if_llocal_addr)));
 
         if (af_cfg() == AF_INET) {
-                ip4ToX(&pb->i.llip, (*((struct sockaddr_in*)&(pb->i.addr))).sin_addr.s_addr);
+                pb->i.llip = ip4ToX((*((struct sockaddr_in*) &(pb->i.addr))).sin_addr.s_addr);
 
         } else {
                 pb->i.llip = (*((struct sockaddr_in6*) &(pb->i.addr))).sin6_addr;

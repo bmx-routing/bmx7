@@ -2398,7 +2398,7 @@ int32_t rx_msg_dhash_or_description_request(struct rx_frame_iterator *it)
         //TODO: consider that the received local_id might be a duplicate:
 
         dbgf_track(DBGT_INFO, "%s NB %s destination_local_id=0x%X myIID4x %d",
-                it->handls[it->frame_type].name, pb->i.llip_str, ntohl(hdr->destination_local_id), myIID4x);
+                it->handl->name, pb->i.llip_str, ntohl(hdr->destination_local_id), myIID4x);
 
 
         if (myIID4x <= IID_RSVD_MAX)
@@ -2412,7 +2412,7 @@ int32_t rx_msg_dhash_or_description_request(struct rx_frame_iterator *it)
         if (!dhn || ((TIME_T) (bmx_time - dhn->referred_by_me_timestamp)) > DEF_DESC0_REFERRED_TO) {
 
                 dbgf_track(DBGT_WARN, "%s from %s requesting %s %s",
-                        it->handls[it->frame_type].name, pb->i.llip_str,
+                        it->handl->name, pb->i.llip_str,
                         dhn ? "REFERRED TIMEOUT" : "INVALID or UNKNOWN", on ? globalIdAsString(&on->global_id) : "?");
 
                 return sizeof ( struct msg_dhash_request);
@@ -2535,9 +2535,11 @@ int32_t rx_frame_iterate(struct rx_frame_iterator *it)
                 }
 
                 f_handl = &it->handls[f_type];
+                it->handl = f_handl;
                 it->frame_msgs_length = it->frame_data_length - f_handl->data_header_size;
-
-                
+                it->frame_msgs_fixed = f_handl->fixed_msg_size ? (it->frame_msgs_length / f_handl->min_msg_size) : 0;
+                it->msg = it->frame_data + f_handl->data_header_size;
+            
                 dbgf_all(DBGT_INFO, "%s - type=%s frame_length=%d frame_data_length=%d frame_msgs_length=%d",
                         it->caller, f_handl->name, f_len, it->frame_data_length, it->frame_msgs_length);
 
@@ -2563,7 +2565,13 @@ int32_t rx_frame_iterate(struct rx_frame_iterator *it)
                                 it->caller, f_handl->name, f_len, pb ? pb->i.llip_str : "---",
                                 fhs->is_relevant ? "RELEVANT" : "IRRELEVANT",
                                 f_handl->is_relevant ? "RELEVANT" : "IRRELEVANT");
-                        return TLV_RX_DATA_FAILURE;
+
+
+                        return fhs->is_relevant ? TLV_RX_DATA_FAILURE : TLV_RX_DATA_BLOCKED;
+
+                } else if (f_handl->family && f_handl->family != af_cfg()) {
+
+                        return fhs->is_relevant ? TLV_RX_DATA_FAILURE : TLV_RX_DATA_IGNORED;
                 }
 
 
@@ -2601,13 +2609,13 @@ int32_t rx_frame_iterate(struct rx_frame_iterator *it)
 
                 } else if (it->op >= TLV_OP_PLUGIN_MIN && it->op <= TLV_OP_PLUGIN_MAX) {
 
-                        it->msg = it->frame_data + f_handl->data_header_size;
+//                        it->msg = it->frame_data + f_handl->data_header_size;
 
                         return it->frame_msgs_length;
 
                 } else if (f_handl->rx_msg_handler && f_handl->fixed_msg_size) {
 
-                        it->msg = it->frame_data + f_handl->data_header_size;
+//                        it->msg = it->frame_data + f_handl->data_header_size;
 
                         while (it->msg < it->frame_data + it->frame_data_length &&
                                 ((*(f_handl->rx_msg_handler)) (it)) == f_handl->min_msg_size) {
@@ -2625,7 +2633,7 @@ int32_t rx_frame_iterate(struct rx_frame_iterator *it)
 
                 } else if (f_handl->rx_frame_handler) {
 
-                        it->msg = it->frame_data + f_handl->data_header_size;
+//                        it->msg = it->frame_data + f_handl->data_header_size;
 
                         int32_t receptor_result = (*(f_handl->rx_frame_handler)) (it);
 
@@ -2800,6 +2808,9 @@ int32_t tx_frame_iterate(IDM_T iterate_msg, struct tx_frame_iterator *it)
                 it->caller, iterate_msg ? "YES" : "NO ", it->frame_type,
                 it->cache_msgs_size, tx_iterator_cache_data_space(it), it->frames_out_pos, it->frames_out_max);
 
+        if (handl->family && handl->family != af_cfg())
+                return TLV_TX_DATA_IGNORED;
+
         if (handl->tx_frame_handler || iterate_msg) {
 
                 if (handl->min_msg_size > tx_iterator_cache_data_space(it))
@@ -2841,6 +2852,9 @@ int32_t tx_frame_iterate(IDM_T iterate_msg, struct tx_frame_iterator *it)
 
                 tlv_result = (*(handl->tx_frame_handler)) (it);
 
+                if (!handl->data_header_size && tlv_result == 0)
+                        tlv_result = TLV_TX_DATA_IGNORED;
+
                 if (tlv_result >= TLV_TX_DATA_PROCESSED) {
 
                         it->cache_msgs_size = tlv_result;
@@ -2848,6 +2862,7 @@ int32_t tx_frame_iterate(IDM_T iterate_msg, struct tx_frame_iterator *it)
                 } else {
                         dbgf_track(DBGT_INFO, "tx_frame_handler()=%d %s remaining iterations=%d",
                                 tlv_result, handl->name, it->ttn ? it->ttn->tx_iterations : -1);
+
                         ASSERTION(-501001, (is_zero(it->cache_data_array, tx_iterator_cache_data_space(it))));
                         assertion(-500811, (tlv_result != TLV_TX_DATA_FAILURE));
                         return tlv_result;
@@ -3509,10 +3524,10 @@ int32_t opt_show_descriptions(uint8_t cmd, uint8_t _save, struct opt_type *opt,
                         while ((it_result = rx_frame_iterate(&it)) > TLV_RX_DATA_DONE) {
 
                                 if (it_result >= TLV_RX_DATA_PROCESSED) {
-                                        dbg_printf(cn, "\n %s: ", it.handls[it.frame_type].name);
+                                        dbg_printf(cn, "\n %s: ", it.handl->name);
 
                                         fields_dbg_lines(cn, relevance, it.frame_msgs_length, it.msg,
-                                                it.handls[it.frame_type].min_msg_size, it.handls[it.frame_type].msg_format);
+                                                it.handl->min_msg_size, it.handl->msg_format);
                                 }
                         }
                 }
@@ -3563,7 +3578,7 @@ struct opt_type msg_options[]=
 	{ODI,ARG_DESCRIPTIONS,ARG_DESCRIPTION_NAME,'n',5,2,A_CS1,A_USR,A_DYN,A_ARG,A_ANY,	0,		0,	0,0,		0, opt_show_descriptions,
 			"<NAME>",	"only show description of nodes with given name"}
         ,
-	{ODI,ARG_DESCRIPTIONS,ARG_RELEVANCE,       'r',5,2,A_CS1,A_USR,A_DYN,A_ARG,A_ANY,	0,		0,	0,0,		0, opt_show_descriptions,
+	{ODI,ARG_DESCRIPTIONS,ARG_RELEVANCE,       'r',5,2,A_CS1,A_USR,A_DYN,A_ARG,A_ANY,	0,	MIN_RELEVANCE,	MAX_RELEVANCE,    DEF_RELEVANCE,		0, opt_show_descriptions,
 			ARG_VALUE_FORM,	HLP_ARG_RELEVANCE}
 
 };

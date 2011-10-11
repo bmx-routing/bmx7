@@ -113,7 +113,7 @@ static IDM_T opt_dev_changed = YES;
 struct dev_node *primary_dev_cfg = NULL;
 
 
-IDM_T niit_enabled = NO;
+//IDM_T niit_enabled = NO;
 
 AVL_TREE(if_link_tree, struct if_link_node, index);
 
@@ -452,10 +452,11 @@ void ipFToStr(const IPX_T *addr, char *str)
         ipXToStr(af_cfg(), addr, str);
 }
 
-void ip4ToX(IPX_T *ipx, IP4_T ip4)
+IPX_T ip4ToX(IP4_T ip4)
 {
-        *ipx = ZERO_IP;
-	ipx->s6_addr32[3] = ip4;
+        IPX_T ip = ZERO_IP;
+        ip.s6_addr32[3] = ip4;
+        return ip;
 }
 
 char *ipXAsStr(int family, const IPX_T *addr)
@@ -777,7 +778,7 @@ void kernel_if_addr_config(struct nlmsghdr *nlhdr, uint16_t index_sqn)
         memcpy(&ip_addr, RTA_DATA(rta_tb[IFA_LOCAL]), alen);
 
         if (family == AF_INET)
-                ip4ToX(&ip_addr, *((IP4_T*) (&ip_addr)));
+                ip_addr = ip4ToX(*((IP4_T*) (&ip_addr)));
 
         if (!is_ip_valid(&ip_addr, family)) // specially catch loopback ::1/128
                 return;
@@ -845,7 +846,7 @@ void kernel_if_addr_config(struct nlmsghdr *nlhdr, uint16_t index_sqn)
         if (family == AF_INET && rta_tb[IFA_BROADCAST]) {
 
                 memcpy(&ip_mcast, RTA_DATA(rta_tb[IFA_BROADCAST]), alen);
-                ip4ToX(&ip_mcast, *((IP4_T*) (&ip_mcast)));
+                ip_mcast = ip4ToX(*((IP4_T*) (&ip_mcast)));
 
         } else if (family == AF_INET6) {
 
@@ -1246,7 +1247,7 @@ IDM_T rtnl_talk(void *req, int len, uint8_t family, uint8_t cmd, int8_t del, uin
                                                 if (rtm->rtm_family == AF_INET6)
                                                         fip = *((IPX_T *) RTA_DATA(rtap));
                                                 else
-                                                        ip4ToX(&fip, *((IP4_T *) RTA_DATA(rtap)));
+                                                        fip = ip4ToX(*((IP4_T *) RTA_DATA(rtap)));
 
 
                                                 ip(family, IP_ROUTE_FLUSH, DEL, YES, &fip, rtm->rtm_dst_len, table_macro, 0, 0, 0, 0, 0, 0);
@@ -1271,7 +1272,7 @@ IDM_T rtnl_talk(void *req, int len, uint8_t family, uint8_t cmd, int8_t del, uin
 }
 
 
-IDM_T ipaddr(IDM_T del, uint32_t if_index, IPX_T *ip, uint8_t prefixlen, IDM_T deprecated)
+IDM_T ipaddr(IDM_T del, uint32_t if_index, uint8_t family, IPX_T *ipX, uint8_t prefixlen, IDM_T deprecated)
 {
 
         struct ifamsg_req req;
@@ -1282,13 +1283,18 @@ IDM_T ipaddr(IDM_T del, uint32_t if_index, IPX_T *ip, uint8_t prefixlen, IDM_T d
         req.nlh.nlmsg_len = NLMSG_LENGTH(sizeof (struct ifaddrmsg));
         req.nlh.nlmsg_flags = NLM_F_REQUEST | NLM_F_ACK | (del ? 0 : (NLM_F_CREATE | NLM_F_EXCL));
         req.nlh.nlmsg_type = del ? RTM_DELADDR : RTM_NEWADDR;
-	req.ifa.ifa_family = af_cfg();
+	req.ifa.ifa_family = family;
         req.ifa.ifa_index = if_index;
 
         req.ifa.ifa_prefixlen = prefixlen;
         req.ifa.ifa_scope = 0;
 
-        add_rtattr(&req.nlh, IFA_LOCAL, (char*) ip, sizeof (IPX_T), req.ifa.ifa_family);
+        if (family == AF_INET) {
+                IP4_T ip4 = ipXto4(*ipX);
+                add_rtattr(&req.nlh, IFA_LOCAL, (char*) &ip4, sizeof (ip4), req.ifa.ifa_family);
+        } else {
+                add_rtattr(&req.nlh, IFA_LOCAL, (char*) ipX, sizeof (IPX_T), req.ifa.ifa_family);
+        }
 
         if(deprecated) {
                 memset(&cinfo, 0, sizeof (cinfo));
@@ -1297,9 +1303,9 @@ IDM_T ipaddr(IDM_T del, uint32_t if_index, IPX_T *ip, uint8_t prefixlen, IDM_T d
                 add_rtattr(&req.nlh, IFA_CACHEINFO, (char*) &cinfo, sizeof (cinfo), 0);
         }
 
-        dbgf_track(DBGT_INFO, "del=%d ifidx=%d ip=%s/%d deprecated=%d", del, if_index, ipFAsStr(ip), prefixlen, deprecated);
+        dbgf_track(DBGT_INFO, "del=%d ifidx=%d ip=%s/%d deprecated=%d", del, if_index, ipXAsStr(family, ipX), prefixlen, deprecated);
 
-        return rtnl_talk(&req, req.nlh.nlmsg_len, af_cfg(), IP_ADDRESS, del, NO, ip, prefixlen, NULL, 0);
+        return rtnl_talk(&req, req.nlh.nlmsg_len, family, IP_ADDRESS, del, NO, ipX, prefixlen, NULL, 0);
 }
 
 IDM_T iptunnel(IDM_T del, char *name, uint8_t proto, IPX_T *local, IPX_T *remote)
@@ -2071,8 +2077,7 @@ IDM_T dev_init_sockets(struct dev_node *dev)
         if (af_cfg() == AF_INET && ipXto4(dev->if_llocal_addr->ip_mcast) == 0xFFFFFFFF) {
                 // if the mcast address is the full-broadcast address
                 // we'll listen on the network-broadcast address :
-                IPX_T brc;
-                ip4ToX(&brc, ipXto4(dev->if_llocal_addr->ip_addr) | htonl(~(0XFFFFFFFF << dev->if_llocal_addr->ifa.ifa_prefixlen)));
+                IPX_T brc = ip4ToX(ipXto4(dev->if_llocal_addr->ip_addr) | htonl(~(0XFFFFFFFF << dev->if_llocal_addr->ifa.ifa_prefixlen)));
                 set_sockaddr_storage(&rx_netwbrc_addr, &brc);
         } else {
                 set_sockaddr_storage(&rx_netwbrc_addr, &dev->if_llocal_addr->ip_mcast);
@@ -2095,8 +2100,7 @@ IDM_T dev_init_sockets(struct dev_node *dev)
         if (af_cfg() == AF_INET) {
                 // we'll always listen on the full-broadcast address
                 struct sockaddr_storage rx_fullbrc_addr;
-                IPX_T brc;
-                ip4ToX(&brc, 0XFFFFFFFF);
+                IPX_T brc = ip4ToX(0XFFFFFFFF);
                 set_sockaddr_storage(&rx_fullbrc_addr, &brc);
 
                 // get fullbrc recv socket
@@ -2411,8 +2415,7 @@ int update_interface_rules(void)
 
                 throw_node = list_entry(throw_pos, struct throw_node, list);
 
-                IPX_T throw6;
-                ip4ToX(&throw6, throw_node->addr);
+                IPX_T throw6 = ip4ToX(throw_node->addr);
 
                 configure_route(&throw6, AF_INET, throw_node->netmask, 0, 0, 0, 0, RT_TABLE_HOSTS, RTN_THROW, ADD, IP_THROW_MY_NET);
                 configure_route(&throw6, AF_INET, throw_node->netmask, 0, 0, 0, 0, RT_TABLE_NETS, RTN_THROW, ADD, IP_THROW_MY_NET);
@@ -2896,7 +2899,7 @@ int32_t opt_ip_version(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                         ip(af_cfg(), IP_RULE_DEFAULT, ADD, NO, &ZERO_IP, 0, RT_TABLE_NETS, RT_PRIO_NETS, 0, 0, 0, 0, 0);
                         ip(af_cfg(), IP_RULE_DEFAULT, ADD, NO, &ZERO_IP, 0, RT_TABLE_TUNS, RT_PRIO_TUNS, 0, 0, 0, 0, 0);
 
-                        if (niit_enabled && af_cfg() == AF_INET6) {
+                        if (/*niit_net.prefixlen &&*/ af_cfg() == AF_INET6) {
 
                                 ip(AF_INET, IP_RULE_DEFAULT, ADD, NO, &ZERO_IP, 0, RT_TABLE_HOSTS, RT_PRIO_HOSTS, 0, 0, 0, 0, 0);
                                 ip(AF_INET, IP_RULE_DEFAULT, ADD, NO, &ZERO_IP, 0, RT_TABLE_NETS, RT_PRIO_NETS, 0, 0, 0, 0, 0);
@@ -2993,7 +2996,7 @@ int32_t opt_dev_prefix(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                 char new[IPXNET_STR_LEN];
                 uint8_t family = af_cfg();
 
-                if (str2netw(patch->val, &ipX, cn, &mask, &family) == FAILURE || !is_ip_valid(&ipX, family) ||
+                if (str2netw(patch->val, &ipX, cn, &mask, &family, NO) == FAILURE || !is_ip_valid(&ipX, family) ||
                         (family == AF_INET6 && (
                         is_ip_net_equal(&ipX, &IP6_MC_PREF, IP6_MC_PLEN, AF_INET6) ||
                         XOR(is_global_prefix, !is_ip_net_equal(&ipX, &IP6_LINKLOCAL_UC_PREF, IP6_LINKLOCAL_UC_PLEN, AF_INET6))))
@@ -3174,7 +3177,7 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
                                         char new[IPXNET_STR_LEN];
                                         uint8_t family = af_cfg();
 
-                                        if (str2netw(c->val, &ipX, cn, &mask, &family) == FAILURE || !is_ip_valid(&ipX, family) ||
+                                        if (str2netw(c->val, &ipX, cn, &mask, &family, NO) == FAILURE || !is_ip_valid(&ipX, family) ||
                                                 (family == AF_INET6 && (
                                                 is_ip_net_equal(&ipX, &IP6_MC_PREF, IP6_MC_PLEN, AF_INET6) ||
                                                 XOR(is_global_prefix, !is_ip_net_equal(&ipX, &IP6_LINKLOCAL_UC_PREF, IP6_LINKLOCAL_UC_PLEN, AF_INET6))))
@@ -3218,19 +3221,13 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
 
                         } else if (!strcmp(c->opt->name, ARG_DEV_LL) && cmd == OPT_APPLY) {
 
-                                if (c->val)
-                                        dev->linklayer_conf = strtol(c->val, NULL, 10);
-                                else
-                                        dev->linklayer_conf = OPT_CHILD_UNDEFINED;
+                                dev->linklayer_conf = c->val ? strtol(c->val, NULL, 10) : OPT_CHILD_UNDEFINED;
 
                                 dev->hard_conf_changed = YES;
 
                         } else if (!strcmp(c->opt->name, ARG_DEV_CHANNEL) && cmd == OPT_APPLY) {
 
-                                if (c->val)
-                                        dev->channel_conf = strtol(c->val, NULL, 10);
-                                else
-                                        dev->channel_conf = OPT_CHILD_UNDEFINED;
+                                dev->channel_conf = c->val ? strtol(c->val, NULL, 10) : OPT_CHILD_UNDEFINED;
 
                         } else if (!strcmp(c->opt->name, ARG_DEV_BITRATE_MAX) && cmd == OPT_APPLY) {
 

@@ -299,6 +299,7 @@ struct rx_frame_iterator {
     struct ctrl_node *cn;
     uint8_t *frames_in;
     struct frame_handl *handls;
+    struct frame_handl *handl;
     uint8_t op;
     uint8_t process_filter;
     uint8_t handl_max;
@@ -312,6 +313,7 @@ struct rx_frame_iterator {
     uint8_t frame_type;
     int32_t frame_data_length;
     int32_t frame_msgs_length;
+    int32_t frame_msgs_fixed;
     uint8_t *frame_data;
     uint8_t *msg;
 
@@ -361,6 +363,7 @@ struct frame_handl {
 	                     // If irrelevant and unknown frames are rebroadcasted depends on the super_frame logic.
 	                     // i.e.: * unknown packet_frames MUST BE dropped.
 	                     //       * unknown and irrelevant description_tlv_frames MUST BE propagated
+        uint8_t family;
 	uint8_t rx_requires_described_neigh;
         uint16_t data_header_size;
         uint16_t min_msg_size;
@@ -401,8 +404,13 @@ static inline int32_t tx_iterator_cache_data_space(struct tx_frame_iterator *it)
 		(int) sizeof(struct frame_header_long));
 }
 
-
-
+static inline int32_t tx_iterator_cache_msg_space(struct tx_frame_iterator *it)
+{
+        if (it->handls[it->frame_type].min_msg_size)
+                return tx_iterator_cache_data_space(it) / it->handls[it->frame_type].min_msg_size;
+        else
+                return 0;
+}
 
 
 
@@ -677,13 +685,22 @@ struct msg_ogm_ack {
  */
 
 
-#define BMX_DSC_TLV_METRIC     0x00
-#define BMX_DSC_TLV_UHNA4      0x01
-#define BMX_DSC_TLV_UHNA6      0x02
-#define BMX_DSC_TLV_TUN_ADV    0x03
-#define BMX_DSC_TLV_JSON_SMS   0x10
-#define BMX_DSC_TLV_MAX        (FRAME_TYPE_ARRSZ-1)
-#define BMX_DSC_TLV_ARRSZ      (FRAME_TYPE_ARRSZ)
+#define BMX_DSC_TLV_METRIC      0x00
+
+#define BMX_DSC_TLV_UHNA4       0x01
+#define BMX_DSC_TLV_UHNA6       0x02
+
+#define BMX_DSC_TLV_TUN6_ADV            0x04
+#define BMX_DSC_TLV_TUN4IN6_INGRESS_ADV 0x05
+#define BMX_DSC_TLV_TUN6IN6_INGRESS_ADV 0x06
+#define BMX_DSC_TLV_TUN4IN6_SRC_ADV     0x07
+#define BMX_DSC_TLV_TUN6IN6_SRC_ADV     0x08
+#define BMX_DSC_TLV_TUN4IN6_NET_ADV     0x09
+#define BMX_DSC_TLV_TUN6IN6_NET_ADV     0x0A
+
+#define BMX_DSC_TLV_JSON_SMS    0x10
+#define BMX_DSC_TLV_MAX         (FRAME_TYPE_ARRSZ-1)
+#define BMX_DSC_TLV_ARRSZ       (FRAME_TYPE_ARRSZ)
 
 
 

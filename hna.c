@@ -807,7 +807,7 @@ void unlink_tun_net(struct tun_net_node *tnn, struct tun_search_node *tsn, struc
                 struct tun_net_node *used;
                 while ((used = avl_iterate_item(&tun->tun_net_tree, &itused)) && !used->tun_search_tree.items);
 
-                assertion(-500000, IMPLIES(used, tun->upIfIdx));
+                assertion(-501236, IMPLIES(used, tun->upIfIdx));
 
                 if (!used)
                         configure_tunnel(DEL, tun->key.on, tun);
@@ -829,7 +829,7 @@ void set_tun_net(struct tun_search_node *sn)
 
         task_remove((void(*)(void*))set_tun_net, NULL);
         if (tun_search_tree.items)
-                task_register(5000, (void(*)(void*))set_tun_net, NULL, -300000);
+                task_register(5000, (void(*)(void*))set_tun_net, NULL, -300420);
 
         dbgf_track(DBGT_INFO, "searching for netName=%s: global_id=%s network=%s/%d ",
                 sn ? sn->netName : "-", sn ? globalIdAsString(&sn->global_id) : "-",
@@ -969,7 +969,7 @@ int create_description_tlv_tun6_adv(struct tx_frame_iterator *it)
                         continue;
                 }
 
-                assertion(-500000, (tun->upIfIdx && tun->key.on == self && tun->key.tun6Id == -1));
+                assertion(-501237, (tun->upIfIdx && tun->key.on == self && tun->key.tun6Id == -1));
 
                 tun->key.tun6Id = m;
                 adv[m].localIp = tun->localIp;
@@ -1003,13 +1003,13 @@ int process_description_tlv_tun6_adv(struct rx_frame_iterator *it)
 
                                         unlink_tun_net(tnn, NULL, NULL);
 
-                                        avl_remove_item(&tun_net_tree, &tnn->network, tnn, -300000);
-                                        avl_remove_item(&tun->tun_net_tree, &tnn->network, tnn, -300000);
-                                        debugFree(tnn, -300000);
+                                        avl_remove_item(&tun_net_tree, &tnn->network, tnn, -300421);
+                                        avl_remove_item(&tun->tun_net_tree, &tnn->network, tnn, -300423);
+                                        debugFree(tnn, -300424);
                                 }
 
                                 avl_remove(&tunnel_out_tree, &tun->key, -300410);
-                                debugFree(tun, -300000);
+                                debugFree(tun, -300425);
                         }
 
                         if (used)
@@ -1025,14 +1025,14 @@ int process_description_tlv_tun6_adv(struct rx_frame_iterator *it)
 
                 } else if (it->op == TLV_OP_ADD) {
 
-                        struct tunnel_node *tun = debugMalloc(sizeof (struct tunnel_node), -300000);
+                        struct tunnel_node *tun = debugMalloc(sizeof (struct tunnel_node), -300426);
                         memset(tun, 0, sizeof (struct tunnel_node));
                         tun->key.on = it->on;
                         tun->key.tun6Id = m;
                         tun->localIp = adv->localIp;
                         tun->name_auto = 1;
                         AVL_INIT_TREE(tun->tun_net_tree, struct tun_net_node, network);
-                        avl_insert(&tunnel_out_tree, tun, -300000);
+                        avl_insert(&tunnel_out_tree, tun, -300427);
                 }
         }
 
@@ -1093,7 +1093,7 @@ int process_description_tlv_tunXin6_ingress_adv(struct rx_frame_iterator *it)
 
                 if (it->op == TLV_OP_DEL) {
 
-                        assertion(-500000, (!tun));
+                        assertion(-501238, (!tun));
 
                 } else if (it->op == TLV_OP_TEST) {
 
@@ -1102,7 +1102,7 @@ int process_description_tlv_tunXin6_ingress_adv(struct rx_frame_iterator *it)
 
                 } else if (it->op == TLV_OP_ADD) {
 
-                        assertion(-500000, (tun));
+                        assertion(-501239, (tun));
 
                         if (isSrc4) {
                                 tun->ingress4Prefix.prefixlen = adv->ingressPrefixLen;
@@ -1221,16 +1221,19 @@ int process_description_tlv_tunXin6_net_adv(struct rx_frame_iterator *it)
 
                 if (it->op == TLV_OP_DEL) {
 
-                        assertion(-500000, (!tun));
+                        assertion(-501240, (!tun));
 
                 } else if (it->op == TLV_OP_TEST) {
 
-                        if (!tun || ip_netmask_validate(&net.net, net.prefixlen, family, NO) == FAILURE)
+                        if (!tun || ip_netmask_validate(&net.net, net.prefixlen, family, NO) == FAILURE) {
+                                dbgf_sys(DBGT_ERR, "tun=%s network=%s/%d",
+                                        tun ? tun->name.str : "NULL", ipXAsStr(family, &net.net), net.prefixlen);
                                 return TLV_RX_DATA_FAILURE;
+                        }
 
                 } else if (it->op == TLV_OP_ADD) {
 
-                        assertion(-500000, (tun));
+                        assertion(-501241, (tun));
 
                         struct tun_net_node *tnn = debugMalloc(sizeof (struct tun_net_node), -300418);
                         memset(tnn, 0, sizeof (struct tun_net_node));
@@ -1502,7 +1505,7 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
 
                 while ((tsn = avl_first_item(&tun_search_tree))) {
 
-                        assertion(-500000, (!tsn->tun_net));
+                        assertion(-501242, (!tsn->tun_net));
 
                         avl_remove(&tun_search_tree, &tsn->netName, -300404);
                         debugFree(tsn, -300405);

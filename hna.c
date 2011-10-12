@@ -831,7 +831,7 @@ void set_tun_net(struct tun_search_node *sn)
         if (tun_search_tree.items)
                 task_register(5000, (void(*)(void*))set_tun_net, NULL, -300420);
 
-        dbgf_track(DBGT_INFO, "netName=%s: tunnel_tree_out.items=%s net_tree.items=%d search_tree.items=%d ",
+        dbgf_track(DBGT_INFO, "netName=%s: tunnel_tree_out.items=%d net_tree.items=%d search_tree.items=%d ",
                 sn ? sn->netName : "NULL", tunnel_out_tree.items, tun_net_tree.items, tun_search_tree.items);
 
         while (IMPLIES(sn, !tsn) && (tsn = sn ? sn : avl_iterate_item(&tun_search_tree, &atsn))) {

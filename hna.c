@@ -1097,19 +1097,21 @@ int process_description_tlv_tunXin6_ingress_adv(struct rx_frame_iterator *it)
 
                 } else if (it->op == TLV_OP_TEST) {
 
-                        if (!tun || ip_netmask_validate(&prefix, adv->ingressPrefixLen, isSrc4 ? AF_INET : AF_INET6, NO) == FAILURE)
+                        assertion(-501244, (!tun));
+
+                        if (ip_netmask_validate(&prefix, adv->ingressPrefixLen, isSrc4 ? AF_INET : AF_INET6, NO) == FAILURE)
                                 return TLV_RX_DATA_FAILURE;
 
                 } else if (it->op == TLV_OP_ADD) {
 
-                        assertion(-501239, (tun));
-
-                        if (isSrc4) {
-                                tun->ingress4Prefix.prefixlen = adv->ingressPrefixLen;
-                                tun->ingress4Prefix.net = prefix;
-                        } else {
-                                tun->ingress6Prefix.prefixlen = adv->ingressPrefixLen;
-                                tun->ingress6Prefix.net = prefix;
+                        if (tun) {
+                                if (isSrc4) {
+                                        tun->ingress4Prefix.prefixlen = adv->ingressPrefixLen;
+                                        tun->ingress4Prefix.net = prefix;
+                                } else {
+                                        tun->ingress6Prefix.prefixlen = adv->ingressPrefixLen;
+                                        tun->ingress6Prefix.net = prefix;
+                                }
                         }
                 }
         }
@@ -1225,29 +1227,30 @@ int process_description_tlv_tunXin6_net_adv(struct rx_frame_iterator *it)
 
                 } else if (it->op == TLV_OP_TEST) {
 
-                        if (!tun || ip_netmask_validate(&net.net, net.prefixlen, family, NO) == FAILURE) {
-                                dbgf_sys(DBGT_ERR, "tun=%s network=%s/%d",
-                                        tun ? tun->name.str : "NULL", ipXAsStr(family, &net.net), net.prefixlen);
+                        assertion(-501245, (!tun));
+
+                        if (ip_netmask_validate(&net.net, net.prefixlen, family, NO) == FAILURE) {
+                                dbgf_sys(DBGT_ERR, "network=%s/%d", ipXAsStr(family, &net.net), net.prefixlen);
                                 return TLV_RX_DATA_FAILURE;
                         }
 
                 } else if (it->op == TLV_OP_ADD) {
 
-                        assertion(-501241, (tun));
+                        if (tun) {
+                                struct tun_net_node *tnn = debugMalloc(sizeof (struct tun_net_node), -300418);
+                                memset(tnn, 0, sizeof (struct tun_net_node));
+                                tnn->tun = tun;
+                                tnn->family = family;
+                                tnn->network = net;
+                                tnn->bandwidth = adv->bandwidth;
 
-                        struct tun_net_node *tnn = debugMalloc(sizeof (struct tun_net_node), -300418);
-                        memset(tnn, 0, sizeof (struct tun_net_node));
-                        tnn->tun = tun;
-                        tnn->family = family;
-                        tnn->network = net;
-                        tnn->bandwidth = adv->bandwidth;
+                                AVL_INIT_TREE(tnn->tun_search_tree, struct tun_search_node, netName);
 
-                        AVL_INIT_TREE(tnn->tun_search_tree, struct tun_search_node, netName);
+                                avl_insert(&tun_net_tree, tnn, -300419);
+                                avl_insert(&tun->tun_net_tree, tnn, -300419);
 
-                        avl_insert(&tun_net_tree, tnn, -300419);
-                        avl_insert(&tun->tun_net_tree, tnn, -300419);
-
-                        used = 1;
+                                used = 1;
+                        }
                 }
         }
 

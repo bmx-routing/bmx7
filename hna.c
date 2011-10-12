@@ -874,6 +874,17 @@ void set_tun_net(struct tun_search_node *sn)
 
                         if (tsn->srcType == TUN_SRC_TYPE_UNDEF || tsn->srcType == TUN_SRC_TYPE_STATIC) {
 
+                                IPX_T aprefix = tsn->srcPrefix.net;
+                                IPX_T bprefix = ingressPrefix.net;
+                                uint8_t plen = MIN(tsn->srcPrefix.prefixlen, ingressPrefix.prefixlen);
+
+                                ip_netmask_validate(&aprefix, plen, family, YES /*force*/);
+                                ip_netmask_validate(&bprefix, plen, family, YES /*force*/);
+
+                                dbgf_track(DBGT_INFO, "srcPrefix=%s ingressPrefix=%s plen=%d",
+                                        ipXAsStr(family, &aprefix), ipXAsStr(family, &bprefix), plen);
+
+
                                 if (!tsn->srcPrefix.prefixlen || tsn->srcPrefix.prefixlen < ingressPrefix.prefixlen ||
                                         !is_ip_net_equal(&tsn->srcPrefix.net, &ingressPrefix.net, MIN(tsn->srcPrefix.prefixlen, ingressPrefix.prefixlen), family))
                                         continue;

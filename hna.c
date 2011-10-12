@@ -773,8 +773,7 @@ void unlink_tun_net(struct tun_net_node *tnn, struct tun_search_node *tsn, struc
 
         while ((ttnn = tnn ? tnn : avl_iterate_item(&tun_net_tree, &itnn))) {
 
-                assertion(-501296, ttnn);
-                assertion(-501297, IMPLIES(ttnn->tun || ttnn->tun_search_tree.items, ttnn->tun && ttnn->tun_search_tree.items));
+                assertion(-501296, ttnn->tun);
 
                 dbgf_cn(cn, DBGL_CHANGES, DBGT_INFO, "%s: %s/%d %s", tsn ? tsn->netName : "",
                         ipXAsStr(ttnn->family, &ttnn->network.net), ttnn->network.prefixlen,

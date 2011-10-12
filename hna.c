@@ -1009,6 +1009,15 @@ int create_description_tlv_tun6_adv(struct tx_frame_iterator *it)
 
         return m * sizeof ( struct description_msg_tun6_adv);
 }
+STATIC_FUNC
+struct tun_adv_key set_tun_adv_key(struct orig_node *on, int16_t tun6Id)
+{
+        static struct tun_adv_key key;
+        memset(&key, 0, sizeof (key));
+        key.on = on;
+        key.tun6Id = tun6Id;
+        return key;
+}
 
 STATIC_FUNC
 int process_description_tlv_tun6_adv(struct rx_frame_iterator *it)
@@ -1016,35 +1025,32 @@ int process_description_tlv_tun6_adv(struct rx_frame_iterator *it)
         TRACE_FUNCTION_CALL;
         uint16_t m;
         struct description_msg_tun6_adv *adv = (((struct description_msg_tun6_adv *) (it->frame_data)));
+        IDM_T used = NO;
 
         for (m = 0; m < it->frame_msgs_fixed; m++) {
 
                 if (it->op == TLV_OP_DEL) {
 
-                        struct tun_adv_key key = {.on = it->on, .tun6Id = 0};
-                        struct tunnel_node *tun;
-                        IDM_T used = NO;
+                        struct tun_adv_key key = set_tun_adv_key(it->on, m);
+                        struct tunnel_node *tun = avl_find_item(&tunnel_out_tree, &key);
+                        struct tun_net_node *tnn;
 
-                        while ((tun = avl_next_item(&tunnel_out_tree, &key)) && tun->key.on == it->on ) {
+                        assertion(-500000, (tun));
 
-                                struct tun_net_node *tnn;
-                                used |= (tun->upIfIdx) ? YES : NO;
+                        used |= (tun->upIfIdx) ? YES : NO;
 
-                                while ((tnn = avl_first_item(&tun->tun_net_tree))) {
+                        while ((tnn = avl_first_item(&tun->tun_net_tree))) {
 
-                                        unlink_tun_net(tnn, NULL, NULL);
+                                unlink_tun_net(tnn, NULL, NULL);
 
-                                        avl_remove_item(&tun_net_tree, &tnn->network, tnn, -300421);
-                                        avl_remove_item(&tun->tun_net_tree, &tnn->network, tnn, -300423);
-                                        debugFree(tnn, -300424);
-                                }
-
-                                avl_remove(&tunnel_out_tree, &tun->key, -300410);
-                                debugFree(tun, -300425);
+                                avl_remove_item(&tun_net_tree, &tnn->network, tnn, -300421);
+                                avl_remove_item(&tun->tun_net_tree, &tnn->network, tnn, -300423);
+                                debugFree(tnn, -300424);
                         }
 
-                        if (used)
-                                set_tun_net(NULL);
+                        avl_remove(&tunnel_out_tree, &tun->key, -300410);
+                        debugFree(tun, -300425);
+
 
 
                 } else if (it->op == TLV_OP_TEST) {
@@ -1066,6 +1072,10 @@ int process_description_tlv_tun6_adv(struct rx_frame_iterator *it)
                         avl_insert(&tunnel_out_tree, tun, -300427);
                 }
         }
+
+        if (used)
+                set_tun_net(NULL);
+
 
         return it->frame_msgs_length;
 }
@@ -1118,7 +1128,7 @@ int process_description_tlv_tunXin6_ingress_adv(struct rx_frame_iterator *it)
         for (pos = 0; pos < it->frame_data_length; pos += it->handl->min_msg_size) {
 
                 struct description_msg_tun6in6_ingress_adv *adv = (struct description_msg_tun6in6_ingress_adv *) (it->frame_data + pos);
-                struct tun_adv_key key = {.on = it->on, .tun6Id = adv->tun6Id};
+                struct tun_adv_key key = set_tun_adv_key(it->on, adv->tun6Id);
                 struct tunnel_node *tun = avl_find_item(&tunnel_out_tree, &key);
                 IPX_T prefix = isSrc4 ? ip4ToX(*((IP4_T*)&adv->ingressPrefix)) : adv->ingressPrefix;
 
@@ -1261,14 +1271,10 @@ int process_description_tlv_tunXin6_net_adv(struct rx_frame_iterator *it)
 
                 } else if (it->op == TLV_OP_ADD) {
 
-                        struct tunnel_node *tun;
-                        struct tun_adv_key key;
-                        
-                        memset(&key, 0, sizeof (key));
-                        key.on = it->on;
-                        key.tun6Id = adv->tun6Id;
+                        struct tun_adv_key key = set_tun_adv_key(it->on, adv->tun6Id);
+                        struct tunnel_node *tun = avl_find_item(&tunnel_out_tree, &key);
 
-                        if ((tun = avl_find_item(&tunnel_out_tree, &key))) {
+                        if (tun) {
 
                                 struct tun_net_node *tnn = debugMalloc(sizeof (struct tun_net_node), -300418);
                                 memset(tnn, 0, sizeof (struct tun_net_node));

@@ -18,19 +18,26 @@
 
 #define ARG_UHNA "hna"
 
-#define ARG_UHNA_NETWORK     "network"
+#define HNA6_PREFIXLEN_MIN 32
+#define HNA4_PREFIXLEN_MIN 8
 
-#define	MIN_UHNA_PREFIXLEN   1
-#define	MAX_UHNA_PREFIXLEN   32
-#define ARG_UHNA_PREFIXLEN   "prefixlen"
+//#define ARG_UHNA_NETWORK     "network"
+//
+//#define	MIN_UHNA_PREFIXLEN   1
+//#define	MAX_UHNA_PREFIXLEN   32
+//#define ARG_UHNA_PREFIXLEN   "prefixlen"
 
 #define MIN_IP_METRIC      0
 #define MAX_IP_METRIC      U32_MAX
 #define DEF_IP_METRIC      0
 #define ARG_IP_METRIC      "ipMetric"
 
-#define ARG_NIIT          "niitAddress"
-#define HLP_NIIT          "specify niit4to6 source IP address (IP MUST be assigned to niit4to6 interface!)"
+#define ARG_TUN6_ADDRESS  "tun6Address"
+#define HLP_TUN6_ADDRESS  "specify default IPv6 tunnel address and announced range"
+
+#define ARG_TUN4_ADDRESS  "tun4Address"
+#define HLP_TUN4_ADDRESS  "specify default IPv4 tunnel address and announced range (IP SHOULD be assigned to niit4to6 interface!)"
+
 #define DEF_NIIT_PREFIX   { { { 0,0,0,0,0,0,0,0,0,0,0xFF,0xFF,0,0,0,0 } } }
 #define DEF_NIIT_4TO6_DEV "niit4to6"
 #define DEF_NIIT_6TO4_DEV "niit6to4"
@@ -45,14 +52,14 @@
 
 #define ARG_TUNS "tunnels"
 
-#define ARG_TUN_NAME_PREFIX "tunnelDevName"
+#define ARG_TUN_NAME_PREFIX "tunDevName"
 #define MAX_TUN_NAME_PREFIX_LEN 7
 #define DEF_TUN_NAME_PREFIX "bmx6"
 
 
 
 
-#define ARG_TUN_ADV  "tunnelInRemote"
+#define ARG_TUN_ADV  "tunInRemote"
 #define ARG_TUN_ADV_NAME "dev"
 
 #define ARG_TUN_ADV_INGRESS4 "ingressPrefix4"
@@ -66,11 +73,11 @@
 
 
 
-#define ARG_TUN_NET "tunnelInNet"
+#define ARG_TUN_NET "tunInNet"
 #define ARG_TUN_NET_LOCAL ARG_TUN_ADV
 #define ARG_TUN_NET_BW "bandwidth"
 
-#define ARG_TUN_SEARCH_NAME       "tunnelOut"
+#define ARG_TUN_SEARCH_NAME       "tunOut"
 #define ARG_TUN_SEARCH_NETWORK    "network"
 #define ARG_TUN_SEARCH_IP         "address"
 #define ARG_TUN_SEARCH_TYPE       "srcType"

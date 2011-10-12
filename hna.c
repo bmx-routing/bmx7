@@ -53,8 +53,8 @@ static AVL_TREE(tun_net_tree, struct tun_net_node, network);
 static AVL_TREE(tunnel_out_tree, struct tunnel_node, key);
 
 
-//static IPX_T niit_address;
-static struct net_key niit4_net;
+static struct net_key tun4_address;
+static struct net_key tun6_address;
 
 static int niit4to6_dev_idx = 0;
 static int niit6to4_dev_idx = 0;
@@ -100,7 +100,7 @@ void niit_dev_event_hook(int32_t cb_id, void* unused)
         struct orig_node *on;
         IDM_T has_niit4to6_address = 0;
 
-        if (!niit4_net.prefixlen || af_cfg() == AF_INET)
+        if (!tun4_address.prefixlen || af_cfg() == AF_INET)
                 return;
 
         while ((iln = avl_iterate_item(&if_link_tree, &an))) {
@@ -118,7 +118,7 @@ void niit_dev_event_hook(int32_t cb_id, void* unused)
                         iln_4to6 = iln;
                 }
 
-                if (avl_find_item(&iln->if_addr_tree, &niit4_net.net)) {
+                if (avl_find_item(&iln->if_addr_tree, &tun4_address.net)) {
                         dbgf_track(DBGT_INFO, "Found niit address on interface %s", iln->name.str);
                         has_niit4to6_address = 1;
                 }
@@ -129,7 +129,7 @@ void niit_dev_event_hook(int32_t cb_id, void* unused)
 
         if (!has_niit4to6_address) {
                 dbgf_track(DBGT_WARN, "%s address %s does not exist on the system",
-                        ARG_NIIT, ipXAsStr(AF_INET, &niit4_net.net));
+                        ARG_TUN4_ADDRESS, ipXAsStr(AF_INET, &tun4_address.net));
         }
 
         if (!iln_4to6) {
@@ -206,7 +206,7 @@ IDM_T configure_niit4to6(IDM_T del, struct net_key *key)
 {
         TRACE_FUNCTION_CALL;
 
-        if (!niit4to6_dev_idx || !niit4_net.prefixlen || af_cfg() != AF_INET6 || key->prefixlen < 96 ||
+        if (!niit4to6_dev_idx || !tun4_address.prefixlen || af_cfg() != AF_INET6 || key->prefixlen < 96 ||
                 !is_ip_net_equal(&key->net, &niitPrefix96, 96, AF_INET6))
                 return SUCCESS;
 
@@ -224,7 +224,7 @@ IDM_T configure_niit4to6(IDM_T del, struct net_key *key)
         } else {
 
                 return ip(AF_INET, IP_ROUTE_TUNS, ADD, NO, &niit_glip4, (key->prefixlen - 96), RT_TABLE_TUNS, 0,
-                        NULL, niit4to6_dev_idx, NULL, &niit4_net.net, DEF_IP_METRIC);
+                        NULL, niit4to6_dev_idx, NULL, &tun4_address.net, DEF_IP_METRIC);
 
         }
 
@@ -237,7 +237,7 @@ IDM_T configure_niit6to4(IDM_T del, struct net_key *key)
 {
         TRACE_FUNCTION_CALL;
 
-        if (!niit6to4_dev_idx || !niit4_net.prefixlen || af_cfg() != AF_INET6 || key->prefixlen < 96 ||
+        if (!niit6to4_dev_idx || !tun4_address.prefixlen || af_cfg() != AF_INET6 || key->prefixlen < 96 ||
                 !is_ip_net_equal(&key->net, &niitPrefix96, 96, AF_INET6))
                 return SUCCESS;
 
@@ -252,7 +252,7 @@ IDM_T configure_niit6to4(IDM_T del, struct net_key *key)
         } else {
 
                 return ip(AF_INET6, IP_ROUTE_TUNS, ADD, NO, &key->net, key->prefixlen, RT_TABLE_TUNS, 0,
-                        NULL, niit6to4_dev_idx, NULL, &niit4_net.net, DEF_IP_METRIC);
+                        NULL, niit6to4_dev_idx, NULL, &tun4_address.net, DEF_IP_METRIC);
 
         }
 
@@ -413,10 +413,14 @@ int create_description_tlv_hna(struct tx_frame_iterator *it)
 
         pos = _create_tlv_hna(family, data, max_size, pos, &self->primary_ip, max_prefixlen);
 
-        if (niit4_net.prefixlen) {
-                struct net_key niit6 = netX4ToNiit6(&niit4_net);
-                pos = _create_tlv_hna(AF_INET6, data, max_size, pos, &niit6.net, niit6.prefixlen);
+        if (tun4_address.prefixlen) {
+                struct net_key niit6_address = netX4ToNiit6(&tun4_address);
+                pos = _create_tlv_hna(AF_INET6, data, max_size, pos, &niit6_address.net, niit6_address.prefixlen);
         }
+
+        if (tun6_address.prefixlen)
+                pos = _create_tlv_hna(AF_INET6, data, max_size, pos, &tun6_address.net, tun6_address.prefixlen);
+        
 
         for (an = NULL; (tsn = avl_iterate_item(&tun_search_tree, &an));) {
                 if (tsn->srcPrefix.prefixlen) {
@@ -855,6 +859,7 @@ void set_tun_net(struct tun_search_node *sn)
                         uint8_t family = tnn->family;
                         uint8_t isSrc4 = (family == AF_INET);
                         struct net_key ingressPrefix = isSrc4 ? tnn->tun->ingress4Prefix : tnn->tun->ingress6Prefix;
+                        struct net_key srcPrefix = tsn->srcPrefix.prefixlen ? tsn->srcPrefix : (isSrc4 ? tun4_address : tun6_address);
 
                         dbgf_track(DBGT_INFO, "checking network=%s/%d bw_fmu8=%d, ingress=%s/%d from orig=%s",
                                 ipXAsStr(family, &tnn->network.net), tnn->network.prefixlen, tnn->bandwidth.val.u8,
@@ -873,20 +878,9 @@ void set_tun_net(struct tun_search_node *sn)
                                 dbgf_track(DBGT_INFO, "acceptable A");
 
                         if (tsn->srcType == TUN_SRC_TYPE_UNDEF || tsn->srcType == TUN_SRC_TYPE_STATIC) {
-
-                                IPX_T aprefix = tsn->srcPrefix.net;
-                                IPX_T bprefix = ingressPrefix.net;
-                                uint8_t plen = MIN(tsn->srcPrefix.prefixlen, ingressPrefix.prefixlen);
-
-                                ip_netmask_validate(&aprefix, plen, family, YES /*force*/);
-                                ip_netmask_validate(&bprefix, plen, family, YES /*force*/);
-
-                                dbgf_track(DBGT_INFO, "srcPrefix=%s ingressPrefix=%s plen=%d",
-                                        ipXAsStr(family, &aprefix), ipXAsStr(family, &bprefix), plen);
-
-
-                                if (!tsn->srcPrefix.prefixlen || tsn->srcPrefix.prefixlen < ingressPrefix.prefixlen ||
-                                        !is_ip_net_equal(&tsn->srcPrefix.net, &ingressPrefix.net, MIN(tsn->srcPrefix.prefixlen, ingressPrefix.prefixlen), family))
+                                
+                                if (!srcPrefix.prefixlen || srcPrefix.prefixlen < ingressPrefix.prefixlen ||
+                                        !is_ip_net_equal(&srcPrefix.net, &ingressPrefix.net, MIN(srcPrefix.prefixlen, ingressPrefix.prefixlen), family))
                                         continue;
 
                                 dbgf_track(DBGT_INFO, "acceptable B");
@@ -958,14 +952,12 @@ void set_tun_net(struct tun_search_node *sn)
 
                                 if (tsn->family == AF_INET && !is_ip_set(&tun->src4Ip)) {
 
-                                        tun->src4Ip = tsn->srcPrefix.prefixlen ? tsn->srcPrefix.net : niit4_net.net;
-                                        
-                                        if (is_ip_set(&tun->src4Ip))
-                                                ipaddr(ADD, tun->upIfIdx, AF_INET, &tun->src4Ip, 32, NO /*deprecated*/);
+                                        tun->src4Ip = tsn->srcPrefix.prefixlen ? tsn->srcPrefix.net : tun4_address.net;
+                                        ipaddr(ADD, tun->upIfIdx, AF_INET, &tun->src4Ip, 32, NO /*deprecated*/);
 
                                 } else if (tsn->family == AF_INET6 && !is_ip_set(&tun->src6Ip)) {
 
-                                        tun->src6Ip = tsn->srcPrefix.prefixlen ? tsn->srcPrefix.net : self->primary_ip;
+                                        tun->src6Ip = tsn->srcPrefix.prefixlen ? tsn->srcPrefix.net : tun6_address.net;
                                         ipaddr(ADD, tun->upIfIdx, AF_INET6, &tun->src6Ip, 128, NO /*deprecated*/);
                                 }
 
@@ -1800,12 +1792,13 @@ static int32_t tun_in_status_creator(struct status_handl *handl, void* data)
 
 
 STATIC_FUNC
-int32_t opt_niit(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
+int32_t opt_tun_address(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
 {
 	TRACE_FUNCTION_CALL;
 
         struct net_key net;
-        uint8_t family = AF_INET;
+        uint8_t isTun4 = !strcmp(opt->name, ARG_TUN4_ADDRESS);
+        uint8_t family = isTun4 ? AF_INET : AF_INET6;
 
         if ( cmd == OPT_CHECK  ||  cmd == OPT_APPLY ) {
 
@@ -1821,19 +1814,19 @@ int32_t opt_niit(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
 
                         return FAILURE;
 
-                } else if (net.prefixlen < 8) {
+                } else if (net.prefixlen < (isTun4 ? HNA4_PREFIXLEN_MIN : HNA6_PREFIXLEN_MIN)) {
 
                         return FAILURE;
 
                 } else {
 
-                        struct hna_node *hna;
-                        struct net_key find = netX4ToNiit6(&net);
+                        struct net_key find = isTun4 ? netX4ToNiit6(&net) : net;
+                        struct hna_node *hna = find_overlapping_hna(&find.net, find.prefixlen);
 
-                        if ((hna = find_overlapping_hna(&find.net, find.prefixlen)) && hna->on != self) {
+                        if (hna && hna->on != self) {
 
                                 dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "%s=%s/%d already used by orig=%s hna=%s/%d",
-                                        ARG_NIIT, ip6AsStr(&find.net), find.prefixlen,
+                                        opt->name, ip6AsStr(&find.net), find.prefixlen,
                                         globalIdAsString(&hna->on->global_id), ip6AsStr(&hna->key.net), hna->key.prefixlen);
 
                                 return FAILURE;
@@ -1843,21 +1836,26 @@ int32_t opt_niit(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
 
         if (cmd == OPT_APPLY) {
 
-                niit4_net = net;
-/*
-                niit_enabled = enabled;
-                niit_address = net.net;
-*/
+                if (isTun4) {
 
-                niit_dev_event_hook(PLUGIN_CB_SYS_DEV_EVENT, NULL);
+                        tun4_address = net;
+
+                        niit_dev_event_hook(PLUGIN_CB_SYS_DEV_EVENT, NULL);
+
+                } else {
+
+                        tun6_address = net;
+                }
 
                 my_description_changed = YES;
                 unlink_tun_net(NULL, NULL, NULL);
                 set_tun_net(NULL);
         }
 
-        if(cmd == OPT_REGISTER)
-                memset(&niit4_net, 0, sizeof (niit4_net));
+        if(cmd == OPT_REGISTER) {
+                memset(&tun4_address, 0, sizeof (tun4_address));
+                memset(&tun6_address, 0, sizeof (tun6_address));
+        }
 
         return SUCCESS;
 }
@@ -1881,8 +1879,10 @@ struct opt_type hna_options[]= {
 			ARG_VALUE_FORM, "specify hna-metric of announcement (0 means highest preference)"}
 */
         ,
-	{ODI,0,ARG_NIIT,        	0,  5,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_niit,
-			ARG_PREFIX_FORM,HLP_NIIT}
+	{ODI,0,ARG_TUN4_ADDRESS,        0,  5,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_tun_address,
+			ARG_PREFIX_FORM,HLP_TUN4_ADDRESS},
+	{ODI,0,ARG_TUN6_ADDRESS,        0,  5,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_tun_address,
+			ARG_PREFIX_FORM,HLP_TUN6_ADDRESS}
         ,
 
 

@@ -401,7 +401,10 @@ char *trackt2str(uint8_t cmd)
 	else if ( cmd == IP_ROUTE_HNA )
 		return "ROUTE_HNA";
 
-	return "TRACK_ILLEGAL";
+	else if ( cmd == IP_ROUTE_TUNS )
+		return "ROUTE_TUNS";
+
+        return "TRACK_ILLEGAL";
 }
 
 char *family2Str(uint8_t family)
@@ -1290,12 +1293,16 @@ IDM_T ipaddr(IDM_T del, uint32_t if_index, uint8_t family, IPX_T *ipX, uint8_t p
         req.ifa.ifa_prefixlen = prefixlen;
         req.ifa.ifa_scope = 0;
 
+        add_rtattr(&req.nlh, IFA_LOCAL, (char*) ipX, sizeof (IPX_T), family);
+
+/*
         if (family == AF_INET) {
                 IP4_T ip4 = ipXto4(*ipX);
                 add_rtattr(&req.nlh, IFA_LOCAL, (char*) &ip4, sizeof (ip4), req.ifa.ifa_family);
         } else {
                 add_rtattr(&req.nlh, IFA_LOCAL, (char*) ipX, sizeof (IPX_T), req.ifa.ifa_family);
         }
+*/
 
         if(deprecated) {
                 memset(&cinfo, 0, sizeof (cinfo));

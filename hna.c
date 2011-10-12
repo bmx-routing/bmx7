@@ -837,8 +837,13 @@ void set_tun_net(struct tun_search_node *sn)
 
                 struct tun_net_node *best_tnn = NULL;
 
-                dbgf_track(DBGT_INFO, "searching netName=%s: global_id=%s network=%s/%d type=%d ", tsn->netName,
-                        globalIdAsString(&tsn->global_id), ipXAsStr(tsn->family, &tsn->network.net), tsn->network.prefixlen, tsn->srcType);
+                dbgf_track(DBGT_INFO, "searching %s=%s: %s=%s %s=%d %s=%s/%d %s=%s/%d ",
+                        ARG_TUN_SEARCH_NAME, tsn->netName,
+                        ARG_TUN_SEARCH_HOSTNAME, globalIdAsString(&tsn->global_id),
+                        ARG_TUN_SEARCH_TYPE, tsn->srcType,
+                        ARG_TUN_SEARCH_NETWORK, ipXAsStr(tsn->family, &tsn->network.net), tsn->network.prefixlen,
+                        ARG_TUN_SEARCH_IP, ipXAsStr(tsn->family, &tsn->srcPrefix.net), tsn->srcPrefix.prefixlen
+                        );
 
                 while ((tnn = avl_iterate_item(&tun_net_tree, &itnn))) {
 
@@ -865,12 +870,16 @@ void set_tun_net(struct tun_search_node *sn)
                                 ))
                                 continue;
 
+                                dbgf_track(DBGT_INFO, "acceptable A");
 
                         if (tsn->srcType == TUN_SRC_TYPE_UNDEF || tsn->srcType == TUN_SRC_TYPE_STATIC) {
 
                                 if (!tsn->srcPrefix.prefixlen || tsn->srcPrefix.prefixlen < ingressPrefix.prefixlen ||
                                         !is_ip_net_equal(&tsn->srcPrefix.net, &ingressPrefix.net, MIN(tsn->srcPrefix.prefixlen, ingressPrefix.prefixlen), family))
                                         continue;
+
+                                dbgf_track(DBGT_INFO, "acceptable B");
+
 
                         } else {
 /*

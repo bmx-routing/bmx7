@@ -831,13 +831,14 @@ void set_tun_net(struct tun_search_node *sn)
         if (tun_search_tree.items)
                 task_register(5000, (void(*)(void*))set_tun_net, NULL, -300420);
 
-        dbgf_track(DBGT_INFO, "searching for netName=%s: global_id=%s network=%s/%d ",
-                sn ? sn->netName : "-", sn ? globalIdAsString(&sn->global_id) : "-",
-                sn ? ipXAsStr(sn->family, &sn->network.net) : "0", sn ? sn->network.prefixlen : 0);
+        dbgf_track(DBGT_INFO, "netName=%s: search_tree.items=%d", sn ? sn->netName : "NULL", tun_search_tree.items);
 
         while (IMPLIES(sn, !tsn) && (tsn = sn ? sn : avl_iterate_item(&tun_search_tree, &atsn))) {
 
                 struct tun_net_node *best_tnn = NULL;
+
+                dbgf_track(DBGT_INFO, "searching netName=%s: global_id=%s network=%s/%d ", tsn->netName,
+                        globalIdAsString(&tsn->global_id), ipXAsStr(tsn->family, &tsn->network.net), tsn->network.prefixlen);
 
                 while ((tnn = avl_iterate_item(&tun_net_tree, &itnn))) {
 
@@ -846,6 +847,14 @@ void set_tun_net(struct tun_search_node *sn)
                         UMETRIC_T linkQuality = UMETRIC_MAX;
                         UMETRIC_T linkMax = fmetric_to_umetric(fmetric_u8_to_fmu16(tnn->bandwidth));
                         UMETRIC_T pathMetric = on->curr_rt_local ? (on->curr_rt_local->mr.umetric) : 0;
+                        uint8_t family = tnn->family;
+                        uint8_t isSrc4 = (family == AF_INET);
+                        struct net_key ingressPrefix = isSrc4 ? tnn->tun->ingress4Prefix : tnn->tun->ingress6Prefix;
+
+                        dbgf_track(DBGT_INFO, "checking network=%s/%d bw_fmu8=%d, ingress=%s/%d from orig=%s",
+                                ipXAsStr(family, &tnn->network.net), tnn->network.prefixlen, tnn->bandwidth,
+                                ipXAsStr(family, &ingressPrefix.net), ingressPrefix.prefixlen,
+                                globalIdAsString(&tnn->tun->key.on->global_id));
 
                         if (!(
                                 tsn->family == tnn->family &&
@@ -856,9 +865,6 @@ void set_tun_net(struct tun_search_node *sn)
                                 ))
                                 continue;
 
-                        uint8_t family = tnn->family;
-                        uint8_t isSrc4 = (family == AF_INET);
-                        struct net_key ingressPrefix = isSrc4 ? tnn->tun->ingress4Prefix : tnn->tun->ingress6Prefix;
 
                         if (tsn->srcType == TUN_SRC_TYPE_UNDEF || tsn->srcType == TUN_SRC_TYPE_STATIC) {
 
@@ -905,6 +911,10 @@ void set_tun_net(struct tun_search_node *sn)
 
                                 if (!best_tnn || (tnn->e2eMetric > best_tnn->e2eMetric))
                                         best_tnn = tnn;
+
+                                dbgf_track(DBGT_INFO, "acceptable e2eMetric=%s, %s",
+                                        umetric_to_human(tnn->e2eMetric), best_tnn == tnn ? "NEW BEST" : "NOT best");
+
                         }
                 }
 

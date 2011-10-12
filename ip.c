@@ -593,20 +593,21 @@ IDM_T ip_netmask_validate(IPX_T *ipX, uint8_t mask, uint8_t family, uint8_t forc
         if (family == AF_INET)
                 nmask += (IP6_MAX_PREFIXLEN - IP4_MAX_PREFIXLEN);
 
-        for (i = 3; i >= 0 && nmask > 0 && i >= ((nmask - 1) / 32); i--) {
+        for (i = 3; i >= 0 && i >= (nmask / 32); i--) {
 
-                ip32 = ipX->s6_addr32[i];
+                if (!(ip32 = ipX->s6_addr32[i]))
+                        continue;
 
                 if ( force ) {
 
-                        if (nmask <= (i * 32) && ip32)
+                        if (nmask <= (i * 32))
                                 ipX->s6_addr32[i] = 0;
                         else
                                 ipX->s6_addr32[i] = (ip32 & (m32 = htonl(0xFFFFFFFF << (32 - (nmask - (i * 32))))));
 
                 } else {
 
-                        if (nmask <= (i * 32) && ip32)
+                        if (nmask <= (i * 32))
                                 goto validate_netmask_error;
 
                         else if (ip32 != (ip32 & (m32 = htonl(0xFFFFFFFF << (32 - (nmask - (i * 32)))))))

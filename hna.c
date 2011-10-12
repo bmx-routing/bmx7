@@ -1228,17 +1228,11 @@ int process_description_tlv_tunXin6_net_adv(struct rx_frame_iterator *it)
         for (pos = 0; pos < it->frame_msgs_length; pos += msg_size) {
 
                 struct description_msg_tun6in6_net_adv *adv = (((struct description_msg_tun6in6_net_adv *) (it->frame_data + pos)));
-                struct tun_adv_key key = {.on = it->on, .tun6Id = adv->tun6Id};
-                struct tunnel_node *tun = avl_find_item(&tunnel_out_tree, &key);
                 struct net_key net = {.prefixlen = adv->networkLen, .net = is4in6 ? ip4ToX(*((IP4_T*) & adv->network)) : adv->network};
 
                 if (it->op == TLV_OP_DEL) {
 
-                        assertion(-501240, (!tun));
-
                 } else if (it->op == TLV_OP_TEST) {
-
-                        assertion(-501245, (!tun));
 
                         if (ip_netmask_validate(&net.net, net.prefixlen, family, NO) == FAILURE) {
                                 dbgf_sys(DBGT_ERR, "network=%s/%d", ipXAsStr(family, &net.net), net.prefixlen);
@@ -1247,7 +1241,15 @@ int process_description_tlv_tunXin6_net_adv(struct rx_frame_iterator *it)
 
                 } else if (it->op == TLV_OP_ADD) {
 
-                        if (tun) {
+                        struct tunnel_node *tun;
+                        struct tun_adv_key key;
+                        
+                        memset(&key, 0, sizeof (key));
+                        key.on = it->on;
+                        key.tun6Id = adv->tun6Id;
+
+                        if ((tun = avl_find_item(&tunnel_out_tree, &key))) {
+
                                 struct tun_net_node *tnn = debugMalloc(sizeof (struct tun_net_node), -300418);
                                 memset(tnn, 0, sizeof (struct tun_net_node));
                                 tnn->tun = tun;
@@ -1261,6 +1263,10 @@ int process_description_tlv_tunXin6_net_adv(struct rx_frame_iterator *it)
                                 avl_insert(&tun->tun_net_tree, tnn, -300419);
 
                                 used = 1;
+
+                        } else {
+                                dbgf_sys(DBGT_WARN, "no matching tunnel_node found for orig=%s tun6Id=%d",
+                                        globalIdAsString(&key.on->global_id), key.tun6Id);
                         }
                 }
         }

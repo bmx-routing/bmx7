@@ -837,8 +837,8 @@ void set_tun_net(struct tun_search_node *sn)
 
                 struct tun_net_node *best_tnn = NULL;
 
-                dbgf_track(DBGT_INFO, "searching netName=%s: global_id=%s network=%s/%d ", tsn->netName,
-                        globalIdAsString(&tsn->global_id), ipXAsStr(tsn->family, &tsn->network.net), tsn->network.prefixlen);
+                dbgf_track(DBGT_INFO, "searching netName=%s: global_id=%s network=%s/%d type=%d ", tsn->netName,
+                        globalIdAsString(&tsn->global_id), ipXAsStr(tsn->family, &tsn->network.net), tsn->network.prefixlen, tsn->srcType);
 
                 while ((tnn = avl_iterate_item(&tun_net_tree, &itnn))) {
 
@@ -852,15 +852,15 @@ void set_tun_net(struct tun_search_node *sn)
                         struct net_key ingressPrefix = isSrc4 ? tnn->tun->ingress4Prefix : tnn->tun->ingress6Prefix;
 
                         dbgf_track(DBGT_INFO, "checking network=%s/%d bw_fmu8=%d, ingress=%s/%d from orig=%s",
-                                ipXAsStr(family, &tnn->network.net), tnn->network.prefixlen, tnn->bandwidth,
+                                ipXAsStr(family, &tnn->network.net), tnn->network.prefixlen, tnn->bandwidth.val.u8,
                                 ipXAsStr(family, &ingressPrefix.net), ingressPrefix.prefixlen,
                                 globalIdAsString(&tnn->tun->key.on->global_id));
 
                         if (!(
                                 tsn->family == tnn->family &&
                                 tsn->network.prefixlen >= tnn->network.prefixlen &&
-                                is_ip_net_equal(&tsn->network.net, &tnn->network.net, tnn->network.prefixlen, tsn->family) &&
-                                IMPLIES(strlen(tsn_gid->name), strcmp(tsn_gid->name, tnn_gid->name)) &&
+                                is_ip_net_equal(&tsn->network.net, &tnn->network.net, tnn->network.prefixlen, family) &&
+                                IMPLIES(strlen(tsn_gid->name), !strcmp(tsn_gid->name, tnn_gid->name)) &&
                                 IMPLIES(!is_zero(&tsn_gid->pkid, GLOBAL_ID_PKID_LEN), !memcmp(&tsn_gid->pkid, &tnn_gid->pkid, GLOBAL_ID_PKID_LEN))
                                 ))
                                 continue;
@@ -905,17 +905,18 @@ void set_tun_net(struct tun_search_node *sn)
                         }
 
 
-                        if (linkMax > UMETRIC_MIN__NOT_ROUTABLE && pathMetric > UMETRIC_MIN__NOT_ROUTABLE) {
+                        if (linkMax <= UMETRIC_MIN__NOT_ROUTABLE || pathMetric <= UMETRIC_MIN__NOT_ROUTABLE)
+                                continue;
 
-                                tnn->e2eMetric = apply_metric_algo(&linkQuality, &linkMax, &pathMetric, on->path_metricalgo);
+                        tnn->e2eMetric = apply_metric_algo(&linkQuality, &linkMax, &pathMetric, on->path_metricalgo);
 
-                                if (!best_tnn || (tnn->e2eMetric > best_tnn->e2eMetric))
-                                        best_tnn = tnn;
+                        if (!best_tnn || (tnn->e2eMetric > best_tnn->e2eMetric))
+                                best_tnn = tnn;
 
-                                dbgf_track(DBGT_INFO, "acceptable e2eMetric=%s, %s",
-                                        umetric_to_human(tnn->e2eMetric), best_tnn == tnn ? "NEW BEST" : "NOT best");
+                        dbgf_track(DBGT_INFO, "acceptable e2eMetric=%s, %s",
+                                umetric_to_human(tnn->e2eMetric), best_tnn == tnn ? "NEW BEST" : "NOT best");
 
-                        }
+
                 }
 
                 if (best_tnn != tsn->tun_net) {

@@ -80,11 +80,11 @@ void hna_description_event_hook(int32_t cb_id, struct orig_node *on)
         assertion(-501246, IMPLIES(initializing, cb_id == PLUGIN_CB_DESCRIPTION_CREATED));
 
         if (cb_id == PLUGIN_CB_DESCRIPTION_DESTROY) {
-                process_description_tlvs(NULL, on, on->desc, TLV_OP_CUSTOM_NIIT6TO4_DEL, BMX_DSC_TLV_UHNA6, NULL);
+                process_description_tlvs(NULL, self, self->desc, TLV_OP_CUSTOM_NIIT6TO4_DEL, BMX_DSC_TLV_UHNA6, NULL);
         }
 
         if (cb_id == PLUGIN_CB_DESCRIPTION_CREATED) {
-                process_description_tlvs(NULL, on, on->desc, TLV_OP_CUSTOM_NIIT6TO4_ADD, BMX_DSC_TLV_UHNA6, NULL);
+                process_description_tlvs(NULL, self, self->desc, TLV_OP_CUSTOM_NIIT6TO4_ADD, BMX_DSC_TLV_UHNA6, NULL);
         }
 }
 
@@ -252,7 +252,7 @@ IDM_T configure_niit6to4(IDM_T del, struct net_key *key)
         } else {
 
                 return ip(AF_INET6, IP_ROUTE_TUNS, ADD, NO, &key->net, key->prefixlen, RT_TABLE_TUNS, 0,
-                        NULL, niit6to4_dev_idx, NULL, &tun4_address.net, DEF_IP_METRIC);
+                        NULL, niit6to4_dev_idx, NULL, NULL, DEF_IP_METRIC);
 
         }
 

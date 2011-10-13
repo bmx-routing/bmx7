@@ -1517,8 +1517,10 @@ IDM_T ip(uint8_t family, uint8_t cmd, int8_t del, uint8_t quiet, const IPX_T *NE
 
         IDM_T llocal = (via && is_ip_equal(via, net)) ? YES : NO;
 
+/*
         if (!is_ip_set(src))
                 src = NULL;
+*/
 
         if ((cmd == IP_THROW_MY_HNA || cmd == IP_THROW_MY_NET) && (policy_routing != POLICY_RT_ENABLED || !ip_throw_rules_cfg))
 		return SUCCESS;;

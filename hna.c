@@ -1175,12 +1175,12 @@ int create_description_tlv_tunXin6_net_adv(struct tx_frame_iterator *it)
         uint16_t m = 0;
         struct opt_type *o = get_option(NULL, NO, ARG_TUN_NET);
         struct opt_parent *p = NULL;
-        struct opt_child *c = NULL;
-        struct tunnel_node *tun;
-        struct avl_node *an = NULL;
 
         while ((p = list_iterate(&o->d.parents_instance_list, p)) && m <= tx_iterator_cache_msg_space(it)) {
 
+                struct opt_child *c = NULL;
+                struct tunnel_node *tun = NULL;
+                struct avl_node *an = NULL;
                 struct description_msg_tun6in6_net_adv adv;
                 uint8_t family = 0;
                 UMETRIC_T um = 0;
@@ -1188,6 +1188,8 @@ int create_description_tlv_tunXin6_net_adv(struct tx_frame_iterator *it)
                 IPX_T localIp = ZERO_IP;
 
                 str2netw(p->val, &adv.network, NULL, &adv.networkLen, &family, NO);
+
+                dbgf_all(DBGT_INFO, "is4in6=%d family=%d dst=%s/%d", is4in6, family, ip6AsStr(&adv.network), adv.networkLen);
 
                 if (family != (is4in6 ? AF_INET : AF_INET6))
                         continue;

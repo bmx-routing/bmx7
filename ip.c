@@ -2005,7 +2005,7 @@ IDM_T dev_init_sockets(struct dev_node *dev)
 
         if ((dev->unicast_sock = socket(pf_domain, SOCK_DGRAM, 0)) < 0) {
 
-                dbg_sys(DBGT_ERR, "can't create send socket: %s", strerror(errno));
+                dbgf_sys(DBGT_ERR, "can't create send socket: %s", strerror(errno));
                 return FAILURE;
         }
 
@@ -2013,7 +2013,7 @@ IDM_T dev_init_sockets(struct dev_node *dev)
 
         if (af_cfg() == AF_INET) {
                 if (setsockopt(dev->unicast_sock, SOL_SOCKET, SO_BROADCAST, &set_on, sizeof (set_on)) < 0) {
-                        dbg_sys(DBGT_ERR, "can't enable broadcasts on unicast socket: %s", strerror(errno));
+                        dbgf_sys(DBGT_ERR, "can't enable broadcasts on unicast socket: %s", strerror(errno));
                         return FAILURE;
                 }
         } else {
@@ -2030,12 +2030,12 @@ IDM_T dev_init_sockets(struct dev_node *dev)
                 }
 */
                 if (setsockopt(dev->unicast_sock, IPPROTO_IPV6, IPV6_MULTICAST_HOPS, &set_on, sizeof (set_on)) < 0) {
-                        dbg_sys(DBGT_ERR, "can't set IPV6_MULTICAST_HOPS on unicast socket: %s", strerror(errno));
+                        dbgf_sys(DBGT_ERR, "can't set IPV6_MULTICAST_HOPS on unicast socket: %s", strerror(errno));
                         return FAILURE;
                 }
 
                 if (setsockopt(dev->unicast_sock, IPPROTO_IPV6, IPV6_ADD_MEMBERSHIP, &mreq6, sizeof (mreq6)) < 0) {
-                        dbg_sys(DBGT_ERR, "can't set IPV6_ADD_MEMBERSHIP on unicast socket: %s", strerror(errno));
+                        dbgf_sys(DBGT_ERR, "can't set IPV6_ADD_MEMBERSHIP on unicast socket: %s", strerror(errno));
                         return FAILURE;
                 }
         }
@@ -2046,7 +2046,7 @@ IDM_T dev_init_sockets(struct dev_node *dev)
 
         // bind send socket to address
         if (bind(dev->unicast_sock, (struct sockaddr *) & dev->llocal_unicast_addr, sizeof (dev->llocal_unicast_addr)) < 0) {
-                dbg_sys(DBGT_ERR, "can't bind unicast socket to IP=%s : %s (retrying later...)",
+                dbgf_sys(DBGT_ERR, "can't bind unicast socket to IP=%s : %s (retrying later...)",
                         ipFAsStr(&dev->if_llocal_addr->ip_addr), strerror(errno));
 
                 dev->activate_again = YES;
@@ -2059,7 +2059,7 @@ IDM_T dev_init_sockets(struct dev_node *dev)
 
 #ifdef SO_TIMESTAMP
         if (setsockopt(dev->unicast_sock, SOL_SOCKET, SO_TIMESTAMP, &set_on, sizeof (set_on))) {
-                dbg_sys(DBGT_WARN, "No SO_TIMESTAMP support, despite being defined, falling back to SIOCGSTAMP");
+                dbgf_sys(DBGT_WARN, "No SO_TIMESTAMP support, despite being defined, falling back to SIOCGSTAMP");
         }
 #else
         dbg_sys(DBGT_WARN, "No SO_TIMESTAMP support, falling back to SIOCGSTAMP");
@@ -2073,7 +2073,7 @@ IDM_T dev_init_sockets(struct dev_node *dev)
 
         // get netwbrc recv socket
         if ((dev->rx_mcast_sock = socket(pf_domain, SOCK_DGRAM, 0)) < 0) {
-                dbg_track(DBGT_ERR, "can't create network-broadcast socket: %s", strerror(errno));
+                dbgf_track(DBGT_ERR, "can't create network-broadcast socket: %s", strerror(errno));
                 return FAILURE;
         }
 
@@ -2102,7 +2102,7 @@ IDM_T dev_init_sockets(struct dev_node *dev)
                 else
                         inet_ntop(af_cfg(), &((struct sockaddr_in6*) (&rx_netwbrc_addr))->sin6_addr, ip6, sizeof (ip6));
 
-                dbg_sys(DBGT_ERR, "can't bind network-broadcast socket to %s: %s",
+                dbgf_sys(DBGT_ERR, "can't bind network-broadcast socket to %s: %s",
                         ip6, strerror(errno));
                 return FAILURE;
         }
@@ -2115,7 +2115,7 @@ IDM_T dev_init_sockets(struct dev_node *dev)
 
                 // get fullbrc recv socket
                 if ((dev->rx_fullbrc_sock = socket(pf_domain, SOCK_DGRAM, 0)) < 0) {
-                        dbg_sys(DBGT_ERR, "can't create full-broadcast socket: %s",
+                        dbgf_sys(DBGT_ERR, "can't create full-broadcast socket: %s",
                                 strerror(errno));
                         return FAILURE;
                 }
@@ -2127,7 +2127,7 @@ IDM_T dev_init_sockets(struct dev_node *dev)
 
                 // bind recv socket to address
                 if (bind(dev->rx_fullbrc_sock, (struct sockaddr *) & rx_fullbrc_addr, sizeof (rx_fullbrc_addr)) < 0) {
-                        dbg_sys(DBGT_ERR, "can't bind full-broadcast socket: %s", strerror(errno));
+                        dbgf_sys(DBGT_ERR, "can't bind full-broadcast socket: %s", strerror(errno));
                         return FAILURE;
                 }
 
@@ -2263,12 +2263,14 @@ void dev_activate( struct dev_node *dev )
                 dev->link_hello_sqn = ((HELLO_SQN_MASK) & rand_num(HELLO_SQN_MAX));
         }
 
+/*
         int i;
         for (i = 0; i < FRAME_TYPE_ARRSZ; i++) {
                 LIST_INIT_HEAD(dev->tx_task_lists[i], struct tx_task_node, list, list);
         }
 
         AVL_INIT_TREE(dev->tx_task_interval_tree, struct tx_task_node, task);
+*/
 
         if (dev_ip_tree.items == 1)
                 task_register(rand_num(bmx_time ? 0 : DEF_TX_DELAY), tx_packets, NULL, -300350);
@@ -3136,6 +3138,14 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
 
                         strcpy(dev->label_cfg.str, patch->val);
                         strcpy(dev->name_phy_cfg.str, phy_name);
+
+                        int i;
+                        for (i = 0; i < FRAME_TYPE_ARRSZ; i++) {
+                                LIST_INIT_HEAD(dev->tx_task_lists[i], struct tx_task_node, list, list);
+                        }
+
+                        AVL_INIT_TREE(dev->tx_task_interval_tree, struct tx_task_node, task);
+
 
                         avl_insert(&dev_name_tree, dev, -300144);
 

@@ -1018,10 +1018,12 @@ int process_description_tlv_tun6_adv(struct rx_frame_iterator *it)
 {
         TRACE_FUNCTION_CALL;
         uint16_t m;
-        struct description_msg_tun6_adv *adv = (((struct description_msg_tun6_adv *) (it->frame_data)));
         IDM_T used = NO;
 
         for (m = 0; m < it->frame_msgs_fixed; m++) {
+
+                struct description_msg_tun6_adv *adv = &(((struct description_msg_tun6_adv *) (it->frame_data))[m]);
+
 
                 if (it->op == TLV_OP_DEL) {
 

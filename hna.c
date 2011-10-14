@@ -1035,7 +1035,7 @@ int process_description_tlv_tun6_adv(struct rx_frame_iterator *it)
                         struct tunnel_node *tun = avl_find_item(&tunnel_out_tree, &key);
                         struct tun_net_node *tnn;
 
-                        assertion(-500000, (tun));
+                        assertion(-501246, (tun));
 
                         used |= (tun->upIfIdx) ? YES : NO;
 

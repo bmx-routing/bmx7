@@ -925,7 +925,11 @@ void set_tun_net(struct tun_search_node *sn)
 
                         tnn->e2eMetric = apply_metric_algo(&linkQuality, &linkMax, &pathMetric, on->path_metricalgo);
 
-                        if (!best_tnn || (tnn->e2eMetric > best_tnn->e2eMetric))
+                        if (!best_tnn ||
+                                (tnn->e2eMetric > best_tnn->e2eMetric) ||
+                                (tnn->e2eMetric == best_tnn->e2eMetric && tnn->network.prefixlen > best_tnn->network.prefixlen) ||
+                                (tnn->e2eMetric == best_tnn->e2eMetric && tnn->network.prefixlen == best_tnn->network.prefixlen && tnn == tsn->tun_net)
+                                )
                                 best_tnn = tnn;
 
                         dbgf_track(DBGT_INFO, "acceptable e2eMetric=%s, %s",

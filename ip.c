@@ -49,8 +49,10 @@ uint8_t __af_cfg = DEF_IP_FAMILY;
 
 static const char *_af_cfg_read = NULL;
 
-static int32_t ip_prio_offset_cfg = DEF_IP_RULE_OFFSET;
-static int32_t ip_table_offset_cfg = DEF_IP_TABLE_OFFSET;
+static int32_t ip_prio_hna_cfg = DEF_IP_RULE_HNA;
+static int32_t ip_prio_tun_cfg = DEF_IP_RULE_TUN;
+static int32_t ip_table_hna_cfg = DEF_IP_TABLE_HNA;
+static int32_t ip_table_tun_cfg = DEF_IP_TABLE_TUN;
 static int32_t ip_prio_rules_cfg = DEF_IP_PRIO_RULES;
 int32_t ip_throw_rules_cfg = DEF_IP_THROW_RULES;
 int32_t ip_policy_rt_cfg = DEF_IP_POLICY_ROUTING;
@@ -306,14 +308,11 @@ uint32_t prio_macro_to_prio(int8_t prio_macro)
         if (policy_routing == POLICY_RT_DISABLED)
                 return 0;
 
-        else if (prio_macro == RT_PRIO_HOSTS)
-		return ip_prio_offset_cfg - (1 + RT_PRIO_HOSTS);
-
-        else if (prio_macro == RT_PRIO_NETS)
-		return ip_prio_offset_cfg - (1 + RT_PRIO_NETS);
+        else if (prio_macro == RT_PRIO_HNA)
+		return ip_prio_hna_cfg;
 
         else if (prio_macro == RT_PRIO_TUNS)
-		return ip_prio_offset_cfg - (1 + RT_PRIO_TUNS);
+		return ip_prio_tun_cfg;
 
 	return 0;
 }
@@ -327,14 +326,11 @@ uint32_t table_macro_to_table(int8_t table_macro)
         if (policy_routing == POLICY_RT_DISABLED)
                 return 0;
 
-        else if (table_macro == RT_TABLE_HOSTS)
-		return ip_table_offset_cfg - (1 + RT_TABLE_HOSTS);
+	else if ( table_macro == RT_TABLE_HNA )
+		return ip_table_hna_cfg;
 
-	else if ( table_macro == RT_TABLE_NETS )
-		return ip_table_offset_cfg - (1 + RT_TABLE_NETS);
-
-	else if ( table_macro == RT_TABLE_TUNS )
-		return ip_table_offset_cfg - (1 + RT_TABLE_TUNS);
+	else if ( table_macro == RT_TABLE_TUN )
+		return ip_table_tun_cfg;
 
 	return 0;
 }
@@ -1527,7 +1523,13 @@ IDM_T ip(uint8_t family, uint8_t cmd, int8_t del, uint8_t quiet, const IPX_T *NE
 */
 
         if ((cmd == IP_THROW_MY_HNA || cmd == IP_THROW_MY_NET) && (policy_routing != POLICY_RT_ENABLED || !ip_throw_rules_cfg))
-		return SUCCESS;;
+		return SUCCESS;
+
+        if (table == DEF_IP_TABLE_MAIN &&
+                (cmd == IP_RULE_DEFAULT || cmd == IP_RULE_FLUSH || cmd == IP_ROUTE_FLUSH || cmd == IP_ROUTE_FLUSH_ALL))
+                        return SUCCESS;
+
+
 
         if (iptrack(family, cmd, quiet, del, net, nmask, table_macro, prio_macro, iifname, metric) == NO)
                 return SUCCESS;
@@ -2315,8 +2317,9 @@ void ip_flush_routes( void )
         int8_t table_macro;
 
 
-        for (table_macro = RT_TABLE_MIN; table_macro <= RT_TABLE_MAX; table_macro++)
+        for (table_macro = RT_TABLE_MIN; table_macro <= RT_TABLE_MAX; table_macro++) {
                 ip(af_cfg(), IP_ROUTE_FLUSH_ALL, DEL, YES/*quiet*/, &ZERO_IP, 0, table_macro, 0, 0, 0, 0, 0, 0);
+        }
 
 }
 
@@ -2330,6 +2333,9 @@ void ip_flush_rules(void)
         int8_t table_macro;
 
         for (table_macro = RT_TABLE_MIN; table_macro <= RT_TABLE_MAX; table_macro++) {
+
+                if (table_macro_to_table(table_macro) == DEF_IP_TABLE_MAIN)
+                        continue;
 
                 while (ip(af_cfg(), IP_RULE_FLUSH, DEL, YES, &ZERO_IP, 0, table_macro, 0, 0, 0, 0, 0, 0) == SUCCESS) {
 
@@ -2418,7 +2424,7 @@ int update_interface_rules(void)
                         IPX_T throw_net = ian->ip_addr;
                         ip_netmask_validate(&throw_net, ian->ifa.ifa_prefixlen, af_cfg(), YES);
 
-                        ip(af_cfg(), IP_THROW_MY_NET, ADD, NO, &throw_net, ian->ifa.ifa_prefixlen, RT_TABLE_NETS, 0, 0, 0, 0, 0, 0);
+                        ip(af_cfg(), IP_THROW_MY_NET, ADD, NO, &throw_net, ian->ifa.ifa_prefixlen, RT_TABLE_HNA, 0, 0, 0, 0, 0, 0);
 
                 }
         }
@@ -2434,8 +2440,8 @@ int update_interface_rules(void)
                 IPX_T throw6 = ip4ToX(throw_node->addr);
 
                 configure_route(&throw6, AF_INET, throw_node->netmask, 0, 0, 0, 0, RT_TABLE_HOSTS, RTN_THROW, ADD, IP_THROW_MY_NET);
-                configure_route(&throw6, AF_INET, throw_node->netmask, 0, 0, 0, 0, RT_TABLE_NETS, RTN_THROW, ADD, IP_THROW_MY_NET);
-                configure_route(&throw6, AF_INET, throw_node->netmask, 0, 0, 0, 0, RT_TABLE_TUNS, RTN_THROW, ADD, IP_THROW_MY_NET);
+                configure_route(&throw6, AF_INET, throw_node->netmask, 0, 0, 0, 0, RT_TABLE_HNA, RTN_THROW, ADD, IP_THROW_MY_NET);
+                configure_route(&throw6, AF_INET, throw_node->netmask, 0, 0, 0, 0, RT_TABLE_TUN, RTN_THROW, ADD, IP_THROW_MY_NET);
 
         }
 #endif
@@ -2807,9 +2813,9 @@ IDM_T is_policy_rt_supported(void)
 
         tested_family = family;
 
-        if (ip(family, IP_RULE_TEST, ADD, YES, &ZERO_IP, 0, RT_TABLE_HOSTS, RT_PRIO_HOSTS, 0, 0, 0, 0, 0) == SUCCESS) {
+        if (ip(family, IP_RULE_TEST, ADD, YES, &ZERO_IP, 0, RT_TABLE_HNA, RT_PRIO_HNA, 0, 0, 0, 0, 0) == SUCCESS) {
 
-                ip(family, IP_RULE_TEST, DEL, YES, &ZERO_IP, 0, RT_TABLE_HOSTS, RT_PRIO_HOSTS, 0, 0, 0, 0, 0);
+                ip(family, IP_RULE_TEST, DEL, YES, &ZERO_IP, 0, RT_TABLE_HNA, RT_PRIO_HNA, 0, 0, 0, 0, 0);
 
                 return (tested_policy_rt = YES);
 
@@ -2879,10 +2885,14 @@ int32_t opt_ip_version(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                                 ip_throw_rules_cfg = val;
                         else if (!strcmp(c->opt->name, ARG_IP_PRIO_RULES))
                                 ip_prio_rules_cfg = val;
-                        else if (!strcmp(c->opt->name, ARG_IP_RULE_OFFSET))
-                                ip_prio_offset_cfg = val;
-                        else if (!strcmp(c->opt->name, ARG_IP_TABLE_OFFSET))
-                                ip_table_offset_cfg = val;
+                        else if (!strcmp(c->opt->name, ARG_IP_RULE_HNA))
+                                ip_prio_hna_cfg = val;
+                        else if (!strcmp(c->opt->name, ARG_IP_RULE_TUN))
+                                ip_prio_tun_cfg = val;
+                        else if (!strcmp(c->opt->name, ARG_IP_TABLE_HNA))
+                                ip_table_hna_cfg = val;
+                        else if (!strcmp(c->opt->name, ARG_IP_TABLE_TUN))
+                                ip_table_tun_cfg = val;
 
                 }
 
@@ -2896,13 +2906,16 @@ int32_t opt_ip_version(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
 
                 assertion(-501131, (policy_routing != POLICY_RT_UNSET));
 
-                dbgf_track(DBGT_INFO, "%s=%d %s=%d %s=%d %s=%d %s=%d %s=%d",
+                dbgf_track(DBGT_INFO, "%s=%d %s=%d %s=%d %s=%d %s=%d %s=%d %s=%d %s=%d",
                         ARG_IP, (af_cfg() == AF_INET ? 4 :6),
                         ARG_IP_POLICY_ROUTING, ip_policy_rt_cfg,
                         ARG_IP_THROW_RULES, ip_throw_rules_cfg,
                         ARG_IP_PRIO_RULES, ip_prio_rules_cfg,
-                        ARG_IP_RULE_OFFSET,ip_prio_offset_cfg,
-                        ARG_IP_TABLE_OFFSET, ip_table_offset_cfg
+                        ARG_IP_RULE_HNA,ip_prio_hna_cfg,
+                        ARG_IP_RULE_TUN,ip_prio_tun_cfg,
+                        ARG_IP_TABLE_HNA, ip_table_hna_cfg,
+                        ARG_IP_TABLE_TUN, ip_table_tun_cfg
+
                         );
 
 		// add rule for hosts and announced interfaces and networks
@@ -2911,15 +2924,13 @@ int32_t opt_ip_version(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                         ip_flush_routes();
                         ip_flush_rules();
 
-                        ip(af_cfg(), IP_RULE_DEFAULT, ADD, NO, &ZERO_IP, 0, RT_TABLE_HOSTS, RT_PRIO_HOSTS, 0, 0, 0, 0, 0);
-                        ip(af_cfg(), IP_RULE_DEFAULT, ADD, NO, &ZERO_IP, 0, RT_TABLE_NETS, RT_PRIO_NETS, 0, 0, 0, 0, 0);
-                        ip(af_cfg(), IP_RULE_DEFAULT, ADD, NO, &ZERO_IP, 0, RT_TABLE_TUNS, RT_PRIO_TUNS, 0, 0, 0, 0, 0);
+                        ip(af_cfg(), IP_RULE_DEFAULT, ADD, NO, &ZERO_IP, 0, RT_TABLE_HNA, RT_PRIO_HNA, 0, 0, 0, 0, 0);
+                        ip(af_cfg(), IP_RULE_DEFAULT, ADD, NO, &ZERO_IP, 0, RT_TABLE_TUN, RT_PRIO_TUNS, 0, 0, 0, 0, 0);
 
-                        if (/*niit_net.prefixlen &&*/ af_cfg() == AF_INET6) {
+                        if (af_cfg() == AF_INET6) {
 
-                                ip(AF_INET, IP_RULE_DEFAULT, ADD, NO, &ZERO_IP, 0, RT_TABLE_HOSTS, RT_PRIO_HOSTS, 0, 0, 0, 0, 0);
-                                ip(AF_INET, IP_RULE_DEFAULT, ADD, NO, &ZERO_IP, 0, RT_TABLE_NETS, RT_PRIO_NETS, 0, 0, 0, 0, 0);
-                                ip(AF_INET, IP_RULE_DEFAULT, ADD, NO, &ZERO_IP, 0, RT_TABLE_TUNS, RT_PRIO_TUNS, 0, 0, 0, 0, 0);
+                                ip(AF_INET, IP_RULE_DEFAULT, ADD, NO, &ZERO_IP, 0, RT_TABLE_HNA, RT_PRIO_HNA, 0, 0, 0, 0, 0);
+                                ip(AF_INET, IP_RULE_DEFAULT, ADD, NO, &ZERO_IP, 0, RT_TABLE_TUN, RT_PRIO_TUNS, 0, 0, 0, 0, 0);
                         }
 
 		}
@@ -3341,11 +3352,15 @@ static struct opt_type ip_options[]=
 	{ODI,ARG_IP,ARG_IP_PRIO_RULES,	 0, 3,1,A_CS1,A_ADM,A_INI,A_CFA,A_ANY,	&ip_prio_rules_cfg, 0, 		1,		DEF_IP_PRIO_RULES,0, opt_ip_version,
 			ARG_VALUE_FORM,	"disable/enable default priority rules"}
         ,
-	{ODI,ARG_IP,ARG_IP_RULE_OFFSET,	 0, 3,2,A_CS1,A_ADM,A_INI,A_CFA,A_ANY,	&ip_prio_offset_cfg,	MIN_IP_RULE_OFFSET,MAX_IP_RULE_OFFSET,DEF_IP_RULE_OFFSET,0,opt_ip_version,
-			ARG_VALUE_FORM,	"specify iprout2 rule preference offset"}
+	{ODI,ARG_IP,ARG_IP_RULE_HNA,	 0, 3,1,A_CS1,A_ADM,A_INI,A_CFA,A_ANY,	&ip_prio_hna_cfg,	MIN_IP_RULE_HNA,MAX_IP_RULE_HNA,DEF_IP_RULE_HNA,0,opt_ip_version,
+			ARG_VALUE_FORM,	"specify iproute2 rule preference offset for hna networks"},
+	{ODI,ARG_IP,ARG_IP_RULE_TUN,	 0, 3,1,A_CS1,A_ADM,A_INI,A_CFA,A_ANY,	&ip_prio_tun_cfg,	MIN_IP_RULE_TUN,MAX_IP_RULE_TUN,DEF_IP_RULE_TUN,0,opt_ip_version,
+			ARG_VALUE_FORM,	"specify iproute2 rule preference offset for tunnel networks"}
         ,
-	{ODI,ARG_IP,ARG_IP_TABLE_OFFSET, 0, 3,2,A_CS1,A_ADM,A_INI,A_CFA,A_ANY,	&ip_table_offset_cfg,	MIN_IP_TABLE_OFFSET,   MAX_IP_TABLE_OFFSET,   DEF_IP_TABLE_OFFSET,0,     opt_ip_version,
-			ARG_VALUE_FORM,	"specify iprout2 table offset"}
+	{ODI,ARG_IP,ARG_IP_TABLE_HNA, 0, 3,1,A_CS1,A_ADM,A_INI,A_CFA,A_ANY,	&ip_table_hna_cfg,	MIN_IP_TABLE_HNA,   MAX_IP_TABLE_HNA,   DEF_IP_TABLE_HNA,0,     opt_ip_version,
+			ARG_VALUE_FORM,	"specify iprout2 table for hna networks"},
+	{ODI,ARG_IP,ARG_IP_TABLE_TUN, 0, 3,1,A_CS1,A_ADM,A_INI,A_CFA,A_ANY,	&ip_table_tun_cfg,	MIN_IP_TABLE_TUN,   MAX_IP_TABLE_TUN,   DEF_IP_TABLE_TUN,0,     opt_ip_version,
+			ARG_VALUE_FORM,	"specify iprout2 table for tunnel networks"}
 
 #ifndef WITH_UNUSED
         ,

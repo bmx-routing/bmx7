@@ -218,12 +218,12 @@ IDM_T configure_niit4to6(IDM_T del, struct net_key *key)
         // update network routes:
         if (del) {
 
-                return ip(AF_INET, IP_ROUTE_TUNS, DEL, NO, &niit_glip4, (key->prefixlen - 96), RT_TABLE_TUNS, 0,
+                return ip(AF_INET, IP_ROUTE_TUNS, DEL, NO, &niit_glip4, (key->prefixlen - 96), RT_TABLE_TUN, 0,
                         NULL, 0, NULL, NULL, DEF_IP_METRIC);
 
         } else {
 
-                return ip(AF_INET, IP_ROUTE_TUNS, ADD, NO, &niit_glip4, (key->prefixlen - 96), RT_TABLE_TUNS, 0,
+                return ip(AF_INET, IP_ROUTE_TUNS, ADD, NO, &niit_glip4, (key->prefixlen - 96), RT_TABLE_TUN, 0,
                         NULL, niit4to6_dev_idx, NULL, &tun4_address.net, DEF_IP_METRIC);
 
         }
@@ -246,12 +246,12 @@ IDM_T configure_niit6to4(IDM_T del, struct net_key *key)
         // update network routes:
         if (del) {
 
-                return ip(AF_INET6, IP_ROUTE_TUNS, DEL, NO, &key->net, key->prefixlen, RT_TABLE_TUNS, 0,
+                return ip(AF_INET6, IP_ROUTE_TUNS, DEL, NO, &key->net, key->prefixlen, RT_TABLE_TUN, 0,
                         NULL, 0, NULL, NULL, DEF_IP_METRIC);
 
         } else {
 
-                return ip(AF_INET6, IP_ROUTE_TUNS, ADD, NO, &key->net, key->prefixlen, RT_TABLE_TUNS, 0,
+                return ip(AF_INET6, IP_ROUTE_TUNS, ADD, NO, &key->net, key->prefixlen, RT_TABLE_TUN, 0,
                         NULL, niit6to4_dev_idx, NULL, NULL, DEF_IP_METRIC);
 
         }
@@ -276,14 +276,10 @@ STATIC_FUNC
 IDM_T configure_route(IDM_T del, struct orig_node *on, struct net_key *key)
 {
 
-        IDM_T primary = is_ip_equal(&key->net, &on->primary_ip);
-        uint8_t cmd = primary ? IP_ROUTE_HOST : IP_ROUTE_HNA;
-        int32_t table_macro = primary ? RT_TABLE_HOSTS : RT_TABLE_NETS;
-
         // update network routes:
         if (del) {
 
-                return ip(af_cfg(), cmd, DEL, NO, &key->net, key->prefixlen, table_macro, 0,
+                return ip(af_cfg(), IP_ROUTE_HNA, DEL, NO, &key->net, key->prefixlen, RT_TABLE_HNA, 0,
                         NULL, 0, NULL, NULL, DEF_IP_METRIC);
 
         } else {
@@ -294,7 +290,7 @@ IDM_T configure_route(IDM_T del, struct orig_node *on, struct net_key *key)
                 ASSERTION(-500239, (avl_find(&link_dev_tree, &(lndev->key))));
                 assertion(-500579, (lndev->key.dev->if_llocal_addr));
 
-                return ip(af_cfg(), cmd, ADD, NO, &key->net, key->prefixlen, table_macro, 0,
+                return ip(af_cfg(), IP_ROUTE_HNA, ADD, NO, &key->net, key->prefixlen, RT_TABLE_HNA, 0,
                         NULL, lndev->key.dev->if_llocal_addr->ifa.ifa_index,
                         &(lndev->key.link->link_ip), &(self->primary_ip), DEF_IP_METRIC);
 
@@ -481,9 +477,8 @@ void configure_hna(IDM_T del, struct net_key* key, struct orig_node *on)
 
                 // update throw routes:
                 if (policy_routing == POLICY_RT_ENABLED && ip_throw_rules_cfg) {
-                        ip(af_cfg(), IP_THROW_MY_HNA, del, NO, &key->net, key->prefixlen, RT_TABLE_HOSTS, 0, 0, 0, 0, 0, 0);
-                        ip(af_cfg(), IP_THROW_MY_HNA, del, NO, &key->net, key->prefixlen, RT_TABLE_NETS, 0, 0, 0, 0, 0, 0);
-                        ip(af_cfg(), IP_THROW_MY_HNA, del, NO, &key->net, key->prefixlen, RT_TABLE_TUNS, 0, 0, 0, 0, 0, 0);
+                        ip(af_cfg(), IP_THROW_MY_HNA, del, NO, &key->net, key->prefixlen, RT_TABLE_HNA, 0, 0, 0, 0, 0, 0);
+                        ip(af_cfg(), IP_THROW_MY_HNA, del, NO, &key->net, key->prefixlen, RT_TABLE_TUN, 0, 0, 0, 0, 0, 0);
                 }
 
         } else if (on->curr_rt_lndev) {
@@ -795,7 +790,7 @@ void unlink_tun_net(struct tun_net_node *tnn, struct tun_search_node *tsn, struc
                                 assertion(-501299, (tun && tun->upIfIdx && tun->tun_net_tree.items));
 
                                 ip(ttsn->family, IP_ROUTE_TUNS, DEL, NO, &ttsn->network.net, ttsn->network.prefixlen,
-                                        RT_TABLE_TUNS, 0, NULL, tun->upIfIdx, NULL, NULL, ttsn->ipmetric);
+                                        RT_TABLE_TUN, 0, NULL, tun->upIfIdx, NULL, NULL, ttsn->ipmetric);
 
                                 ttsn->tun_net = NULL;
 
@@ -963,7 +958,7 @@ void set_tun_net(struct tun_search_node *sn)
                                         }
 
                                         ip(tsn->family, IP_ROUTE_TUNS, ADD, NO, &tsn->network.net, tsn->network.prefixlen,
-                                                RT_TABLE_TUNS, 0, NULL, tun->upIfIdx, NULL, NULL, tsn->ipmetric);
+                                                RT_TABLE_TUN, 0, NULL, tun->upIfIdx, NULL, NULL, tsn->ipmetric);
 
 
                                         tsn->tun_net = best_tnn;

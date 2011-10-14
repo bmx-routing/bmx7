@@ -119,8 +119,8 @@ typedef struct ifname IFNAME_T;
 #define DEF_IP_VERSION "6"
 #define DEF_IP_FAMILY AF_INET6
 
-#define DEF_IP_POLICY_ROUTING 1
 #define ARG_IP_POLICY_ROUTING "policyRouting"
+#define DEF_IP_POLICY_ROUTING 1
 
 #define ARG_IP_THROW_RULES "throwRules"
 #define DEF_IP_THROW_RULES 0
@@ -132,30 +132,49 @@ typedef struct ifname IFNAME_T;
 #define DEF_LO_RULE 1
 
 #define RT_PRIO_MAX    -1
-#define RT_PRIO_HOSTS  -1
-#define RT_PRIO_NETS   -2
-#define RT_PRIO_TUNS   -3
-#define RT_PRIO_MIN    -3
-
-#define ARG_IP_RULE_OFFSET "preference"
-#define MIN_IP_RULE_OFFSET 3
-#define MAX_IP_RULE_OFFSET 32765
-#define DEF_IP_RULE_OFFSET 6000 // avoid conflicts with bmxd and others
+//#define RT_PRIO_HOSTS  -1
+#define RT_PRIO_HNA   -1
+#define RT_PRIO_TUNS   -2
+#define RT_PRIO_MIN    -2
 
 
+//#define ARG_IP_RULE_HOST "tablePrefHosts"
+//#define MIN_IP_RULE_HOST 3
+//#define MAX_IP_RULE_HOST 32766
+//#define DEF_IP_RULE_HOST 6000 // avoid conflicts with bmxd and others
+
+#define ARG_IP_RULE_HNA "tablePrefHnas"
+#define MIN_IP_RULE_HNA 3
+#define MAX_IP_RULE_HNA 32766
+#define DEF_IP_RULE_HNA 6000 // avoid conflicts with bmxd and others
+
+#define ARG_IP_RULE_TUN "tablePrefTuns"
+#define MIN_IP_RULE_TUN 3
+#define MAX_IP_RULE_TUN 64000
+#define DEF_IP_RULE_TUN 32766
 
 #define RT_TABLE_MAX   -1
-#define RT_TABLE_HOSTS -1
-#define RT_TABLE_NETS  -2
-#define RT_TABLE_TUNS  -3
-#define RT_TABLE_MIN   -3
+//#define RT_TABLE_HOSTS -1
+#define RT_TABLE_HNA  -1
+#define RT_TABLE_TUN  -2
+#define RT_TABLE_MIN   -2
 
-#define ARG_IP_TABLE_OFFSET "table"
-#define DEF_IP_TABLE_OFFSET 60 //avoid conflicts with bmxd and others
-#define MIN_IP_TABLE_OFFSET 0
-#define MAX_IP_TABLE_OFFSET 32000
+//#define ARG_IP_TABLE_HOST "tableHosts"
+//#define DEF_IP_TABLE_HOST 60 //avoid conflicts with bmxd and others
+//#define MIN_IP_TABLE_HOST 0
+//#define MAX_IP_TABLE_HOST 32000
 
+#define ARG_IP_TABLE_HNA "tableHnas"
+#define DEF_IP_TABLE_HNA 60 //avoid conflicts with bmxd and others
+#define MIN_IP_TABLE_HNA 0
+#define MAX_IP_TABLE_HNA 32000
 
+#define DEF_IP_TABLE_MAIN 254
+
+#define ARG_IP_TABLE_TUN "tableTuns"
+#define DEF_IP_TABLE_TUN 254 //avoid conflicts with bmxd and others
+#define MIN_IP_TABLE_TUN 0
+#define MAX_IP_TABLE_TUN 32000
 
 
 //extern int32_t base_port;

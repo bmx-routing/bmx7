@@ -861,10 +861,10 @@ void set_tun_net(struct tun_search_node *sn)
                         struct net_key ingressPrefix = isSrc4 ? tnn->tun->ingress4Prefix : tnn->tun->ingress6Prefix;
                         struct net_key srcPrefix = tsn->srcPrefix.prefixlen ? tsn->srcPrefix : (isSrc4 ? tun4_address : tun6_address);
 
-                        dbgf_track(DBGT_INFO, "checking network=%s/%d bw_fmu8=%d, ingress=%s/%d localIp=%s tun6Id=%d from orig=%s",
+                        dbgf_track(DBGT_INFO, "checking network=%s/%d bw_fmu8=%d, ingress=%s/%d localIp=%s tun6Id=%d tun=%p from orig=%s",
                                 ipXAsStr(family, &tnn->network.net), tnn->network.prefixlen, tnn->bandwidth.val.u8,
                                 ipXAsStr(family, &ingressPrefix.net), ingressPrefix.prefixlen,
-                                ip6AsStr(&tnn->tun->localIp), tnn->tun->key.tun6Id,
+                                ip6AsStr(&tnn->tun->localIp), tnn->tun->key.tun6Id, tnn->tun,
                                 globalIdAsString(&tnn->tun->key.on->global_id));
 
                         if (!(

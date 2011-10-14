@@ -146,7 +146,7 @@ struct description_msg_tun4in6_ingress_adv {
 } __attribute__((packed));
 
 #define DESCRIPTION_MSG_TUN4IN6_INGRESS_ADV_FORMAT { \
-{FIELD_TYPE_FMETRIC8, -1,   8, 1, FIELD_RELEVANCE_MEDI, "tun6Id" },  \
+{FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_MEDI, "tun6Id" },  \
 {FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_HIGH, "ingressPrefixLen" },  \
 {FIELD_TYPE_IP4,      -1,  32, 1, FIELD_RELEVANCE_HIGH, "ingressPrefix" },  \
 FIELD_FORMAT_END }
@@ -160,7 +160,7 @@ struct description_msg_tun6in6_ingress_adv {
 } __attribute__((packed));
 
 #define DESCRIPTION_MSG_TUN6IN6_INGRESS_ADV_FORMAT { \
-{FIELD_TYPE_FMETRIC8, -1,   8, 1, FIELD_RELEVANCE_MEDI, "tun6Id" },  \
+{FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_MEDI, "tun6Id" },  \
 {FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_HIGH, "ingressPrefixLen" },  \
 {FIELD_TYPE_IPX6,     -1, 128, 1, FIELD_RELEVANCE_HIGH, "ingressPrefix" },  \
 FIELD_FORMAT_END }
@@ -183,7 +183,7 @@ struct description_msg_tun4in6_src_adv {
 } __attribute__((packed));
 
 #define DESCRIPTION_MSG_TUN4IN6_SRC_ADV_FORMAT { \
-{FIELD_TYPE_FMETRIC8, -1,   8, 1, FIELD_RELEVANCE_MEDI, "tun6Id" },  \
+{FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_MEDI, "tun6Id" },  \
 {FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_HIGH, "srcType" },  \
 {FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_HIGH, "srcPrefixMin" },  \
 {FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_HIGH, "srcPrefixLen" },  \
@@ -199,7 +199,7 @@ struct description_msg_tun6in6_src_adv {
 } __attribute__((packed));
 
 #define DESCRIPTION_MSG_TUN6IN6_SRC_ADV_FORMAT { \
-{FIELD_TYPE_FMETRIC8, -1,   8, 1, FIELD_RELEVANCE_MEDI, "tun6Id" },  \
+{FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_MEDI, "tun6Id" },  \
 {FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_HIGH, "srcType" },  \
 {FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_HIGH, "srcPrefixMin" },  \
 {FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_HIGH, "srcPrefixLen" },  \
@@ -218,8 +218,8 @@ struct description_msg_tun4in6_net_adv {
 } __attribute__((packed));
 
 #define DESCRIPTION_MSG_TUN4IN6_NET_ADV_FORMAT { \
-{FIELD_TYPE_FMETRIC8, -1,   8, 1, FIELD_RELEVANCE_MEDI, "tun6Id" },  \
-{FIELD_TYPE_FMETRIC8, -1,   8, 1, FIELD_RELEVANCE_LOW,  "reserved" },  \
+{FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_MEDI, "tun6Id" },  \
+{FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_LOW,  "reserved" },  \
 {FIELD_TYPE_FMETRIC8, -1,   8, 1, FIELD_RELEVANCE_HIGH, "bandwidth" },  \
 {FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_HIGH, "networklen" },  \
 {FIELD_TYPE_IP4,      -1,  32, 1, FIELD_RELEVANCE_HIGH, "network" },  \
@@ -234,8 +234,8 @@ struct description_msg_tun6in6_net_adv {
 } __attribute__((packed));
 
 #define DESCRIPTION_MSG_TUN6IN6_NET_ADV_FORMAT { \
-{FIELD_TYPE_FMETRIC8, -1,   8, 1, FIELD_RELEVANCE_MEDI, "tun6Id" },  \
-{FIELD_TYPE_FMETRIC8, -1,   8, 1, FIELD_RELEVANCE_LOW,  "reserved" },  \
+{FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_MEDI, "tun6Id" },  \
+{FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_LOW,  "reserved" },  \
 {FIELD_TYPE_FMETRIC8, -1,   8, 1, FIELD_RELEVANCE_HIGH, "bandwidth" },  \
 {FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_HIGH, "networklen" },  \
 {FIELD_TYPE_IPX6,     -1, 128, 1, FIELD_RELEVANCE_HIGH, "network" },  \

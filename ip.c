@@ -404,6 +404,9 @@ char *trackt2str(uint8_t cmd)
 	else if ( cmd == IP_ROUTE_TUNS )
 		return "ROUTE_TUNS";
 
+	else if ( cmd == IP_ADDRESS )
+		return "ADDRESS";
+
         return "TRACK_ILLEGAL";
 }
 
@@ -1231,6 +1234,7 @@ IDM_T rtnl_talk(void *req, int len, uint8_t family, uint8_t cmd, int8_t del, uin
                                         "can't %s %s to %s/%i via %s table %i: %s",
                                         del2str(del), trackt2str(cmd), ipXAsStr(family, net), nmask, ipXAsStr(family, via),
                                         table, strerror(-((struct nlmsgerr*) NLMSG_DATA(nh))->error));
+
                                 EXITERROR(-501098, (cmd == IP_RULE_FLUSH || cmd == IP_ROUTE_FLUSH || cmd == IP_RULE_TEST));
                                 return FAILURE;
                         }

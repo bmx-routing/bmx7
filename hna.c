@@ -861,9 +861,10 @@ void set_tun_net(struct tun_search_node *sn)
                         struct net_key ingressPrefix = isSrc4 ? tnn->tun->ingress4Prefix : tnn->tun->ingress6Prefix;
                         struct net_key srcPrefix = tsn->srcPrefix.prefixlen ? tsn->srcPrefix : (isSrc4 ? tun4_address : tun6_address);
 
-                        dbgf_track(DBGT_INFO, "checking network=%s/%d bw_fmu8=%d, ingress=%s/%d from orig=%s",
+                        dbgf_track(DBGT_INFO, "checking network=%s/%d bw_fmu8=%d, ingress=%s/%d localIp=%s tun6Id=%d from orig=%s",
                                 ipXAsStr(family, &tnn->network.net), tnn->network.prefixlen, tnn->bandwidth.val.u8,
                                 ipXAsStr(family, &ingressPrefix.net), ingressPrefix.prefixlen,
+                                ip6AsStr(&tnn->tun->localIp), tnn->tun->key.tun6Id,
                                 globalIdAsString(&tnn->tun->key.on->global_id));
 
                         if (!(
@@ -940,29 +941,30 @@ void set_tun_net(struct tun_search_node *sn)
 
                         if (best_tnn && best_tnn->e2eMetric > UMETRIC_MIN__NOT_ROUTABLE) {
 
-                                tsn->tun_net = best_tnn;
-                                avl_insert(&best_tnn->tun_search_tree, tsn, -300415);
-
                                 struct tunnel_node *tun = best_tnn->tun;
 
-                                if (!tun->upIfIdx) {
-                                        configure_tunnel(ADD, tun->key.on, tun);
+                                if (!tun->upIfIdx && configure_tunnel(ADD, tun->key.on, tun) == SUCCESS)
                                         ipaddr(ADD, tun->upIfIdx, AF_INET6, &tun->localIp, 128, YES /*deprecated*/);
+
+                                if (tun->upIfIdx) {
+                                        if (tsn->family == AF_INET && !is_ip_set(&tun->src4Ip)) {
+
+                                                tun->src4Ip = tsn->srcPrefix.prefixlen ? tsn->srcPrefix.net : tun4_address.net;
+                                                ipaddr(ADD, tun->upIfIdx, AF_INET, &tun->src4Ip, 32, NO /*deprecated*/);
+
+                                        } else if (tsn->family == AF_INET6 && !is_ip_set(&tun->src6Ip)) {
+
+                                                tun->src6Ip = tsn->srcPrefix.prefixlen ? tsn->srcPrefix.net : tun6_address.net;
+                                                ipaddr(ADD, tun->upIfIdx, AF_INET6, &tun->src6Ip, 128, NO /*deprecated*/);
+                                        }
+
+                                        ip(tsn->family, IP_ROUTE_TUNS, ADD, NO, &tsn->network.net, tsn->network.prefixlen,
+                                                RT_TABLE_TUNS, 0, NULL, tun->upIfIdx, NULL, NULL, tsn->ipmetric);
+
+
+                                        tsn->tun_net = best_tnn;
+                                        avl_insert(&best_tnn->tun_search_tree, tsn, -300415);
                                 }
-
-                                if (tsn->family == AF_INET && !is_ip_set(&tun->src4Ip)) {
-
-                                        tun->src4Ip = tsn->srcPrefix.prefixlen ? tsn->srcPrefix.net : tun4_address.net;
-                                        ipaddr(ADD, tun->upIfIdx, AF_INET, &tun->src4Ip, 32, NO /*deprecated*/);
-
-                                } else if (tsn->family == AF_INET6 && !is_ip_set(&tun->src6Ip)) {
-
-                                        tun->src6Ip = tsn->srcPrefix.prefixlen ? tsn->srcPrefix.net : tun6_address.net;
-                                        ipaddr(ADD, tun->upIfIdx, AF_INET6, &tun->src6Ip, 128, NO /*deprecated*/);
-                                }
-
-                                ip(tsn->family, IP_ROUTE_TUNS, ADD, NO, &tsn->network.net, tsn->network.prefixlen,
-                                        RT_TABLE_TUNS, 0, NULL, tun->upIfIdx, NULL, NULL, tsn->ipmetric);
                         }
                 }
         }

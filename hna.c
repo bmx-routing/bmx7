@@ -1043,10 +1043,9 @@ int process_description_tlv_tun6_adv(struct rx_frame_iterator *it)
                                 debugFree(tnn, -300424);
                         }
 
+                        assertion(-501249, (!tun->tun_net_tree.items));
                         avl_remove(&tunnel_out_tree, &tun->key, -300410);
                         debugFree(tun, -300425);
-
-
 
                 } else if (it->op == TLV_OP_TEST) {
 

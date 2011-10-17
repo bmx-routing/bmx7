@@ -77,7 +77,7 @@ void hna_description_event_hook(int32_t cb_id, struct orig_node *on)
         dbgf_all(DBGT_INFO, "cb_id=%d", cb_id);
 
         assertion(-501245, (cb_id == PLUGIN_CB_DESCRIPTION_DESTROY || cb_id == PLUGIN_CB_DESCRIPTION_CREATED));
-        assertion(-501246, IMPLIES(initializing, cb_id == PLUGIN_CB_DESCRIPTION_CREATED));
+        assertion(-501248, IMPLIES(initializing, cb_id == PLUGIN_CB_DESCRIPTION_CREATED));
 
         if (cb_id == PLUGIN_CB_DESCRIPTION_DESTROY) {
                 process_description_tlvs(NULL, self, self->desc, TLV_OP_CUSTOM_NIIT6TO4_DEL, BMX_DSC_TLV_UHNA6, NULL);
@@ -1030,7 +1030,7 @@ int process_description_tlv_tun6_adv(struct rx_frame_iterator *it)
                         struct tunnel_node *tun = avl_find_item(&tunnel_out_tree, &key);
                         struct tun_net_node *tnn;
 
-                        assertion(-501246, (tun));
+                        assertion(-501247, (tun));
 
                         used |= (tun->upIfIdx) ? YES : NO;
 

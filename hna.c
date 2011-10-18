@@ -1006,7 +1006,7 @@ int create_description_tlv_tun6_adv(struct tx_frame_iterator *it)
 STATIC_FUNC
 struct tun_adv_key set_tun_adv_key(struct orig_node *on, int16_t tun6Id)
 {
-        static struct tun_adv_key key;
+        struct tun_adv_key key;
         memset(&key, 0, sizeof (key));
         key.on = on;
         key.tun6Id = tun6Id;
@@ -1023,11 +1023,15 @@ int process_description_tlv_tun6_adv(struct rx_frame_iterator *it)
         for (m = 0; m < it->frame_msgs_fixed; m++) {
 
                 struct description_msg_tun6_adv *adv = &(((struct description_msg_tun6_adv *) (it->frame_data))[m]);
+                struct tun_adv_key key = set_tun_adv_key(it->on, m);
+
+                dbgf_track(DBGT_INFO, "op=%s tunnel_out.items=%d tun_net.items=%d msg=%d/%d localIp=%s orig=%s",
+                        tlv_op_str(it->op), tunnel_out_tree.items, tun_net_tree.items, m, it->frame_msgs_fixed,
+                        ip6AsStr(&adv->localIp), globalIdAsString(&it->on->global_id));
 
 
                 if (it->op == TLV_OP_DEL) {
 
-                        struct tun_adv_key key = set_tun_adv_key(it->on, m);
                         struct tunnel_node *tun = avl_find_item(&tunnel_out_tree, &key);
                         struct tun_net_node *tnn;
                         struct tun_net_node * rtnn;
@@ -1060,7 +1064,7 @@ int process_description_tlv_tun6_adv(struct rx_frame_iterator *it)
                         }
 
                         assertion(-501249, (!tun->tun_net_tree.items));
-                        avl_remove(&tunnel_out_tree, &tun->key, -300410);
+                        avl_remove(&tunnel_out_tree, &key, -300410);
                         debugFree(tun, -300425);
 
                 } else if (it->op == TLV_OP_TEST) {
@@ -1074,8 +1078,7 @@ int process_description_tlv_tun6_adv(struct rx_frame_iterator *it)
 
                         struct tunnel_node *tun = debugMalloc(sizeof (struct tunnel_node), -300426);
                         memset(tun, 0, sizeof (struct tunnel_node));
-                        tun->key.on = it->on;
-                        tun->key.tun6Id = m;
+                        tun->key = key;
                         tun->localIp = adv->localIp;
                         tun->name_auto = 1;
                         AVL_INIT_TREE(tun->tun_net_tree, struct tun_net_node, network);
@@ -1374,7 +1377,7 @@ int32_t opt_tun_net(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt
                                         return FAILURE;
                                 }
 
-                                if (avl_find(&tunnel_out_tree, &src)) {
+                                if (avl_find(&tunnel_in_tree, &src)) {
                                         dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "%s=%s already used as local address",
                                                 ARG_TUN_NET_LOCAL, ip6AsStr(&src));
                                         return FAILURE;

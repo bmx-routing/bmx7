@@ -1017,7 +1017,7 @@ STATIC_FUNC
 int process_description_tlv_tun6_adv(struct rx_frame_iterator *it)
 {
         TRACE_FUNCTION_CALL;
-        uint16_t m;
+        int16_t m;
         IDM_T used = NO;
 
         for (m = 0; m < it->frame_msgs_fixed; m++) {
@@ -1025,16 +1025,16 @@ int process_description_tlv_tun6_adv(struct rx_frame_iterator *it)
                 struct description_msg_tun6_adv *adv = &(((struct description_msg_tun6_adv *) (it->frame_data))[m]);
                 struct tun_adv_key key = set_tun_adv_key(it->on, m);
 
-                dbgf_track(DBGT_INFO, "op=%s tunnel_out.items=%d tun_net.items=%d msg=%d/%d localIp=%s orig=%s",
+                dbgf_track(DBGT_INFO, "op=%s tunnel_out.items=%d tun_net.items=%d msg=%d/%d localIp=%s orig=%s (%p)",
                         tlv_op_str(it->op), tunnel_out_tree.items, tun_net_tree.items, m, it->frame_msgs_fixed,
-                        ip6AsStr(&adv->localIp), globalIdAsString(&it->on->global_id));
+                        ip6AsStr(&adv->localIp), globalIdAsString(&it->on->global_id), it->on);
 
 
                 if (it->op == TLV_OP_DEL) {
 
                         struct tunnel_node *tun = avl_find_item(&tunnel_out_tree, &key);
                         struct tun_net_node *tnn;
-                        struct tun_net_node * rtnn;
+                        struct tun_net_node *rtnn;
 
                         assertion(-501247, (tun));
 

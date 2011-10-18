@@ -1241,7 +1241,7 @@ IDM_T rtnl_talk(void *req, int len, uint8_t family, uint8_t cmd, int8_t del, uin
                                 struct rtattr *rtap = (struct rtattr *) RTM_RTA(rtm);
                                 int rtl = RTM_PAYLOAD(nh);
 
-                                while (family == table && RTA_OK(rtap, rtl)) {
+                                while (rtm->rtm_table == table && RTA_OK(rtap, rtl)) {
 
                                         if (rtap->rta_type == RTA_DST) {
 

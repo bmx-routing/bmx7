@@ -2906,7 +2906,7 @@ int32_t opt_ip_version(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
 
                 assertion(-501131, (policy_routing != POLICY_RT_UNSET));
 
-                dbgf_track(DBGT_INFO, "%s=%d policy_routing=%s %s=%d %s=%d %s=%d %s=%d %s=%d %s=%d %s=%d",
+                dbgf_track(DBGT_INFO, "%s=%d policy_routing=%d %s=%d %s=%d %s=%d %s=%d %s=%d %s=%d %s=%d",
                         ARG_IP, (af_cfg() == AF_INET ? 4 : 6), (policy_routing == POLICY_RT_ENABLED),
                         ARG_IP_POLICY_ROUTING, ip_policy_rt_cfg,
                         ARG_IP_THROW_RULES, ip_throw_rules_cfg,

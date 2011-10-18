@@ -52,6 +52,7 @@ static AVL_TREE(tun_net_tree, struct tun_net_node, network);
 //static AVL_TREE(tun_adv_tree, struct tun_adv_node, key); // combined with tunnel_node/tunnel_out_tree
 static AVL_TREE(tunnel_out_tree, struct tunnel_node, key);
 
+static const struct net_key ZERO_NET_KEY = {.prefixlen = 0};
 
 static struct net_key tun4_address;
 static struct net_key tun6_address;
@@ -261,13 +262,21 @@ IDM_T configure_niit6to4(IDM_T del, struct net_key *key)
 }
 
 STATIC_FUNC
+void set_net_key(struct net_key *key, uint8_t prefixlen, IPX_T *glip)
+{
+        memset( key, 0, sizeof(struct net_key));
+        key->prefixlen = prefixlen;
+        key->net = *glip;
+}
+
+
+STATIC_FUNC
 struct net_key netX4ToNiit6(struct net_key *net)
 {
         struct net_key niit;
-        memset(&niit, 0, sizeof (niit));
-        niit.net = niitPrefix96;
+
+        set_net_key(&niit, net->prefixlen + 96, &niitPrefix96);
         niit.net.s6_addr32[3] = net->net.s6_addr32[3];
-        niit.prefixlen = net->prefixlen + 96;
         return niit;
 }
 
@@ -297,14 +306,6 @@ IDM_T configure_route(IDM_T del, struct orig_node *on, struct net_key *key)
         }
 }
 
-STATIC_FUNC
-void set_net_key(struct net_key *key, uint8_t prefixlen, IPX_T *glip)
-{
-        memset( key, 0, sizeof(struct net_key));
-        key->prefixlen = prefixlen;
-        key->net = *glip;
-
-}
 
 STATIC_FUNC
 void set_hna_to_key(struct net_key *key, struct description_msg_hna4 *uhna4, struct description_msg_hna6 *uhna6)
@@ -649,7 +650,7 @@ int32_t opt_uhna(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
 	if ( cmd == OPT_ADJUST  ||  cmd == OPT_CHECK  ||  cmd == OPT_APPLY ) {
 
                 uint8_t family = af_cfg();
-                struct net_key key;
+                struct net_key key = ZERO_NET_KEY;
                 struct hna_node *un;
 
                 dbgf_all(DBGT_INFO, "af_cfg=%s diff=%d cmd=%s  save=%d  opt=%s  patch=%s",
@@ -1042,9 +1043,13 @@ int process_description_tlv_tun6_adv(struct rx_frame_iterator *it)
                                 rtnn = avl_remove_item(&tun_net_tree, &tnn->network, tnn, -300421);
 
                                 if (rtnn != tnn) {
-                                        dbgf_sys(DBGT_ERR, "should remove tun_net_node %s/%d orig=%s  but removed %s/%d orig=%s",
-                                                ipXAsStr(tnn->family, &tnn->network.net), tnn->network.prefixlen, globalIdAsString(&tnn->tun->key.on->global_id),
-                                                ipXAsStr(rtnn->family, &rtnn->network.net), rtnn->network.prefixlen, globalIdAsString(&rtnn->tun->key.on->global_id));
+                                        dbgf_sys(DBGT_ERR, "should remove tun_net_node %s/%d orig=%s...",
+                                                ipXAsStr(tnn->family, &tnn->network.net), tnn->network.prefixlen, globalIdAsString(&tnn->tun->key.on->global_id));
+
+                                        if (rtnn) {
+                                                dbgf_sys(DBGT_ERR, "but removed %s/%d orig=%s",
+                                                        ipXAsStr(rtnn->family, &rtnn->network.net), rtnn->network.prefixlen, globalIdAsString(&rtnn->tun->key.on->global_id));
+                                        }
 
                                 }
                                 assertion(-501251, (rtnn == tnn));
@@ -1265,7 +1270,9 @@ int process_description_tlv_tunXin6_net_adv(struct rx_frame_iterator *it)
         for (pos = 0; pos < it->frame_msgs_length; pos += msg_size) {
 
                 struct description_msg_tun6in6_net_adv *adv = (((struct description_msg_tun6in6_net_adv *) (it->frame_data + pos)));
-                struct net_key net = {.prefixlen = adv->networkLen, .net = is4in6 ? ip4ToX(*((IP4_T*) & adv->network)) : adv->network};
+                struct net_key net = ZERO_NET_KEY;
+                net.net = is4in6 ? ip4ToX(*((IP4_T*) & adv->network)) : adv->network;
+                net.prefixlen = adv->networkLen;
 
                 if (it->op == TLV_OP_DEL) {
 
@@ -1460,7 +1467,7 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                         } else if (!strcmp(c->opt->name, ARG_TUN_SEARCH_IP)) {
 
                                 if (c->val) {
-                                        struct net_key ip;
+                                        struct net_key ip = ZERO_NET_KEY;
                                         char adjusted_src[IPXNET_STR_LEN];
                                         struct hna_node *hna;
 
@@ -1811,7 +1818,7 @@ int32_t opt_tun_address(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
 {
 	TRACE_FUNCTION_CALL;
 
-        struct net_key net;
+        struct net_key net = ZERO_NET_KEY;
         uint8_t isTun4 = !strcmp(opt->name, ARG_TUN4_ADDRESS);
         uint8_t family = isTun4 ? AF_INET : AF_INET6;
 
@@ -1823,7 +1830,7 @@ int32_t opt_tun_address(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
 
                 } else if (patch->diff == DEL) {
 
-                        memset(&net, 0, sizeof (net));
+                        net = ZERO_NET_KEY;
 
                 } else if (str2netw(patch->val, &net.net, cn, &net.prefixlen, &family, YES) == FAILURE || !is_ip_valid(&net.net, family)) {
 
@@ -1989,6 +1996,9 @@ STATIC_FUNC
 int32_t hna_init( void )
 {
         TRACE_FUNCTION_CALL;
+
+        assertion(-500000, is_zero((void*)&ZERO_NET_KEY, sizeof(ZERO_NET_KEY)));
+
         struct frame_handl tlv_handl;
         
         static const struct field_format hna4_format[] = DESCRIPTION_MSG_HNA4_FORMAT;

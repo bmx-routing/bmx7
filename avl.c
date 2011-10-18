@@ -287,6 +287,8 @@ void *avl_remove_item(struct avl_tree *tree, void *key, void *item, int32_t tag)
         if (!it)
                 return NULL;
 
+        assertion(-501250, (!item || !memcmp(AVL_ITEM_KEY(tree, item), key, tree->key_size)));
+
         while ((!item || item != it->item) && (
                 (cmp = memcmp(AVL_NODE_KEY(tree, it), key, tree->key_size)) ||
                 (it->link[0] && !memcmp(AVL_NODE_KEY(tree, it->link[0]), key, tree->key_size)))) {

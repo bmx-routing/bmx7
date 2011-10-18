@@ -1029,6 +1029,7 @@ int process_description_tlv_tun6_adv(struct rx_frame_iterator *it)
                         struct tun_adv_key key = set_tun_adv_key(it->on, m);
                         struct tunnel_node *tun = avl_find_item(&tunnel_out_tree, &key);
                         struct tun_net_node *tnn;
+                        struct tun_net_node * rtnn;
 
                         assertion(-501247, (tun));
 
@@ -1038,8 +1039,18 @@ int process_description_tlv_tun6_adv(struct rx_frame_iterator *it)
 
                                 unlink_tun_net(tnn, NULL, NULL);
 
-                                avl_remove_item(&tun_net_tree, &tnn->network, tnn, -300421);
-                                avl_remove_item(&tun->tun_net_tree, &tnn->network, tnn, -300423);
+                                rtnn = avl_remove_item(&tun_net_tree, &tnn->network, tnn, -300421);
+
+                                if (rtnn != tnn) {
+                                        dbgf_sys(DBGT_ERR, "should remove tun_net_node %s/%d orig=%s  but removed %s/%d orig=%s",
+                                                ipXAsStr(tnn->family, &tnn->network.net), tnn->network.prefixlen, globalIdAsString(&tnn->tun->key.on->global_id),
+                                                ipXAsStr(rtnn->family, &rtnn->network.net), rtnn->network.prefixlen, globalIdAsString(&rtnn->tun->key.on->global_id));
+
+                                }
+                                assertion(-501251, (rtnn == tnn));
+
+                                rtnn = avl_remove_item(&tun->tun_net_tree, &tnn->network, tnn, -300423);
+                                assertion(-501252, (rtnn == tnn));
                                 debugFree(tnn, -300424);
                         }
 

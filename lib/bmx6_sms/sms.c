@@ -191,7 +191,7 @@ void json_inotify_event_hook(int fd)
                 }
 
         } else {
-                dbgf_sys(DBGT_ERR, "read()=%d: \n", rcvd, strerror(errno));
+                dbgf_sys(DBGT_ERR, "read()=%d: %s \n", rcvd, strerror(errno));
         }
 
         debugFree(ibuff, -300377);

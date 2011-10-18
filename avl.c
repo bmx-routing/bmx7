@@ -289,9 +289,36 @@ void *avl_remove_item(struct avl_tree *tree, void *key, void *item, int32_t tag)
 
         assertion(-501250, (!item || !memcmp(AVL_ITEM_KEY(tree, item), key, tree->key_size)));
 
-        while ((!item || item != it->item) && (
-                (cmp = memcmp(AVL_NODE_KEY(tree, it), key, tree->key_size)) ||
-                (it->link[0] && !memcmp(AVL_NODE_KEY(tree, it->link[0]), key, tree->key_size)))) {
+
+/*
+                while ((NO || YES) && (
+                        (cmp = NO) ||
+                        (it->link[0] && YES))) {
+
+                        // Push direction and node onto stack
+                        upd[top] = (cmp < 0);
+                        up[top] = it;
+                        top++;
+
+                        if (!(it = it->link[(cmp < 0)]))
+                                return NULL;
+
+                }
+         */
+
+
+
+        while (1) {
+
+                dbgf_all(DBGT_INFO, "tree.items=%d item=%p it->item=%p memcmp(it,key)=%d link[0]=%p link[1]=%p memcmp(link[0],key)=%d",
+                        tree->items, item, it->item, memcmp(AVL_NODE_KEY(tree, it), key, tree->key_size), (void*)(it->link[0]), (void*)(it->link[1]),
+                        (it->link[0] ? memcmp(AVL_NODE_KEY(tree, it->link[0]), key, tree->key_size) : 0));
+
+                if (!(
+                        (!item || item != it->item) && (
+                        (cmp = memcmp(AVL_NODE_KEY(tree, it), key, tree->key_size)) ||
+                        (it->link[0] && !memcmp(AVL_NODE_KEY(tree, it->link[0]), key, tree->key_size)))))
+                        break;
 
                 // Push direction and node onto stack
                 upd[top] = (cmp < 0);

@@ -860,7 +860,7 @@ void set_tun_net(struct tun_search_node *sn)
                         dbgf_track(DBGT_INFO, "checking network=%s/%d bw_fmu8=%d, ingress=%s/%d localIp=%s tun6Id=%d tun=%p from orig=%s",
                                 ipXAsStr(family, &tnn->network.net), tnn->network.prefixlen, tnn->bandwidth.val.u8,
                                 ipXAsStr(family, &ingressPrefix.net), ingressPrefix.prefixlen,
-                                ip6AsStr(&tnn->tun->localIp), tnn->tun->key.tun6Id, tnn->tun,
+                                ip6AsStr(&tnn->tun->localIp), tnn->tun->key.tun6Id, (void*)(tnn->tun),
                                 globalIdAsString(&tnn->tun->key.on->global_id));
 
                         if (!(
@@ -1027,7 +1027,7 @@ int process_description_tlv_tun6_adv(struct rx_frame_iterator *it)
 
                 dbgf_track(DBGT_INFO, "op=%s tunnel_out.items=%d tun_net.items=%d msg=%d/%d localIp=%s orig=%s (%p)",
                         tlv_op_str(it->op), tunnel_out_tree.items, tun_net_tree.items, m, it->frame_msgs_fixed,
-                        ip6AsStr(&adv->localIp), globalIdAsString(&it->on->global_id), it->on);
+                        ip6AsStr(&adv->localIp), globalIdAsString(&it->on->global_id), (void*)(it->on));
 
 
                 if (it->op == TLV_OP_DEL) {
@@ -1680,7 +1680,7 @@ int32_t opt_tun_adv(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt
                                         if (str2netw(c->val, &prefix4, cn, &prefix4len, &af_prefix4, NO) == FAILURE ||
                                                 !is_ip_valid(&prefix4, af_prefix4)) {
 
-                                                dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "invalid %s=%s %s", ARG_TUN_ADV_INGRESS4, c->val);
+                                                dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "invalid %s=%s %s", ARG_TUN_ADV_INGRESS4, patch->val, c->val);
                                                 return FAILURE;
                                         }
 
@@ -1715,7 +1715,7 @@ int32_t opt_tun_adv(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt
                                         if (str2netw(c->val, &prefix6, cn, &prefix6len, &af_prefix6, NO) == FAILURE ||
                                                 !is_ip_valid(&prefix6, af_prefix6)) {
 
-                                                dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "invalid %s=%s %s", ARG_TUN_ADV_INGRESS6, c->val);
+                                                dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "invalid %s=%s %s", ARG_TUN_ADV_INGRESS6, patch->val, c->val);
                                                 return FAILURE;
                                         }
 

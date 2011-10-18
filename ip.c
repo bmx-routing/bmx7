@@ -2308,7 +2308,7 @@ error:
 
 
 STATIC_FUNC
-void ip_flush_routes( void )
+void ip_flush_routes(uint8_t family)
 {
 	TRACE_FUNCTION_CALL;
 
@@ -2318,13 +2318,13 @@ void ip_flush_routes( void )
 
 
         for (table_macro = RT_TABLE_MIN; table_macro <= RT_TABLE_MAX; table_macro++) {
-                ip(af_cfg(), IP_ROUTE_FLUSH_ALL, DEL, YES/*quiet*/, &ZERO_IP, 0, table_macro, 0, 0, 0, 0, 0, 0);
+                ip(family, IP_ROUTE_FLUSH_ALL, DEL, YES/*quiet*/, &ZERO_IP, 0, table_macro, 0, 0, 0, 0, 0, 0);
         }
 
 }
 
 STATIC_FUNC
-void ip_flush_rules(void)
+void ip_flush_rules(uint8_t family)
 {
 	TRACE_FUNCTION_CALL;
 
@@ -2337,7 +2337,7 @@ void ip_flush_rules(void)
                 if (table_macro_to_table(table_macro) == DEF_IP_TABLE_MAIN)
                         continue;
 
-                while (ip(af_cfg(), IP_RULE_FLUSH, DEL, YES, &ZERO_IP, 0, table_macro, 0, 0, 0, 0, 0, 0) == SUCCESS) {
+                while (ip(family, IP_RULE_FLUSH, DEL, YES, &ZERO_IP, 0, table_macro, 0, 0, 0, 0, 0, 0) == SUCCESS) {
 
                         dbgf_sys(DBGT_ERR, "removed orphan %s rule to table %d", family2Str(af_cfg()), table_macro);
 
@@ -2906,8 +2906,8 @@ int32_t opt_ip_version(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
 
                 assertion(-501131, (policy_routing != POLICY_RT_UNSET));
 
-                dbgf_track(DBGT_INFO, "%s=%d %s=%d %s=%d %s=%d %s=%d %s=%d %s=%d %s=%d",
-                        ARG_IP, (af_cfg() == AF_INET ? 4 :6),
+                dbgf_track(DBGT_INFO, "%s=%d policy_routing=%s %s=%d %s=%d %s=%d %s=%d %s=%d %s=%d %s=%d",
+                        ARG_IP, (af_cfg() == AF_INET ? 4 : 6), (policy_routing == POLICY_RT_ENABLED),
                         ARG_IP_POLICY_ROUTING, ip_policy_rt_cfg,
                         ARG_IP_THROW_RULES, ip_throw_rules_cfg,
                         ARG_IP_PRIO_RULES, ip_prio_rules_cfg,
@@ -2921,13 +2921,16 @@ int32_t opt_ip_version(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
 		// add rule for hosts and announced interfaces and networks
                 if (policy_routing == POLICY_RT_ENABLED && ip_prio_rules_cfg /*&& primary_dev_cfg*/) {
 
-                        ip_flush_routes();
-                        ip_flush_rules();
+                        ip_flush_routes(af_cfg());
+                        ip_flush_rules(af_cfg());
 
                         ip(af_cfg(), IP_RULE_DEFAULT, ADD, NO, &ZERO_IP, 0, RT_TABLE_HNA, RT_PRIO_HNA, 0, 0, 0, 0, 0);
                         ip(af_cfg(), IP_RULE_DEFAULT, ADD, NO, &ZERO_IP, 0, RT_TABLE_TUN, RT_PRIO_TUNS, 0, 0, 0, 0, 0);
 
                         if (af_cfg() == AF_INET6) {
+
+                                ip_flush_routes(AF_INET);
+                                ip_flush_rules(AF_INET);
 
                                 ip(AF_INET, IP_RULE_DEFAULT, ADD, NO, &ZERO_IP, 0, RT_TABLE_HNA, RT_PRIO_HNA, 0, 0, 0, 0, 0);
                                 ip(AF_INET, IP_RULE_DEFAULT, ADD, NO, &ZERO_IP, 0, RT_TABLE_TUN, RT_PRIO_TUNS, 0, 0, 0, 0, 0);
@@ -3454,10 +3457,16 @@ void cleanup_ip(void)
         if (policy_routing == POLICY_RT_ENABLED && ip_prio_rules_cfg) {
 
                 ip_flush_tracked( IP_ROUTE_FLUSH );
-                ip_flush_routes();
+                ip_flush_routes(af_cfg());
+                if (af_cfg() == AF_INET6)
+                        ip_flush_routes(AF_INET);
+
 
                 ip_flush_tracked( IP_RULE_FLUSH );
-                ip_flush_rules();
+                ip_flush_rules(af_cfg());
+                if (af_cfg() == AF_INET6)
+                        ip_flush_rules(AF_INET);
+
         }
 
         kernel_if_fix(YES,0);

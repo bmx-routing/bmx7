@@ -1079,7 +1079,7 @@ int process_description_tlv_tun6_adv(struct rx_frame_iterator *it)
                 struct description_msg_tun6_adv *adv = &(((struct description_msg_tun6_adv *) (it->frame_data))[m]);
                 struct tun_adv_key key = set_tun_adv_key(it->on, m);
 
-                dbgf_track(DBGT_INFO, "op=%s tunnel_out.items=%d tun_net.items=%d msg=%d/%d localIp=%s orig=%s (%p) key=%s",
+                dbgf_all(DBGT_INFO, "op=%s tunnel_out.items=%d tun_net.items=%d msg=%d/%d localIp=%s orig=%s (%p) key=%s",
                         tlv_op_str(it->op), tunnel_out_tree.items, tun_net_tree.items, m, it->frame_msgs_fixed,
                         ip6AsStr(&adv->localIp), globalIdAsString(&it->on->global_id), (void*) (it->on), memAsHexString(&key, sizeof (key)));
 
@@ -1094,45 +1094,21 @@ int process_description_tlv_tun6_adv(struct rx_frame_iterator *it)
 
                         assertion(-501247, (tun));
 
-                        dbgf_track(DBGT_ERR, "should A remove tunnel_node localIp=%s tun6Id=%d orig=%s key=%s (tunnel_out.items=%d, tun->net.items=%d)",
+                        dbgf_all(DBGT_INFO, "should A remove tunnel_node localIp=%s tun6Id=%d orig=%s key=%s (tunnel_out.items=%d, tun->net.items=%d)",
                                 ip6AsStr(&tun->localIp), tun->key.tun6Id, globalIdAsString(&tun->key.on->global_id), memAsHexString(&tun->key, sizeof (key)), tunnel_out_tree.items, tun->tun_net_tree.items);
 
                         used |= (tun->upIfIdx) ? YES : NO;
 
                         while ((tnn = avl_first_item(&tun->tun_net_tree))) {
 
-                                dbgf_track(DBGT_ERR, "should B remove tunnel_node localIp=%s tun6Id=%d orig=%s key=%s (tunnel_out.items=%d, tun->net.items=%d)",
-                                        ip6AsStr(&tun->localIp), tun->key.tun6Id, globalIdAsString(&tun->key.on->global_id), memAsHexString(&tun->key, sizeof (key)), tunnel_out_tree.items, tun->tun_net_tree.items);
-
-
                                 unlink_tun_net(tnn, NULL, NULL);
 
-                                dbgf_track(DBGT_ERR, "should C remove tunnel_node localIp=%s tun6Id=%d orig=%s key=%s (tunnel_out.items=%d, tun->net.items=%d)",
-                                        ip6AsStr(&tun->localIp), tun->key.tun6Id, globalIdAsString(&tun->key.on->global_id), memAsHexString(&tun->key, sizeof (key)), tunnel_out_tree.items, tun->tun_net_tree.items);
-
                                 rtnn = avl_remove(&tun_net_tree, &tnn->key, -300421);
-
-                                dbgf_track(DBGT_ERR, "should D remove tunnel_node localIp=%s tun6Id=%d orig=%s key=%s (tunnel_out.items=%d, tun->net.items=%d)",
-                                        ip6AsStr(&tun->localIp), tun->key.tun6Id, globalIdAsString(&tun->key.on->global_id), memAsHexString(&tun->key, sizeof (key)), tunnel_out_tree.items, tun->tun_net_tree.items);
-
-                                if (rtnn != tnn) {
-                                        dbgf_sys(DBGT_ERR, "should remove tun_net_node %s/%d orig=%s...",
-                                                ipXAsStr(tnn->family, &tnn->key.network.net), tnn->key.network.prefixlen, globalIdAsString(&tnn->key.tun->key.on->global_id));
-
-                                        if (rtnn) {
-                                                dbgf_sys(DBGT_ERR, "but removed %s/%d orig=%s",
-                                                        ipXAsStr(rtnn->family, &rtnn->key.network.net), rtnn->key.network.prefixlen, globalIdAsString(&rtnn->key.tun->key.on->global_id));
-                                        }
-                                }
                                 assertion(-501251, (rtnn == tnn));
 
                                 rtnn = avl_remove(&tun->tun_net_tree, &tnn->key, -300423);
                                 assertion(-501252, (rtnn == tnn));
                                 debugFree(tnn, -300424);
-
-                                dbgf_track(DBGT_ERR, "should E remove tunnel_node localIp=%s tun6Id=%d orig=%s key=%s (tunnel_out.items=%d, tun->net.items=%d)",
-                                        ip6AsStr(&tun->localIp), tun->key.tun6Id, globalIdAsString(&tun->key.on->global_id), memAsHexString(&tun->key, sizeof (key)), tunnel_out_tree.items, tun->tun_net_tree.items);
-
                         }
 
                         assertion(-501249, (!tun->tun_net_tree.items));
@@ -1140,22 +1116,6 @@ int process_description_tlv_tun6_adv(struct rx_frame_iterator *it)
                         checkIntegrity();
 
                         rtun = avl_remove(&tunnel_out_tree, &key, -300410);
-
-                        dbgf_track(DBGT_ERR, "should F remove tunnel_node localIp=%s tun6Id=%d orig=%s key=%s (tunnel_out.items=%d, tun->net.items=%d)",
-                                ip6AsStr(&tun->localIp), tun->key.tun6Id, globalIdAsString(&tun->key.on->global_id), memAsHexString(&tun->key, sizeof (key)), tunnel_out_tree.items, tun->tun_net_tree.items);
-
-                        if (rtun != tun) {
-                                dbgf_sys(DBGT_ERR, "failed remove tunnel_node localIp=%s tun6Id=%d orig=%s key=%s (items=%d)",
-                                        ip6AsStr(&tun->localIp), tun->key.tun6Id,
-                                        globalIdAsString(&tun->key.on->global_id), memAsHexString(&tun->key, sizeof (key)), tunnel_out_tree.items);
-
-                                if (rtun) {
-                                        dbgf_sys(DBGT_ERR, "but removed localIp=%s tun6Id=%d orig=%s key=%s ",
-                                        ip6AsStr(&rtun->localIp), rtun->key.tun6Id,
-                                        globalIdAsString(&rtun->key.on->global_id), memAsHexString(&rtun->key, sizeof (key)));
-                                }
-                        }
-
                         assertion(-501253, (rtun == tun));
                         debugFree(tun, -300425);
 
@@ -1891,21 +1851,6 @@ int32_t opt_tun_name(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct op
 }
 
 
-static int32_t tun_in_status_creator(struct status_handl *handl, void* data)
-{
-        TRACE_FUNCTION_CALL;
-        struct avl_node *it = NULL;
-        struct tunnel_node_in *tun;
-        uint32_t status_size = tunnel_in_tree.items * sizeof (struct tunnel_node_in);
-        uint32_t i = 0;
-        struct tunnel_node_in *status = ((struct tunnel_node_in*) (handl->data = debugRealloc(handl->data, status_size, -300395)));
-
-        while ((tun = avl_iterate_item(&tunnel_in_tree, &it)))
-                status[i++] = *tun;
-
-        return status_size;
-}
-
 
 STATIC_FUNC
 int32_t opt_tun_address(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
@@ -2105,8 +2050,6 @@ int32_t hna_init( void )
         static const struct field_format tun4in6_adv_format[] = DESCRIPTION_MSG_TUN4IN6_NET_ADV_FORMAT;
         static const struct field_format tun6in6_adv_format[] = DESCRIPTION_MSG_TUN6IN6_NET_ADV_FORMAT;
 
-        static const struct field_format tunnel_in_status_format[] = TUNNEL_NODE_IN_FORMAT;
-
 
         memset( &tlv_handl, 0, sizeof(tlv_handl));
         tlv_handl.min_msg_size = sizeof (struct description_msg_hna4);
@@ -2217,10 +2160,6 @@ int32_t hna_init( void )
 
         set_route_change_hooks(hna_route_change_hook, ADD);
 
-//        tun_orig_registry = get_plugin_data_registry(PLUGIN_DATA_ORIG);
-
-
-//        register_status_handl(sizeof (struct tunnel_node_in), 1, tunnel_in_status_format, ARG_TUNS, tun_in_status_creator);
 
 
         return SUCCESS;

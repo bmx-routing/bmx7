@@ -55,7 +55,7 @@ json_object * fields_dbg_json(uint8_t relevance, uint8_t force_array, uint16_t d
                     uint16_t min_msg_size, const struct field_format *format)
 {
         TRACE_FUNCTION_CALL;
-        assertion(-501247, (format && data));
+        assertion(-501300, (format && data));
 
         uint32_t msgs_size = 0;
         uint32_t columns = field_format_get_items(format);
@@ -67,7 +67,7 @@ json_object * fields_dbg_json(uint8_t relevance, uint8_t force_array, uint16_t d
 
         while ((msgs_size = field_iterate(&it)) == SUCCESS) {
 
-                assertion(-501230, IMPLIES(it.field == 0, !jfields));
+                assertion(-501301, IMPLIES(it.field == 0, !jfields));
 /*
                 if (it.field == 0 && jfields) {
                         jarray = jarray ? jarray : json_object_new_array();
@@ -101,7 +101,7 @@ json_object * fields_dbg_json(uint8_t relevance, uint8_t force_array, uint16_t d
 
         }
 
-        assertion(-501248, (data_size ? msgs_size == data_size : msgs_size == min_msg_size));
+        assertion(-501302, (data_size ? msgs_size == data_size : msgs_size == min_msg_size));
 
         return jarray ? jarray : jfields;
 
@@ -122,7 +122,7 @@ json_object * fields_dbg_json(uint8_t relevance, uint8_t force_array, uint16_t d
 STATIC_FUNC
 int32_t update_json_options(IDM_T show_options, IDM_T show_parameters, char *file_name)
 {
-        assertion(-501254, (json_dir));
+        assertion(-501271, (json_dir));
 
         int fd;
         char path_name[MAX_PATH_SIZE + 20] = "";
@@ -144,7 +144,7 @@ int32_t update_json_options(IDM_T show_options, IDM_T show_parameters, char *fil
                 if ((!show_options && !p_opt->d.parents_instance_list.items) || p_opt->parent_name)
                         continue;
 
-                assertion(-501240, (p_opt->name));
+                assertion(-501303, (p_opt->name));
 
                 json_object *jopt = json_object_new_object();
 
@@ -197,7 +197,7 @@ int32_t update_json_options(IDM_T show_options, IDM_T show_parameters, char *fil
 
                                 while ((c_opt = list_iterate(&p_opt->d.childs_type_list, c_opt))) {
 
-                                        assertion(-501241, (c_opt->parent_name && c_opt->name));
+                                        assertion(-501304, (c_opt->parent_name && c_opt->name));
 
                                         json_object *jchild = json_object_new_object();
 
@@ -242,7 +242,7 @@ int32_t update_json_options(IDM_T show_options, IDM_T show_parameters, char *fil
 
                         while ((p = list_iterate(&p_opt->d.parents_instance_list, p))) {
 
-                                assertion(-501231, (p_opt->name && p_opt->cfg_t != A_ARG));
+                                assertion(-501305, (p_opt->name && p_opt->cfg_t != A_ARG));
                                 json_object *jp = json_object_new_object();
 
                                 json_object *jp_val = json_object_new_string(p->val);
@@ -399,7 +399,7 @@ void json_originator_event_hook(int32_t cb_id, struct orig_node *orig)
 {
         struct orig_node *on;
         char path_name[MAX_PATH_SIZE];
-        assertion(-501252, (json_orig_dir));
+        assertion(-501272, (json_orig_dir));
 
         if (cb_id == PLUGIN_CB_DESCRIPTION_DESTROY) {
 
@@ -469,11 +469,11 @@ void json_description_event_hook(int32_t cb_id, struct orig_node *on)
 {
         TRACE_FUNCTION_CALL;
 
-        assertion(-501261, (on));
-        assertion(-501249, IMPLIES(cb_id == PLUGIN_CB_DESCRIPTION_CREATED, (on && on->desc)));
-        assertion(-501250, (cb_id == PLUGIN_CB_DESCRIPTION_DESTROY || cb_id == PLUGIN_CB_DESCRIPTION_CREATED));
-        assertion(-501251, IMPLIES(initializing, cb_id == PLUGIN_CB_DESCRIPTION_CREATED));
-        assertion(-501252, (json_desc_dir));
+        assertion(-501306, (on));
+        assertion(-501270, IMPLIES(cb_id == PLUGIN_CB_DESCRIPTION_CREATED, (on && on->desc)));
+        assertion(-501273, (cb_id == PLUGIN_CB_DESCRIPTION_DESTROY || cb_id == PLUGIN_CB_DESCRIPTION_CREATED));
+        assertion(-501274, IMPLIES(initializing, cb_id == PLUGIN_CB_DESCRIPTION_CREATED));
+        assertion(-501275, (json_desc_dir));
 
         dbgf_all(DBGT_INFO, "cb_id=%d", cb_id);
 
@@ -578,8 +578,8 @@ void json_description_event_hook(int32_t cb_id, struct orig_node *on)
 STATIC_FUNC
 void update_json_status(void *data)
 {
-        assertion(-501254, (json_dir));
-        assertion(-501262, (json_update_interval));
+        assertion(-501276, (json_dir));
+        assertion(-501307, (json_update_interval));
 
         task_register(json_update_interval, update_json_status, NULL, -300378);
 
@@ -658,7 +658,7 @@ int32_t opt_json_update_interval(uint8_t cmd, uint8_t _save, struct opt_type *op
                 static char tmp_desc_dir[MAX_PATH_SIZE];
                 static char tmp_orig_dir[MAX_PATH_SIZE];
 
-                assertion(-501255, (strlen(run_dir) > 3));
+                assertion(-501277, (strlen(run_dir) > 3));
 
                 sprintf(tmp_json_dir, "%s/%s", run_dir, DEF_JSON_SUBDIR);
                 sprintf(tmp_orig_dir, "%s/%s", tmp_json_dir, DEF_JSON_ORIG_SUBDIR);
@@ -684,7 +684,7 @@ int32_t opt_json_update_interval(uint8_t cmd, uint8_t _save, struct opt_type *op
 
         if (initializing && cmd == OPT_SET_POST) {
 
-                assertion(-501283, (json_dir && json_orig_dir && json_desc_dir));
+                assertion(-501308, (json_dir && json_orig_dir && json_desc_dir));
 
                 if (rm_dir_content(json_orig_dir) == FAILURE)
                         return FAILURE;

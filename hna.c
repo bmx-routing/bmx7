@@ -715,7 +715,7 @@ IDM_T configure_tunnel(uint8_t del, struct orig_node *on, struct tunnel_node *tu
         assertion(-501292, (is_ip_set(&tun->localIp)));
         assertion(-501235, (on));
         assertion(-501295, IMPLIES(!del, (is_ip_set(&on->primary_ip))));
-        assertion(-501294, IMPLIES(tun->upIfIdx, tun->name.str[0]));
+        assertion(-501311, IMPLIES(tun->upIfIdx, tun->name.str[0]));
         assertion(-501295, IMPLIES(tun->upIfIdx, del));
 
         if (del && tun->upIfIdx) {
@@ -753,7 +753,7 @@ IDM_T configure_tunnel(uint8_t del, struct orig_node *on, struct tunnel_node *tu
 
                 }
 
-                assertion(-501292, (strlen(tun->name.str)));
+                assertion(-501312, (strlen(tun->name.str)));
 
                 if (iptunnel(ADD, tun->name.str, IPPROTO_IP, local, remote) == SUCCESS)
                         tun->upIfIdx = get_if_index(&tun->name);
@@ -1025,14 +1025,15 @@ int process_description_tlv_tun6_adv(struct rx_frame_iterator *it)
                 struct description_msg_tun6_adv *adv = &(((struct description_msg_tun6_adv *) (it->frame_data))[m]);
                 struct tun_adv_key key = set_tun_adv_key(it->on, m);
 
-                dbgf_track(DBGT_INFO, "op=%s tunnel_out.items=%d tun_net.items=%d msg=%d/%d localIp=%s orig=%s (%p)",
+                dbgf_track(DBGT_INFO, "op=%s tunnel_out.items=%d tun_net.items=%d msg=%d/%d localIp=%s orig=%s (%p) key=%s",
                         tlv_op_str(it->op), tunnel_out_tree.items, tun_net_tree.items, m, it->frame_msgs_fixed,
-                        ip6AsStr(&adv->localIp), globalIdAsString(&it->on->global_id), (void*)(it->on));
+                        ip6AsStr(&adv->localIp), globalIdAsString(&it->on->global_id), (void*) (it->on), memAsHexString(&key, sizeof (key)));
 
 
                 if (it->op == TLV_OP_DEL) {
 
                         struct tunnel_node *tun = avl_find_item(&tunnel_out_tree, &key);
+                        struct tunnel_node *rtun;
                         struct tun_net_node *tnn;
                         struct tun_net_node *rtnn;
 
@@ -1064,7 +1065,8 @@ int process_description_tlv_tun6_adv(struct rx_frame_iterator *it)
                         }
 
                         assertion(-501249, (!tun->tun_net_tree.items));
-                        avl_remove(&tunnel_out_tree, &key, -300410);
+                        rtun = avl_remove(&tunnel_out_tree, &key, -300410);
+                        assertion(-501253, (rtun == tun));
                         debugFree(tun, -300425);
 
                 } else if (it->op == TLV_OP_TEST) {
@@ -1151,7 +1153,7 @@ int process_description_tlv_tunXin6_ingress_adv(struct rx_frame_iterator *it)
 
                 } else if (it->op == TLV_OP_TEST) {
 
-                        assertion(-501244, (!tun));
+                        assertion(-501265, (!tun));
 
                         if (ip_netmask_validate(&prefix, adv->ingressPrefixLen, isSrc4 ? AF_INET : AF_INET6, NO) == FAILURE)
                                 return TLV_RX_DATA_FAILURE;
@@ -2000,7 +2002,7 @@ int32_t hna_init( void )
 {
         TRACE_FUNCTION_CALL;
 
-        assertion(-500000, is_zero((void*)&ZERO_NET_KEY, sizeof(ZERO_NET_KEY)));
+        assertion(-501254, is_zero((void*)&ZERO_NET_KEY, sizeof(ZERO_NET_KEY)));
 
         struct frame_handl tlv_handl;
         

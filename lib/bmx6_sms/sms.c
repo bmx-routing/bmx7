@@ -163,7 +163,7 @@ void json_inotify_event_hook(int fd)
 
         dbgf_track(DBGT_INFO, "detected changes in directory: %s", smsTx_dir);
 
-        assertion(-501258, (fd > -1 && fd == extensions_fd));
+        assertion(-501278, (fd > -1 && fd == extensions_fd));
 
         int ilen = 1024;
         char *ibuff = debugMalloc(ilen, -300375);
@@ -173,7 +173,7 @@ void json_inotify_event_hook(int fd)
         while ((rcvd = read(fd, ibuff, ilen)) == 0 || rcvd == EINVAL) {
 
                 ibuff = debugRealloc(ibuff, (ilen = ilen * 2), -300376);
-                assertion(-501259, (ilen <= (1024 * 16)));
+                assertion(-501279, (ilen <= (1024 * 16)));
         }
 
         if (rcvd > 0) {
@@ -186,7 +186,7 @@ void json_inotify_event_hook(int fd)
 
                         if (ievent->mask & (IN_DELETE_SELF)) {
                                 dbgf_sys(DBGT_ERR, "directory %s has been removed \n", smsTx_dir);
-                                cleanup_all(-501260);
+                                cleanup_all(-501290);
                         }
                 }
 
@@ -310,7 +310,7 @@ int32_t opt_json_sms(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct op
                 static char tmp_sms_tx_dir[MAX_PATH_SIZE];
                 static char tmp_sms_rx_dir[MAX_PATH_SIZE];
 
-                assertion(-501255, (strlen(run_dir) > 3));
+                assertion(-501280, (strlen(run_dir) > 3));
 
                 sprintf(tmp_sms_dir, "%s/%s", run_dir, DEF_SMS_SUBDIR);
                 sprintf(tmp_sms_rx_dir, "%s/%s", tmp_sms_dir, DEF_SMS_RX_SUBDIR);

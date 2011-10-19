@@ -60,7 +60,7 @@ char* memAsHexString( const void* mem, uint32_t len)
 
 IDM_T hexStrToMem(char *s, uint8_t *m, uint16_t mLen)
 {
-        assertion(-501231, (s && mLen));
+        assertion(-501291, (s && mLen));
 
         int l = strlen(s);
         int o = (2 * mLen) - l;

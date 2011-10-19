@@ -94,7 +94,7 @@ void _set_thread_hook(int32_t cb_type, void (*cb_handler) (void), int8_t del, st
 		}
 	}
 
-        assertion(-501265, (!del));
+        assertion(-501289, (!del));
 
         cbn = debugMalloc(sizeof ( struct cb_node), -300027);
         memset(cbn, 0, sizeof ( struct cb_node));

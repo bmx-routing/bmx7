@@ -1646,7 +1646,7 @@ void fields_dbg_table(struct ctrl_node *cn, uint16_t relevance, uint16_t data_si
                           uint16_t min_msg_size, const struct field_format *format)
 {
         TRACE_FUNCTION_CALL;
-        assertion(-501209, (format && data && cn));
+        assertion(-501255, (format && data && cn));
 
         uint16_t field_string_sizes[FIELD_FORMAT_MAX_ITEMS] = {0};
         uint32_t columns = field_format_get_items(format);

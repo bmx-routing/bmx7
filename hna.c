@@ -1040,17 +1040,26 @@ int process_description_tlv_tun6_adv(struct rx_frame_iterator *it)
 
                         assertion(-501247, (tun));
 
-                        dbgf_track(DBGT_ERR, "should remove tunnel_node localIp=%s tun6Id=%d orig=%s key=%s (items=%d)",
-                                ip6AsStr(&tun->localIp), tun->key.tun6Id,
-                                globalIdAsString(&tun->key.on->global_id), memAsHexString(&tun->key, sizeof (key)), tunnel_out_tree.items);
+                        dbgf_track(DBGT_ERR, "should A remove tunnel_node localIp=%s tun6Id=%d orig=%s key=%s (tunnel_out.items=%d, tun->net.items=%d)",
+                                ip6AsStr(&tun->localIp), tun->key.tun6Id, globalIdAsString(&tun->key.on->global_id), memAsHexString(&tun->key, sizeof (key)), tunnel_out_tree.items, tun->tun_net_tree.items);
 
                         used |= (tun->upIfIdx) ? YES : NO;
 
                         while ((tnn = avl_first_item(&tun->tun_net_tree))) {
 
+                                dbgf_track(DBGT_ERR, "should B remove tunnel_node localIp=%s tun6Id=%d orig=%s key=%s (tunnel_out.items=%d, tun->net.items=%d)",
+                                        ip6AsStr(&tun->localIp), tun->key.tun6Id, globalIdAsString(&tun->key.on->global_id), memAsHexString(&tun->key, sizeof (key)), tunnel_out_tree.items, tun->tun_net_tree.items);
+
+
                                 unlink_tun_net(tnn, NULL, NULL);
 
+                                dbgf_track(DBGT_ERR, "should C remove tunnel_node localIp=%s tun6Id=%d orig=%s key=%s (tunnel_out.items=%d, tun->net.items=%d)",
+                                        ip6AsStr(&tun->localIp), tun->key.tun6Id, globalIdAsString(&tun->key.on->global_id), memAsHexString(&tun->key, sizeof (key)), tunnel_out_tree.items, tun->tun_net_tree.items);
+
                                 rtnn = avl_remove(&tun_net_tree, &tnn->key, -300421);
+
+                                dbgf_track(DBGT_ERR, "should D remove tunnel_node localIp=%s tun6Id=%d orig=%s key=%s (tunnel_out.items=%d, tun->net.items=%d)",
+                                        ip6AsStr(&tun->localIp), tun->key.tun6Id, globalIdAsString(&tun->key.on->global_id), memAsHexString(&tun->key, sizeof (key)), tunnel_out_tree.items, tun->tun_net_tree.items);
 
                                 if (rtnn != tnn) {
                                         dbgf_sys(DBGT_ERR, "should remove tun_net_node %s/%d orig=%s...",
@@ -1063,9 +1072,13 @@ int process_description_tlv_tun6_adv(struct rx_frame_iterator *it)
                                 }
                                 assertion(-501251, (rtnn == tnn));
 
-                                rtnn = avl_remove(&tun->tun_net_tree, &tnn->key.network, -300423);
+                                rtnn = avl_remove(&tun->tun_net_tree, &tnn->key, -300423);
                                 assertion(-501252, (rtnn == tnn));
                                 debugFree(tnn, -300424);
+
+                                dbgf_track(DBGT_ERR, "should E remove tunnel_node localIp=%s tun6Id=%d orig=%s key=%s (tunnel_out.items=%d, tun->net.items=%d)",
+                                        ip6AsStr(&tun->localIp), tun->key.tun6Id, globalIdAsString(&tun->key.on->global_id), memAsHexString(&tun->key, sizeof (key)), tunnel_out_tree.items, tun->tun_net_tree.items);
+
                         }
 
                         assertion(-501249, (!tun->tun_net_tree.items));
@@ -1073,6 +1086,10 @@ int process_description_tlv_tun6_adv(struct rx_frame_iterator *it)
                         checkIntegrity();
 
                         rtun = avl_remove(&tunnel_out_tree, &key, -300410);
+
+                        dbgf_track(DBGT_ERR, "should F remove tunnel_node localIp=%s tun6Id=%d orig=%s key=%s (tunnel_out.items=%d, tun->net.items=%d)",
+                                ip6AsStr(&tun->localIp), tun->key.tun6Id, globalIdAsString(&tun->key.on->global_id), memAsHexString(&tun->key, sizeof (key)), tunnel_out_tree.items, tun->tun_net_tree.items);
+
                         if (rtun != tun) {
                                 dbgf_sys(DBGT_ERR, "failed remove tunnel_node localIp=%s tun6Id=%d orig=%s key=%s (items=%d)",
                                         ip6AsStr(&tun->localIp), tun->key.tun6Id,

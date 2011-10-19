@@ -265,7 +265,7 @@ struct tun_search_node {
 
 struct tun_net_key {
         struct net_key network;
-        struct tunnel_node *tun;
+        struct tunnel_node_out *tun;
 };
 
 struct tun_net_node {
@@ -288,7 +288,61 @@ struct tun_adv_key {
         int16_t tun6Id;
 };
 
-struct tunnel_node {
+//struct tunnel_node {
+//
+//        // the advertised part (by description_msg_tun6_adv):
+//        IP6_T localIp;          // key for tunnel_in_tree
+//
+//        // the advertised part (by description_msg_src6in6_adv):
+//        struct net_key ingress4Prefix;
+//        struct net_key ingress6Prefix;
+//
+//        uint8_t src4Type;
+//        uint8_t src4PrefixMin;
+//
+//        uint8_t src6Type;
+//        uint8_t src6PrefixMin;
+//
+//        //the status:
+//        struct tun_adv_key key; // key for tunnel_out_tree
+//        IFNAME_T name;
+//        uint8_t name_auto;
+//        uint32_t upIfIdx;
+//
+//        IPX_T src4Ip;
+//        IPX_T src6Ip;
+//
+//        struct avl_tree tun_net_tree;
+//};
+
+struct tunnel_node_in {
+
+        // the advertised part (by description_msg_tun6_adv):
+        IP6_T remoteIp;          // key for tunnel_in_tree
+
+        // the advertised part (by description_msg_src6in6_adv):
+        struct net_key ingress4Prefix;
+        struct net_key ingress6Prefix;
+
+        uint8_t src4Type;
+        uint8_t src4PrefixMin;
+
+        uint8_t src6Type;
+        uint8_t src6PrefixMin;
+
+        //the status:
+        int16_t tun6Id;
+        IFNAME_T name;
+        uint8_t name_auto;
+        uint32_t upIfIdx;
+
+//        IPX_T src4Ip;
+//        IPX_T src6Ip;
+
+//        struct avl_tree tun_net_tree;
+};
+
+struct tunnel_node_out {
 
         // the advertised part (by description_msg_tun6_adv):
         IP6_T localIp;          // key for tunnel_in_tree
@@ -315,23 +369,18 @@ struct tunnel_node {
         struct avl_tree tun_net_tree;
 };
 
-
-#define TUNNEL_NODE_FORMAT { \
-        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_BINARY, tunnel_node, key,           1, FIELD_RELEVANCE_LOW),  \
-        FIELD_FORMAT_INIT(FIELD_TYPE_IPX6,          tunnel_node, localIp,       1, FIELD_RELEVANCE_HIGH), \
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,          tunnel_node, src4Type,      1, FIELD_RELEVANCE_HIGH), \
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,          tunnel_node, src4PrefixMin, 1, FIELD_RELEVANCE_HIGH), \
-        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_BINARY, tunnel_node, ingress4Prefix,1, FIELD_RELEVANCE_HIGH), \
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,          tunnel_node, src6Type,      1, FIELD_RELEVANCE_HIGH), \
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,          tunnel_node, src6PrefixMin, 1, FIELD_RELEVANCE_HIGH), \
-        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_BINARY, tunnel_node, ingress6Prefix,1, FIELD_RELEVANCE_HIGH), \
-        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_BINARY, tunnel_node, key,           1, FIELD_RELEVANCE_LOW),  \
-        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,   tunnel_node, name,          1, FIELD_RELEVANCE_HIGH), \
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,          tunnel_node, name_auto,     1, FIELD_RELEVANCE_MEDI), \
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,          tunnel_node, upIfIdx,       1, FIELD_RELEVANCE_HIGH), \
-        FIELD_FORMAT_INIT(FIELD_TYPE_IPX6,          tunnel_node, src4Ip,        1, FIELD_RELEVANCE_HIGH), \
-        FIELD_FORMAT_INIT(FIELD_TYPE_IPX6,          tunnel_node, src6Ip,        1, FIELD_RELEVANCE_HIGH), \
-        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_BINARY, tunnel_node, tun_net_tree,  1, FIELD_RELEVANCE_LOW),  \
+#define TUNNEL_NODE_IN_FORMAT { \
+        FIELD_FORMAT_INIT(FIELD_TYPE_IPX6,          tunnel_node_in, remoteIp,      1, FIELD_RELEVANCE_HIGH), \
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,          tunnel_node_in, src4Type,      1, FIELD_RELEVANCE_HIGH), \
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,          tunnel_node_in, src4PrefixMin, 1, FIELD_RELEVANCE_HIGH), \
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_BINARY, tunnel_node_in, ingress4Prefix,1, FIELD_RELEVANCE_HIGH), \
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,          tunnel_node_in, src6Type,      1, FIELD_RELEVANCE_HIGH), \
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,          tunnel_node_in, src6PrefixMin, 1, FIELD_RELEVANCE_HIGH), \
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_BINARY, tunnel_node_in, ingress6Prefix,1, FIELD_RELEVANCE_HIGH), \
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,          tunnel_node_in, tun6Id,        1, FIELD_RELEVANCE_LOW),  \
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,   tunnel_node_in, name,          1, FIELD_RELEVANCE_HIGH), \
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,          tunnel_node_in, name_auto,     1, FIELD_RELEVANCE_MEDI), \
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,          tunnel_node_in, upIfIdx,       1, FIELD_RELEVANCE_HIGH), \
         FIELD_FORMAT_END }
 
 

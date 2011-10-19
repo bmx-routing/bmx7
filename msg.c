@@ -733,7 +733,7 @@ void create_ogm_aggregation(void)
                         destinations++;
 
 /*
-                        assertion(-501137, (local->link_adv_msg_for_him < OGM_DESTINATION_ARRAY_BIT_SIZE));
+                        assertion(-501316, (local->link_adv_msg_for_him < OGM_DESTINATION_ARRAY_BIT_SIZE));
                         oan->ogm_dest_bytes = MAX(oan->ogm_dest_bytes, ((local->link_adv_msg_for_him / 8) + 1));
                         bit_set(oan->ogm_dest_field, OGM_DESTINATION_ARRAY_BIT_SIZE, local->link_adv_msg_for_him, 1);
 */
@@ -982,7 +982,7 @@ void schedule_or_purge_ogm_aggregations(IDM_T purge_all)
 
                         }
 
-                        assertion(-501139, (IMPLIES(d, (oan->aggregated_msgs))));
+                        assertion(-501319, (IMPLIES(d, (oan->aggregated_msgs))));
                 }
 
                 lprev = lpos;

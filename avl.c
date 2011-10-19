@@ -693,4 +693,5 @@ void init_avl( void )
 #ifdef AVL_TEST
 	register_options_array( msg_options, sizeof( msg_options ), CODE_CATEGORY_NAME );
 #endif
+
 }

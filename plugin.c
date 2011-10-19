@@ -125,7 +125,7 @@ void cb_route_change_hooks(uint8_t del, struct orig_node *dest)
 
         local_router->orig_routes = local_router->orig_routes + (del ? -1 : +1);
 
-        assertion(-501137, (local_router->orig_routes >= 0 && local_router->orig_routes < (int) orig_tree.items));
+        assertion(-501320, (local_router->orig_routes >= 0 && local_router->orig_routes < (int) orig_tree.items));
 
 	list_for_each( list_pos, &cb_route_change_list ) {
 

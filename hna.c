@@ -1037,7 +1037,12 @@ int process_description_tlv_tun6_adv(struct rx_frame_iterator *it)
                         struct tun_net_node *tnn;
                         struct tun_net_node *rtnn;
 
+
                         assertion(-501247, (tun));
+
+                        dbgf_track(DBGT_ERR, "should remove tunnel_node localIp=%s tun6Id=%d orig=%s key=%s (items=%d)",
+                                ip6AsStr(&tun->localIp), tun->key.tun6Id,
+                                globalIdAsString(&tun->key.on->global_id), memAsHexString(&tun->key, sizeof (key)), tunnel_out_tree.items);
 
                         used |= (tun->upIfIdx) ? YES : NO;
 
@@ -1069,7 +1074,7 @@ int process_description_tlv_tun6_adv(struct rx_frame_iterator *it)
 
                         rtun = avl_remove(&tunnel_out_tree, &key, -300410);
                         if (rtun != tun) {
-                                dbgf_sys(DBGT_ERR, "should remove tunnel_node localIp=%s tun6Id=%d orig=%s key=%s (items=%d)",
+                                dbgf_sys(DBGT_ERR, "failed remove tunnel_node localIp=%s tun6Id=%d orig=%s key=%s (items=%d)",
                                         ip6AsStr(&tun->localIp), tun->key.tun6Id,
                                         globalIdAsString(&tun->key.on->global_id), memAsHexString(&tun->key, sizeof (key)), tunnel_out_tree.items);
 

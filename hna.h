@@ -309,8 +309,6 @@ struct tunnel_node {
 };
 
 
-
-
 #define TUNNEL_NODE_FORMAT { \
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_BINARY, tunnel_node, key,           1, FIELD_RELEVANCE_LOW),  \
         FIELD_FORMAT_INIT(FIELD_TYPE_IPX6,          tunnel_node, localIp,       1, FIELD_RELEVANCE_HIGH), \

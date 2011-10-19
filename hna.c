@@ -2129,7 +2129,7 @@ int32_t hna_init( void )
 //        tun_orig_registry = get_plugin_data_registry(PLUGIN_DATA_ORIG);
 
 
-        register_status_handl(sizeof (struct tunnel_node), 1, tunnel_status_format, ARG_TUNS, tun_in_status_creator);
+//        register_status_handl(sizeof (struct tunnel_node), 1, tunnel_status_format, ARG_TUNS, tun_in_status_creator);
 
 
         return SUCCESS;

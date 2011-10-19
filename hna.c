@@ -48,7 +48,7 @@ static AVL_TREE(local_uhna_tree, struct hna_node, key );
 static AVL_TREE(tunnel_in_tree, struct tunnel_node, localIp);
 
 static AVL_TREE(tun_search_tree, struct tun_search_node, netName);
-static AVL_TREE(tun_net_tree, struct tun_net_node, network);
+static AVL_TREE(tun_net_tree, struct tun_net_node, key);
 //static AVL_TREE(tun_adv_tree, struct tun_adv_node, key); // combined with tunnel_node/tunnel_out_tree
 static AVL_TREE(tunnel_out_tree, struct tunnel_node, key);
 
@@ -773,15 +773,15 @@ void unlink_tun_net(struct tun_net_node *tnn, struct tun_search_node *tsn, struc
 
         while ((ttnn = tnn ? tnn : avl_iterate_item(&tun_net_tree, &itnn))) {
 
-                assertion(-501296, ttnn->tun);
+                assertion(-501296, ttnn->key.tun);
 
                 dbgf_cn(cn, DBGL_CHANGES, DBGT_INFO, "%s: %s/%d %s", tsn ? tsn->netName : "",
-                        ipXAsStr(ttnn->family, &ttnn->network.net), ttnn->network.prefixlen,
-                        globalIdAsString(&ttnn->tun->key.on->global_id));
+                        ipXAsStr(ttnn->family, &ttnn->key.network.net), ttnn->key.network.prefixlen,
+                        globalIdAsString(&ttnn->key.tun->key.on->global_id));
 
                 struct tun_search_node *ttsn;
                 struct avl_node *itsn = NULL;
-                struct tunnel_node *tun = ttnn->tun;
+                struct tunnel_node *tun = ttnn->key.tun;
 
                 while ((ttsn = avl_iterate_item(&ttnn->tun_search_tree, &itsn))) {
 
@@ -847,26 +847,26 @@ void set_tun_net(struct tun_search_node *sn)
 
                 while ((tnn = avl_iterate_item(&tun_net_tree, &itnn))) {
 
-                        struct orig_node *on = tnn->tun->key.on;
+                        struct orig_node *on = tnn->key.tun->key.on;
                         GLOBAL_ID_T *tnn_gid = &on->global_id, *tsn_gid = &tsn->global_id;
                         UMETRIC_T linkQuality = UMETRIC_MAX;
                         UMETRIC_T linkMax = fmetric_to_umetric(fmetric_u8_to_fmu16(tnn->bandwidth));
                         UMETRIC_T pathMetric = on->curr_rt_local ? (on->curr_rt_local->mr.umetric) : 0;
                         uint8_t family = tnn->family;
                         uint8_t isSrc4 = (family == AF_INET);
-                        struct net_key ingressPrefix = isSrc4 ? tnn->tun->ingress4Prefix : tnn->tun->ingress6Prefix;
+                        struct net_key ingressPrefix = isSrc4 ? tnn->key.tun->ingress4Prefix : tnn->key.tun->ingress6Prefix;
                         struct net_key srcPrefix = tsn->srcPrefix.prefixlen ? tsn->srcPrefix : (isSrc4 ? tun4_address : tun6_address);
 
                         dbgf_track(DBGT_INFO, "checking network=%s/%d bw_fmu8=%d, ingress=%s/%d localIp=%s tun6Id=%d tun=%p from orig=%s",
-                                ipXAsStr(family, &tnn->network.net), tnn->network.prefixlen, tnn->bandwidth.val.u8,
+                                ipXAsStr(family, &tnn->key.network.net), tnn->key.network.prefixlen, tnn->bandwidth.val.u8,
                                 ipXAsStr(family, &ingressPrefix.net), ingressPrefix.prefixlen,
-                                ip6AsStr(&tnn->tun->localIp), tnn->tun->key.tun6Id, (void*)(tnn->tun),
-                                globalIdAsString(&tnn->tun->key.on->global_id));
+                                ip6AsStr(&tnn->key.tun->localIp), tnn->key.tun->key.tun6Id, (void*)(tnn->key.tun),
+                                globalIdAsString(&on->global_id));
 
                         if (!(
                                 tsn->family == tnn->family &&
-                                tsn->network.prefixlen >= tnn->network.prefixlen &&
-                                is_ip_net_equal(&tsn->network.net, &tnn->network.net, tnn->network.prefixlen, family) &&
+                                tsn->network.prefixlen >= tnn->key.network.prefixlen &&
+                                is_ip_net_equal(&tsn->network.net, &tnn->key.network.net, tnn->key.network.prefixlen, family) &&
                                 IMPLIES(strlen(tsn_gid->name), !strcmp(tsn_gid->name, tnn_gid->name)) &&
                                 IMPLIES(!is_zero(&tsn_gid->pkid, GLOBAL_ID_PKID_LEN), !memcmp(&tsn_gid->pkid, &tnn_gid->pkid, GLOBAL_ID_PKID_LEN))
                                 ))
@@ -923,8 +923,8 @@ void set_tun_net(struct tun_search_node *sn)
 
                         if (!best_tnn ||
                                 (tnn->e2eMetric > best_tnn->e2eMetric) ||
-                                (tnn->e2eMetric == best_tnn->e2eMetric && tnn->network.prefixlen > best_tnn->network.prefixlen) ||
-                                (tnn->e2eMetric == best_tnn->e2eMetric && tnn->network.prefixlen == best_tnn->network.prefixlen && tnn == tsn->tun_net)
+                                (tnn->e2eMetric == best_tnn->e2eMetric && tnn->key.network.prefixlen > best_tnn->key.network.prefixlen) ||
+                                (tnn->e2eMetric == best_tnn->e2eMetric && tnn->key.network.prefixlen == best_tnn->key.network.prefixlen && tnn == tsn->tun_net)
                                 )
                                 best_tnn = tnn;
 
@@ -941,7 +941,7 @@ void set_tun_net(struct tun_search_node *sn)
 
                         if (best_tnn && best_tnn->e2eMetric > UMETRIC_MIN__NOT_ROUTABLE) {
 
-                                struct tunnel_node *tun = best_tnn->tun;
+                                struct tunnel_node *tun = best_tnn->key.tun;
 
                                 if (!tun->upIfIdx && configure_tunnel(ADD, tun->key.on, tun) == SUCCESS)
                                         ipaddr(ADD, tun->upIfIdx, AF_INET6, &tun->localIp, 128, YES /*deprecated*/);
@@ -1044,21 +1044,21 @@ int process_description_tlv_tun6_adv(struct rx_frame_iterator *it)
 
                                 unlink_tun_net(tnn, NULL, NULL);
 
-                                rtnn = avl_remove_item(&tun_net_tree, &tnn->network, tnn, -300421);
+                                rtnn = avl_remove(&tun_net_tree, &tnn->key, -300421);
 
                                 if (rtnn != tnn) {
                                         dbgf_sys(DBGT_ERR, "should remove tun_net_node %s/%d orig=%s...",
-                                                ipXAsStr(tnn->family, &tnn->network.net), tnn->network.prefixlen, globalIdAsString(&tnn->tun->key.on->global_id));
+                                                ipXAsStr(tnn->family, &tnn->key.network.net), tnn->key.network.prefixlen, globalIdAsString(&tnn->key.tun->key.on->global_id));
 
                                         if (rtnn) {
                                                 dbgf_sys(DBGT_ERR, "but removed %s/%d orig=%s",
-                                                        ipXAsStr(rtnn->family, &rtnn->network.net), rtnn->network.prefixlen, globalIdAsString(&rtnn->tun->key.on->global_id));
+                                                        ipXAsStr(rtnn->family, &rtnn->key.network.net), rtnn->key.network.prefixlen, globalIdAsString(&rtnn->key.tun->key.on->global_id));
                                         }
 
                                 }
                                 assertion(-501251, (rtnn == tnn));
 
-                                rtnn = avl_remove_item(&tun->tun_net_tree, &tnn->network, tnn, -300423);
+                                rtnn = avl_remove(&tun->tun_net_tree, &tnn->key.network, -300423);
                                 assertion(-501252, (rtnn == tnn));
                                 debugFree(tnn, -300424);
                         }
@@ -1081,7 +1081,7 @@ int process_description_tlv_tun6_adv(struct rx_frame_iterator *it)
                         tun->key = key;
                         tun->localIp = adv->localIp;
                         tun->name_auto = 1;
-                        AVL_INIT_TREE(tun->tun_net_tree, struct tun_net_node, network);
+                        AVL_INIT_TREE(tun->tun_net_tree, struct tun_net_node, key);
                         avl_insert(&tunnel_out_tree, tun, -300427);
                 }
         }
@@ -1295,9 +1295,9 @@ int process_description_tlv_tunXin6_net_adv(struct rx_frame_iterator *it)
 
                                 struct tun_net_node *tnn = debugMalloc(sizeof (struct tun_net_node), -300418);
                                 memset(tnn, 0, sizeof (struct tun_net_node));
-                                tnn->tun = tun;
+                                tnn->key.tun = tun;
+                                tnn->key.network = net;
                                 tnn->family = family;
-                                tnn->network = net;
                                 tnn->bandwidth = adv->bandwidth;
 
                                 AVL_INIT_TREE(tnn->tun_search_tree, struct tun_search_node, netName);

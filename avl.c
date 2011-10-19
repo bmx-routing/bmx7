@@ -209,7 +209,7 @@ void avl_insert(struct avl_tree *tree, void *node, int32_t tag)
                 // Search for an empty link, save the path
                 for (;;) {
                         // Push direction and node onto stack */
-                        upd[top] = memcmp(AVL_NODE_KEY(tree, it), AVL_ITEM_KEY(tree, node), tree->key_size) <= 0;
+                        upd[top] = (memcmp(AVL_NODE_KEY(tree, it), AVL_ITEM_KEY(tree, node), tree->key_size) <= 0);
 
                         up[top++] = it;
 
@@ -278,7 +278,7 @@ void avl_insert(struct avl_tree *tree, void *node, int32_t tag)
 
 
 
-void *avl_remove_item(struct avl_tree *tree, void *key, void *item, int32_t tag)
+void *avl_remove(struct avl_tree *tree, void *key, int32_t tag)
 {
         struct avl_node *it = tree->root;
         struct avl_node *up[AVL_MAX_HEIGHT];
@@ -287,37 +287,17 @@ void *avl_remove_item(struct avl_tree *tree, void *key, void *item, int32_t tag)
         if (!it)
                 return NULL;
 
-        assertion(-501250, (!item || !memcmp(AVL_ITEM_KEY(tree, item), key, tree->key_size)));
-
-
-/*
-                while ((NO || YES) && (
-                        (cmp = NO) ||
-                        (it->link[0] && YES))) {
-
-                        // Push direction and node onto stack
-                        upd[top] = (cmp < 0);
-                        up[top] = it;
-                        top++;
-
-                        if (!(it = it->link[(cmp < 0)]))
-                                return NULL;
-
-                }
-         */
-
-
-
         while (1) {
 
-                dbgf_all(DBGT_INFO, "tree.items=%d item=%p it->item=%p memcmp(it,key)=%d link[0]=%p link[1]=%p memcmp(link[0],key)=%d",
-                        tree->items, item, it->item, memcmp(AVL_NODE_KEY(tree, it), key, tree->key_size), (void*)(it->link[0]), (void*)(it->link[1]),
-                        (it->link[0] ? memcmp(AVL_NODE_KEY(tree, it->link[0]), key, tree->key_size) : 0));
+                dbgf_all(DBGT_INFO, "tree.items=%d it->item=%p memcmp(it,key)=%d link[0]=%p link[1]=%p memcmp(link[0],key)=%d",
+                        tree->items, it->item, memcmp(AVL_NODE_KEY(tree, it), key, tree->key_size), (void*) (it->link[0]), (void*) (it->link[1]),
+                        (it->link[0] ? memcmp(AVL_NODE_KEY(tree, it->link[0]), key, tree->key_size) : -1),
+                        (it->link[1] ? memcmp(AVL_NODE_KEY(tree, it->link[1]), key, tree->key_size) : -1)
+                        );
 
                 if (!(
-                        (!item || item != it->item) && (
                         (cmp = memcmp(AVL_NODE_KEY(tree, it), key, tree->key_size)) ||
-                        (it->link[0] && !memcmp(AVL_NODE_KEY(tree, it->link[0]), key, tree->key_size)))))
+                        (it->link[0] && !memcmp(AVL_NODE_KEY(tree, it->link[0]), key, tree->key_size))))
                         break;
 
                 // Push direction and node onto stack

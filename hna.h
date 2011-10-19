@@ -263,11 +263,18 @@ struct tun_search_node {
         struct tun_net_node *tun_net;
 };
 
-struct tun_net_node {
+struct tun_net_key {
+        struct net_key network;
         struct tunnel_node *tun;
+};
+
+struct tun_net_node {
+        struct tun_net_key key;
+        
+//        struct tunnel_node *tun;
 
         uint8_t family;
-        struct net_key network;
+//        struct net_key network;
         FMETRIC_U8_T bandwidth;
 
         UMETRIC_T e2eMetric;

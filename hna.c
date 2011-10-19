@@ -1055,7 +1055,6 @@ int process_description_tlv_tun6_adv(struct rx_frame_iterator *it)
                                                 dbgf_sys(DBGT_ERR, "but removed %s/%d orig=%s",
                                                         ipXAsStr(rtnn->family, &rtnn->key.network.net), rtnn->key.network.prefixlen, globalIdAsString(&rtnn->key.tun->key.on->global_id));
                                         }
-
                                 }
                                 assertion(-501251, (rtnn == tnn));
 
@@ -1065,7 +1064,22 @@ int process_description_tlv_tun6_adv(struct rx_frame_iterator *it)
                         }
 
                         assertion(-501249, (!tun->tun_net_tree.items));
+
+                        checkIntegrity();
+
                         rtun = avl_remove(&tunnel_out_tree, &key, -300410);
+                        if (rtun != tun) {
+                                dbgf_sys(DBGT_ERR, "should remove tunnel_node localIp=%s tun6Id=%d orig=%s key=%s (items=%d)",
+                                        ip6AsStr(&tun->localIp), tun->key.tun6Id,
+                                        globalIdAsString(&tun->key.on->global_id), memAsHexString(&tun->key, sizeof (key)), tunnel_out_tree.items);
+
+                                if (rtun) {
+                                        dbgf_sys(DBGT_ERR, "but removed localIp=%s tun6Id=%d orig=%s key=%s ",
+                                        ip6AsStr(&rtun->localIp), rtun->key.tun6Id,
+                                        globalIdAsString(&rtun->key.on->global_id), memAsHexString(&rtun->key, sizeof (key)));
+                                }
+                        }
+
                         assertion(-501253, (rtun == tun));
                         debugFree(tun, -300425);
 

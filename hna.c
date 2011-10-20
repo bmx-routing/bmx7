@@ -1376,6 +1376,81 @@ int process_description_tlv_tunXin6_net_adv(struct rx_frame_iterator *it)
 
 
 
+struct tun_out_status {
+        GLOBAL_ID_T *globalId;
+        IPX_T *local;
+        IPX_T *remote;
+        char network[IPX_PREFIX_STR_LEN];
+        UMETRIC_T bandwidth;
+        UMETRIC_T e2eMetric;
+        char *tunName;
+        uint16_t up;
+        char* searchName;
+        char searchNetwork[IPX_PREFIX_STR_LEN];
+};
+
+static const struct field_format tun_out_status_format[] = {
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, tun_out_status, globalId,      1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_IPX6P,             tun_out_status, local,         1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_IPX6P,             tun_out_status, remote,        1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       tun_out_status, network,       1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           tun_out_status, bandwidth,     1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           tun_out_status, e2eMetric,     1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      tun_out_status, tunName,       1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              tun_out_status, up,            1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      tun_out_status, searchName,    1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       tun_out_status, searchNetwork, 1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_END
+};
+
+static int32_t tun_out_status_creator(struct status_handl *handl, void *data)
+{
+        struct avl_node  *itnn = NULL;
+        uint32_t status_size = 0;
+        struct tun_net_node *tnn;
+        struct tun_out_status *status;
+
+        for (itnn = NULL; (tnn = avl_iterate_item(&tun_net_tree, &itnn));)
+                status_size += (MIN(1, tnn->tun_search_tree.items) * sizeof (struct tun_out_status));
+
+        status = (struct tun_out_status *) (handl->data = debugRealloc(handl->data, status_size, -300000));
+        memset(status, 0, status_size);
+
+        while ((tnn = avl_iterate_item(&tun_net_tree, &itnn))) {
+
+                struct avl_node *itsn = NULL;
+                struct tun_search_node *tsn = avl_iterate_item(&tnn->tun_search_tree, &itsn);
+
+                do {
+
+                        struct tunnel_node_out *tun = tnn->key.tun;
+
+                        status->globalId = &tun->key.on->global_id;
+                        status->local = &tun->localIp;
+                        status->remote = &tun->key.on->primary_ip;
+                        sprintf(status->network, "%s/%d", ipXAsStr(tnn->family, &tnn->key.network.net), tnn->key.network.prefixlen);
+                        status->bandwidth = fmetric_to_umetric(fmetric_u8_to_fmu16(tnn->bandwidth));
+                        status->e2eMetric = tnn->e2eMetric;
+                        status->tunName = tun->name.str;
+                        status->up = tun->upIfIdx;
+
+                        if (tsn) {
+                                status->searchName = tsn->netName;
+                                sprintf(status->searchNetwork, "%s/%d", ipXAsStr(tsn->family, &tsn->network.net), tsn->network.prefixlen);
+                        }
+
+                        status++;
+
+                } while ((tsn = avl_iterate_item(&tnn->tun_search_tree, &itsn)));
+
+        }
+
+        return status_size;
+}
+
+
+
+
 
 STATIC_FUNC
 int32_t opt_tun_net(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
@@ -1993,7 +2068,7 @@ struct opt_type hna_options[]= {
 			ARG_VALUE_FORM, "specify ip metric for local routing table entries"}
         ,
 	{ODI,0,ARG_TUNS,	        0,5,2,A_PS0,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
-			0,		"show announced gateways and tunnels"}
+			0,		"show announced and used tunnels and related networks"}
 
 };
 
@@ -2160,6 +2235,7 @@ int32_t hna_init( void )
 
         set_route_change_hooks(hna_route_change_hook, ADD);
 
+        register_status_handl(sizeof (struct tun_out_status), 1, tun_out_status_format, ARG_TUNS, tun_out_status_creator);
 
 
         return SUCCESS;

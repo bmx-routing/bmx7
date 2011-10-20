@@ -634,6 +634,7 @@ enum {
 	FIELD_TYPE_IPX,
 	FIELD_TYPE_IPX4,
 	FIELD_TYPE_IPX6,
+	FIELD_TYPE_IPX6P,
 	FIELD_TYPE_MAC,
 
 	FIELD_TYPE_END
@@ -641,7 +642,7 @@ enum {
 
 #define FIELD_STANDARD_SIZES {-1,-1,-1,-8,-8,(8*sizeof(char*)),(8*sizeof(GLOBAL_ID_T*)),(8*sizeof(GLOBAL_ID_T)), \
                               (8*sizeof(UMETRIC_T)),(8*sizeof(FMETRIC_U8_T)), \
-                              (8*sizeof(IP4_T)), (8*sizeof(IPX_T)), (8*sizeof(IPX_T)), (8*sizeof(IP6_T)), (8*sizeof(MAC_T))}
+                              (8*sizeof(IP4_T)), (8*sizeof(IPX_T)), (8*sizeof(IPX_T)), (8*sizeof(IP6_T)),(8*sizeof(IP6_T*)), (8*sizeof(MAC_T))}
 // negative values mean size must be multiple of negativ value, positive values mean absolute bit sizes
 
 #define FIELD_FORMAT_MAX_ITEMS 100

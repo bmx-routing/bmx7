@@ -1452,7 +1452,11 @@ char *field_dbg_value(const struct field_format *format, uint16_t min_msg_size, 
 
         } else if (field_type == FIELD_TYPE_IPX6) {
 
-                val =  ipXAsStr(AF_INET6, (IPX_T*) & data[pos_bit / 8]);
+                val = ip6AsStr((IPX_T*) & data[pos_bit / 8]);
+
+        } else if (field_type == FIELD_TYPE_IPX6P) {
+
+                val = ip6AsStr(*((IPX_T**) (&data[pos_bit / 8])));
 
         } else if (field_type == FIELD_TYPE_IPX) {
 

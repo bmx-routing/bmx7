@@ -417,7 +417,7 @@ void json_originator_event_hook(int32_t cb_id, struct orig_node *orig)
         } else {
 
                 struct avl_node *it = NULL;
-                while (orig ? (on = orig) : (on = avl_iterate_item(&orig_tree, &it))) {
+                while ((on = orig ? orig : avl_iterate_item(&orig_tree, &it))) {
 
                         int fd;
                         sprintf(path_name, "%s/%s", json_orig_dir, globalIdAsString(&on->global_id));

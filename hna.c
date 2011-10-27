@@ -1405,7 +1405,7 @@ static const struct field_format tun_out_status_format[] = {
 
 static int32_t tun_out_status_creator(struct status_handl *handl, void *data)
 {
-        struct avl_node  *itnn = NULL;
+        struct avl_node *itnn;
         uint32_t status_size = 0;
         struct tun_net_node *tnn;
         struct tun_out_status *status;
@@ -1416,13 +1416,12 @@ static int32_t tun_out_status_creator(struct status_handl *handl, void *data)
         status = (struct tun_out_status *) (handl->data = debugRealloc(handl->data, status_size, -300000));
         memset(status, 0, status_size);
 
-        while ((tnn = avl_iterate_item(&tun_net_tree, &itnn))) {
+        for (itnn = NULL; (tnn = avl_iterate_item(&tun_net_tree, &itnn));) {
 
                 struct avl_node *itsn = NULL;
                 struct tun_search_node *tsn = avl_iterate_item(&tnn->tun_search_tree, &itsn);
 
                 do {
-
                         struct tunnel_node_out *tun = tnn->key.tun;
 
                         status->globalId = &tun->key.on->global_id;
@@ -1444,6 +1443,8 @@ static int32_t tun_out_status_creator(struct status_handl *handl, void *data)
                 } while ((tsn = avl_iterate_item(&tnn->tun_search_tree, &itsn)));
 
         }
+
+        assertion(-500000, (handl->data + status_size == (uint8_t*) status));
 
         return status_size;
 }

@@ -1420,6 +1420,8 @@ char *field_dbg_value(const struct field_format *format, uint16_t min_msg_size, 
 
         uint8_t field_type = format->field_type;
         char *val = NULL;
+        char *p = (char*) &data[pos_bit / 8];
+        uint8_t bytes = bits / 8;
 
         if (field_type == FIELD_TYPE_UINT || field_type == FIELD_TYPE_HEX || field_type == FIELD_TYPE_STRING_SIZE) {
 
@@ -1439,60 +1441,60 @@ char *field_dbg_value(const struct field_format *format, uint16_t min_msg_size, 
 
 
                 } else {
-                        val = memAsHexString(&data[pos_bit / 8], bits / 8);
+                        val = memAsHexString(p, bytes);
                 }
 
         } else if (field_type == FIELD_TYPE_IP4) {
 
-                val = ip4AsStr(*((IP4_T*) & data[pos_bit / 8]));
+                val = ip4AsStr(*((IP4_T*) p));
 
         } else if (field_type == FIELD_TYPE_IPX4) {
 
-                val =  ipXAsStr(AF_INET, (IPX_T*) & data[pos_bit / 8]);
+                val =  ipXAsStr(AF_INET, (IPX_T*) p);
 
         } else if (field_type == FIELD_TYPE_IPX6) {
 
-                val = ip6AsStr((IPX_T*) & data[pos_bit / 8]);
-
-        } else if (field_type == FIELD_TYPE_IPX6P) {
-
-                val = ip6AsStr(*((IPX_T**) (&data[pos_bit / 8])));
+                val = ip6AsStr((IPX_T*) p);
 
         } else if (field_type == FIELD_TYPE_IPX) {
 
-                val = ipFAsStr((IPX_T*) & data[pos_bit / 8]);
+                val = ipFAsStr((IPX_T*) p);
 
         } else if (field_type == FIELD_TYPE_MAC) {
 
-                val = macAsStr((MAC_T*) & data[pos_bit / 8]);
+                val = macAsStr((MAC_T*) p);
 
         } else if (field_type == FIELD_TYPE_STRING_BINARY) {
 
-                val =  memAsHexString(&data[pos_bit / 8], bits / 8);
+                val =  memAsHexString(p, bytes);
 
         } else if (field_type == FIELD_TYPE_STRING_CHAR) {
 
-                val = memAsCharString((char*) &data[pos_bit / 8], bits / 8);
-
-        } else if (field_type == FIELD_TYPE_POINTER_CHAR) {
-
-                val = memAsCharString(*((char**) (&data[pos_bit / 8])), strlen(*((char**) (&data[pos_bit / 8]))));
-
-        } else if (field_type == FIELD_TYPE_POINTER_GLOBAL_ID) {
-
-                val = globalIdAsString(*((GLOBAL_ID_T**) (&data[pos_bit / 8])));
+                val = memAsCharString(p, bytes);
 
         } else if (field_type == FIELD_TYPE_GLOBAL_ID) {
 
-                val = globalIdAsString(((GLOBAL_ID_T*) (&data[pos_bit / 8])));
+                val = globalIdAsString(((GLOBAL_ID_T*) p));
 
         } else if (field_type == FIELD_TYPE_UMETRIC) {
 
-                val = umetric_to_human(*((UMETRIC_T*) (&data[pos_bit / 8])));
+                val = umetric_to_human(*((UMETRIC_T*) p));
 
         } else if (field_type == FIELD_TYPE_FMETRIC8) {
 
-                val = umetric_to_human(fmetric_to_umetric(fmetric_u8_to_fmu16(*((FMETRIC_U8_T*) (&data[pos_bit / 8])))));
+                val = umetric_to_human(fmetric_to_umetric(fmetric_u8_to_fmu16(*((FMETRIC_U8_T*) p))));
+
+        } else if (field_type == FIELD_TYPE_IPX6P) {
+
+                val = *p ? ip6AsStr(*((IPX_T**) p)) : "---";
+
+        } else if (field_type == FIELD_TYPE_POINTER_CHAR) {
+
+                val = *p ? memAsCharString(*((char**) p), strlen(*((char**) p))) : "---";
+
+        } else if (field_type == FIELD_TYPE_POINTER_GLOBAL_ID) {
+
+                val = *p ? globalIdAsString(*((GLOBAL_ID_T**) p)) : ".";
 
         } else {
 

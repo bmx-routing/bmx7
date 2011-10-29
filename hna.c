@@ -1382,7 +1382,7 @@ struct tun_out_status {
         IPX_T *remote;
         char network[IPX_PREFIX_STR_LEN];
         UMETRIC_T bandwidth;
-        UMETRIC_T e2eMetric;
+        UMETRIC_T metric;
         char *tunName;
         uint16_t up;
         char* searchName;
@@ -1395,7 +1395,7 @@ static const struct field_format tun_out_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_IPX6P,             tun_out_status, remote,        1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       tun_out_status, network,       1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           tun_out_status, bandwidth,     1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           tun_out_status, e2eMetric,     1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           tun_out_status, metric,        1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      tun_out_status, tunName,       1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              tun_out_status, up,            1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      tun_out_status, searchName,    1, FIELD_RELEVANCE_HIGH),
@@ -1430,7 +1430,7 @@ static int32_t tun_out_status_creator(struct status_handl *handl, void *data)
                         status->remote = &tun->key.on->primary_ip;
                         sprintf(status->network, "%s/%d", ipXAsStr(tnn->family, &tnn->key.network.net), tnn->key.network.prefixlen);
                         status->bandwidth = fmetric_to_umetric(fmetric_u8_to_fmu16(tnn->bandwidth));
-                        status->e2eMetric = tnn->e2eMetric;
+                        status->metric = tnn->e2eMetric;
                         status->tunName = tun->name.str;
                         status->up = tun->upIfIdx;
 

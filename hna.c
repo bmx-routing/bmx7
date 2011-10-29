@@ -1405,21 +1405,22 @@ static const struct field_format tun_out_status_format[] = {
 
 static int32_t tun_out_status_creator(struct status_handl *handl, void *data)
 {
-        struct avl_node *itnn;
-        uint32_t status_size = 0;
+        struct avl_node *itnn, *itsn;
+        int32_t status_size = tun_search_tree.items * sizeof (struct tun_out_status);
         struct tun_net_node *tnn;
+        struct tun_search_node *tsn;
         struct tun_out_status *status;
 
         for (itnn = NULL; (tnn = avl_iterate_item(&tun_net_tree, &itnn));)
-                status_size += (MAX(1, tnn->tun_search_tree.items) * sizeof (struct tun_out_status));
+                status_size += (tnn->tun_search_tree.items ? 0 : sizeof (struct tun_out_status));
 
         status = (struct tun_out_status *) (handl->data = debugRealloc(handl->data, status_size, -300000));
         memset(status, 0, status_size);
 
         for (itnn = NULL; (tnn = avl_iterate_item(&tun_net_tree, &itnn));) {
 
-                struct avl_node *itsn = NULL;
-                struct tun_search_node *tsn = avl_iterate_item(&tnn->tun_search_tree, &itsn);
+                itsn = NULL;
+                tsn = avl_iterate_item(&tnn->tun_search_tree, &itsn);
 
                 do {
                         struct tunnel_node_out *tun = tnn->key.tun;
@@ -1436,12 +1437,23 @@ static int32_t tun_out_status_creator(struct status_handl *handl, void *data)
                         if (tsn) {
                                 status->searchName = tsn->netName;
                                 sprintf(status->searchNetwork, "%s/%d", ipXAsStr(tsn->family, &tsn->network.net), tsn->network.prefixlen);
+                                tsn->shown = YES;;
                         }
 
                         status++;
 
                 } while ((tsn = avl_iterate_item(&tnn->tun_search_tree, &itsn)));
 
+        }
+
+        for (itsn = NULL; (tsn = avl_iterate_item(&tun_search_tree, &itsn));) {
+
+                if (!tsn->shown) {
+                        status->searchName = tsn->netName;
+                        sprintf(status->searchNetwork, "%s/%d", ipXAsStr(tsn->family, &tsn->network.net), tsn->network.prefixlen);
+                        status++;
+                }
+                tsn->shown = NO;
         }
 
         assertion(-501322, (handl->data + status_size == (uint8_t*) status));

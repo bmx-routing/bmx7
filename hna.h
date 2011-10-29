@@ -261,6 +261,7 @@ struct tun_search_node {
         uint8_t srcPrefixMin;
         
         struct tun_net_node *tun_net;
+        uint8_t shown;
 };
 
 struct tun_net_key {

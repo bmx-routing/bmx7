@@ -767,7 +767,7 @@ IDM_T configure_tunnel_out(uint8_t del, struct orig_node *on, struct tunnel_node
         TRACE_FUNCTION_CALL;
         assertion(-501292, (is_ip_set(&tun->localIp)));
         assertion(-501235, (on));
-        assertion(-500000, (on != self));
+        assertion(-501321, (on != self));
         assertion(-501295, IMPLIES(!del, (is_ip_set(&on->primary_ip))));
         assertion(-501311, IMPLIES(tun->upIfIdx, tun->name.str[0]));
         assertion(-501295, IMPLIES(tun->upIfIdx, del));
@@ -1411,7 +1411,7 @@ static int32_t tun_out_status_creator(struct status_handl *handl, void *data)
         struct tun_out_status *status;
 
         for (itnn = NULL; (tnn = avl_iterate_item(&tun_net_tree, &itnn));)
-                status_size += (MIN(1, tnn->tun_search_tree.items) * sizeof (struct tun_out_status));
+                status_size += (MAX(1, tnn->tun_search_tree.items) * sizeof (struct tun_out_status));
 
         status = (struct tun_out_status *) (handl->data = debugRealloc(handl->data, status_size, -300000));
         memset(status, 0, status_size);
@@ -1444,7 +1444,7 @@ static int32_t tun_out_status_creator(struct status_handl *handl, void *data)
 
         }
 
-        assertion(-500000, (handl->data + status_size == (uint8_t*) status));
+        assertion(-501322, (handl->data + status_size == (uint8_t*) status));
 
         return status_size;
 }

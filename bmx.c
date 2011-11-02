@@ -1420,7 +1420,7 @@ char *field_dbg_value(const struct field_format *format, uint16_t min_msg_size, 
 
         uint8_t field_type = format->field_type;
         char *val = NULL;
-        char *p = (char*) &data[pos_bit / 8];
+        uint8_t *p = data + (pos_bit/8);//&(data[pos_bit / 8]);
         uint8_t bytes = bits / 8;
 
         if (field_type == FIELD_TYPE_UINT || field_type == FIELD_TYPE_HEX || field_type == FIELD_TYPE_STRING_SIZE) {
@@ -1470,7 +1470,7 @@ char *field_dbg_value(const struct field_format *format, uint16_t min_msg_size, 
 
         } else if (field_type == FIELD_TYPE_STRING_CHAR) {
 
-                val = memAsCharString(p, bytes);
+                val = memAsCharString((char*)p, bytes);
 
         } else if (field_type == FIELD_TYPE_GLOBAL_ID) {
 
@@ -1494,7 +1494,7 @@ char *field_dbg_value(const struct field_format *format, uint16_t min_msg_size, 
 
         } else if (field_type == FIELD_TYPE_POINTER_GLOBAL_ID) {
 
-                val = *p ? globalIdAsString(*((GLOBAL_ID_T**) p)) : ".";
+                val = *p ? globalIdAsString(*((GLOBAL_ID_T**) p)) : "---";
 
         } else {
 
@@ -1945,7 +1945,7 @@ static const struct field_format orig_status_format[] = {
 static int32_t orig_status_creator(struct status_handl *handl, void *data)
 {
         struct avl_node *it = NULL;
-        struct orig_node *on = data;
+        struct orig_node *on;
         uint32_t status_size = (data ? 1 : orig_tree.items) * sizeof (struct orig_status);
         uint32_t i = 0;
         struct orig_status *status = ((struct orig_status*) (handl->data = debugRealloc(handl->data, status_size, -300366)));

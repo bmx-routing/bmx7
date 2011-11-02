@@ -76,7 +76,7 @@ extern char run_dir[];
 #define BMX_PID_FILE "pid"
 #define BMX_UNIX_SOCK_FILE "sock"
 
-
+#define DBG_NIL "---"
 
 extern uint32_t My_pid;
 

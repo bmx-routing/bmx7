@@ -753,8 +753,8 @@ void lndev_assign_best(struct local_node *only_local, struct link_dev_node *only
 
         dbgf_all(DBGT_INFO, "only_local=%X only_lndev.link=%s only_lndev.dev=%s",
                 only_local ? ntohl(only_local->local_id) : 0,
-                only_lndev ? ipFAsStr(&only_lndev->key.link->link_ip) : "---",
-                only_lndev ? only_lndev->key.dev->label_cfg.str : "---");
+                only_lndev ? ipFAsStr(&only_lndev->key.link->link_ip) : DBG_NIL,
+                only_lndev ? only_lndev->key.dev->label_cfg.str : DBG_NIL);
 
         struct avl_node *local_an = NULL;
         struct local_node *local;
@@ -1031,7 +1031,7 @@ IDM_T update_path_metrics(struct packet_buff *pb, struct orig_node *on, OGM_SQN_
 
                 dbg_track(DBGT_INFO, "new router via_ip=%s to global_id=%s metric=%ju (curr_rt=%s metric=%ju total %d)",
                         ipFAsStr(&best_rt_lndev->key.link->link_ip), globalIdAsString(&on->global_id), best_rt_metric,
-                        on->curr_rt_lndev ? ipFAsStr(&on->curr_rt_lndev->key.link->link_ip) : "---",
+                        on->curr_rt_lndev ? ipFAsStr(&on->curr_rt_lndev->key.link->link_ip) : DBG_NIL,
                         on->curr_rt_lndev ? on->curr_rt_local->mr.umetric : 0, on->rt_tree.items);
 
         }
@@ -1073,7 +1073,7 @@ IDM_T update_path_metrics(struct packet_buff *pb, struct orig_node *on, OGM_SQN_
                                         next_rt->path_lndev_best->key.dev->label_cfg.str,
                                         umetric_to_human(next_rt->mr.umetric),
                                         ipFAsStr(on->curr_rt_lndev ? &on->curr_rt_lndev->key.link->link_ip : &ZERO_IP),
-                                        on->curr_rt_lndev ? on->curr_rt_lndev->key.dev->label_cfg.str : "---",
+                                        on->curr_rt_lndev ? on->curr_rt_lndev->key.dev->label_cfg.str : DBG_NIL,
                                         umetric_to_human(on->curr_rt_local ? on->curr_rt_local->mr.umetric : 0),
                                         ogm_sqn_max, ogm_sqn);
 

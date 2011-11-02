@@ -289,7 +289,7 @@ IDM_T process_description_tlvs(struct packet_buff *pb, struct orig_node *on, str
                 assertion(-500356, IMPLIES(tlv_result == TLV_RX_DATA_BLOCKED, op == TLV_OP_TEST));
 
                 dbgf_sys(DBGT_WARN, "problematic description_ltv from %s, near type=%s frame_data_length=%d  pos=%d %s",
-                        pb ? pb->i.llip_str : "--", description_tlv_handl[it.frame_type].name,
+                        pb ? pb->i.llip_str : DBG_NIL, description_tlv_handl[it.frame_type].name,
                         it.frame_data_length, it.frames_pos, tlv_result == TLV_RX_DATA_BLOCKED ? "BLOCKED" : "FAILURE");
 
                 block_orig_node(YES, on);
@@ -521,7 +521,7 @@ void schedule_tx_task(struct link_dev_node *dest_lndev, uint16_t frame_type, int
                 ? DBGL_CHANGES : DBGL_ALL), DBGT_INFO,
                  "%s to NB=%s local_id=0x%X via dev=%s frame_msgs_len=%d u16=%d u32=%d myIID4x=%d neighIID4x=%d ",
                 handl->name,
-                dest_lndev->key.link ? ipFAsStr(&dest_lndev->key.link->link_ip) : "---",
+                dest_lndev->key.link ? ipFAsStr(&dest_lndev->key.link->link_ip) : DBG_NIL,
                 dest_lndev->key.link ? dest_lndev->key.link->local->local_id : 0,
                 dest_lndev->key.dev->label_cfg.str, frame_msgs_len, u16, u32, myIID4x, neighIID4x);
 
@@ -2099,7 +2099,7 @@ int32_t rx_frame_ogm_advs(struct rx_frame_iterator *it)
                         dbgf_track(DBGT_WARN, "%s orig_sqn=%d or neighIID4x=%d id=%s via link=%s sqn_min=%d sqn_range=%d",
                                 !dhn ? "UNKNOWN DHN" : "INVALIDATED",
                                 ogm_sqn, neighIID4x,
-                                on ? globalIdAsString(&on->global_id) : "---",
+                                on ? globalIdAsString(&on->global_id) : DBG_NIL,
                                 pb->i.llip_str,
                                 on ? on->ogmSqn_rangeMin : 0,
                                 on ? on->ogmSqn_rangeSize : 0);
@@ -2273,7 +2273,7 @@ struct dhash_node *process_dhash_description_neighIID4x
                 pb->i.iif->label_cfg.str, pb->i.llip_str, dhash->h.u32[0],
                 (dsc ? "DESCRIPTION" : (cache ? "CACHED_DESCRIPTION" : (orig_dhn?"KNOWN":"UNDESCRIBED"))),
                 neighIID4x, is_transmitters_iid,
-                invalid ? "INVALIDATED" : (orig_dhn && orig_dhn->on ? globalIdAsString(&orig_dhn->on->global_id) : "---"));
+                invalid ? "INVALIDATED" : (orig_dhn && orig_dhn->on ? globalIdAsString(&orig_dhn->on->global_id) : DBG_NIL));
 
 
         return orig_dhn;
@@ -2562,7 +2562,7 @@ int32_t rx_frame_iterate(struct rx_frame_iterator *it)
                 } else if (f_handl->is_relevant != fhs->is_relevant) {
 
                         dbgf_sys(DBGT_ERR, "%s - type=%s frame_length=%d from %s, signals %s but known as %s",
-                                it->caller, f_handl->name, f_len, pb ? pb->i.llip_str : "---",
+                                it->caller, f_handl->name, f_len, pb ? pb->i.llip_str : DBG_NIL,
                                 fhs->is_relevant ? "RELEVANT" : "IRRELEVANT",
                                 f_handl->is_relevant ? "RELEVANT" : "IRRELEVANT");
 

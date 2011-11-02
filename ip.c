@@ -1540,8 +1540,8 @@ IDM_T ip(uint8_t family, uint8_t cmd, int8_t del, uint8_t quiet, const IPX_T *NE
 
         dbgf_track( DBGT_INFO, "%s %s %s %s/%-2d  iif %s  table %d  prio %d  oif %s  via %s  src %s ",
                 family2Str(family), trackt2str(cmd), del2str(del), ipXAsStr(family, net), nmask,
-                iifname ? iifname->str : NULL, table, prio, oif_iln ? oif_iln->name.str : "---",
-                via ? ipXAsStr(family, via) : "---", src ? ipXAsStr(family, src) : "---");
+                iifname ? iifname->str : NULL, table, prio, oif_iln ? oif_iln->name.str : DBG_NIL,
+                via ? ipXAsStr(family, via) : DBG_NIL, src ? ipXAsStr(family, src) : DBG_NIL);
 #endif
 
         memset(&req, 0, sizeof (req));

@@ -828,7 +828,7 @@ void unlink_tun_net(struct tun_net_node *tnn, struct tun_search_node *tsn, struc
 
                 assertion(-501296, ttnn->key.tun);
 
-                dbgf_cn(cn, DBGL_CHANGES, DBGT_INFO, "%s: %s/%d %s", tsn ? tsn->netName : "",
+                dbgf_cn(cn, DBGL_CHANGES, DBGT_INFO, "%s: %s/%d %s", tsn ? tsn->netName : DBG_NIL,
                         ipXAsStr(ttnn->family, &ttnn->key.network.net), ttnn->key.network.prefixlen,
                         globalIdAsString(&ttnn->key.tun->key.on->global_id));
 
@@ -1384,7 +1384,7 @@ struct tun_out_status {
         UMETRIC_T bandwidth;
         UMETRIC_T metric;
         char *tunName;
-        uint16_t up;
+//        uint16_t up;
         char* searchName;
         char searchNetwork[IPX_PREFIX_STR_LEN];
 };
@@ -1397,7 +1397,7 @@ static const struct field_format tun_out_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           tun_out_status, bandwidth,     1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           tun_out_status, metric,        1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      tun_out_status, tunName,       1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              tun_out_status, up,            1, FIELD_RELEVANCE_HIGH),
+//        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              tun_out_status, up,            1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      tun_out_status, searchName,    1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       tun_out_status, searchNetwork, 1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_END
@@ -1431,13 +1431,16 @@ static int32_t tun_out_status_creator(struct status_handl *handl, void *data)
                         sprintf(status->network, "%s/%d", ipXAsStr(tnn->family, &tnn->key.network.net), tnn->key.network.prefixlen);
                         status->bandwidth = fmetric_to_umetric(fmetric_u8_to_fmu16(tnn->bandwidth));
                         status->metric = tnn->e2eMetric;
-                        status->tunName = tun->name.str;
-                        status->up = tun->upIfIdx;
+                        status->tunName = strlen(tun->name.str) ? tun->name.str : DBG_NIL;
+  //                      status->up = tun->upIfIdx;
 
                         if (tsn) {
                                 status->searchName = tsn->netName;
                                 sprintf(status->searchNetwork, "%s/%d", ipXAsStr(tsn->family, &tsn->network.net), tsn->network.prefixlen);
                                 tsn->shown = YES;;
+                        } else {
+                                status->searchName = DBG_NIL;
+                                strcpy(status->searchNetwork, DBG_NIL);
                         }
 
                         status++;
@@ -1449,6 +1452,8 @@ static int32_t tun_out_status_creator(struct status_handl *handl, void *data)
         for (itsn = NULL; (tsn = avl_iterate_item(&tun_search_tree, &itsn));) {
 
                 if (!tsn->shown) {
+                        strcpy(status->network, DBG_NIL);
+                        status->tunName = DBG_NIL;
                         status->searchName = tsn->netName;
                         sprintf(status->searchNetwork, "%s/%d", ipXAsStr(tsn->family, &tsn->network.net), tsn->network.prefixlen);
                         status++;
@@ -1751,7 +1756,7 @@ int32_t opt_tun_adv(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt
                                 ((un_remote = find_overlapping_hna(&ip_remote, 128)) && un_remote->on != self)) {
 
                                 dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "invalid prefix: %s or blocked by %s",
-                                        patch->val, un_remote ? globalIdAsString(&un_remote->on->global_id) : "");
+                                        patch->val, un_remote ? globalIdAsString(&un_remote->on->global_id) : DBG_NIL);
 
                                 return FAILURE;
                         }

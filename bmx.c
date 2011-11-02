@@ -314,7 +314,7 @@ void free_neigh_node(struct neigh_node *neigh)
         TRACE_FUNCTION_CALL;
 
         dbgf_track(DBGT_INFO, "freeing id=%s",
-                neigh && neigh->dhn && neigh->dhn->on ? globalIdAsString(&neigh->dhn->on->global_id) : "---");
+                neigh && neigh->dhn && neigh->dhn->on ? globalIdAsString(&neigh->dhn->on->global_id) : DBG_NIL);
 
         assertion(-500963, (neigh));
         assertion(-500964, (neigh->dhn));
@@ -409,7 +409,7 @@ IDM_T update_local_neigh(struct packet_buff *pb, struct dhash_node *dhn)
         dbgf_sys(DBGT_ERR, "NONMATCHING LINK=%s -> local=%d -> neighIID4me=%d -> dhn->id=%s",
                 pb->i.llip_str, local->local_id,
                 local->neigh ? local->neigh->neighIID4me : 0,
-                local->neigh && local->neigh->dhn->on ? globalIdAsString(&local->neigh->dhn->on->global_id) : "---");
+                local->neigh && local->neigh->dhn->on ? globalIdAsString(&local->neigh->dhn->on->global_id) : DBG_NIL);
         dbgf_sys(DBGT_ERR, "NONMATCHING local=%d <- neighIID4me=%d <- DHN=%s",
                 dhn->neigh && dhn->neigh->local ? dhn->neigh->local->local_id : 0,
                 dhn->neigh ? dhn->neigh->neighIID4me : 0,
@@ -468,9 +468,9 @@ void purge_orig_router(struct orig_node *only_orig, struct link_dev_node *only_l
                                 continue;
 
                         dbgf_track(DBGT_INFO, "only_orig=%s only_lndev=%s,%s only_useless=%d purging metric=%ju router=%X (%s)",
-                                only_orig ? globalIdAsString(&only_orig->global_id) : "---",
-                                only_lndev ? ipFAsStr(&only_lndev->key.link->link_ip):"---",
-                                only_lndev ? only_lndev->key.dev->label_cfg.str : "...",
+                                only_orig ? globalIdAsString(&only_orig->global_id) : DBG_NIL,
+                                only_lndev ? ipFAsStr(&only_lndev->key.link->link_ip):DBG_NIL,
+                                only_lndev ? only_lndev->key.dev->label_cfg.str : DBG_NIL,
                                 only_useless,rt->mr.umetric,
                                 ntohl(rt->local_key->local_id),
                                 rt->local_key && rt->local_key->neigh ? globalIdAsString(&rt->local_key->neigh->dhn->on->global_id) : "???");
@@ -514,7 +514,7 @@ void purge_link_node(struct link_node_key *only_link_key, struct dev_node *only_
 
         dbgf_all( DBGT_INFO, "only_link_key=%X,%d only_dev=%s only_expired=%d",
                 only_link_key ? ntohl(only_link_key->local_id) : 0, only_link_key ? only_link_key->dev_idx : -1,
-                only_dev ? only_dev->label_cfg.str : "---", only_expired);
+                only_dev ? only_dev->label_cfg.str : DBG_NIL, only_expired);
 
         while ((link = (only_link_key ? avl_find_item(&link_tree, only_link_key) : avl_next_item(&link_tree, &link_key_it)))) {
 
@@ -705,7 +705,7 @@ void purge_link_route_orig_nodes(struct dev_node *only_dev, IDM_T only_expired)
         TRACE_FUNCTION_CALL;
 
         dbgf_all( DBGT_INFO, "%s %s only expired",
-                only_dev ? only_dev->label_cfg.str : "---", only_expired ? " " : "NOT");
+                only_dev ? only_dev->label_cfg.str : DBG_NIL, only_expired ? " " : "NOT");
 
         purge_link_node(NULL, only_dev, only_expired);
 
@@ -1488,15 +1488,15 @@ char *field_dbg_value(const struct field_format *format, uint16_t min_msg_size, 
 
         } else if (field_type == FIELD_TYPE_IPX6P) {
 
-                val = *pp ? ip6AsStr(*((IPX_T**) pp)) : "---";
+                val = *pp ? ip6AsStr(*((IPX_T**) pp)) : DBG_NIL;
 
         } else if (field_type == FIELD_TYPE_POINTER_CHAR) {
 
-                val = *pp ? memAsCharString(*((char**) pp), strlen(*((char**) pp))) : "---";
+                val = *pp ? memAsCharString(*((char**) pp), strlen(*((char**) pp))) : DBG_NIL;
 
         } else if (field_type == FIELD_TYPE_POINTER_GLOBAL_ID) {
 
-                val = *pp ? globalIdAsString(*((GLOBAL_ID_T**)pp)) : "---";
+                val = *pp ? globalIdAsString(*((GLOBAL_ID_T**)pp)) : DBG_NIL;
 
         } else {
 
@@ -1959,7 +1959,7 @@ static int32_t orig_status_creator(struct status_handl *handl, void *data)
                 status[i].primaryIp = on->primary_ip;
                 status[i].routes = on->rt_tree.items;
                 status[i].viaIp = (on->curr_rt_lndev ? on->curr_rt_lndev->key.link->link_ip : ZERO_IP);
-                status[i].viaDev = on->curr_rt_lndev && on->curr_rt_lndev->key.dev ? on->curr_rt_lndev->key.dev->name_phy_cfg.str : "";
+                status[i].viaDev = on->curr_rt_lndev && on->curr_rt_lndev->key.dev ? on->curr_rt_lndev->key.dev->name_phy_cfg.str : "lo";
                 status[i].metric = (on->curr_rt_local ? (on->curr_rt_local->mr.umetric) : (on == self ? UMETRIC_MAX : 0));
                 status[i].myIid4x = on->dhn->myIID4orig;
                 status[i].descSqn = on->descSqn;

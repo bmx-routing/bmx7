@@ -629,6 +629,7 @@ enum {
         FIELD_TYPE_POINTER_GLOBAL_ID,
         FIELD_TYPE_GLOBAL_ID,
         FIELD_TYPE_UMETRIC,
+        FIELD_TYPE_POINTER_UMETRIC,
         FIELD_TYPE_FMETRIC8,
 	FIELD_TYPE_IP4,
 	FIELD_TYPE_IPX,
@@ -641,7 +642,7 @@ enum {
 };
 
 #define FIELD_STANDARD_SIZES {-1,-1,-1,-8,-8,(8*sizeof(char*)),(8*sizeof(GLOBAL_ID_T*)),(8*sizeof(GLOBAL_ID_T)), \
-                              (8*sizeof(UMETRIC_T)),(8*sizeof(FMETRIC_U8_T)), \
+                              (8*sizeof(UMETRIC_T)),(8*sizeof(UMETRIC_T*)),(8*sizeof(FMETRIC_U8_T)), \
                               (8*sizeof(IP4_T)), (8*sizeof(IPX_T)), (8*sizeof(IPX_T)), (8*sizeof(IP6_T)),(8*sizeof(IP6_T*)), (8*sizeof(MAC_T))}
 // negative values mean size must be multiple of negativ value, positive values mean absolute bit sizes
 

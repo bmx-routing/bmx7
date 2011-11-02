@@ -1498,6 +1498,10 @@ char *field_dbg_value(const struct field_format *format, uint16_t min_msg_size, 
 
                 val = *pp ? globalIdAsString(*((GLOBAL_ID_T**)pp)) : DBG_NIL;
 
+        } else if (field_type == FIELD_TYPE_POINTER_UMETRIC) {
+
+                val = *pp ? umetric_to_human(**((UMETRIC_T**) pp)) : DBG_NIL;
+
         } else {
 
                 assertion(-501202, 0);

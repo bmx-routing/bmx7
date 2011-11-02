@@ -247,13 +247,24 @@ FIELD_FORMAT_END }
 
 #define NETWORK_NAME_LEN 32
 
-struct tun_search_node {
-        char netName[NETWORK_NAME_LEN];
+struct tun_search_key {
 
+//        uint32_t ipmetric;
         uint8_t family;
         struct net_key network;
-        uint8_t networkMin;
+        char netName[NETWORK_NAME_LEN];
+};
+
+struct tun_search_node {
+
+        struct tun_search_key key;
+        
         uint32_t ipmetric;
+//        uint8_t family;
+//        struct net_key network;
+//        char netName[NETWORK_NAME_LEN];
+
+        uint8_t networkMin;
         GLOBAL_ID_T global_id;
         struct net_key srcPrefix;
 

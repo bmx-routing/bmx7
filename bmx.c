@@ -1420,7 +1420,9 @@ char *field_dbg_value(const struct field_format *format, uint16_t min_msg_size, 
 
         uint8_t field_type = format->field_type;
         char *val = NULL;
-        uint8_t *p = data + (pos_bit/8);//&(data[pos_bit / 8]);
+        void *p = (void*) (data + (pos_bit / 8));
+        void **pp = (void**) (data + (pos_bit / 8)); // There is problem with pointer to pointerpointer casting!!!!
+
         uint8_t bytes = bits / 8;
 
         if (field_type == FIELD_TYPE_UINT || field_type == FIELD_TYPE_HEX || field_type == FIELD_TYPE_STRING_SIZE) {
@@ -1486,17 +1488,15 @@ char *field_dbg_value(const struct field_format *format, uint16_t min_msg_size, 
 
         } else if (field_type == FIELD_TYPE_IPX6P) {
 
-                val = *p ? ip6AsStr(*((IPX_T**) p)) : "---";
+                val = *pp ? ip6AsStr(*((IPX_T**) pp)) : "---";
 
         } else if (field_type == FIELD_TYPE_POINTER_CHAR) {
 
-                val = *p ? memAsCharString(*((char**) p), strlen(*((char**) p))) : "---";
+                val = *pp ? memAsCharString(*((char**) pp), strlen(*((char**) pp))) : "---";
 
         } else if (field_type == FIELD_TYPE_POINTER_GLOBAL_ID) {
 
-                GLOBAL_ID_T **p = (GLOBAL_ID_T **)(data + (pos_bit / 8)); //&(data[pos_bit / 8]);
-
-                val = *p ? globalIdAsString(*p) : "---";
+                val = *pp ? globalIdAsString(*((GLOBAL_ID_T**)pp)) : "---";
 
         } else {
 

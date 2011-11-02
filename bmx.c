@@ -1494,7 +1494,9 @@ char *field_dbg_value(const struct field_format *format, uint16_t min_msg_size, 
 
         } else if (field_type == FIELD_TYPE_POINTER_GLOBAL_ID) {
 
-                val = *p ? globalIdAsString(*((GLOBAL_ID_T**) p)) : "---";
+                GLOBAL_ID_T **p = (GLOBAL_ID_T **)(data + (pos_bit / 8)); //&(data[pos_bit / 8]);
+
+                val = *p ? globalIdAsString(*p) : "---";
 
         } else {
 

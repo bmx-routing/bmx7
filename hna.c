@@ -1002,8 +1002,11 @@ void set_tun_net(struct tun_search_node *sn)
 
                                 struct tunnel_node_out *tun = best_tnn->key.tun;
 
-                                if (!tun->upIfIdx && configure_tunnel_out(ADD, tun->key.on, tun) == SUCCESS)
+                                if (!tun->upIfIdx && configure_tunnel_out(ADD, tun->key.on, tun) == SUCCESS){
                                         ipaddr(ADD, tun->upIfIdx, AF_INET6, &tun->localIp, 128, YES /*deprecated*/);
+					change_mtu(tun->name.str, tsn->mtu);
+					dbgf_track(DBGT_INFO, "Set MTU from %s as %d",tun->name.str, tsn->mtu);
+				}
 
                                 if (tun->upIfIdx) {
                                         if (tsn->key.family == AF_INET && !is_ip_set(&tun->src4Ip)) {
@@ -1710,6 +1713,13 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                                 } else if (cmd == OPT_APPLY && tsn) {
                                         memset(&tsn->global_id.pkid, 0, GLOBAL_ID_PKID_LEN);
                                 }
+                        }  else if (!strcmp(c->opt->name, ARG_TUN_SEARCH_MTU)) {
+				if (c->val) {
+					uint16_t mtuVal = c->val ? strtol(c->val, NULL, 10) : DEF_TUN_SEARCH_MTU;
+				        if (cmd == OPT_APPLY && tsn)
+				                tsn->mtu = mtuVal;
+				}
+
                         }
                 }
         }
@@ -2108,7 +2118,9 @@ struct opt_type hna_options[]= {
 	{ODI,ARG_TUN_SEARCH_NAME,ARG_TUN_SEARCH_PKID,0,5,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,	0,              0,              0,0,            opt_tun_search,
 			ARG_SHA2_FORM, "specify pkid of remote tunnel endpoint"},
 	{ODI,ARG_TUN_SEARCH_NAME,ARG_TUN_SEARCH_IPMETRIC,0,5,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,	0,      MAX_TUN_SEARCH_IPMETRIC,0,0,            opt_tun_search,
-			ARG_VALUE_FORM, "specify ip metric for local routing table entries"}
+			ARG_VALUE_FORM, "specify ip metric for local routing table entries"},
+	{ODI,ARG_TUN_SEARCH_NAME,ARG_TUN_SEARCH_MTU,0,5,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,	0,      	0,		0,0,            opt_tun_search,
+			ARG_VALUE_FORM, "specify MTU user in tunnel"}
         ,
 	{ODI,0,ARG_TUNS,	        0,5,2,A_PS0,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
 			0,		"show announced and used tunnels and related networks"}

@@ -77,6 +77,7 @@
 #define ARG_TUN_NET_LOCAL ARG_TUN_ADV
 #define ARG_TUN_NET_BW "bandwidth"
 
+
 #define ARG_TUN_SEARCH_NAME       "tunOut"
 #define ARG_TUN_SEARCH_NETWORK    "network"
 #define ARG_TUN_SEARCH_IP         "address"
@@ -86,6 +87,8 @@
 #define MAX_TUN_SEARCH_IPMETRIC   INT32_MAX
 #define ARG_TUN_SEARCH_HOSTNAME   "gwName"
 #define ARG_TUN_SEARCH_PKID       "gwId"
+#define ARG_TUN_SEARCH_MTU "mtu"
+#define DEF_TUN_SEARCH_MTU 1460
 
 
 struct net_key {
@@ -254,6 +257,7 @@ struct tun_search_node {
         struct net_key network;
         uint8_t networkMin;
         uint32_t ipmetric;
+	uint32_t mtu;
         GLOBAL_ID_T global_id;
         struct net_key srcPrefix;
 

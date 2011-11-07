@@ -1369,6 +1369,25 @@ IDM_T iptunnel(IDM_T del, char *name, uint8_t proto, IPX_T *local, IPX_T *remote
         return SUCCESS;
 }
 
+IDM_T change_mtu(char *name, uint16_t mtu)
+{
+	struct ifreq req;
+
+	req.ifr_addr.sa_family = AF_INET;
+	strcpy(req.ifr_name, name);
+	if (ioctl(rt_sock, SIOCGIFMTU, (caddr_t)&req) < 0) {
+        	dbgf_sys(DBGT_ERR, "Can't read '%s' device %s", name, strerror(errno));
+        	return FAILURE;
+	}
+    
+	req.ifr_mtu = mtu;
+    	if (ioctl(rt_sock, SIOCSIFMTU, (caddr_t)&req) < 0) {
+        	dbgf_sys(DBGT_ERR, "Can't set MTU from '%s' %s", name, strerror(errno));
+                return FAILURE;
+
+	}
+	return SUCCESS;
+}
 
 
 STATIC_FUNC

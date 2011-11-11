@@ -112,6 +112,7 @@ void check_for_changed_sms(void *unused)
 
                         matching_sms++;
                         sms->stale = 0;
+                        close(fd);
 
                 } else {
 
@@ -127,6 +128,7 @@ void check_for_changed_sms(void *unused)
                         sms->stale = 0;
                         memcpy(sms->text, data, len);
                         avl_insert(&json_sms_tree, sms, -300371);
+                        close(fd);
 
                         dbgf_track(DBGT_INFO, "new sms=%s size=%d! updating description..-", path_name, sms->text_len);
                 }

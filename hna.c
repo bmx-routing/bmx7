@@ -1598,14 +1598,12 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                         
                         unlink_tun_net(NULL, NULL, NULL);
                         
-                        if (tsn)
-                                avl_remove(&tun_search_net_tree, &tsn->key, -300429);
-
                         if (patch->diff != DEL && !tsn) {
                                 tsn = debugMalloc(sizeof (struct tun_search_node), -300400);
                                 memset(tsn, 0, sizeof (struct tun_search_node));
                                 strcpy(tsn->key.netName, name);
                                 avl_insert(&tun_search_name_tree, tsn, -300401);
+                                avl_insert(&tun_search_net_tree, tsn, -300401);
                                 tsn->mtu = DEF_TUN_SEARCH_MTU;
                         }
 
@@ -1628,14 +1626,18 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                                         set_opt_child_val(c, adjusted_dst);
 
                                         if (cmd == OPT_APPLY && tsn) {
+                                                avl_remove(&tun_search_net_tree, &tsn->key, -300000);
                                                 tsn->key.network.net = dst;
                                                 tsn->key.network.prefixlen = mask;
                                                 tsn->key.family = family;
+                                                avl_insert(&tun_search_net_tree, &tsn, -300000);
                                         }
 
                                 } else if (cmd == OPT_APPLY && tsn) {
+                                        avl_remove(&tun_search_net_tree, &tsn->key, -300000);
                                         tsn->key.network.net = ZERO_IP;
                                         tsn->key.network.prefixlen = 0;
+                                        avl_insert(&tun_search_net_tree, &tsn, -300000);
                                 }
 
                         } else if (!strcmp(c->opt->name, ARG_TUN_SEARCH_IPMETRIC)) {
@@ -1737,9 +1739,8 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
 
                         if (patch->diff == DEL) {
                                 avl_remove(&tun_search_name_tree, &tsn->key.netName, -300402);
+                                avl_remove(&tun_search_net_tree, &tsn->key, -300000);
                                 debugFree(tsn, -300403);
-                        } else {
-                                avl_insert(&tun_search_net_tree, &tsn, -300431);
                         }
                 }
 

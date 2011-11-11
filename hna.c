@@ -1733,11 +1733,8 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
 
                         }  else if (!strcmp(c->opt->name, ARG_TUN_SEARCH_MTU)) {
 
-                                if (c->val) {
-                                        uint16_t mtuVal = c->val ? strtol(c->val, NULL, 10) : DEF_TUN_SEARCH_MTU;
-                                        if (cmd == OPT_APPLY && tsn)
-                                                tsn->mtu = mtuVal;
-                                }
+                                if (cmd == OPT_APPLY && tsn)
+                                        tsn->mtu = c->val ? strtol(c->val, NULL, 10) : DEF_TUN_SEARCH_MTU;
                         }
                 }
         }

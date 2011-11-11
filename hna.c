@@ -916,13 +916,15 @@ void set_tun_net(struct tun_search_node *sn)
         while (IMPLIES(sn, !tsn) && (tsn = sn ? sn : avl_iterate_item(&tun_search_name_tree, &atsn))) {
 
                 struct tun_net_node *best_tnn = NULL;
+                struct net_key srcPrefix = tsn->srcPrefix.prefixlen ?
+                        tsn->srcPrefix : (tsn->key.family == AF_INET ? tun4_address : tun6_address);
 
                 dbgf_all(DBGT_INFO, "searching %s=%s: %s=%s %s=%d %s=%s/%d %s=%s/%d ",
                         ARG_TUN_SEARCH_NAME, tsn->key.netName,
                         ARG_TUN_SEARCH_HOSTNAME, globalIdAsString(&tsn->global_id),
                         ARG_TUN_SEARCH_TYPE, tsn->srcType,
                         ARG_TUN_SEARCH_NETWORK, ipXAsStr(tsn->key.family, &tsn->key.network.net), tsn->key.network.prefixlen,
-                        ARG_TUN_SEARCH_IP, ipXAsStr(tsn->key.family, &tsn->srcPrefix.net), tsn->srcPrefix.prefixlen
+                        ARG_TUN_SEARCH_IP, ipXAsStr(tsn->key.family, &srcPrefix.net), srcPrefix.prefixlen
                         );
 
                 while ((tnn = avl_iterate_item(&tun_net_tree, &itnn))) {
@@ -933,9 +935,7 @@ void set_tun_net(struct tun_search_node *sn)
                         UMETRIC_T linkMax = fmetric_to_umetric(fmetric_u8_to_fmu16(tnn->bandwidth));
                         UMETRIC_T pathMetric = on->curr_rt_local ? (on->curr_rt_local->mr.umetric) : 0;
                         uint8_t family = tnn->family;
-                        uint8_t isSrc4 = (family == AF_INET);
-                        struct net_key ingressPrefix = isSrc4 ? tnn->key.tun->ingress4Prefix : tnn->key.tun->ingress6Prefix;
-                        struct net_key srcPrefix = tsn->srcPrefix.prefixlen ? tsn->srcPrefix : (isSrc4 ? tun4_address : tun6_address);
+                        struct net_key ingressPrefix = (family == AF_INET) ? tnn->key.tun->ingress4Prefix : tnn->key.tun->ingress6Prefix;
 
                         dbgf_all(DBGT_INFO, "checking network=%s/%d bw_fmu8=%d, ingress=%s/%d localIp=%s tun6Id=%d tun=%p from orig=%s",
                                 ipXAsStr(family, &tnn->key.network.net), tnn->key.network.prefixlen, tnn->bandwidth.val.u8,
@@ -944,7 +944,7 @@ void set_tun_net(struct tun_search_node *sn)
                                 globalIdAsString(&on->global_id));
 
                         if (!(
-                                tsn->key.family == tnn->family &&
+                                tsn->key.family == family &&
                                 tsn->key.network.prefixlen >= tnn->key.network.prefixlen &&
                                 is_ip_net_equal(&tsn->key.network.net, &tnn->key.network.net, tnn->key.network.prefixlen, family) &&
                                 IMPLIES(strlen(tsn_gid->name), !strcmp(tsn_gid->name, tnn_gid->name)) &&
@@ -956,11 +956,13 @@ void set_tun_net(struct tun_search_node *sn)
 
                         if (tsn->srcType == TUN_SRC_TYPE_UNDEF || tsn->srcType == TUN_SRC_TYPE_STATIC) {
                                 
+                                dbgf_all(DBGT_INFO, "acceptable B");
+
                                 if (!srcPrefix.prefixlen || srcPrefix.prefixlen < ingressPrefix.prefixlen ||
                                         !is_ip_net_equal(&srcPrefix.net, &ingressPrefix.net, MIN(srcPrefix.prefixlen, ingressPrefix.prefixlen), family))
                                         continue;
 
-                                dbgf_all(DBGT_INFO, "acceptable B");
+                                dbgf_all(DBGT_INFO, "acceptable C");
 
 
                         } else {
@@ -1431,7 +1433,7 @@ static int32_t tun_out_status_creator(struct status_handl *handl, void *data)
         for (itnn = NULL; (tnn = avl_iterate_item(&tun_net_tree, &itnn));)
                 status_size += (tnn->tun_search_tree.items ? 0 : sizeof (struct tun_out_status));
 
-        status = (struct tun_out_status *) (handl->data = debugRealloc(handl->data, status_size, -300000));
+        status = (struct tun_out_status *) (handl->data = debugRealloc(handl->data, status_size, -300428));
         memset(status, 0, status_size);
 
         for (itnn = NULL; (tnn = avl_iterate_item(&tun_net_tree, &itnn));) {
@@ -1596,6 +1598,9 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                         
                         unlink_tun_net(NULL, NULL, NULL);
                         
+                        if (tsn)
+                                avl_remove(&tun_search_net_tree, &tsn->key, -300429);
+
                         if (patch->diff != DEL && !tsn) {
                                 tsn = debugMalloc(sizeof (struct tun_search_node), -300400);
                                 memset(tsn, 0, sizeof (struct tun_search_node));
@@ -1603,8 +1608,6 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                                 avl_insert(&tun_search_name_tree, tsn, -300401);
                         }
 
-                        if (tsn)
-                                avl_remove(&tun_search_net_tree, &tsn->key, -300000);
                 }
 
 
@@ -1732,12 +1735,12 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
 
                         if (patch->diff == DEL) {
                                 avl_remove(&tun_search_name_tree, &tsn->key.netName, -300402);
-                                avl_remove(&tun_search_net_tree, &tsn->key, -300000);
                                 debugFree(tsn, -300403);
                         } else {
-                                avl_insert(&tun_search_net_tree, &tsn, -300000);
+                                avl_insert(&tun_search_net_tree, &tsn, -300431);
                         }
                 }
+
                 set_tun_net(NULL);
                 my_description_changed = YES;
         }
@@ -1750,13 +1753,13 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                         assertion(-501242, (!tsn->tun_net));
 
                         avl_remove(&tun_search_name_tree, &tsn->key.netName, -300404);
-                        avl_remove(&tun_search_net_tree, &tsn->key, -300000);
+                        avl_remove(&tun_search_net_tree, &tsn->key, -300432);
                         debugFree(tsn, -300405);
                 }
         }
 
 
-        assertion(-500000, (tun_search_name_tree.items == tun_search_net_tree.items));
+        assertion(-501323, (tun_search_name_tree.items == tun_search_net_tree.items));
 
         return SUCCESS;
 }

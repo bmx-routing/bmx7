@@ -882,6 +882,8 @@ struct tun_search_node* get_active_tun(struct tun_search_node *tsn)
 
         while ((other = avl_next_item(&tun_search_net_tree, &key))) {
 
+                key = other->key;
+
                 if (memcmp(&other->key, &tsn->key, sizeof (struct tun_search_key)))
                         return NULL;
 
@@ -1600,6 +1602,8 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                 tsn = avl_find_item(&tun_search_name_tree, name);
                 uint8_t family = tsn ? tsn->key.family : 0; // family of ARG_TUN_SEARCH_NETWORK and ARG_TUN_SEARCH_SRC must be the same!!!
 
+                assertion(-501324, IMPLIES(tsn, tsn == avl_find_item(&tun_search_net_tree, &tsn->key)));
+
                 if (cmd == OPT_APPLY) {
                         
                         unlink_tun_net(NULL, NULL, NULL);
@@ -1608,13 +1612,12 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                                 tsn = debugMalloc(sizeof (struct tun_search_node), -300400);
                                 memset(tsn, 0, sizeof (struct tun_search_node));
                                 strcpy(tsn->key.netName, name);
-                                avl_insert(&tun_search_name_tree, tsn, -300401);
-                                avl_insert(&tun_search_net_tree, tsn, -300401);
+                                avl_insert(&tun_search_name_tree, tsn, -300433);
+                                avl_insert(&tun_search_net_tree, tsn, -300434);
                                 tsn->mtu = DEF_TUN_SEARCH_MTU;
                         }
 
                 }
-
 
                 while ((c = list_iterate(&patch->childs_instance_list, c))) {
 
@@ -1632,18 +1635,18 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                                         set_opt_child_val(c, adjusted_dst);
 
                                         if (cmd == OPT_APPLY && tsn) {
-                                                avl_remove(&tun_search_net_tree, &tsn->key, -300000);
+                                                avl_remove(&tun_search_net_tree, &tsn->key, -300435);
                                                 tsn->key.network.net = dst;
                                                 tsn->key.network.prefixlen = mask;
                                                 tsn->key.family = family;
-                                                avl_insert(&tun_search_net_tree, &tsn, -300000);
+                                                avl_insert(&tun_search_net_tree, tsn, -300436);
                                         }
 
                                 } else if (cmd == OPT_APPLY && tsn) {
-                                        avl_remove(&tun_search_net_tree, &tsn->key, -300000);
+                                        avl_remove(&tun_search_net_tree, &tsn->key, -300437);
                                         tsn->key.network.net = ZERO_IP;
                                         tsn->key.network.prefixlen = 0;
-                                        avl_insert(&tun_search_net_tree, &tsn, -300000);
+                                        avl_insert(&tun_search_net_tree, tsn, -300438);
                                 }
 
                         } else if (!strcmp(c->opt->name, ARG_TUN_SEARCH_IPMETRIC)) {
@@ -1682,7 +1685,9 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
 
                                         if (cmd == OPT_APPLY && tsn) {
                                                 tsn->srcPrefix = ip;
+                                                avl_remove(&tun_search_net_tree, &tsn->key, -300439);
                                                 tsn->key.family = family;
+                                                avl_insert(&tun_search_net_tree, tsn, -300440);
                                         }
 
                                 } else if (cmd == OPT_APPLY && tsn) {
@@ -1727,17 +1732,18 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                                 }
 
                         }  else if (!strcmp(c->opt->name, ARG_TUN_SEARCH_MTU)) {
-				if (c->val) {
-					uint16_t mtuVal = c->val ? strtol(c->val, NULL, 10) : DEF_TUN_SEARCH_MTU;
-				        if (cmd == OPT_APPLY && tsn)
-				                tsn->mtu = mtuVal;
-				}
 
+                                if (c->val) {
+                                        uint16_t mtuVal = c->val ? strtol(c->val, NULL, 10) : DEF_TUN_SEARCH_MTU;
+                                        if (cmd == OPT_APPLY && tsn)
+                                                tsn->mtu = mtuVal;
+                                }
                         }
                 }
         }
 
-
+        assertion(-501325, (tun_search_name_tree.items == tun_search_net_tree.items));
+        assertion(-501326, IMPLIES(tsn, tsn == avl_find_item(&tun_search_net_tree, &tsn->key)));
 
         if (cmd == OPT_APPLY) {
 
@@ -1745,7 +1751,7 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
 
                         if (patch->diff == DEL) {
                                 avl_remove(&tun_search_name_tree, &tsn->key.netName, -300402);
-                                avl_remove(&tun_search_net_tree, &tsn->key, -300000);
+                                avl_remove(&tun_search_net_tree, &tsn->key, -300441);
                                 debugFree(tsn, -300403);
                         }
                 }
@@ -1766,9 +1772,6 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                         debugFree(tsn, -300405);
                 }
         }
-
-
-        assertion(-501323, (tun_search_name_tree.items == tun_search_net_tree.items));
 
         return SUCCESS;
 }
@@ -2178,7 +2181,9 @@ int32_t hna_init( void )
 {
         TRACE_FUNCTION_CALL;
 
-        assertion(-501254, is_zero((void*)&ZERO_NET_KEY, sizeof(ZERO_NET_KEY)));
+        assertion(-501254, is_zero((void*) &ZERO_NET_KEY, sizeof (ZERO_NET_KEY)));
+        assertion(-501327, tun_search_net_tree.key_size == sizeof (struct tun_search_key));
+        assertion(-501328, tun_search_name_tree.key_size == NETWORK_NAME_LEN);
 
         struct frame_handl tlv_handl;
         

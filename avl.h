@@ -64,7 +64,7 @@ struct avl_tree {
 #define AVL_TREE(tree, element_type, key_field) struct avl_tree (tree) =  { \
                    NULL, \
                    (sizeof( (((element_type *) 0)->key_field) )), \
-                   ((unsigned long)(&((element_type *)0)->key_field)), \
+                   ((unsigned long)(&(((element_type *)0)->key_field))), \
                    0 }
 
 #define avl_height(p) ((p) == NULL ? -1 : (p)->balance)

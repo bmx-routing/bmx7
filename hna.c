@@ -1457,7 +1457,8 @@ static int32_t tun_out_status_creator(struct status_handl *handl, void *data)
 
                         if (tsn) {
                                 status->searchName = tsn->key.netName;
-                                sprintf(status->searchNetwork, "%s/%d", ipXAsStr(tsn->key.family, &tsn->key.network.net), tsn->key.network.prefixlen);
+                                sprintf(status->searchNetwork, "%s/%d",
+                                        ipXAsStr(tsn->key.family, &tsn->key.network.net), tsn->key.network.prefixlen);
                                 status->searchId = &tsn->global_id;
                                 status->ipMetric = tsn->ipmetric;
 
@@ -1481,7 +1482,12 @@ static int32_t tun_out_status_creator(struct status_handl *handl, void *data)
                         strcpy(status->network, DBG_NIL);
                         status->tunName = DBG_NIL;
                         status->searchName = tsn->key.netName;
-                        sprintf(status->searchNetwork, "%s/%d", ipXAsStr(tsn->key.family, &tsn->key.network.net), tsn->key.network.prefixlen);
+                        if (tsn->key.family) {
+                                sprintf(status->searchNetwork, "%s/%d",
+                                        ipXAsStr(tsn->key.family, &tsn->key.network.net), tsn->key.network.prefixlen);
+                        } else {
+                                sprintf(status->searchNetwork, DBG_NIL);
+                        }
                         status++;
                 }
                 tsn->shown = NO;

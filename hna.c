@@ -1606,6 +1606,7 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                                 memset(tsn, 0, sizeof (struct tun_search_node));
                                 strcpy(tsn->key.netName, name);
                                 avl_insert(&tun_search_name_tree, tsn, -300401);
+                                tsn->mtu = DEF_TUN_SEARCH_MTU;
                         }
 
                 }
@@ -1716,6 +1717,7 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                                 } else if (cmd == OPT_APPLY && tsn) {
                                         memset(&tsn->global_id.pkid, 0, GLOBAL_ID_PKID_LEN);
                                 }
+
                         }  else if (!strcmp(c->opt->name, ARG_TUN_SEARCH_MTU)) {
 				if (c->val) {
 					uint16_t mtuVal = c->val ? strtol(c->val, NULL, 10) : DEF_TUN_SEARCH_MTU;
@@ -1745,7 +1747,7 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                 my_description_changed = YES;
         }
 
-        
+
         if (  cmd == OPT_UNREGISTER ) {
 
                 while ((tsn = avl_first_item(&tun_search_name_tree))) {
@@ -2122,8 +2124,8 @@ struct opt_type hna_options[]= {
 			ARG_SHA2_FORM, "specify pkid of remote tunnel endpoint"},
 	{ODI,ARG_TUN_SEARCH_NAME,ARG_TUN_SEARCH_IPMETRIC,0,5,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,	0,      MAX_TUN_SEARCH_IPMETRIC,0,0,            opt_tun_search,
 			ARG_VALUE_FORM, "specify ip metric for local routing table entries"},
-	{ODI,ARG_TUN_SEARCH_NAME,ARG_TUN_SEARCH_MTU,0,5,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,	0,      	0,		0,0,            opt_tun_search,
-			ARG_VALUE_FORM, "specify MTU user in tunnel"}
+	{ODI,ARG_TUN_SEARCH_NAME,ARG_TUN_SEARCH_MTU,0,5,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,	MIN_TUN_SEARCH_MTU,MAX_TUN_SEARCH_MTU,DEF_TUN_SEARCH_MTU,0,opt_tun_search,
+			ARG_VALUE_FORM, "specify MTU of outgoing tunnel"}
         ,
 	{ODI,0,ARG_TUNS,	        0,5,2,A_PS0,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
 			0,		"show announced and used tunnels and related networks"}

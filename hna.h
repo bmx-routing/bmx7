@@ -89,6 +89,8 @@
 #define ARG_TUN_SEARCH_PKID       "gwId"
 #define ARG_TUN_SEARCH_MTU "mtu"
 #define DEF_TUN_SEARCH_MTU 1460
+#define MIN_TUN_SEARCH_MTU 1280
+#define MAX_TUN_SEARCH_MTU 65535
 
 
 struct net_key {

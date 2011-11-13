@@ -841,7 +841,6 @@ void unlink_tun_net(struct tun_net_node *tnn, struct tun_search_node *tsn, struc
 
                         if (!tsn || tsn == ttsn) {
 
-                                assertion(-501298, (ttsn->tun_net == ttnn));
                                 assertion(-501299, (tun && tun->upIfIdx && tun->tun_net_tree.items));
 
                                 ip(ttsn->key.family, IP_ROUTE_TUNS, DEL, NO, &ttsn->key.network.net, ttsn->key.network.prefixlen,
@@ -872,7 +871,7 @@ void unlink_tun_net(struct tun_net_node *tnn, struct tun_search_node *tsn, struc
 }
 
 STATIC_FUNC
-struct tun_search_node* get_active_tun(struct tun_search_node *tsn)
+struct tun_search_node* get_alternative_tun(struct tun_search_node *tsn)
 {
         struct tun_search_node *other, *best = NULL;
         struct tun_search_key key;
@@ -996,7 +995,7 @@ void set_tun_net(struct tun_search_node *sn)
                         if(tsn->tun_net)
                                 unlink_tun_net(tsn->tun_net, tsn, NULL);
 
-                        struct tun_search_node *alternative = get_active_tun(tsn);
+                        struct tun_search_node *alternative = get_alternative_tun(tsn);
 
                         if (alternative && alternative->tun_net->e2eMetric < best_tnn->e2eMetric) {
 
@@ -1353,28 +1352,39 @@ int process_description_tlv_tunXin6_net_adv(struct rx_frame_iterator *it)
 
                 } else if (it->op == TLV_OP_ADD) {
 
-                        struct tun_adv_key key = set_tun_adv_key(it->on, adv->tun6Id);
-                        struct tunnel_node_out *tun = avl_find_item(&tunnel_out_tree, &key);
+                        struct tun_adv_key tak = set_tun_adv_key(it->on, adv->tun6Id);
+                        struct tunnel_node_out *tun = avl_find_item(&tunnel_out_tree, &tak);
 
                         if (tun) {
 
-                                struct tun_net_node *tnn = debugMalloc(sizeof (struct tun_net_node), -300418);
-                                memset(tnn, 0, sizeof (struct tun_net_node));
-                                tnn->key.tun = tun;
-                                tnn->key.network = net;
-                                tnn->family = family;
-                                tnn->bandwidth = adv->bandwidth;
+                                struct tun_net_key tnk;
+                                memset(&tnk, 0, sizeof (tnk));
+                                tnk.tun = tun;
+                                tnk.network = net;
 
-                                AVL_INIT_TREE(tnn->tun_search_tree, struct tun_search_node, key.netName);
+                                if (avl_find(&tun_net_tree, &tnk)) {
 
-                                avl_insert(&tun_net_tree, tnn, -300419);
-                                avl_insert(&tun->tun_net_tree, tnn, -300419);
+                                        struct tun_net_node *tnn = debugMalloc(sizeof (struct tun_net_node), -300418);
+                                        memset(tnn, 0, sizeof (struct tun_net_node));
+                                        tnn->key.tun = tun;
+                                        tnn->key.network = net;
+                                        tnn->family = family;
+                                        tnn->bandwidth = adv->bandwidth;
 
-                                used = 1;
+                                        AVL_INIT_TREE(tnn->tun_search_tree, struct tun_search_node, key.netName);
+
+                                        avl_insert(&tun_net_tree, tnn, -300419);
+                                        avl_insert(&tun->tun_net_tree, tnn, -300419);
+
+                                        used = 1;
+                                } else {
+                                        dbgf_sys(DBGT_WARN, "double network=%s/%d found for orig=%s tun6Id=%d",
+                                                ipXAsStr(family, &net.net), globalIdAsString(&tak.on->global_id), tak.tun6Id);
+                                }
 
                         } else {
                                 dbgf_sys(DBGT_WARN, "no matching tunnel_node found for orig=%s tun6Id=%d",
-                                        globalIdAsString(&key.on->global_id), key.tun6Id);
+                                        globalIdAsString(&tak.on->global_id), tak.tun6Id);
                         }
                 }
         }

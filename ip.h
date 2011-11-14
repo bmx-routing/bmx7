@@ -205,12 +205,6 @@ typedef struct ifname IFNAME_T;
 #define LINK_INFO 0
 #define ADDR_INFO 1
 
-// IPv4 versus IPv6 array-position identifier
-#define BMX_AFINET4 0
-#define BMX_AFINET6 1
-#define ORT_MAX 1
-
-
 //#define IPV6_MC_ALL_ROUTERS "FF02::2"
 
 //#define IPV6_LINK_LOCAL_UNICAST_U32 0xFE800000
@@ -220,25 +214,20 @@ extern const IPX_T ZERO_IP;
 extern const MAC_T ZERO_MAC;
 extern const struct link_dev_key ZERO_LINK_KEY;
 
+extern const struct net_key ZERO_NET_KEY;
+extern const struct net_key ZERO_NET4_KEY;
+extern const struct net_key ZERO_NET6_KEY;
+
+
 extern const IP6_T   IP6_ALLROUTERS_MC_ADDR;
 extern const IP6_T   IP6_LOOPBACK_ADDR;
 
 extern const IP6_T   IP6_LINKLOCAL_UC_PREF;
-extern const uint8_t IP6_LINKLOCAL_UC_PLEN
-;
+extern const uint8_t IP6_LINKLOCAL_UC_PLEN;
 
 extern const IP6_T   IP6_MC_PREF;
 extern const uint8_t IP6_MC_PLEN;
 
-struct ort_data {
-        uint8_t family;
-        uint8_t max_prefixlen;
-
-};
-
-extern const struct ort_data ort_dat[ORT_MAX + 1];
-
-#define AFINET2BMX( fam ) ( ((fam) == AF_INET) ? BMX_AFINET4 : BMX_AFINET6 )
 
 
 extern struct dev_node *primary_dev_cfg;
@@ -353,6 +342,11 @@ struct if_addr_node {
 };
 
 
+struct net_key {
+        uint8_t family;
+	uint8_t prefixlen;
+	IPX_T net;
+};
 
 struct tx_link_node {
 	struct list_head tx_tasks_list[FRAME_TYPE_ARRSZ]; // scheduled frames and messages
@@ -482,6 +476,8 @@ char *ipFAsStr(const IPX_T *addr);
 char *ip4AsStr( IP4_T addr );
 void  ipXToStr(int family, const IPX_T *addr, char *str);
 void ipFToStr(const IPX_T *addr, char *str);
+char *netAsStr(const struct net_key *net);
+
 
 #define ipXto4( ipx ) ((ipx).s6_addr32[3])
 IPX_T ip4ToX(IP4_T ip4);
@@ -489,6 +485,9 @@ IPX_T ip4ToX(IP4_T ip4);
 char* macAsStr(const MAC_T* mac);
 
 #define ip6AsStr( addr_ptr ) ipXAsStr( AF_INET6, addr_ptr)
+
+struct net_key * setNet(struct net_key *netp, uint8_t family, uint8_t prefixlen, IPX_T *ip);
+
 
 IDM_T is_mac_equal(const MAC_T *a, const MAC_T *b);
 
@@ -511,7 +510,7 @@ IDM_T ipaddr(IDM_T del, uint32_t if_index, uint8_t family, IPX_T *ip, uint8_t pr
 IDM_T iptunnel(IDM_T del, char *name, uint8_t proto, IPX_T *local, IPX_T *remote);
 IDM_T change_mtu(char *name, uint16_t mtu);
 
-IDM_T ip(uint8_t family, uint8_t cmd, int8_t del, uint8_t quiet, const IPX_T *NET, uint8_t nmask,
+IDM_T ip(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_key *net,
         int8_t table_macro, int8_t prio_macro, IFNAME_T *iifname, int oif_idx, IPX_T *via, IPX_T *src, uint32_t metric);
 
 uint8_t _af_cfg(const char *func);

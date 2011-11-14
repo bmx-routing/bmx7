@@ -93,11 +93,6 @@
 #define MAX_TUN_SEARCH_MTU 65535
 
 
-struct net_key {
-        uint8_t family;
-	uint8_t prefixlen;
-	IPX_T net;
-};
 
 struct hna_node {
 	struct net_key key;

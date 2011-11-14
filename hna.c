@@ -49,11 +49,14 @@ static AVL_TREE(tunnel_in_tree, struct tunnel_node_in, remoteIp);
 
 static AVL_TREE(tun_search_name_tree, struct tun_search_node, key.netName);
 static AVL_TREE(tun_search_net_tree, struct tun_search_node, key);
-static AVL_TREE(tun_net_tree, struct tun_net_node, key);
+static AVL_TREE(tun_net_tree, struct tun_net_node, tunNetKey);
 //static AVL_TREE(tun_adv_tree, struct tun_adv_node, key); // combined with tunnel_node/tunnel_out_tree
 static AVL_TREE(tunnel_out_tree, struct tunnel_node_out, key);
 
-static const struct net_key ZERO_NET_KEY = {.prefixlen = 0};
+static const struct net_key ZERO_NET_KEY = {.family = 0};
+static const struct net_key ZERO_NET4_KEY = {.family = AF_INET};
+static const struct net_key ZERO_NET6_KEY = {.family = AF_INET6};
+static const struct tun_net_key ZERO_TUN_NET_KEY = {.tun = NULL};
 
 static struct net_key tun4_address;
 static struct net_key tun6_address;
@@ -263,11 +266,12 @@ IDM_T configure_niit6to4(IDM_T del, struct net_key *key)
 }
 
 STATIC_FUNC
-void set_net_key(struct net_key *key, uint8_t prefixlen, IPX_T *glip)
+void set_net_key(struct net_key *key, uint8_t family, uint8_t prefixlen, IPX_T *glip)
 {
-        memset( key, 0, sizeof(struct net_key));
+        *key = ZERO_NET_KEY;
+        key->family = family;
         key->prefixlen = prefixlen;
-        key->net = *glip;
+        key->net = glip ? *glip : ZERO_IP;
 }
 
 
@@ -275,8 +279,8 @@ STATIC_FUNC
 struct net_key netX4ToNiit6(struct net_key *net)
 {
         struct net_key niit;
-
-        set_net_key(&niit, net->prefixlen + 96, &niitPrefix96);
+        assertion(-500000, (net->family == AF_INET));
+        set_net_key(&niit, AF_INET6, net->prefixlen + 96, &niitPrefix96);
         niit.net.s6_addr32[3] = net->net.s6_addr32[3];
         return niit;
 }
@@ -312,17 +316,14 @@ STATIC_FUNC
 void set_hna_to_key(struct net_key *key, struct description_msg_hna4 *uhna4, struct description_msg_hna6 *uhna6)
 {
         if (uhna4) {
-
                 IPX_T ipX = ip4ToX(uhna4->ip4);
-
-                set_net_key(key, uhna4->prefixlen, &ipX);
-                ip_netmask_validate(&key->net, key->prefixlen, AF_INET, YES);
+                set_net_key(key, AF_INET, uhna4->prefixlen, &ipX);
 
         } else {
-
-                set_net_key(key, uhna6->prefixlen, &uhna6->ip6);
-                ip_netmask_validate(&key->net, key->prefixlen, AF_INET6, YES);
+                set_net_key(key, AF_INET6, uhna6->prefixlen, &uhna6->ip6);
         }
+
+        ip_netmask_validate(&key->net, key->prefixlen, key->family, YES);
 }
 
 
@@ -422,7 +423,8 @@ int create_description_tlv_hna(struct tx_frame_iterator *it)
 
         for (an = NULL; (tsn = avl_iterate_item(&tun_search_name_tree, &an));) {
                 if (tsn->srcPrefix.prefixlen) {
-                        struct net_key src = (tsn->key.family == AF_INET) ? netX4ToNiit6(&tsn->srcPrefix) : tsn->srcPrefix;
+                        struct net_key src = (tsn->key.netKey.family == AF_INET) ?
+                                netX4ToNiit6(&tsn->srcPrefix) : tsn->srcPrefix;
                         pos = _create_tlv_hna(AF_INET6, data, max_size, pos, &src.net, src.prefixlen);
                 }
         }
@@ -669,7 +671,7 @@ int32_t opt_uhna(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
                 if (cmd == OPT_CHECK || cmd == OPT_APPLY) {
 
                         
-                        set_net_key(&key, mask, &ipX);
+                        set_net_key(&key, family, mask, &ipX);
 
 
                         if (patch->diff != DEL && (un = find_overlapping_hna(&key.net, key.prefixlen))) {
@@ -827,15 +829,15 @@ void unlink_tun_net(struct tun_net_node *tnn, struct tun_search_node *tsn, struc
 
         while ((ttnn = tnn ? tnn : avl_iterate_item(&tun_net_tree, &itnn))) {
 
-                assertion(-501296, ttnn->key.tun);
+                assertion(-501296, ttnn->tunNetKey.tun);
 
                 dbgf_cn(cn, DBGL_CHANGES, DBGT_INFO, "%s: %s/%d %s", tsn ? tsn->key.netName : DBG_NIL,
-                        ipXAsStr(ttnn->family, &ttnn->key.network.net), ttnn->key.network.prefixlen,
-                        globalIdAsString(&ttnn->key.tun->key.on->global_id));
+                        ipXAsStr(ttnn->tunNetKey.netKey.family, &ttnn->tunNetKey.netKey.net), ttnn->tunNetKey.netKey.prefixlen,
+                        globalIdAsString(&ttnn->tunNetKey.tun->key.on->global_id));
 
                 struct tun_search_node *ttsn;
                 struct avl_node *itsn = NULL;
-                struct tunnel_node_out *tun = ttnn->key.tun;
+                struct tunnel_node_out *tun = ttnn->tunNetKey.tun;
 
                 while ((ttsn = avl_iterate_item(&ttnn->tun_search_tree, &itsn))) {
 
@@ -843,7 +845,7 @@ void unlink_tun_net(struct tun_net_node *tnn, struct tun_search_node *tsn, struc
 
                                 assertion(-501299, (tun && tun->upIfIdx && tun->tun_net_tree.items));
 
-                                ip(ttsn->key.family, IP_ROUTE_TUNS, DEL, NO, &ttsn->key.network.net, ttsn->key.network.prefixlen,
+                                ip(ttsn->key.netKey.family, IP_ROUTE_TUNS, DEL, NO, &ttsn->key.netKey.net, ttsn->key.netKey.prefixlen,
                                         RT_TABLE_TUN, 0, NULL, tun->upIfIdx, NULL, NULL, ttsn->ipmetric);
 
                                 ttsn->tun_net = NULL;
@@ -876,8 +878,7 @@ struct tun_search_node* get_alternative_tun(struct tun_search_node *tsn)
         struct tun_search_node *other, *best = NULL;
         struct tun_search_key key;
         memset(&key, 0, sizeof (key));
-        key.family = tsn->key.family;
-        key.network = tsn->key.network;
+        key.netKey = tsn->key.netKey;
 
         while ((other = avl_next_item(&tun_search_net_tree, &key))) {
 
@@ -917,37 +918,36 @@ void set_tun_net(struct tun_search_node *sn)
         while (IMPLIES(sn, !tsn) && (tsn = sn ? sn : avl_iterate_item(&tun_search_name_tree, &atsn))) {
 
                 struct tun_net_node *best_tnn = NULL;
-                struct net_key srcPrefix = tsn->srcPrefix.prefixlen ?
-                        tsn->srcPrefix : (tsn->key.family == AF_INET ? tun4_address : tun6_address);
+                struct net_key srcPrefix = tsn->srcPrefix.prefixlen ? tsn->srcPrefix : (tsn->key.netKey.family == AF_INET ? tun4_address : tun6_address);
 
                 dbgf_all(DBGT_INFO, "searching %s=%s: %s=%s %s=%d %s=%s/%d %s=%s/%d ",
                         ARG_TUN_SEARCH_NAME, tsn->key.netName,
                         ARG_TUN_SEARCH_HOSTNAME, globalIdAsString(&tsn->global_id),
                         ARG_TUN_SEARCH_TYPE, tsn->srcType,
-                        ARG_TUN_SEARCH_NETWORK, ipXAsStr(tsn->key.family, &tsn->key.network.net), tsn->key.network.prefixlen,
-                        ARG_TUN_SEARCH_IP, ipXAsStr(tsn->key.family, &srcPrefix.net), srcPrefix.prefixlen
+                        ARG_TUN_SEARCH_NETWORK, ipXAsStr(tsn->key.netKey.family, &tsn->key.netKey.net), tsn->key.netKey.prefixlen,
+                        ARG_TUN_SEARCH_IP, ipXAsStr(tsn->key.netKey.family, &srcPrefix.net), srcPrefix.prefixlen
                         );
 
                 while ((tnn = avl_iterate_item(&tun_net_tree, &itnn))) {
 
-                        struct orig_node *on = tnn->key.tun->key.on;
+                        struct orig_node *on = tnn->tunNetKey.tun->key.on;
                         GLOBAL_ID_T *tnn_gid = &on->global_id, *tsn_gid = &tsn->global_id;
                         UMETRIC_T linkQuality = UMETRIC_MAX;
                         UMETRIC_T linkMax = fmetric_to_umetric(fmetric_u8_to_fmu16(tnn->bandwidth));
                         UMETRIC_T pathMetric = on->curr_rt_local ? (on->curr_rt_local->mr.umetric) : 0;
-                        uint8_t family = tnn->family;
-                        struct net_key ingressPrefix = (family == AF_INET) ? tnn->key.tun->ingress4Prefix : tnn->key.tun->ingress6Prefix;
+                        uint8_t family = tnn->tunNetKey.netKey.family;
+                        struct net_key ingressPrefix = (family == AF_INET) ? tnn->tunNetKey.tun->ingress4Prefix : tnn->tunNetKey.tun->ingress6Prefix;
 
                         dbgf_all(DBGT_INFO, "checking network=%s/%d bw_fmu8=%d, ingress=%s/%d localIp=%s tun6Id=%d tun=%p from orig=%s",
-                                ipXAsStr(family, &tnn->key.network.net), tnn->key.network.prefixlen, tnn->bandwidth.val.u8,
+                                ipXAsStr(family, &tnn->tunNetKey.netKey.net), tnn->tunNetKey.netKey.prefixlen, tnn->bandwidth.val.u8,
                                 ipXAsStr(family, &ingressPrefix.net), ingressPrefix.prefixlen,
-                                ip6AsStr(&tnn->key.tun->localIp), tnn->key.tun->key.tun6Id, (void*)(tnn->key.tun),
+                                ip6AsStr(&tnn->tunNetKey.tun->localIp), tnn->tunNetKey.tun->key.tun6Id, (void*)(tnn->tunNetKey.tun),
                                 globalIdAsString(&on->global_id));
 
                         if (!(
-                                tsn->key.family == family &&
-                                tsn->key.network.prefixlen >= tnn->key.network.prefixlen &&
-                                is_ip_net_equal(&tsn->key.network.net, &tnn->key.network.net, tnn->key.network.prefixlen, family) &&
+                                tsn->key.netKey.family == family &&
+                                tsn->key.netKey.prefixlen >= tnn->tunNetKey.netKey.prefixlen &&
+                                is_ip_net_equal(&tsn->key.netKey.net, &tnn->tunNetKey.netKey.net, tnn->tunNetKey.netKey.prefixlen, family) &&
                                 IMPLIES(strlen(tsn_gid->name), !strcmp(tsn_gid->name, tnn_gid->name)) &&
                                 IMPLIES(!is_zero(&tsn_gid->pkid, GLOBAL_ID_PKID_LEN), !memcmp(&tsn_gid->pkid, &tnn_gid->pkid, GLOBAL_ID_PKID_LEN))
                                 ))
@@ -979,8 +979,8 @@ void set_tun_net(struct tun_search_node *sn)
 
                         if (!best_tnn ||
                                 (tnn->e2eMetric > best_tnn->e2eMetric) ||
-                                (tnn->e2eMetric == best_tnn->e2eMetric && tnn->key.network.prefixlen > best_tnn->key.network.prefixlen) ||
-                                (tnn->e2eMetric == best_tnn->e2eMetric && tnn->key.network.prefixlen == best_tnn->key.network.prefixlen && tnn == tsn->tun_net)
+                                (tnn->e2eMetric == best_tnn->e2eMetric && tnn->tunNetKey.netKey.prefixlen > best_tnn->tunNetKey.netKey.prefixlen) ||
+                                (tnn->e2eMetric == best_tnn->e2eMetric && tnn->tunNetKey.netKey.prefixlen == best_tnn->tunNetKey.netKey.prefixlen && tnn == tsn->tun_net)
                                 )
                                 best_tnn = tnn;
 
@@ -1003,7 +1003,7 @@ void set_tun_net(struct tun_search_node *sn)
 
                         } else if (best_tnn && best_tnn->e2eMetric > UMETRIC_MIN__NOT_ROUTABLE && !alternative) {
 
-                                struct tunnel_node_out *tun = best_tnn->key.tun;
+                                struct tunnel_node_out *tun = best_tnn->tunNetKey.tun;
 
                                 if (!tun->upIfIdx && configure_tunnel_out(ADD, tun->key.on, tun) == SUCCESS){
                                         ipaddr(ADD, tun->upIfIdx, AF_INET6, &tun->localIp, 128, YES /*deprecated*/);
@@ -1012,18 +1012,18 @@ void set_tun_net(struct tun_search_node *sn)
 				}
 
                                 if (tun->upIfIdx) {
-                                        if (tsn->key.family == AF_INET && !is_ip_set(&tun->src4Ip)) {
+                                        if (tsn->key.netKey.family == AF_INET && !is_ip_set(&tun->src4Ip)) {
 
                                                 tun->src4Ip = tsn->srcPrefix.prefixlen ? tsn->srcPrefix.net : tun4_address.net;
                                                 ipaddr(ADD, tun->upIfIdx, AF_INET, &tun->src4Ip, 32, NO /*deprecated*/);
 
-                                        } else if (tsn->key.family == AF_INET6 && !is_ip_set(&tun->src6Ip)) {
+                                        } else if (tsn->key.netKey.family == AF_INET6 && !is_ip_set(&tun->src6Ip)) {
 
                                                 tun->src6Ip = tsn->srcPrefix.prefixlen ? tsn->srcPrefix.net : tun6_address.net;
                                                 ipaddr(ADD, tun->upIfIdx, AF_INET6, &tun->src6Ip, 128, NO /*deprecated*/);
                                         }
 
-                                        ip(tsn->key.family, IP_ROUTE_TUNS, ADD, NO, &tsn->key.network.net, tsn->key.network.prefixlen,
+                                        ip(tsn->key.netKey.family, IP_ROUTE_TUNS, ADD, NO, &tsn->key.netKey.net, tsn->key.netKey.prefixlen,
                                                 RT_TABLE_TUN, 0, NULL, tun->upIfIdx, NULL, NULL, tsn->ipmetric);
 
 
@@ -1115,10 +1115,10 @@ int process_description_tlv_tun6_adv(struct rx_frame_iterator *it)
 
                                 unlink_tun_net(tnn, NULL, NULL);
 
-                                rtnn = avl_remove(&tun_net_tree, &tnn->key, -300421);
+                                rtnn = avl_remove(&tun_net_tree, &tnn->tunNetKey, -300421);
                                 assertion(-501251, (rtnn == tnn));
 
-                                rtnn = avl_remove(&tun->tun_net_tree, &tnn->key, -300423);
+                                rtnn = avl_remove(&tun->tun_net_tree, &tnn->tunNetKey, -300423);
                                 assertion(-501252, (rtnn == tnn));
                                 debugFree(tnn, -300424);
                         }
@@ -1145,7 +1145,7 @@ int process_description_tlv_tun6_adv(struct rx_frame_iterator *it)
                         tun->key = key;
                         tun->localIp = adv->localIp;
                         tun->name_auto = 1;
-                        AVL_INIT_TREE(tun->tun_net_tree, struct tun_net_node, key);
+                        AVL_INIT_TREE(tun->tun_net_tree, struct tun_net_node, tunNetKey);
                         avl_insert(&tunnel_out_tree, tun, -300427);
                 }
         }
@@ -1223,13 +1223,10 @@ int process_description_tlv_tunXin6_ingress_adv(struct rx_frame_iterator *it)
                 } else if (it->op == TLV_OP_ADD) {
 
                         if (tun) {
-                                if (isSrc4) {
-                                        tun->ingress4Prefix.prefixlen = adv->ingressPrefixLen;
-                                        tun->ingress4Prefix.net = prefix;
-                                } else {
-                                        tun->ingress6Prefix.prefixlen = adv->ingressPrefixLen;
-                                        tun->ingress6Prefix.net = prefix;
-                                }
+                                if (isSrc4)
+                                        set_net_key(&tun->ingress4Prefix, AF_INET, adv->ingressPrefixLen, &prefix);
+                                else
+                                        set_net_key(&tun->ingress6Prefix, AF_INET6, adv->ingressPrefixLen, &prefix);
                         }
                 }
         }
@@ -1328,8 +1325,7 @@ STATIC_FUNC
 int process_description_tlv_tunXin6_net_adv(struct rx_frame_iterator *it)
 {
         TRACE_FUNCTION_CALL;
-        IDM_T is4in6 = (it->frame_type == BMX_DSC_TLV_TUN4IN6_NET_ADV ? YES : NO);
-        uint8_t family = is4in6 ? AF_INET : AF_INET6;
+        uint8_t family = it->frame_type == BMX_DSC_TLV_TUN4IN6_NET_ADV ? AF_INET : AF_INET6;
         uint16_t msg_size = it->handl->min_msg_size;
         uint16_t pos;
         uint8_t used = NO;
@@ -1337,16 +1333,16 @@ int process_description_tlv_tunXin6_net_adv(struct rx_frame_iterator *it)
         for (pos = 0; pos < it->frame_msgs_length; pos += msg_size) {
 
                 struct description_msg_tun6in6_net_adv *adv = (((struct description_msg_tun6in6_net_adv *) (it->frame_data + pos)));
-                struct net_key net = ZERO_NET_KEY;
-                net.net = is4in6 ? ip4ToX(*((IP4_T*) & adv->network)) : adv->network;
-                net.prefixlen = adv->networkLen;
+                struct net_key net;
+                IPX_T ipx = (family == AF_INET) ? ip4ToX(*((IP4_T*) & adv->network)) : adv->network;
+                set_net_key(&net, family, adv->networkLen, &ipx);
 
                 if (it->op == TLV_OP_DEL) {
 
                 } else if (it->op == TLV_OP_TEST) {
 
-                        if (ip_netmask_validate(&net.net, net.prefixlen, family, NO) == FAILURE) {
-                                dbgf_sys(DBGT_ERR, "network=%s/%d", ipXAsStr(family, &net.net), net.prefixlen);
+                        if (ip_netmask_validate(&net.net, net.prefixlen, net.family, NO) == FAILURE) {
+                                dbgf_sys(DBGT_ERR, "network=%s/%d", ipXAsStr(net.family, &net.net), net.prefixlen);
                                 return TLV_RX_DATA_FAILURE;
                         }
 
@@ -1357,18 +1353,16 @@ int process_description_tlv_tunXin6_net_adv(struct rx_frame_iterator *it)
 
                         if (tun) {
 
-                                struct tun_net_key tnk;
-                                memset(&tnk, 0, sizeof (tnk));
+                                struct tun_net_key tnk = ZERO_TUN_NET_KEY;
                                 tnk.tun = tun;
-                                tnk.network = net;
+                                tnk.netKey = net;
 
                                 if (avl_find(&tun_net_tree, &tnk)) {
 
                                         struct tun_net_node *tnn = debugMalloc(sizeof (struct tun_net_node), -300418);
                                         memset(tnn, 0, sizeof (struct tun_net_node));
-                                        tnn->key.tun = tun;
-                                        tnn->key.network = net;
-                                        tnn->family = family;
+                                        tnn->tunNetKey.tun = tun;
+                                        tnn->tunNetKey.netKey = net;
                                         tnn->bandwidth = adv->bandwidth;
 
                                         AVL_INIT_TREE(tnn->tun_search_tree, struct tun_search_node, key.netName);
@@ -1454,12 +1448,12 @@ static int32_t tun_out_status_creator(struct status_handl *handl, void *data)
                 tsn = avl_iterate_item(&tnn->tun_search_tree, &itsn);
 
                 do {
-                        struct tunnel_node_out *tun = tnn->key.tun;
+                        struct tunnel_node_out *tun = tnn->tunNetKey.tun;
 
                         status->globalId = &tun->key.on->global_id;
                         status->local = &tun->localIp;
                         status->remote = &tun->key.on->primary_ip;
-                        sprintf(status->network, "%s/%d", ipXAsStr(tnn->family, &tnn->key.network.net), tnn->key.network.prefixlen);
+                        sprintf(status->network, "%s/%d", ipXAsStr(tnn->tunNetKey.netKey.family, &tnn->tunNetKey.netKey.net), tnn->tunNetKey.netKey.prefixlen);
                         status->bw_val = fmetric_to_umetric(fmetric_u8_to_fmu16(tnn->bandwidth));
                         status->bandwidth = status->bw_val ? &status->bw_val : NULL;
                         status->metric = tun->key.on->curr_rt_local ? &tun->key.on->curr_rt_local->mr.umetric : NULL;
@@ -1470,7 +1464,7 @@ static int32_t tun_out_status_creator(struct status_handl *handl, void *data)
                         if (tsn) {
                                 status->searchName = tsn->key.netName;
                                 sprintf(status->searchNetwork, "%s/%d",
-                                        ipXAsStr(tsn->key.family, &tsn->key.network.net), tsn->key.network.prefixlen);
+                                        ipXAsStr(tsn->key.netKey.family, &tsn->key.netKey.net), tsn->key.netKey.prefixlen);
                                 status->searchId = &tsn->global_id;
                                 status->ipMetric = tsn->ipmetric;
 
@@ -1494,9 +1488,9 @@ static int32_t tun_out_status_creator(struct status_handl *handl, void *data)
                         strcpy(status->network, DBG_NIL);
                         status->tunName = DBG_NIL;
                         status->searchName = tsn->key.netName;
-                        if (tsn->key.family) {
+                        if (tsn->key.netKey.family) {
                                 sprintf(status->searchNetwork, "%s/%d",
-                                        ipXAsStr(tsn->key.family, &tsn->key.network.net), tsn->key.network.prefixlen);
+                                        ipXAsStr(tsn->key.netKey.family, &tsn->key.netKey.net), tsn->key.netKey.prefixlen);
                         } else {
                                 sprintf(status->searchNetwork, DBG_NIL);
                         }
@@ -1610,7 +1604,7 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                 strcpy(name, patch->val);
 
                 tsn = avl_find_item(&tun_search_name_tree, name);
-                uint8_t family = tsn ? tsn->key.family : 0; // family of ARG_TUN_SEARCH_NETWORK and ARG_TUN_SEARCH_SRC must be the same!!!
+                uint8_t family = tsn ? tsn->key.netKey.family : 0; // family of ARG_TUN_SEARCH_NETWORK and ARG_TUN_SEARCH_SRC must be the same!!!
 
                 assertion(-501324, IMPLIES(tsn, tsn == avl_find_item(&tun_search_net_tree, &tsn->key)));
 
@@ -1646,16 +1640,13 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
 
                                         if (cmd == OPT_APPLY && tsn) {
                                                 avl_remove(&tun_search_net_tree, &tsn->key, -300435);
-                                                tsn->key.network.net = dst;
-                                                tsn->key.network.prefixlen = mask;
-                                                tsn->key.family = family;
+                                                set_net_key(&tsn->key.netKey, family, mask, &dst);
                                                 avl_insert(&tun_search_net_tree, tsn, -300436);
                                         }
 
                                 } else if (cmd == OPT_APPLY && tsn) {
                                         avl_remove(&tun_search_net_tree, &tsn->key, -300437);
-                                        tsn->key.network.net = ZERO_IP;
-                                        tsn->key.network.prefixlen = 0;
+                                        set_net_key(&tsn->key.netKey, family, 0, NULL);
                                         avl_insert(&tun_search_net_tree, tsn, -300438);
                                 }
 
@@ -1679,6 +1670,8 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                                         if (str2netw(c->val, &ip.net, cn, &ip.prefixlen, &family, YES) == FAILURE)
                                                 return FAILURE;
 
+                                        ip.family = family;
+
                                         sprintf(adjusted_src, "%s/%d", ipXAsStr(family, &ip.net), ip.prefixlen);
                                         set_opt_child_val(c, adjusted_src);
 
@@ -1696,7 +1689,7 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                                         if (cmd == OPT_APPLY && tsn) {
                                                 tsn->srcPrefix = ip;
                                                 avl_remove(&tun_search_net_tree, &tsn->key, -300439);
-                                                tsn->key.family = family;
+                                                tsn->key.netKey.family = family;
                                                 avl_insert(&tun_search_net_tree, tsn, -300440);
                                         }
 
@@ -1875,27 +1868,24 @@ int32_t opt_tun_adv(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt
                                         tun->src4Type = c->val ? strtol(c->val, NULL, 10) : 0;
 
                         } else if (!strcmp(c->opt->name, ARG_TUN_ADV_INGRESS4)) {
-                                IPX_T prefix4;
-                                uint8_t af_prefix4 = AF_INET;
-                                uint8_t prefix4len;
 
                                 if (c->val) {
-                                        if (str2netw(c->val, &prefix4, cn, &prefix4len, &af_prefix4, NO) == FAILURE ||
-                                                !is_ip_valid(&prefix4, af_prefix4)) {
+                                        struct net_key p4 = ZERO_NET4_KEY;
 
-                                                dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "invalid %s=%s %s", ARG_TUN_ADV_INGRESS4, patch->val, c->val);
+                                        if (str2netw(c->val, &p4.net, cn, &p4.prefixlen, &p4.family, NO) == FAILURE ||
+                                                !is_ip_valid(&p4.net, p4.family)) {
+
+                                                dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "invalid %s=%s %s",
+                                                        ARG_TUN_ADV_INGRESS4, patch->val, c->val);
                                                 return FAILURE;
                                         }
 
-                                        if (cmd == OPT_APPLY && tun) {
-                                                tun->ingress4Prefix.net = prefix4;
-                                                tun->ingress4Prefix.prefixlen = prefix4len;
-                                        }
+                                        if (cmd == OPT_APPLY && tun)
+                                                tun->ingress4Prefix = p4;
+                                        
                                 } else {
-                                        if (cmd == OPT_APPLY && tun) {
-                                                tun->ingress4Prefix.net = ZERO_IP;
-                                                tun->ingress4Prefix.prefixlen = 0;
-                                        }
+                                        if (cmd == OPT_APPLY && tun)
+                                                tun->ingress4Prefix = ZERO_NET4_KEY;
                                 }
 
                         } else if (!strcmp(c->opt->name, ARG_TUN_ADV_SRC4_MIN)) {
@@ -1909,31 +1899,30 @@ int32_t opt_tun_adv(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt
                                         tun->src6Type = c->val ? strtol(c->val, NULL, 10) : 0;
 
                         } else if (!strcmp(c->opt->name, ARG_TUN_ADV_INGRESS6)) {
-                                IPX_T prefix6;
-                                uint8_t af_prefix6 = AF_INET6;
-                                uint8_t prefix6len;
-                                char adjusted_prefix6[IPXNET_STR_LEN];
 
                                 if (c->val) {
-                                        if (str2netw(c->val, &prefix6, cn, &prefix6len, &af_prefix6, NO) == FAILURE ||
-                                                !is_ip_valid(&prefix6, af_prefix6)) {
+                                        struct net_key p6 = ZERO_NET6_KEY;
+                                        char adjusted_prefix6[IPXNET_STR_LEN];
 
-                                                dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "invalid %s=%s %s", ARG_TUN_ADV_INGRESS6, patch->val, c->val);
+                                        if (str2netw(c->val, &p6.net, cn, &p6.prefixlen, &p6.family, NO) == FAILURE ||
+                                                !is_ip_valid(&p6.net, p6.family)) {
+
+                                                dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "invalid %s=%s %s",
+                                                        ARG_TUN_ADV_INGRESS6, patch->val, c->val);
                                                 return FAILURE;
                                         }
 
-                                        sprintf(adjusted_prefix6, "%s", ip6AsStr(&prefix6));
+                                        sprintf(adjusted_prefix6, "%s/%d", ip6AsStr(&p6.net), p6.prefixlen);
                                         set_opt_child_val(c, adjusted_prefix6);
 
-                                        if (cmd == OPT_APPLY && tun) {
-                                                tun->ingress6Prefix.net = prefix6;
-                                                tun->ingress6Prefix.prefixlen = prefix6len;
-                                        }
+                                        if (cmd == OPT_APPLY && tun)
+                                                tun->ingress6Prefix = p6;
+                                        
                                 } else {
-                                        if (cmd == OPT_APPLY && tun) {
-                                                tun->ingress6Prefix.net = ZERO_IP;
-                                                tun->ingress6Prefix.prefixlen = 0;
-                                        }
+
+                                        if (cmd == OPT_APPLY && tun)
+                                                tun->ingress6Prefix = ZERO_NET6_KEY;
+                                        
                                 }
 
                         } else if (!strcmp(c->opt->name, ARG_TUN_ADV_SRC6_MIN)) {
@@ -2010,8 +1999,7 @@ int32_t opt_tun_address(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
 	TRACE_FUNCTION_CALL;
 
         struct net_key net = ZERO_NET_KEY;
-        uint8_t isTun4 = !strcmp(opt->name, ARG_TUN4_ADDRESS);
-        uint8_t family = isTun4 ? AF_INET : AF_INET6;
+        net.family = !strcmp(opt->name, ARG_TUN4_ADDRESS) ? AF_INET : AF_INET6;
 
         if ( cmd == OPT_CHECK  ||  cmd == OPT_APPLY ) {
 
@@ -2023,17 +2011,17 @@ int32_t opt_tun_address(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
 
                         net = ZERO_NET_KEY;
 
-                } else if (str2netw(patch->val, &net.net, cn, &net.prefixlen, &family, YES) == FAILURE || !is_ip_valid(&net.net, family)) {
+                } else if (str2netw(patch->val, &net.net, cn, &net.prefixlen, &net.family, YES) == FAILURE || !is_ip_valid(&net.net, net.family)) {
 
                         return FAILURE;
 
-                } else if (net.prefixlen < (isTun4 ? HNA4_PREFIXLEN_MIN : HNA6_PREFIXLEN_MIN)) {
+                } else if (net.prefixlen < (net.family == AF_INET ? HNA4_PREFIXLEN_MIN : HNA6_PREFIXLEN_MIN)) {
 
                         return FAILURE;
 
                 } else {
 
-                        struct net_key find = isTun4 ? netX4ToNiit6(&net) : net;
+                        struct net_key find = net.family == AF_INET ? netX4ToNiit6(&net) : net;
                         struct hna_node *hna = find_overlapping_hna(&find.net, find.prefixlen);
 
                         if (hna && hna->on != self) {
@@ -2049,7 +2037,7 @@ int32_t opt_tun_address(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
 
         if (cmd == OPT_APPLY) {
 
-                if (isTun4) {
+                if (net.family == AF_INET) {
 
                         tun4_address = net;
 
@@ -2066,8 +2054,8 @@ int32_t opt_tun_address(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
         }
 
         if(cmd == OPT_REGISTER) {
-                memset(&tun4_address, 0, sizeof (tun4_address));
-                memset(&tun6_address, 0, sizeof (tun6_address));
+                tun4_address = ZERO_NET_KEY;
+                tun6_address = ZERO_NET_KEY;
         }
 
         return SUCCESS;
@@ -2189,6 +2177,7 @@ int32_t hna_init( void )
         TRACE_FUNCTION_CALL;
 
         assertion(-501254, is_zero((void*) &ZERO_NET_KEY, sizeof (ZERO_NET_KEY)));
+        assertion(-500000, is_zero((void*) &ZERO_TUN_NET_KEY, sizeof (ZERO_TUN_NET_KEY)));
         assertion(-501327, tun_search_net_tree.key_size == sizeof (struct tun_search_key));
         assertion(-501328, tun_search_name_tree.key_size == NETWORK_NAME_LEN);
 

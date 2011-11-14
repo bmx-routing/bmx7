@@ -94,6 +94,7 @@
 
 
 struct net_key {
+        uint8_t family;
 	uint8_t prefixlen;
 	IPX_T net;
 };
@@ -253,10 +254,7 @@ FIELD_FORMAT_END }
 #define NETWORK_NAME_LEN 32
 
 struct tun_search_key {
-
-//        uint32_t ipmetric;
-        uint8_t family;
-        struct net_key network;
+        struct net_key netKey;
         char netName[NETWORK_NAME_LEN];
 };
 
@@ -278,15 +276,14 @@ struct tun_search_node {
 };
 
 struct tun_net_key {
-        struct net_key network;
+        struct net_key netKey;
         struct tunnel_node_out *tun;
 };
 
 struct tun_net_node {
 
-        struct tun_net_key key;
+        struct tun_net_key tunNetKey;
         
-        uint8_t family;
         FMETRIC_U8_T bandwidth;
 
         UMETRIC_T e2eMetric;

@@ -260,7 +260,7 @@ struct tun_search_key {
 
 struct tun_search_node {
 
-        struct tun_search_key key;
+        struct tun_search_key tunSearchKey;
         
         uint32_t ipmetric;
 	uint32_t mtu;
@@ -277,7 +277,7 @@ struct tun_search_node {
 
 struct tun_net_key {
         struct net_key netKey;
-        struct tunnel_node_out *tun;
+        struct tun_out_node *tun;
 };
 
 struct tun_net_node {
@@ -291,13 +291,13 @@ struct tun_net_node {
         struct avl_tree tun_search_tree;
 };
 
-struct tun_adv_key {
+struct tun_out_key {
         struct orig_node *on;
         int16_t tun6Id;
 };
 
 
-struct tunnel_node_out {
+struct tun_out_node {
 
         // the advertised part (by description_msg_tun6_adv):
         IP6_T localIp;          // key for tunnel_in_tree
@@ -313,7 +313,7 @@ struct tunnel_node_out {
         uint8_t src6PrefixMin;
 
         //the status:
-        struct tun_adv_key key; // key for tunnel_out_tree
+        struct tun_out_key tunOutKey; // key for tunnel_out_tree
         IFNAME_T name;
         uint8_t name_auto;
         uint32_t upIfIdx;
@@ -325,7 +325,7 @@ struct tunnel_node_out {
 };
 
 
-struct tunnel_node_in {
+struct tun_in_node {
 
         // the advertised part (by description_msg_tun6_adv):
         IP6_T remoteIp;          // key for tunnel_in_tree

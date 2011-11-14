@@ -1357,7 +1357,7 @@ int process_description_tlv_tunXin6_net_adv(struct rx_frame_iterator *it)
                                 tnk.tun = tun;
                                 tnk.netKey = net;
 
-                                if (avl_find(&tun_net_tree, &tnk)) {
+                                if (!avl_find(&tun_net_tree, &tnk)) {
 
                                         struct tun_net_node *tnn = debugMalloc(sizeof (struct tun_net_node), -300418);
                                         memset(tnn, 0, sizeof (struct tun_net_node));
@@ -1373,7 +1373,7 @@ int process_description_tlv_tunXin6_net_adv(struct rx_frame_iterator *it)
                                         used = 1;
                                 } else {
                                         dbgf_sys(DBGT_WARN, "double network=%s/%d found for orig=%s tun6Id=%d",
-                                                ipXAsStr(family, &net.net), globalIdAsString(&tak.on->global_id), tak.tun6Id);
+                                                ipXAsStr(family, &net.net), net.prefixlen, globalIdAsString(&tak.on->global_id), tak.tun6Id);
                                 }
 
                         } else {

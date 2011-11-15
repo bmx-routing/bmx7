@@ -46,6 +46,14 @@
 #define CODE_CATEGORY_NAME "ip"
 
 uint8_t __af_cfg = DEF_IP_FAMILY;
+struct net_key __ZERO_NETCFG_KEY = {.family = DEF_IP_FAMILY};
+
+const struct net_key ZERO_NET_KEY = {.family = 0};
+const struct net_key ZERO_NET4_KEY = {.family = AF_INET};
+const struct net_key ZERO_NET6_KEY = {.family = AF_INET6};
+
+
+const IFNAME_T ZERO_IFNAME = {{0}};
 
 static const char *_af_cfg_read = NULL;
 
@@ -68,20 +76,9 @@ const IPX_T ZERO_IP = {{{0}}};
 const MAC_T ZERO_MAC = {{0}};
 
 //TODO: make this configurable
-static IPX_T llocal_prefix = {{{0}}};
-static uint8_t llocal_prefix_len = 0;
-static IPX_T global_prefix = {{{0}}};
-static uint8_t global_prefix_len = 0;
+static struct net_key llocal_prefix_cfg;
+static struct net_key global_prefix_cfg;
 
-
-//const struct link_key ZERO_LINK_KEY = {.link = NULL, .dev = NULL};
-
-const struct net_key ZERO_NET_KEY = {.family = 0};
-const struct net_key ZERO_NET4_KEY = {.family = AF_INET};
-const struct net_key ZERO_NET6_KEY = {.family = AF_INET6};
-
-
-const IFNAME_T ZERO_IFNAME = {{0}};
 
 //#define IN6ADDR_ANY_INIT { { { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 } } }
 //#define IN6ADDR_LOOPBACK_INIT { { { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1 } } }
@@ -450,7 +447,7 @@ void ipXToStr(int family, const IPX_T *addr, char *str)
 
 void ipFToStr(const IPX_T *addr, char *str)
 {
-        ipXToStr(af_cfg(), addr, str);
+        ipXToStr(AF_CFG, addr, str);
 }
 
 IPX_T ip4ToX(IP4_T ip4)
@@ -474,7 +471,7 @@ char *ipXAsStr(int family, const IPX_T *addr)
 
 char *ipFAsStr(const IPX_T *addr)
 {
-        return ipXAsStr(af_cfg(), addr);
+        return ipXAsStr(AF_CFG, addr);
 }
 
 char *ip4AsStr( IP4_T addr )
@@ -753,7 +750,6 @@ STATIC_INLINE_FUNC
 void kernel_if_addr_config(struct nlmsghdr *nlhdr, uint16_t index_sqn)
 {
         TRACE_FUNCTION_CALL;
-        assertion(-501281, (af_cfg()));
 
         int len = nlhdr->nlmsg_len;
         struct ifaddrmsg *if_addr = NLMSG_DATA(nlhdr);
@@ -766,11 +762,6 @@ void kernel_if_addr_config(struct nlmsghdr *nlhdr, uint16_t index_sqn)
 
         if (family != AF_INET && family != AF_INET6)
                 return;
-
-/*
-        if (family != af_cfg)
-                return;
-*/
 
         if (nlhdr->nlmsg_type != RTM_NEWADDR)
                 return;
@@ -1733,7 +1724,7 @@ void sysctl_restore(struct dev_node *dev)
 {
         TRACE_FUNCTION_CALL;
 
-        if (dev && af_cfg() == AF_INET) {
+        if (dev && AF_CFG == AF_INET) {
 
 		char filename[100];
 
@@ -1752,7 +1743,7 @@ void sysctl_restore(struct dev_node *dev)
 
 		dev->ip4_send_redirects_orig = -1;
 
-        } else if (dev && af_cfg() == AF_INET6) {
+        } else if (dev && AF_CFG == AF_INET6) {
 
                 // nothing to restore
         }
@@ -1806,7 +1797,7 @@ void sysctl_config( struct dev_node *dev )
                 return;
 
 
-        if (dev && af_cfg() == AF_INET) {
+        if (dev && AF_CFG == AF_INET) {
 
 		sprintf( filename, "ipv4/conf/%s/rp_filter", dev->name_phy_cfg.str);
 		check_proc_sys_net( filename, 0, &dev->ip4_rp_filter_orig );
@@ -1825,7 +1816,7 @@ void sysctl_config( struct dev_node *dev )
                         ipv4_timestamp = bmx_time;
                 }
 
-        } else if (dev && af_cfg() == AF_INET6) {
+        } else if (dev && AF_CFG == AF_INET6) {
 
 
                 if (ipv6_timestamp != bmx_time) {
@@ -2027,9 +2018,9 @@ void set_sockaddr_storage(struct sockaddr_storage *ss, IPX_T *ipx)
         TRACE_FUNCTION_CALL;
         memset(ss, 0, sizeof ( struct sockaddr_storage));
 
-        ss->ss_family = af_cfg();
+        ss->ss_family = AF_CFG;
 
-        if (af_cfg() == AF_INET) {
+        if (AF_CFG == AF_INET) {
                 struct sockaddr_in *in = (struct sockaddr_in*) ss;
                 in->sin_port = htons(base_port);
                 in->sin_addr.s_addr = ipXto4(*ipx);
@@ -2050,7 +2041,7 @@ IDM_T dev_init_sockets(struct dev_node *dev)
 
         int set_on = 1;
         int sock_opts;
-        int pf_domain = af_cfg() == AF_INET ? PF_INET : PF_INET6;
+        int pf_domain = AF_CFG == AF_INET ? PF_INET : PF_INET6;
 
         if ((dev->unicast_sock = socket(pf_domain, SOCK_DGRAM, 0)) < 0) {
 
@@ -2060,7 +2051,7 @@ IDM_T dev_init_sockets(struct dev_node *dev)
 
         set_sockaddr_storage(&dev->llocal_unicast_addr, &dev->if_llocal_addr->ip_addr);
 
-        if (af_cfg() == AF_INET) {
+        if (AF_CFG == AF_INET) {
                 if (setsockopt(dev->unicast_sock, SOL_SOCKET, SO_BROADCAST, &set_on, sizeof (set_on)) < 0) {
                         dbgf_sys(DBGT_ERR, "can't enable broadcasts on unicast socket: %s", strerror(errno));
                         return FAILURE;
@@ -2133,7 +2124,7 @@ IDM_T dev_init_sockets(struct dev_node *dev)
 
         struct sockaddr_storage rx_netwbrc_addr;
 
-        if (af_cfg() == AF_INET && ipXto4(dev->if_llocal_addr->ip_mcast) == 0xFFFFFFFF) {
+        if (AF_CFG == AF_INET && ipXto4(dev->if_llocal_addr->ip_mcast) == 0xFFFFFFFF) {
                 // if the mcast address is the full-broadcast address
                 // we'll listen on the network-broadcast address :
                 IPX_T brc = ip4ToX(ipXto4(dev->if_llocal_addr->ip_addr) | htonl(~(0XFFFFFFFF << dev->if_llocal_addr->ifa.ifa_prefixlen)));
@@ -2146,17 +2137,17 @@ IDM_T dev_init_sockets(struct dev_node *dev)
         if (bind(dev->rx_mcast_sock, (struct sockaddr *) & rx_netwbrc_addr, sizeof (rx_netwbrc_addr)) < 0) {
                 char ip6[IP6_ADDR_LEN];
 
-                if (af_cfg() == AF_INET)
-                        inet_ntop(af_cfg(), &((struct sockaddr_in*) (&rx_netwbrc_addr))->sin_addr, ip6, sizeof (ip6));
+                if (AF_CFG == AF_INET)
+                        inet_ntop(AF_CFG, &((struct sockaddr_in*) (&rx_netwbrc_addr))->sin_addr, ip6, sizeof (ip6));
                 else
-                        inet_ntop(af_cfg(), &((struct sockaddr_in6*) (&rx_netwbrc_addr))->sin6_addr, ip6, sizeof (ip6));
+                        inet_ntop(AF_CFG, &((struct sockaddr_in6*) (&rx_netwbrc_addr))->sin6_addr, ip6, sizeof (ip6));
 
                 dbgf_sys(DBGT_ERR, "can't bind network-broadcast socket to %s: %s",
                         ip6, strerror(errno));
                 return FAILURE;
         }
 
-        if (af_cfg() == AF_INET) {
+        if (AF_CFG == AF_INET) {
                 // we'll always listen on the full-broadcast address
                 struct sockaddr_storage rx_fullbrc_addr;
                 IPX_T brc = ip4ToX(0XFFFFFFFF);
@@ -2216,7 +2207,7 @@ void dev_activate( struct dev_node *dev )
         TRACE_FUNCTION_CALL;
 
         assertion(-500575, (dev && !dev->active && dev->if_llocal_addr && dev->if_llocal_addr->iln->flags & IFF_UP));
-        assertion(-500593, (af_cfg() == dev->if_llocal_addr->ifa.ifa_family));
+        assertion(-500593, (AF_CFG == dev->if_llocal_addr->ifa.ifa_family));
         assertion(-500599, (is_ip_set(&dev->if_llocal_addr->ip_addr) && dev->if_llocal_addr->ifa.ifa_prefixlen));
 
         dbgf_sys(DBGT_WARN, "%s=%s", ARG_DEV, dev->label_cfg.str);
@@ -2232,7 +2223,7 @@ void dev_activate( struct dev_node *dev )
                         cleanup_all(-500621);
                 }
 
-                uint8_t prefixlen = ((af_cfg() == AF_INET) ? IP4_MAX_PREFIXLEN : IP6_MAX_PREFIXLEN);
+                uint8_t prefixlen = ((AF_CFG == AF_INET) ? IP4_MAX_PREFIXLEN : IP6_MAX_PREFIXLEN);
 
                 if (!dev->if_global_addr || dev->if_global_addr->ifa.ifa_prefixlen != prefixlen) {
                         dbg_mute(30, DBGL_SYS, DBGT_WARN,
@@ -2355,7 +2346,7 @@ void ip_flush_routes(uint8_t family)
 {
 	TRACE_FUNCTION_CALL;
 
-        assertion(-501128, (af_cfg() || policy_routing == POLICY_RT_ENABLED));
+        assertion(-501128, (AF_CFG || policy_routing == POLICY_RT_ENABLED));
 
         int8_t table_macro;
         struct net_key net = family == AF_INET ? ZERO_NET4_KEY : ZERO_NET6_KEY;
@@ -2372,7 +2363,7 @@ void ip_flush_rules(uint8_t family)
 {
 	TRACE_FUNCTION_CALL;
 
-        assertion(-501129, (af_cfg() || policy_routing == POLICY_RT_ENABLED));
+        assertion(-501129, (AF_CFG || policy_routing == POLICY_RT_ENABLED));
 
         int8_t table_macro;
         struct net_key net = family == AF_INET ? ZERO_NET4_KEY : ZERO_NET6_KEY;
@@ -2384,7 +2375,7 @@ void ip_flush_rules(uint8_t family)
 
                 while (ip(IP_RULE_FLUSH, DEL, YES, &net, table_macro, 0, 0, 0, 0, 0, 0) == SUCCESS) {
 
-                        dbgf_sys(DBGT_ERR, "removed orphan %s rule to table %d", family2Str(af_cfg()), table_macro);
+                        dbgf_sys(DBGT_ERR, "removed orphan %s rule to table %d", family2Str(AF_CFG), table_macro);
 
                 }
         }
@@ -2420,7 +2411,6 @@ STATIC_FUNC
 int update_interface_rules(void)
 {
 	TRACE_FUNCTION_CALL;
-        assertion(-501119, (af_cfg()));
         assertion(-501130, (policy_routing != POLICY_RT_UNSET));
 
 //        ip_flush_tracked(IP_THROW_MY_HNA);
@@ -2442,7 +2432,7 @@ int update_interface_rules(void)
 
                         assertion(-500609, is_ip_set(&ian->ip_addr));
 
-                        if (ian->ifa.ifa_family != af_cfg())
+                        if (ian->ifa.ifa_family != AF_CFG)
                                 continue;
 
                         if (!ian->ifa.ifa_prefixlen)
@@ -2459,8 +2449,7 @@ int update_interface_rules(void)
                                 if (!dev->if_global_addr /*||  ian->ifa.ifa_family != af_cfg*/)
                                         continue;
 
-                                if (is_ip_net_equal(&ian->ip_addr, &dev->if_global_addr->ip_addr, ian->ifa.ifa_prefixlen,
-                                        af_cfg()))
+                                if (is_ip_net_equal(&ian->ip_addr, &dev->if_global_addr->ip_addr, ian->ifa.ifa_prefixlen, AF_CFG))
                                         break;
 
                         }
@@ -2469,7 +2458,7 @@ int update_interface_rules(void)
                                 continue;
 
                         struct net_key throw;
-                        setNet(&throw, af_cfg(), ian->ifa.ifa_prefixlen, &ian->ip_addr);
+                        setNet(&throw, AF_CFG, ian->ifa.ifa_prefixlen, &ian->ip_addr);
                         ip_netmask_validate(&throw.net, throw.prefixlen, throw.family, YES);
 
                         ip(IP_THROW_MY_NET, ADD, NO, &throw, RT_TABLE_HNA, 0, 0, 0, 0, 0, 0);
@@ -2501,8 +2490,6 @@ int update_interface_rules(void)
 STATIC_INLINE_FUNC
 void dev_if_fix(void)
 {
-        assertion(-501120, (af_cfg()));
-
 	TRACE_FUNCTION_CALL;
         struct if_link_node *iln = avl_first_item(&if_link_tree);
         struct avl_node *lan;
@@ -2545,12 +2532,12 @@ void dev_if_fix(void)
 
                 for (aan = NULL; (ian = avl_iterate_item(&dev->if_link->if_addr_tree, &aan));) {
 
-                        if (af_cfg() != ian->ifa.ifa_family || strcmp(dev->label_cfg.str, ian->label.str))
+                        if (AF_CFG != ian->ifa.ifa_family || strcmp(dev->label_cfg.str, ian->label.str))
                                 continue;
 
                         dbgf_all(DBGT_INFO, "testing %s=%s %s", ARG_DEV, ian->label.str, ipFAsStr(&ian->ip_addr));
 
-                        if (af_cfg() == AF_INET6 && is_ip_net_equal(&ian->ip_addr, &IP6_MC_PREF, IP6_MC_PLEN, AF_INET6)) {
+                        if (AF_CFG == AF_INET6 && is_ip_net_equal(&ian->ip_addr, &IP6_MC_PREF, IP6_MC_PLEN, AF_INET6)) {
 
                                 dbgf_all(DBGT_INFO, "skipping multicast");
                                 continue;
@@ -2558,39 +2545,39 @@ void dev_if_fix(void)
 
                         IDM_T is_ip6llocal = is_ip_net_equal(&ian->ip_addr, &IP6_LINKLOCAL_UC_PREF, IP6_LINKLOCAL_UC_PLEN, AF_INET6);
 
-                        if (!dev->if_llocal_addr && (af_cfg() == AF_INET || is_ip6llocal)) {
+                        if (!dev->if_llocal_addr && (AF_CFG == AF_INET || is_ip6llocal)) {
 
-                                if (dev->llocal_prefix_length_conf &&
-                                        is_ip_net_equal(&dev->llocal_prefix_conf, &ian->ip_addr, dev->llocal_prefix_length_conf, af_cfg())) {
-
-                                        dev->if_llocal_addr = ian;
-
-                                } else if (!dev->llocal_prefix_length_conf && llocal_prefix_len &&
-                                        is_ip_net_equal(&llocal_prefix, &ian->ip_addr, llocal_prefix_len, af_cfg())) {
+                                if (dev->llocal_prefix_conf_.prefixlen &&
+                                        is_ip_net_equal(&dev->llocal_prefix_conf_.net, &ian->ip_addr, dev->llocal_prefix_conf_.prefixlen, dev->llocal_prefix_conf_.family)) {
 
                                         dev->if_llocal_addr = ian;
 
-                                } else if (!dev->llocal_prefix_length_conf && !llocal_prefix_len &&
-                                        (af_cfg() == AF_INET || is_ip6llocal)) {
+                                } else if (!dev->llocal_prefix_conf_.prefixlen && llocal_prefix_cfg.prefixlen &&
+                                        is_ip_net_equal(&llocal_prefix_cfg.net, &ian->ip_addr, llocal_prefix_cfg.prefixlen, llocal_prefix_cfg.family)) {
+
+                                        dev->if_llocal_addr = ian;
+
+                                } else if (!dev->llocal_prefix_conf_.prefixlen && !llocal_prefix_cfg.prefixlen &&
+                                        (AF_CFG == AF_INET || is_ip6llocal)) {
                                         
                                         dev->if_llocal_addr = ian;
 
                                 }
                         }
 
-                        if ((af_cfg() == AF_INET || !is_ip6llocal) && (dev == primary_dev_cfg || dev->announce)) {
+                        if ((AF_CFG == AF_INET || !is_ip6llocal) && (dev == primary_dev_cfg || dev->announce)) {
 
-                                if (!dev->if_global_addr && dev->global_prefix_length_conf &&
-                                        is_ip_net_equal(&dev->global_prefix_conf, &ian->ip_addr, dev->global_prefix_length_conf, af_cfg())) {
-
-                                        dev->if_global_addr = ian;
-
-                                } else if (!dev->if_global_addr && !dev->global_prefix_length_conf && global_prefix_len &&
-                                        is_ip_net_equal(&global_prefix, &ian->ip_addr, global_prefix_len, af_cfg())) {
+                                if (!dev->if_global_addr && dev->global_prefix_conf_.prefixlen &&
+                                        is_ip_net_equal(&dev->global_prefix_conf_.net, &ian->ip_addr, dev->global_prefix_conf_.prefixlen, dev->global_prefix_conf_.family)) {
 
                                         dev->if_global_addr = ian;
 
-                                } else if (!dev->if_global_addr && !dev->global_prefix_length_conf && !global_prefix_len) {
+                                } else if (!dev->if_global_addr && !dev->global_prefix_conf_.prefixlen && global_prefix_cfg.prefixlen &&
+                                        is_ip_net_equal(&global_prefix_cfg.net, &ian->ip_addr, global_prefix_cfg.prefixlen, global_prefix_cfg.family)) {
+
+                                        dev->if_global_addr = ian;
+
+                                } else if (!dev->if_global_addr && !dev->global_prefix_conf_.prefixlen && !global_prefix_cfg.prefixlen) {
 
                                         dev->if_global_addr = ian;
 
@@ -2852,8 +2839,7 @@ IDM_T is_policy_rt_supported(void)
 {
         static IDM_T tested_policy_rt = POLICY_RT_UNSET;
         static uint8_t tested_family = 0;
-        struct net_key net = ZERO_NET_KEY;
-        net.family = af_cfg();
+        struct net_key net = ZERO_NETCFG_KEY;
 
         if (net.family == tested_family) {
                 assertion(-501132, (tested_policy_rt != POLICY_RT_UNSET));
@@ -2884,6 +2870,14 @@ uint8_t _af_cfg(const char *func)
         return __af_cfg;
 }
 
+struct net_key _ZERO_NETCFG_KEY(const char *func)
+{
+        struct net_key key = ZERO_NET_KEY;
+        key.family = _af_cfg(func);
+        return key;
+}
+
+
 
 STATIC_FUNC
 int32_t opt_ip_version(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
@@ -2905,6 +2899,7 @@ int32_t opt_ip_version(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                         return FAILURE;
 
                 __af_cfg = (ip_tmp == 4) ? AF_INET : AF_INET6;
+                __ZERO_NETCFG_KEY.family = __af_cfg;
 
                 assertion_dbg(-501282, !_af_cfg_read, "af_cfg() already read by %s!", _af_cfg_read);
 
@@ -2956,7 +2951,7 @@ int32_t opt_ip_version(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                 assertion(-501131, (policy_routing != POLICY_RT_UNSET));
 
                 dbgf_track(DBGT_INFO, "%s=%d policy_routing=%d %s=%d %s=%d %s=%d %s=%d %s=%d %s=%d %s=%d",
-                        ARG_IP, (af_cfg() == AF_INET ? 4 : 6), (policy_routing == POLICY_RT_ENABLED),
+                        ARG_IP, (AF_CFG == AF_INET ? 4 : 6), (policy_routing == POLICY_RT_ENABLED),
                         ARG_IP_POLICY_ROUTING, ip_policy_rt_cfg,
                         ARG_IP_THROW_RULES, ip_throw_rules_cfg,
                         ARG_IP_PRIO_RULES, ip_prio_rules_cfg,
@@ -2976,7 +2971,7 @@ int32_t opt_ip_version(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                         ip(IP_RULE_DEFAULT, ADD, NO, &ZERO_NET4_KEY, RT_TABLE_HNA, RT_PRIO_HNA, 0, 0, 0, 0, 0);
                         ip(IP_RULE_DEFAULT, ADD, NO, &ZERO_NET4_KEY, RT_TABLE_TUN, RT_PRIO_TUNS, 0, 0, 0, 0, 0);
 
-                        if (af_cfg() == AF_INET6) {
+                        if (AF_CFG == AF_INET6) {
                                 
                                 ip_flush_routes(AF_INET6);
                                 ip_flush_rules(AF_INET6);
@@ -3066,26 +3061,22 @@ STATIC_FUNC
 int32_t opt_dev_prefix(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
 {
 	TRACE_FUNCTION_CALL;
-        IPX_T ipX = ZERO_IP;
-        uint8_t mask = 0;
+
+        struct net_key prefix = ZERO_NETCFG_KEY;
         IDM_T is_global_prefix = (!strcmp(opt->name, ARG_GLOBAL_PREFIX));
 
         if ((cmd == OPT_ADJUST || cmd == OPT_CHECK || cmd == OPT_APPLY) && patch->diff == ADD) {
                 
-                char new[IPXNET_STR_LEN];
-                uint8_t family = af_cfg();
-
-                if (str2netw(patch->val, &ipX, cn, &mask, &family, NO) == FAILURE || !is_ip_valid(&ipX, family) ||
-                        (family == AF_INET6 && (
-                        is_ip_net_equal(&ipX, &IP6_MC_PREF, IP6_MC_PLEN, AF_INET6) ||
-                        XOR(is_global_prefix, !is_ip_net_equal(&ipX, &IP6_LINKLOCAL_UC_PREF, IP6_LINKLOCAL_UC_PLEN, AF_INET6))))
+                if (str2netw(patch->val, &prefix.net, cn, &prefix.prefixlen, &prefix.family, NO) == FAILURE || !is_ip_valid(&prefix.net, prefix.family) ||
+                        (prefix.family == AF_INET6 && (
+                        is_ip_net_equal(&prefix.net, &IP6_MC_PREF, IP6_MC_PLEN, AF_INET6) ||
+                        XOR(is_global_prefix, !is_ip_net_equal(&prefix.net, &IP6_LINKLOCAL_UC_PREF, IP6_LINKLOCAL_UC_PLEN, AF_INET6))))
                         ) {
-                        dbg_cn(cn, DBGL_SYS, DBGT_ERR, "invalid prefix %s/%d", ipXAsStr(family, &ipX), mask);
+                        dbg_cn(cn, DBGL_SYS, DBGT_ERR, "invalid prefix %s", netAsStr(&prefix));
                         return FAILURE;
                 }
 
-                sprintf(new, "%s/%d", ipFAsStr(&ipX), mask);
-                set_opt_parent_val(patch, new);
+                set_opt_parent_val(patch, netAsStr(&prefix));
         }
 
         if (cmd == OPT_APPLY) {
@@ -3095,23 +3086,20 @@ int32_t opt_dev_prefix(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
 
                 while ((dev = avl_iterate_item(&dev_name_tree, &an))) {
                         //mark all dev that are note specified more precise:
-                        if (is_global_prefix ? !dev->global_prefix_length_conf : !dev->llocal_prefix_length_conf) {
+                        if (is_global_prefix ? !dev->global_prefix_conf_.prefixlen : !dev->llocal_prefix_conf_.prefixlen) {
 
-                                dbgf_track(DBGT_INFO, "applying %s %s=%s/%d hard_conf_changed=%d",
-                                        dev->label_cfg.str, opt->name, ipFAsStr(&ipX), mask, dev->hard_conf_changed);
+                                dbgf_track(DBGT_INFO, "applying %s %s=%s hard_conf_changed=%d",
+                                        dev->label_cfg.str, opt->name, patch->val, dev->hard_conf_changed);
 
                                 dev->hard_conf_changed = YES;
                                 opt_dev_changed = YES;
                         }
                 }
 
-                if (is_global_prefix) {
-                        global_prefix = ipX;
-                        global_prefix_len = mask;
-                } else {
-                        llocal_prefix = ipX;
-                        llocal_prefix_len = mask;
-                }
+                if (is_global_prefix)
+                        global_prefix_cfg = prefix;
+                else
+                        llocal_prefix_cfg = prefix;
 
         }
 
@@ -3128,8 +3116,6 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
 	struct dev_node *dev = NULL;
 
         if (cmd == OPT_ADJUST || cmd == OPT_CHECK || cmd == OPT_APPLY) {
-
-                assertion(-501126, (af_cfg()));
 
 		if ( strlen(patch->val) >= IFNAMSIZ ) {
 			dbg_cn( cn, DBGL_SYS, DBGT_ERR, "dev name MUST be smaller than %d chars", IFNAMSIZ );
@@ -3194,7 +3180,7 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
                 if (!dev && cmd == OPT_APPLY) {
 
                         dbgf_track(DBGT_INFO, "cmd: %s opt: %s  %s instance %s",
-                                opt_cmd2str[cmd], opt->name, family2Str(af_cfg()), patch ? patch->val : "");
+                                opt_cmd2str[cmd], opt->name, family2Str(AF_CFG), patch ? patch->val : "");
 
                         uint32_t dev_size = sizeof (struct dev_node) + (sizeof (void*) * plugin_data_registries[PLUGIN_DATA_DEV]);
                         dev = debugMalloc(dev_size, -300002);
@@ -3226,10 +3212,8 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
                         dev->channel_conf = OPT_CHILD_UNDEFINED;
                         dev->umetric_max_conf = (UMETRIC_T) OPT_CHILD_UNDEFINED;
                         dev->umetric_min_conf = (UMETRIC_T) OPT_CHILD_UNDEFINED;
-                        dev->global_prefix_conf = ZERO_IP;
-                        dev->global_prefix_length_conf = 0;
-                        dev->llocal_prefix_conf = ZERO_IP;
-                        dev->llocal_prefix_length_conf = 0;
+                        dev->global_prefix_conf_ = ZERO_NETCFG_KEY;
+                        dev->llocal_prefix_conf_ = ZERO_NETCFG_KEY;
 
                         //dev->umetric_max = DEF_DEV_BITRATE_MAX;
 
@@ -3256,51 +3240,40 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
                         if (!strcmp(c->opt->name, ARG_DEV_GLOBAL_PREFIX) || !strcmp(c->opt->name, ARG_DEV_LLOCAL_PREFIX)) {
 
                                 IDM_T is_global_prefix = (!strcmp(c->opt->name, ARG_DEV_GLOBAL_PREFIX));
-                                uint8_t mask = 0;
-                                IPX_T ipX = ZERO_IP;
+                                struct net_key prefix = ZERO_NETCFG_KEY;
 
                                 if (c->val) {
 
-                                        char new[IPXNET_STR_LEN];
-                                        uint8_t family = af_cfg();
-
-                                        if (str2netw(c->val, &ipX, cn, &mask, &family, NO) == FAILURE || !is_ip_valid(&ipX, family) ||
-                                                (family == AF_INET6 && (
-                                                is_ip_net_equal(&ipX, &IP6_MC_PREF, IP6_MC_PLEN, AF_INET6) ||
-                                                XOR(is_global_prefix, !is_ip_net_equal(&ipX, &IP6_LINKLOCAL_UC_PREF, IP6_LINKLOCAL_UC_PLEN, AF_INET6))))
+                                        if (str2netw(c->val, &prefix.net, cn, &prefix.prefixlen, &prefix.family, NO) == FAILURE || !is_ip_valid(&prefix.net, prefix.family) ||
+                                                (prefix.family == AF_INET6 && (
+                                                is_ip_net_equal(&prefix.net, &IP6_MC_PREF, IP6_MC_PLEN, AF_INET6) ||
+                                                XOR(is_global_prefix, !is_ip_net_equal(&prefix.net, &IP6_LINKLOCAL_UC_PREF, IP6_LINKLOCAL_UC_PLEN, AF_INET6))))
                                                 ) {
 
-                                                dbg_cn(cn, DBGL_SYS, DBGT_ERR, "invalid interface prefix %s/%d family=%d=%d",
-                                                        ipXAsStr(family, &ipX), mask, family, af_cfg());
+                                                dbg_cn(cn, DBGL_SYS, DBGT_ERR, "invalid interface prefix %s", netAsStr(&prefix));
                                                 return FAILURE;
                                         }
 
-                                        sprintf(new, "%s/%d", ipXAsStr(family, &ipX), mask);
-                                        set_opt_child_val(c, new);
+                                        set_opt_child_val(c, netAsStr(&prefix));
                                 }
 
                                 if (cmd == OPT_APPLY) {
 
-                                        dbgf_track(DBGT_INFO, "applying %s %s=%s/%d hard_conf_changed=%d",
-                                                dev->label_cfg.str, c->opt->name,
-                                                ipFAsStr(&ipX), mask, dev->hard_conf_changed);
+                                        dbgf_track(DBGT_INFO, "applying %s %s=%s hard_conf_changed=%d",
+                                                dev->label_cfg.str, c->opt->name, c->val, dev->hard_conf_changed);
 
                                         if (is_global_prefix) {
-                                                if (c->val) {
-                                                        dev->global_prefix_conf = ipX;
-                                                        dev->global_prefix_length_conf = mask;
-                                                } else {
-                                                        dev->global_prefix_conf = ZERO_IP;
-                                                        dev->global_prefix_length_conf = 0;
-                                                }
+                                                if (c->val)
+                                                        dev->global_prefix_conf_ = prefix;
+                                                else
+                                                        dev->global_prefix_conf_ = ZERO_NETCFG_KEY;
+                                                
                                         } else {
-                                                if (c->val) {
-                                                        dev->llocal_prefix_conf = ipX;
-                                                        dev->llocal_prefix_length_conf = mask;
-                                                } else {
-                                                        dev->llocal_prefix_conf = ZERO_IP;
-                                                        dev->llocal_prefix_length_conf = 0;
-                                                }
+                                                if (c->val)
+                                                        dev->llocal_prefix_conf_ = prefix;
+                                                else
+                                                        dev->llocal_prefix_conf_ = ZERO_NETCFG_KEY;
+
                                         }
 
                                         dev->hard_conf_changed = YES;
@@ -3465,9 +3438,11 @@ static struct opt_type ip_options[]=
 
 void init_ip(void)
 {
-        assertion(-500894, (is_zero(((char*)&ZERO_IP), sizeof (ZERO_IP))));
+        assertion(-500894, is_zero(((char*)&ZERO_IP), sizeof (ZERO_IP)));
         assertion(-501254, is_zero((void*) &ZERO_NET_KEY, sizeof (ZERO_NET_KEY)));
-        
+        assertion(-500000, is_zero((void*) &llocal_prefix_cfg, sizeof (llocal_prefix_cfg)));
+        assertion(-500000, is_zero((void*) &global_prefix_cfg, sizeof (global_prefix_cfg)));
+
 
 
         if (rtnl_open(&ip_rth) != SUCCESS) {
@@ -3507,14 +3482,14 @@ void cleanup_ip(void)
         if (policy_routing == POLICY_RT_ENABLED && ip_prio_rules_cfg) {
 
                 ip_flush_tracked( IP_ROUTE_FLUSH );
-                ip_flush_routes(af_cfg());
-                if (af_cfg() == AF_INET6)
+                ip_flush_routes(AF_CFG);
+                if (AF_CFG == AF_INET6)
                         ip_flush_routes(AF_INET);
 
 
                 ip_flush_tracked( IP_RULE_FLUSH );
-                ip_flush_rules(af_cfg());
-                if (af_cfg() == AF_INET6)
+                ip_flush_rules(AF_CFG);
+                if (AF_CFG == AF_INET6)
                         ip_flush_rules(AF_INET);
 
         }

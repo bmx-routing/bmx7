@@ -101,7 +101,7 @@ void niit_dev_event_hook(int32_t cb_id, void* unused)
         struct orig_node *on;
         IDM_T has_niit4to6_address = 0;
 
-        if (!tun4_address.prefixlen || af_cfg() == AF_INET)
+        if (!tun4_address.prefixlen || AF_CFG == AF_INET)
                 return;
 
         while ((iln = avl_iterate_item(&if_link_tree, &an))) {
@@ -207,7 +207,7 @@ IDM_T configure_niit4to6(IDM_T del, struct net_key *key)
 {
         TRACE_FUNCTION_CALL;
 
-        if (!niit4to6_idx || !tun4_address.prefixlen || af_cfg() != AF_INET6 || key->prefixlen < 96 ||
+        if (!niit4to6_idx || !tun4_address.prefixlen || AF_CFG != AF_INET6 || key->prefixlen < 96 ||
                 !is_ip_net_equal(&key->net, &niitPrefix96, 96, AF_INET6))
                 return SUCCESS;
 
@@ -234,7 +234,7 @@ IDM_T configure_niit6to4(IDM_T del, struct net_key *key)
 {
         TRACE_FUNCTION_CALL;
 
-        if (!niit6to4_idx || !tun4_address.prefixlen || af_cfg() != AF_INET6 || key->prefixlen < 96 ||
+        if (!niit6to4_idx || !tun4_address.prefixlen || AF_CFG != AF_INET6 || key->prefixlen < 96 ||
                 !is_ip_net_equal(&key->net, &niitPrefix96, 96, AF_INET6))
                 return SUCCESS;
 
@@ -271,7 +271,7 @@ STATIC_FUNC
 IDM_T configure_route(IDM_T del, struct orig_node *on, struct net_key *key)
 {
 
-        assertion(-500000, (key->family == af_cfg()));
+        assertion(-500000, (key->family == AF_CFG));
 
         // update network routes:
         if (del) {
@@ -454,7 +454,7 @@ void configure_hna(IDM_T del, struct net_key* key, struct orig_node *on)
 
                 // update throw routes:
                 if (policy_routing == POLICY_RT_ENABLED && ip_throw_rules_cfg) {
-                        assertion(-500000, (key->family == af_cfg()));
+                        assertion(-500000, (key->family == AF_CFG));
                         ip(IP_THROW_MY_HNA, del, NO, key, RT_TABLE_HNA, 0, 0, 0, 0, 0, 0);
                         ip(IP_THROW_MY_HNA, del, NO, key, RT_TABLE_TUN, 0, 0, 0, 0, 0, 0);
                 }
@@ -480,7 +480,7 @@ struct hna_node * find_overlapping_hna( IPX_T *ipX, uint8_t prefixlen )
 
         while ((un = avl_iterate_item(&global_uhna_tree, &it))) {
 
-                if (is_ip_net_equal(ipX, &un->key.net, MIN(prefixlen, un->key.prefixlen), af_cfg()))
+                if (is_ip_net_equal(ipX, &un->key.net, MIN(prefixlen, un->key.prefixlen), AF_CFG))
                         return un;
 
         }
@@ -498,7 +498,7 @@ int process_description_tlv_hna(struct rx_frame_iterator *it)
         uint8_t op = it->op;
         uint8_t family = (it->frame_type == BMX_DSC_TLV_UHNA4 ? AF_INET : AF_INET6);
 
-        if (af_cfg() != family) {
+        if (AF_CFG != family) {
                 dbgf_sys(DBGT_ERR, "invalid family %s", family2Str(family));
                 return TLV_RX_DATA_BLOCKED;
         }
@@ -516,9 +516,8 @@ int process_description_tlv_hna(struct rx_frame_iterator *it)
                         set_hna_to_key(&key, NULL, (struct description_msg_hna6 *) (it->frame_data + pos));
 
 
-                dbgf_track(DBGT_INFO, "%s %s %s %s=%s/%d",
-                        tlv_op_str(op), family2Str(family), globalIdAsString(&on->global_id), ARG_UHNA,
-                        ipXAsStr(family, &key.net), key.prefixlen);
+                dbgf_track(DBGT_INFO, "%s %s %s %s=%s",
+                        tlv_op_str(op), family2Str(family), globalIdAsString(&on->global_id), ARG_UHNA, netAsStr(&key));
 
                 if (op == TLV_OP_DEL) {
 
@@ -536,9 +535,8 @@ int process_description_tlv_hna(struct rx_frame_iterator *it)
                         if (!is_ip_valid(&key.net, family) || (un = find_overlapping_hna(&key.net, key.prefixlen)) ||
                                 is_ip_net_equal(&key.net, &IP6_LINKLOCAL_UC_PREF, IP6_LINKLOCAL_UC_PLEN, AF_INET6)) {
 
-                                dbgf_sys(DBGT_ERR, "global_id=%s %s=%s/%d blocked (by global_id=%s)",
-                                        globalIdAsString(&on->global_id),
-                                        ARG_UHNA, ipXAsStr(family, &key.net), key.prefixlen,
+                                dbgf_sys(DBGT_ERR, "global_id=%s %s=%s blocked (by global_id=%s)",
+                                        globalIdAsString(&on->global_id), ARG_UHNA, netAsStr(&key),
                                         un ? globalIdAsString(&un->on->global_id) : "???");
 
                                 return TLV_RX_DATA_BLOCKED;
@@ -620,39 +618,28 @@ STATIC_FUNC
 int32_t opt_uhna(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
 {
         TRACE_FUNCTION_CALL;
-        IPX_T ipX;
-	uint8_t mask;
-	char new[IPXNET_STR_LEN];
 
 	if ( cmd == OPT_ADJUST  ||  cmd == OPT_CHECK  ||  cmd == OPT_APPLY ) {
 
-                uint8_t family = af_cfg();
-                struct net_key key = ZERO_NET_KEY;
+                struct net_key hna = ZERO_NETCFG_KEY;
                 struct hna_node *un;
 
                 dbgf_all(DBGT_INFO, "af_cfg=%s diff=%d cmd=%s  save=%d  opt=%s  patch=%s",
-                        family2Str(af_cfg()), patch->diff, opt_cmd2str[cmd], _save, opt->name, patch->val);
+                        family2Str(hna.family), patch->diff, opt_cmd2str[cmd], _save, opt->name, patch->val);
 
-                if (str2netw(patch->val, &ipX, cn, &mask, &family, NO) == FAILURE || !is_ip_valid(&ipX, family)) {
+                if (str2netw(patch->val, &hna.net, cn, &hna.prefixlen, &hna.family, NO) == FAILURE || !is_ip_valid(&hna.net, hna.family)) {
                         dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "invalid prefix: %s", patch->val);
                         return FAILURE;
                 }
 
-                sprintf(new, "%s/%d", ipXAsStr(family, &ipX), mask);
-
-                set_opt_parent_val(patch, new);
+                set_opt_parent_val(patch, netAsStr(&hna));
 
                 if (cmd == OPT_CHECK || cmd == OPT_APPLY) {
 
-                        
-                        setNet(&key, family, mask, &ipX);
-
-
-                        if (patch->diff != DEL && (un = find_overlapping_hna(&key.net, key.prefixlen))) {
+                        if (patch->diff != DEL && (un = find_overlapping_hna(&hna.net, hna.prefixlen))) {
 
                                 dbg_cn(cn, DBGL_CHANGES, DBGT_ERR,
-                                        "UHNA %s/%d already blocked by global_id=%s !",
-                                        ipFAsStr(&key.net), mask,
+                                        "%s=%s already blocked by global_id=%s !", ARG_UHNA, netAsStr(&hna),
                                         (un->on == self ? "MYSELF" : globalIdAsString(&un->on->global_id)));
 
                                 return FAILURE;
@@ -660,7 +647,7 @@ int32_t opt_uhna(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
                 }
 
                 if (cmd == OPT_APPLY) {
-                        configure_hna((patch->diff == DEL ? DEL : ADD), &key, self);
+                        configure_hna((patch->diff == DEL ? DEL : ADD), &hna, self);
                         my_description_changed = YES;
                 }
 
@@ -892,12 +879,12 @@ void set_tun_net(struct tun_search_node *sn)
                 struct tun_net_node *best_tnn = NULL;
                 struct net_key srcPrefix = tsn->srcPrefix.prefixlen ? tsn->srcPrefix : (tsn->tunSearchKey.netKey.family == AF_INET ? tun4_address : tun6_address);
 
-                dbgf_all(DBGT_INFO, "searching %s=%s: %s=%s %s=%d %s=%s/%d %s=%s/%d ",
+                dbgf_all(DBGT_INFO, "searching %s=%s: %s=%s %s=%d %s=%s %s=%s ",
                         ARG_TUN_SEARCH_NAME, tsn->tunSearchKey.netName,
                         ARG_TUN_SEARCH_HOSTNAME, globalIdAsString(&tsn->global_id),
                         ARG_TUN_SEARCH_TYPE, tsn->srcType,
-                        ARG_TUN_SEARCH_NETWORK, ipXAsStr(tsn->tunSearchKey.netKey.family, &tsn->tunSearchKey.netKey.net), tsn->tunSearchKey.netKey.prefixlen,
-                        ARG_TUN_SEARCH_IP, ipXAsStr(tsn->tunSearchKey.netKey.family, &srcPrefix.net), srcPrefix.prefixlen
+                        ARG_TUN_SEARCH_NETWORK, netAsStr(&tsn->tunSearchKey.netKey),
+                        ARG_TUN_SEARCH_IP, netAsStr(&srcPrefix)
                         );
 
                 while ((tnn = avl_iterate_item(&tun_net_tree, &itnn))) {
@@ -910,10 +897,9 @@ void set_tun_net(struct tun_search_node *sn)
                         uint8_t family = tnn->tunNetKey.netKey.family;
                         struct net_key ingressPrefix = (family == AF_INET) ? tnn->tunNetKey.tun->ingress4Prefix : tnn->tunNetKey.tun->ingress6Prefix;
 
-                        dbgf_all(DBGT_INFO, "checking network=%s/%d bw_fmu8=%d, ingress=%s/%d localIp=%s tun6Id=%d tun=%p from orig=%s",
-                                ipXAsStr(family, &tnn->tunNetKey.netKey.net), tnn->tunNetKey.netKey.prefixlen, tnn->bandwidth.val.u8,
-                                ipXAsStr(family, &ingressPrefix.net), ingressPrefix.prefixlen,
-                                ip6AsStr(&tnn->tunNetKey.tun->localIp), tnn->tunNetKey.tun->tunOutKey.tun6Id, (void*)(tnn->tunNetKey.tun),
+                        dbgf_all(DBGT_INFO, "checking network=%s bw_fmu8=%d, ingress=%s localIp=%s tun6Id=%d from orig=%s",
+                                netAsStr(&tnn->tunNetKey.netKey), tnn->bandwidth.val.u8, netAsStr(&ingressPrefix),
+                                ip6AsStr(&tnn->tunNetKey.tun->localIp), tnn->tunNetKey.tun->tunOutKey.tun6Id,
                                 globalIdAsString(&on->global_id));
 
                         if (!(
@@ -1313,7 +1299,7 @@ int process_description_tlv_tunXin6_net_adv(struct rx_frame_iterator *it)
                 } else if (it->op == TLV_OP_TEST) {
 
                         if (ip_netmask_validate(&net.net, net.prefixlen, net.family, NO) == FAILURE) {
-                                dbgf_sys(DBGT_ERR, "network=%s/%d", ipXAsStr(net.family, &net.net), net.prefixlen);
+                                dbgf_sys(DBGT_ERR, "network=%s", netAsStr(&net));
                                 return TLV_RX_DATA_FAILURE;
                         }
 
@@ -1343,8 +1329,8 @@ int process_description_tlv_tunXin6_net_adv(struct rx_frame_iterator *it)
 
                                         used = 1;
                                 } else {
-                                        dbgf_sys(DBGT_WARN, "double network=%s/%d found for orig=%s tun6Id=%d",
-                                                ipXAsStr(family, &net.net), net.prefixlen, globalIdAsString(&tak.on->global_id), tak.tun6Id);
+                                        dbgf_sys(DBGT_WARN, "double network=%s found for orig=%s tun6Id=%d",
+                                                netAsStr(&net), globalIdAsString(&tak.on->global_id), tak.tun6Id);
                                 }
 
                         } else {
@@ -1424,7 +1410,7 @@ static int32_t tun_out_status_creator(struct status_handl *handl, void *data)
                         status->globalId = &tun->tunOutKey.on->global_id;
                         status->local = &tun->localIp;
                         status->remote = &tun->tunOutKey.on->primary_ip;
-                        sprintf(status->network, "%s/%d", ipXAsStr(tnn->tunNetKey.netKey.family, &tnn->tunNetKey.netKey.net), tnn->tunNetKey.netKey.prefixlen);
+                        sprintf(status->network, netAsStr(&tnn->tunNetKey.netKey));
                         status->bw_val = fmetric_to_umetric(fmetric_u8_to_fmu16(tnn->bandwidth));
                         status->bandwidth = status->bw_val ? &status->bw_val : NULL;
                         status->metric = tun->tunOutKey.on->curr_rt_local ? &tun->tunOutKey.on->curr_rt_local->mr.umetric : NULL;
@@ -1434,8 +1420,7 @@ static int32_t tun_out_status_creator(struct status_handl *handl, void *data)
 
                         if (tsn) {
                                 status->searchName = tsn->tunSearchKey.netName;
-                                sprintf(status->searchNetwork, "%s/%d",
-                                        ipXAsStr(tsn->tunSearchKey.netKey.family, &tsn->tunSearchKey.netKey.net), tsn->tunSearchKey.netKey.prefixlen);
+                                sprintf(status->searchNetwork, "%s", netAsStr(&tsn->tunSearchKey.netKey));
                                 status->searchId = &tsn->global_id;
                                 status->ipMetric = tsn->ipmetric;
 
@@ -1460,8 +1445,7 @@ static int32_t tun_out_status_creator(struct status_handl *handl, void *data)
                         status->tunName = DBG_NIL;
                         status->searchName = tsn->tunSearchKey.netName;
                         if (tsn->tunSearchKey.netKey.family) {
-                                sprintf(status->searchNetwork, "%s/%d",
-                                        ipXAsStr(tsn->tunSearchKey.netKey.family, &tsn->tunSearchKey.netKey.net), tsn->tunSearchKey.netKey.prefixlen);
+                                sprintf(status->searchNetwork, "%s", netAsStr(&tsn->tunSearchKey.netKey));
                         } else {
                                 sprintf(status->searchNetwork, DBG_NIL);
                         }
@@ -1486,26 +1470,22 @@ int32_t opt_tun_net(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt
 
         if (cmd == OPT_ADJUST || cmd == OPT_CHECK) {
 
-                uint8_t adv_family = 0;
-                uint8_t mask;
-                IPX_T dst;
+                struct net_key net = ZERO_NET_KEY;
 
                 dbgf_all(DBGT_INFO, "diff=%d cmd=%s  save=%d  opt=%s  patch=%s",
                         patch->diff, opt_cmd2str[cmd], _save, opt->name, patch->val);
 
-                if (af_cfg() != AF_INET6)
+                if (AF_CFG != AF_INET6)
                         return FAILURE;
 
-                if (str2netw(patch->val, &dst, cn, &mask, &adv_family, NO) == FAILURE) {
+                if (str2netw(patch->val, &net.net, cn, &net.prefixlen, &net.family, NO) == FAILURE) {
                         dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "invalid %s=%s", ARG_TUN_NET, patch->val);
                         return FAILURE;
                 }
 
-                if(cmd == OPT_ADJUST) {
-                        char adjusted_dst[IPXNET_STR_LEN];
-                        sprintf(adjusted_dst, "%s/%d", ipXAsStr(adv_family, &dst), mask);
-                        set_opt_parent_val(patch, adjusted_dst);
-                }
+                if(cmd == OPT_ADJUST)
+                        set_opt_parent_val(patch, netAsStr(&net));
+
 
 
                 struct opt_child *c = NULL;
@@ -1566,7 +1546,7 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                 dbgf_all(DBGT_INFO, "diff=%d cmd=%s  save=%d  opt=%s  patch=%s",
                         patch->diff, opt_cmd2str[cmd], _save, opt->name, patch->val);
 
-                if (af_cfg() != AF_INET6)
+                if (AF_CFG != AF_INET6)
                         return FAILURE;
 
                 if (strlen(patch->val) >= NETWORK_NAME_LEN || validate_name_string(patch->val, strlen(patch->val) + 1) != SUCCESS)
@@ -1575,7 +1555,9 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                 strcpy(name, patch->val);
 
                 tsn = avl_find_item(&tun_search_name_tree, name);
-                uint8_t family = tsn ? tsn->tunSearchKey.netKey.family : 0; // family of ARG_TUN_SEARCH_NETWORK and ARG_TUN_SEARCH_SRC must be the same!!!
+
+                struct net_key net = ZERO_NET_KEY;
+                net.family = tsn ? tsn->tunSearchKey.netKey.family : 0; // family of ARG_TUN_SEARCH_NETWORK and ARG_TUN_SEARCH_SRC must be the same!!!
 
                 assertion(-501324, IMPLIES(tsn, tsn == avl_find_item(&tun_search_net_tree, &tsn->tunSearchKey)));
 
@@ -1599,25 +1581,21 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                         if (!strcmp(c->opt->name, ARG_TUN_SEARCH_NETWORK)) {
 
                                 if (c->val) {
-                                        uint8_t mask;
-                                        IPX_T dst;
-                                        char adjusted_dst[IPXNET_STR_LEN];
 
-                                        if (str2netw(c->val, &dst, cn, &mask, &family, NO) == FAILURE)
+                                        if (str2netw(c->val, &net.net, cn, &net.prefixlen, &net.family, NO) == FAILURE)
                                                 return FAILURE;
 
-                                        sprintf(adjusted_dst, "%s/%d", ipXAsStr(family, &dst), mask);
-                                        set_opt_child_val(c, adjusted_dst);
+                                        set_opt_child_val(c, netAsStr(&net));
 
                                         if (cmd == OPT_APPLY && tsn) {
                                                 avl_remove(&tun_search_net_tree, &tsn->tunSearchKey, -300435);
-                                                setNet(&tsn->tunSearchKey.netKey, family, mask, &dst);
+                                                tsn->tunSearchKey.netKey = net;
                                                 avl_insert(&tun_search_net_tree, tsn, -300436);
                                         }
 
                                 } else if (cmd == OPT_APPLY && tsn) {
                                         avl_remove(&tun_search_net_tree, &tsn->tunSearchKey, -300437);
-                                        setNet(&tsn->tunSearchKey.netKey, family, 0, NULL);
+                                        setNet(&tsn->tunSearchKey.netKey, net.family, 0, NULL);
                                         avl_insert(&tun_search_net_tree, tsn, -300438);
                                 }
 
@@ -1634,39 +1612,33 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                         } else if (!strcmp(c->opt->name, ARG_TUN_SEARCH_IP)) {
 
                                 if (c->val) {
-                                        struct net_key ip = ZERO_NET_KEY;
-                                        char adjusted_src[IPXNET_STR_LEN];
                                         struct hna_node *hna;
 
-                                        if (str2netw(c->val, &ip.net, cn, &ip.prefixlen, &family, YES) == FAILURE)
+                                        if (str2netw(c->val, &net.net, cn, &net.prefixlen, &net.family, YES) == FAILURE)
                                                 return FAILURE;
 
-                                        ip.family = family;
+                                        set_opt_child_val(c, netAsStr(&net));
 
-                                        sprintf(adjusted_src, "%s/%d", ipXAsStr(family, &ip.net), ip.prefixlen);
-                                        set_opt_child_val(c, adjusted_src);
-
-                                        struct net_key find = (family == AF_INET) ? netX4ToNiit6(&ip) : ip;
+                                        struct net_key find = (net.family == AF_INET) ? netX4ToNiit6(&net) : net;
 
                                         if ((hna = find_overlapping_hna(&find.net, find.prefixlen)) && hna->on != self) {
 
-                                                dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "%s=%s /%s=%s/%d already used by orig=%s hna=%s/%d",
-                                                        ARG_TUN_SEARCH_NAME, name, ARG_TUN_SEARCH_IP, ip6AsStr(&find.net), find.prefixlen,
-                                                        globalIdAsString(&hna->on->global_id), ip6AsStr(&hna->key.net), hna->key.prefixlen);
+                                                dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "%s=%s /%s=%s already used by orig=%s hna=%s",
+                                                        ARG_TUN_SEARCH_NAME, name, ARG_TUN_SEARCH_IP, netAsStr(&find),
+                                                        globalIdAsString(&hna->on->global_id), netAsStr(&hna->key));
 
                                                 return FAILURE;
                                         }
 
                                         if (cmd == OPT_APPLY && tsn) {
-                                                tsn->srcPrefix = ip;
+                                                tsn->srcPrefix = net;
                                                 avl_remove(&tun_search_net_tree, &tsn->tunSearchKey, -300439);
-                                                tsn->tunSearchKey.netKey.family = family;
+                                                tsn->tunSearchKey.netKey.family = net.family;
                                                 avl_insert(&tun_search_net_tree, tsn, -300440);
                                         }
 
                                 } else if (cmd == OPT_APPLY && tsn) {
-                                        tsn->srcPrefix.net = ZERO_IP;
-                                        tsn->srcPrefix.prefixlen = 0;
+                                        setNet(&tsn->srcPrefix, net.family, 0, NULL);
                                 }
 
                         } else if (!strcmp(c->opt->name, ARG_TUN_SEARCH_HOSTNAME) ) {
@@ -1760,7 +1732,7 @@ int32_t opt_tun_adv(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt
 
                 struct opt_child *c = NULL;
 
-                if (af_cfg() != AF_INET6)
+                if (AF_CFG != AF_INET6)
                         return FAILURE;
 
 
@@ -1873,7 +1845,6 @@ int32_t opt_tun_adv(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt
 
                                 if (c->val) {
                                         struct net_key p6 = ZERO_NET6_KEY;
-                                        char adjusted_prefix6[IPXNET_STR_LEN];
 
                                         if (str2netw(c->val, &p6.net, cn, &p6.prefixlen, &p6.family, NO) == FAILURE ||
                                                 !is_ip_valid(&p6.net, p6.family)) {
@@ -1883,8 +1854,7 @@ int32_t opt_tun_adv(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt
                                                 return FAILURE;
                                         }
 
-                                        sprintf(adjusted_prefix6, "%s/%d", ip6AsStr(&p6.net), p6.prefixlen);
-                                        set_opt_child_val(c, adjusted_prefix6);
+                                        set_opt_child_val(c, netAsStr(&p6));
 
                                         if (cmd == OPT_APPLY && tun)
                                                 tun->ingress6Prefix = p6;
@@ -1974,7 +1944,7 @@ int32_t opt_tun_address(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
 
         if ( cmd == OPT_CHECK  ||  cmd == OPT_APPLY ) {
 
-                if (af_cfg() != AF_INET6) {
+                if (AF_CFG != AF_INET6) {
 
                         return FAILURE;
 
@@ -1997,9 +1967,8 @@ int32_t opt_tun_address(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
 
                         if (hna && hna->on != self) {
 
-                                dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "%s=%s/%d already used by orig=%s hna=%s/%d",
-                                        opt->name, ip6AsStr(&find.net), find.prefixlen,
-                                        globalIdAsString(&hna->on->global_id), ip6AsStr(&hna->key.net), hna->key.prefixlen);
+                                dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "%s=%s already used by orig=%s hna=%s",
+                                        opt->name, netAsStr(&find), globalIdAsString(&hna->on->global_id), netAsStr(&hna->key));
 
                                 return FAILURE;
                         }
@@ -2121,7 +2090,7 @@ void hna_route_change_hook(uint8_t del, struct orig_node *on)
 
         process_description_tlvs(NULL, on, on->desc,
                 del ? TLV_OP_CUSTOM_HNA_ROUTE_DEL : TLV_OP_CUSTOM_HNA_ROUTE_ADD,
-                af_cfg() == AF_INET ? BMX_DSC_TLV_UHNA4 : BMX_DSC_TLV_UHNA6, NULL);
+                AF_CFG == AF_INET ? BMX_DSC_TLV_UHNA4 : BMX_DSC_TLV_UHNA6, NULL);
 
 }
 

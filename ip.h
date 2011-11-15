@@ -218,6 +218,17 @@ extern const struct net_key ZERO_NET_KEY;
 extern const struct net_key ZERO_NET4_KEY;
 extern const struct net_key ZERO_NET6_KEY;
 
+#ifdef NO_ASSERTIONS
+extern uint8_t __af_cfg;
+#define AF_CFG __af_cfg
+extern struct net_key __ZERO_NETCFG_KEY;
+#define ZERO_NETCFG_KEY __ZERO_NETCFG_KEY
+#else
+uint8_t _af_cfg(const char *func);
+#define AF_CFG _af_cfg(__FUNCTION__)
+struct net_key _ZERO_NETCFG_KEY(const char *func);
+#define ZERO_NETCFG_KEY _ZERO_NETCFG_KEY(__FUNCTION__)
+#endif
 
 extern const IP6_T   IP6_ALLROUTERS_MC_ADDR;
 extern const IP6_T   IP6_LOOPBACK_ADDR;
@@ -412,11 +423,14 @@ struct dev_node {
 //	UMETRIC_T umetric_max_configured;
 	UMETRIC_T umetric_max;
 
-	IPX_T global_prefix_conf;
-	int16_t global_prefix_length_conf;
+        struct net_key global_prefix_conf_;
+        struct net_key llocal_prefix_conf_;
 
-	IPX_T llocal_prefix_conf;
-	int16_t llocal_prefix_length_conf;
+//	IPX_T global_prefix_conf;
+//	int16_t global_prefix_length_conf;
+//
+//	IPX_T llocal_prefix_conf;
+//	int16_t llocal_prefix_length_conf;
 
 	//size of plugin data is defined during intialization and depends on registered PLUGIN_DATA_DEV hooks
 	void *plugin_data[];
@@ -513,9 +527,6 @@ IDM_T change_mtu(char *name, uint16_t mtu);
 IDM_T ip(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_key *net,
         int8_t table_macro, int8_t prio_macro, IFNAME_T *iifname, int oif_idx, IPX_T *via, IPX_T *src, uint32_t metric);
 
-uint8_t _af_cfg(const char *func);
-
-#define af_cfg() _af_cfg(__FUNCTION__)
 
 //static IDM_T kernel_if_config(void);
 

@@ -991,7 +991,7 @@ void rx_packet( struct packet_buff *pb )
 
         assertion(-500841, ((iif->active && iif->if_llocal_addr)));
 
-        if (af_cfg() == AF_INET) {
+        if (AF_CFG == AF_INET) {
                 pb->i.llip = ip4ToX((*((struct sockaddr_in*) &(pb->i.addr))).sin_addr.s_addr);
 
         } else {
@@ -1534,9 +1534,12 @@ uint32_t field_iterate(struct field_iterator *it)
         it->field_bit_pos = (format->field_pos == -1) ?
                 it->field_bit_pos + it->field_bits : it->msg_bit_pos + format->field_pos;
 
+        uint8_t field_type = format->field_type;
+        uint32_t field_bits = format->field_bits ? format->field_bits : it->var_bits;
+        int32_t std_bits = field_standard_sizes[field_type];
+
         dbgf_all(DBGT_INFO, "field_name=%s max_data_size=%d min_msg_size=%d msg_bit_pos=%d data=%p field=%d field_bits=%d field_bit_pos=%d var_bits=%d field_type=%d field_bits=%d std_bits=%d\n",
-                format->field_name, it->data_size, it->min_msg_size, it->msg_bit_pos, it->data, it->field, it->field_bits, it->field_bit_pos, it->var_bits,
-                format->field_type, format->field_bits, field_standard_sizes[format->field_type]);
+                format->field_name, it->data_size, it->min_msg_size, it->msg_bit_pos, it->data, it->field, it->field_bits, it->field_bit_pos, it->var_bits, field_type, format->field_bits, std_bits);
 
 
         if (it->msg_bit_pos + (it->min_msg_size * 8) + it->var_bits <=
@@ -1544,10 +1547,6 @@ uint32_t field_iterate(struct field_iterator *it)
 
                 //printf("msg_name=%s field_name=%s\n", handl->name, format->msg_field_name);
 
-                uint8_t field_type = format->field_type;
-                uint32_t field_bits = format->field_bits ? format->field_bits : it->var_bits;
-                int32_t std_bits;
-                std_bits = field_standard_sizes[field_type];
 
                 assertion(-501172, IMPLIES(field_type == FIELD_TYPE_STRING_SIZE, !it->var_bits));
 

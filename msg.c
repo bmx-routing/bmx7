@@ -2569,7 +2569,7 @@ int32_t rx_frame_iterate(struct rx_frame_iterator *it)
 
                         return fhs->is_relevant ? TLV_RX_DATA_FAILURE : TLV_RX_DATA_BLOCKED;
 
-                } else if (f_handl->family && f_handl->family != af_cfg()) {
+                } else if (f_handl->family && f_handl->family != AF_CFG) {
 
                         return fhs->is_relevant ? TLV_RX_DATA_FAILURE : TLV_RX_DATA_IGNORED;
                 }
@@ -2808,7 +2808,7 @@ int32_t tx_frame_iterate(IDM_T iterate_msg, struct tx_frame_iterator *it)
                 it->caller, iterate_msg ? "YES" : "NO ", it->frame_type,
                 it->cache_msgs_size, tx_iterator_cache_data_space(it), it->frames_out_pos, it->frames_out_max);
 
-        if (handl->family && handl->family != af_cfg())
+        if (handl->family && handl->family != AF_CFG)
                 return TLV_TX_DATA_IGNORED;
 
         if (handl->tx_frame_handler || iterate_msg) {

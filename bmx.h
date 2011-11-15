@@ -1071,6 +1071,7 @@ void rx_packet( struct packet_buff *pb );
 #ifdef NO_ASSERTIONS
 #define paranoia( ... )
 #define assertion( ... )
+#define assertion_dbg( ... )
 #define ASSERTION( ... )
 #define EXITERROR( ... )
 #define CHECK_INTEGRITY( ... )

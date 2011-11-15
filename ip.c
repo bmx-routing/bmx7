@@ -3062,47 +3062,49 @@ int32_t opt_dev_prefix(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
 {
 	TRACE_FUNCTION_CALL;
 
-        struct net_key prefix = ZERO_NETCFG_KEY;
-        IDM_T is_global_prefix = (!strcmp(opt->name, ARG_GLOBAL_PREFIX));
+        if ((cmd == OPT_ADJUST || cmd == OPT_CHECK || cmd == OPT_APPLY)) {
 
-        if ((cmd == OPT_ADJUST || cmd == OPT_CHECK || cmd == OPT_APPLY) && patch->diff == ADD) {
-                
-                if (str2netw(patch->val, &prefix.net, cn, &prefix.prefixlen, &prefix.family, NO) == FAILURE || !is_ip_valid(&prefix.net, prefix.family) ||
-                        (prefix.family == AF_INET6 && (
-                        is_ip_net_equal(&prefix.net, &IP6_MC_PREF, IP6_MC_PLEN, AF_INET6) ||
-                        XOR(is_global_prefix, !is_ip_net_equal(&prefix.net, &IP6_LINKLOCAL_UC_PREF, IP6_LINKLOCAL_UC_PLEN, AF_INET6))))
-                        ) {
-                        dbg_cn(cn, DBGL_SYS, DBGT_ERR, "invalid prefix %s", netAsStr(&prefix));
-                        return FAILURE;
-                }
+                IDM_T is_global_prefix = (!strcmp(opt->name, ARG_GLOBAL_PREFIX));
+                struct net_key prefix = ZERO_NETCFG_KEY;
 
-                set_opt_parent_val(patch, netAsStr(&prefix));
-        }
+                if (patch->diff == ADD) {
 
-        if (cmd == OPT_APPLY) {
-
-                struct avl_node *an = NULL;
-                struct dev_node *dev;
-
-                while ((dev = avl_iterate_item(&dev_name_tree, &an))) {
-                        //mark all dev that are note specified more precise:
-                        if (is_global_prefix ? !dev->global_prefix_conf_.prefixlen : !dev->llocal_prefix_conf_.prefixlen) {
-
-                                dbgf_track(DBGT_INFO, "applying %s %s=%s hard_conf_changed=%d",
-                                        dev->label_cfg.str, opt->name, patch->val, dev->hard_conf_changed);
-
-                                dev->hard_conf_changed = YES;
-                                opt_dev_changed = YES;
+                        if (str2netw(patch->val, &prefix.net, cn, &prefix.prefixlen, &prefix.family, NO) == FAILURE || !is_ip_valid(&prefix.net, prefix.family) ||
+                                (prefix.family == AF_INET6 && (
+                                is_ip_net_equal(&prefix.net, &IP6_MC_PREF, IP6_MC_PLEN, AF_INET6) ||
+                                XOR(is_global_prefix, !is_ip_net_equal(&prefix.net, &IP6_LINKLOCAL_UC_PREF, IP6_LINKLOCAL_UC_PLEN, AF_INET6))))
+                                ) {
+                                dbg_cn(cn, DBGL_SYS, DBGT_ERR, "invalid prefix %s", netAsStr(&prefix));
+                                return FAILURE;
                         }
+
+                        set_opt_parent_val(patch, netAsStr(&prefix));
                 }
 
-                if (is_global_prefix)
-                        global_prefix_cfg = prefix;
-                else
-                        llocal_prefix_cfg = prefix;
+                if (cmd == OPT_APPLY) {
 
+                        struct avl_node *an = NULL;
+                        struct dev_node *dev;
+
+                        while ((dev = avl_iterate_item(&dev_name_tree, &an))) {
+                                //mark all dev that are note specified more precise:
+                                if (is_global_prefix ? !dev->global_prefix_conf_.prefixlen : !dev->llocal_prefix_conf_.prefixlen) {
+
+                                        dbgf_track(DBGT_INFO, "applying %s %s=%s hard_conf_changed=%d",
+                                                dev->label_cfg.str, opt->name, patch->val, dev->hard_conf_changed);
+
+                                        dev->hard_conf_changed = YES;
+                                        opt_dev_changed = YES;
+                                }
+                        }
+
+                        if (is_global_prefix)
+                                global_prefix_cfg = prefix;
+                        else
+                                llocal_prefix_cfg = prefix;
+
+                }
         }
-
 
 	return SUCCESS;
 }

@@ -289,8 +289,10 @@ void *avl_remove(struct avl_tree *tree, void *key, int32_t tag)
 
         while (1) {
 
-                dbgf_all(DBGT_INFO, "tree.items=%d it->item=%p memcmp(it,key)=%d link[0]=%p link[1]=%p memcmp(link[0],key)=%d",
-                        tree->items, it->item, memcmp(AVL_NODE_KEY(tree, it), key, tree->key_size), (void*) (it->link[0]), (void*) (it->link[1]),
+                dbgf_all(DBGT_INFO, "tree.items=%d it->item=%p memcmp(it,key)=%d link[0]=%p link[1]=%p memcmp(link[0],key)=%d memcmp(link[1],key)=%d",
+                        tree->items, it->item,
+                        memcmp(AVL_NODE_KEY(tree, it), key, tree->key_size),
+                        (void*) (it->link[0]), (void*) (it->link[1]),
                         (it->link[0] ? memcmp(AVL_NODE_KEY(tree, it->link[0]), key, tree->key_size) : -1),
                         (it->link[1] ? memcmp(AVL_NODE_KEY(tree, it->link[1]), key, tree->key_size) : -1)
                         );

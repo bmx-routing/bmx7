@@ -354,9 +354,9 @@ struct if_addr_node {
 
 
 struct net_key {
-        uint8_t family;
-	uint8_t prefixlen;
-	IPX_T net;
+        uint8_t af;   //family
+	uint8_t mask; //prefixlen
+	IPX_T ip;     //address
 };
 
 struct tx_link_node {

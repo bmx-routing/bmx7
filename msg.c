@@ -3498,17 +3498,18 @@ int32_t opt_show_descriptions(uint8_t cmd, uint8_t _save, struct opt_type *opt,
                         if (name && strcmp(name, on->desc->globalId.name))
                                 continue;
 
-                        dbg_printf(cn, "\ndescSha=%s blocked=%d :\n",
-                                memAsHexString(((char*) &(on->dhn->dhash)), sizeof(on->dhn->dhash)), on->blocked ? 1 : 0);
-
                         uint16_t tlvs_len = ntohs(on->desc->extensionLen);
-                        struct msg_description_adv * desc_buff = debugMalloc(sizeof (struct msg_description_adv) +tlvs_len, -300361);
+                        struct msg_description_adv * desc_buff = debugMalloc(tlvs_len + sizeof (struct msg_description_adv), -300361);
                         desc_buff->transmitterIID4x = htons(on->dhn->myIID4orig);
                         memcpy(&desc_buff->desc, on->desc, sizeof (struct description) + tlvs_len);
-                        
+
+                        dbg_printf(cn, "\ndescSha=%s blocked=%d size=%d :\n", memAsHexString(((char*) &(on->dhn->dhash)),
+                                sizeof (on->dhn->dhash)), on->blocked ? 1 : 0, tlvs_len + sizeof (struct msg_description_adv));
+
+
                         dbg_printf(cn, " %s:", packet_frame_handler[FRAME_TYPE_DESC_ADV].name);
 
-                        fields_dbg_lines(cn, relevance, sizeof (struct msg_description_adv) +tlvs_len, (uint8_t*) desc_buff,
+                        fields_dbg_lines(cn, relevance, tlvs_len + sizeof (struct msg_description_adv), (uint8_t*) desc_buff,
                                 packet_frame_handler[FRAME_TYPE_DESC_ADV].min_msg_size,
                                 packet_frame_handler[FRAME_TYPE_DESC_ADV].msg_format);
 

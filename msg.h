@@ -335,9 +335,10 @@ struct tx_frame_iterator {
 	struct tx_task_node *ttn;
 
 	uint8_t             *cache_data_array;
-	uint8_t             *frames_out;
+	uint8_t             *frames_out_ptr;
 	struct frame_handl  *handls;
 	uint8_t              handl_max;
+	int32_t              frames_out_pref;
 	int32_t              frames_out_max;
 
         // updated by fs_caller():
@@ -345,6 +346,7 @@ struct tx_frame_iterator {
 
 	// updated by tx..iterate():
 	int32_t              frames_out_pos;
+	int32_t              frames_out_num;
 	int32_t              cache_msgs_size;
 
 //#define tx_iterator_cache_data_space( it ) (((it)->frames_out_max) - ((it)->frames_out_pos + (it)->cache_msg_pos + ((int)(sizeof (struct frame_header_long)))))
@@ -395,7 +397,7 @@ static inline uint8_t * tx_iterator_cache_msg_ptr(struct tx_frame_iterator *it)
 	return it->cache_data_array + it->handls[it->frame_type].data_header_size + it->cache_msgs_size;
 }
 
-static inline int32_t tx_iterator_cache_data_space(struct tx_frame_iterator *it)
+static inline int32_t tx_iterator_cache_data_space_max(struct tx_frame_iterator *it)
 {
 	return it->frames_out_max - (
 		it->frames_out_pos +
@@ -404,14 +406,22 @@ static inline int32_t tx_iterator_cache_data_space(struct tx_frame_iterator *it)
 		(int) sizeof(struct frame_header_long));
 }
 
-static inline int32_t tx_iterator_cache_msg_space(struct tx_frame_iterator *it)
+static inline int32_t tx_iterator_cache_data_space_pref(struct tx_frame_iterator *it)
 {
-        if (it->handls[it->frame_type].min_msg_size)
-                return tx_iterator_cache_data_space(it) / it->handls[it->frame_type].min_msg_size;
+	return it->frames_out_pref - (
+		it->frames_out_pos +
+		it->handls[it->frame_type].data_header_size +
+		it->cache_msgs_size +
+		(int) sizeof(struct frame_header_long));
+}
+
+static inline int32_t tx_iterator_cache_msg_space_max(struct tx_frame_iterator *it)
+{
+        if (it->handls[it->frame_type].min_msg_size && it->handls[it->frame_type].fixed_msg_size)
+                return tx_iterator_cache_data_space_max(it) / it->handls[it->frame_type].min_msg_size;
         else
                 return 0;
 }
-
 
 
 

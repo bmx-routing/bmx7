@@ -996,7 +996,7 @@ STATIC_FUNC
 int32_t tx_msg_hello_adv(struct tx_frame_iterator *it)
 {
         TRACE_FUNCTION_CALL;
-        assertion(-500771, (tx_iterator_cache_data_space(it) >= ((int) sizeof (struct msg_hello_adv))));
+        assertion(-500771, (tx_iterator_cache_data_space_pref(it) >= ((int) sizeof (struct msg_hello_adv))));
 
         struct tx_task_node *ttn = it->ttn;
         struct msg_hello_adv *adv = (struct msg_hello_adv *) (tx_iterator_cache_msg_ptr(it));
@@ -1075,7 +1075,7 @@ int32_t tx_msg_dhash_or_description_request(struct tx_frame_iterator *it)
                 dhn ? "ALREADY RESOLVED (req cancelled)" : ttn->task.link->local->neigh ? "ABOUT NB HIMSELF" : "ABOUT SOMEBODY");
 
         assertion(-500853, (sizeof ( struct msg_description_request) == sizeof ( struct msg_dhash_request)));
-        assertion(-500855, (tx_iterator_cache_data_space(it) >= ((int) (sizeof (struct msg_dhash_request)))));
+        assertion(-500855, (tx_iterator_cache_data_space_pref(it) >= ((int) (sizeof (struct msg_dhash_request)))));
         assertion(-500856, (ttn->task.link));
         assertion(-500870, (ttn->tx_iterations > 0 && ttn->considered_ts != bmx_time));
         assertion(-500858, (IMPLIES((dhn && dhn->on), dhn->on->desc)));
@@ -1140,10 +1140,13 @@ int32_t tx_msg_description_adv(struct tx_frame_iterator *it)
 
         uint16_t tlvs_len = ntohs(dhn->on->desc->extensionLen);
 
-        if (tlvs_len + ((int) sizeof (struct msg_description_adv)) > tx_iterator_cache_data_space(it)) {
+        if ((tlvs_len + (int) sizeof (struct msg_description_adv)) >
+                ((it->frames_out_pos || it->cache_msgs_size) ?
+                tx_iterator_cache_data_space_pref(it) : tx_iterator_cache_data_space_max(it))) {
 
-                dbgf_sys(DBGT_ERR, "tlvs_len=%d + description_len=%zu > cache_data_space=%d",
-                        tlvs_len, sizeof (struct msg_description_adv), tx_iterator_cache_data_space(it));
+                dbgf_sys(DBGT_ERR, "tlvs_len=%d+%d frames_out_pos=%d cache_msgs_size=%d space_pref=%d space_max=%d ",
+                        tlvs_len, sizeof (struct msg_description_adv), it->frames_out_pos, it->cache_msgs_size,
+                        tx_iterator_cache_data_space_pref(it), tx_iterator_cache_data_space_max(it));
 
                 return TLV_TX_DATA_FULL;
         }
@@ -1166,7 +1169,7 @@ int32_t tx_msg_dhash_adv(struct tx_frame_iterator *it)
 {
 
         TRACE_FUNCTION_CALL;
-        assertion(-500774, (tx_iterator_cache_data_space(it) >= ((int) sizeof (struct msg_dhash_adv))));
+        assertion(-500774, (tx_iterator_cache_data_space_pref(it) >= ((int) sizeof (struct msg_dhash_adv))));
         assertion(-500556, (it && it->ttn->task.myIID4x >= IID_MIN_USED));
 
         struct tx_task_node *ttn = it->ttn;
@@ -1276,9 +1279,9 @@ int32_t tx_frame_dev_adv(struct tx_frame_iterator *it)
         struct hdr_dev_adv* hdr = ((struct hdr_dev_adv*) tx_iterator_cache_hdr_ptr(it));
 
         assertion(-500933, (hdr->msg == ((struct msg_dev_adv*) tx_iterator_cache_msg_ptr(it))));
-        assertion(-500934, ((int) it->ttn->frame_msgs_length <= tx_iterator_cache_data_space(it)));
+        assertion(-500934, ((int) it->ttn->frame_msgs_length <= tx_iterator_cache_data_space_pref(it)));
 
-        if (my_dev_adv_msgs_size > tx_iterator_cache_data_space(it))
+        if (my_dev_adv_msgs_size > tx_iterator_cache_data_space_pref(it))
                 return TLV_TX_DATA_FULL;
 
         hdr->dev_sqn = htons(my_dev_adv_sqn);
@@ -1497,9 +1500,9 @@ int32_t tx_frame_link_adv(struct tx_frame_iterator *it)
         struct hdr_link_adv* hdr = ((struct hdr_link_adv*) tx_iterator_cache_hdr_ptr(it));
 
         assertion(-500933, (hdr->msg == ((struct msg_link_adv*) tx_iterator_cache_msg_ptr(it))));
-        assertion(-500934, ((int) it->ttn->frame_msgs_length <= tx_iterator_cache_data_space(it)));
+        assertion(-500934, ((int) it->ttn->frame_msgs_length <= tx_iterator_cache_data_space_pref(it)));
 
-        if ((my_link_adv_msgs * (int32_t)sizeof (struct msg_link_adv)) > tx_iterator_cache_data_space(it))
+        if ((my_link_adv_msgs * (int32_t)sizeof (struct msg_link_adv)) > tx_iterator_cache_data_space_pref(it))
                 return TLV_TX_DATA_FULL;
 
         hdr->dev_sqn_ref = htons(my_dev_adv_sqn);
@@ -1636,7 +1639,7 @@ int32_t tx_frame_rp_adv(struct tx_frame_iterator *it)
         uint16_t msgs = 0;
         uint16_t msg_max = 0;
 
-        if ((my_link_adv_msgs * (int32_t)sizeof (struct msg_rp_adv)) > tx_iterator_cache_data_space(it))
+        if ((my_link_adv_msgs * (int32_t)sizeof (struct msg_rp_adv)) > tx_iterator_cache_data_space_pref(it))
                 return TLV_TX_DATA_FULL;
 
         for (an = NULL; (lndev = avl_iterate_item(&link_dev_tree, &an));) {
@@ -1774,7 +1777,7 @@ int32_t tx_frame_ogm_advs(struct tx_frame_iterator *it)
                 assertion(-501143, (oan->ogm_dest_bytes <= (OGM_DEST_ARRAY_BIT_SIZE/8)));
                 assertion(-500859, (hdr->msg == ((struct msg_ogm_adv*) tx_iterator_cache_msg_ptr(it))));
                 assertion(-500429, (ttn->frame_msgs_length == msgs_length + oan->ogm_dest_bytes));
-                assertion(-501144, (((int) ttn->frame_msgs_length) <= tx_iterator_cache_data_space(it)));
+                assertion(-501144, (((int) ttn->frame_msgs_length) <= tx_iterator_cache_data_space_pref(it)));
 
                 hdr->aggregation_sqn = sqn;
                 hdr->ogm_dst_field_size = oan->ogm_dest_bytes;
@@ -2794,39 +2797,40 @@ int32_t tx_frame_iterate(IDM_T iterate_msg, struct tx_frame_iterator *it)
         assertion(-501004, (IMPLIES(it->cache_msgs_size, handl->tx_msg_handler)));
 
         ASSERTION(-500777, (IMPLIES((it->cache_msgs_size && handl->tx_msg_handler),
-                is_zero(tx_iterator_cache_msg_ptr(it), tx_iterator_cache_data_space(it)))));
+                is_zero(tx_iterator_cache_msg_ptr(it), tx_iterator_cache_data_space_max(it)))));
 
         ASSERTION(-501000, (IMPLIES((!it->cache_msgs_size || handl->tx_frame_handler),
-                is_zero(it->cache_data_array, tx_iterator_cache_data_space(it)))));
+                is_zero(it->cache_data_array, tx_iterator_cache_data_space_max(it)))));
 
         assertion(-500779, (it->frames_out_pos <= it->frames_out_max));
-        assertion(-500780, (it->frames_out));
+        assertion(-500780, (it->frames_out_ptr));
         assertion(-500781, (it->frame_type <= it->handl_max));
         assertion(-500784, (IMPLIES(it->cache_msgs_size, it->cache_msgs_size >= TLV_TX_DATA_PROCESSED)));
 
-        dbgf_all(DBGT_INFO, "from %s iterate_msg=%s frame_type=%d cache_msgs_size=%d cache_data_space=%d frames_out_pos=%d frames_out_max=%d ",
+        dbgf_all(DBGT_INFO, "from %s iterate_msg=%s frame_type=%d cache_msgs_size=%d cache_data_space=%d frames_out_pos=%d frames_out_pref=%d ",
                 it->caller, iterate_msg ? "YES" : "NO ", it->frame_type,
-                it->cache_msgs_size, tx_iterator_cache_data_space(it), it->frames_out_pos, it->frames_out_max);
+                it->cache_msgs_size, tx_iterator_cache_data_space_pref(it), it->frames_out_pos, it->frames_out_pref);
 
         if (handl->family && handl->family != AF_CFG)
                 return TLV_TX_DATA_IGNORED;
 
         if (handl->tx_frame_handler || iterate_msg) {
 
-                if (handl->min_msg_size > tx_iterator_cache_data_space(it))
+                if (handl->min_msg_size > tx_iterator_cache_data_space_pref(it))
                         return TLV_TX_DATA_FULL;
 
-                if (it->ttn && it->ttn->frame_msgs_length > tx_iterator_cache_data_space(it))
+                if (it->ttn && it->ttn->frame_msgs_length > ((!it->frames_out_pos && !it->cache_msgs_size) ?
+                        tx_iterator_cache_data_space_max(it) : tx_iterator_cache_data_space_pref(it)))
                         return TLV_TX_DATA_FULL;
         }
 
         if (handl->tx_msg_handler && iterate_msg) {
 
-                assertion(-500814, (tx_iterator_cache_data_space(it) >= 0));
+                assertion(-500814, (tx_iterator_cache_data_space_pref(it) >= 0));
 
                 if ((tlv_result = (*(handl->tx_msg_handler)) (it)) >= TLV_TX_DATA_PROCESSED) {
                         it->cache_msgs_size += tlv_result;
-                        ASSERTION(-501002, (is_zero((it->cache_data_array + it->cache_msgs_size + handl->data_header_size), tx_iterator_cache_data_space(it))));
+                        ASSERTION(-501002, (is_zero((it->cache_data_array + it->cache_msgs_size + handl->data_header_size), tx_iterator_cache_data_space_max(it))));
 
                 } else {
                         dbgf_track(DBGT_INFO, "tx_msg_handler()=%d %s remaining iterations=%d",
@@ -2863,7 +2867,7 @@ int32_t tx_frame_iterate(IDM_T iterate_msg, struct tx_frame_iterator *it)
                         dbgf_track(DBGT_INFO, "tx_frame_handler()=%d %s remaining iterations=%d",
                                 tlv_result, handl->name, it->ttn ? it->ttn->tx_iterations : -1);
 
-                        ASSERTION(-501001, (is_zero(it->cache_data_array, tx_iterator_cache_data_space(it))));
+                        ASSERTION(-501001, (is_zero(it->cache_data_array, tx_iterator_cache_data_space_max(it))));
                         assertion(-500811, (tlv_result != TLV_TX_DATA_FAILURE));
                         return tlv_result;
                 }
@@ -2872,17 +2876,17 @@ int32_t tx_frame_iterate(IDM_T iterate_msg, struct tx_frame_iterator *it)
 
         assertion(-500865, (tlv_result == it->cache_msgs_size));
         assertion(-500881, (tlv_result >= TLV_TX_DATA_PROCESSED));
-        assertion(-500786, (tx_iterator_cache_data_space(it) >= 0));
+        assertion(-500786, (tx_iterator_cache_data_space_max(it) >= 0));
         assertion(-500787, (!(tlv_result % TLV_DATA_STEPS)));
         assertion(-500355, (IMPLIES(handl->fixed_msg_size, !(tlv_result % handl->min_msg_size))));
-        ASSERTION(-501003, (is_zero((it->cache_data_array + tlv_result + handl->data_header_size), tx_iterator_cache_data_space(it))));
+        ASSERTION(-501003, (is_zero((it->cache_data_array + tlv_result + handl->data_header_size), tx_iterator_cache_data_space_max(it))));
 
         int32_t cache_pos = tlv_result + handl->data_header_size;
 
         assertion(-501019, (cache_pos)); // there must be some data to send!!
 
         IDM_T is_short_header = ((cache_pos + sizeof ( struct frame_header_short)) <= SHORT_FRAME_DATA_MAX);
-        struct frame_header_short *fhs = (struct frame_header_short *) (it->frames_out + it->frames_out_pos);
+        struct frame_header_short *fhs = (struct frame_header_short *) (it->frames_out_ptr + it->frames_out_pos);
 
         if (is_short_header) {
                 fhs->length_TLV_DATA_STEPS = ((cache_pos + sizeof ( struct frame_header_short)) / TLV_DATA_STEPS);
@@ -2898,8 +2902,9 @@ int32_t tx_frame_iterate(IDM_T iterate_msg, struct tx_frame_iterator *it)
         fhs->is_relevant = handl->is_relevant;
         fhs->type = t;
 
-        memcpy(it->frames_out + it->frames_out_pos, it->cache_data_array, cache_pos);
+        memcpy(it->frames_out_ptr + it->frames_out_pos, it->cache_data_array, cache_pos);
         it->frames_out_pos += cache_pos;
+        it->frames_out_num++;
 
         dbgf_all(DBGT_INFO, "added %s frame_header type=%s frame_data_length=%d frame_msgs_length=%d",
                 is_short_header ? "SHORT" : "LONG", handl->name, cache_pos, tlv_result);
@@ -2990,8 +2995,9 @@ void tx_packet(void *devp)
 
         struct tx_frame_iterator it = {
                 .caller = __FUNCTION__, .handls = packet_frame_handler, .handl_max = FRAME_TYPE_MAX,
-                .frames_out = (pb.packet.data + sizeof (struct packet_header)), .frames_out_pos = 0,
-                .frames_out_max = (pref_udpd_size - sizeof (struct packet_header)),
+                .frames_out_ptr = (pb.packet.data + sizeof (struct packet_header)), .frames_out_pos = 0, .frames_out_num = 0,
+                .frames_out_max = (MAX_UDPD_SIZE - sizeof (struct packet_header)),
+                .frames_out_pref = (pref_udpd_size - sizeof (struct packet_header)),
                 .cache_data_array = cache_data_array, .cache_msgs_size = 0,
                 .frame_type = 0, .tx_task_list = NULL
         };
@@ -3053,13 +3059,10 @@ void tx_packet(void *devp)
                                 (tlv_result == TLV_TX_DATA_FULL || lpos == it.tx_task_list->last)) {// last element in list:
                                 
                                 int32_t it_result = tx_frame_iterate(NO/*iterate_msg*/, &it);
-
-                                if (it_result < TLV_TX_DATA_PROCESSED) {
-                                        dbgf_sys(DBGT_ERR, "unexpected it_result=%d (tlv_result=%d) type=%d",
-                                                it_result, tlv_result, it.frame_type);
-
-                                        cleanup_all(-500790);
-                                }
+                                
+                                assertion_dbg(-500790, (it_result >= TLV_TX_DATA_PROCESSED),
+                                        "unexpected it_result=%d (tlv_result=%d) type=%d",
+                                        it_result, tlv_result, it.frame_type);
                         }
 
                         dbgf_all(DBGT_INFO, "%s type=%d =%s considered=%d iterations=%d tlv_result=%d item=%d/%d",
@@ -3099,13 +3102,12 @@ void tx_packet(void *devp)
 
                         } else if (tlv_result == TLV_TX_DATA_FULL) {
                                 // means not created because would not fit!
-                                assertion(-500430, (it.cache_msgs_size || it.frames_out_pos)); // single message larger than max_udpd_size
+                                assertion(-500430, (it.cache_msgs_size || it.frames_out_pos)); // single message larger than MAX_UDPD_SIZE
                                 break;
 
                         } else {
 
-                                dbgf_sys(DBGT_ERR, "frame_type=%d tlv_result=%d",
-                                        it.frame_type, tlv_result);
+                                dbgf_sys(DBGT_ERR, "frame_type=%d tlv_result=%d", it.frame_type, tlv_result);
                                 assertion(-500791, (0));
                         }
                 }
@@ -3122,7 +3124,9 @@ void tx_packet(void *devp)
 
                         struct packet_header *packet_hdr = &pb.packet.header;
 
-                        assertion(-500208, (it.frames_out_pos && it.frames_out_pos <= it.frames_out_max));
+                        assertion(-500000, (it.frames_out_pos && it.frames_out_num));
+                        assertion(-500000, IMPLIES(it.frames_out_num > 1, it.frames_out_pos <= it.frames_out_pref));
+                        assertion(-500000, IMPLIES(it.frames_out_num == 1, it.frames_out_pos <= it.frames_out_max));
 
                         pb.i.oif = dev;
                         pb.i.total_length = (it.frames_out_pos + sizeof ( struct packet_header));
@@ -3147,6 +3151,8 @@ void tx_packet(void *devp)
                         memset(&pb.i, 0, sizeof (pb.i));
 
                         it.frames_out_pos = 0;
+                        it.frames_out_num = 0;
+
                 }
 
         }
@@ -3410,10 +3416,10 @@ void update_my_description_adv(void)
         // add all tlv options:
         
         struct tx_frame_iterator it = {
-                .caller = __FUNCTION__, .frames_out = (((uint8_t*) dsc) + sizeof (struct description)),
-                .handls = description_tlv_handl, .handl_max = FRAME_TYPE_MAX, .frames_out_pos = 0,
-                .frames_out_max = MAX_UDPD_SIZE -
-                (sizeof (struct packet_header) + sizeof (struct frame_header_long) + sizeof (struct msg_description_adv)),
+                .caller = __FUNCTION__, .frames_out_ptr = (((uint8_t*) dsc) + sizeof (struct description)),
+                .handls = description_tlv_handl, .handl_max = FRAME_TYPE_MAX, .frames_out_pos = 0, .frames_out_num = 0,
+                .frames_out_max = MAX_UDPD_SIZE - (sizeof (struct packet_header) + sizeof (struct frame_header_long) + sizeof (struct msg_description_adv)),
+                .frames_out_pref = MAX_UDPD_SIZE - (sizeof (struct packet_header) + sizeof (struct frame_header_long) + sizeof (struct msg_description_adv)),
                 .cache_data_array = cache_data_array
         };
 

@@ -371,7 +371,7 @@ int create_description_tlv_hna(struct tx_frame_iterator *it)
         assertion(-500765, (it->frame_type == BMX_DSC_TLV_UHNA4 || it->frame_type == BMX_DSC_TLV_UHNA6));
 
         uint8_t *data = tx_iterator_cache_msg_ptr(it);
-        uint16_t max_size = tx_iterator_cache_data_space(it);
+        uint16_t max_size = tx_iterator_cache_data_space_max(it);
         uint8_t family = it->frame_type == BMX_DSC_TLV_UHNA4 ? AF_INET : AF_INET6;
         uint8_t max_plen = (family == AF_INET ? 32 : 128);
 
@@ -1002,7 +1002,7 @@ int create_description_tlv_tun6_adv(struct tx_frame_iterator *it)
         struct avl_node *an = NULL;
         struct description_msg_tun6_adv *adv = (struct description_msg_tun6_adv *) tx_iterator_cache_msg_ptr(it);
 
-        while ((tun = avl_iterate_item(&tun_in_tree, &an)) && m < tx_iterator_cache_msg_space(it)) {
+        while ((tun = avl_iterate_item(&tun_in_tree, &an)) && m < tx_iterator_cache_msg_space_max(it)) {
 
                 struct hna_node *hna;
 
@@ -1129,7 +1129,7 @@ int create_description_tlv_tunXin6_ingress_adv(struct tx_frame_iterator *it)
 
                 if (tun->tun6Id >= 0 && (isSrc4in6 ? tun->ingress4Prefix.mask : tun->ingress6Prefix.mask)) {
 
-                        if (pos + msg_size > tx_iterator_cache_data_space(it)) {
+                        if (pos + msg_size > tx_iterator_cache_data_space_max(it)) {
                                 memset(tx_iterator_cache_msg_ptr(it), 0, pos);
                                 return TLV_TX_DATA_FULL;
                         }
@@ -1215,7 +1215,7 @@ int create_description_tlv_tunXin6_net_adv(struct tx_frame_iterator *it)
         struct opt_type *o = get_option(NULL, NO, ARG_TUN_NET);
         struct opt_parent *p = NULL;
 
-        while ((p = list_iterate(&o->d.parents_instance_list, p)) && m <= tx_iterator_cache_msg_space(it)) {
+        while ((p = list_iterate(&o->d.parents_instance_list, p)) && m <= tx_iterator_cache_msg_space_max(it)) {
 
                 struct opt_child *c = NULL;
                 struct tun_in_node *tun = NULL;

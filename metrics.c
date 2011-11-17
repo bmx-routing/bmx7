@@ -1221,7 +1221,7 @@ int create_description_tlv_metricalgo(struct tx_frame_iterator *it)
         if (metricalgo_tlv_to_host(&tlv_algo, &my_hostmetricalgo, sizeof (struct description_tlv_metricalgo)) == FAILURE)
                 cleanup_all(-500844);
 
-        if (tx_iterator_cache_data_space(it) < ((int) sizeof (struct description_tlv_metricalgo))) {
+        if (tx_iterator_cache_data_space_pref(it) < ((int) sizeof (struct description_tlv_metricalgo))) {
 
                 dbgf_sys(DBGT_ERR, "unable to announce metric due to limiting --%s", ARG_UDPD_SIZE);
                 return TLV_TX_DATA_FAILURE;

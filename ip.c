@@ -3442,8 +3442,8 @@ void init_ip(void)
 {
         assertion(-500894, is_zero(((char*)&ZERO_IP), sizeof (ZERO_IP)));
         assertion(-501254, is_zero((void*) &ZERO_NET_KEY, sizeof (ZERO_NET_KEY)));
-        assertion(-500000, is_zero((void*) &llocal_prefix_cfg, sizeof (llocal_prefix_cfg)));
-        assertion(-500000, is_zero((void*) &global_prefix_cfg, sizeof (global_prefix_cfg)));
+        assertion(-501336, is_zero((void*) &llocal_prefix_cfg, sizeof (llocal_prefix_cfg)));
+        assertion(-501337, is_zero((void*) &global_prefix_cfg, sizeof (global_prefix_cfg)));
 
 
 

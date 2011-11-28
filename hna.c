@@ -240,7 +240,7 @@ IDM_T configure_niit6to4(IDM_T del, struct net_key *key)
 
         dbgf_track(DBGT_INFO, "del=%d %s", del, netAsStr(key));
 
-        assertion(-500000, (key->af == AF_INET6));
+        assertion(-501329, (key->af == AF_INET6));
 
         // update network routes:
         if (del)
@@ -260,7 +260,7 @@ STATIC_FUNC
 struct net_key netX4ToNiit6(struct net_key *net)
 {
         struct net_key niit;
-        assertion(-500000, (net->af == AF_INET));
+        assertion(-501330, (net->af == AF_INET));
         setNet(&niit, AF_INET6, net->mask + 96, &niitPrefix96);
         niit.ip.s6_addr32[3] = net->ip.s6_addr32[3];
         return niit;
@@ -271,7 +271,7 @@ STATIC_FUNC
 IDM_T configure_route(IDM_T del, struct orig_node *on, struct net_key *key)
 {
 
-        assertion(-500000, (key->af == AF_CFG));
+        assertion(-501331, (key->af == AF_CFG));
 
         // update network routes:
         if (del) {
@@ -454,7 +454,7 @@ void configure_hna(IDM_T del, struct net_key* key, struct orig_node *on)
 
                 // update throw routes:
                 if (policy_routing == POLICY_RT_ENABLED && ip_throw_rules_cfg) {
-                        assertion(-500000, (key->af == AF_CFG));
+                        assertion(-501333, (key->af == AF_CFG));
                         ip(IP_THROW_MY_HNA, del, NO, key, RT_TABLE_HNA, 0, 0, 0, 0, 0, 0);
                         ip(IP_THROW_MY_HNA, del, NO, key, RT_TABLE_TUN, 0, 0, 0, 0, 0, 0);
                 }
@@ -2116,7 +2116,7 @@ int32_t hna_init( void )
 {
         TRACE_FUNCTION_CALL;
 
-        assertion(-500000, is_zero((void*) &ZERO_TUN_NET_KEY, sizeof (ZERO_TUN_NET_KEY)));
+        assertion(-501335, is_zero((void*) &ZERO_TUN_NET_KEY, sizeof (ZERO_TUN_NET_KEY)));
         assertion(-501327, tun_search_net_tree.key_size == sizeof (struct tun_search_key));
         assertion(-501328, tun_search_name_tree.key_size == NETWORK_NAME_LEN);
 

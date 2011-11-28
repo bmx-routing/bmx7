@@ -104,7 +104,8 @@ void check_for_changed_sms(void *unused)
 
                 } else if ((len = read(fd, data, sizeof (data))) < 0 || len > MAX_JSON_SMS_DATA_LEN) {
 
-                        dbgf_sys(DBGT_ERR, "sms=%s data_len=%d too big or: %s", path_name, len, strerror(errno));
+                        dbgf_sys(DBGT_ERR, "sms=%s data_len>=%d MUST BE <=%d bytes! errno: %s",
+                                path_name, len, MAX_JSON_SMS_DATA_LEN, strerror(errno));
                         close(fd);
                         continue;
 

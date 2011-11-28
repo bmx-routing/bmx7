@@ -3124,9 +3124,9 @@ void tx_packet(void *devp)
 
                         struct packet_header *packet_hdr = &pb.packet.header;
 
-                        assertion(-500000, (it.frames_out_pos && it.frames_out_num));
-                        assertion(-500000, IMPLIES(it.frames_out_num > 1, it.frames_out_pos <= it.frames_out_pref));
-                        assertion(-500000, IMPLIES(it.frames_out_num == 1, it.frames_out_pos <= it.frames_out_max));
+                        assertion(-501338, (it.frames_out_pos && it.frames_out_num));
+                        assertion(-501339, IMPLIES(it.frames_out_num > 1, it.frames_out_pos <= it.frames_out_pref));
+                        assertion(-501340, IMPLIES(it.frames_out_num == 1, it.frames_out_pos <= it.frames_out_max));
 
                         pb.i.oif = dev;
                         pb.i.total_length = (it.frames_out_pos + sizeof ( struct packet_header));

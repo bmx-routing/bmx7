@@ -3029,11 +3029,11 @@ static struct opt_type control_options[]=
 		
 		
 		
-	{ODI,0,"loop_mode",		'l',3,1,A_PS0,A_ADM,A_INI,A_ARG,A_ANY,	&loop_mode,	0, 		1,		0,0, 		0,
+	{ODI,0,"loopMode",		'l',3,1,A_PS0,A_ADM,A_INI,A_ARG,A_ANY,	&loop_mode,	0, 		1,		0,0, 		0,
 			0,		"put client daemon in loop mode to periodically refresh debug information"},
 		
 #ifndef LESS_OPTIONS
-	{ODI,0,"loop_interval",		0,  3,1,A_PS1,A_ADM,A_INI,A_ARG,A_ANY,	&loop_interval,	MIN_LOOP_INTERVAL,MAX_LOOP_INTERVAL,DEF_LOOP_INTERVAL,0,0,
+	{ODI,0,"loopInterval",		0,  3,1,A_PS1,A_ADM,A_INI,A_ARG,A_ANY,	&loop_interval,	MIN_LOOP_INTERVAL,MAX_LOOP_INTERVAL,DEF_LOOP_INTERVAL,0,0,
 			ARG_VALUE_FORM,	"periodicity in ms with which client daemon in loop-mode refreshes debug information"},
 #endif
 		
@@ -3046,7 +3046,7 @@ static struct opt_type control_options[]=
 			0,		"show configured parameters"}
         ,
 
-        {ODI,0,"dbg_mute_timeout",	0,  5,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&dbg_mute_to,	0,		10000000,	100000,0,		0,
+        {ODI,0,"dbgMuteTimeout",	0,  5,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&dbg_mute_to,	0,		10000000,	100000,0,		0,
 			ARG_VALUE_FORM,	"set timeout in ms for muting frequent messages"},
 
 		

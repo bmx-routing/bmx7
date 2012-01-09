@@ -226,28 +226,6 @@ struct frame_header_long { // 4 bytes
 
 #define SHORT_FRAME_DATA_MAX (MIN( 500, ((int)((((sizeof( ((struct frame_header_short*)NULL)->length_TLV_DATA_STEPS ))<<8)-1)*TLV_DATA_STEPS))))
 
-/*
-// iterator return codes:
-#define TLV_RX_DATA_BLOCKED    (-3) // blocked due to DAD
-
-#define TLV_TX_DATA_FULL       (-2) // nothing done! Frame finished or not enough remining data area to write
-                                 // only returns from tx-iterations, rx- will return FAILURE
-#define TLV_RX_DATA_FAILURE    (-1) // syntax error: exit or blacklist
-#define TLV_TX_DATA_FAILURE    (-1) // syntax error: will fail assertion()
-
-#define TLV_RX_DATA_DONE        (0) // done, nothing more to do
-#define TLV_TX_DATA_DONE        (0) // done, nothing more to do
-
-#define TLV_RX_DATA_IGNORED     (1) // unknown, filtered, nothing to send, or ignored due to bad link...
-#define TLV_TX_DATA_IGNORED     (1) // unknown, filtered, nothing to send, or ignored due to bad link...
-
-#define TLV_RX_DATA_PROCESSED   (2) // >= means succesfully processed returned amount of data
-#define TLV_TX_DATA_PROCESSED   (2) // >= means succesfully processed returned amount of data
-#define TLV_DATA_STEPS          (2) // legal data-size steps, never returns
-                                    // the smalles legal frame must be:
-                                    // - a multiple of two
-                                    // - have lenght of frame_header_short plus 2 bytes frame_data
-*/
 
 // iterator return codes:
 #define TLV_RX_DATA_BLOCKED    (-5) // blocked due to DAD

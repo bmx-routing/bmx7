@@ -2726,7 +2726,7 @@ static void dev_check(IDM_T kernel_ip_config_changed)
                         if (initializing && dev == primary_dev_cfg) {
 				dbg_sys(DBGT_ERR,
                                         "at least primary %s=%s MUST be operational at startup! "
-                                        "Use loopback (e.g. lo:bmx a.b.c.d/32 ) if nothing else is available!",
+                                        "Use loopback (e.g. ip addr add fd01:2345::6789/128 dev lo) if nothing else is available!",
                                         ARG_DEV, dev->label_cfg.str);
 
 				cleanup_all( CLEANUP_FAILURE );

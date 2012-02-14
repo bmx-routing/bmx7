@@ -177,7 +177,7 @@ void dump(struct packet_buff *pb)
                         direction == DUMP_DIRECTION_IN ? "in  hex" : "out hex",
                         pkt_pos, pkt_pos + frame_length - 1, memAsHexString(((uint8_t*) phdr) + pkt_pos, frame_length));
 
-                assertion(-500991, (packet_frame_handler[it.frame_type].min_msg_size));
+                //assertion(-500991, (packet_frame_handler[it.frame_type].min_msg_size));
                 assertion(-500992, (it.frame_msgs_length >= 0));
 
                 (*dev_plugin_data)->tmp_frame[direction][it.frame_type] += (frame_length << IMPROVE_ROUNDOFF);

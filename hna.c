@@ -1057,14 +1057,14 @@ int process_description_tlv_tun6_adv(struct rx_frame_iterator *it)
 
                         struct tun_out_node *tun = avl_find_item(&tun_out_tree, &key);
                         struct tun_out_node *rtun;
-                        struct tun_net_node *tnn;
-                        struct tun_net_node *rtnn;
+                        struct tun_net_node *tnn, *tnn1, *tnn2;
 
 
                         assertion(-501247, (tun));
 
-                        dbgf_all(DBGT_INFO, "should A remove tunnel_node localIp=%s tun6Id=%d orig=%s key=%s (tunnel_out.items=%d, tun->net.items=%d)",
-                                ip6AsStr(&tun->localIp), tun->tunOutKey.tun6Id, globalIdAsString(&tun->tunOutKey.on->global_id), memAsHexString(&tun->tunOutKey, sizeof (key)), tun_out_tree.items, tun->tun_net_tree.items);
+                        dbgf_all(DBGT_INFO, "should remove tunnel_node localIp=%s tun6Id=%d orig=%s key=%s (tunnel_out.items=%d, tun->net.items=%d)",
+                                ip6AsStr(&tun->localIp), tun->tunOutKey.tun6Id, globalIdAsString(&tun->tunOutKey.on->global_id),
+                                memAsHexString(&tun->tunOutKey, sizeof (key)), tun_out_tree.items, tun->tun_net_tree.items);
 
                         used |= (tun->upIfIdx) ? YES : NO;
 
@@ -1072,11 +1072,22 @@ int process_description_tlv_tun6_adv(struct rx_frame_iterator *it)
 
                                 unlink_tun_net(tnn, NULL, NULL);
 
-                                rtnn = avl_remove(&tun_net_tree, &tnn->tunNetKey, -300421);
-                                assertion(-501251, (rtnn == tnn));
+                                tnn1 = avl_remove(&tun_net_tree, &tnn->tunNetKey, -300421);
+                                tnn2 = avl_remove(&tun->tun_net_tree, &tnn->tunNetKey, -300423);
 
-                                rtnn = avl_remove(&tun->tun_net_tree, &tnn->tunNetKey, -300423);
-                                assertion(-501252, (rtnn == tnn));
+                                if (tnn != tnn1 || tnn != tnn2) {
+                                        dbgf_sys(DBGT_ERR, "should remove %s orig=%s but removed %s orig=%s and %s orig=%s !",
+                                                netAsStr(&tnn->tunNetKey.netKey),
+                                                globalIdAsString(&tnn->tunNetKey.tun->tunOutKey.on->global_id),
+                                                tnn1 ? netAsStr(&tnn1->tunNetKey.netKey): "---",
+                                                tnn1 ? globalIdAsString(&tnn1->tunNetKey.tun->tunOutKey.on->global_id) : "---",
+                                                tnn2 ? netAsStr(&tnn2->tunNetKey.netKey) : "---",
+                                                tnn2 ? globalIdAsString(&tnn2->tunNetKey.tun->tunOutKey.on->global_id) : "---"
+                                                );
+
+                                        assertion(-501251, (0));
+                                }
+
                                 debugFree(tnn, -300424);
                         }
 

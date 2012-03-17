@@ -876,7 +876,7 @@ void set_tun_net(struct tun_search_node *sn)
 
         while (IMPLIES(sn, !tsn) && (tsn = sn ? sn : avl_iterate_item(&tun_search_name_tree, &atsn))) {
 
-                struct tun_net_node *best_tnn = NULL;
+                struct tun_net_node *best_tnn = NULL, *curr_tnn = NULL;
                 struct net_key srcPrefix = tsn->srcPrefix.mask ? tsn->srcPrefix : (tsn->tunSearchKey.netKey.af == AF_INET ? tun4_address : tun6_address);
 
                 dbgf_all(DBGT_INFO, "searching %s=%s: %s=%s %s=%d %s=%s %s=%s ",
@@ -942,13 +942,17 @@ void set_tun_net(struct tun_search_node *sn)
                                 )
                                 best_tnn = tnn;
 
-                        dbgf_all(DBGT_INFO, "acceptable e2eMetric=%s, %s",
-                                umetric_to_human(tnn->e2eMetric), best_tnn == tnn ? "NEW BEST" : "NOT best");
+                        if (tnn == tsn->tun_net)
+                                curr_tnn = tnn;
 
+                        dbgf_all(DBGT_INFO, "acceptable e2eMetric=%s, %s %s", umetric_to_human(tnn->e2eMetric),
+                                best_tnn == tnn ? "NEW BEST" : "NOT best", curr_tnn == tnn ? "current" : "alternative");
 
                 }
 
-                if (best_tnn != tsn->tun_net) {
+                if (best_tnn != tsn->tun_net &&
+                        IMPLIES(curr_tnn, (best_tnn->e2eMetric > (((curr_tnn->e2eMetric) * (100 + tsn->hysteresis)) / 100))))
+                        {
 
                         if(tsn->tun_net)
                                 unlink_tun_net(tsn->tun_net, tsn, NULL);
@@ -1374,6 +1378,7 @@ struct tun_out_status {
 //        uint16_t up;
         char* searchName;
         char searchNetwork[IPX_PREFIX_STR_LEN];
+        uint32_t hysteresis;
         GLOBAL_ID_T *searchId;
         uint32_t ipMetric;
 };
@@ -1391,6 +1396,7 @@ static const struct field_format tun_out_status_format[] = {
 //        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              tun_out_status, up,            1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      tun_out_status, searchName,    1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       tun_out_status, searchNetwork, 1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              tun_out_status, hysteresis,    1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, tun_out_status, searchId,      1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              tun_out_status, ipMetric,      1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_END
@@ -1433,6 +1439,7 @@ static int32_t tun_out_status_creator(struct status_handl *handl, void *data)
                                 status->searchName = tsn->tunSearchKey.netName;
                                 sprintf(status->searchNetwork, "%s", netAsStr(&tsn->tunSearchKey.netKey));
                                 status->searchId = &tsn->global_id;
+                                status->hysteresis = tsn->hysteresis;
                                 status->ipMetric = tsn->ipmetric;
 
                                 tsn->shown = YES;
@@ -1583,6 +1590,7 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                                 avl_insert(&tun_search_name_tree, tsn, -300433);
                                 avl_insert(&tun_search_net_tree, tsn, -300434);
                                 tsn->mtu = DEF_TUN_SEARCH_MTU;
+                                tsn->hysteresis = DEF_TUN_SEARCH_HYSTERESIS;
                         }
 
                 }
@@ -1687,6 +1695,11 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                                 } else if (cmd == OPT_APPLY && tsn) {
                                         memset(&tsn->global_id.pkid, 0, GLOBAL_ID_PKID_LEN);
                                 }
+
+                        } else if (!strcmp(c->opt->name, ARG_TUN_SEARCH_HYSTERESIS)) {
+
+                                if (cmd == OPT_APPLY && tsn)
+                                        tsn->hysteresis = c->val ? strtol(c->val, NULL, 10) : DEF_TUN_SEARCH_HYSTERESIS;
 
                         }  else if (!strcmp(c->opt->name, ARG_TUN_SEARCH_MTU)) {
 
@@ -2069,15 +2082,17 @@ struct opt_type hna_options[]= {
 	{ODI,0,ARG_TUN_SEARCH_NAME, 	0,5,2,A_PM1N,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_tun_search,
 		        ARG_NAME_FORM,  "specify arbitrary but unique name for network which should be reached via tunnel depending on sub criterias"},
 	{ODI,ARG_TUN_SEARCH_NAME,ARG_TUN_SEARCH_NETWORK,0,5,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,	0,              0,              0,0,            opt_tun_search,
-			ARG_PREFIX_FORM, "specify network to be reached via tunnel"},
+			ARG_PREFIX_FORM, "specify network to be reached via tunnel (obligatory)"},
 	{ODI,ARG_TUN_SEARCH_NAME,ARG_TUN_SEARCH_IP,0,5,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,	0,              0,              0,0,            opt_tun_search,
-			ARG_PREFIX_FORM,"specify IP address and prefixlen of tunnel"},
+			ARG_PREFIX_FORM,"specify IP address and prefixlen of tunnel (obligatory if tun6Address is not configured)"},
 	{ODI,ARG_TUN_SEARCH_NAME,ARG_TUN_SEARCH_TYPE,0,5,0,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,TUN_SRC_TYPE_MIN,TUN_SRC_TYPE_MAX,TUN_SRC_TYPE_UNDEF,0,opt_tun_search,
 			ARG_VALUE_FORM, "specify tunnel ip allocation mechanism (0 = static/global, 1 = static, 2 = auto, 3 = AHCP)"},
 	{ODI,ARG_TUN_SEARCH_NAME,ARG_TUN_SEARCH_HOSTNAME,0,5,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,	0,              0,              0,0,            opt_tun_search,
-			ARG_NAME_FORM,  "specify hotname of remote tunnel endpoint"},
+			ARG_NAME_FORM,  "specify hostname of remote tunnel endpoint"},
 	{ODI,ARG_TUN_SEARCH_NAME,ARG_TUN_SEARCH_PKID,0,5,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,	0,              0,              0,0,            opt_tun_search,
 			ARG_SHA2_FORM, "specify pkid of remote tunnel endpoint"},
+	{ODI,ARG_TUN_SEARCH_NAME,ARG_TUN_SEARCH_HYSTERESIS,0,5,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,MIN_TUN_SEARCH_HYSTERESIS,MAX_TUN_SEARCH_HYSTERESIS,DEF_TUN_SEARCH_HYSTERESIS,0,opt_tun_search,
+			ARG_VALUE_FORM, "specify in percent how much the metric to an alternative GW must be better than to curr GW"},
 	{ODI,ARG_TUN_SEARCH_NAME,ARG_TUN_SEARCH_IPMETRIC,0,5,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,	0,      MAX_TUN_SEARCH_IPMETRIC,0,0,            opt_tun_search,
 			ARG_VALUE_FORM, "specify ip metric for local routing table entries"},
 	{ODI,ARG_TUN_SEARCH_NAME,ARG_TUN_SEARCH_MTU,0,5,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,	MIN_TUN_SEARCH_MTU,MAX_TUN_SEARCH_MTU,DEF_TUN_SEARCH_MTU,0,opt_tun_search,

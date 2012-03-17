@@ -87,6 +87,12 @@
 #define MAX_TUN_SEARCH_IPMETRIC   INT32_MAX
 #define ARG_TUN_SEARCH_HOSTNAME   "gwName"
 #define ARG_TUN_SEARCH_PKID       "gwId"
+
+#define ARG_TUN_SEARCH_HYSTERESIS "hysteresis"
+#define DEF_TUN_SEARCH_HYSTERESIS 20
+#define MIN_TUN_SEARCH_HYSTERESIS 0
+#define MAX_TUN_SEARCH_HYSTERESIS MIN(10000, (UMETRIC_MULTIPLY_MAX - 100))
+
 #define ARG_TUN_SEARCH_MTU "mtu"
 #define DEF_TUN_SEARCH_MTU 1460
 #define MIN_TUN_SEARCH_MTU 1280
@@ -257,6 +263,7 @@ struct tun_search_node {
 
         struct tun_search_key tunSearchKey;
         
+        uint32_t hysteresis;
         uint32_t ipmetric;
 	uint32_t mtu;
 

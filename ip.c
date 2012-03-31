@@ -1853,9 +1853,9 @@ void dev_reconfigure_soft(struct dev_node *dev)
 
         assertion(-500611, (dev->active));
         assertion(-500612, (dev->if_llocal_addr));
-        assertion(-500613, (dev->if_global_addr || !dev->announce));
-        assertion(-500614, (dev->if_global_addr || dev != primary_dev_cfg));
-        assertion(-500615, (dev->if_global_addr || dev->linklayer != TYP_DEV_LL_LO));
+        assertion(-500613, IMPLIES(dev->announce, dev->if_global_addr));
+        assertion(-500614, IMPLIES(dev == primary_dev_cfg, dev->if_global_addr));
+        assertion(-500615, IMPLIES(dev->linklayer == TYP_DEV_LL_LO, dev->if_global_addr));
         
         if (!initializing) {
                 dbg_sys(DBGT_INFO, "%s soft interface configuration changed", dev->label_cfg.str);
@@ -1908,8 +1908,7 @@ void dev_reconfigure_soft(struct dev_node *dev)
         }
 
         dbgf(initializing ? DBGL_SYS : DBGL_CHANGES, DBGT_INFO,
-                "enabled %sprimary %s umin=%s umax=%s umax=%ju umax_conf=%ju undef=%ju %s=%s MAC: %s link-local %s/%d global %s/%d brc %s",
-                dev == primary_dev_cfg ? "" : "non-",
+                "enabled %s umin=%s umax=%s umax=%ju umax_conf=%ju undef=%ju %s=%s MAC: %s link-local %s/%d global %s/%d brc %s",
                 dev->linklayer == TYP_DEV_LL_LO ? "loopback" : (
                 dev->linklayer == TYP_DEV_LL_WIFI ? "wireless" : (
                 dev->linklayer == TYP_DEV_LL_LAN ? "ethernet" : ("ILLEGAL"))),
@@ -1949,10 +1948,6 @@ void dev_deactivate( struct dev_node *dev )
                 cb_plugin_hooks(PLUGIN_CB_BMX_DEV_EVENT, dev);
         }
 
-        if (dev == primary_dev_cfg && !terminating) {
-                dbg_mute(30, DBGL_SYS, DBGT_WARN,
-                        "Using an IP on the loopback device as primary interface ensures reachability under your primary IP!");
-        }
 
 
 	if ( dev->linklayer != TYP_DEV_LL_LO ) {
@@ -2008,6 +2003,33 @@ void dev_deactivate( struct dev_node *dev )
 
         if (dev->announce)
                 my_description_changed = YES;
+
+        if (dev == primary_dev_cfg && !terminating) {
+                dbg_mute(30, DBGL_SYS, DBGT_WARN,
+                        "Using an IP on the loopback device as primary interface ensures reachability under your primary IP!");
+        }
+
+        if (dev == primary_dev_cfg) {
+                struct avl_node *an = NULL;
+                struct dev_node *ipdev;
+
+                while ((ipdev = avl_iterate_item(&dev_ip_tree, &an)) ) {
+                        if (ipdev->active && ipdev->announce && ipdev->if_global_addr)
+                                break;
+                }
+
+                if (ipdev) {
+                        primary_dev_cfg = ipdev;
+                        self->primary_ip = ipdev->if_global_addr->ip_addr;
+                        ipFToStr(&ipdev->if_global_addr->ip_addr, self->primary_ip_str);
+                } else {
+                        primary_dev_cfg = NULL;
+                        self->primary_ip = ZERO_IP;
+                        ipFToStr(&ZERO_IP, self->primary_ip_str);
+                }
+        }
+
+
 
 }
 
@@ -2290,14 +2312,16 @@ void dev_activate( struct dev_node *dev )
 
         ipFToStr(&dev->if_llocal_addr->ip_mcast, dev->ip_brc_str);
 
-        if (dev == primary_dev_cfg) {
+//        if (dev == primary_dev_cfg) {
+        if (!primary_dev_cfg && dev->announce && dev->if_global_addr) {
+                primary_dev_cfg = dev;
                 self->primary_ip = dev->if_global_addr->ip_addr;
                 ipFToStr(&dev->if_global_addr->ip_addr, self->primary_ip_str);
         }
 
         dev->active = YES;
 
-        assertion(-500595, (primary_dev_cfg));
+//        assertion(-500595, (primary_dev_cfg));
 
         if (!(dev->link_hello_sqn )) {
                 dev->link_hello_sqn = ((HELLO_SQN_MASK) & rand_num(HELLO_SQN_MAX));
@@ -2316,7 +2340,7 @@ void dev_activate( struct dev_node *dev )
                 task_register(rand_num(bmx_time ? 0 : DEF_TX_DELAY), tx_packets, NULL, -300350);
 
 
-        if (dev->announce)
+//        if (dev->announce)
                 my_description_changed = YES;
 
 
@@ -2565,7 +2589,7 @@ void dev_if_fix(void)
                                 }
                         }
 
-                        if ((AF_CFG == AF_INET || !is_ip6llocal) && (dev == primary_dev_cfg || dev->announce)) {
+                        if ((AF_CFG == AF_INET || !is_ip6llocal) && (/*dev == primary_dev_cfg ||*/ dev->announce)) {
 
                                 if (!dev->if_global_addr && dev->global_prefix_conf_.mask &&
                                         is_ip_net_equal(&dev->global_prefix_conf_.ip, &ian->ip_addr, dev->global_prefix_conf_.mask, dev->global_prefix_conf_.af)) {
@@ -2608,9 +2632,7 @@ void dev_if_fix(void)
                 if (dev->if_llocal_addr) {
                         dev->if_llocal_addr->dev = dev;
                 } else {
-                        dbg_mute(30, DBGL_SYS, DBGT_ERR,
-                                "No link-local IP found for %sprimary --%s=%s !",
-                                dev == primary_dev_cfg ? "" : "non-", ARG_DEV, dev->label_cfg.str);
+                        dbg_mute(30, DBGL_SYS, DBGT_ERR, "No link-local IP for %s=%s !", ARG_DEV, dev->label_cfg.str);
                 }
 
                 if (dev->if_global_addr && dev->if_llocal_addr) {
@@ -2622,11 +2644,10 @@ void dev_if_fix(void)
                         dev->if_global_addr = NULL;
 
                 } else {
-                        if (dev == primary_dev_cfg || dev->announce) {
+                        if (/*dev == primary_dev_cfg ||*/ dev->announce) {
 
                                 dbg_mute(30, DBGL_SYS, DBGT_ERR,
-                                        "No global IP found for %sprimary --%s=%s ! DEACTIVATING !!!",
-                                        dev == primary_dev_cfg ? "" : "non-", ARG_DEV, dev->label_cfg.str);
+                                        "No global IP for %s=%s ! DEACTIVATING !!!", ARG_DEV, dev->label_cfg.str);
 
                                 if (dev->if_llocal_addr) {
                                         dev->if_llocal_addr->dev = NULL;
@@ -2646,11 +2667,13 @@ static void dev_check(IDM_T kernel_ip_config_changed)
         struct dev_node *dev;
 
 	dbgf_all( DBGT_INFO, " " );
+/*
 
 	if ( !dev_name_tree.items ) {
                 dbgf_sys(DBGT_ERR, "No interfaces specified");
 		cleanup_all( CLEANUP_FAILURE );
         }
+*/
 
 
 
@@ -2723,6 +2746,7 @@ static void dev_check(IDM_T kernel_ip_config_changed)
 
                 if (!dev->active) {
 
+/*
                         if (initializing && dev == primary_dev_cfg) {
 				dbg_sys(DBGT_ERR,
                                         "at least primary %s=%s MUST be operational at startup! "
@@ -2731,6 +2755,7 @@ static void dev_check(IDM_T kernel_ip_config_changed)
 
 				cleanup_all( CLEANUP_FAILURE );
                         }
+*/
 
                         dbg_sys(DBGT_WARN, "not using interface %s (retrying later): %s %s ila=%d iln=%d",
                                 dev->label_cfg.str, iff_up ? "UP" : "DOWN",
@@ -3145,6 +3170,7 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
 
 		if ( patch->diff == DEL ) {
 
+/*
                         if (dev && dev == primary_dev_cfg) {
 
                                 dbg_cn(cn, DBGL_SYS, DBGT_ERR,
@@ -3153,7 +3179,9 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
 
 				return FAILURE;
 
-                        } else if (dev && cmd == OPT_APPLY) {
+                        } else
+*/
+                                if (dev && cmd == OPT_APPLY) {
 
                                 opt_dev_changed = YES;
 
@@ -3188,8 +3216,10 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
                         dev = debugMalloc(dev_size, -300002);
                         memset(dev, 0, dev_size);
 
+/*
                         if (!primary_dev_cfg)
                                 primary_dev_cfg = dev;
+*/
 
                         strcpy(dev->label_cfg.str, patch->val);
                         strcpy(dev->name_phy_cfg.str, phy_name);
@@ -3204,9 +3234,11 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
 
                         avl_insert(&dev_name_tree, dev, -300144);
 
+/*
                         if (dev == primary_dev_cfg)
                                 dev->announce = YES;
                         else
+*/
                                 dev->announce = DEF_DEV_ANNOUNCE;
 
                         // some configurable interface values - initialized to unspecified:
@@ -3342,11 +3374,13 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
                         }
                 }
 
+/*
         } else if (cmd == OPT_POST && !primary_dev_cfg) {
 
                 dbg_sys(DBGT_ERR, "No interface configured!");
 
                 cleanup_all( CLEANUP_FAILURE );
+*/
 
         } else if (cmd == OPT_POST /*&& af_cfg == family && opt && !opt->parent_name*/ && opt_dev_changed) {
 

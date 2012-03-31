@@ -287,8 +287,8 @@ IDM_T configure_route(IDM_T del, struct orig_node *on, struct net_key *key)
                 assertion(-500579, (lndev->key.dev->if_llocal_addr));
 
                 return ip(IP_ROUTE_HNA, ADD, NO, key, RT_TABLE_HNA, 0, NULL,
-                        lndev->key.dev->if_llocal_addr->ifa.ifa_index,
-                        &(lndev->key.link->link_ip), &(self->primary_ip), DEF_IP_METRIC);
+                        lndev->key.dev->if_llocal_addr->ifa.ifa_index, &(lndev->key.link->link_ip),
+                        (key->af == AF_INET ? (&(self->primary_ip)) : NULL), DEF_IP_METRIC);
 
         }
 }

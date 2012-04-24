@@ -677,9 +677,9 @@ IDM_T configure_tunnel_in(uint8_t del, struct tun_in_node *tun)
 {
         TRACE_FUNCTION_CALL;
         assertion(-501292, (is_ip_set(&tun->remoteIp)));
-        assertion(-501295, IMPLIES(!del, (is_ip_set(&self->primary_ip))));
+        assertion(-501341, IMPLIES(!del, (is_ip_set(&self->primary_ip))));
         assertion(-501311, IMPLIES(tun->upIfIdx, tun->name.str[0]));
-        assertion(-501295, IMPLIES(tun->upIfIdx, del));
+        assertion(-501342, IMPLIES(tun->upIfIdx, del));
 
         if (del && tun->upIfIdx) {
 
@@ -732,9 +732,9 @@ IDM_T configure_tunnel_out(uint8_t del, struct orig_node *on, struct tun_out_nod
         assertion(-501292, (is_ip_set(&tun->localIp)));
         assertion(-501235, (on));
         assertion(-501321, (on != self));
-        assertion(-501295, IMPLIES(!del, (is_ip_set(&on->primary_ip))));
+        assertion(-501343, IMPLIES(!del, (is_ip_set(&on->primary_ip))));
         assertion(-501311, IMPLIES(tun->upIfIdx, tun->name.str[0]));
-        assertion(-501295, IMPLIES(tun->upIfIdx, del));
+        assertion(-501344, IMPLIES(tun->upIfIdx, del));
 
         if (del && tun->upIfIdx) {
 
@@ -1012,7 +1012,7 @@ int create_description_tlv_tun6_adv(struct tx_frame_iterator *it)
 
                 configure_tunnel_in(DEL, tun);
 
-                if (is_ip_local(&tun->remoteIp) ||
+                if (is_ip_local(&tun->remoteIp) || !is_ip_set(&self->primary_ip) ||
                         (tun->ingress6Prefix.mask && (hna = find_overlapping_hna(&tun->ingress6Prefix.ip, tun->ingress6Prefix.mask)) && hna->on == self) ||
 //                      (tun->src4Prefix.prefixlen && (hna = find_overlapping_hna(&tun->src4Prefix.net, tun->src4Prefix.prefixlen)) && hna->on == self) ||
                         configure_tunnel_in(ADD, tun) == FAILURE) {

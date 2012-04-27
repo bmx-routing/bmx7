@@ -2938,7 +2938,7 @@ int32_t opt_ip_version(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
 
                         if (val) {
 
-                                if (is_policy_rt_supported() != val) {
+                                if (!is_policy_rt_supported()) {
 
                                         dbgf_sys(DBGT_ERR, "Kernel policy-routing support required for %s=%d %c%s=%d",
                                                 ARG_IP, ip_tmp, LONG_OPT_ARG_DELIMITER_CHAR, c->opt->name, val);

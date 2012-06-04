@@ -60,6 +60,10 @@ const IFNAME_T ZERO_IFNAME = {{0}};
 
 static const char *_af_cfg_read = NULL;
 
+static int dev_lo_idx = 0;
+
+
+
 static int32_t ip_prio_hna_cfg = DEF_IP_RULE_HNA;
 static int32_t ip_prio_tun_cfg = DEF_IP_RULE_TUN;
 static int32_t ip_table_hna_cfg = DEF_IP_TABLE_HNA;
@@ -980,6 +984,11 @@ int kernel_if_link_config(struct nlmsghdr *nlhdr, uint16_t update_sqn)
 
         IFNAME_T devname = ZERO_IFNAME;
         strcpy(devname.str, RTA_DATA(tb[IFLA_IFNAME]));
+
+        if (!strcmp(devname.str, DEV_LO)) {
+                assertion(-500000, IMPLIES(dev_lo_idx, dev_lo_idx == if_link_info->ifi_index));
+                dev_lo_idx = if_link_info->ifi_index;
+        }
 
         int32_t alen = (tb[IFLA_ADDRESS]) ? RTA_PAYLOAD(tb[IFLA_ADDRESS]) : 0;
         ADDR_T addr = {{0}};
@@ -2237,7 +2246,7 @@ void dev_activate( struct dev_node *dev )
 
         dbgf_sys(DBGT_WARN, "%s=%s", ARG_DEV, dev->label_cfg.str);
 
-	if ( wordsEqual( "lo", dev->name_phy_cfg.str ) ) {
+	if ( wordsEqual( DEV_LO, dev->name_phy_cfg.str ) ) {
 
 		dev->linklayer = TYP_DEV_LL_LO;
 
@@ -2490,8 +2499,8 @@ int update_interface_rules(void)
                         setNet(&throw, ian->ifa.ifa_family, ian->ifa.ifa_prefixlen, &ian->ip_addr);
                         ip_netmask_validate(&throw.ip, throw.mask, throw.af, YES);
 
-                        ip(IP_THROW_MY_NET, ADD, NO, &throw, RT_TABLE_HNA, RT_PRIO_HNA, 0, throw.af == AF_INET6, 0, 0, 0);
-                        ip(IP_THROW_MY_NET, ADD, NO, &throw, RT_TABLE_TUN, RT_PRIO_TUNS, 0, throw.af == AF_INET6, 0, 0, 0);
+                        ip(IP_THROW_MY_NET, ADD, NO, &throw, RT_TABLE_HNA, RT_PRIO_HNA, 0, (throw.af == AF_INET6 ? dev_lo_idx : 0), 0, 0, 0);
+                        ip(IP_THROW_MY_NET, ADD, NO, &throw, RT_TABLE_TUN, RT_PRIO_TUNS, 0, (throw.af == AF_INET6 ? dev_lo_idx : 0), 0, 0, 0);
 
                 }
         }
@@ -2626,7 +2635,7 @@ void dev_if_fix(void)
 
                 }
 
-                if (wordsEqual("lo", dev->name_phy_cfg.str)) {
+                if (wordsEqual(DEV_LO, dev->name_phy_cfg.str)) {
                         // the loopback interface usually does not need a link-local address, BUT BMX needs one
                         // And it MUST have a global one.
                         if (!dev->if_global_addr)
@@ -2732,7 +2741,7 @@ static void dev_check(IDM_T kernel_ip_config_changed)
                                 dbg_sys(DBGT_ERR,
                                         "%s=%s %s but no global addr", ARG_DEV, dev->label_cfg.str, "primary dev");
 
-                        } else if (wordsEqual("lo", dev->name_phy_cfg.str) && !dev->if_global_addr) {
+                        } else if (wordsEqual(DEV_LO, dev->name_phy_cfg.str) && !dev->if_global_addr) {
 
                                 dbg_sys(DBGT_ERR,
                                         "%s=%s %s but no global addr", ARG_DEV, dev->label_cfg.str, "loopback");

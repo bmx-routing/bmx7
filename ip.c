@@ -986,7 +986,7 @@ int kernel_if_link_config(struct nlmsghdr *nlhdr, uint16_t update_sqn)
         strcpy(devname.str, RTA_DATA(tb[IFLA_IFNAME]));
 
         if (!strcmp(devname.str, DEV_LO)) {
-                assertion(-500000, IMPLIES(dev_lo_idx, dev_lo_idx == if_link_info->ifi_index));
+                assertion(-501346, IMPLIES(dev_lo_idx, dev_lo_idx == if_link_info->ifi_index));
                 dev_lo_idx = if_link_info->ifi_index;
         }
 

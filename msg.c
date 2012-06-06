@@ -613,7 +613,9 @@ IID_T create_ogm(struct orig_node *on, IID_T prev_ogm_iid, struct msg_ogm_adv *o
         TRACE_FUNCTION_CALL;
         assertion(-501064, (on->ogmMetric_next <= UMETRIC_MAX));
         assertion(-501066, (on->ogmMetric_next > UMETRIC_INVALID));
-        assertion(-501063, ((((OGM_SQN_MASK) & (on->ogmSqn_next - on->ogmSqn_rangeMin)) < on->ogmSqn_rangeSize)));
+        assertion_dbg(-501063, ((((OGM_SQN_MASK) & (on->ogmSqn_next - on->ogmSqn_rangeMin)) < on->ogmSqn_rangeSize)),
+                "orig=%s next=%d min=%d size=%d", on==self ? "self" : globalIdAsString(&on->global_id),
+                on->ogmSqn_next, on->ogmSqn_rangeMin, on->ogmSqn_rangeSize);
 
         FMETRIC_U16_T fm = umetric_to_fmetric(on->ogmMetric_next);
 
@@ -3173,6 +3175,11 @@ void tx_packets( void *unused ) {
 
         dbgf_all(DBGT_INFO, " ");
 
+        // MUST be checked here because:
+        // description may have changed (relevantly for ogm_aggregation)
+        // during current call of task_next() in bmx() main loop
+        if (my_description_changed)
+                update_my_description_adv();
 
         schedule_or_purge_ogm_aggregations(NO);
         // this might schedule a new tx_packet because schedule_tx_packet() believes
@@ -3394,8 +3401,9 @@ void update_my_description_adv(void)
 
 
         // add some randomness to the ogm_sqn_range, that not all nodes invalidate at the same time:
-        uint16_t random_range = ((DEF_OGM_SQN_RANGE - (DEF_OGM_SQN_RANGE/5)) > MIN_OGM_SQN_RANGE) ?
-                DEF_OGM_SQN_RANGE - rand_num(DEF_OGM_SQN_RANGE/5) : DEF_OGM_SQN_RANGE + rand_num(DEF_OGM_SQN_RANGE/5);
+        uint16_t random_range = ((DEF_OGM_SQN_RANGE - (DEF_OGM_SQN_RANGE / OGM_SQN_DIV)) >= MIN_OGM_SQN_RANGE) ?
+                DEF_OGM_SQN_RANGE - rand_num(DEF_OGM_SQN_RANGE / OGM_SQN_DIV) :
+                DEF_OGM_SQN_RANGE + rand_num(DEF_OGM_SQN_RANGE / OGM_SQN_DIV);
 
         self->ogmSqn_rangeSize = ((OGM_SQN_MASK)&(random_range + OGM_SQN_STEP - 1));
 

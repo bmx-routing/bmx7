@@ -397,19 +397,28 @@ void json_links_event_hook(int32_t cb_id, void* data)
 STATIC_FUNC
 void json_originator_event_hook(int32_t cb_id, struct orig_node *orig)
 {
+        TRACE_FUNCTION_CALL;
+
+        assertion(-501272, (json_orig_dir));
+        assertion(-501347, (cb_id == PLUGIN_CB_DESCRIPTION_DESTROY || cb_id == PLUGIN_CB_DESCRIPTION_CREATED));
+
         struct orig_node *on;
         char path_name[MAX_PATH_SIZE];
-        assertion(-501272, (json_orig_dir));
+        int fd;
 
         if (cb_id == PLUGIN_CB_DESCRIPTION_DESTROY) {
 
                 if ((on = orig)) {
+
                         sprintf(path_name, "%s/%s", json_orig_dir, globalIdAsString(&on->global_id));
 
-                        dbgf_track(DBGT_WARN, "removing destroyed orig=%s", path_name);
+                        if ((fd = open(path_name, O_RDONLY)) > 0 && close(fd) == 0) {
+                                
+                                dbgf_track(DBGT_WARN, "removing destroyed json-originator=%s", path_name);
 
-                        if (remove(path_name) != 0) {
-                                dbgf_sys(DBGT_ERR, "could not remove %s: %s \n", path_name, strerror(errno));
+                                if (remove(path_name) != 0) {
+                                        dbgf_sys(DBGT_ERR, "could not remove %s: %s \n", path_name, strerror(errno));
+                                }
                         }
                 }
                 return;
@@ -419,7 +428,6 @@ void json_originator_event_hook(int32_t cb_id, struct orig_node *orig)
                 struct avl_node *it = NULL;
                 while ((on = orig ? orig : avl_iterate_item(&orig_tree, &it))) {
 
-                        int fd;
                         sprintf(path_name, "%s/%s", json_orig_dir, globalIdAsString(&on->global_id));
 
                         if ((fd = open(path_name, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) < 0) {
@@ -445,6 +453,8 @@ void json_originator_event_hook(int32_t cb_id, struct orig_node *orig)
 
                                                 dbg_printf(cn, "%s\n", json_object_to_json_string(jdesc_fields));
                                                 json_object_put(jdesc_fields);
+
+                                                dbgf_track(DBGT_WARN, "creating json-originator=%s", path_name);
                                         }
                                 }
 
@@ -461,7 +471,7 @@ void json_originator_event_hook(int32_t cb_id, struct orig_node *orig)
 STATIC_FUNC
 void json_route_change_hook(uint8_t del, struct orig_node *on)
 {
-        json_originator_event_hook(0, on);
+        json_originator_event_hook(del ? PLUGIN_CB_DESCRIPTION_DESTROY : PLUGIN_CB_DESCRIPTION_CREATED, on);
 }
 
 STATIC_FUNC
@@ -477,27 +487,26 @@ void json_description_event_hook(int32_t cb_id, struct orig_node *on)
 
         dbgf_all(DBGT_INFO, "cb_id=%d", cb_id);
 
+        int fd;
+        char path_name[MAX_PATH_SIZE];
+        sprintf(path_name, "%s/%s", json_desc_dir, globalIdAsString(&on->global_id));
+
         if (cb_id == PLUGIN_CB_DESCRIPTION_DESTROY) {
 
-                char rm_file[MAX_PATH_SIZE];
-                sprintf(rm_file, "%s/%s", json_desc_dir, globalIdAsString(&on->global_id));
+                if ((fd = open(path_name, O_RDONLY)) > 0 && close(fd) == 0) {
 
-                dbgf_track(DBGT_WARN, "removing destroyed json-description %s", rm_file);
+                        dbgf_track(DBGT_WARN, "removing destroyed json-description=%s", path_name);
 
-                if (remove(rm_file) != 0) {
-                        dbgf_sys(DBGT_ERR, "could not remove %s: %s \n", rm_file, strerror(errno));
+                        if (remove(path_name) != 0) {
+                                dbgf_sys(DBGT_ERR, "could not remove %s: %s \n", path_name, strerror(errno));
+                        }
                 }
 
         } else {
 
-                int fd;
-                char file_name[MAX_PATH_SIZE] = "";
+                if ((fd = open(path_name, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) < 0) { //check permissions of generated file
 
-                sprintf(file_name, "%s/%s", json_desc_dir, globalIdAsString(&on->global_id));
-
-                if ((fd = open(file_name, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) < 0) { //check permissions of generated file
-
-                        dbgf_sys(DBGT_ERR, "could not open %s - %s", file_name, strerror(errno));
+                        dbgf_sys(DBGT_ERR, "could not open %s - %s", path_name, strerror(errno));
                         return;
                 }
 
@@ -562,6 +571,8 @@ void json_description_event_hook(int32_t cb_id, struct orig_node *on)
 
                 dprintf(fd, "%s\n", json_object_to_json_string(jorig));
 
+                dbgf_track(DBGT_WARN, "creating json-description=%s", path_name);
+
                 json_object_put(jorig);
                 debugFree(desc_buff, -300362);
                 close(fd);
@@ -586,7 +597,7 @@ void update_json_status(void *data)
         json_status_event_hook(0, NULL);
         json_dev_event_hook(0, NULL);
         json_links_event_hook(0, NULL);
-        json_originator_event_hook(0, NULL);
+        json_originator_event_hook(PLUGIN_CB_DESCRIPTION_CREATED, NULL);
 }
 
 

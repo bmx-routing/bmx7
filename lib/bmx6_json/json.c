@@ -414,7 +414,7 @@ void json_originator_event_hook(int32_t cb_id, struct orig_node *orig)
 
                         if ((fd = open(path_name, O_RDONLY)) > 0 && close(fd) == 0) {
                                 
-                                dbgf_track(DBGT_WARN, "removing destroyed json-originator=%s", path_name);
+                                dbgf_track(DBGT_INFO, "removing destroyed json-originator=%s", path_name);
 
                                 if (remove(path_name) != 0) {
                                         dbgf_sys(DBGT_ERR, "could not remove %s: %s \n", path_name, strerror(errno));
@@ -454,7 +454,7 @@ void json_originator_event_hook(int32_t cb_id, struct orig_node *orig)
                                                 dbg_printf(cn, "%s\n", json_object_to_json_string(jdesc_fields));
                                                 json_object_put(jdesc_fields);
 
-                                                dbgf_track(DBGT_WARN, "creating json-originator=%s", path_name);
+                                                dbgf_track(DBGT_INFO, "creating json-originator=%s", path_name);
                                         }
                                 }
 
@@ -495,7 +495,7 @@ void json_description_event_hook(int32_t cb_id, struct orig_node *on)
 
                 if ((fd = open(path_name, O_RDONLY)) > 0 && close(fd) == 0) {
 
-                        dbgf_track(DBGT_WARN, "removing destroyed json-description=%s", path_name);
+                        dbgf_track(DBGT_INFO, "removing destroyed json-description=%s", path_name);
 
                         if (remove(path_name) != 0) {
                                 dbgf_sys(DBGT_ERR, "could not remove %s: %s \n", path_name, strerror(errno));
@@ -571,7 +571,7 @@ void json_description_event_hook(int32_t cb_id, struct orig_node *on)
 
                 dprintf(fd, "%s\n", json_object_to_json_string(jorig));
 
-                dbgf_track(DBGT_WARN, "creating json-description=%s", path_name);
+                dbgf_track(DBGT_INFO, "creating json-description=%s", path_name);
 
                 json_object_put(jorig);
                 debugFree(desc_buff, -300362);

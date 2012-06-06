@@ -2291,12 +2291,13 @@ void bmx(void)
 
                                 if (tlvs_res == TLV_RX_DATA_DONE) {
 
+                                        cb_plugin_hooks(PLUGIN_CB_DESCRIPTION_DESTROY, on);
+
                                         tlvs_res = process_description_tlvs(
                                                 NULL, on, on->desc, TLV_OP_ADD, FRAME_TYPE_PROCESS_ALL, NULL);
 
                                         assertion(-500364, (tlvs_res == TLV_RX_DATA_DONE)); // checked, so MUST SUCCEED!!
 
-                                        cb_plugin_hooks(PLUGIN_CB_DESCRIPTION_DESTROY, on);
                                         cb_plugin_hooks(PLUGIN_CB_DESCRIPTION_CREATED, on);
 
                                 }

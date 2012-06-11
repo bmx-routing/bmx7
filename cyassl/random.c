@@ -1,6 +1,6 @@
 /* random.c
  *
- * Copyright (C) 2006-2009 Sawtooth Consulting Ltd.
+ * Copyright (C) 2006-2012 Sawtooth Consulting Ltd.
  *
  * This file is part of CyaSSL.
  *
@@ -19,6 +19,9 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  */
 
+#ifdef HAVE_CONFIG_H
+    #include "config.h"
+#endif
 
 /* on HPUX 11 you may need to install /dev/random see
    http://h20293.www2.hp.com/portal/swdepot/displayProductInfo.do?productNumber=KRNG11I
@@ -27,18 +30,22 @@
 
 #include "random.h"
 #include "error.h"
-#include <string.h> 
 
 
-#if defined(_WIN32)
-    #define _WIN32_WINNT 0x0400
+#if defined(USE_WINDOWS_API)
+    #ifndef _WIN32_WINNT
+        #define _WIN32_WINNT 0x0400
+    #endif
     #include <windows.h>
     #include <wincrypt.h>
 #else
-    #include <errno.h>
-    #include <fcntl.h>
-    #include <unistd.h>
-#endif /* _WIN32 */
+    #ifndef NO_DEV_RANDOM
+        #include <fcntl.h>
+        #include <unistd.h>
+    #else
+        /* include headers that may be needed to get good seed */
+    #endif
+#endif /* USE_WINDOWS_API */
 
 
 
@@ -62,7 +69,7 @@ int InitRng(RNG* rng)
 /* place a generated block in output */
 void RNG_GenerateBlock(RNG* rng, byte* output, word32 sz)
 {
-    memset(output, 0, sz);
+    XMEMSET(output, 0, sz);
     Arc4Process(&rng->cipher, output, output, sz);
 }
 
@@ -76,7 +83,7 @@ byte RNG_GenerateByte(RNG* rng)
 }
 
 
-#if defined(_WIN32)
+#if defined(USE_WINDOWS_API)
 
 
 int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
@@ -94,7 +101,7 @@ int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 }
 
 
-#elif THREADX
+#elif defined(THREADX)
 
 #include "rtprand.h"   /* rtp_rand () */
 #include "rtptime.h"   /* rtp_get_system_msec() */
@@ -115,12 +122,41 @@ int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 }
 
 
-#else /* !_WIN32 && !THREADX */
+#elif defined(MICRIUM)
+
+int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+{
+    #if (NET_SECURE_MGR_CFG_EN == DEF_ENABLED)
+        NetSecure_InitSeed(output, sz);
+    #endif
+    return 0;
+}
+
+#elif defined(MBED)
+
+/* write a real one !!!, just for testing board */
+int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+{
+    int i;
+    for (i = 0; i < sz; i++ )
+        output[i] = i;
+
+    return 0;
+}
+
+#elif defined(NO_DEV_RANDOM)
+
+#error "you need to write an os specific GenerateSeed() here"
+
+
+#else /* !USE_WINDOWS_API && !THREADX && !MICRIUM && !NO_DEV_RANDOM */
 
 
 /* may block */
 int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 {
+    int ret = 0;
+
     os->fd = open("/dev/urandom",O_RDONLY);
     if (os->fd == -1) {
         /* may still have /dev/random */
@@ -131,23 +167,27 @@ int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
     while (sz) {
         int len = read(os->fd, output, sz);
-        if (len == -1) 
-            return READ_RAN_E;
+        if (len == -1) { 
+            ret = READ_RAN_E;
+            break;
+        }
 
         sz     -= len;
         output += len;
 
-        if (sz)
+        if (sz) {
 #ifdef BLOCKING
             sleep(0);             /* context switch */
 #else
-            return RAN_BLOCK_E;
+            ret = RAN_BLOCK_E;
+            break;
 #endif
+        }
     }
     close(os->fd);
 
-    return 0;
+    return ret;
 }
 
-#endif /* _WIN32 */
+#endif /* USE_WINDOWS_API */
 

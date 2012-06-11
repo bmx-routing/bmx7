@@ -1,6 +1,6 @@
 /* misc.h
  *
- * Copyright (C) 2006-2009 Sawtooth Consulting Ltd.
+ * Copyright (C) 2006-2012 Sawtooth Consulting Ltd.
  *
  * This file is part of CyaSSL.
  *
@@ -25,8 +25,6 @@
 
 
 #include "types.h"
-#include <string.h>
-
 
 
 #ifdef __cplusplus
@@ -35,14 +33,21 @@
 
 
 #ifdef NO_INLINE
+CYASSL_LOCAL
 word32 rotlFixed(word32, word32);
+CYASSL_LOCAL
 word32 rotrFixed(word32, word32);
 
+CYASSL_LOCAL
 word32 ByteReverseWord32(word32);
+CYASSL_LOCAL
 void   ByteReverseWords(word32*, const word32*, word32);
+CYASSL_LOCAL
 void   ByteReverseBytes(byte*, const byte*, word32);
 
+CYASSL_LOCAL
 void XorWords(word*, const word*, word32);
+CYASSL_LOCAL
 void xorbuf(byte*, const byte*, word32);
 #endif /* NO_INLINE */
 

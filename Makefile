@@ -16,7 +16,8 @@
 
 
 
-  CFLAGS +=	 -pedantic -Wall -W -Wno-unused-parameter -Os -g3 -std=gnu99 -I./  -DHAVE_CONFIG_H
+  CFLAGS +=	 -pedantic -Wall -W -Wno-unused-parameter -Os -g3 -std=gnu99 -I./
+#-DHAVE_CONFIG_H
 
 # optinal defines:
 # CFLAGS += -static

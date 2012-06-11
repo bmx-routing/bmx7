@@ -1,6 +1,6 @@
 /* arc4.h
  *
- * Copyright (C) 2006-2009 Sawtooth Consulting Ltd.
+ * Copyright (C) 2006-2012 Sawtooth Consulting Ltd.
  *
  * This file is part of CyaSSL.
  *
@@ -33,6 +33,7 @@
 
 
 enum {
+	ARC4_ENC_TYPE   = 4,    /* cipher unique type */
     ARC4_STATE_SIZE = 256
 };
 
@@ -43,8 +44,8 @@ typedef struct Arc4 {
     byte state[ARC4_STATE_SIZE];
 } Arc4;
 
-void Arc4Process(Arc4*, byte*, const byte*, word32);
-void Arc4SetKey(Arc4*, const byte*, word32);
+CYASSL_API void Arc4Process(Arc4*, byte*, const byte*, word32);
+CYASSL_API void Arc4SetKey(Arc4*, const byte*, word32);
 
 
 #ifdef __cplusplus

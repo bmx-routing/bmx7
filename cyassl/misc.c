@@ -1,6 +1,6 @@
 /* misc.c
  *
- * Copyright (C) 2006-2009 Sawtooth Consulting Ltd.
+ * Copyright (C) 2006-2012 Sawtooth Consulting Ltd.
  *
  * This file is part of CyaSSL.
  *
@@ -19,6 +19,9 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  */
 
+#ifdef HAVE_CONFIG_H
+    #include "config.h"
+#endif
 
 #include "misc.h"
 
@@ -96,6 +99,49 @@ STATIC INLINE void ByteReverseWords(word32* out, const word32* in,
 }
 
 
+#ifdef WORD64_AVAILABLE
+
+
+STATIC INLINE word64 rotlFixed64(word64 x, word64 y)
+{
+    return (x << y) | (x >> (sizeof(y) * 8 - y));
+}  
+
+
+STATIC INLINE word64 rotrFixed64(word64 x, word64 y)
+{
+    return (x >> y) | (x << (sizeof(y) * 8 - y));
+}
+
+
+STATIC INLINE word64 ByteReverseWord64(word64 value)
+{
+#ifdef CTAOCRYPT_SLOW_WORD64
+	return (word64)(ByteReverseWord32((word32)value)) << 32 | 
+                    ByteReverseWord32((word32)(value>>32));
+#else
+	value = ((value & W64LIT(0xFF00FF00FF00FF00)) >> 8) |
+            ((value & W64LIT(0x00FF00FF00FF00FF)) << 8);
+	value = ((value & W64LIT(0xFFFF0000FFFF0000)) >> 16) |
+            ((value & W64LIT(0x0000FFFF0000FFFF)) << 16);
+	return rotlFixed64(value, 32U);
+#endif
+}
+
+
+STATIC INLINE void ByteReverseWords64(word64* out, const word64* in,
+                                      word32 byteCount)
+{
+    word32 count = byteCount/sizeof(word64), i;
+
+    for (i = 0; i < count; i++)
+        out[i] = ByteReverseWord64(in[i]);
+
+}
+
+#endif /* WORD64_AVAILABLE */
+
+
 STATIC INLINE void ByteReverseBytes(byte* out, const byte* in, word32 byteCount)
 {
     word32* op       = (word32*)out;
@@ -115,7 +161,7 @@ STATIC INLINE void XorWords(word* r, const word* a, word32 n)
 
 STATIC INLINE void xorbuf(byte* buf, const byte* mask, word32 count)
 {
-    if (((size_t)buf | (size_t)mask | count) % WORD_SIZE == 0)
+    if (((word)buf | (word)mask | count) % WORD_SIZE == 0)
         XorWords( (word*)buf, (const word*)mask, count / WORD_SIZE);
     else {
         word32 i;

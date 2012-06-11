@@ -1,6 +1,6 @@
 /* error.h
  *
- * Copyright (C) 2006-2009 Sawtooth Consulting Ltd.
+ * Copyright (C) 2006-2012 Sawtooth Consulting Ltd.
  *
  * This file is part of CyaSSL.
  *
@@ -52,12 +52,21 @@ enum {
     MP_MOD_E           = -118,  /* mp_mod error state, can't mod */
     MP_INVMOD_E        = -119,  /* mp_invmod error state, can't inv mod */
     MP_CMP_E           = -120,  /* mp_cmp error state */
+    MP_ZERO_E          = -121,  /* got a mp zero result, not expected */
 
     MEMORY_E           = -125,  /* out of memory error */
 
     RSA_WRONG_TYPE_E   = -130,  /* RSA wrong block type for RSA function */
     RSA_BUFFER_E       = -131,  /* RSA buffer error, output too small or 
                                    input too large */
+    BUFFER_E           = -132,  /* output buffer too small or input too large */
+    ALGO_ID_E          = -133,  /* setting algo id error */
+    PUBLIC_KEY_E       = -134,  /* setting public key error */
+    DATE_E             = -135,  /* setting date validity error */
+    SUBJECT_E          = -136,  /* setting subject name error */
+    ISSUER_E           = -137,  /* setting issuer  name error */
+    CA_TRUE_E          = -138,  /* setting CA basic constraint true error */
+    EXTENSIONS_E       = -139,  /* setting extensions error */
 
     ASN_PARSE_E        = -140,  /* ASN parsing error, invalid input */
     ASN_VERSION_E      = -141,  /* ASN version error, invalid number */
@@ -72,17 +81,28 @@ enum {
     ASN_BEFORE_DATE_E  = -150,  /* ASN date error, current date before */
     ASN_AFTER_DATE_E   = -151,  /* ASN date error, current date after */
     ASN_SIG_OID_E      = -152,  /* ASN signature error, mismatched oid */
-    ASN_TIME_E         = -153,  /* ASN time error, unkown time type */
+    ASN_TIME_E         = -153,  /* ASN time error, unknown time type */
     ASN_INPUT_E        = -154,  /* ASN input error, not enough data */
     ASN_SIG_CONFIRM_E  = -155,  /* ASN sig error, confirm failure */
     ASN_SIG_HASH_E     = -156,  /* ASN sig error, unsupported hash type */
-    ASN_SIG_KEY_E      = -157,  /* ASN sig error, unsupported key  type */
+    ASN_SIG_KEY_E      = -157,  /* ASN sig error, unsupported key type */
     ASN_DH_KEY_E       = -158,  /* ASN key init error, invalid input */
+    ASN_NTRU_KEY_E     = -159,  /* ASN ntru key decode error, invalid input */
+
+    ECC_BAD_ARG_E      = -170,  /* ECC input argument of wrong type */
+    ASN_ECC_KEY_E      = -171,  /* ASN ECC bad input */
+    ECC_CURVE_OID_E    = -172,  /* Unsupported ECC OID curve type */
+    BAD_FUNC_ARG       = -173,  /* Bad function argument provided */
+    NOT_COMPILED_IN    = -174,  /* Feature not compiled in */
+    UNICODE_SIZE_E     = -175,  /* Unicode password too big */
+    NO_PASSWORD        = -176,  /* no password provided by user */
+    ALT_NAME_E         = -177,  /* alt name size problem, too big */
+
     MIN_CODE_E         = -200   /* errors -101 - -199 */
 };
 
 
-void CTaoCryptErrorString(int error, char* buffer);
+CYASSL_API void CTaoCryptErrorString(int error, char* buffer);
 
 
 #ifdef __cplusplus

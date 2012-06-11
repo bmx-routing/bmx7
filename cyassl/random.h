@@ -1,6 +1,6 @@
 /* random.h
  *
- * Copyright (C) 2006-2009 Sawtooth Consulting Ltd.
+ * Copyright (C) 2006-2012 Sawtooth Consulting Ltd.
  *
  * This file is part of CyaSSL.
  *
@@ -30,7 +30,7 @@
 #endif
 
 
-#if defined(_WIN32)
+#if defined(USE_WINDOWS_API)
     #if defined(_WIN64)
         typedef unsigned __int64 ProviderHandle;
         /* type HCRYPTPROV, avoid #include <windows.h> */
@@ -42,13 +42,14 @@
 
 /* OS specific seeder */
 typedef struct OS_Seed {
-    #if defined(_WIN32)
+    #if defined(USE_WINDOWS_API)
         ProviderHandle handle;
     #else
         int fd;
     #endif
 } OS_Seed;
 
+CYASSL_LOCAL
 int GenerateSeed(OS_Seed* os, byte* seed, word32 sz);
 
 
@@ -59,9 +60,9 @@ typedef struct RNG {
 } RNG;
 
 
-int  InitRng(RNG*);
-void RNG_GenerateBlock(RNG*, byte*, word32 sz);
-byte RNG_GenerateByte(RNG*);
+CYASSL_API int  InitRng(RNG*);
+CYASSL_API void RNG_GenerateBlock(RNG*, byte*, word32 sz);
+CYASSL_API byte RNG_GenerateByte(RNG*);
 
 
 #ifdef __cplusplus

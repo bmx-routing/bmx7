@@ -1,4 +1,4 @@
-/* sha.h
+/* memory.h
  *
  * Copyright (C) 2006-2012 Sawtooth Consulting Ltd.
  *
@@ -19,44 +19,37 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  */
 
+/* submitted by eof */
 
-#ifndef CTAO_CRYPT_SHA_H
-#define CTAO_CRYPT_SHA_H
 
-#include "types.h"
+#ifndef CYASSL_MEMORY_H
+#define CYASSL_MEMORY_H
+
+#include <stdlib.h>
 
 #ifdef __cplusplus
     extern "C" {
 #endif
 
 
-/* in bytes */
-enum {
-    SHA              =  1,    /* hash type unique */
-    SHA_BLOCK_SIZE   = 64,
-    SHA_DIGEST_SIZE  = 20,
-    SHA_PAD_SIZE     = 56
-};
+typedef void *(*CyaSSL_Malloc_cb)(size_t size);
+typedef void (*CyaSSL_Free_cb)(void *ptr);
+typedef void *(*CyaSSL_Realloc_cb)(void *ptr, size_t size);
 
 
-/* Sha digest */
-typedef struct Sha {
-    word32  buffLen;   /* in bytes          */
-    word32  loLen;     /* length in bytes   */
-    word32  hiLen;     /* length in bytes   */
-    word32  digest[SHA_DIGEST_SIZE / sizeof(word32)];
-    word32  buffer[SHA_BLOCK_SIZE  / sizeof(word32)];
-} Sha;
+/* Public set function */
+CYASSL_API int CyaSSL_SetAllocators(CyaSSL_Malloc_cb  malloc_function,
+                                    CyaSSL_Free_cb    free_function,
+                                    CyaSSL_Realloc_cb realloc_function);
 
-
-CYASSL_API void InitSha(Sha*);
-CYASSL_API void ShaUpdate(Sha*, const byte*, word32);
-CYASSL_API void ShaFinal(Sha*, byte*);
+/* Public in case user app wants to use XMALLOC/XFREE */
+CYASSL_API void* CyaSSL_Malloc(size_t size);
+CYASSL_API void  CyaSSL_Free(void *ptr);
+CYASSL_API void* CyaSSL_Realloc(void *ptr, size_t size);
 
 
 #ifdef __cplusplus
-    } /* extern "C" */
+}
 #endif
 
-#endif /* CTAO_CRYPT_SHA_H */
-
+#endif /* CYASSL_MEMORY_H */

@@ -52,13 +52,6 @@ static AVL_TREE(tun_net_tree, struct tun_net_node, tunNetKey);
 static AVL_TREE(tun_out_tree, struct tun_out_node, tunOutKey);
 static AVL_TREE(tun_in_tree, struct tun_in_node, remoteIp);
 
-/*
-static int32_t tun6_orig_registries[TUN6_REG_SIZE];
-*/
-
-//static Sha tun6_sha;
-
-
 static const struct tun_net_key ZERO_TUN_NET_KEY = {.tun = NULL};
 
 static struct net_key tun4_address;
@@ -67,9 +60,6 @@ static struct net_key tun6_address;
 static int niit4to6_idx = 0;
 static int niit6to4_idx = 0;
 static IPX_T niitPrefix96 = DEF_NIIT_PREFIX;
-
-//static int32_t tun_orig_registry = FAILURE;
-//static int32_t gw_orig_registry = FAILURE;
 
 static IFNAME_T tun_name_prefix = {{DEF_TUN_NAME_PREFIX}};
 
@@ -566,19 +556,7 @@ int process_description_tlv_hna(struct rx_frame_iterator *it)
 
                 dbgf_track(DBGT_INFO, "%s %s %s %s=%s",
                         tlv_op_str(op), family2Str(family), globalIdAsString(&on->global_id), ARG_UHNA, netAsStr(&key));
-/*
 
-                if (op == TLV_OP_DEL) {
-
-                        configure_hna(DEL, &key, on);
-
-                        if (pos == 0) {
-                                on->primary_ip = ZERO_IP;
-                                ipXToStr(family, &ZERO_IP, on->primary_ip_str);
-                        }
-
-                } else
-*/
                 if (op == TLV_OP_TEST) {
 
                         struct hna_node *un = NULL;
@@ -1100,18 +1078,6 @@ void terminate_tun_out(struct orig_node *on)
         int16_t m;
         IDM_T used = NO;
 
-/*
-        int reg;
-        for (reg = 0; reg < TUN6_REG_SIZE; reg++) {
-                void **tun6_adv_sha = get_plugin_data(on, PLUGIN_DATA_ORIG, tun6_orig_registries[reg]);
-                assertion(-500000, (tun6_adv_sha));
-                if (*tun6_adv_sha) {
-                        debugFree(*tun6_adv_sha, -300000);
-                        *tun6_adv_sha = NULL;
-                }
-        }
-*/
-
         for (m = 0;; m++) {
 
                 struct tun_out_key key = set_tun_adv_key(on, 0);
@@ -1168,88 +1134,6 @@ void terminate_tun_out(struct orig_node *on)
                 set_tun_net(NULL);
 }
 
-/*
-STATIC_FUNC
-int tun6_tlv_type_to_registry(int frame_type)
-{
-        int reg = ( frame_type == BMX_DSC_TLV_TUN6_ADV ? TUN6_REG :
-                (frame_type == BMX_DSC_TLV_TUN4IN6_INGRESS_ADV ? TUN4IN6_ING_REG :
-                (frame_type == BMX_DSC_TLV_TUN6IN6_INGRESS_ADV ? TUN6IN6_ING_REG :
-                (frame_type == BMX_DSC_TLV_TUN4IN6_SRC_ADV ? TUN4IN6_SRC_REG :
-                (frame_type == BMX_DSC_TLV_TUN6IN6_SRC_ADV ? TUN6IN6_SRC_REG :
-                (frame_type == BMX_DSC_TLV_TUN4IN6_NET_ADV ? TUN4IN6_NET_REG :
-                (frame_type == BMX_DSC_TLV_TUN6IN6_NET_ADV ? TUN6IN6_NET_REG :
-                (0xFFFF))))))));
-
-        assertion(-500000, (reg != 0xFFFF));
-        
-        return reg;
-}
-
-
-STATIC_FUNC
-void tun6_get_tlv_sha(struct rx_frame_iterator *it, SHA1_T *tun6_sha)
-{
-        ShaUpdate(&bmx_sha, (byte*) it->frame_data, it->frame_msgs_length);
-        ShaFinal(&bmx_sha, (byte*) tun6_sha);
-}
-
-
-STATIC_FUNC
-void tun6_reset_if_changed(struct rx_frame_iterator *it)
-{
-        static SHA1_T new_sha;
-        static SHA1_T empty_sha;
-
-        uint8_t tlv_type;
-        for (tlv_type = BMX_DSC_TLV_TUN6_MIN; tlv_type <= BMX_DSC_TLV_TUN6_MAX; tlv_type++) {
-
-                memset(&new_sha, 0, sizeof ( new_sha));
-                int reg = tun6_tlv_type_to_registry(tlv_type);
-                SHA1_T **old_sha = (SHA1_T **) (get_plugin_data(it->on, PLUGIN_DATA_ORIG, tun6_orig_registries[reg]));
-
-                process_description_tlvs(NULL, it->on, (struct description *) it->data, TLV_OP_CUSTOM_TUN6_GET_SHA, tlv_type, &new_sha, NULL);
-
-                dbgf_track(DBGT_INFO, "tun_tlv_type=%d orig=%s  data_len=%d data=%s sha=%X old_sha=%X, sizeof(tun6_sha)=%zu",
-                        it->frame_type, globalIdAsString(&it->on->global_id),
-                        it->frame_msgs_length, memAsHexString(it->frame_data, it->frame_msgs_length), new_sha.h.u32[0],
-                        (*old_sha ? (**old_sha).h.u32[0] : 0), sizeof (SHA1_T));
-
-
-                if (memcmp(&new_sha, (*old_sha ? (*old_sha) : &empty_sha), sizeof ( SHA1_T))) {
-
-                        terminate_tun_out(it->on);
-                        return;
-                }
-        }
-}
-
-
-
-STATIC_FUNC
-int tun6_cache_tlv_sha_if_changed(struct rx_frame_iterator *it)
-{
-        int reg = tun6_tlv_type_to_registry(it->frame_type);
-
-        SHA1_T **old_sha = (SHA1_T **) (get_plugin_data(it->on, PLUGIN_DATA_ORIG, tun6_orig_registries[reg]));
-        SHA1_T new_sha;
-
-        tun6_get_tlv_sha(it, &new_sha);
-
-        if (*old_sha) {
-
-                assertion(-500000, (!memcmp(&new_sha, *old_sha, sizeof ( SHA1_T))));
-                return NO;
-
-        } else {
-
-                *old_sha = debugMalloc(sizeof (SHA1_T), -300000);
-                **old_sha = new_sha;
-                return YES;
-        }
-}
-*/
-
 
 static uint8_t new_tun6_advs_changed;
 
@@ -1283,15 +1167,9 @@ int process_description_tlv_tun6_adv(struct rx_frame_iterator *it)
                         }
                 }
 
-                //if (!tun6_cache_tlv_sha_if_changed(it))
                 if (!new_tun6_advs_changed)
                         return it->frame_msgs_length;
 
-/*
-        } else if ( it->op == TLV_OP_CUSTOM_TUN6_GET_SHA ) {
-
-                tun6_get_tlv_sha(it, it->custom_data);
-*/
         }
 
 
@@ -1387,11 +1265,6 @@ int process_description_tlv_tunXin6_ingress_adv(struct rx_frame_iterator *it)
                 if (!new_tun6_advs_changed)
                         return it->frame_msgs_length;
 
-/*
-        } else if (it->op == TLV_OP_CUSTOM_TUN6_GET_SHA) {
-
-                tun6_get_tlv_sha(it, it->custom_data);
-*/
         }
 
         if (it->op == TLV_OP_TEST || it->op == TLV_OP_NEW) {
@@ -1523,15 +1396,9 @@ int process_description_tlv_tunXin6_net_adv(struct rx_frame_iterator *it)
 
         if (it->op == TLV_OP_NEW) {
 
-                  //if (!tun6_cache_tlv_sha_if_changed(it))
                 if (!new_tun6_advs_changed)
                         return it->frame_msgs_length;
 
-/*
-        } else if (it->op == TLV_OP_CUSTOM_TUN6_GET_SHA) {
-
-                tun6_get_tlv_sha(it, it->custom_data);
-*/
         }
 
         if (it->op == TLV_OP_TEST || it->op == TLV_OP_NEW) {
@@ -2400,15 +2267,6 @@ int32_t hna_init( void )
         static const struct field_format tun6in6_src_adv_format[] = DESCRIPTION_MSG_TUN6IN6_SRC_ADV_FORMAT;
         static const struct field_format tun4in6_adv_format[] = DESCRIPTION_MSG_TUN4IN6_NET_ADV_FORMAT;
         static const struct field_format tun6in6_adv_format[] = DESCRIPTION_MSG_TUN6IN6_NET_ADV_FORMAT;
-
-
-/*
-        int reg;
-        for (reg = 0; reg < TUN6_REG_SIZE; reg++)
-                tun6_orig_registries[reg] = get_plugin_data_registry(PLUGIN_DATA_ORIG);
-*/
-
-//        InitSha(&tun6_sha);
 
 
         memset( &tlv_handl, 0, sizeof(tlv_handl));

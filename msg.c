@@ -3421,13 +3421,6 @@ struct dhash_node * process_description(struct packet_buff *pb, struct descripti
 
         if (tlv_result == TLV_RX_DATA_DONE) {
 
-/*
-                if (on->desc && !on->blocked) {
-                        tlv_result = process_description_tlvs(pb, on, on->desc, TLV_OP_DEL, FRAME_TYPE_PROCESS_ALL, NULL);
-                        assertion(-600001, (tlv_result == TLV_RX_DATA_DONE));
-                }
-*/
-
                 tlv_result = process_description_tlvs(pb, on, desc, TLV_OP_NEW, FRAME_TYPE_PROCESS_ALL, NULL, NULL);
                 assertion(-500000, (tlv_result == TLV_RX_DATA_DONE)); // checked, so MUST SUCCEED!!
                 assertion(-500000, (on->blocked != on->added));
@@ -3447,7 +3440,6 @@ struct dhash_node * process_description(struct packet_buff *pb, struct descripti
 
 
         if (on->desc) {
-                //cb_plugin_hooks(PLUGIN_CB_DESCRIPTION_DESTROY, on);
                 debugFree(on->desc, -300111);
         }
 

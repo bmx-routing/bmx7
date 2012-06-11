@@ -1250,7 +1250,13 @@ int process_description_tlv_metricalgo(struct rx_frame_iterator *it )
 
         dbgf_all( DBGT_INFO, "%s ", tlv_op_str(op));
 
-        if (op == TLV_OP_DEL) {
+        if (op == TLV_OP_NEW || op == TLV_OP_TEST) {
+
+                if (metricalgo_tlv_to_host(tlv_algo, &host_algo, it->frame_msgs_length) == FAILURE)
+                        return FAILURE;
+        }
+
+        if (op == TLV_OP_NEW || op == TLV_OP_DEL) {
 
                 if (on->path_metricalgo) {
                         debugFree(on->path_metricalgo, -300285);
@@ -1261,18 +1267,12 @@ int process_description_tlv_metricalgo(struct rx_frame_iterator *it )
                         debugFree(on->metricSqnMaxArr, -300307);
                         on->metricSqnMaxArr = NULL;
                 }
-
-
-        } else if (!(op == TLV_OP_TEST || op == TLV_OP_ADD || op == TLV_OP_DEBUG)) {
-
-                return it->frame_msgs_length;
         }
 
-        if (metricalgo_tlv_to_host(tlv_algo, &host_algo, it->frame_msgs_length) == FAILURE)
-                return FAILURE;
+        if (op == TLV_OP_NEW) {
 
-
-        if (op == TLV_OP_ADD) {
+                if (metricalgo_tlv_to_host(tlv_algo, &host_algo, it->frame_msgs_length) == FAILURE)
+                        return FAILURE;
 
                 assertion(-500684, (!on->path_metricalgo));
 
@@ -1290,7 +1290,6 @@ int process_description_tlv_metricalgo(struct rx_frame_iterator *it )
                 while ((rn = avl_iterate_item(&on->rt_tree, &an)))
                         reconfigure_metric_record_position(&rn->mr, on->path_metricalgo, on->ogmSqn_rangeMin, on->ogmSqn_rangeMin, 0, NO);
                 
-
         }
 
         return it->frame_msgs_length;

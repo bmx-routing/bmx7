@@ -491,6 +491,8 @@ struct GLOBAL_ID {
 
 typedef struct GLOBAL_ID GLOBAL_ID_T;
 
+
+
 struct description_hash {
 	union {
 		uint8_t u8[HASH_SHA1_LEN];
@@ -498,7 +500,7 @@ struct description_hash {
 	} h;
 };
 
-//typedef struct description_hash DESC_HASH_T;
+typedef struct description_hash SHA1_T;
 
 
 
@@ -883,6 +885,14 @@ struct neigh_node {
 extern struct avl_tree orig_tree;
 //extern struct avl_tree blocked_tree;
 
+struct desc_tlv_hash_node {
+        SHA1_T curr_hash;
+        SHA1_T test_hash;
+        uint8_t tlv_type;
+        uint8_t test_changed;
+};
+
+
 struct orig_node {
 	// filled in by validate_new_link_desc0():
 
@@ -890,6 +900,7 @@ struct orig_node {
 
 	struct dhash_node *dhn;
 	struct description *desc;
+	struct avl_tree desc_tlv_hash_tree;
 
 	TIME_T updated_timestamp; // last time this on's desc was succesfully updated
 
@@ -903,7 +914,8 @@ struct orig_node {
 	// filled in by process_desc0_tlvs()->
 	IPX_T primary_ip;
 	char primary_ip_str[IPX_STR_LEN];
-	uint8_t blocked;
+	uint8_t blocked; // blocked description
+        uint8_t added;   // added description
 
 
 	struct host_metricalgo *path_metricalgo;
@@ -925,7 +937,6 @@ struct orig_node {
 	struct router_node * best_rt_local;  // TODO: remove
 	struct router_node *curr_rt_local;   // the currently used local neighbor for routing
 	struct link_dev_node *curr_rt_lndev; // the configured route in the kernel!
-
 
 	//size of plugin data is defined during intialization and depends on registered PLUGIN_DATA_ORIG hooks
 	void *plugin_data[];

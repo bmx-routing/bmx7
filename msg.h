@@ -254,7 +254,8 @@ struct frame_header_long { // 4 bytes
 enum {
 	TLV_OP_DEL = 0,
 	TLV_OP_TEST = 1,
-	TLV_OP_ADD = 2,
+//	TLV_OP_ADD = 2,
+	TLV_OP_NEW = 2,
 	TLV_OP_DEBUG = 3,
 
 	TLV_OP_CUSTOM_MIN = 20,
@@ -269,35 +270,37 @@ char *tlv_op_str(uint8_t op);
  * this iterator is given the beginning of a frame area (e.g. the end of the packet_header)
  * then it iterates over the frames in that area */
 struct rx_frame_iterator {
-    // MUST be initialized:
-    // remains unchanged:
-    const char *caller;
-    struct packet_buff *pb;
-    struct orig_node *on;
-    struct ctrl_node *cn;
-    uint8_t *frames_in;
-    struct frame_handl *handls;
-    struct frame_handl *handl;
-    uint8_t op;
-    uint8_t process_filter;
-    uint8_t handl_max;
-    int32_t frames_length;
+        // MUST be initialized:
+        // remains unchanged:
+        const char *caller;
+        struct packet_buff *pb;
+        struct orig_node *on;
+        struct ctrl_node *cn;
+        uint8_t *data;
+        uint8_t *frames_in;
+        struct frame_handl *handls;
+        struct frame_handl *handl;
+        uint8_t op;
+        uint8_t process_filter;
+        uint8_t handl_max;
+        int32_t frames_length;
 
-    // updated by rx..iterate():
-    int32_t frames_pos;
+        // MUST be initialized, updated by rx..iterate(), and consumed by handl[].rx_tlv_handler
+        int32_t frames_pos;
+        int8_t frame_type; //init to -1 !!
 
-    // set by rx..iterate(), and consumed by handl[].rx_tlv_handler
-    uint8_t is_short_header;
-    uint8_t frame_type;
-    int32_t frame_data_length;
-    int32_t frame_msgs_length;
-    int32_t frame_msgs_fixed;
-    uint8_t *frame_data;
-    uint8_t *msg;
+        // set by rx..iterate(), and consumed by handl[].rx_tlv_handler
+        uint8_t is_short_header;
+        int32_t frame_data_length;
+        int32_t frame_msgs_length;
+        int32_t frame_msgs_fixed;
+        uint8_t *frame_data;
+        uint8_t *msg;
 
-    // allocated by handl[].rx_tlv_handler and freed by calling function of rx_frame_iterate() (e.g. process_description_tlvs())
-    void **misc_ptr;
-    uint32_t misc_uint;
+        // allocated by handl[].rx_tlv_handler and freed by calling function of rx_frame_iterate() (e.g. process_description_tlvs())
+
+        // allocated and freed by function calling process_description_tlvs(), eg. process_description(), bmx(), plugins,...
+        void *custom_data;
 };
 
 
@@ -678,6 +681,7 @@ struct msg_ogm_ack {
 #define BMX_DSC_TLV_UHNA4       0x01
 #define BMX_DSC_TLV_UHNA6       0x02
 
+#define BMX_DSC_TLV_TUN6_MIN            0x04
 #define BMX_DSC_TLV_TUN6_ADV            0x04
 #define BMX_DSC_TLV_TUN4IN6_INGRESS_ADV 0x05
 #define BMX_DSC_TLV_TUN6IN6_INGRESS_ADV 0x06
@@ -685,6 +689,7 @@ struct msg_ogm_ack {
 #define BMX_DSC_TLV_TUN6IN6_SRC_ADV     0x08
 #define BMX_DSC_TLV_TUN4IN6_NET_ADV     0x09
 #define BMX_DSC_TLV_TUN6IN6_NET_ADV     0x0A
+#define BMX_DSC_TLV_TUN6_MAX            0x0A
 
 #define BMX_DSC_TLV_JSON_SMS    0x10
 #define BMX_DSC_TLV_MAX         (FRAME_TYPE_ARRSZ-1)
@@ -710,6 +715,7 @@ extern TIME_T myIID4me_timestamp;
 extern struct frame_handl packet_frame_handler[FRAME_TYPE_ARRSZ];
 extern struct frame_handl description_tlv_handl[BMX_DSC_TLV_ARRSZ];
 
+extern Sha bmx_sha;
 
 /***********************************************************
   The core frame/message structures and handlers
@@ -723,7 +729,7 @@ void update_my_link_adv(uint32_t changes);
 
 struct dhash_node * process_description(struct packet_buff *pb, struct description *desc, struct description_hash *dhash);
 IDM_T process_description_tlvs(struct packet_buff *pb, struct orig_node *on, struct description *desc, uint8_t op,
-        uint8_t filter, struct ctrl_node *cn);
+        uint8_t filter, void *custom_data, struct ctrl_node *cn);
 void purge_tx_task_list(struct list_head *tx_tasks_list, struct link_node *only_link, struct dev_node *only_dev);
 
 void tx_packets( void *unused );

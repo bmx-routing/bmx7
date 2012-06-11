@@ -52,6 +52,13 @@ static AVL_TREE(tun_net_tree, struct tun_net_node, tunNetKey);
 static AVL_TREE(tun_out_tree, struct tun_out_node, tunOutKey);
 static AVL_TREE(tun_in_tree, struct tun_in_node, remoteIp);
 
+/*
+static int32_t tun6_orig_registries[TUN6_REG_SIZE];
+*/
+
+//static Sha tun6_sha;
+
+
 static const struct tun_net_key ZERO_TUN_NET_KEY = {.tun = NULL};
 
 static struct net_key tun4_address;
@@ -81,11 +88,11 @@ void hna_description_event_hook(int32_t cb_id, struct orig_node *on)
         assertion(-501248, IMPLIES(initializing, cb_id == PLUGIN_CB_DESCRIPTION_CREATED));
 
         if (cb_id == PLUGIN_CB_DESCRIPTION_DESTROY) {
-                process_description_tlvs(NULL, self, self->desc, TLV_OP_CUSTOM_NIIT6TO4_DEL, BMX_DSC_TLV_UHNA6, NULL);
+                process_description_tlvs(NULL, self, self->desc, TLV_OP_CUSTOM_NIIT6TO4_DEL, BMX_DSC_TLV_UHNA6, NULL, NULL);
         }
 
         if (cb_id == PLUGIN_CB_DESCRIPTION_CREATED) {
-                process_description_tlvs(NULL, self, self->desc, TLV_OP_CUSTOM_NIIT6TO4_ADD, BMX_DSC_TLV_UHNA6, NULL);
+                process_description_tlvs(NULL, self, self->desc, TLV_OP_CUSTOM_NIIT6TO4_ADD, BMX_DSC_TLV_UHNA6, NULL, NULL);
         }
 }
 
@@ -156,10 +163,10 @@ void niit_dev_event_hook(int32_t cb_id, void* unused)
                                 continue;
 
                         if ((niit4to6_idx = niit4to6_old_idx))
-                                process_description_tlvs(NULL, on, on->desc, TLV_OP_CUSTOM_NIIT4TO6_DEL, BMX_DSC_TLV_UHNA6, NULL);
+                                process_description_tlvs(NULL, on, on->desc, TLV_OP_CUSTOM_NIIT4TO6_DEL, BMX_DSC_TLV_UHNA6, NULL, NULL);
 
                         if ((niit4to6_idx = niit4to6_new_idx))
-                                process_description_tlvs(NULL, on, on->desc, TLV_OP_CUSTOM_NIIT4TO6_ADD, BMX_DSC_TLV_UHNA6, NULL);
+                                process_description_tlvs(NULL, on, on->desc, TLV_OP_CUSTOM_NIIT4TO6_ADD, BMX_DSC_TLV_UHNA6, NULL, NULL);
                 }
 
                 niit4to6_idx = niit4to6_new_idx;
@@ -170,12 +177,12 @@ void niit_dev_event_hook(int32_t cb_id, void* unused)
                 dbgf_track(DBGT_INFO, "niit6to4_dev_idx=%d niit6to4_new_idx=%d", niit6to4_idx, niit6to4_new_idx);
 
                 if (niit6to4_old_idx)
-                        process_description_tlvs(NULL, self, self->desc, TLV_OP_CUSTOM_NIIT6TO4_DEL, BMX_DSC_TLV_UHNA6, NULL);
+                        process_description_tlvs(NULL, self, self->desc, TLV_OP_CUSTOM_NIIT6TO4_DEL, BMX_DSC_TLV_UHNA6, NULL, NULL);
 
                 niit6to4_idx = niit6to4_new_idx;
 
                 if (niit6to4_new_idx)
-                        process_description_tlvs(NULL, self, self->desc, TLV_OP_CUSTOM_NIIT6TO4_ADD, BMX_DSC_TLV_UHNA6, NULL);
+                        process_description_tlvs(NULL, self, self->desc, TLV_OP_CUSTOM_NIIT6TO4_ADD, BMX_DSC_TLV_UHNA6, NULL, NULL);
 
         }
 }
@@ -378,6 +385,7 @@ int create_description_tlv_hna(struct tx_frame_iterator *it)
         int pos = 0;
         struct avl_node *an;
         struct tun_search_node *tsn;
+        struct tun_in_node *tin;
         struct dev_node *dev;
         struct hna_node *un;
 
@@ -401,6 +409,12 @@ int create_description_tlv_hna(struct tx_frame_iterator *it)
                         pos = _create_tlv_hna(data, max_size, pos, &src);
                 }
         }
+
+        for (an = NULL; (tin = avl_iterate_item(&tun_in_tree, &an));) {
+                assertion(-500000, (family == AF_INET6));
+                pos = _create_tlv_hna(data, max_size, pos, setNet(NULL, AF_INET6, 128, &tin->remoteIp));
+        }
+
 
         for (an = NULL; (dev = avl_iterate_item(&dev_ip_tree, &an));) {
 
@@ -473,14 +487,27 @@ void configure_hna(IDM_T del, struct net_key* key, struct orig_node *on)
 
 
 STATIC_FUNC
-struct hna_node * find_overlapping_hna( IPX_T *ipX, uint8_t prefixlen )
+struct hna_node * find_orig_hna(struct orig_node *on)
+{
+        struct hna_node *un;
+        struct avl_node *it = NULL;
+
+        while ((un = avl_iterate_item(&global_uhna_tree, &it)) && un->on != on);
+
+        return un;
+}
+
+STATIC_FUNC
+struct hna_node * find_overlapping_hna( IPX_T *ipX, uint8_t prefixlen, struct orig_node *except )
 {
         struct hna_node *un;
         struct avl_node *it = NULL;
 
         while ((un = avl_iterate_item(&global_uhna_tree, &it))) {
 
-                if (is_ip_net_equal(ipX, &un->key.ip, MIN(prefixlen, un->key.mask), AF_CFG))
+                assertion(-500000, (un->on));
+
+                if (un->on != except && is_ip_net_equal(ipX, &un->key.ip, MIN(prefixlen, un->key.mask), AF_CFG))
                         return un;
 
         }
@@ -498,10 +525,31 @@ int process_description_tlv_hna(struct rx_frame_iterator *it)
         uint8_t op = it->op;
         uint8_t family = (it->frame_type == BMX_DSC_TLV_UHNA4 ? AF_INET : AF_INET6);
 
+        struct net_key *network_keys = NULL;
+        uint32_t networks_num = 0;
+
+        assertion(-600004, (on != self ||
+                op == TLV_OP_CUSTOM_NIIT6TO4_ADD || op == TLV_OP_CUSTOM_NIIT6TO4_DEL ||
+                op == TLV_OP_CUSTOM_NIIT4TO6_ADD || op == TLV_OP_CUSTOM_NIIT4TO6_DEL));
+
+
         if (AF_CFG != family) {
                 dbgf_sys(DBGT_ERR, "invalid family %s", family2Str(family));
                 return TLV_RX_DATA_BLOCKED;
         }
+
+        if (op == TLV_OP_NEW || op == TLV_OP_DEL) {
+                struct hna_node *un;
+                while ((un = find_orig_hna(on)))
+                        configure_hna(DEL, &un->key, on);
+
+                on->primary_ip = ZERO_IP;
+                ipXToStr(family, &ZERO_IP, on->primary_ip_str);
+
+                if (op == TLV_OP_DEL)
+                        return it->frame_msgs_length;
+        }
+
 
         uint16_t msg_size = it->handl->min_msg_size;
         uint16_t pos;
@@ -518,6 +566,7 @@ int process_description_tlv_hna(struct rx_frame_iterator *it)
 
                 dbgf_track(DBGT_INFO, "%s %s %s %s=%s",
                         tlv_op_str(op), family2Str(family), globalIdAsString(&on->global_id), ARG_UHNA, netAsStr(&key));
+/*
 
                 if (op == TLV_OP_DEL) {
 
@@ -528,12 +577,15 @@ int process_description_tlv_hna(struct rx_frame_iterator *it)
                                 ipXToStr(family, &ZERO_IP, on->primary_ip_str);
                         }
 
-                } else if (op == TLV_OP_TEST) {
+                } else
+*/
+                if (op == TLV_OP_TEST) {
 
                         struct hna_node *un = NULL;
 
-                        if (!is_ip_valid(&key.ip, family) || (un = find_overlapping_hna(&key.ip, key.mask)) ||
-                                is_ip_net_equal(&key.ip, &IP6_LINKLOCAL_UC_PREF, IP6_LINKLOCAL_UC_PLEN, AF_INET6)) {
+                        if (!is_ip_valid(&key.ip, family) || 
+                                is_ip_net_equal(&key.ip, &IP6_LINKLOCAL_UC_PREF, IP6_LINKLOCAL_UC_PLEN, AF_INET6) ||
+                                (un = find_overlapping_hna(&key.ip, key.mask, on))) {
 
                                 dbgf_sys(DBGT_ERR, "global_id=%s %s=%s blocked (by global_id=%s)",
                                         globalIdAsString(&on->global_id), ARG_UHNA, netAsStr(&key),
@@ -544,23 +596,22 @@ int process_description_tlv_hna(struct rx_frame_iterator *it)
 
 
                         // check if node announces the same key twice:
-                        assertion(-501294, (it->misc_ptr));
-
                         uint32_t i;
-                        struct net_key *k = (struct net_key*) *(it->misc_ptr);
-                        for (i = 0; i < it->misc_uint; i++) {
-                                if (!memcmp(&k[i], &key, sizeof (key)))
+                        for (i = 0; i < networks_num; i++) {
+                                if (!memcmp(&network_keys[i], &key, sizeof (key))) {
+                                        dbgf_sys(DBGT_ERR, "global_id=%s %s=%s blocked due to duplicate announcement",
+                                                globalIdAsString(&on->global_id), ARG_UHNA, netAsStr(&key));
                                         return TLV_RX_DATA_BLOCKED;
+                                }
                         }
 
-                        *it->misc_ptr = debugRealloc(*it->misc_ptr, (i + 1) * sizeof (key), -300398);
-
-                        memcpy(&(((struct net_key*) *(it->misc_ptr))[i]), &key, sizeof(key));
-                        it->misc_uint = i + 1;
-
+                        network_keys = debugRealloc(network_keys, (i + 1) * sizeof (key), -300398);
+                        memcpy(&network_keys[i], &key, sizeof (key));
+                        networks_num = i + 1;
 
 
-                } else if (op == TLV_OP_ADD) {
+
+                } else if (op == TLV_OP_NEW) {
 
                         ASSERTION( -500359, (!avl_find(&global_uhna_tree, &key)));
 
@@ -607,7 +658,7 @@ int process_description_tlv_hna(struct rx_frame_iterator *it)
         dbgf((it->frame_msgs_length == pos) ? DBGL_ALL : DBGL_SYS, (it->frame_msgs_length == pos) ? DBGT_INFO : DBGT_ERR,
                 "processed %d bytes frame_msgs_len=%d msg_size=%d", pos, it->frame_msgs_length, msg_size);
 
-        return pos;
+        return it->frame_msgs_length;
 }
 
 
@@ -636,11 +687,11 @@ int32_t opt_uhna(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
 
                 if (cmd == OPT_CHECK || cmd == OPT_APPLY) {
 
-                        if (patch->diff != DEL && (un = find_overlapping_hna(&hna.ip, hna.mask))) {
+                        if (patch->diff != DEL && (un = find_overlapping_hna(&hna.ip, hna.mask, self))) {
 
                                 dbg_cn(cn, DBGL_CHANGES, DBGT_ERR,
                                         "%s=%s already blocked by global_id=%s !", ARG_UHNA, netAsStr(&hna),
-                                        (un->on == self ? "MYSELF" : globalIdAsString(&un->on->global_id)));
+                                        globalIdAsString(&un->on->global_id));
 
                                 return FAILURE;
                         }
@@ -1013,7 +1064,7 @@ int create_description_tlv_tun6_adv(struct tx_frame_iterator *it)
                 configure_tunnel_in(DEL, tun);
 
                 if (is_ip_local(&tun->remoteIp) || !is_ip_set(&self->primary_ip) ||
-                        (tun->ingress6Prefix.mask && (hna = find_overlapping_hna(&tun->ingress6Prefix.ip, tun->ingress6Prefix.mask)) && hna->on == self) ||
+                        (tun->ingress6Prefix.mask && (hna = find_overlapping_hna(&tun->ingress6Prefix.ip, tun->ingress6Prefix.mask, NULL)) && hna->on == self) ||
 //                      (tun->src4Prefix.prefixlen && (hna = find_overlapping_hna(&tun->src4Prefix.net, tun->src4Prefix.prefixlen)) && hna->on == self) ||
                         configure_tunnel_in(ADD, tun) == FAILURE) {
                         dbgf_sys(DBGT_WARN, "FAILED advertising tun localIp=%s", ip6AsStr(&tun->remoteIp));
@@ -1040,12 +1091,209 @@ struct tun_out_key set_tun_adv_key(struct orig_node *on, int16_t tun6Id)
         return key;
 }
 
+
+
+STATIC_FUNC
+void terminate_tun_out(struct orig_node *on)
+{
+        TRACE_FUNCTION_CALL;
+        int16_t m;
+        IDM_T used = NO;
+
+/*
+        int reg;
+        for (reg = 0; reg < TUN6_REG_SIZE; reg++) {
+                void **tun6_adv_sha = get_plugin_data(on, PLUGIN_DATA_ORIG, tun6_orig_registries[reg]);
+                assertion(-500000, (tun6_adv_sha));
+                if (*tun6_adv_sha) {
+                        debugFree(*tun6_adv_sha, -300000);
+                        *tun6_adv_sha = NULL;
+                }
+        }
+*/
+
+        for (m = 0;; m++) {
+
+                struct tun_out_key key = set_tun_adv_key(on, 0);
+                struct tun_out_node *tun = avl_find_item(&tun_out_tree, &key);
+
+                if (!tun)
+                        break;
+
+                struct tun_out_node *rtun;
+                struct tun_net_node *tnn, *tnn1, *tnn2;
+
+
+                assertion(-501247, (tun));
+
+                dbgf_all(DBGT_INFO, "should remove tunnel_node localIp=%s tun6Id=%d orig=%s key=%s (tunnel_out.items=%d, tun->net.items=%d)",
+                        ip6AsStr(&tun->localIp), tun->tunOutKey.tun6Id, globalIdAsString(&tun->tunOutKey.on->global_id),
+                        memAsHexString(&tun->tunOutKey, sizeof (key)), tun_out_tree.items, tun->tun_net_tree.items);
+
+                used |= (tun->upIfIdx) ? YES : NO;
+
+                while ((tnn = avl_first_item(&tun->tun_net_tree))) {
+
+                        unlink_tun_net(tnn, NULL, NULL);
+
+                        tnn1 = avl_remove(&tun_net_tree, &tnn->tunNetKey, -300421);
+                        tnn2 = avl_remove(&tun->tun_net_tree, &tnn->tunNetKey, -300423);
+
+                        if (tnn != tnn1 || tnn != tnn2) {
+                                dbgf_sys(DBGT_ERR, "should remove %s orig=%s but removed %s orig=%s and %s orig=%s !",
+                                        netAsStr(&tnn->tunNetKey.netKey),
+                                        globalIdAsString(&tnn->tunNetKey.tun->tunOutKey.on->global_id),
+                                        tnn1 ? netAsStr(&tnn1->tunNetKey.netKey) : "---",
+                                        tnn1 ? globalIdAsString(&tnn1->tunNetKey.tun->tunOutKey.on->global_id) : "---",
+                                        tnn2 ? netAsStr(&tnn2->tunNetKey.netKey) : "---",
+                                        tnn2 ? globalIdAsString(&tnn2->tunNetKey.tun->tunOutKey.on->global_id) : "---"
+                                        );
+
+                                assertion(-501251, (0));
+                        }
+
+                        debugFree(tnn, -300424);
+                }
+
+                assertion(-501249, (!tun->tun_net_tree.items));
+
+                checkIntegrity();
+
+                rtun = avl_remove(&tun_out_tree, &key, -300410);
+                assertion(-501253, (rtun == tun));
+                debugFree(tun, -300425);
+        }
+
+        if (used)
+                set_tun_net(NULL);
+}
+
+/*
+STATIC_FUNC
+int tun6_tlv_type_to_registry(int frame_type)
+{
+        int reg = ( frame_type == BMX_DSC_TLV_TUN6_ADV ? TUN6_REG :
+                (frame_type == BMX_DSC_TLV_TUN4IN6_INGRESS_ADV ? TUN4IN6_ING_REG :
+                (frame_type == BMX_DSC_TLV_TUN6IN6_INGRESS_ADV ? TUN6IN6_ING_REG :
+                (frame_type == BMX_DSC_TLV_TUN4IN6_SRC_ADV ? TUN4IN6_SRC_REG :
+                (frame_type == BMX_DSC_TLV_TUN6IN6_SRC_ADV ? TUN6IN6_SRC_REG :
+                (frame_type == BMX_DSC_TLV_TUN4IN6_NET_ADV ? TUN4IN6_NET_REG :
+                (frame_type == BMX_DSC_TLV_TUN6IN6_NET_ADV ? TUN6IN6_NET_REG :
+                (0xFFFF))))))));
+
+        assertion(-500000, (reg != 0xFFFF));
+        
+        return reg;
+}
+
+
+STATIC_FUNC
+void tun6_get_tlv_sha(struct rx_frame_iterator *it, SHA1_T *tun6_sha)
+{
+        ShaUpdate(&bmx_sha, (byte*) it->frame_data, it->frame_msgs_length);
+        ShaFinal(&bmx_sha, (byte*) tun6_sha);
+}
+
+
+STATIC_FUNC
+void tun6_reset_if_changed(struct rx_frame_iterator *it)
+{
+        static SHA1_T new_sha;
+        static SHA1_T empty_sha;
+
+        uint8_t tlv_type;
+        for (tlv_type = BMX_DSC_TLV_TUN6_MIN; tlv_type <= BMX_DSC_TLV_TUN6_MAX; tlv_type++) {
+
+                memset(&new_sha, 0, sizeof ( new_sha));
+                int reg = tun6_tlv_type_to_registry(tlv_type);
+                SHA1_T **old_sha = (SHA1_T **) (get_plugin_data(it->on, PLUGIN_DATA_ORIG, tun6_orig_registries[reg]));
+
+                process_description_tlvs(NULL, it->on, (struct description *) it->data, TLV_OP_CUSTOM_TUN6_GET_SHA, tlv_type, &new_sha, NULL);
+
+                dbgf_track(DBGT_INFO, "tun_tlv_type=%d orig=%s  data_len=%d data=%s sha=%X old_sha=%X, sizeof(tun6_sha)=%zu",
+                        it->frame_type, globalIdAsString(&it->on->global_id),
+                        it->frame_msgs_length, memAsHexString(it->frame_data, it->frame_msgs_length), new_sha.h.u32[0],
+                        (*old_sha ? (**old_sha).h.u32[0] : 0), sizeof (SHA1_T));
+
+
+                if (memcmp(&new_sha, (*old_sha ? (*old_sha) : &empty_sha), sizeof ( SHA1_T))) {
+
+                        terminate_tun_out(it->on);
+                        return;
+                }
+        }
+}
+
+
+
+STATIC_FUNC
+int tun6_cache_tlv_sha_if_changed(struct rx_frame_iterator *it)
+{
+        int reg = tun6_tlv_type_to_registry(it->frame_type);
+
+        SHA1_T **old_sha = (SHA1_T **) (get_plugin_data(it->on, PLUGIN_DATA_ORIG, tun6_orig_registries[reg]));
+        SHA1_T new_sha;
+
+        tun6_get_tlv_sha(it, &new_sha);
+
+        if (*old_sha) {
+
+                assertion(-500000, (!memcmp(&new_sha, *old_sha, sizeof ( SHA1_T))));
+                return NO;
+
+        } else {
+
+                *old_sha = debugMalloc(sizeof (SHA1_T), -300000);
+                **old_sha = new_sha;
+                return YES;
+        }
+}
+*/
+
+
+static uint8_t new_tun6_advs_changed;
+
 STATIC_FUNC
 int process_description_tlv_tun6_adv(struct rx_frame_iterator *it)
 {
         TRACE_FUNCTION_CALL;
         int16_t m;
-        IDM_T used = NO;
+
+
+        if (it->op == TLV_OP_DEL) {
+
+                terminate_tun_out(it->on);
+                return it->frame_msgs_length;
+
+        } else if (it->op == TLV_OP_NEW) {
+
+                //tun6_reset_if_changed(it);
+                uint8_t tlv_type;
+
+                new_tun6_advs_changed = NO;
+                
+                for (tlv_type = BMX_DSC_TLV_TUN6_MIN; tlv_type <= BMX_DSC_TLV_TUN6_MAX; tlv_type++) {
+
+                        struct desc_tlv_hash_node * thn;
+
+                        if ((thn = avl_find_item(&it->on->desc_tlv_hash_tree, &tlv_type)) && thn->test_changed) {
+                                new_tun6_advs_changed = YES;
+                                terminate_tun_out(it->on);
+                                break;
+                        }
+                }
+
+                //if (!tun6_cache_tlv_sha_if_changed(it))
+                if (!new_tun6_advs_changed)
+                        return it->frame_msgs_length;
+
+/*
+        } else if ( it->op == TLV_OP_CUSTOM_TUN6_GET_SHA ) {
+
+                tun6_get_tlv_sha(it, it->custom_data);
+*/
+        }
+
 
         for (m = 0; m < it->frame_msgs_fixed; m++) {
 
@@ -1056,61 +1304,24 @@ int process_description_tlv_tun6_adv(struct rx_frame_iterator *it)
                         tlv_op_str(it->op), tun_out_tree.items, tun_net_tree.items, m, it->frame_msgs_fixed,
                         ip6AsStr(&adv->localIp), globalIdAsString(&it->on->global_id), (void*) (it->on), memAsHexString(&key, sizeof (key)));
 
+                if (it->op == TLV_OP_TEST) {
 
-                if (it->op == TLV_OP_DEL) {
+                        struct hna_node *un;
 
-                        struct tun_out_node *tun = avl_find_item(&tun_out_tree, &key);
-                        struct tun_out_node *rtun;
-                        struct tun_net_node *tnn, *tnn1, *tnn2;
+                        if (!is_ip_valid(&adv->localIp, AF_INET6) ||
+                                is_ip_net_equal(&adv->localIp, &IP6_LINKLOCAL_UC_PREF, IP6_LINKLOCAL_UC_PLEN, AF_INET6) ||
+                                avl_find(&tun_in_tree, &adv->localIp) ||
+                                (un = find_overlapping_hna(&adv->localIp, 128, it->on))) {
+                                dbgf_sys(DBGT_ERR, "global_id=%s %s=%s blocked (by global_id=%s)",
+                                        globalIdAsString(&it->on->global_id), ARG_TUN_ADV, ip6AsStr(&adv->localIp),
+                                        un ? globalIdAsString(&un->on->global_id) : "???");
 
-
-                        assertion(-501247, (tun));
-
-                        dbgf_all(DBGT_INFO, "should remove tunnel_node localIp=%s tun6Id=%d orig=%s key=%s (tunnel_out.items=%d, tun->net.items=%d)",
-                                ip6AsStr(&tun->localIp), tun->tunOutKey.tun6Id, globalIdAsString(&tun->tunOutKey.on->global_id),
-                                memAsHexString(&tun->tunOutKey, sizeof (key)), tun_out_tree.items, tun->tun_net_tree.items);
-
-                        used |= (tun->upIfIdx) ? YES : NO;
-
-                        while ((tnn = avl_first_item(&tun->tun_net_tree))) {
-
-                                unlink_tun_net(tnn, NULL, NULL);
-
-                                tnn1 = avl_remove(&tun_net_tree, &tnn->tunNetKey, -300421);
-                                tnn2 = avl_remove(&tun->tun_net_tree, &tnn->tunNetKey, -300423);
-
-                                if (tnn != tnn1 || tnn != tnn2) {
-                                        dbgf_sys(DBGT_ERR, "should remove %s orig=%s but removed %s orig=%s and %s orig=%s !",
-                                                netAsStr(&tnn->tunNetKey.netKey),
-                                                globalIdAsString(&tnn->tunNetKey.tun->tunOutKey.on->global_id),
-                                                tnn1 ? netAsStr(&tnn1->tunNetKey.netKey): "---",
-                                                tnn1 ? globalIdAsString(&tnn1->tunNetKey.tun->tunOutKey.on->global_id) : "---",
-                                                tnn2 ? netAsStr(&tnn2->tunNetKey.netKey) : "---",
-                                                tnn2 ? globalIdAsString(&tnn2->tunNetKey.tun->tunOutKey.on->global_id) : "---"
-                                                );
-
-                                        assertion(-501251, (0));
-                                }
-
-                                debugFree(tnn, -300424);
+                                return TLV_RX_DATA_BLOCKED;
                         }
 
-                        assertion(-501249, (!tun->tun_net_tree.items));
+                } else if (it->op == TLV_OP_NEW) {
 
-                        checkIntegrity();
-
-                        rtun = avl_remove(&tun_out_tree, &key, -300410);
-                        assertion(-501253, (rtun == tun));
-                        debugFree(tun, -300425);
-
-                } else if (it->op == TLV_OP_TEST) {
-
-                        if (avl_find(&tun_in_tree, &adv->localIp) ||
-                                !is_ip_valid(&adv->localIp, AF_INET6) || find_overlapping_hna(&adv->localIp, 128) ||
-                                is_ip_net_equal(&adv->localIp, &IP6_LINKLOCAL_UC_PREF, IP6_LINKLOCAL_UC_PLEN, AF_INET6))
-                                return TLV_RX_DATA_BLOCKED;
-
-                } else if (it->op == TLV_OP_ADD) {
+                        assertion(-600005, (!avl_find_item(&tun_out_tree, &key)));
 
                         struct tun_out_node *tun = debugMalloc(sizeof (struct tun_out_node), -300426);
                         memset(tun, 0, sizeof (struct tun_out_node));
@@ -1121,9 +1332,6 @@ int process_description_tlv_tun6_adv(struct rx_frame_iterator *it)
                         avl_insert(&tun_out_tree, tun, -300427);
                 }
         }
-
-        if (used)
-                set_tun_net(NULL);
 
 
         return it->frame_msgs_length;
@@ -1166,7 +1374,6 @@ int create_description_tlv_tunXin6_ingress_adv(struct tx_frame_iterator *it)
         return pos;
 }
 
-
 STATIC_FUNC
 int process_description_tlv_tunXin6_ingress_adv(struct rx_frame_iterator *it)
 {
@@ -1174,31 +1381,43 @@ int process_description_tlv_tunXin6_ingress_adv(struct rx_frame_iterator *it)
         uint8_t isSrc4 = (it->frame_type == BMX_DSC_TLV_TUN4IN6_INGRESS_ADV);
         uint16_t pos;
 
-        for (pos = 0; pos < it->frame_data_length; pos += it->handl->min_msg_size) {
+        if (it->op == TLV_OP_NEW) {
 
-                struct description_msg_tun6in6_ingress_adv *adv = (struct description_msg_tun6in6_ingress_adv *) (it->frame_data + pos);
-                struct tun_out_key key = set_tun_adv_key(it->on, adv->tun6Id);
-                struct tun_out_node *tun = avl_find_item(&tun_out_tree, &key);
-                IPX_T prefix = isSrc4 ? ip4ToX(*((IP4_T*)&adv->ingressPrefix)) : adv->ingressPrefix;
+                //if (!tun6_cache_tlv_sha_if_changed(it))
+                if (!new_tun6_advs_changed)
+                        return it->frame_msgs_length;
 
-                if (it->op == TLV_OP_DEL) {
+/*
+        } else if (it->op == TLV_OP_CUSTOM_TUN6_GET_SHA) {
 
-                        assertion(-501238, (!tun));
+                tun6_get_tlv_sha(it, it->custom_data);
+*/
+        }
 
-                } else if (it->op == TLV_OP_TEST) {
+        if (it->op == TLV_OP_TEST || it->op == TLV_OP_NEW) {
+                for (pos = 0; pos < it->frame_msgs_length; pos += it->handl->min_msg_size) {
 
-                        assertion(-501265, (!tun));
+                        struct description_msg_tun6in6_ingress_adv *adv =
+                                (struct description_msg_tun6in6_ingress_adv *) (it->frame_data + pos);
+                        struct tun_out_key key = set_tun_adv_key(it->on, adv->tun6Id);
+                        struct tun_out_node *tun = avl_find_item(&tun_out_tree, &key);
+                        IPX_T prefix = isSrc4 ? ip4ToX(*((IP4_T*) & adv->ingressPrefix)) : adv->ingressPrefix;
 
-                        if (ip_netmask_validate(&prefix, adv->ingressPrefixLen, isSrc4 ? AF_INET : AF_INET6, NO) == FAILURE)
-                                return TLV_RX_DATA_FAILURE;
+                        if (it->op == TLV_OP_TEST) {
 
-                } else if (it->op == TLV_OP_ADD) {
+                                assertion(-501265, (!tun || (tun->tunOutKey.on == it->on)));
 
-                        if (tun) {
-                                if (isSrc4)
-                                        setNet(&tun->ingress4Prefix, AF_INET, adv->ingressPrefixLen, &prefix);
-                                else
-                                        setNet(&tun->ingress6Prefix, AF_INET6, adv->ingressPrefixLen, &prefix);
+                                if (ip_netmask_validate(&prefix, adv->ingressPrefixLen, isSrc4 ? AF_INET : AF_INET6, NO) == FAILURE)
+                                        return TLV_RX_DATA_FAILURE;
+
+                        } else if (it->op == TLV_OP_NEW) {
+
+                                if (tun) {
+                                        if (isSrc4)
+                                                setNet(&tun->ingress4Prefix, AF_INET, adv->ingressPrefixLen, &prefix);
+                                        else
+                                                setNet(&tun->ingress6Prefix, AF_INET6, adv->ingressPrefixLen, &prefix);
+                                }
                         }
                 }
         }
@@ -1302,55 +1521,77 @@ int process_description_tlv_tunXin6_net_adv(struct rx_frame_iterator *it)
         uint16_t pos;
         uint8_t used = NO;
 
-        for (pos = 0; pos < it->frame_msgs_length; pos += msg_size) {
+        if (it->op == TLV_OP_NEW) {
 
-                struct description_msg_tun6in6_net_adv *adv = (((struct description_msg_tun6in6_net_adv *) (it->frame_data + pos)));
-                struct net_key net;
-                IPX_T ipx = (family == AF_INET) ? ip4ToX(*((IP4_T*) & adv->network)) : adv->network;
-                setNet(&net, family, adv->networkLen, &ipx);
+                  //if (!tun6_cache_tlv_sha_if_changed(it))
+                if (!new_tun6_advs_changed)
+                        return it->frame_msgs_length;
 
-                if (it->op == TLV_OP_DEL) {
+/*
+        } else if (it->op == TLV_OP_CUSTOM_TUN6_GET_SHA) {
 
-                } else if (it->op == TLV_OP_TEST) {
+                tun6_get_tlv_sha(it, it->custom_data);
+*/
+        }
 
-                        if (ip_netmask_validate(&net.ip, net.mask, net.af, NO) == FAILURE) {
-                                dbgf_sys(DBGT_ERR, "network=%s", netAsStr(&net));
-                                return TLV_RX_DATA_FAILURE;
-                        }
+        if (it->op == TLV_OP_TEST || it->op == TLV_OP_NEW) {
 
-                } else if (it->op == TLV_OP_ADD) {
+                for (pos = 0; pos < it->frame_msgs_length; pos += msg_size) {
 
-                        struct tun_out_key tak = set_tun_adv_key(it->on, adv->tun6Id);
-                        struct tun_out_node *tun = avl_find_item(&tun_out_tree, &tak);
+                        struct description_msg_tun6in6_net_adv *adv = (((struct description_msg_tun6in6_net_adv *) (it->frame_data + pos)));
+                        struct net_key net;
+                        IPX_T ipx = (family == AF_INET) ? ip4ToX(*((IP4_T*) & adv->network)) : adv->network;
+                        setNet(&net, family, adv->networkLen, &ipx);
 
-                        if (tun) {
+                        if (it->op == TLV_OP_TEST) {
 
-                                struct tun_net_key tnk = ZERO_TUN_NET_KEY;
-                                tnk.tun = tun;
-                                tnk.netKey = net;
-
-                                if (!avl_find(&tun_net_tree, &tnk)) {
-
-                                        struct tun_net_node *tnn = debugMalloc(sizeof (struct tun_net_node), -300418);
-                                        memset(tnn, 0, sizeof (struct tun_net_node));
-                                        tnn->tunNetKey.tun = tun;
-                                        tnn->tunNetKey.netKey = net;
-                                        tnn->bandwidth = adv->bandwidth;
-
-                                        AVL_INIT_TREE(tnn->tun_search_tree, struct tun_search_node, tunSearchKey.netName);
-
-                                        avl_insert(&tun_net_tree, tnn, -300419);
-                                        avl_insert(&tun->tun_net_tree, tnn, -300419);
-
-                                        used = 1;
-                                } else {
-                                        dbgf_sys(DBGT_WARN, "double network=%s found for orig=%s tun6Id=%d",
-                                                netAsStr(&net), globalIdAsString(&tak.on->global_id), tak.tun6Id);
+                                if (ip_netmask_validate(&net.ip, net.mask, net.af, NO) == FAILURE) {
+                                        dbgf_sys(DBGT_ERR, "network=%s", netAsStr(&net));
+                                        return TLV_RX_DATA_FAILURE;
                                 }
 
-                        } else {
-                                dbgf_sys(DBGT_WARN, "no matching tunnel_node found for orig=%s tun6Id=%d",
-                                        globalIdAsString(&tak.on->global_id), tak.tun6Id);
+                        } else if (it->op == TLV_OP_NEW) {
+
+                                struct tun_out_key tak = set_tun_adv_key(it->on, adv->tun6Id);
+                                struct tun_out_node *tun = avl_find_item(&tun_out_tree, &tak);
+
+                                if (tun) {
+
+                                        struct tun_net_key tnk = ZERO_TUN_NET_KEY;
+                                        tnk.tun = tun;
+                                        tnk.netKey = net;
+
+                                        struct tun_net_node *tnn = avl_find_item(&tun_net_tree, &tnk);
+
+                                        if (!tnn) {
+
+                                                struct tun_net_node *tnn = debugMalloc(sizeof (struct tun_net_node), -300418);
+                                                memset(tnn, 0, sizeof (struct tun_net_node));
+                                                tnn->tunNetKey.tun = tun;
+                                                tnn->tunNetKey.netKey = net;
+                                                tnn->bandwidth = adv->bandwidth;
+
+                                                AVL_INIT_TREE(tnn->tun_search_tree, struct tun_search_node, tunSearchKey.netName);
+
+                                                avl_insert(&tun_net_tree, tnn, -300419);
+                                                avl_insert(&tun->tun_net_tree, tnn, -300419);
+
+                                                used = YES;
+
+                                        } else if (tnn->bandwidth.val.u8 != adv->bandwidth.val.u8) {
+
+                                                tnn->bandwidth = adv->bandwidth;
+                                                used = YES;
+
+                                        } else {
+                                                dbgf_sys(DBGT_WARN, "network=%s found for orig=%s tun6Id=%d",
+                                                        netAsStr(&net), globalIdAsString(&tak.on->global_id), tak.tun6Id);
+                                        }
+
+                                } else {
+                                        dbgf_sys(DBGT_WARN, "no matching tunnel_node found for orig=%s tun6Id=%d",
+                                                globalIdAsString(&tak.on->global_id), tak.tun6Id);
+                                }
                         }
                 }
         }
@@ -1567,7 +1808,7 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                 if (AF_CFG != AF_INET6)
                         return FAILURE;
 
-                if (strlen(patch->val) >= NETWORK_NAME_LEN || validate_name_string(patch->val, strlen(patch->val) + 1) != SUCCESS)
+                if (strlen(patch->val) >= NETWORK_NAME_LEN || validate_name_string(patch->val, strlen(patch->val) + 1, NULL) != SUCCESS)
                         return FAILURE;
 
                 strcpy(name, patch->val);
@@ -1640,7 +1881,7 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
 
                                         struct net_key find = (net.af == AF_INET) ? netX4ToNiit6(&net) : net;
 
-                                        if ((hna = find_overlapping_hna(&find.ip, find.mask)) && hna->on != self) {
+                                        if ((hna = find_overlapping_hna(&find.ip, find.mask, self))) {
 
                                                 dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "%s=%s /%s=%s already used by orig=%s hna=%s",
                                                         ARG_TUN_SEARCH_NAME, name, ARG_TUN_SEARCH_IP, netAsStr(&find),
@@ -1665,7 +1906,7 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                                 if (c->val) {
 
                                         if (strlen(c->val) > GLOBAL_ID_NAME_LEN ||
-                                                validate_name_string(c->val, strlen(c->val) + 1) != SUCCESS)
+                                                validate_name_string(c->val, strlen(c->val) + 1, NULL) != SUCCESS)
                                                 return FAILURE;
 
                                         if (cmd == OPT_APPLY && tsn) {
@@ -1772,7 +2013,7 @@ int32_t opt_tun_adv(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt
                                 patch->diff, opt_cmd2str[cmd], _save, opt->name, patch->val);
 
                         if (str2netw(patch->val, &ip_remote, cn, NULL, &af_remote, YES) == FAILURE || !is_ip_valid(&ip_remote, af_remote) ||
-                                ((un_remote = find_overlapping_hna(&ip_remote, 128)) && un_remote->on != self)) {
+                                (un_remote = find_overlapping_hna(&ip_remote, 128, self))) {
 
                                 dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "invalid prefix: %s or blocked by %s",
                                         patch->val, un_remote ? globalIdAsString(&un_remote->on->global_id) : DBG_NIL);
@@ -1812,7 +2053,7 @@ int32_t opt_tun_adv(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt
                         if (!strcmp(c->opt->name, ARG_TUN_ADV_NAME) ) {
                                 if (c->val) {
                                         if (strlen(c->val) >= sizeof (IFNAME_T) ||
-                                                validate_name_string(c->val, strlen(c->val) + 1) != SUCCESS ||
+                                                validate_name_string(c->val, strlen(c->val) + 1, NULL) != SUCCESS ||
                                                 strncmp(tun_name_prefix.str, c->val, strlen(tun_name_prefix.str))) {
                                                 dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "invalid name: %s (MUST begin with: %s)",
                                                         c->val, tun_name_prefix.str);
@@ -1928,7 +2169,7 @@ int32_t opt_tun_name(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct op
                 struct avl_node *it = NULL;
 
                 if (strlen(patch->val) > MAX_TUN_NAME_PREFIX_LEN ||
-                        validate_name_string(patch->val, strlen(patch->val) + 1))
+                        validate_name_string(patch->val, strlen(patch->val) + 1, NULL))
                         return FAILURE;
 
                 while((tun = avl_iterate_item(&tun_in_tree, &it))) {
@@ -1987,9 +2228,9 @@ int32_t opt_tun_address(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
                 } else {
 
                         struct net_key find = net.af == AF_INET ? netX4ToNiit6(&net) : net;
-                        struct hna_node *hna = find_overlapping_hna(&find.ip, find.mask);
+                        struct hna_node *hna;
 
-                        if (hna && hna->on != self) {
+                        if ((hna = find_overlapping_hna(&find.ip, find.mask, self))) {
 
                                 dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "%s=%s already used by orig=%s hna=%s",
                                         opt->name, netAsStr(&find), globalIdAsString(&hna->on->global_id), netAsStr(&hna->key));
@@ -2056,9 +2297,12 @@ struct opt_type hna_options[]= {
 			ARG_NAME_FORM, "specify first letters of local tunnel-interface names"}
         ,
 	{ODI,0,ARG_TUN_ADV, 	        0,5,2,A_PM1N,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_tun_adv,
-			ARG_ADDR_FORM,  "configure one-way IPv6 tunnel by specifying tunnel-src (remote) address"},
+			ARG_ADDR_FORM,
+                "prepare incoming ipip tunnel by demanding (remote) outer IPv6 tunnel-src address\n"
+                "        WARNING: This creates a general ipip link allowing to tunnel arbitrary IP packets to this node!\n"
+                "        Use /dev=<NAME> option and firewall rules to filter deprecated packets"},
 	{ODI,ARG_TUN_ADV,ARG_TUN_ADV_NAME,0,5,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,		0,	        0,              0,0,            opt_tun_adv,
-			ARG_NAME_FORM,	"specify name of tunnel interface"},
+			ARG_NAME_FORM,	"specify name of tunnel interface for incoming packets"},
 	{ODI,ARG_TUN_ADV,ARG_TUN_ADV_INGRESS4,  0,5,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,	        0,	        0,              0,0,            opt_tun_adv,
 			ARG_PREFIX_FORM,"specify IPv4 source prefix (ingress filter)"},
 	{ODI,ARG_TUN_ADV,ARG_TUN_ADV_INGRESS6,  0,5,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,	        0,	        0,              0,0,            opt_tun_adv,
@@ -2081,10 +2325,10 @@ struct opt_type hna_options[]= {
         ,
 	{ODI,0,ARG_TUN_SEARCH_NAME, 	0,5,2,A_PM1N,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_tun_search,
 		        ARG_NAME_FORM,  "specify arbitrary but unique name for network which should be reached via tunnel depending on sub criterias"},
-	{ODI,ARG_TUN_SEARCH_NAME,ARG_TUN_SEARCH_NETWORK,0,5,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,	0,              0,              0,0,            opt_tun_search,
-			ARG_PREFIX_FORM, "specify network to be reached via tunnel (obligatory)"},
-	{ODI,ARG_TUN_SEARCH_NAME,ARG_TUN_SEARCH_IP,0,5,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,	0,              0,              0,0,            opt_tun_search,
-			ARG_PREFIX_FORM,"specify IP address and prefixlen of tunnel (obligatory if tun6Address is not configured)"},
+	{ODI,ARG_TUN_SEARCH_NAME,ARG_TUN_SEARCH_NETWORK,'n',5,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,	0,              0,              0,0,            opt_tun_search,
+			ARG_PREFIX_FORM, "specify network to be reached via tunnel (mandatory)"},
+	{ODI,ARG_TUN_SEARCH_NAME,ARG_TUN_SEARCH_IP,'a',5,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,	0,              0,              0,0,            opt_tun_search,
+			ARG_PREFIX_FORM,"specify IP address and prefixlen of tunnel (mandatory if tun6Address is not configured)"},
 	{ODI,ARG_TUN_SEARCH_NAME,ARG_TUN_SEARCH_TYPE,0,5,0,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,TUN_SRC_TYPE_MIN,TUN_SRC_TYPE_MAX,TUN_SRC_TYPE_UNDEF,0,opt_tun_search,
 			ARG_VALUE_FORM, "specify tunnel ip allocation mechanism (0 = static/global, 1 = static, 2 = auto, 3 = AHCP)"},
 	{ODI,ARG_TUN_SEARCH_NAME,ARG_TUN_SEARCH_HOSTNAME,0,5,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,	0,              0,              0,0,            opt_tun_search,
@@ -2114,9 +2358,8 @@ void hna_route_change_hook(uint8_t del, struct orig_node *on)
         if (!is_ip_set(&on->primary_ip))
                 return;
 
-        process_description_tlvs(NULL, on, on->desc,
-                del ? TLV_OP_CUSTOM_HNA_ROUTE_DEL : TLV_OP_CUSTOM_HNA_ROUTE_ADD,
-                AF_CFG == AF_INET ? BMX_DSC_TLV_UHNA4 : BMX_DSC_TLV_UHNA6, NULL);
+        process_description_tlvs(NULL, on, on->desc, del ? TLV_OP_CUSTOM_HNA_ROUTE_DEL : TLV_OP_CUSTOM_HNA_ROUTE_ADD,
+                AF_CFG == AF_INET ? BMX_DSC_TLV_UHNA4 : BMX_DSC_TLV_UHNA6, NULL, NULL);
 
 }
 
@@ -2157,6 +2400,15 @@ int32_t hna_init( void )
         static const struct field_format tun6in6_src_adv_format[] = DESCRIPTION_MSG_TUN6IN6_SRC_ADV_FORMAT;
         static const struct field_format tun4in6_adv_format[] = DESCRIPTION_MSG_TUN4IN6_NET_ADV_FORMAT;
         static const struct field_format tun6in6_adv_format[] = DESCRIPTION_MSG_TUN6IN6_NET_ADV_FORMAT;
+
+
+/*
+        int reg;
+        for (reg = 0; reg < TUN6_REG_SIZE; reg++)
+                tun6_orig_registries[reg] = get_plugin_data_registry(PLUGIN_DATA_ORIG);
+*/
+
+//        InitSha(&tun6_sha);
 
 
         memset( &tlv_handl, 0, sizeof(tlv_handl));

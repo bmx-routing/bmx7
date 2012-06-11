@@ -49,7 +49,7 @@ char* memAsHexString( const void* mem, uint32_t len);
 char* memAsCharString( const char* mem, uint32_t len);
 
 IDM_T validate_char_string (const char* data, uint32_t len);
-IDM_T validate_name_string(char* name, uint32_t field_len);
+IDM_T validate_name_string(char* name, uint32_t field_len, char* exceptions);
 
 char *globalIdAsString( struct GLOBAL_ID *id );
 
@@ -84,7 +84,7 @@ void wordCopy( char *out, char *in );
 uint32_t wordlen ( char *s );
 int32_t check_file( char *path, uint8_t write, uint8_t exec );
 int32_t check_dir( char *path, uint8_t create, uint8_t write );
-int32_t rm_dir_content(char* dir_name);
+int32_t rm_dir_content(char* dir_name, char* prefix);
 
 
 void init_tools(void);

@@ -116,9 +116,9 @@ IDM_T validate_char_string(const char* data, uint32_t len)
         return SUCCESS;
 }
 
-IDM_T validate_name_string(char* name, uint32_t field_len)
+IDM_T validate_name_string(char* name, uint32_t field_len, char* exceptions)
 {
-        uint32_t i, string_len = strlen(name);
+        uint32_t i, e, string_len = strlen(name);
 
         if (field_len && (string_len >= field_len || !is_zero(&name[string_len], field_len - string_len)))
                 return FAILURE;
@@ -130,6 +130,17 @@ IDM_T validate_name_string(char* name, uint32_t field_len)
                 if ((c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
                         c == '-' || c == '-' || (c == '.' && (i != 0 && i != (string_len - 1))))
                         continue;
+
+                if (exceptions) {
+                        for (e = 0; e < strlen(exceptions); e++) {
+                                if (c == exceptions[e])
+                                        break;
+                        }
+
+                        if (e < strlen(exceptions))
+                               continue;
+                }
+
 
                 return FAILURE;
         }
@@ -539,7 +550,7 @@ int32_t check_dir( char *path, uint8_t create, uint8_t write ) {
 }
 
 
-int32_t rm_dir_content(char* dir_name)
+int32_t rm_dir_content(char* dir_name, char* prefix)
 {
 
         assertion(-501287, dir_name);
@@ -549,20 +560,23 @@ int32_t rm_dir_content(char* dir_name)
 
         while ((d = readdir(dir))) {
 
-                char rm_file[MAX_PATH_SIZE];
-                sprintf(rm_file, "%s/%s", dir_name, d->d_name);
+                if (!prefix || !strncmp(d->d_name, prefix, strlen(prefix))) {
 
-                if (validate_name_string(d->d_name, strlen(d->d_name) + 1) == SUCCESS) {
+                        char rm_file[MAX_PATH_SIZE];
+                        sprintf(rm_file, "%s/%s", dir_name, d->d_name);
 
-                        dbgf_sys(DBGT_WARN, "removing stale file: %s \n", rm_file);
+                        if (validate_name_string(d->d_name, strlen(d->d_name) + 1, ":") == SUCCESS) {
 
-                        if (remove(rm_file) != 0) {
-                                dbgf_sys(DBGT_ERR, "could not remove file %s: %s \n", rm_file, strerror(errno));
-                                return FAILURE;
+                                dbgf_track(DBGT_INFO, "removing stale file: %s", rm_file);
+
+                                if (remove(rm_file) != 0) {
+                                        dbgf_sys(DBGT_ERR, "could not remove file %s: %s", rm_file, strerror(errno));
+                                        return FAILURE;
+                                }
+
+                        } else {
+                                dbgf_track(DBGT_ERR, "keeping file: %s", rm_file);
                         }
-
-                } else {
-                        dbgf_all(DBGT_ERR, "keeping file: %s\n", rm_file);
                 }
         }
 

@@ -49,6 +49,16 @@
 #define TLV_OP_CUSTOM_HNA_ROUTE_ADD (TLV_OP_CUSTOM_MIN + 4)
 #define TLV_OP_CUSTOM_HNA_ROUTE_DEL (TLV_OP_CUSTOM_MIN + 5)
 
+#define TLV_OP_CUSTOM_TUN6_GET_SHA   (TLV_OP_CUSTOM_MIN + 6)
+
+//#define TUN6_REG 0
+//#define TUN4IN6_ING_REG 1
+//#define TUN6IN6_ING_REG 2
+//#define TUN4IN6_SRC_REG 3
+//#define TUN6IN6_SRC_REG 4
+//#define TUN4IN6_NET_REG 5
+//#define TUN6IN6_NET_REG 6
+//#define TUN6_REG_SIZE 7
 
 #define ARG_TUNS "tunnels"
 

@@ -248,6 +248,9 @@ int process_description_sms(struct rx_frame_iterator *it)
         int pos = 0;
         int mlen;
 
+        if (op == TLV_OP_NEW || op == TLV_OP_DEL)
+                rm_dir_content(smsRx_dir, globalIdAsString(&on->global_id));
+
         do {
 
                 if (pos + (int)sizeof ( struct description_msg_sms) > it->frame_msgs_length)
@@ -259,21 +262,14 @@ int process_description_sms(struct rx_frame_iterator *it)
                 if (pos + mlen > it->frame_msgs_length)
                         return TLV_RX_DATA_FAILURE;
 
-                if (validate_name_string(sms->name, sizeof (sms->name)) != SUCCESS)
+                if (validate_name_string(sms->name, sizeof (sms->name), NULL) != SUCCESS)
                         return TLV_RX_DATA_FAILURE;
 
-                char path_name[MAX_PATH_SIZE];
-                sprintf(path_name, "%s/%s:%s", smsRx_dir, globalIdAsString(&on->global_id), sms->name);
-                int fd;
+                if (op == TLV_OP_NEW) {
 
-                if (op == TLV_OP_DEL) {
-
-                        if (remove(path_name) != 0) {
-                                dbgf_sys(DBGT_ERR, "could not remove %s: %s \n", path_name, strerror(errno));
-                        }
-
-                } else if (op == TLV_OP_ADD) {
-
+                        int fd;
+                        char path_name[MAX_PATH_SIZE];
+                        sprintf(path_name, "%s/%s:%s", smsRx_dir, globalIdAsString(&on->global_id), sms->name);
 
                         if ((fd = open(path_name, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) < 0) {
 
@@ -291,6 +287,9 @@ int process_description_sms(struct rx_frame_iterator *it)
                 }
 
         } while ((pos = pos + mlen) < it->frame_msgs_length);
+
+        if (pos != it->frame_msgs_length)
+                return TLV_RX_DATA_FAILURE;
 
         return pos;
 }
@@ -341,7 +340,7 @@ int32_t opt_json_sms(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct op
 
                 assertion(-501286, (sms_dir && smsTx_dir && smsRx_dir));
 
-                if (rm_dir_content(smsRx_dir) == FAILURE)
+                if (rm_dir_content(smsRx_dir, NULL) == FAILURE)
                         return FAILURE;
 
                 if ((extensions_fd = inotify_init()) < 0) {
@@ -377,7 +376,7 @@ int32_t opt_json_sms(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct op
                 if (strlen(patch->val) >= MAX_JSON_SMS_NAME_LEN)
                         return FAILURE;
 
-                if (validate_name_string(patch->val, strlen(patch->val) + 1) != SUCCESS)
+                if (validate_name_string(patch->val, strlen(patch->val) + 1, NULL) != SUCCESS)
                         return FAILURE;
 
         }

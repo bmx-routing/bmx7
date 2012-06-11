@@ -668,9 +668,9 @@ void free_orig_node(struct orig_node *on)
 
         purge_orig_router(on, NULL, NO);
 
-        if (on->desc && !on->blocked) {
+        if (on->desc && on->added) {
                 //cb_plugin_hooks(PLUGIN_CB_DESCRIPTION_DESTROY, on);
-                process_description_tlvs(NULL, on, on->desc, TLV_OP_DEL, FRAME_TYPE_PROCESS_ALL, NULL);
+                process_description_tlvs(NULL, on, on->desc, TLV_OP_DEL, FRAME_TYPE_PROCESS_ALL, NULL, NULL);
         }
 
         if ( on->dhn ) {
@@ -2136,7 +2136,7 @@ char *globalIdAsString( struct GLOBAL_ID *id ) {
                 for (i = 0; !id->pkid.u8[i] && i < GLOBAL_ID_PKID_LEN; i++);
 
                 sprintf(id_str[a], "%s.%s",
-                        validate_name_string(id->name, GLOBAL_ID_NAME_LEN) == SUCCESS ? id->name : "ILLEGAL_HOSTNAME",
+                        validate_name_string(id->name, GLOBAL_ID_NAME_LEN, NULL) == SUCCESS ? id->name : "ILLEGAL_HOSTNAME",
                         memAsHexString(&(id->pkid.u8[i]), GLOBAL_ID_PKID_LEN - i));
 
                 return id_str[a];
@@ -2154,6 +2154,7 @@ struct orig_node *init_orig_node(GLOBAL_ID_T *id)
         on->global_id = *id;
 
         AVL_INIT_TREE(on->rt_tree, struct router_node, local_key);
+        AVL_INIT_TREE(on->desc_tlv_hash_tree, struct desc_tlv_hash_node, tlv_type);
 
         avl_insert(&orig_tree, on, -300148);
 
@@ -2176,7 +2177,7 @@ void init_bmx(void)
 
         id.name[GLOBAL_ID_NAME_LEN - 1] = 0;
 
-        if (validate_name_string(id.name, GLOBAL_ID_NAME_LEN) == FAILURE) {
+        if (validate_name_string(id.name, GLOBAL_ID_NAME_LEN, NULL) == FAILURE) {
                 dbg_sys(DBGT_ERR, "illegal hostname %s", id.name);
                 cleanup_all(-500272);
         }
@@ -2286,15 +2287,15 @@ void bmx(void)
 
                                 dbgf_all( DBGT_INFO, "trying to unblock %s...", on->desc->globalId.name);
 
-                                IDM_T tlvs_res = process_description_tlvs(
-                                        NULL, on, on->desc, TLV_OP_TEST, FRAME_TYPE_PROCESS_ALL, NULL);
+                                assertion(-500000, (on->blocked && !on->added));
+
+                                IDM_T tlvs_res = process_description_tlvs(NULL, on, on->desc, TLV_OP_TEST, FRAME_TYPE_PROCESS_ALL, NULL, NULL);
 
                                 if (tlvs_res == TLV_RX_DATA_DONE) {
 
                                         cb_plugin_hooks(PLUGIN_CB_DESCRIPTION_DESTROY, on);
 
-                                        tlvs_res = process_description_tlvs(
-                                                NULL, on, on->desc, TLV_OP_ADD, FRAME_TYPE_PROCESS_ALL, NULL);
+                                        tlvs_res = process_description_tlvs(NULL, on, on->desc, TLV_OP_NEW, FRAME_TYPE_PROCESS_ALL, NULL, NULL);
 
                                         assertion(-500364, (tlvs_res == TLV_RX_DATA_DONE)); // checked, so MUST SUCCEED!!
 

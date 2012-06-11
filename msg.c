@@ -60,7 +60,7 @@ union schedule_hello_info {
         uint16_t u16;
 };
 
-static Sha bmx_sha;
+Sha bmx_sha;
 
 AVL_TREE( description_cache_tree, struct description_cache_node, dhash );
 
@@ -106,8 +106,8 @@ char *tlv_op_str(uint8_t op)
                 return "TLV_OP_DEL";
         case TLV_OP_TEST:
                 return "TLV_OP_TEST";
-        case TLV_OP_ADD:
-                return "TLV_OP_ADD";
+        case TLV_OP_NEW:
+                return "TLV_OP_NEW";
         case TLV_OP_DEBUG:
                 return "TLV_OP_DEBUG";
         default:
@@ -251,25 +251,26 @@ void cache_description(struct description *desc, struct description_hash *dhash)
 
 
 IDM_T process_description_tlvs(struct packet_buff *pb, struct orig_node *on, struct description *desc, uint8_t op,
-                               uint8_t filter, struct ctrl_node *cn)
+        uint8_t filter, void *custom, struct ctrl_node *cn)
 {
         TRACE_FUNCTION_CALL;
-        assertion(-500370, (op == TLV_OP_DEL || op == TLV_OP_TEST || op == TLV_OP_ADD || op == TLV_OP_DEBUG ||
+        assertion(-500370, (op == TLV_OP_DEL || op == TLV_OP_TEST || op == TLV_OP_NEW || op == TLV_OP_DEBUG ||
                 (op >= TLV_OP_CUSTOM_MIN && op <= TLV_OP_CUSTOM_MAX) || (op >= TLV_OP_PLUGIN_MIN && op <= TLV_OP_PLUGIN_MAX)));
         assertion(-500590, IMPLIES(on == self, (op == TLV_OP_DEBUG ||
                 (op >= TLV_OP_CUSTOM_MIN && op <= TLV_OP_CUSTOM_MAX) || (op >= TLV_OP_PLUGIN_MIN && op <= TLV_OP_PLUGIN_MAX))));
         assertion(-500807, (desc));
-        assertion(-500829, IMPLIES(op == TLV_OP_DEL, !on->blocked));
+//        assertion(-500829, IMPLIES(op == TLV_OP_DEL, !on->blocked));
+        assertion(-500000, IMPLIES(op == TLV_OP_DEL, on->added));
 
         int32_t tlv_result;
         uint16_t dsc_tlvs_len = ntohs(desc->extensionLen);
-        void *misc = NULL;
 
         struct rx_frame_iterator it = {
                 .caller = __FUNCTION__, .on = on, .cn = cn, .op = op, .pb = pb,
                 .handls = description_tlv_handl, .handl_max = (BMX_DSC_TLV_MAX), .process_filter = filter,
+                .data = ((uint8_t*) desc), .frame_type = -1,
                 .frames_in = (((uint8_t*) desc) + sizeof (struct description)), .frames_pos = 0,
-                .frames_length = dsc_tlvs_len, .misc_ptr = &misc
+                .frames_length = dsc_tlvs_len, .custom_data = custom
         };
 
         dbgf_all(DBGT_INFO, "op=%s id=%s dsc_sqn=%d size=%d ",
@@ -278,15 +279,13 @@ IDM_T process_description_tlvs(struct packet_buff *pb, struct orig_node *on, str
 
         while ((tlv_result = rx_frame_iterate(&it)) > TLV_RX_DATA_DONE);
 
-        if (misc)
-                debugFree(misc, -300406);
-
         if ((op >= TLV_OP_CUSTOM_MIN && op <= TLV_OP_CUSTOM_MAX) || (op >= TLV_OP_PLUGIN_MIN && op <= TLV_OP_PLUGIN_MAX))
                 return TLV_RX_DATA_DONE;
 
         if (tlv_result == TLV_RX_DATA_BLOCKED || tlv_result == TLV_RX_DATA_FAILURE) {
 
                 assertion(-500356, IMPLIES(tlv_result == TLV_RX_DATA_BLOCKED, op == TLV_OP_TEST));
+                assertion(-500000, (op == TLV_OP_TEST));
 
                 dbgf_sys(DBGT_WARN, "problematic description_ltv from %s, near type=%s frame_data_length=%d  pos=%d %s",
                         pb ? pb->i.llip_str : DBG_NIL, description_tlv_handl[it.frame_type].name,
@@ -297,8 +296,12 @@ IDM_T process_description_tlvs(struct packet_buff *pb, struct orig_node *on, str
                 return tlv_result;
         }
 
-        if (op == TLV_OP_ADD)
+        if (filter == FRAME_TYPE_PROCESS_ALL && op == TLV_OP_NEW) {
+                on->added = YES;
                 block_orig_node(NO, on);
+        } else if (filter == FRAME_TYPE_PROCESS_ALL && op == TLV_OP_DEL) {
+                on->added = NO;
+        }
 
         return TLV_RX_DATA_DONE;
 }
@@ -1146,7 +1149,7 @@ int32_t tx_msg_description_adv(struct tx_frame_iterator *it)
                 ((it->frames_out_pos || it->cache_msgs_size) ?
                 tx_iterator_cache_data_space_pref(it) : tx_iterator_cache_data_space_max(it))) {
 
-                dbgf_sys(DBGT_ERR, "tlvs_len=%d+%d frames_out_pos=%d cache_msgs_size=%d space_pref=%d space_max=%d ",
+                dbgf_sys(DBGT_ERR, "tlvs_len=%d+%zu frames_out_pos=%d cache_msgs_size=%d space_pref=%d space_max=%d ",
                         tlvs_len, sizeof (struct msg_description_adv), it->frames_out_pos, it->cache_msgs_size,
                         tx_iterator_cache_data_space_pref(it), tx_iterator_cache_data_space_max(it));
 
@@ -2487,49 +2490,146 @@ int32_t rx_msg_hello_adv(struct rx_frame_iterator *it)
 }
 
 
+void cache_desc_tlv_hashes(uint8_t op, struct orig_node *on, int8_t t_start, int8_t t_end, int8_t t, uint8_t *t_data, int32_t t_data_len)
+{
+
+        assertion(-500000, ((op == TLV_OP_DEL || op == TLV_OP_TEST || op == TLV_OP_NEW)));
+        assertion(-500000, (t_start <= t_end && t_start <= t && t <= t_end));
+
+        int8_t hn_type;
+
+        for (hn_type = t_start; hn_type <= t_end; hn_type++) {
+
+                struct desc_tlv_hash_node * hn = avl_find_item(&on->desc_tlv_hash_tree, &hn_type);
+
+                if (op == TLV_OP_TEST) {
+
+                        if (!hn && t_data && hn_type == t) {
+                                hn = debugMalloc(sizeof (struct desc_tlv_hash_node), -300000);
+                                memset(hn, 0, sizeof (struct desc_tlv_hash_node));
+                                hn->tlv_type = t;
+                                avl_insert(&on->desc_tlv_hash_tree, hn, -300000);
+                        }
+
+                        if (hn) {
+
+                                if (t_data && hn_type == t) {
+                                        ShaUpdate(&bmx_sha, (byte*) t_data, t_data_len);
+                                        ShaFinal(&bmx_sha, (byte*) & hn->test_hash);
+                                } else {
+                                        memset(&hn->test_hash, 0, sizeof (SHA1_T));
+                                }
+
+                                if (memcmp(&hn->curr_hash, &hn->test_hash, sizeof (SHA1_T))) {
+                                        hn->test_changed = 1;
+                                } else {
+                                        hn->test_changed = 0;
+                                }
+
+                        }
+
+                } else if (op == TLV_OP_NEW) {
+
+                        assertion(-500000, IMPLIES(t_data && hn_type == t, hn));
+                        assertion(-500000, IMPLIES(hn && hn_type != t, !is_zero(&hn->curr_hash, sizeof (SHA1_T)) && is_zero(&hn->test_hash, sizeof (SHA1_T))));
+
+
+                        if (hn) {
+
+                                if (hn->test_changed)
+                                        hn->curr_hash = hn->test_hash;
+
+                                if (hn_type != t) {
+                                        // remove otherwise forgotten tlv
+                                        int tlv_result = process_description_tlvs(NULL, on, on->desc, TLV_OP_DEL, hn_type, NULL, NULL);
+                                        assertion(-500000, (tlv_result == TLV_RX_DATA_DONE));
+                                }
+                        }
+                }
+
+                if (hn) {
+
+                        if (op == TLV_OP_DEL ||
+                                (is_zero(&hn->test_hash, sizeof (SHA1_T)) && is_zero(&hn->curr_hash, sizeof (SHA1_T)))) {
+
+                                avl_remove(&on->desc_tlv_hash_tree, &hn->tlv_type, -300000);
+                                debugFree(hn, -300000);
+                        }
+                }
+        }
+}
+
 int32_t rx_frame_iterate(struct rx_frame_iterator *it)
 {
         TRACE_FUNCTION_CALL;
-        int32_t f_type, f_len;
         struct frame_handl *f_handl;
         struct packet_buff *pb = it->pb;
 
         dbgf_all(DBGT_INFO, "%s - frame_pos=%d frame_len=%d", it->caller, it->frames_pos, it->frames_length);
 
-        if (it->frames_pos + ((int)sizeof (struct frame_header_short)) + TLV_DATA_STEPS <= it->frames_length) {
+        if (it->frames_pos == it->frames_length) {
+
+                if (it->on && it->process_filter == FRAME_TYPE_PROCESS_ALL && it->frame_type < it->handl_max &&
+                        (it->op == TLV_OP_DEL || it->op == TLV_OP_TEST || it->op == TLV_OP_NEW)) {
+
+                        cache_desc_tlv_hashes(it->op, it->on, (it->frame_type + 1), it->handl_max, it->handl_max, NULL, 0);
+                 }
+
+                dbgf_all(DBGT_INFO, "%s - frames_pos=%d frames_length=%d : DONE", it->caller, it->frames_pos, it->frames_length);
+                return TLV_RX_DATA_DONE;
+        
+        } else if (it->frames_pos + ((int) sizeof (struct frame_header_short)) + TLV_DATA_STEPS <= it->frames_length) {
 
                 struct frame_header_short *fhs = (struct frame_header_short *) (it->frames_in + it->frames_pos);
-                it->frame_type = f_type = fhs->type;
+                int8_t f_type = fhs->type;
+                uint8_t f_short = fhs->is_short;
+                int32_t f_pos_next;
+                int32_t f_len, f_data_len;
+                uint8_t *f_data;
 
                 assertion(-500775, (fhs->type == ((struct frame_header_long*) fhs)->type));
 
-                it->is_short_header = fhs->is_short;
-
-                if (it->is_short_header) {
-
+                if (f_short) {
                         f_len = fhs->length_TLV_DATA_STEPS * TLV_DATA_STEPS;
-                        it->frame_data_length = f_len - sizeof (struct frame_header_short);
-                        it->frame_data = it->frames_in + it->frames_pos + sizeof (struct frame_header_short);
-
+                        f_data_len = f_len - sizeof (struct frame_header_short);
+                        f_data = it->frames_in + it->frames_pos + sizeof (struct frame_header_short);
+                        f_pos_next = it->frames_pos + f_len;
                 } else {
-
                         f_len = ntohs(((struct frame_header_long*) fhs)->length);
-                        it->frame_data_length = f_len - sizeof (struct frame_header_long);
-                        it->frame_data = it->frames_in + it->frames_pos + sizeof (struct frame_header_long);
+                        f_data_len = f_len - sizeof (struct frame_header_long);
+                        f_data = it->frames_in + it->frames_pos + sizeof (struct frame_header_long);
+                        f_pos_next = it->frames_pos + f_len;
                 }
 
-                it->frames_pos += f_len;
 
-                if (it->frames_pos > it->frames_length ||
-                        it->frame_data_length < TLV_DATA_STEPS || it->frame_data_length % TLV_DATA_STEPS) {
-                        // not yet processed anything, so return failure:
+                it->frames_pos = f_pos_next;
 
-                        dbgf_sys(DBGT_ERR, "%s - type=%d frame_pos=%d frame_len=%d frame_data_len=%d",
-                                it->caller, f_type, it->frames_pos, it->frames_length, it->frame_data_length);
+                if (it->on && it->process_filter == FRAME_TYPE_PROCESS_ALL && it->frame_type >= f_type) {
+
+                        dbgf_sys(DBGT_WARN, "%s - unordered or double desc frame_type=%d ! prev_frame_type=%d",
+                                it->caller, f_type, it->frame_type);
 
                         return TLV_RX_DATA_FAILURE;
 
-                } else if (f_type > it->handl_max || !(it->handls[f_type].rx_frame_handler || it->handls[f_type].rx_msg_handler)) {
+                } else if (f_pos_next > it->frames_length ||
+                        f_data_len < TLV_DATA_STEPS || f_data_len % TLV_DATA_STEPS) {
+                        // not yet processed anything, so return failure:
+
+                        dbgf_sys(DBGT_ERR, "%s - type=%d frame_pos=%d frame_len=%d frame_data_len=%d",
+                                it->caller, f_type, f_pos_next, it->frames_length, f_data_len);
+
+                        return TLV_RX_DATA_FAILURE;
+                }
+
+
+                if (it->on && it->process_filter == FRAME_TYPE_PROCESS_ALL &&
+                        (it->op == TLV_OP_DEL || it->op == TLV_OP_TEST || it->op == TLV_OP_NEW)) {
+
+                        cache_desc_tlv_hashes(it->op, it->on, (it->frame_type + 1), f_type, f_type, f_data, f_data_len);
+                 }
+
+
+                if (f_type > it->handl_max || !(it->handls[f_type].rx_frame_handler || it->handls[f_type].rx_msg_handler)) {
 
                         dbgf_sys(DBGT_WARN, "%s - unknown type=%d ! check for updates", it->caller, f_type);
 
@@ -2540,13 +2640,18 @@ int32_t rx_frame_iterate(struct rx_frame_iterator *it)
                 }
 
                 f_handl = &it->handls[f_type];
+                it->frame_data_length = f_data_len;
+                it->frame_data = f_data;
+                it->frame_type = f_type;
+                it->is_short_header = f_short;
+
                 it->handl = f_handl;
-                it->frame_msgs_length = it->frame_data_length - f_handl->data_header_size;
+                it->frame_msgs_length = f_data_len - f_handl->data_header_size;
                 it->frame_msgs_fixed = f_handl->fixed_msg_size ? (it->frame_msgs_length / f_handl->min_msg_size) : 0;
-                it->msg = it->frame_data + f_handl->data_header_size;
+                it->msg = f_data + f_handl->data_header_size;
             
                 dbgf_all(DBGT_INFO, "%s - type=%s frame_length=%d frame_data_length=%d frame_msgs_length=%d",
-                        it->caller, f_handl->name, f_len, it->frame_data_length, it->frame_msgs_length);
+                        it->caller, f_handl->name, f_len, f_data_len, it->frame_msgs_length);
 
                 assertion(-500994, (f_handl->min_msg_size));
 
@@ -2663,10 +2768,6 @@ int32_t rx_frame_iterate(struct rx_frame_iterator *it)
                 assertion(-501018, (0));
                 return TLV_RX_DATA_FAILURE;
 
-        } else if (it->frames_pos == it->frames_length) {
-
-                dbgf_all(DBGT_INFO, "%s - frames_pos=%d frames_length=%d : DONE", it->caller, it->frames_pos, it->frames_length);
-                return TLV_RX_DATA_DONE;
         }
 
         dbgf_sys(DBGT_ERR, "%s - frames_pos=%d frames_length=%d : FAILURE", it->caller, it->frames_pos, it->frames_length);
@@ -2681,6 +2782,7 @@ IDM_T rx_frames(struct packet_buff *pb)
         struct rx_frame_iterator it = {
                 .caller = __FUNCTION__, .on = NULL, .cn = NULL, .op = 0, .pb = pb,
                 .handls = packet_frame_handler, .handl_max = FRAME_TYPE_MAX, .process_filter = FRAME_TYPE_PROCESS_ALL,
+                .data = ((uint8_t*) & pb->packet.header), .frame_type = -1,
                 .frames_in = (((uint8_t*) & pb->packet.header) + sizeof (struct packet_header)),
                 .frames_length = (ntohs(pb->packet.header.pkt_length) - sizeof (struct packet_header)), .frames_pos = 0
         };
@@ -3238,7 +3340,7 @@ IDM_T validate_description(struct description *desc)
 {
         TRACE_FUNCTION_CALL;
 
-        if (validate_name_string(desc->globalId.name, GLOBAL_ID_NAME_LEN) == FAILURE) {
+        if (validate_name_string(desc->globalId.name, GLOBAL_ID_NAME_LEN, NULL) == FAILURE) {
 
                 dbg_sys(DBGT_ERR, "global_id=%s has illegal hostname ", globalIdAsString(&desc->globalId));
                 return FAILURE;
@@ -3303,42 +3405,45 @@ struct dhash_node * process_description(struct packet_buff *pb, struct descripti
                 on = init_orig_node(&desc->globalId);
         }
 
-
-
-
-        int32_t tlv_result;
+        on->updated_timestamp = bmx_time;
+        on->descSqn = ntohs(desc->descSqn);
+        on->ogmSqn_rangeMin = ntohs(desc->ogmSqnMin);
+        on->ogmSqn_rangeSize = ntohs(desc->ogmSqnRange);
+        on->ogmSqn_maxRcvd = (OGM_SQN_MASK & (on->ogmSqn_rangeMin - OGM_SQN_STEP));
+        set_ogmSqn_toBeSend_and_aggregated(on, on->ogmMetric_next, on->ogmSqn_maxRcvd, on->ogmSqn_maxRcvd);
 
         if (on->desc)
                 cb_plugin_hooks(PLUGIN_CB_DESCRIPTION_DESTROY, on);
 
-        if (on->desc && !on->blocked) {
-                tlv_result = process_description_tlvs(pb, on, on->desc, TLV_OP_DEL, FRAME_TYPE_PROCESS_ALL, NULL);
-                assertion(-500808, (tlv_result == TLV_RX_DATA_DONE));
-        }
+        assertion(-500000, IMPLIES(on->blocked, !on->added));
 
-        on->updated_timestamp = bmx_time;
-        on->descSqn = ntohs(desc->descSqn);
-
-        on->ogmSqn_rangeMin = ntohs(desc->ogmSqnMin);
-        on->ogmSqn_rangeSize = ntohs(desc->ogmSqnRange);
-
-
-        on->ogmSqn_maxRcvd = (OGM_SQN_MASK & (on->ogmSqn_rangeMin - OGM_SQN_STEP));
-        set_ogmSqn_toBeSend_and_aggregated(on, on->ogmMetric_next, on->ogmSqn_maxRcvd, on->ogmSqn_maxRcvd);
-
-
-        tlv_result = process_description_tlvs(pb, on, desc, TLV_OP_TEST, FRAME_TYPE_PROCESS_ALL, NULL);
+        int32_t tlv_result = process_description_tlvs(pb, on, desc, TLV_OP_TEST, FRAME_TYPE_PROCESS_ALL, NULL, NULL);
 
         if (tlv_result == TLV_RX_DATA_DONE) {
 
-                tlv_result = process_description_tlvs(pb, on, desc, TLV_OP_ADD, FRAME_TYPE_PROCESS_ALL, NULL);
-                assertion(-500831, (tlv_result == TLV_RX_DATA_DONE)); // checked, so MUST SUCCEED!!
+/*
+                if (on->desc && !on->blocked) {
+                        tlv_result = process_description_tlvs(pb, on, on->desc, TLV_OP_DEL, FRAME_TYPE_PROCESS_ALL, NULL);
+                        assertion(-600001, (tlv_result == TLV_RX_DATA_DONE));
+                }
+*/
 
-        } else if (tlv_result == TLV_RX_DATA_FAILURE) {
+                tlv_result = process_description_tlvs(pb, on, desc, TLV_OP_NEW, FRAME_TYPE_PROCESS_ALL, NULL, NULL);
+                assertion(-500000, (tlv_result == TLV_RX_DATA_DONE)); // checked, so MUST SUCCEED!!
+                assertion(-500000, (on->blocked != on->added));
 
-                goto process_desc0_error;
+        } else {
+
+                if (on->desc && on->added) {
+                        tlv_result = process_description_tlvs(pb, on, on->desc, TLV_OP_DEL, FRAME_TYPE_PROCESS_ALL, NULL, NULL);
+                        assertion(-500000, (tlv_result == TLV_RX_DATA_DONE));
+                }
+
+                assertion(-500000, IMPLIES(on->blocked, !on->added));
+
+                if (tlv_result == TLV_RX_DATA_FAILURE)
+                        goto process_desc0_error;
         }
-
 
 
         if (on->desc) {
@@ -3517,7 +3622,7 @@ int32_t opt_show_descriptions(uint8_t cmd, uint8_t _save, struct opt_type *opt,
                         desc_buff->transmitterIID4x = htons(on->dhn->myIID4orig);
                         memcpy(&desc_buff->desc, on->desc, sizeof (struct description) + tlvs_len);
 
-                        dbg_printf(cn, "\ndescSha=%s blocked=%d size=%d :\n", memAsHexString(((char*) &(on->dhn->dhash)),
+                        dbg_printf(cn, "\ndescSha=%s blocked=%d size=%zu :\n", memAsHexString(((char*) &(on->dhn->dhash)),
                                 sizeof (on->dhn->dhash)), on->blocked ? 1 : 0, tlvs_len + sizeof (struct msg_description_adv));
 
 
@@ -3532,6 +3637,7 @@ int32_t opt_show_descriptions(uint8_t cmd, uint8_t _save, struct opt_type *opt,
                         struct rx_frame_iterator it = {
                                 .caller = __FUNCTION__, .on = on, .cn = cn, .op = TLV_OP_PLUGIN_MIN,
                                 .handls = description_tlv_handl, .handl_max = BMX_DSC_TLV_MAX, .process_filter = type_filter,
+                                .data = ((uint8_t*) on->desc), .frame_type = -1,
                                 .frames_in = (((uint8_t*) on->desc) + sizeof (struct description)), .frames_length = tlvs_len
                         };
 

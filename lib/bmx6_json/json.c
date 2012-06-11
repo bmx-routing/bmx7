@@ -414,7 +414,7 @@ void json_originator_event_hook(int32_t cb_id, struct orig_node *orig)
 
                         if ((fd = open(path_name, O_RDONLY)) > 0 && close(fd) == 0) {
                                 
-                                dbgf_track(DBGT_INFO, "removing destroyed json-originator=%s", path_name);
+                                dbgf_all(DBGT_INFO, "removing destroyed json-originator=%s", path_name);
 
                                 if (remove(path_name) != 0) {
                                         dbgf_sys(DBGT_ERR, "could not remove %s: %s \n", path_name, strerror(errno));
@@ -454,7 +454,7 @@ void json_originator_event_hook(int32_t cb_id, struct orig_node *orig)
                                                 dbg_printf(cn, "%s\n", json_object_to_json_string(jdesc_fields));
                                                 json_object_put(jdesc_fields);
 
-                                                dbgf_track(DBGT_INFO, "creating json-originator=%s", path_name);
+                                                dbgf_all(DBGT_INFO, "creating json-originator=%s", path_name);
                                         }
                                 }
 
@@ -495,7 +495,7 @@ void json_description_event_hook(int32_t cb_id, struct orig_node *on)
 
                 if ((fd = open(path_name, O_RDONLY)) > 0 && close(fd) == 0) {
 
-                        dbgf_track(DBGT_INFO, "removing destroyed json-description=%s", path_name);
+                        dbgf_all(DBGT_INFO, "removing destroyed json-description=%s", path_name);
 
                         if (remove(path_name) != 0) {
                                 dbgf_sys(DBGT_ERR, "could not remove %s: %s \n", path_name, strerror(errno));
@@ -539,6 +539,7 @@ void json_description_event_hook(int32_t cb_id, struct orig_node *on)
                                         .caller = __FUNCTION__, .on = on, .cn = NULL, .op = TLV_OP_PLUGIN_MIN,
                                         .handls = description_tlv_handl, .handl_max = BMX_DSC_TLV_MAX,
                                         .process_filter = FRAME_TYPE_PROCESS_ALL,
+                                        .data = ((uint8_t*) on->desc), .frame_type = -1,
                                         .frames_in = (((uint8_t*) on->desc) + sizeof (struct description)),
                                         .frames_length = tlvs_len
                                 };
@@ -571,7 +572,7 @@ void json_description_event_hook(int32_t cb_id, struct orig_node *on)
 
                 dprintf(fd, "%s\n", json_object_to_json_string(jorig));
 
-                dbgf_track(DBGT_INFO, "creating json-description=%s", path_name);
+                dbgf_all(DBGT_INFO, "creating json-description=%s", path_name);
 
                 json_object_put(jorig);
                 debugFree(desc_buff, -300362);
@@ -697,10 +698,10 @@ int32_t opt_json_update_interval(uint8_t cmd, uint8_t _save, struct opt_type *op
 
                 assertion(-501308, (json_dir && json_orig_dir && json_desc_dir));
 
-                if (rm_dir_content(json_orig_dir) == FAILURE)
+                if (rm_dir_content(json_orig_dir, NULL) == FAILURE)
                         return FAILURE;
 
-                if (rm_dir_content(json_desc_dir) == FAILURE)
+                if (rm_dir_content(json_desc_dir, NULL) == FAILURE)
                         return FAILURE;
 
                 update_json_options(1, 0, JSON_OPTIONS_FILE);

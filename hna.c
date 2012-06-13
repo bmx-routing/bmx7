@@ -1184,7 +1184,7 @@ int process_description_tlv_tun6_adv(struct rx_frame_iterator *it)
 
                 if (it->op == TLV_OP_TEST) {
 
-                        struct hna_node *un;
+                        struct hna_node *un = NULL;
 
                         if (!is_ip_valid(&adv->localIp, AF_INET6) ||
                                 is_ip_net_equal(&adv->localIp, &IP6_LINKLOCAL_UC_PREF, IP6_LINKLOCAL_UC_PLEN, AF_INET6) ||

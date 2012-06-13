@@ -777,7 +777,7 @@ IDM_T configure_tunnel_out(uint8_t del, struct orig_node *on, struct tun_out_nod
 
 
                 IPX_T *local = &tun->localIp;
-                IPX_T *remote = &on->primary_ip;
+                IPX_T *remote = &tun->remoteIp;
 
                 if (tun->name_auto) {
 
@@ -1154,6 +1154,11 @@ int process_description_tlv_tun6_adv(struct rx_frame_iterator *it)
                 //tun6_reset_if_changed(it);
                 uint8_t tlv_type;
 
+                if( !is_ip_set(&it->on->primary_ip) ) {
+                        terminate_tun_out(it->on);
+                        return it->frame_msgs_length;
+                }
+
                 new_tun6_advs_changed = NO;
                 
                 for (tlv_type = BMX_DSC_TLV_TUN6_MIN; tlv_type <= BMX_DSC_TLV_TUN6_MAX; tlv_type++) {
@@ -1164,6 +1169,20 @@ int process_description_tlv_tun6_adv(struct rx_frame_iterator *it)
                                 new_tun6_advs_changed = YES;
                                 terminate_tun_out(it->on);
                                 break;
+                        }
+                }
+
+                if( !new_tun6_advs_changed ) {
+                        for (m = 0; m < it->frame_msgs_fixed; m++) {
+
+                                struct tun_out_key key = set_tun_adv_key(it->on, m);
+                                struct tun_out_node *tun = avl_find_item(&tun_out_tree, &key);
+
+                                if (!is_ip_equal(&tun->remoteIp, &it->on->primary_ip)) {
+                                        new_tun6_advs_changed = YES;
+                                        terminate_tun_out(it->on);
+                                        break;
+                                }
                         }
                 }
 
@@ -1205,6 +1224,7 @@ int process_description_tlv_tun6_adv(struct rx_frame_iterator *it)
                         memset(tun, 0, sizeof (struct tun_out_node));
                         tun->tunOutKey = key;
                         tun->localIp = adv->localIp;
+                        tun->remoteIp = it->on->primary_ip;
                         tun->name_auto = 1;
                         AVL_INIT_TREE(tun->tun_net_tree, struct tun_net_node, tunNetKey);
                         avl_insert(&tun_out_tree, tun, -300427);
@@ -1534,7 +1554,7 @@ static int32_t tun_out_status_creator(struct status_handl *handl, void *data)
 
                         status->globalId = &tun->tunOutKey.on->global_id;
                         status->local = &tun->localIp;
-                        status->remote = &tun->tunOutKey.on->primary_ip;
+                        status->remote = &tun->remoteIp;
                         sprintf(status->network, netAsStr(&tnn->tunNetKey.netKey));
                         status->bw_val = fmetric_to_umetric(fmetric_u8_to_fmu16(tnn->bandwidth));
                         status->bandwidth = status->bw_val ? &status->bw_val : NULL;

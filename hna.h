@@ -304,6 +304,7 @@ struct tun_out_node {
 
         // the advertised part (by description_msg_tun6_adv):
         IP6_T localIp;          // key for tunnel_in_tree
+        IP6_T remoteIp;         // the primary IP of the remote tunnel end
 
         // the advertised part (by description_msg_src6in6_adv):
         struct net_key ingress4Prefix;

@@ -2935,13 +2935,21 @@ int32_t opt_ip_version(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                 if (ip_tmp != 4 && ip_tmp != 6)
                         return FAILURE;
 
+                //if (__af_cfg == AF_INET && ip_tmp == 6)
                 if (__af_cfg != DEF_IP_FAMILY && __af_cfg != ((ip_tmp == 4) ? AF_INET : AF_INET6))
                         return FAILURE;
+
+                if (_af_cfg_read && __af_cfg != ((ip_tmp == 4) ? AF_INET : AF_INET6)) {
+                        dbgf_sys(DBGT_ERR, "Non-default %s=%d configured! Prefix your args with --%s=%d",
+                                ARG_IP, ip_tmp, ARG_IP, ip_tmp);
+                        return FAILURE;
+                }
+
 
                 __af_cfg = (ip_tmp == 4) ? AF_INET : AF_INET6;
                 __ZERO_NETCFG_KEY.af = __af_cfg;
 
-                assertion_dbg(-501282, !_af_cfg_read, "af_cfg() already read by %s!", _af_cfg_read);
+                //assertion_dbg(-501282, !_af_cfg_read, "af_cfg() already read by %s!", _af_cfg_read);
 
                 struct opt_child *c = NULL;
                 while ((c = list_iterate(&patch->childs_instance_list, c))) {

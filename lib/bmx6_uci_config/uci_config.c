@@ -465,6 +465,10 @@ int bmx_load_config ( uint8_t cmd, struct opt_type *opt, struct ctrl_node *cn ) 
 	
 	char name[MAX_PATH_SIZE]="";
 	struct uci_ptr sptr, optr;
+
+        dbgf_all(DBGT_INFO, "cmd=%s opt_name=%s bmx_ctx=%p bmx_conf_name=%s opt_cfg_t=%d",
+                opt_cmd2str[ cmd ], opt->name, bmx_ctx, bmx_conf_name, opt->cfg_t);
+
 	
 	if ( !bmx_ctx  ||  !bmx_conf_name )
 		return SUCCESS;

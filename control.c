@@ -2334,8 +2334,8 @@ int respect_opt_order(uint8_t test, int8_t last, int8_t next, struct opt_type *o
 	struct list_node *list_pos;
 	struct opt_type *opt;
 	
-	dbgf_all( DBGT_INFO, "%s, cmd: %s, last %d, next %d, opt %s  load %d",
-	          opt_cmd2str[ test ], opt_cmd2str[ cmd ], last, next, on?on->name:"???", load );
+	dbgf_all( DBGT_INFO, "test=%s, cmd=%s, last=%d, next=%d, opt_name=%s  load=%d load_config_cb=%d",
+                opt_cmd2str[ test ], opt_cmd2str[ cmd ], last, next, on ? on->name : "???", load, !!load_config_cb);
 
         assertion(-500002, (test == OPT_CHECK || test == OPT_APPLY));
         assertion(-500107, (cmd != OPT_CHECK && cmd != OPT_APPLY));

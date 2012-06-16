@@ -74,30 +74,30 @@
 
 
 
-#define ARG_TUN_NET "tunInNet"
+#define ARG_TUN_IN "tunInNet"
 #define ARG_TUN_NET_LOCAL ARG_TUN_ADV
 #define ARG_TUN_NET_BW "bandwidth"
 
 
-#define ARG_TUN_SEARCH_NAME       "tunOut"
-#define ARG_TUN_SEARCH_NETWORK    "network"
-#define ARG_TUN_SEARCH_IP         "address"
-#define ARG_TUN_SEARCH_TYPE       "srcType"
-#define ARG_TUN_SEARCH_PREFIX_MIN  "srcRangeMin"
-#define ARG_TUN_SEARCH_IPMETRIC   "ipMetric"
-#define MAX_TUN_SEARCH_IPMETRIC   INT32_MAX
-#define ARG_TUN_SEARCH_HOSTNAME   "gwName"
-#define ARG_TUN_SEARCH_PKID       "gwId"
+#define ARG_TUN_OUT          "tunOut"
+#define ARG_TUN_OUT_NET      "network"
+#define ARG_TUN_OUT_IP       "address"
+#define ARG_TUN_OUT_TYPE     "srcType"
+#define ARG_TUN_OUT_PREFIX   "srcRangeMin"
+#define ARG_TUN_OUT_IPMETRIC "ipMetric"
+#define MAX_TUN_OUT_IPMETRIC INT32_MAX
+#define ARG_TUN_OUT_HOSTNAME "gwName"
+#define ARG_TUN_OUT_PKID     "gwId"
 
-#define ARG_TUN_SEARCH_HYSTERESIS "hysteresis"
-#define DEF_TUN_SEARCH_HYSTERESIS 20
-#define MIN_TUN_SEARCH_HYSTERESIS 0
-#define MAX_TUN_SEARCH_HYSTERESIS MIN(10000, (UMETRIC_MULTIPLY_MAX - 100))
+#define ARG_TUN_OUT_HYSTERESIS "hysteresis"
+#define DEF_TUN_OUT_HYSTERESIS 20
+#define MIN_TUN_OUT_HYSTERESIS 0
+#define MAX_TUN_OUT_HYSTERESIS MIN(10000, (UMETRIC_MULTIPLY_MAX - 100))
 
-#define ARG_TUN_SEARCH_MTU "mtu"
-#define DEF_TUN_SEARCH_MTU 1460
-#define MIN_TUN_SEARCH_MTU 1280
-#define MAX_TUN_SEARCH_MTU 65535
+#define ARG_TUN_OUT_MTU "mtu"
+#define DEF_TUN_OUT_MTU 1460
+#define MIN_TUN_OUT_MTU 1280
+#define MAX_TUN_OUT_MTU 65535
 
 
 

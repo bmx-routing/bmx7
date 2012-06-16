@@ -46,11 +46,11 @@ static AVL_TREE(global_uhna_tree, struct hna_node, key );
 static AVL_TREE(local_uhna_tree, struct hna_node, key );
 
 
-static AVL_TREE(tun_search_name_tree, struct tun_search_node, tunSearchKey.netName);
-static AVL_TREE(tun_search_net_tree, struct tun_search_node, tunSearchKey);
-static AVL_TREE(tun_net_tree, struct tun_net_node, tunNetKey);
-static AVL_TREE(tun_out_tree, struct tun_out_node, tunOutKey);
-static AVL_TREE(tun_in_tree, struct tun_in_node, remoteIp);
+static AVL_TREE(tun_search_name_tree, struct tun_search_node, tunSearchKey.netName); // configured tun_out names searches
+static AVL_TREE(tun_search_net_tree, struct tun_search_node, tunSearchKey);          // configured tun_out networks searches
+static AVL_TREE(tun_net_tree, struct tun_net_node, tunNetKey);                       // rcvd tun_out network advs
+static AVL_TREE(tun_out_tree, struct tun_out_node, tunOutKey);                       // rcvd tun_out advs
+static AVL_TREE(tun_in_tree, struct tun_in_node, remoteIp);                          // configured tun_in tunnels
 
 static const struct tun_net_key ZERO_TUN_NET_KEY = {.tun = NULL};
 
@@ -909,11 +909,11 @@ void set_tun_net(struct tun_search_node *sn)
                 struct net_key srcPrefix = tsn->srcPrefix.mask ? tsn->srcPrefix : (tsn->tunSearchKey.netKey.af == AF_INET ? tun4_address : tun6_address);
 
                 dbgf_all(DBGT_INFO, "searching %s=%s: %s=%s %s=%d %s=%s %s=%s ",
-                        ARG_TUN_SEARCH_NAME, tsn->tunSearchKey.netName,
-                        ARG_TUN_SEARCH_HOSTNAME, globalIdAsString(&tsn->global_id),
-                        ARG_TUN_SEARCH_TYPE, tsn->srcType,
-                        ARG_TUN_SEARCH_NETWORK, netAsStr(&tsn->tunSearchKey.netKey),
-                        ARG_TUN_SEARCH_IP, netAsStr(&srcPrefix)
+                        ARG_TUN_OUT, tsn->tunSearchKey.netName,
+                        ARG_TUN_OUT_HOSTNAME, globalIdAsString(&tsn->global_id),
+                        ARG_TUN_OUT_TYPE, tsn->srcType,
+                        ARG_TUN_OUT_NET, netAsStr(&tsn->tunSearchKey.netKey),
+                        ARG_TUN_OUT_IP, netAsStr(&srcPrefix)
                         );
 
                 while ((tnn = avl_iterate_item(&tun_net_tree, &itnn))) {
@@ -1339,7 +1339,7 @@ int create_description_tlv_tunXin6_net_adv(struct tx_frame_iterator *it)
         TRACE_FUNCTION_CALL;
         IDM_T is4in6 = (it->frame_type == BMX_DSC_TLV_TUN4IN6_NET_ADV) ? YES : NO;
         uint16_t m = 0;
-        struct opt_type *o = get_option(NULL, NO, ARG_TUN_NET);
+        struct opt_type *o = get_option(NULL, NO, ARG_TUN_IN);
         struct opt_parent *p = NULL;
 
         while ((p = list_iterate(&o->d.parents_instance_list, p)) && m <= tx_iterator_cache_msg_space_max(it)) {
@@ -1610,7 +1610,7 @@ static int32_t tun_out_status_creator(struct status_handl *handl, void *data)
 
 
 STATIC_FUNC
-int32_t opt_tun_net(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
+int32_t opt_tun_in(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
 {
         TRACE_FUNCTION_CALL;
 
@@ -1625,7 +1625,7 @@ int32_t opt_tun_net(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt
                         return FAILURE;
 
                 if (str2netw(patch->val, &net.ip, cn, &net.mask, &net.af, NO) == FAILURE) {
-                        dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "invalid %s=%s", ARG_TUN_NET, patch->val);
+                        dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "invalid %s=%s", ARG_TUN_IN, patch->val);
                         return FAILURE;
                 }
 
@@ -1679,7 +1679,7 @@ int32_t opt_tun_net(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt
 
 
 STATIC_FUNC
-int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
+int32_t opt_tun_out(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
 {
         TRACE_FUNCTION_CALL;
         struct tun_search_node *tsn = NULL;
@@ -1717,15 +1717,17 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                                 strcpy(tsn->tunSearchKey.netName, name);
                                 avl_insert(&tun_search_name_tree, tsn, -300433);
                                 avl_insert(&tun_search_net_tree, tsn, -300434);
-                                tsn->mtu = DEF_TUN_SEARCH_MTU;
-                                tsn->hysteresis = DEF_TUN_SEARCH_HYSTERESIS;
+                                tsn->mtu = DEF_TUN_OUT_MTU;
+                                tsn->hysteresis = DEF_TUN_OUT_HYSTERESIS;
                         }
+
+
 
                 }
 
                 while ((c = list_iterate(&patch->childs_instance_list, c))) {
 
-                        if (!strcmp(c->opt->name, ARG_TUN_SEARCH_NETWORK)) {
+                        if (!strcmp(c->opt->name, ARG_TUN_OUT_NET)) {
 
                                 if (c->val) {
 
@@ -1746,17 +1748,17 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                                         avl_insert(&tun_search_net_tree, tsn, -300438);
                                 }
 
-                        } else if (!strcmp(c->opt->name, ARG_TUN_SEARCH_IPMETRIC)) {
+                        } else if (!strcmp(c->opt->name, ARG_TUN_OUT_IPMETRIC)) {
 
                                 if (cmd == OPT_APPLY && tsn)
                                         tsn->ipmetric = c->val ? strtol(c->val, NULL, 10) : 0;
 
-                        } else if (!strcmp(c->opt->name, ARG_TUN_SEARCH_TYPE)) {
+                        } else if (!strcmp(c->opt->name, ARG_TUN_OUT_TYPE)) {
 
                                 if (cmd == OPT_APPLY && tsn)
                                         tsn->srcType = c->val ? strtol(c->val, NULL, 10) : 0;
 
-                        } else if (!strcmp(c->opt->name, ARG_TUN_SEARCH_IP)) {
+                        } else if (!strcmp(c->opt->name, ARG_TUN_OUT_IP)) {
 
                                 if (c->val) {
                                         struct hna_node *hna;
@@ -1771,7 +1773,7 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                                         if ((hna = find_overlapping_hna(&find.ip, find.mask, self))) {
 
                                                 dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "%s=%s /%s=%s already used by orig=%s hna=%s",
-                                                        ARG_TUN_SEARCH_NAME, name, ARG_TUN_SEARCH_IP, netAsStr(&find),
+                                                        ARG_TUN_OUT, name, ARG_TUN_OUT_IP, netAsStr(&find),
                                                         globalIdAsString(&hna->on->global_id), netAsStr(&hna->key));
 
                                                 return FAILURE;
@@ -1788,7 +1790,7 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                                         setNet(&tsn->srcPrefix, net.af, 0, NULL);
                                 }
 
-                        } else if (!strcmp(c->opt->name, ARG_TUN_SEARCH_HOSTNAME) ) {
+                        } else if (!strcmp(c->opt->name, ARG_TUN_OUT_HOSTNAME) ) {
 
                                 if (c->val) {
 
@@ -1805,7 +1807,7 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                                         memset(tsn->global_id.name, 0, sizeof (tsn->global_id.name));
                                 }
 
-                        } else if (!strcmp(c->opt->name, ARG_TUN_SEARCH_PKID)) {
+                        } else if (!strcmp(c->opt->name, ARG_TUN_OUT_PKID)) {
 
                                 if (c->val) {
 
@@ -1824,15 +1826,15 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                                         memset(&tsn->global_id.pkid, 0, GLOBAL_ID_PKID_LEN);
                                 }
 
-                        } else if (!strcmp(c->opt->name, ARG_TUN_SEARCH_HYSTERESIS)) {
+                        } else if (!strcmp(c->opt->name, ARG_TUN_OUT_HYSTERESIS)) {
 
                                 if (cmd == OPT_APPLY && tsn)
-                                        tsn->hysteresis = c->val ? strtol(c->val, NULL, 10) : DEF_TUN_SEARCH_HYSTERESIS;
+                                        tsn->hysteresis = c->val ? strtol(c->val, NULL, 10) : DEF_TUN_OUT_HYSTERESIS;
 
-                        }  else if (!strcmp(c->opt->name, ARG_TUN_SEARCH_MTU)) {
+                        }  else if (!strcmp(c->opt->name, ARG_TUN_OUT_MTU)) {
 
                                 if (cmd == OPT_APPLY && tsn)
-                                        tsn->mtu = c->val ? strtol(c->val, NULL, 10) : DEF_TUN_SEARCH_MTU;
+                                        tsn->mtu = c->val ? strtol(c->val, NULL, 10) : DEF_TUN_OUT_MTU;
                         }
                 }
         }
@@ -2203,30 +2205,30 @@ struct opt_type hna_options[]= {
 	{ODI,ARG_TUN_ADV,ARG_TUN_ADV_SRC6_MIN,0,5,0,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,	        0,	        128,            0,0,            opt_tun_adv,
 			ARG_VALUE_FORM, "specify IPv6 source prefix len usable for address auto configuration (0 = NO autoconfig)"}
         ,
-        {ODI,0,ARG_TUN_NET,	 	0,5,2,A_PM1N,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,	        opt_tun_net,
+        {ODI,0,ARG_TUN_IN,	 	0,5,2,A_PM1N,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,	        opt_tun_in,
 			ARG_PREFIX_FORM,"specify network reachable via this tunnel"},
-	{ODI,ARG_TUN_NET,ARG_TUN_NET_LOCAL,0,5,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY, 0,		0,              0,              0,0,            opt_tun_net,
+	{ODI,ARG_TUN_IN,ARG_TUN_NET_LOCAL,0,5,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY, 0,		0,              0,              0,0,            opt_tun_in,
 			ARG_ADDR_FORM,	"specify to be used incoming tunnel interface by giving related tunnel-src address"},
-	{ODI,ARG_TUN_NET,ARG_TUN_NET_BW, 'b',5,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,   0,		0,	        0,              0,0,            opt_tun_net,
+	{ODI,ARG_TUN_IN,ARG_TUN_NET_BW, 'b',5,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,   0,		0,	        0,              0,0,            opt_tun_in,
 			ARG_VALUE_FORM,	"specify bandwidth to network as bits/sec"}
         ,
-	{ODI,0,ARG_TUN_SEARCH_NAME, 	0,5,2,A_PM1N,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_tun_search,
+	{ODI,0,ARG_TUN_OUT,     	0,5,2,A_PM1N,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_tun_out,
 		        ARG_NAME_FORM,  "specify arbitrary but unique name for network which should be reached via tunnel depending on sub criterias"},
-	{ODI,ARG_TUN_SEARCH_NAME,ARG_TUN_SEARCH_NETWORK,'n',5,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,	0,              0,              0,0,            opt_tun_search,
-			ARG_PREFIX_FORM, "specify network to be reached via tunnel (mandatory)"},
-	{ODI,ARG_TUN_SEARCH_NAME,ARG_TUN_SEARCH_IP,'a',5,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,	0,              0,              0,0,            opt_tun_search,
-			ARG_PREFIX_FORM,"specify IP address and prefixlen of tunnel (mandatory if tun6Address is not configured)"},
-	{ODI,ARG_TUN_SEARCH_NAME,ARG_TUN_SEARCH_TYPE,0,5,0,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,TUN_SRC_TYPE_MIN,TUN_SRC_TYPE_MAX,TUN_SRC_TYPE_UNDEF,0,opt_tun_search,
+	{ODI,ARG_TUN_OUT,ARG_TUN_OUT_NET,'n',5,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,               0,              0,              0,0,            opt_tun_out,
+			ARG_PREFIX_FORM,"specify network to be reached via tunnel (mandatory)"},
+	{ODI,ARG_TUN_OUT,ARG_TUN_OUT_IP,'a',5,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,	        0,              0,              0,0,            opt_tun_out,
+			ARG_PREFIX_FORM,"specify src IP address and prefixlen of tunnel (mandatory if tun6Address is not configured)"},
+	{ODI,ARG_TUN_OUT,ARG_TUN_OUT_TYPE,0,5,0,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,      TUN_SRC_TYPE_MIN,TUN_SRC_TYPE_MAX,TUN_SRC_TYPE_UNDEF,0,opt_tun_out,
 			ARG_VALUE_FORM, "specify tunnel ip allocation mechanism (0 = static/global, 1 = static, 2 = auto, 3 = AHCP)"},
-	{ODI,ARG_TUN_SEARCH_NAME,ARG_TUN_SEARCH_HOSTNAME,0,5,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,	0,              0,              0,0,            opt_tun_search,
+	{ODI,ARG_TUN_OUT,ARG_TUN_OUT_HOSTNAME,0,5,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,	        0,              0,              0,0,            opt_tun_out,
 			ARG_NAME_FORM,  "specify hostname of remote tunnel endpoint"},
-	{ODI,ARG_TUN_SEARCH_NAME,ARG_TUN_SEARCH_PKID,0,5,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,	0,              0,              0,0,            opt_tun_search,
+	{ODI,ARG_TUN_OUT,ARG_TUN_OUT_PKID,0,5,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,	        0,              0,              0,0,            opt_tun_out,
 			ARG_SHA2_FORM, "specify pkid of remote tunnel endpoint"},
-	{ODI,ARG_TUN_SEARCH_NAME,ARG_TUN_SEARCH_HYSTERESIS,0,5,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,MIN_TUN_SEARCH_HYSTERESIS,MAX_TUN_SEARCH_HYSTERESIS,DEF_TUN_SEARCH_HYSTERESIS,0,opt_tun_search,
+	{ODI,ARG_TUN_OUT,ARG_TUN_OUT_HYSTERESIS,0,5,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,MIN_TUN_OUT_HYSTERESIS,MAX_TUN_OUT_HYSTERESIS,DEF_TUN_OUT_HYSTERESIS,0,opt_tun_out,
 			ARG_VALUE_FORM, "specify in percent how much the metric to an alternative GW must be better than to curr GW"},
-	{ODI,ARG_TUN_SEARCH_NAME,ARG_TUN_SEARCH_IPMETRIC,0,5,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,	0,      MAX_TUN_SEARCH_IPMETRIC,0,0,            opt_tun_search,
+	{ODI,ARG_TUN_OUT,ARG_TUN_OUT_IPMETRIC,0,5,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,	        0,         MAX_TUN_OUT_IPMETRIC,0,0,            opt_tun_out,
 			ARG_VALUE_FORM, "specify ip metric for local routing table entries"},
-	{ODI,ARG_TUN_SEARCH_NAME,ARG_TUN_SEARCH_MTU,0,5,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,	MIN_TUN_SEARCH_MTU,MAX_TUN_SEARCH_MTU,DEF_TUN_SEARCH_MTU,0,opt_tun_search,
+	{ODI,ARG_TUN_OUT,ARG_TUN_OUT_MTU,0,5,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,   MIN_TUN_OUT_MTU,MAX_TUN_OUT_MTU,DEF_TUN_OUT_MTU,0,opt_tun_out,
 			ARG_VALUE_FORM, "specify MTU of outgoing tunnel"}
         ,
 	{ODI,0,ARG_TUNS,	        0,5,2,A_PS0,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,

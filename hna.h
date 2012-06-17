@@ -92,7 +92,12 @@
 #define ARG_TUN_OUT_HYSTERESIS "hysteresis"
 #define DEF_TUN_OUT_HYSTERESIS 20
 #define MIN_TUN_OUT_HYSTERESIS 0
-#define MAX_TUN_OUT_HYSTERESIS MIN(10000, (UMETRIC_MULTIPLY_MAX - 100))
+#define MAX_TUN_OUT_HYSTERESIS MIN(100000, (UMETRIC_MULTIPLY_MAX - 100))
+
+#define ARG_TUN_OUT_BONUS "bonus"
+#define DEF_TUN_OUT_BONUS 0
+#define MIN_TUN_OUT_BONUS 0
+#define MAX_TUN_OUT_BONUS MIN(INT32_MAX, (UMETRIC_MULTIPLY_MAX - 100))
 
 #define ARG_TUN_OUT_MTU "mtu"
 #define DEF_TUN_OUT_MTU 1460
@@ -265,6 +270,7 @@ struct tun_search_node {
         struct tun_search_key tunSearchKey;
         
         uint32_t hysteresis;
+        uint32_t bonus;
         uint32_t ipmetric;
 	uint32_t mtu;
 
@@ -274,7 +280,10 @@ struct tun_search_node {
         uint8_t srcType;
         uint8_t srcPrefixMin;
         
-        struct tun_net_node *tun_net;
+        struct tun_net_node *act_tnn;
+        struct tun_net_node *best_tnn;
+        UMETRIC_T best_tnn_metric;
+
         uint8_t shown;
 };
 

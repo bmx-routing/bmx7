@@ -837,7 +837,7 @@ void unlink_tun_net(struct tun_net_node *tnn, struct tun_search_node *tsn, struc
 
                                 ip(IP_ROUTE_TUNS, DEL, NO, &ttsn->tunSearchKey.netKey, RT_TABLE_TUN, 0, NULL, tun->upIfIdx, NULL, NULL, ttsn->ipmetric);
 
-                                ttsn->tun_net = NULL;
+                                ttsn->act_tnn = NULL;
 
                                 avl_remove(&ttnn->tun_search_tree, ttsn->tunSearchKey.netName, -300408);
 
@@ -862,9 +862,9 @@ void unlink_tun_net(struct tun_net_node *tnn, struct tun_search_node *tsn, struc
 }
 
 STATIC_FUNC
-struct tun_search_node* get_alternative_tun(struct tun_search_node *tsn)
+struct tun_search_node* get_active_conflicting_tsn(struct tun_search_node *tsn, struct tun_search_node **bestp )
 {
-        struct tun_search_node *other, *best = NULL;
+        struct tun_search_node *other, *active = NULL, *best = NULL;
         struct tun_search_key key;
         memset(&key, 0, sizeof (key));
         key.netKey = tsn->tunSearchKey.netKey;
@@ -873,51 +873,61 @@ struct tun_search_node* get_alternative_tun(struct tun_search_node *tsn)
 
                 key = other->tunSearchKey;
 
-                if (memcmp(&other->tunSearchKey, &tsn->tunSearchKey, sizeof (struct tun_search_key)))
+                if (memcmp(&(other->tunSearchKey.netKey), &(tsn->tunSearchKey.netKey), sizeof (key.netKey)))
                         return NULL;
 
-                if (other->ipmetric != tsn->ipmetric || !other->tun_net)
+                if (other->ipmetric != tsn->ipmetric)
                         continue;
 
-                if (!best || best->tun_net->e2eMetric < other->tun_net->e2eMetric)
+                assertion(-500000, IMPLIES(active, !other->act_tnn)); // only one conflicting tun_net can be active !!
+
+                if (other->act_tnn)
+                        active = other;
+
+                other->best_tnn_metric = (((other->best_tnn->e2eMetric * (100 + other->bonus)) / 100) *
+                        (active && active->act_tnn == other->best_tnn ? (100 + active->hysteresis) : 100)) / 100;
+                        //(tsn->best_tnn->e2eMetric > (((best_tsn->best_tnn->e2eMetric) * (100 + tsn->hysteresis)) / 100)
+
+                if (!best || best->best_tnn_metric < other->best_tnn_metric)
                         best = other;
 
         }
+
+        if (bestp)
+                *bestp = best;
         
-        return best;
+        return active;
 }
 
 
 STATIC_FUNC
-void set_tun_net(struct tun_search_node *sn)
+void set_tun_net(void  *unused)
 {
         TRACE_FUNCTION_CALL;
         struct tun_search_node *tsn = NULL;
         struct tun_net_node *tnn = NULL;
-        struct avl_node *atsn = NULL, *itnn = NULL;
+        struct avl_node *atsn, *itnn;
 
+        assertion(-500000, (!unused));
 
         task_remove((void(*)(void*))set_tun_net, NULL);
         if (tun_search_name_tree.items)
                 task_register(5000, (void(*)(void*))set_tun_net, NULL, -300420);
 
-        dbgf_all(DBGT_INFO, "netName=%s: tun_out.items=%d tun_net.items=%d tun_search.items=%d ",
-                sn ? sn->tunSearchKey.netName : DBG_NIL, tun_out_tree.items, tun_net_tree.items, tun_search_name_tree.items);
+        dbgf_all(DBGT_INFO, "tun_out.items=%d tun_net.items=%d tun_search.items=%d ",
+                tun_out_tree.items, tun_net_tree.items, tun_search_name_tree.items);
 
-        while (IMPLIES(sn, !tsn) && (tsn = sn ? sn : avl_iterate_item(&tun_search_name_tree, &atsn))) {
+        for (atsn = NULL; (tsn = avl_iterate_item(&tun_search_name_tree, &atsn));) {
 
-                struct tun_net_node *best_tnn = NULL, *curr_tnn = NULL;
                 struct net_key srcPrefix = tsn->srcPrefix.mask ? tsn->srcPrefix : (tsn->tunSearchKey.netKey.af == AF_INET ? tun4_address : tun6_address);
+                tsn->best_tnn = NULL;
 
-                dbgf_all(DBGT_INFO, "searching %s=%s: %s=%s %s=%d %s=%s %s=%s ",
-                        ARG_TUN_OUT, tsn->tunSearchKey.netName,
-                        ARG_TUN_OUT_HOSTNAME, globalIdAsString(&tsn->global_id),
-                        ARG_TUN_OUT_TYPE, tsn->srcType,
-                        ARG_TUN_OUT_NET, netAsStr(&tsn->tunSearchKey.netKey),
-                        ARG_TUN_OUT_IP, netAsStr(&srcPrefix)
-                        );
+                dbgf_all(DBGT_INFO, "fixing %s=%s: %s=%s %s=%d %s=%s %s=%s ",
+                        ARG_TUN_OUT, tsn->tunSearchKey.netName, ARG_TUN_OUT_HOSTNAME, globalIdAsString(&tsn->global_id),
+                        ARG_TUN_OUT_TYPE, tsn->srcType, ARG_TUN_OUT_NET, netAsStr(&tsn->tunSearchKey.netKey),
+                        ARG_TUN_OUT_IP, netAsStr(&srcPrefix));
 
-                while ((tnn = avl_iterate_item(&tun_net_tree, &itnn))) {
+                for (itnn = NULL; (tnn = avl_iterate_item(&tun_net_tree, &itnn));) {
 
                         struct orig_node *on = tnn->tunNetKey.tun->tunOutKey.on;
                         GLOBAL_ID_T *tnn_gid = &on->global_id, *tsn_gid = &tsn->global_id;
@@ -965,37 +975,38 @@ void set_tun_net(struct tun_search_node *sn)
 
                         tnn->e2eMetric = apply_metric_algo(&linkQuality, &linkMax, &pathMetric, on->path_metricalgo);
 
-                        if (!best_tnn ||
-                                (tnn->e2eMetric > best_tnn->e2eMetric) ||
-                                (tnn->e2eMetric == best_tnn->e2eMetric && tnn->tunNetKey.netKey.mask > best_tnn->tunNetKey.netKey.mask) ||
-                                (tnn->e2eMetric == best_tnn->e2eMetric && tnn->tunNetKey.netKey.mask == best_tnn->tunNetKey.netKey.mask && tnn == tsn->tun_net)
+                        if (!tsn->best_tnn ||
+                                (tnn->e2eMetric > tsn->best_tnn->e2eMetric) ||
+                                (tnn->e2eMetric == tsn->best_tnn->e2eMetric && tnn->tunNetKey.netKey.mask > tsn->best_tnn->tunNetKey.netKey.mask) ||
+                                (tnn->e2eMetric == tsn->best_tnn->e2eMetric && tnn->tunNetKey.netKey.mask == tsn->best_tnn->tunNetKey.netKey.mask && tnn == tsn->act_tnn)
                                 )
-                                best_tnn = tnn;
-
-                        if (tnn == tsn->tun_net)
-                                curr_tnn = tnn;
+                                tsn->best_tnn = tnn;
 
                         dbgf_all(DBGT_INFO, "acceptable e2eMetric=%s, %s %s", umetric_to_human(tnn->e2eMetric),
-                                best_tnn == tnn ? "NEW BEST" : "NOT best", curr_tnn == tnn ? "current" : "alternative");
+                                tsn->best_tnn == tnn ? "NEW BEST" : "NOT best", tsn->act_tnn == tnn ? "current" : "alternative");
 
                 }
+        }
 
-                if (best_tnn != tsn->tun_net &&
-                        IMPLIES(curr_tnn, (best_tnn->e2eMetric > (((curr_tnn->e2eMetric) * (100 + tsn->hysteresis)) / 100))))
-                        {
+        for (atsn = NULL; (tsn = avl_iterate_item(&tun_search_name_tree, &atsn));) {
 
-                        if(tsn->tun_net)
-                                unlink_tun_net(tsn->tun_net, tsn, NULL);
+                dbgf_all(DBGT_INFO, "fixing %s=%s: %s=%s %s=%d %s=%s",
+                        ARG_TUN_OUT, tsn->tunSearchKey.netName, ARG_TUN_OUT_HOSTNAME, globalIdAsString(&tsn->global_id),
+                        ARG_TUN_OUT_TYPE, tsn->srcType, ARG_TUN_OUT_NET, netAsStr(&tsn->tunSearchKey.netKey));
 
-                        struct tun_search_node *alternative = get_alternative_tun(tsn);
+                struct tun_search_node *best_tsn = NULL;
+                struct tun_search_node *active_tsn = get_active_conflicting_tsn(tsn, &best_tsn);
 
-                        if (alternative && alternative->tun_net->e2eMetric < best_tnn->e2eMetric) {
+                if (tsn->best_tnn && tsn->best_tnn != (active_tsn ? active_tsn->act_tnn : NULL) &&
+                        IMPLIES(active_tsn, tsn->best_tnn != active_tsn->act_tnn) &&
+                        (tsn->best_tnn == best_tsn->best_tnn || tsn->best_tnn_metric > best_tsn->best_tnn_metric)) {
 
-                                unlink_tun_net(alternative->tun_net, alternative, NULL);
+                        if (active_tsn && active_tsn->act_tnn)
+                                unlink_tun_net(active_tsn->act_tnn, active_tsn, NULL);
 
-                        } else if (best_tnn && best_tnn->e2eMetric > UMETRIC_MIN__NOT_ROUTABLE && !alternative) {
+                        if (tsn->best_tnn && tsn->best_tnn->e2eMetric > UMETRIC_MIN__NOT_ROUTABLE) {
 
-                                struct tun_out_node *tun = best_tnn->tunNetKey.tun;
+                                struct tun_out_node *tun = tsn->best_tnn->tunNetKey.tun;
 
                                 if (!tun->upIfIdx && configure_tunnel_out(ADD, tun->tunOutKey.on, tun) == SUCCESS){
                                         ipaddr(ADD, tun->upIfIdx, AF_INET6, &tun->localIp, 128, YES /*deprecated*/);
@@ -1018,8 +1029,8 @@ void set_tun_net(struct tun_search_node *sn)
                                         ip(IP_ROUTE_TUNS, ADD, NO, &tsn->tunSearchKey.netKey, RT_TABLE_TUN, 0, NULL, tun->upIfIdx, NULL, NULL, tsn->ipmetric);
 
 
-                                        tsn->tun_net = best_tnn;
-                                        avl_insert(&best_tnn->tun_search_tree, tsn, -300415);
+                                        tsn->act_tnn = tsn->best_tnn;
+                                        avl_insert(&tsn->act_tnn->tun_search_tree, tsn, -300415);
                                 }
                         }
                 }
@@ -1832,6 +1843,11 @@ int32_t opt_tun_out(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt
                                 if (cmd == OPT_APPLY && tsn)
                                         tsn->hysteresis = c->val ? strtol(c->val, NULL, 10) : DEF_TUN_OUT_HYSTERESIS;
 
+                        } else if (!strcmp(c->opt->name, ARG_TUN_OUT_BONUS)) {
+
+                                if (cmd == OPT_APPLY && tsn)
+                                        tsn->bonus = c->val ? strtol(c->val, NULL, 10) : DEF_TUN_OUT_BONUS;
+
                         }  else if (!strcmp(c->opt->name, ARG_TUN_OUT_MTU)) {
 
                                 if (cmd == OPT_APPLY && tsn)
@@ -1863,7 +1879,7 @@ int32_t opt_tun_out(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt
 
                 while ((tsn = avl_first_item(&tun_search_name_tree))) {
 
-                        assertion(-501242, (!tsn->tun_net));
+                        assertion(-501242, (!tsn->act_tnn));
 
                         avl_remove(&tun_search_name_tree, &tsn->tunSearchKey.netName, -300404);
                         avl_remove(&tun_search_net_tree, &tsn->tunSearchKey, -300432);
@@ -2227,6 +2243,8 @@ struct opt_type hna_options[]= {
 			ARG_SHA2_FORM, "specify pkid of remote tunnel endpoint"},
 	{ODI,ARG_TUN_OUT,ARG_TUN_OUT_HYSTERESIS,0,5,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,MIN_TUN_OUT_HYSTERESIS,MAX_TUN_OUT_HYSTERESIS,DEF_TUN_OUT_HYSTERESIS,0,opt_tun_out,
 			ARG_VALUE_FORM, "specify in percent how much the metric to an alternative GW must be better than to curr GW"},
+	{ODI,ARG_TUN_OUT,ARG_TUN_OUT_BONUS,0,5,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,       MIN_TUN_OUT_BONUS,MAX_TUN_OUT_BONUS,DEF_TUN_OUT_BONUS,0,opt_tun_out,
+			ARG_VALUE_FORM, "specify in percent a metric bonus (preference) for GWs matching this tunOut spec when compared with other tunOut specs for same network"},
 	{ODI,ARG_TUN_OUT,ARG_TUN_OUT_IPMETRIC,0,5,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,	        0,         MAX_TUN_OUT_IPMETRIC,0,0,            opt_tun_out,
 			ARG_VALUE_FORM, "specify ip metric for local routing table entries"},
 	{ODI,ARG_TUN_OUT,ARG_TUN_OUT_MTU,0,5,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,   MIN_TUN_OUT_MTU,MAX_TUN_OUT_MTU,DEF_TUN_OUT_MTU,0,opt_tun_out,

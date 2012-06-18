@@ -2287,7 +2287,7 @@ void bmx(void)
 
                                 dbgf_all( DBGT_INFO, "trying to unblock %s...", on->desc->globalId.name);
 
-                                assertion(-500000, (on->blocked && !on->added));
+                                assertion(-501351, (on->blocked && !on->added));
 
                                 IDM_T tlvs_res = process_description_tlvs(NULL, on, on->desc, TLV_OP_TEST, FRAME_TYPE_PROCESS_ALL, NULL, NULL);
 

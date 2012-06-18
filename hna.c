@@ -401,7 +401,7 @@ int create_description_tlv_hna(struct tx_frame_iterator *it)
         }
 
         for (an = NULL; (tin = avl_iterate_item(&tun_in_tree, &an));) {
-                assertion(-500000, (family == AF_INET6));
+                assertion(-501352, (family == AF_INET6));
                 pos = _create_tlv_hna(data, max_size, pos, setNet(NULL, AF_INET6, 128, &tin->remoteIp));
         }
 
@@ -495,7 +495,7 @@ struct hna_node * find_overlapping_hna( IPX_T *ipX, uint8_t prefixlen, struct or
 
         while ((un = avl_iterate_item(&global_uhna_tree, &it))) {
 
-                assertion(-500000, (un->on));
+                assertion(-501353, (un->on));
 
                 if (un->on != except && is_ip_net_equal(ipX, &un->key.ip, MIN(prefixlen, un->key.mask), AF_CFG))
                         return un;

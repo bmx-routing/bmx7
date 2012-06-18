@@ -193,7 +193,7 @@ int32_t get_plugin_data_registry(uint8_t data_type)
 		is_plugin_data_initialized=YES;
 	}
 
-        assertion(-500000, ( initializing && data_type < PLUGIN_DATA_SIZE ));
+        assertion(-501366, ( initializing && data_type < PLUGIN_DATA_SIZE ));
 
 	// do NOT return the incremented value!
         plugin_data_registries[data_type]++;

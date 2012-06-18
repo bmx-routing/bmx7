@@ -260,7 +260,7 @@ IDM_T process_description_tlvs(struct packet_buff *pb, struct orig_node *on, str
                 (op >= TLV_OP_CUSTOM_MIN && op <= TLV_OP_CUSTOM_MAX) || (op >= TLV_OP_PLUGIN_MIN && op <= TLV_OP_PLUGIN_MAX))));
         assertion(-500807, (desc));
 //        assertion(-500829, IMPLIES(op == TLV_OP_DEL, !on->blocked));
-        assertion(-500000, IMPLIES(op == TLV_OP_DEL, on->added));
+        assertion(-501354, IMPLIES(op == TLV_OP_DEL, on->added));
 
         int32_t tlv_result;
         uint16_t dsc_tlvs_len = ntohs(desc->extensionLen);
@@ -285,7 +285,7 @@ IDM_T process_description_tlvs(struct packet_buff *pb, struct orig_node *on, str
         if (tlv_result == TLV_RX_DATA_BLOCKED || tlv_result == TLV_RX_DATA_FAILURE) {
 
                 assertion(-500356, IMPLIES(tlv_result == TLV_RX_DATA_BLOCKED, op == TLV_OP_TEST));
-                assertion(-500000, (op == TLV_OP_TEST));
+                assertion(-501355, (op == TLV_OP_TEST));
 
                 dbgf_sys(DBGT_WARN, "problematic description_ltv from %s, near type=%s frame_data_length=%d  pos=%d %s",
                         pb ? pb->i.llip_str : DBG_NIL, description_tlv_handl[it.frame_type].name,
@@ -2493,8 +2493,8 @@ int32_t rx_msg_hello_adv(struct rx_frame_iterator *it)
 void cache_desc_tlv_hashes(uint8_t op, struct orig_node *on, int8_t t_start, int8_t t_end, int8_t t, uint8_t *t_data, int32_t t_data_len)
 {
 
-        assertion(-500000, ((op == TLV_OP_DEL || op == TLV_OP_TEST || op == TLV_OP_NEW)));
-        assertion(-500000, (t_start <= t_end && t_start <= t && t <= t_end));
+        assertion(-501356, ((op == TLV_OP_DEL || op == TLV_OP_TEST || op == TLV_OP_NEW)));
+        assertion(-501357, (t_start <= t_end && t_start <= t && t <= t_end));
 
         int8_t hn_type;
 
@@ -2505,10 +2505,10 @@ void cache_desc_tlv_hashes(uint8_t op, struct orig_node *on, int8_t t_start, int
                 if (op == TLV_OP_TEST) {
 
                         if (!hn && t_data && hn_type == t) {
-                                hn = debugMalloc(sizeof (struct desc_tlv_hash_node), -300000);
+                                hn = debugMalloc(sizeof (struct desc_tlv_hash_node), -300451);
                                 memset(hn, 0, sizeof (struct desc_tlv_hash_node));
                                 hn->tlv_type = t;
-                                avl_insert(&on->desc_tlv_hash_tree, hn, -300000);
+                                avl_insert(&on->desc_tlv_hash_tree, hn, -300452);
                         }
 
                         if (hn) {
@@ -2530,8 +2530,8 @@ void cache_desc_tlv_hashes(uint8_t op, struct orig_node *on, int8_t t_start, int
 
                 } else if (op == TLV_OP_NEW) {
 
-                        assertion(-500000, IMPLIES(t_data && hn_type == t, hn));
-                        assertion(-500000, IMPLIES(hn && hn_type != t, !is_zero(&hn->curr_hash, sizeof (SHA1_T)) && is_zero(&hn->test_hash, sizeof (SHA1_T))));
+                        assertion(-501358, IMPLIES(t_data && hn_type == t, hn));
+                        assertion(-501359, IMPLIES(hn && hn_type != t, !is_zero(&hn->curr_hash, sizeof (SHA1_T)) && is_zero(&hn->test_hash, sizeof (SHA1_T))));
 
 
                         if (hn) {
@@ -2542,7 +2542,7 @@ void cache_desc_tlv_hashes(uint8_t op, struct orig_node *on, int8_t t_start, int
                                 if (hn_type != t) {
                                         // remove otherwise forgotten tlv
                                         int tlv_result = process_description_tlvs(NULL, on, on->desc, TLV_OP_DEL, hn_type, NULL, NULL);
-                                        assertion(-500000, (tlv_result == TLV_RX_DATA_DONE));
+                                        assertion(-501360, (tlv_result == TLV_RX_DATA_DONE));
                                 }
                         }
                 }
@@ -2552,8 +2552,8 @@ void cache_desc_tlv_hashes(uint8_t op, struct orig_node *on, int8_t t_start, int
                         if (op == TLV_OP_DEL ||
                                 (is_zero(&hn->test_hash, sizeof (SHA1_T)) && is_zero(&hn->curr_hash, sizeof (SHA1_T)))) {
 
-                                avl_remove(&on->desc_tlv_hash_tree, &hn->tlv_type, -300000);
-                                debugFree(hn, -300000);
+                                avl_remove(&on->desc_tlv_hash_tree, &hn->tlv_type, -300453);
+                                debugFree(hn, -300454);
                         }
                 }
         }
@@ -3415,24 +3415,24 @@ struct dhash_node * process_description(struct packet_buff *pb, struct descripti
         if (on->desc)
                 cb_plugin_hooks(PLUGIN_CB_DESCRIPTION_DESTROY, on);
 
-        assertion(-500000, IMPLIES(on->blocked, !on->added));
+        assertion(-501361, IMPLIES(on->blocked, !on->added));
 
         int32_t tlv_result = process_description_tlvs(pb, on, desc, TLV_OP_TEST, FRAME_TYPE_PROCESS_ALL, NULL, NULL);
 
         if (tlv_result == TLV_RX_DATA_DONE) {
 
                 tlv_result = process_description_tlvs(pb, on, desc, TLV_OP_NEW, FRAME_TYPE_PROCESS_ALL, NULL, NULL);
-                assertion(-500000, (tlv_result == TLV_RX_DATA_DONE)); // checked, so MUST SUCCEED!!
-                assertion(-500000, (on->blocked != on->added));
+                assertion(-501362, (tlv_result == TLV_RX_DATA_DONE)); // checked, so MUST SUCCEED!!
+                assertion(-501363, (on->blocked != on->added));
 
         } else {
 
                 if (on->desc && on->added) {
                         tlv_result = process_description_tlvs(pb, on, on->desc, TLV_OP_DEL, FRAME_TYPE_PROCESS_ALL, NULL, NULL);
-                        assertion(-500000, (tlv_result == TLV_RX_DATA_DONE));
+                        assertion(-501364, (tlv_result == TLV_RX_DATA_DONE));
                 }
 
-                assertion(-500000, IMPLIES(on->blocked, !on->added));
+                assertion(-501365, IMPLIES(on->blocked, !on->added));
 
                 if (tlv_result == TLV_RX_DATA_FAILURE)
                         goto process_desc0_error;

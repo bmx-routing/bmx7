@@ -61,12 +61,19 @@ static const struct tun_net_key ZERO_TUN_NET_KEY = {.tun = NULL};
 static struct net_key tun4_address;
 static struct net_key tun6_address;
 
+IDM_T (*hna_configure_niit4to6) (IDM_T del, struct net_key *key) = NULL;
+IDM_T (*hna_configure_niit6to4) (IDM_T del, struct net_key *key) = NULL;
+
+
+/*
 static int niit4to6_idx = 0;
 static int niit6to4_idx = 0;
 static IPX_T niitPrefix96 = DEF_NIIT_PREFIX;
+*/
 
 static IFNAME_T tun_name_prefix = {{DEF_TUN_NAME_PREFIX}};
 
+/*
 
 STATIC_FUNC
 void hna_description_event_hook(int32_t cb_id, struct orig_node *on)
@@ -89,8 +96,10 @@ void hna_description_event_hook(int32_t cb_id, struct orig_node *on)
                 process_description_tlvs(NULL, self, self->desc, TLV_OP_CUSTOM_NIIT6TO4_ADD, BMX_DSC_TLV_UHNA6, NULL, NULL);
         }
 }
+*/
 
 
+/*
 STATIC_FUNC
 void niit_dev_event_hook(int32_t cb_id, void* unused)
 {
@@ -180,6 +189,7 @@ void niit_dev_event_hook(int32_t cb_id, void* unused)
 
         }
 }
+*/
 
 
 STATIC_FUNC
@@ -187,7 +197,7 @@ void hna_dev_event_hook(int32_t cb_id, void* unused)
 {
         TRACE_FUNCTION_CALL;
 
-        niit_dev_event_hook(cb_id, unused);
+//        niit_dev_event_hook(cb_id, unused);
 
 
         struct tun_in_node *tun;
@@ -203,6 +213,7 @@ void hna_dev_event_hook(int32_t cb_id, void* unused)
 }
 
 
+/*
 STATIC_FUNC
 IDM_T configure_niit4to6(IDM_T del, struct net_key *key)
 {
@@ -266,6 +277,7 @@ struct net_key netX4ToNiit6(struct net_key *net)
         niit.ip.s6_addr32[3] = net->ip.s6_addr32[3];
         return niit;
 }
+*/
 
 
 STATIC_FUNC
@@ -378,7 +390,6 @@ int create_description_tlv_hna(struct tx_frame_iterator *it)
 
         int pos = 0;
         struct avl_node *an;
-        struct tun_search_node *tsn;
         struct tun_in_node *tin;
         struct dev_node *dev;
         struct hna_node *un;
@@ -388,6 +399,7 @@ int create_description_tlv_hna(struct tx_frame_iterator *it)
 
         pos = _create_tlv_hna(data, max_size, pos, setNet(NULL, family, max_plen, &self->primary_ip));
 
+/*
         if (tun4_address.mask) {
                 struct net_key niit6_address = netX4ToNiit6(&tun4_address);
                 pos = _create_tlv_hna(data, max_size, pos, &niit6_address);
@@ -397,12 +409,14 @@ int create_description_tlv_hna(struct tx_frame_iterator *it)
                 pos = _create_tlv_hna(data, max_size, pos, &tun6_address);
         
 
+        struct tun_search_node *tsn;
         for (an = NULL; (tsn = avl_iterate_item(&tun_search_name_tree, &an));) {
                 if (tsn->srcPrefix.mask) {
                         struct net_key src = (tsn->srcPrefix.af == AF_INET) ? netX4ToNiit6(&tsn->srcPrefix) : tsn->srcPrefix;
                         pos = _create_tlv_hna(data, max_size, pos, &src);
                 }
         }
+*/
 
         for (an = NULL; (tin = avl_iterate_item(&tun_in_tree, &an));) {
                 assertion(-501352, (family == AF_INET6));
@@ -470,7 +484,8 @@ void configure_hna(IDM_T del, struct net_key* key, struct orig_node *on)
         } else if (on->curr_rt_lndev) {
 
                 configure_route(del, on, key);
-                configure_niit4to6(del, key);
+                if (hna_configure_niit4to6)
+                        (*hna_configure_niit4to6)(del, key);
         }
 
 
@@ -491,7 +506,7 @@ struct hna_node * find_orig_hna(struct orig_node *on)
         return un;
 }
 
-STATIC_FUNC
+
 struct hna_node * find_overlapping_hna( IPX_T *ipX, uint8_t prefixlen, struct orig_node *except )
 {
         struct hna_node *un;
@@ -614,19 +629,25 @@ int process_description_tlv_hna(struct rx_frame_iterator *it)
                                 //ASSERTION(-501314, (avl_find(&global_uhna_tree, &key)));
 
                                 if (op == TLV_OP_CUSTOM_NIIT6TO4_ADD) {
-                                        configure_niit6to4(ADD, &key);
+                                        if (hna_configure_niit6to4)
+                                                (*hna_configure_niit6to4)(ADD, &key);
                                 } else if (op == TLV_OP_CUSTOM_NIIT6TO4_DEL) {
-                                        configure_niit6to4(DEL, &key);
+                                        if (hna_configure_niit6to4)
+                                                (*hna_configure_niit6to4)(DEL, &key);
                                 } else if (op == TLV_OP_CUSTOM_NIIT4TO6_ADD) {
-                                        configure_niit4to6(ADD, &key);
+                                        if (hna_configure_niit4to6)
+                                                (*hna_configure_niit4to6)(ADD, &key);
                                 } else if (op == TLV_OP_CUSTOM_NIIT4TO6_DEL) {
-                                        configure_niit4to6(DEL, &key);
+                                        if (hna_configure_niit4to6)
+                                                (*hna_configure_niit4to6)(DEL, &key);
                                 } else if (op == TLV_OP_CUSTOM_HNA_ROUTE_DEL) {
-                                        configure_niit4to6(DEL, &key);
+                                        if (hna_configure_niit4to6)
+                                                (*hna_configure_niit4to6)(DEL, &key);
                                         configure_route(DEL, on, &key);
                                 } else if (op == TLV_OP_CUSTOM_HNA_ROUTE_ADD) {
                                         configure_route(ADD, on, &key);
-                                        configure_niit4to6(ADD, &key);
+                                        if (hna_configure_niit4to6)
+                                                (*hna_configure_niit4to6)(ADD, &key);
                                 } else {
                                         assertion(-501315, (NO));
                                 }
@@ -2242,12 +2263,12 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
 
                                         set_opt_child_val(c, netAsStr(&net));
 
-                                        struct net_key find = (net.af == AF_INET) ? netX4ToNiit6(&net) : net;
+                                        //struct net_key find = (net.af == AF_INET) ? netX4ToNiit6(&net) : net;
 
-                                        if ((hna = find_overlapping_hna(&find.ip, find.mask, self))) {
+                                        if ((hna = find_overlapping_hna(&net.ip, net.mask, self))) {
 
                                                 dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "%s=%s /%s=%s already used by orig=%s hna=%s",
-                                                        ARG_TUN_OUT, name, ARG_TUN_OUT_IP, netAsStr(&find),
+                                                        ARG_TUN_OUT, name, ARG_TUN_OUT_IP, netAsStr(&net),
                                                         globalIdAsString(&hna->on->global_id), netAsStr(&hna->key));
 
                                                 return FAILURE;
@@ -2592,13 +2613,13 @@ int32_t opt_tun_address(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
 
                 } else {
 
-                        struct net_key find = net.af == AF_INET ? netX4ToNiit6(&net) : net;
+                        //struct net_key find = net.af == AF_INET ? netX4ToNiit6(&net) : net;
                         struct hna_node *hna;
 
-                        if ((hna = find_overlapping_hna(&find.ip, find.mask, self))) {
+                        if ((hna = find_overlapping_hna(&net.ip, net.mask, self))) {
 
                                 dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "%s=%s already used by orig=%s hna=%s",
-                                        opt->name, netAsStr(&find), globalIdAsString(&hna->on->global_id), netAsStr(&hna->key));
+                                        opt->name, netAsStr(&net), globalIdAsString(&hna->on->global_id), netAsStr(&hna->key));
 
                                 return FAILURE;
                         }
@@ -2608,13 +2629,8 @@ int32_t opt_tun_address(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
         if (cmd == OPT_APPLY) {
 
                 if (net.af == AF_INET) {
-
                         tun4_address = net;
-
-                        niit_dev_event_hook(PLUGIN_CB_SYS_DEV_EVENT, NULL);
-
                 } else {
-
                         tun6_address = net;
                 }
 
@@ -2907,8 +2923,10 @@ struct plugin *hna_get_plugin( void ) {
         hna_plugin.cb_init = hna_init;
 	hna_plugin.cb_cleanup = hna_cleanup;
         hna_plugin.cb_plugin_handler[PLUGIN_CB_SYS_DEV_EVENT] = hna_dev_event_hook;
+/*
         hna_plugin.cb_plugin_handler[PLUGIN_CB_DESCRIPTION_CREATED] = (void (*) (int32_t, void*)) hna_description_event_hook;
         hna_plugin.cb_plugin_handler[PLUGIN_CB_DESCRIPTION_DESTROY] = (void (*) (int32_t, void*)) hna_description_event_hook;
+*/
 
         return &hna_plugin;
 }

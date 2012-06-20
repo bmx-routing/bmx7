@@ -36,20 +36,25 @@
 #define HLP_TUN6_ADDRESS  "specify default IPv6 tunnel address and announced range"
 
 #define ARG_TUN4_ADDRESS  "tun4Address"
-#define HLP_TUN4_ADDRESS  "specify default IPv4 tunnel address and announced range (IP SHOULD be assigned to niit4to6 interface!)"
+#define HLP_TUN4_ADDRESS  "specify default IPv4 tunnel address and announced range"
 
-#define DEF_NIIT_PREFIX   { { { 0,0,0,0,0,0,0,0,0,0,0xFF,0xFF,0,0,0,0 } } }
-#define DEF_NIIT_4TO6_DEV "niit4to6"
-#define DEF_NIIT_6TO4_DEV "niit6to4"
+//#define DEF_NIIT_PREFIX   { { { 0,0,0,0,0,0,0,0,0,0,0xFF,0xFF,0,0,0,0 } } }
+//#define DEF_NIIT_4TO6_DEV "niit4to6"
+//#define DEF_NIIT_6TO4_DEV "niit6to4"
 
-#define TLV_OP_CUSTOM_NIIT4TO6_ADD  (TLV_OP_CUSTOM_MIN + 0)
-#define TLV_OP_CUSTOM_NIIT4TO6_DEL  (TLV_OP_CUSTOM_MIN + 1)
-#define TLV_OP_CUSTOM_NIIT6TO4_ADD  (TLV_OP_CUSTOM_MIN + 2)
-#define TLV_OP_CUSTOM_NIIT6TO4_DEL  (TLV_OP_CUSTOM_MIN + 3)
-#define TLV_OP_CUSTOM_HNA_ROUTE_ADD (TLV_OP_CUSTOM_MIN + 4)
-#define TLV_OP_CUSTOM_HNA_ROUTE_DEL (TLV_OP_CUSTOM_MIN + 5)
+#define TLV_OP_CUSTOM_HNA_MIN       (TLV_OP_CUSTOM_MIN + 0)
+#define TLV_OP_CUSTOM_TUN6_GET_SHA  (TLV_OP_CUSTOM_MIN + 0)
+#define TLV_OP_CUSTOM_HNA_ROUTE_ADD (TLV_OP_CUSTOM_MIN + 1)
+#define TLV_OP_CUSTOM_HNA_ROUTE_DEL (TLV_OP_CUSTOM_MIN + 2)
+#define TLV_OP_CUSTOM_HNA_MAX       (TLV_OP_CUSTOM_MIN + 2)
 
-#define TLV_OP_CUSTOM_TUN6_GET_SHA   (TLV_OP_CUSTOM_MIN + 6)
+#define TLV_OP_CUSTOM_NIIT4TO6_ADD  (TLV_OP_CUSTOM_HNA_MAX + 1)
+#define TLV_OP_CUSTOM_NIIT4TO6_DEL  (TLV_OP_CUSTOM_HNA_MAX + 2)
+#define TLV_OP_CUSTOM_NIIT6TO4_ADD  (TLV_OP_CUSTOM_HNA_MAX + 3)
+#define TLV_OP_CUSTOM_NIIT6TO4_DEL  (TLV_OP_CUSTOM_HNA_MAX + 4)
+
+extern IDM_T (*hna_configure_niit4to6) (IDM_T del, struct net_key *key);
+extern IDM_T (*hna_configure_niit6to4) (IDM_T del, struct net_key *key);
 
 #define ARG_TUNS "tunnels"
 
@@ -413,3 +418,6 @@ struct tun_in_node {
         uint32_t upIfIdx;
 };
 
+
+
+struct hna_node * find_overlapping_hna( IPX_T *ipX, uint8_t prefixlen, struct orig_node *except );

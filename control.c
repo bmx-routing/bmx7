@@ -36,6 +36,7 @@
 #include "plugin.h"
 #include "schedule.h"
 #include "tools.h"
+#include "hna.h"
 
 #define CODE_CATEGORY_NAME "control"
 
@@ -2801,6 +2802,7 @@ int32_t opt_debug(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_p
                         check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_SHOW), ARG_INTERFACES, cn);
                         check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_SHOW), ARG_LINKS, cn);
                         check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_SHOW), ARG_ORIGINATORS, cn);
+                        check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_SHOW), ARG_TUNS, cn);
 
                 } else if ( ival == DBGL_PROFILE ) {
 			

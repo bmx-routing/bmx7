@@ -50,8 +50,21 @@ void *avl_find_item(struct avl_tree *tree, void *key)
 
 }
 
+void *avl_first(struct avl_tree *tree)
+{
+        struct avl_node * an = tree->root;
+
+        while (an && an->link[0])
+                an = an->link[0];
+
+        return an;
+}
+
 struct avl_node *avl_next(struct avl_tree *tree, void *key)
 {
+        if(!key)
+                return avl_first(tree);
+
         struct avl_node *an = tree->root;
         struct avl_node *best = NULL;
         int cmp;
@@ -80,11 +93,13 @@ void * avl_next_item( struct avl_tree *tree, void *key)
 
 void *avl_first_item(struct avl_tree *tree)
 {
+        struct avl_node * an = avl_first(tree);
+/*
         struct avl_node * an = tree->root;
 
         while (an && an->link[0])
                 an = an->link[0];
-
+*/
         return an ? an->item : NULL;
 }
 

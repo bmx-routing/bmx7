@@ -89,6 +89,24 @@
 #define ARG_TUN_OUT_HOSTNAME "gwName"
 #define ARG_TUN_OUT_PKID     "gwId"
 
+#define ARG_TUN_OUT_PREFIX_MIN "minPrefixLen"
+#define DEF_TUN_OUT_PREFIX_MIN 129 //assumes prefix from ARG_TUN_OUT_NET
+
+#define ARG_TUN_OUT_PREFIX_MAX "maxPrefixLen"
+#define DEF_TUN_OUT_PREFIX_MAX 128 //assumes prefix from ARG_TUN_OUT_NET
+
+#define MIN_TUN_OUT_PREFIX 0
+#define MAX_TUN_OUT_PREFIX 129
+#define TYP_TUN_OUT_PREFIX_NET 129
+
+
+#define ARG_TUN_OUT_OVLP_ALLOW "allowOverlappingPrefix"
+#define DEF_TUN_OUT_OVLP_ALLOW 0
+#define ARG_TUN_OUT_OVLP_BREAK "breakOverlappingPrefix"
+#define DEF_TUN_OUT_OVLP_BREAK 0
+#define MIN_TUN_OUT_OVLP 0
+#define MAX_TUN_OUT_OVLP 1
+
 #define ARG_TUN_OUT_HYSTERESIS "hysteresis"
 #define DEF_TUN_OUT_HYSTERESIS 20
 #define MIN_TUN_OUT_HYSTERESIS 0
@@ -97,7 +115,7 @@
 #define ARG_TUN_OUT_BONUS "bonus"
 #define DEF_TUN_OUT_BONUS 0
 #define MIN_TUN_OUT_BONUS 0
-#define MAX_TUN_OUT_BONUS MIN(INT32_MAX, (UMETRIC_MULTIPLY_MAX - 100))
+#define MAX_TUN_OUT_BONUS MIN(INT32_MAX, (UMETRIC_MULTIPLY_MAX - MAX_TUN_OUT_HYSTERESIS))
 
 #define ARG_TUN_OUT_MTU "mtu"
 #define DEF_TUN_OUT_MTU 1460
@@ -256,18 +274,46 @@ FIELD_FORMAT_END }
 
 
 
+struct tun_bit_key_nodes {
+
+        struct tun_search_node *tsn;
+        struct tun_net_node *tnn;
+};
+
+struct tun_bit_key {
+
+        uint32_t beIpMetric;
+        UMETRIC_T beInvTunBitMetric;
+        struct net_key invNetKey;
+        struct tun_bit_key_nodes keyNodes;
+};
+
+struct tun_bit_node {
+
+        struct tun_bit_key tunBitKey;
+
+        uint8_t active;
+};
+
 
 
 #define NETWORK_NAME_LEN 32
 
-struct tun_search_key {
-        struct net_key netKey;
-        char netName[NETWORK_NAME_LEN];
-};
+//struct tun_search_key {
+//        struct net_key netKey;
+//        char netName[NETWORK_NAME_LEN];
+//};
 
 struct tun_search_node {
 
-        struct tun_search_key tunSearchKey;
+//        struct tun_search_key tunSearchKey;
+        char nameKey[NETWORK_NAME_LEN];
+
+        struct net_key net;
+        uint8_t netPrefixMin;
+        uint8_t netPrefixMax;
+        uint8_t allowOverlappingLargerPrefixes;
+        uint8_t breakOverlappingSmallerPrefixes;
         
         uint32_t hysteresis;
         uint32_t bonus;
@@ -279,12 +325,15 @@ struct tun_search_node {
 
         uint8_t srcType;
         uint8_t srcPrefixMin;
-        
-        struct tun_net_node *act_tnn;
-        struct tun_net_node *best_tnn;
-        UMETRIC_T best_tnn_metric;
 
-        uint8_t shown;
+//        uint8_t shown;
+
+        struct avl_tree tun_bit_tree;
+
+//        struct tun_net_node *act_tnn; //REMOVE
+//        struct tun_net_node *best_tnn;//REMOVE
+//        UMETRIC_T best_tnn_metric;    //REMOVE
+
 };
 
 struct tun_net_key {
@@ -295,12 +344,16 @@ struct tun_net_key {
 struct tun_net_node {
 
         struct tun_net_key tunNetKey;
-        
+
+        uint32_t eval_counter;
+        uint32_t tlv_new_counter;
+
         FMETRIC_U8_T bandwidth;
 
         UMETRIC_T e2eMetric;
 
-        struct avl_tree tun_search_tree;
+        struct avl_tree tun_bit_tree;
+//        struct avl_tree tun_search_tree;//REMOVE
 };
 
 struct tun_out_key {

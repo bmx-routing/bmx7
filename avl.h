@@ -75,6 +75,7 @@ struct avl_node *avl_find( struct avl_tree *tree, void *key );
 void            *avl_find_item( struct avl_tree *tree, void *key );
 struct avl_node *avl_next( struct avl_tree *tree, void *key );
 void            *avl_next_item(struct avl_tree *tree, void *key);
+void            *avl_first(struct avl_tree *tree);
 void            *avl_first_item(struct avl_tree *tree);
 struct avl_node *avl_iterate(struct avl_tree *tree, struct avl_node *it );
 void            *avl_iterate_item(struct avl_tree *tree, struct avl_node **it );

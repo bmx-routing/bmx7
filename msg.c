@@ -2536,8 +2536,11 @@ void cache_desc_tlv_hashes(uint8_t op, struct orig_node *on, int8_t t_start, int
 
                         if (hn) {
 
-                                if (hn->test_changed)
+                                if (hn->test_changed) {
+                                        hn->prev_hash = hn->curr_hash;
                                         hn->curr_hash = hn->test_hash;
+                                        hn->prev_changed = hn->test_changed;
+                                }
 
                                 if (hn_type != t) {
                                         // remove otherwise forgotten tlv
@@ -2549,8 +2552,11 @@ void cache_desc_tlv_hashes(uint8_t op, struct orig_node *on, int8_t t_start, int
 
                 if (hn) {
 
-                        if (op == TLV_OP_DEL ||
-                                (is_zero(&hn->test_hash, sizeof (SHA1_T)) && is_zero(&hn->curr_hash, sizeof (SHA1_T)))) {
+                        if (op == TLV_OP_DEL || (
+                                is_zero(&hn->test_hash, sizeof (SHA1_T)) &&
+                                is_zero(&hn->curr_hash, sizeof (SHA1_T)) &&
+                                is_zero(&hn->prev_hash, sizeof (SHA1_T))
+                                )) {
 
                                 avl_remove(&on->desc_tlv_hash_tree, &hn->tlv_type, -300453);
                                 debugFree(hn, -300454);

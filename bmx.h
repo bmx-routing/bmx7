@@ -886,10 +886,12 @@ extern struct avl_tree orig_tree;
 //extern struct avl_tree blocked_tree;
 
 struct desc_tlv_hash_node {
+        SHA1_T prev_hash;
         SHA1_T curr_hash;
         SHA1_T test_hash;
         uint8_t tlv_type;
         uint8_t test_changed;
+        uint8_t prev_changed;
 };
 
 

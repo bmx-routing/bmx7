@@ -78,6 +78,7 @@ int32_t policy_routing = POLICY_RT_UNSET;
 static int32_t base_port = DEF_BASE_PORT;
 
 static int32_t Lo_rule = DEF_LO_RULE;
+static int32_t ip_auto_cfg = DEF_AUTOCONFIG;
 
 const IPX_T ZERO_IP = {{{0}}};
 const MAC_T ZERO_MAC = {{0}};
@@ -85,7 +86,7 @@ const MAC_T ZERO_MAC = {{0}};
 //TODO: make this configurable
 static struct net_key llocal_prefix_cfg;
 static struct net_key global_prefix_cfg;
-
+static struct net_key default_autoconfigIp6;
 
 //#define IN6ADDR_ANY_INIT { { { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 } } }
 //#define IN6ADDR_LOOPBACK_INIT { { { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1 } } }
@@ -208,7 +209,7 @@ int open_netlink_socket( void ) {
         int sock = 0;
 	if ( ( sock = socket( AF_NETLINK, SOCK_DGRAM, NETLINK_ROUTE ) ) < 0 ) {
 
-		dbg_sys(DBGT_ERR, "can't create netlink socket for routing table manipulation: %s",
+		dbgf_sys(DBGT_ERR, "can't create netlink socket for routing table manipulation: %s",
 		     strerror(errno) );
 
 		return -1;
@@ -217,7 +218,7 @@ int open_netlink_socket( void ) {
 
 	if ( fcntl( sock, F_SETFL, O_NONBLOCK) < 0 ) {
 
-		dbg_sys(DBGT_ERR, "can't set netlink socket nonblocking : (%s)",  strerror(errno));
+		dbgf_sys(DBGT_ERR, "can't set netlink socket nonblocking : (%s)",  strerror(errno));
 		close(sock);
 		return -1;
 	}
@@ -258,7 +259,7 @@ IDM_T get_if_req(IFNAME_T *dev_name, struct ifreq *if_req, int siocgi_req)
         if ( ioctl( rt_sock, siocgi_req, if_req ) < 0 ) {
 
                 if (siocgi_req != SIOCGIWNAME) {
-                        dbg_sys(DBGT_ERR, "can't get SIOCGI %d of interface %s: %s",
+                        dbgf_sys(DBGT_ERR, "can't get SIOCGI %d of interface %s: %s",
                                 siocgi_req, dev_name->str, strerror(errno));
                 }
                 return FAILURE;
@@ -1172,7 +1173,7 @@ IDM_T rtnl_talk(void *req, int len, uint8_t family, uint8_t cmd, int8_t del, uin
 
         if (sendto(nlsock, req, len, 0, (struct sockaddr *) & nladdr, sizeof (struct sockaddr_nl)) < 0) {
 
-                dbg_sys(DBGT_ERR, "can't send netlink message to kernel: %s", strerror(errno));
+                dbgf_sys(DBGT_ERR, "can't send netlink message to kernel: %s", strerror(errno));
                 EXITERROR(-501095, (0));
 		return FAILURE;
         }
@@ -1707,7 +1708,7 @@ void check_proc_sys_net(char *file, int32_t desired, int32_t *backup)
 	// it is probably better to leave the routing configuration operational as it is!
 	if ( !backup  &&  !Pedantic_cleanup   &&  state != desired ) {
 
-		dbg_mute( 50, DBGL_SYS, DBGT_INFO,
+		dbgf_mute( 50, DBGL_SYS, DBGT_INFO,
 		          "NOT restoring %s to NOT mess up other routing protocols. "
 		          "Use --%s=1 to enforce proper cleanup",
 		          file, ARG_PEDANTIC_CLEANUP );
@@ -1718,7 +1719,7 @@ void check_proc_sys_net(char *file, int32_t desired, int32_t *backup)
 
 	if ( state != desired ) {
 
-		dbg_sys(DBGT_INFO, "changing %s from %d to %d", filename, state, desired );
+		dbgf_sys(DBGT_INFO, "changing %s from %d to %d", filename, state, desired );
 
 		if((f = fopen(filename, "w" )) == NULL) {
 
@@ -1850,7 +1851,7 @@ int8_t dev_bind_sock(int32_t sock, IFNAME_T *name)
 	errno=0;
 
         if (setsockopt(sock, SOL_SOCKET, SO_BINDTODEVICE, name->str, strlen(name->str) + 1) < 0) {
-                dbg_sys(DBGT_ERR, "Can not bind socket to device %s : %s", name->str, strerror(errno));
+                dbgf_sys(DBGT_ERR, "Can not bind socket to device %s : %s", name->str, strerror(errno));
                 return FAILURE;
         }
 
@@ -1870,7 +1871,7 @@ void dev_reconfigure_soft(struct dev_node *dev)
         assertion(-500615, IMPLIES(dev->linklayer == TYP_DEV_LL_LO, dev->if_global_addr));
         
         if (!initializing) {
-                dbg_sys(DBGT_INFO, "%s soft interface configuration changed", dev->label_cfg.str);
+                dbgf_sys(DBGT_INFO, "%s soft interface configuration changed", dev->label_cfg.str);
         }
 
         assertion(-501029, (dev->linklayer == TYP_DEV_LL_WIFI || dev->linklayer == TYP_DEV_LL_LAN || dev->linklayer == TYP_DEV_LL_LO));
@@ -1943,7 +1944,8 @@ void dev_deactivate( struct dev_node *dev )
 {
         TRACE_FUNCTION_CALL;
 
-        dbgf_sys(DBGT_WARN, "deactivating %s=%s %s", ARG_DEV, dev->label_cfg.str, dev->ip_llocal_str);
+        dbgf_sys(DBGT_WARN, "deactivating %s=%s llocal=%s global=%s",
+                ARG_DEV, dev->label_cfg.str, dev->ip_llocal_str, dev->ip_global_str);
 
         if (!is_ip_set(&dev->llocal_ip_key)) {
                 dbgf_sys(DBGT_ERR, "no address given to remove in dev_ip_tree!");
@@ -1959,8 +1961,6 @@ void dev_deactivate( struct dev_node *dev )
                 dev->active = NO;
                 cb_plugin_hooks(PLUGIN_CB_BMX_DEV_EVENT, dev);
         }
-
-
 
 	if ( dev->linklayer != TYP_DEV_LL_LO ) {
 
@@ -2017,7 +2017,7 @@ void dev_deactivate( struct dev_node *dev )
                 my_description_changed = YES;
 
         if (dev == primary_dev_cfg && !terminating) {
-                dbg_mute(30, DBGL_SYS, DBGT_WARN,
+                dbgf_mute(30, DBGL_SYS, DBGT_WARN,
                         "Using an IP on the loopback device as primary interface ensures reachability under your primary IP!");
         }
 
@@ -2039,6 +2039,13 @@ void dev_deactivate( struct dev_node *dev )
                         self->primary_ip = ZERO_IP;
                         ipFToStr(&ZERO_IP, self->primary_ip_str);
                 }
+        }
+
+        if (dev->autoIP6Configured.mask && !dev->activate_again) {
+                //if (dev->if_llocal_addr && dev->if_llocal_addr->iln->flags & IFF_UP)
+                ipaddr(DEL, dev->autoIP6IfIndex, AF_INET6, &dev->autoIP6Configured.ip, dev->autoIP6Configured.mask, NO /*deprecated*/);
+                dev->autoIP6Configured = ZERO_NET6_KEY;
+                dev->autoIP6IfIndex = 0;
         }
 
 
@@ -2099,7 +2106,7 @@ IDM_T dev_init_sockets(struct dev_node *dev)
 
 /*
                 if (setsockopt(dev->unicast_sock, IPPROTO_IPV6, IPV6_MULTICAST_LOOP, &set_on, sizeof (set_on)) < 0) {
-                        dbg_sys(DBGT_ERR, "can't set IPV6_MULTICAST_LOOP:: on unicast socket: %s", strerror(errno));
+                        dbgf_sys(DBGT_ERR, "can't set IPV6_MULTICAST_LOOP:: on unicast socket: %s", strerror(errno));
                         return FAILURE;
                 }
 */
@@ -2136,7 +2143,7 @@ IDM_T dev_init_sockets(struct dev_node *dev)
                 dbgf_sys(DBGT_WARN, "No SO_TIMESTAMP support, despite being defined, falling back to SIOCGSTAMP");
         }
 #else
-        dbg_sys(DBGT_WARN, "No SO_TIMESTAMP support, falling back to SIOCGSTAMP");
+        dbgf_sys(DBGT_WARN, "No SO_TIMESTAMP support, falling back to SIOCGSTAMP");
 #endif
 
 
@@ -2251,7 +2258,7 @@ void dev_activate( struct dev_node *dev )
 		dev->linklayer = TYP_DEV_LL_LO;
 
                 if (!dev->if_global_addr) {
-                        dbg_mute(30, DBGL_SYS, DBGT_WARN, "loopback dev %s MUST be given with global address",
+                        dbgf_mute(30, DBGL_SYS, DBGT_WARN, "loopback dev %s MUST be given with global address",
                                 dev->label_cfg.str);
 
                         cleanup_all(-500621);
@@ -2260,7 +2267,7 @@ void dev_activate( struct dev_node *dev )
                 uint8_t prefixlen = ((AF_CFG == AF_INET) ? IP4_MAX_PREFIXLEN : IP6_MAX_PREFIXLEN);
 
                 if (!dev->if_global_addr || dev->if_global_addr->ifa.ifa_prefixlen != prefixlen) {
-                        dbg_mute(30, DBGL_SYS, DBGT_WARN,
+                        dbgf_mute(30, DBGL_SYS, DBGT_WARN,
                                 "prefix length of loopback interface is %d but SHOULD be %d and global",
                                 dev->if_global_addr->ifa.ifa_prefixlen, prefixlen);
                 }
@@ -2332,6 +2339,7 @@ void dev_activate( struct dev_node *dev )
         }
 
         dev->active = YES;
+        dev->activate_again = NO;
 
 //        assertion(-500595, (primary_dev_cfg));
 
@@ -2524,7 +2532,38 @@ int update_interface_rules(void)
 	return SUCCESS;
 }
 
+STATIC_FUNC
+struct net_key bmx6AutoEUI64Ip6(struct dev_node *dev, uint16_t subNet)
+{
+        struct net_key dev_autoconfigIp6 = ZERO_NET6_KEY;
 
+        if (ip_auto_cfg && dev->if_link && !is_zero(&dev->if_link->addr, sizeof (dev->if_link->addr)) &&
+                (dev->global_prefix_conf_.mask ? dev->global_prefix_conf_.mask :
+                (global_prefix_cfg.mask ? global_prefix_cfg.mask : DEF_AUTOCONF_MASK))
+                == DEF_AUTOCONF_MASK) {
+
+                dev_autoconfigIp6 = dev->global_prefix_conf_.mask ? dev->global_prefix_conf_ :
+                        ((global_prefix_cfg.mask ? global_prefix_cfg : default_autoconfigIp6));
+
+                dev_autoconfigIp6.mask = DEF_AUTOCONF_MASK_DEV;
+
+                dev_autoconfigIp6.ip.s6_addr16[3] = htobe16(subNet);
+
+                dev_autoconfigIp6.ip.s6_addr[8 ] = dev->if_link->addr.u8[0];
+                dev_autoconfigIp6.ip.s6_addr[9 ] = dev->if_link->addr.u8[1];
+                dev_autoconfigIp6.ip.s6_addr[10] = dev->if_link->addr.u8[2];
+                dev_autoconfigIp6.ip.s6_addr[11] = 0xFF;
+                dev_autoconfigIp6.ip.s6_addr[12] = 0xFE;
+                dev_autoconfigIp6.ip.s6_addr[13] = dev->if_link->addr.u8[3];
+                dev_autoconfigIp6.ip.s6_addr[14] = dev->if_link->addr.u8[4];
+                dev_autoconfigIp6.ip.s6_addr[15] = dev->if_link->addr.u8[5];
+
+                // toggle the U/L bit (  http://en.wikipedia.org/wiki/IPv6_address#Modified_EUI-64 )
+                dev_autoconfigIp6.ip.s6_addr[8 ] |= 2;
+        }
+        
+        return dev_autoconfigIp6;
+}
 
 STATIC_INLINE_FUNC
 void dev_if_fix(void)
@@ -2568,6 +2607,7 @@ void dev_if_fix(void)
 
                 struct if_addr_node *ian;
                 struct avl_node *aan;
+                struct net_key autoIP6 = bmx6AutoEUI64Ip6(dev, DEF_AUTOCONF_SUBNET_NODEROUTE);
 
                 for (aan = NULL; (ian = avl_iterate_item(&dev->if_link->if_addr_tree, &aan));) {
 
@@ -2604,36 +2644,48 @@ void dev_if_fix(void)
                                 }
                         }
 
-                        if ((AF_CFG == AF_INET || !is_ip6llocal) && (/*dev == primary_dev_cfg ||*/ dev->announce)) {
 
-                                if (!dev->if_global_addr && dev->global_prefix_conf_.mask &&
+                        if ((AF_CFG == AF_INET6 && !is_ip6llocal) && ip_auto_cfg && dev->announce && !dev->if_global_addr && autoIP6.mask) {
+
+                                if (is_ip_equal(&autoIP6.ip, &ian->ip_addr) && autoIP6.mask == ian->ifa.ifa_prefixlen) {
+
+                                        dev->if_global_addr = ian;
+                                }
+
+                        } else if ((AF_CFG == AF_INET || !is_ip6llocal) && !ip_auto_cfg && dev->announce && !dev->if_global_addr) {
+
+                                if (dev->global_prefix_conf_.mask &&
                                         is_ip_net_equal(&dev->global_prefix_conf_.ip, &ian->ip_addr, dev->global_prefix_conf_.mask, dev->global_prefix_conf_.af)) {
 
                                         dev->if_global_addr = ian;
 
-                                } else if (!dev->if_global_addr && !dev->global_prefix_conf_.mask && global_prefix_cfg.mask &&
+                                } else if (!dev->global_prefix_conf_.mask && global_prefix_cfg.mask &&
                                         is_ip_net_equal(&global_prefix_cfg.ip, &ian->ip_addr, global_prefix_cfg.mask, global_prefix_cfg.af)) {
 
                                         dev->if_global_addr = ian;
 
-                                } else if (!dev->if_global_addr && !dev->global_prefix_conf_.mask && !global_prefix_cfg.mask) {
+                                } else if (!dev->global_prefix_conf_.mask && !global_prefix_cfg.mask) {
 
                                         dev->if_global_addr = ian;
-
-/*
-                                } else if (dev->if_global_addr) {
-
-                                        dbgf_sys(DBGT_WARN, "discarded global IP=%s dev=%s (selected %s)! Use %s to refine",
-                                                ipXAsStr(af_cfg, &ian->ip_addr), ian->label.str,
-                                                dev->if_global_addr ? ipXAsStr(af_cfg, &dev->if_global_addr->ip_addr) : "NONE",
-                                                ARG_DEV_GLOBAL_PREFIX);
-*/
-
                                 }
+/*
+                        } else if (dev->if_global_addr) {
+
+                                dbgf_sys(DBGT_WARN, "discarded global IP=%s dev=%s (selected %s)! Use %s to refine",
+                                        ipXAsStr(af_cfg, &ian->ip_addr), ian->label.str,
+                                        dev->if_global_addr ? ipXAsStr(af_cfg, &dev->if_global_addr->ip_addr) : "NONE",
+                                        ARG_DEV_GLOBAL_PREFIX);
+*/
                         }
-
-
                 }
+
+                if (AF_CFG == AF_INET6 && ip_auto_cfg && dev->announce && !dev->if_global_addr && autoIP6.mask) {
+
+                        ipaddr(ADD, dev->if_link->index, AF_INET6, &autoIP6.ip, autoIP6.mask, NO /*deprecated*/);
+                        dev->autoIP6Configured = autoIP6;
+                        dev->autoIP6IfIndex = dev->if_link->index;
+                }
+
 
                 if (wordsEqual(DEV_LO, dev->name_phy_cfg.str)) {
                         // the loopback interface usually does not need a link-local address, BUT BMX needs one
@@ -2647,7 +2699,7 @@ void dev_if_fix(void)
                 if (dev->if_llocal_addr) {
                         dev->if_llocal_addr->dev = dev;
                 } else {
-                        dbg_mute(30, DBGL_SYS, DBGT_ERR, "No link-local IP for %s=%s !", ARG_DEV, dev->label_cfg.str);
+                        dbgf_mute(30, DBGL_SYS, DBGT_ERR, "No link-local IP for %s=%s !", ARG_DEV, dev->label_cfg.str);
                 }
 
                 if (dev->if_global_addr && dev->if_llocal_addr) {
@@ -2661,7 +2713,7 @@ void dev_if_fix(void)
                 } else {
                         if (/*dev == primary_dev_cfg ||*/ dev->announce) {
 
-                                dbg_mute(30, DBGL_SYS, DBGT_ERR,
+                                dbgf_mute(30, DBGL_SYS, DBGT_ERR,
                                         "No global IP for %s=%s ! DEACTIVATING !!!", ARG_DEV, dev->label_cfg.str);
 
                                 if (dev->if_llocal_addr) {
@@ -2702,7 +2754,7 @@ static void dev_check(IDM_T kernel_ip_config_changed)
                         dev->activate_again = NO;
 
                         if (dev->active) {
-                                dbg_sys(DBGT_WARN, "detected changed but used %sprimary dev=%s ! Deactivating now...",
+                                dbgf_sys(DBGT_WARN, "detected changed but used %sprimary dev=%s ! Deactivating now...",
                                         (dev == primary_dev_cfg ? "" : "non-"), dev->label_cfg.str);
 
                                 dev_deactivate(dev);
@@ -2728,31 +2780,31 @@ static void dev_check(IDM_T kernel_ip_config_changed)
 
                         if (tmp_dev && !wordsEqual(tmp_dev->name_phy_cfg.str, dev->name_phy_cfg.str)) {
 
-                                dbg_sys(DBGT_ERR, "%s=%s IP %-15s already used for IF %s",
+                                dbgf_sys(DBGT_ERR, "%s=%s IP %-15s already used for IF %s",
                                        ARG_DEV, dev->label_cfg.str, dev->ip_llocal_str, tmp_dev->label_cfg.str);
 
                         } else if (dev->announce && !dev->if_global_addr) {
 
-                                dbg_sys(DBGT_ERR,
+                                dbgf_sys(DBGT_ERR,
                                         "%s=%s %s but no global addr", ARG_DEV, dev->label_cfg.str, "to-be announced");
 
                         } else if (dev == primary_dev_cfg && !dev->if_global_addr) {
 
-                                dbg_sys(DBGT_ERR,
+                                dbgf_sys(DBGT_ERR,
                                         "%s=%s %s but no global addr", ARG_DEV, dev->label_cfg.str, "primary dev");
 
                         } else if (wordsEqual(DEV_LO, dev->name_phy_cfg.str) && !dev->if_global_addr) {
 
-                                dbg_sys(DBGT_ERR,
+                                dbgf_sys(DBGT_ERR,
                                         "%s=%s %s but no global addr", ARG_DEV, dev->label_cfg.str, "loopback");
 
                         } else if (dev_ip_tree.items == DEVADV_IDX_MAX) {
 
-                                dbg_sys(DBGT_ERR, "too much active interfaces");
+                                dbgf_sys(DBGT_ERR, "too much active interfaces");
 
                         } else  {
 
-                                dbg_sys(DBGT_WARN, "detected valid but disabled dev=%s ! Activating now...",
+                                dbgf_sys(DBGT_WARN, "detected valid but disabled dev=%s ! Activating now...",
                                         dev->label_cfg.str);
 
                                 dev_activate(dev);
@@ -2763,7 +2815,7 @@ static void dev_check(IDM_T kernel_ip_config_changed)
 
 /*
                         if (initializing && dev == primary_dev_cfg) {
-				dbg_sys(DBGT_ERR,
+				dbgf_sys(DBGT_ERR,
                                         "at least primary %s=%s MUST be operational at startup! "
                                         "Use loopback (e.g. ip addr add fd01:2345::6789/128 dev lo) if nothing else is available!",
                                         ARG_DEV, dev->label_cfg.str);
@@ -2772,7 +2824,7 @@ static void dev_check(IDM_T kernel_ip_config_changed)
                         }
 */
 
-                        dbg_sys(DBGT_WARN, "not using interface %s (retrying later): %s %s ila=%d iln=%d",
+                        dbgf_sys(DBGT_WARN, "not using interface %s (retrying later): %s %s ila=%d iln=%d",
                                 dev->label_cfg.str, iff_up ? "UP" : "DOWN",
                                 dev->hard_conf_changed ? "CHANGED" : "UNCHANGED",
                                 dev->if_llocal_addr ? 1 : 0, dev->if_llocal_addr && dev->if_llocal_addr->iln ? 1 : 0);
@@ -2842,7 +2894,7 @@ static int open_ifevent_netlink_sk(void)
 
 
 	if ( ( ifevent_sk = socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE) ) < 0 ) {
-		dbg_sys(DBGT_ERR, "can't create af_netlink socket for reacting on if up/down events: %s",
+		dbgf_sys(DBGT_ERR, "can't create af_netlink socket for reacting on if up/down events: %s",
 		     strerror(errno) );
 		ifevent_sk = 0;
 		return -1;
@@ -2853,7 +2905,7 @@ static int open_ifevent_netlink_sk(void)
 	fcntl( ifevent_sk, F_SETFL, unix_opts | O_NONBLOCK );
 
 	if ( ( bind( ifevent_sk, (struct sockaddr*)&sa, sizeof(sa) ) ) < 0 ) {
-		dbg_sys(DBGT_ERR, "can't bind af_netlink socket for reacting on if up/down events: %s",
+		dbgf_sys(DBGT_ERR, "can't bind af_netlink socket for reacting on if up/down events: %s",
 		     strerror(errno) );
 		ifevent_sk = 0;
 		return -1;
@@ -2896,7 +2948,7 @@ IDM_T is_policy_rt_supported(void)
 
         } else {
 
-                dbg_sys(DBGT_ERR, "Disabled policy-routing for IPv%d! (Kernel requires %s,...)",
+                dbgf_sys(DBGT_ERR, "Disabled policy-routing for IPv%d! (Kernel requires %s,...)",
                         net.af == AF_INET ? 4 : 6,
                         net.af == AF_INET ? "IP_MULTIPLE_TABLES" : "CONFIG_IPV6_MULTIPLE_TABLES");
 
@@ -3110,7 +3162,22 @@ int32_t opt_dev_prefix(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
 {
 	TRACE_FUNCTION_CALL;
 
-        if ((cmd == OPT_ADJUST || cmd == OPT_CHECK || cmd == OPT_APPLY)) {
+
+        if (!strcmp(opt->name, ARG_AUTOCONFIG)) {
+
+                if (cmd == OPT_APPLY) {
+                        struct avl_node *an = NULL;
+                        struct dev_node *dev;
+
+                        while ((dev = avl_iterate_item(&dev_name_tree, &an))) {
+                                dbgf_track(DBGT_INFO, "applying %s %s=%s", dev->label_cfg.str, opt->name, patch->val);
+
+                                dev->hard_conf_changed = YES;
+                                opt_dev_changed = YES;
+                        }
+                }
+
+        } else if ((cmd == OPT_ADJUST || cmd == OPT_CHECK || cmd == OPT_APPLY)) {
 
                 IDM_T is_global_prefix = (!strcmp(opt->name, ARG_GLOBAL_PREFIX));
                 struct net_key prefix = ZERO_NETCFG_KEY;
@@ -3122,7 +3189,7 @@ int32_t opt_dev_prefix(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                                 is_ip_net_equal(&prefix.ip, &IP6_MC_PREF, IP6_MC_PLEN, AF_INET6) ||
                                 XOR(is_global_prefix, !is_ip_net_equal(&prefix.ip, &IP6_LINKLOCAL_UC_PREF, IP6_LINKLOCAL_UC_PLEN, AF_INET6))))
                                 ) {
-                                dbg_cn(cn, DBGL_SYS, DBGT_ERR, "invalid prefix %s", netAsStr(&prefix));
+                                dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "invalid prefix %s", netAsStr(&prefix));
                                 return FAILURE;
                         }
 
@@ -3138,8 +3205,8 @@ int32_t opt_dev_prefix(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                                 //mark all dev that are note specified more precise:
                                 if (is_global_prefix ? !dev->global_prefix_conf_.mask : !dev->llocal_prefix_conf_.mask) {
 
-                                        dbgf_track(DBGT_INFO, "applying %s %s=%s hard_conf_changed=%d",
-                                                dev->label_cfg.str, opt->name, patch->val, dev->hard_conf_changed);
+                                        dbgf_track(DBGT_INFO, "applying %s %s=%s",
+                                                dev->label_cfg.str, opt->name, patch->val);
 
                                         dev->hard_conf_changed = YES;
                                         opt_dev_changed = YES;
@@ -3168,7 +3235,7 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
         if (cmd == OPT_ADJUST || cmd == OPT_CHECK || cmd == OPT_APPLY) {
 
 		if ( strlen(patch->val) >= IFNAMSIZ ) {
-			dbg_cn( cn, DBGL_SYS, DBGT_ERR, "dev name MUST be smaller than %d chars", IFNAMSIZ );
+			dbgf_cn( cn, DBGL_SYS, DBGT_ERR, "dev name MUST be smaller than %d chars", IFNAMSIZ );
 			return FAILURE;
                 }
 
@@ -3184,7 +3251,7 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
                 dev = dev_get_by_name(phy_name);
 
                 if ( dev && strcmp(dev->label_cfg.str, patch->val)) {
-                        dbg_cn(cn, DBGL_SYS, DBGT_ERR,
+                        dbgf_cn(cn, DBGL_SYS, DBGT_ERR,
                                 "%s=%s (%s) already used for %s=%s %s!",
                                 opt->name, patch->val, phy_name, opt->name, dev->label_cfg.str, dev->ip_llocal_str);
 
@@ -3196,7 +3263,7 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
 /*
                         if (dev && dev == primary_dev_cfg) {
 
-                                dbg_cn(cn, DBGL_SYS, DBGT_ERR,
+                                dbgf_cn(cn, DBGL_SYS, DBGT_ERR,
                                         "primary interface %s %s can not be removed!",
                                         dev->label_cfg.str, dev->ip_llocal_str);
 
@@ -3307,7 +3374,7 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
                                                 XOR(is_global_prefix, !is_ip_net_equal(&prefix.ip, &IP6_LINKLOCAL_UC_PREF, IP6_LINKLOCAL_UC_PLEN, AF_INET6))))
                                                 ) {
 
-                                                dbg_cn(cn, DBGL_SYS, DBGT_ERR, "invalid interface prefix %s", netAsStr(&prefix));
+                                                dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "invalid interface prefix %s", netAsStr(&prefix));
                                                 return FAILURE;
                                         }
 
@@ -3400,7 +3467,7 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
 /*
         } else if (cmd == OPT_POST && !primary_dev_cfg) {
 
-                dbg_sys(DBGT_ERR, "No interface configured!");
+                dbgf_sys(DBGT_ERR, "No interface configured!");
 
                 cleanup_all( CLEANUP_FAILURE );
 */
@@ -3462,7 +3529,9 @@ static struct opt_type ip_options[]=
 	{ODI,0,ARG_LLOCAL_PREFIX,	0,  5,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_dev_prefix,
 			ARG_PREFIX_FORM,HLP_LLOCAL_PREFIX}
         ,
-
+	{ODI,0,ARG_AUTOCONFIG,          'A',5,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&ip_auto_cfg,	MIN_AUTOCONFIG,	MAX_AUTOCONFIG, DEF_AUTOCONFIG,0,opt_dev_prefix,
+			ARG_VALUE_FORM,	HLP_AUTOCONFIG}
+        ,
 	{ODI,0,ARG_DEV,		        'i',5,2,A_PM1N,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0, 		0,		0,0, 		opt_dev,
 			"<interface-name>", HLP_DEV}
         ,
@@ -3501,8 +3570,9 @@ void init_ip(void)
         assertion(-501254, is_zero((void*) &ZERO_NET_KEY, sizeof (ZERO_NET_KEY)));
         assertion(-501336, is_zero((void*) &llocal_prefix_cfg, sizeof (llocal_prefix_cfg)));
         assertion(-501337, is_zero((void*) &global_prefix_cfg, sizeof (global_prefix_cfg)));
+        assertion(-500000, is_zero((void*) &default_autoconfigIp6, sizeof (default_autoconfigIp6)));
 
-
+        str2netw(DEF_AUTOCONF_PREFIX_DEV, &default_autoconfigIp6.ip, NULL, &default_autoconfigIp6.mask, &default_autoconfigIp6.af, NO);
 
         if (rtnl_open(&ip_rth) != SUCCESS) {
                 dbgf_sys(DBGT_ERR, "failed opening rtnl socket");
@@ -3555,27 +3625,8 @@ void cleanup_ip(void)
 
         kernel_if_fix(YES,0);
 
+
         sysctl_restore(NULL);
-
-        if (ip_rth.fd >= 0) {
-                close(ip_rth.fd);
-                ip_rth.fd = -1;
-        }
-
-        if ( rt_sock )
-		close( rt_sock );
-
-	rt_sock = 0;
-
-
-        if( nlsock_default > 0 )
-                close( nlsock_default );
-        nlsock_default = 0;
-
-
-        if (nlsock_flush_all> 0)
-                close( nlsock_flush_all );
-        nlsock_flush_all = 0;
 
 
         while (dev_name_tree.items) {
@@ -3588,8 +3639,33 @@ void cleanup_ip(void)
                 avl_remove(&dev_name_tree, &dev->name_phy_cfg, -300204);
 
                 debugFree(dev, -300046);
-
         }
+
+
+        if (ip_rth.fd >= 0) {
+                close(ip_rth.fd);
+                ip_rth.fd = -1;
+        }
+
+
+        if ( rt_sock ) {
+                close(rt_sock);
+                rt_sock = 0;
+        }
+
+
+        if( nlsock_default > 0 ) {
+                close(nlsock_default);
+                nlsock_default = 0;
+        }
+
+
+        if (nlsock_flush_all > 0) {
+                close(nlsock_flush_all);
+                nlsock_flush_all = 0;
+        }
+
+
 
 }
 

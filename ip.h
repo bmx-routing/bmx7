@@ -60,6 +60,23 @@ typedef struct ifname IFNAME_T;
 #define ARG_GLOBAL_PREFIX "globalPrefix"
 #define HLP_GLOBAL_PREFIX "specify global prefix for interfaces"
 
+
+#define DEF_AUTOCONF_PREFIX           "fd66:66:66::/48"
+#define DEF_AUTOCONF_PREFIX_DEV       "fd66:66:66::/64"
+#define DEF_AUTOCONF_PREFIX_REMOTETUN "fd66:66:66:ffff::/64"
+#define DEF_AUTOCONF_MASK 48           // DO NOT CHANGE THIS
+#define DEF_AUTOCONF_MASK_DEV 64       // DO NOT CHANGE THIS
+#define DEF_AUTOCONF_MASK_REMOTETUN 64 // DO NOT CHANGE THIS
+#define DEF_AUTOCONF_SUBNET_NODEROUTE 0x0000
+#define DEF_AUTOCONF_SUBNET_TUNDUMMY 0xFFFF
+
+#define ARG_AUTOCONFIG "autoConfig"
+#define DEF_AUTOCONFIG 0
+#define MIN_AUTOCONFIG 0
+#define MAX_AUTOCONFIG 1
+#define HLP_AUTOCONFIG "Autoconfigure IPv6 interface addresses using BMX6 default ULA prefix (" DEF_AUTOCONF_PREFIX ") or specified " ARG_GLOBAL_PREFIX " (MUST be /48)"
+
+
 #define ARG_INTERFACES "interfaces"
 
 
@@ -372,6 +389,8 @@ struct dev_node {
 
 	int8_t hard_conf_changed;
 	int8_t soft_conf_changed;
+        struct net_key autoIP6Configured;
+        int autoIP6IfIndex;
 	uint8_t active;
 	uint8_t activate_again;
 	uint16_t lndevs_tmp;

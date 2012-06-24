@@ -872,7 +872,7 @@ static struct opt_type config_options[]= {
 	{ODI,0,ARG_RELOAD_CONFIG,	0,  1,1,A_PS0,A_ADM,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_conf_reload,
 			0,		"dynamically reload config file"},
 	
-	{ODI,0,ARG_SHOW_CONFIG,	        0,  5,1,A_PS0,A_ADM,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_show_conf,
+	{ODI,0,ARG_SHOW_CONFIG,	        0,  9,1,A_PS0,A_ADM,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_show_conf,
 			0,		"show current config as it could be saved to " ARG_CONFIG_FILE }
 };
 

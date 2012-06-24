@@ -1053,6 +1053,8 @@ void register_option(struct opt_type *opt, const char * category_name)
         assertion(-501229, IMPLIES(opt->parent_name, !strchr(opt->parent_name, '-')));
         assertion(-501230, IMPLIES(opt->name, !strchr(opt->name, '-')));
 
+//        assertion(-500000, (opt->order != 5));
+
 
         // these are the valid combinations:
 	if ( !( 
@@ -2997,14 +2999,14 @@ static struct opt_type control_options[]=
 {
 //        ord parent long_name          shrt Attributes				*ival		min		max		default		*func,*syntax,*help
 		
-	{ODI,0,ARG_HELP,		'h',0,2,A_PS0N,A_USR,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_help,
+	{ODI,0,ARG_HELP,		'h',9,2,A_PS0N,A_USR,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_help,
 			0,		"summarize help"},
-	{ODI,ARG_HELP,ARG_RELEVANCE,    'r',0,2,A_CS1,A_USR,A_DYI,A_ARG,A_ANY,	0,	       MIN_RELEVANCE,   MAX_RELEVANCE,  DEF_RELEVANCE,0, opt_help,
+	{ODI,ARG_HELP,ARG_RELEVANCE,    'r',9,2,A_CS1,A_USR,A_DYI,A_ARG,A_ANY,	0,	       MIN_RELEVANCE,   MAX_RELEVANCE,  DEF_RELEVANCE,0, opt_help,
 			ARG_VALUE_FORM,	HLP_ARG_RELEVANCE}
         ,
-	{ODI,0,ARG_VERBOSE_HELP,	'H',0,2,A_PS0N,A_USR,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_help,
+	{ODI,0,ARG_VERBOSE_HELP,	'H',9,2,A_PS0N,A_USR,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_help,
 			0,		"show verbose help"},
-	{ODI,ARG_VERBOSE_HELP,ARG_RELEVANCE,'r',0,2,A_CS1,A_USR,A_DYI,A_ARG,A_ANY,	0,	       MIN_RELEVANCE,   MAX_RELEVANCE,  DEF_RELEVANCE,0, opt_help,
+	{ODI,ARG_VERBOSE_HELP,ARG_RELEVANCE,'r',9,2,A_CS1,A_USR,A_DYI,A_ARG,A_ANY,	0,	       MIN_RELEVANCE,   MAX_RELEVANCE,  DEF_RELEVANCE,0, opt_help,
 			ARG_VALUE_FORM,	HLP_ARG_RELEVANCE}
         ,
 		
@@ -3044,15 +3046,15 @@ static struct opt_type control_options[]=
 			0,		"set client mode. Connect and forward remaining args to main routing daemon"},
 
 	//order=5: so when used during startup it also shows the config-file options	
-	{ODI,0,ARG_SHOW_PARAMETER,	'p',5,2,A_PS0,A_ADM,A_DYI,A_ARG,A_ANY,	0,		0,		0,		0,0, 		opt_show_parameter,
+	{ODI,0,ARG_SHOW_PARAMETER,	'p',9,2,A_PS0,A_ADM,A_DYI,A_ARG,A_ANY,	0,		0,		0,		0,0, 		opt_show_parameter,
 			0,		"show configured parameters"}
         ,
 
-        {ODI,0,"dbgMuteTimeout",	0,  5,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&dbg_mute_to,	0,		10000000,	100000,0,		0,
+        {ODI,0,"dbgMuteTimeout",	0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&dbg_mute_to,	0,		10000000,	100000,0,		0,
 			ARG_VALUE_FORM,	"set timeout in ms for muting frequent messages"},
 
 		
-	{ODI,0,ARG_QUIT,CHR_QUIT,    5,0,A_PS0,A_USR,A_DYN,A_ARG,A_END,	        0,		0, 		0,		0,0, 		opt_quit_connection,0,0}
+	{ODI,0,ARG_QUIT,CHR_QUIT,    9,0,A_PS0,A_USR,A_DYN,A_ARG,A_END,	        0,		0, 		0,		0,0, 		opt_quit_connection,0,0}
 };
 
 void init_control(void)

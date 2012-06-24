@@ -77,7 +77,9 @@ int32_t policy_routing = POLICY_RT_UNSET;
 
 static int32_t base_port = DEF_BASE_PORT;
 
+#ifdef WITH_UNUSED
 static int32_t Lo_rule = DEF_LO_RULE;
+#endif
 static int32_t ip_auto_cfg = DEF_AUTOCONFIG;
 
 const IPX_T ZERO_IP = {{{0}}};
@@ -3519,48 +3521,48 @@ static struct opt_type ip_options[]=
 	{ODI,ARG_IP,ARG_IP_TABLE_TUN, 0, 3,1,A_CS1,A_ADM,A_INI,A_CFA,A_ANY,	&ip_table_tun_cfg,	MIN_IP_TABLE_TUN,   MAX_IP_TABLE_TUN,   DEF_IP_TABLE_TUN,0,     opt_ip_version,
 			ARG_VALUE_FORM,	"specify iprout2 table for tunnel networks"}
 
-#ifndef WITH_UNUSED
+#ifdef WITH_UNUSED
         ,
         {ODI,0,"lo_rule",		0,  4,0,A_PS1,A_ADM,A_INI,A_CFA,A_ANY,	&Lo_rule,	0, 		1,		DEF_LO_RULE,0,	0,
 			ARG_VALUE_FORM,	"disable/enable autoconfiguration of lo rule"}
 #endif
         ,
-	{ODI,0,ARG_INTERFACES,	        0,  5,2,A_PS0,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
+	{ODI,0,ARG_INTERFACES,	        0,  9,2,A_PS0,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
 			0,		"show interfaces\n"}
         ,
 
-	{ODI,0,ARG_GLOBAL_PREFIX,	0,  5,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_dev_prefix,
+	{ODI,0,ARG_GLOBAL_PREFIX,	0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_dev_prefix,
 			ARG_PREFIX_FORM,HLP_GLOBAL_PREFIX}
         ,
-	{ODI,0,ARG_LLOCAL_PREFIX,	0,  5,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_dev_prefix,
+	{ODI,0,ARG_LLOCAL_PREFIX,	0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_dev_prefix,
 			ARG_PREFIX_FORM,HLP_LLOCAL_PREFIX}
         ,
-	{ODI,0,ARG_AUTOCONFIG,          'A',5,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&ip_auto_cfg,	MIN_AUTOCONFIG,	MAX_AUTOCONFIG, DEF_AUTOCONFIG,0,opt_dev_prefix,
+	{ODI,0,ARG_AUTOCONFIG,          'A',9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&ip_auto_cfg,	MIN_AUTOCONFIG,	MAX_AUTOCONFIG, DEF_AUTOCONFIG,0,opt_dev_prefix,
 			ARG_VALUE_FORM,	HLP_AUTOCONFIG}
         ,
-	{ODI,0,ARG_DEV,		        'i',5,2,A_PM1N,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0, 		0,		0,0, 		opt_dev,
+	{ODI,0,ARG_DEV,		        'i',9,2,A_PM1N,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0, 		0,		0,0, 		opt_dev,
 			"<interface-name>", HLP_DEV}
         ,
-	{ODI,ARG_DEV,ARG_DEV_ANNOUNCE,  'a',5,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		1,		DEF_DEV_ANNOUNCE,0,opt_dev,
+	{ODI,ARG_DEV,ARG_DEV_ANNOUNCE,  'a',9,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		1,		DEF_DEV_ANNOUNCE,0,opt_dev,
 			ARG_VALUE_FORM,	HLP_DEV_ANNOUNCE}
         ,
-	{ODI,ARG_DEV,ARG_DEV_LL,	 'l',5,0,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		MIN_DEV_LL,	MAX_DEV_LL,     DEF_DEV_LL,0,	opt_dev,
+	{ODI,ARG_DEV,ARG_DEV_LL,	 'l',9,0,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		MIN_DEV_LL,	MAX_DEV_LL,     DEF_DEV_LL,0,	opt_dev,
 			ARG_VALUE_FORM,	HLP_DEV_LL}
         ,
-	{ODI,ARG_DEV,ARG_DEV_GLOBAL_PREFIX,0, 5,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,  0,		0,              0,              0,0,              opt_dev,
+	{ODI,ARG_DEV,ARG_DEV_GLOBAL_PREFIX,0, 9,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,  0,		0,              0,              0,0,              opt_dev,
 			ARG_VALUE_FORM,	HLP_DEV_GLOBAL_PREFIX}
         ,
-	{ODI,ARG_DEV,ARG_DEV_LLOCAL_PREFIX,0, 5,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,  0,		0,              0,              0,0,              opt_dev,
+	{ODI,ARG_DEV,ARG_DEV_LLOCAL_PREFIX,0, 9,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,  0,		0,              0,              0,0,              opt_dev,
 			ARG_VALUE_FORM,	HLP_DEV_LLOCAL_PREFIX}
         ,
-	{ODI,ARG_DEV,ARG_DEV_BITRATE_MAX,'r',5,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,              0,              0,0,              opt_dev,
+	{ODI,ARG_DEV,ARG_DEV_BITRATE_MAX,'r',9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,              0,              0,0,              opt_dev,
 			ARG_VALUE_FORM,	HLP_DEV_BITRATE_MAX}
         ,
-	{ODI,ARG_DEV,ARG_DEV_BITRATE_MIN, 0, 5,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,              0,              0,0,              opt_dev,
+	{ODI,ARG_DEV,ARG_DEV_BITRATE_MIN, 0, 9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,              0,              0,0,              opt_dev,
 			ARG_VALUE_FORM,	HLP_DEV_BITRATE_MIN}
 
         ,
-	{ODI,0,ARG_PEDANTIC_CLEANUP,	  0, 5,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&Pedantic_cleanup,0,		1,		DEF_PEDANTIC_CLEANUP,0,0,
+	{ODI,0,ARG_PEDANTIC_CLEANUP,	  0, 9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&Pedantic_cleanup,0,		1,		DEF_PEDANTIC_CLEANUP,0,0,
 			ARG_VALUE_FORM,	"disable/enable pedantic cleanup of system configuration (like ip_forward,..) \n"
 			"	at program termination. Its generally safer to keep this disabled to not mess up \n"
 			"	with other routing protocols"}

@@ -305,7 +305,7 @@ STATIC_FUNC
 struct opt_type niit_options[]= {
 //     		ord parent long_name   shrt Attributes				*ival		min		max		default		*function
 
-	{ODI,0,ARG_NIIT4_ADDRESS,        0,  5,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_niit4_address,
+	{ODI,0,ARG_NIIT4_ADDRESS,        0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_niit4_address,
 			ARG_PREFIX_FORM,"specify default niit IPv4 tunnel address (IP SHOULD be announced and assigned to niit4to6 interface!)"},
 
 };

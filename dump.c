@@ -367,10 +367,10 @@ struct opt_type dump_options[]=
 {
 //       ord parent long_name             shrt Attributes                            *ival              min                 max                default              *func,*syntax,*help
 
-        {ODI, 0, ARG_DUMP_REGRESSION_EXP,  0,  5,1, A_PS1, A_ADM, A_DYN, A_ARG, A_ANY, &dump_regression_exp,MIN_DUMP_REGRESSION_EXP,MAX_DUMP_REGRESSION_EXP,DEF_DUMP_REGRESSION_EXP,0,0,
+        {ODI, 0, ARG_DUMP_REGRESSION_EXP,  0,  9,1, A_PS1, A_ADM, A_DYN, A_ARG, A_ANY, &dump_regression_exp,MIN_DUMP_REGRESSION_EXP,MAX_DUMP_REGRESSION_EXP,DEF_DUMP_REGRESSION_EXP,0,0,
 			ARG_VALUE_FORM,	"set regression exponent for traffic-dump statistics "}
         ,
-	{ODI, 0, ARG_DUMP,     	           0,  5,1, A_PS1, A_USR, A_DYN, A_ARG, A_ANY, 0,                 0,                  0,                 0,0,                  opt_traffic_statistics,
+	{ODI, 0, ARG_DUMP,     	           0,  9,1, A_PS1, A_USR, A_DYN, A_ARG, A_ANY, 0,                 0,                  0,                 0,0,                  opt_traffic_statistics,
 			"<DEV>",		"show traffic statistics for given device name, summary, or all\n"}
 
 };

@@ -255,10 +255,10 @@ static int32_t opt_http_port ( uint8_t cmd, uint8_t _save, struct opt_type *opt,
 static struct opt_type http_info_options[]= {
 //        ord parent long_name          shrt Attributes				*ival		min		max		default		*func,*syntax,*help
 	
-	{ODI,0,HTTP_INFO_PORT,	        0,5,2, A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&http_info_port,0, 		64000,		0,0, 		opt_http_port,
+	{ODI,0,HTTP_INFO_PORT,	        0,9,2, A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&http_info_port,0, 		64000,		0,0, 		opt_http_port,
 			ARG_PORT_FORM,	"set tcp port for http_info plugin" },
 		
-	{ODI,0,HTTP_INFO_GLOB_ACCESS,	0,5,2, A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&http_access,	0, 		1,		0,0, 		0,
+	{ODI,0,HTTP_INFO_GLOB_ACCESS,	0,9,2, A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&http_access,	0, 		1,		0,0, 		0,
 			ARG_VALUE_FORM,	"disable/enable global accessibility of http_info plugin via configured tcp port" }
 	
 };

@@ -29,7 +29,7 @@
 
 #define MIN_IP_METRIC      0
 #define MAX_IP_METRIC      U32_MAX
-#define DEF_IP_METRIC      0
+#define DEF_IP_METRIC      1024
 #define ARG_IP_METRIC      "ipMetric"
 
 #define ARG_TUN6_ADDRESS  "tun6Address"

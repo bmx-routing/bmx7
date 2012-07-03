@@ -173,7 +173,7 @@ typedef struct ifname IFNAME_T;
 #define ARG_IP_RULE_TUN "tablePrefTuns"
 #define MIN_IP_RULE_TUN 3
 #define MAX_IP_RULE_TUN 64000
-#define DEF_IP_RULE_TUN 32766
+#define DEF_IP_RULE_TUN 6000 //32766
 
 #define RT_TABLE_MAX   -1
 //#define RT_TABLE_HOSTS -1
@@ -194,7 +194,7 @@ typedef struct ifname IFNAME_T;
 #define DEF_IP_TABLE_MAIN 254
 
 #define ARG_IP_TABLE_TUN "tableTuns"
-#define DEF_IP_TABLE_TUN 254 //avoid conflicts with bmxd and others
+#define DEF_IP_TABLE_TUN 61 //254 //avoid conflicts with bmxd and others
 #define MIN_IP_TABLE_TUN 0
 #define MAX_IP_TABLE_TUN 32000
 

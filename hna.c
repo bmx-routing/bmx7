@@ -333,6 +333,10 @@ struct hna_node * find_overlapping_hna( IPX_T *ipX, uint8_t prefixlen, struct or
         return NULL;
 }
 
+
+static struct net_key *hna_net_keys = NULL;
+static uint32_t hna_net_key_elements = 0;
+
 STATIC_FUNC
 int process_description_tlv_hna(struct rx_frame_iterator *it)
 {
@@ -344,8 +348,7 @@ int process_description_tlv_hna(struct rx_frame_iterator *it)
         uint8_t op = it->op;
         uint8_t family = (it->frame_type == BMX_DSC_TLV_UHNA4 ? AF_INET : AF_INET6);
 
-        struct net_key *network_keys = NULL;
-        uint32_t networks_num = 0;
+        uint32_t hna_net_curr = 0;
 
         assertion(-600004, (on != self ||
                 op == TLV_OP_CUSTOM_NIIT6TO4_ADD || op == TLV_OP_CUSTOM_NIIT6TO4_DEL ||
@@ -404,17 +407,19 @@ int process_description_tlv_hna(struct rx_frame_iterator *it)
 
                         // check if node announces the same key twice:
                         uint32_t i;
-                        for (i = 0; i < networks_num; i++) {
-                                if (!memcmp(&network_keys[i], &key, sizeof (key))) {
+                        for (i = 0; i < hna_net_curr; i++) {
+                                if (!memcmp(&hna_net_keys[i], &key, sizeof (key))) {
                                         dbgf_sys(DBGT_ERR, "global_id=%s %s=%s blocked due to duplicate announcement",
                                                 globalIdAsString(&on->global_id), ARG_UHNA, netAsStr(&key));
                                         return TLV_RX_DATA_BLOCKED;
                                 }
                         }
 
-                        network_keys = debugRealloc(network_keys, (i + 1) * sizeof (key), -300398);
-                        memcpy(&network_keys[i], &key, sizeof (key));
-                        networks_num = i + 1;
+                        if (hna_net_key_elements < (i + 1))
+                                hna_net_keys = debugRealloc(hna_net_keys, (i + 1) * sizeof (key), -300398);
+                        memcpy(&hna_net_keys[i], &key, sizeof (key));
+                        hna_net_key_elements = (hna_net_curr = (i + 1));
+                         
 
 
 
@@ -2409,6 +2414,8 @@ void hna_cleanup( void )
         TRACE_FUNCTION_CALL;
         task_remove((void(*)(void*))eval_tun_bit_tree, NULL);
         set_route_change_hooks(hna_route_change_hook, DEL);
+        if (hna_net_keys)
+                debugFree(hna_net_keys, -300000);
 }
 
 

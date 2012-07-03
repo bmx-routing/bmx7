@@ -103,7 +103,7 @@ void *avl_first_item(struct avl_tree *tree)
         return an ? an->item : NULL;
 }
 
-
+/*
 struct avl_node *avl_iterate(struct avl_tree *tree, struct avl_node *an )
 {
 
@@ -129,7 +129,7 @@ struct avl_node *avl_iterate(struct avl_tree *tree, struct avl_node *an )
 
         return NULL;
 }
-
+*/
 
 
 void *avl_iterate_item(struct avl_tree *tree, struct avl_node **an )
@@ -156,6 +156,19 @@ void *avl_iterate_item(struct avl_tree *tree, struct avl_node **an )
         }
 
         return NULL;
+}
+
+void *_avl_find_item_by_field(struct avl_tree *tree, void *value, unsigned long offset, uint32_t size)
+{
+        struct avl_node *an = NULL;
+        void *item = NULL;
+
+        while ((item = avl_iterate_item(tree, &an))) {
+                if (!memcmp(value, (((char*)(an->item)) + offset), size))
+                        break;
+        }
+
+        return item;
 }
 
 

@@ -92,7 +92,7 @@ void remove_dbgl_node(struct ctrl_node *cn)
 
 		list_prev = (struct list_node *)&dbgl_clients[i];
 		
-		list_for_each_safe( list_pos, list_tmp, (struct list_node *)&dbgl_clients[i] ) {
+		list_for_each_safe( list_pos, list_tmp, /*(struct list_node *)*/(&dbgl_clients[i]) ) {
 
 			dn = list_entry(list_pos, struct dbgl_node, list);
 
@@ -562,7 +562,7 @@ void debug_output(uint32_t check_len, struct ctrl_node *cn, int8_t dbgl, int8_t 
 			continue;
 		
 			
-		list_for_each ( list_pos, (struct list_node *)&(dbgl_clients[level]) ) {
+		list_for_each ( list_pos, /*(struct list_head *)*/&(dbgl_clients[level]) ) {
 
 			struct dbgl_node *dn = list_entry(list_pos, struct dbgl_node, list);
 

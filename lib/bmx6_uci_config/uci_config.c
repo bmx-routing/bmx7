@@ -366,7 +366,7 @@ int bmx_derive_config ( char *reference, char *derivation, struct ctrl_node *cn 
 STATIC_FUNC
 int bmx_save_config ( uint8_t del, struct opt_type *opt, char *p_val, char *c_val, struct ctrl_node *cn ) {
 	
-	dbgf( DBGL_CHANGES, DBGT_INFO, "%s p:%s c:%s", opt->name, p_val, c_val );
+	dbgf( DBGL_CHANGES, DBGT_INFO, "%s p=%s c=%s", opt->name, p_val, c_val );
 	
 	char sect_name[MAX_ARG_SIZE]="";
 	

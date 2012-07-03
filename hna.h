@@ -65,8 +65,8 @@ extern IDM_T (*hna_configure_niit6to4) (IDM_T del, struct net_key *key);
 
 
 
-#define ARG_TUN_ADV  "tunInRemote"
-#define ARG_TUN_ADV_NAME "dev"
+#define ARG_TUN_ADV  "tunIn"
+#define ARG_TUN_ADV_REMOTE "remote"
 
 #define ARG_TUN_ADV_INGRESS4 "ingressPrefix4"
 #define ARG_TUN_ADV_INGRESS6 "ingressPrefix6"
@@ -79,9 +79,10 @@ extern IDM_T (*hna_configure_niit6to4) (IDM_T del, struct net_key *key);
 
 
 
-#define ARG_TUN_IN "tunInNet"
-#define ARG_TUN_NET_LOCAL ARG_TUN_ADV
-#define ARG_TUN_NET_BW "bandwidth"
+#define ARG_TUN_IN_NET "tunInNet"
+#define ARG_TUN_IN_NET_DEV ARG_TUN_ADV
+#define ARG_TUN_IN_NET_BW "bandwidth"
+
 
 
 #define ARG_TUN_OUT          "tunOut"
@@ -103,7 +104,6 @@ extern IDM_T (*hna_configure_niit6to4) (IDM_T del, struct net_key *key);
 #define MIN_TUN_OUT_PREFIX 0
 #define MAX_TUN_OUT_PREFIX 129
 #define TYP_TUN_OUT_PREFIX_NET 129
-
 
 #define ARG_TUN_OUT_OVLP_ALLOW "allowOverlappingPrefix"
 #define DEF_TUN_OUT_OVLP_ALLOW 0
@@ -358,7 +358,6 @@ struct tun_net_node {
         UMETRIC_T e2eMetric;
 
         struct avl_tree tun_bit_tree;
-//        struct avl_tree tun_search_tree;//REMOVE
 };
 
 struct tun_out_key {
@@ -398,12 +397,17 @@ struct tun_out_node {
 
 struct tun_in_node {
 
+        IFNAME_T nameKey;    // key for tunnel_in_tree
+        uint8_t name_auto;
+        uint8_t remote_manual;
+
         // the advertised part (by description_msg_tun6_adv):
-        IP6_T remoteIp;          // key for tunnel_in_tree
+        IP6_T remote;
 
         // the advertised part (by description_msg_src6in6_adv):
         struct net_key ingress4Prefix;
         struct net_key ingress6Prefix;
+
 
         uint8_t src4Type;
         uint8_t src4PrefixMin;
@@ -413,8 +417,6 @@ struct tun_in_node {
 
         //the status:
         int16_t tun6Id;
-        IFNAME_T name;
-        uint8_t name_auto;
         uint32_t upIfIdx;
 };
 

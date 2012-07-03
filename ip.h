@@ -61,20 +61,25 @@ typedef struct ifname IFNAME_T;
 #define HLP_GLOBAL_PREFIX "specify global prefix for interfaces"
 
 
-#define DEF_AUTOCONF_PREFIX           "fd66:66:66::/48"
-#define DEF_AUTOCONF_PREFIX_DEV       "fd66:66:66::/64"
-#define DEF_AUTOCONF_PREFIX_REMOTETUN "fd66:66:66:ffff::/64"
-#define DEF_AUTOCONF_MASK 48           // DO NOT CHANGE THIS
-#define DEF_AUTOCONF_MASK_DEV 64       // DO NOT CHANGE THIS
-#define DEF_AUTOCONF_MASK_REMOTETUN 64 // DO NOT CHANGE THIS
-#define DEF_AUTOCONF_SUBNET_NODEROUTE 0x0000
-#define DEF_AUTOCONF_SUBNET_TUNDUMMY 0xFFFF
+#define DEF_AUTO_MASK_DISABLED   0  // DO NOT CHANGE THIS
 
-#define ARG_AUTOCONFIG "autoConfig"
-#define DEF_AUTOCONFIG 0
-#define MIN_AUTOCONFIG 0
-#define MAX_AUTOCONFIG 1
-#define HLP_AUTOCONFIG "Autoconfigure IPv6 interface addresses using BMX6 default ULA prefix (" DEF_AUTOCONF_PREFIX ") or specified " ARG_GLOBAL_PREFIX " (MUST be /48)"
+#define DEF_AUTO_IP6_PREFIX      "fd66:66:66::/64"
+#define DEF_AUTO_IP6_MASK        64 // DO NOT CHANGE THIS
+#define ARG_AUTO_IP6_PREFIX      "ipAutoPrefix"
+#define HLP_AUTO_IP6_PREFIX      "Autoconfigure IPv6 addresses (MUST be something/64 to enable or ::/0 to disable)"
+
+#define DEF_AUTO_REMOTE_PREFIX   "fd66:66:66:ff00::/56"
+#define DEF_AUTO_REMOTE_MASK     56 // DO NOT CHANGE THIS
+#define ARG_AUTO_REMOTE_PREFIX   "tunInRemotePrefix"
+#define HLP_AUTO_REMOTE_PREFIX   "Autoconfigure incoming tunnel and its IPv6 remote address (MUST be something/64 to enable or ::/0 to disable)"
+#define MAX_TUN_REMOTE_IPS       255 // limited by 8-bit tun6Id range and (65 - DEF_AUTO_REMOTE_MASK) bit size
+
+
+//#define DEF_AUTO_PREFIX        "fd66:66:66::/48"
+//#define DEF_AUTO_MASK          48      // DO NOT CHANGE THIS
+//#define DEF_AUTO_SUBNET_NODE   0x0000
+//#define DEF_AUTO_SUBNET_REMOTE_MIN 0xFF00
+//#define DEF_AUTO_SUBNET_REMOTE_MAX 0xFFFF
 
 
 #define ARG_INTERFACES "interfaces"
@@ -235,6 +240,10 @@ extern const struct net_key ZERO_NET_KEY;
 extern const struct net_key ZERO_NET4_KEY;
 extern const struct net_key ZERO_NET6_KEY;
 
+
+extern struct net_key remote_prefix_cfg;
+extern struct tun_in_node default_tun_in;
+
 #ifdef NO_ASSERTIONS
 extern uint8_t __af_cfg;
 #define AF_CFG __af_cfg
@@ -258,7 +267,8 @@ extern const uint8_t IP6_MC_PLEN;
 
 
 
-extern struct dev_node *primary_dev_cfg;
+extern struct dev_node *primary_dev;
+extern struct dev_node *primary_phy;
 extern IDM_T niit_enabled;
 
 extern int32_t ip_throw_rules_cfg;
@@ -546,6 +556,7 @@ IDM_T change_mtu(char *name, uint16_t mtu);
 IDM_T ip(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_key *net,
         int8_t table_macro, int8_t prio_macro, IFNAME_T *iifname, int oif_idx, IPX_T *via, IPX_T *src, uint32_t metric);
 
+struct net_key bmx6AutoEUI64Ip6(struct dev_node *dev, struct net_key *prefix);
 
 //static IDM_T kernel_if_config(void);
 

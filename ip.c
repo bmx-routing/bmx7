@@ -1596,10 +1596,10 @@ IDM_T ip(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_key *dst,
 #ifndef NO_DEBUG_ALL
         struct if_link_node *oif_iln = oif_idx ? avl_find_item(&if_link_tree, &oif_idx) : NULL;
 
-        dbgf_track( DBGT_INFO, "%s %s %s  iif %s  table %d  prio %d  oif %s  via %s  src %s ",
+        dbgf_track( DBGT_INFO, "cmd=%s %s dst=%s iif=%s table=%d prio=%d oifIdx=%d oif=%s via=%s src=%s metric=%d",
                 trackt2str(cmd), del2str(del), netAsStr(dst),
-                iifname ? iifname->str : NULL, table, prio, oif_iln ? oif_iln->name.str : DBG_NIL,
-                via ? ipXAsStr(dst->af, via) : DBG_NIL, src ? ipXAsStr(dst->af, src) : DBG_NIL);
+                iifname ? iifname->str : NULL, table, prio, oif_idx, oif_iln ? oif_iln->name.str : "???",
+                via ? ipXAsStr(dst->af, via) : DBG_NIL, src ? ipXAsStr(dst->af, src) : DBG_NIL, metric);
 #endif
 
         memset(&req, 0, sizeof (req));
@@ -1677,7 +1677,7 @@ IDM_T ip(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_key *dst,
                 add_rtattr(&req.nlh, RTA_PRIORITY, (char*) & prio, sizeof (prio), 0);
 
         if (metric)
-                add_rtattr(&req.nlh, RTA_METRICS, (char*) & metric, sizeof (metric), 0);
+                add_rtattr(&req.nlh, RTA_PRIORITY, (char*) & metric, sizeof (metric), 0);
 
         errno = 0;
 

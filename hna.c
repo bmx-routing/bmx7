@@ -1914,6 +1914,7 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                                 strcpy(tsn->nameKey, name);
                                 avl_insert(&tun_search_tree, tsn, -300433);
                                 tsn->mtu = DEF_TUN_OUT_MTU;
+                                tsn->ipmetric = DEF_IP_METRIC;
                                 tsn->hysteresis = DEF_TUN_OUT_HYSTERESIS;
                                 tsn->netPrefixMin = DEF_TUN_OUT_PREFIX_MIN;
                                 tsn->netPrefixMax = DEF_TUN_OUT_PREFIX_MAX;
@@ -1967,7 +1968,7 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                         } else if (!strcmp(c->opt->name, ARG_TUN_OUT_IPMETRIC)) {
 
                                 if (cmd == OPT_APPLY && tsn)
-                                        tsn->ipmetric = c->val ? strtol(c->val, NULL, 10) : 0;
+                                        tsn->ipmetric = c->val ? strtol(c->val, NULL, 10) : DEF_IP_METRIC;
 
                         } else if (!strcmp(c->opt->name, ARG_TUN_OUT_TYPE)) {
 
@@ -2453,7 +2454,7 @@ struct opt_type hna_options[]= {
 			ARG_VALUE_FORM, "specify in percent how much the metric to an alternative GW must be better than to curr GW"},
 	{ODI,ARG_TUN_OUT,ARG_TUN_OUT_BONUS,0,9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,       MIN_TUN_OUT_BONUS,MAX_TUN_OUT_BONUS,DEF_TUN_OUT_BONUS,0,opt_tun_search,
 			ARG_VALUE_FORM, "specify in percent a metric bonus (preference) for GWs matching this tunOut spec when compared with other tunOut specs for same network"},
-	{ODI,ARG_TUN_OUT,ARG_TUN_OUT_IPMETRIC,0,9,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,	        0,         MAX_TUN_OUT_IPMETRIC,0,0,            opt_tun_search,
+	{ODI,ARG_TUN_OUT,ARG_TUN_OUT_IPMETRIC,0,9,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,	        0,         MAX_TUN_OUT_IPMETRIC,DEF_IP_METRIC,0,opt_tun_search,
 			ARG_VALUE_FORM, "ip metric for local routing table entries"},
 	{ODI,ARG_TUN_OUT,ARG_TUN_OUT_MTU,0,9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,   MIN_TUN_OUT_MTU,MAX_TUN_OUT_MTU,DEF_TUN_OUT_MTU,0,            opt_tun_search,
 			ARG_VALUE_FORM, "MTU of outgoing tunnel"}

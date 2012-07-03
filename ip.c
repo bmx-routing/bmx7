@@ -45,6 +45,7 @@
 #include "plugin.h"
 #include "tools.h"
 #include "metrics.h"
+#include "hna.h"
 
 #define CODE_CATEGORY_NAME "ip"
 
@@ -80,7 +81,6 @@ static int32_t base_port = DEF_BASE_PORT;
 #ifdef WITH_UNUSED
 static int32_t Lo_rule = DEF_LO_RULE;
 #endif
-static int32_t ip_auto_cfg = DEF_AUTOCONFIG;
 
 const IPX_T ZERO_IP = {{{0}}};
 const MAC_T ZERO_MAC = {{0}};
@@ -88,7 +88,10 @@ const MAC_T ZERO_MAC = {{0}};
 //TODO: make this configurable
 static struct net_key llocal_prefix_cfg;
 static struct net_key global_prefix_cfg;
-static struct net_key default_autoconfigIp6;
+static struct net_key autoconf_prefix_cfg;
+struct net_key remote_prefix_cfg;
+struct tun_in_node default_tun_in;
+
 
 //#define IN6ADDR_ANY_INIT { { { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 } } }
 //#define IN6ADDR_LOOPBACK_INIT { { { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1 } } }
@@ -118,7 +121,8 @@ struct rtnl_handle ip_rth = { .fd = -1 };
 
 static IDM_T opt_dev_changed = YES;
 
-struct dev_node *primary_dev_cfg = NULL;
+struct dev_node *primary_dev = NULL;
+struct dev_node *primary_phy = NULL;
 
 
 //IDM_T niit_enabled = NO;
@@ -1869,7 +1873,7 @@ void dev_reconfigure_soft(struct dev_node *dev)
         assertion(-500611, (dev->active));
         assertion(-500612, (dev->if_llocal_addr));
         assertion(-500613, IMPLIES(dev->announce, dev->if_global_addr));
-        assertion(-500614, IMPLIES(dev == primary_dev_cfg, dev->if_global_addr));
+        assertion(-500614, IMPLIES(dev == primary_dev, dev->if_global_addr));
         assertion(-500615, IMPLIES(dev->linklayer == TYP_DEV_LL_LO, dev->if_global_addr));
         
         if (!initializing) {
@@ -2018,28 +2022,36 @@ void dev_deactivate( struct dev_node *dev )
         if (dev->announce)
                 my_description_changed = YES;
 
-        if (dev == primary_dev_cfg && !terminating) {
+        if (dev == primary_dev && !terminating) {
                 dbgf_mute(30, DBGL_SYS, DBGT_WARN,
                         "Using an IP on the loopback device as primary interface ensures reachability under your primary IP!");
         }
 
-        if (dev == primary_dev_cfg) {
+        if (dev == primary_dev || dev == primary_phy) {
                 struct avl_node *an = NULL;
                 struct dev_node *ipdev;
 
-                while ((ipdev = avl_iterate_item(&dev_ip_tree, &an)) ) {
-                        if (ipdev->active && ipdev->announce && ipdev->if_global_addr)
-                                break;
-                }
-
-                if (ipdev) {
-                        primary_dev_cfg = ipdev;
-                        self->primary_ip = ipdev->if_global_addr->ip_addr;
-                        ipFToStr(&ipdev->if_global_addr->ip_addr, self->primary_ip_str);
-                } else {
-                        primary_dev_cfg = NULL;
+                if (dev == primary_dev) {
+                        primary_dev = NULL;
                         self->primary_ip = ZERO_IP;
                         ipFToStr(&ZERO_IP, self->primary_ip_str);
+                }
+
+                if (dev == primary_phy)
+                        primary_phy = NULL;
+
+                while ((ipdev = avl_iterate_item(&dev_ip_tree, &an))) {
+                        if (ipdev->active && ipdev->announce && ipdev->if_global_addr) {
+                                if(!primary_dev) {
+                                        primary_dev = ipdev;
+                                        self->primary_ip = ipdev->if_global_addr->ip_addr;
+                                        ipFToStr(&ipdev->if_global_addr->ip_addr, self->primary_ip_str);
+                                }
+
+                                if (!primary_phy && ipdev->linklayer != TYP_DEV_LL_LO)
+                                        primary_phy = ipdev;
+                        }
+
                 }
         }
 
@@ -2333,12 +2345,16 @@ void dev_activate( struct dev_node *dev )
 
         ipFToStr(&dev->if_llocal_addr->ip_mcast, dev->ip_brc_str);
 
-//        if (dev == primary_dev_cfg) {
-        if (!primary_dev_cfg && dev->announce && dev->if_global_addr) {
-                primary_dev_cfg = dev;
+        if (!primary_dev && dev->announce && dev->if_global_addr) {
+                primary_dev = dev;
                 self->primary_ip = dev->if_global_addr->ip_addr;
                 ipFToStr(&dev->if_global_addr->ip_addr, self->primary_ip_str);
         }
+
+        if (!primary_phy && dev->linklayer != TYP_DEV_LL_LO && dev->announce && dev->if_global_addr)
+                primary_phy = dev;
+
+
 
         dev->active = YES;
         dev->activate_again = NO;
@@ -2534,37 +2550,34 @@ int update_interface_rules(void)
 	return SUCCESS;
 }
 
-STATIC_FUNC
-struct net_key bmx6AutoEUI64Ip6(struct dev_node *dev, uint16_t subNet)
+
+struct net_key bmx6AutoEUI64Ip6(struct dev_node *dev, struct net_key *prefix)
 {
-        struct net_key dev_autoconfigIp6 = ZERO_NET6_KEY;
+        struct net_key autoPrefix = ZERO_NET6_KEY;
 
-        if (ip_auto_cfg && dev->if_link && !is_zero(&dev->if_link->addr, sizeof (dev->if_link->addr)) &&
-                (dev->global_prefix_conf_.mask ? dev->global_prefix_conf_.mask :
-                (global_prefix_cfg.mask ? global_prefix_cfg.mask : DEF_AUTOCONF_MASK))
-                == DEF_AUTOCONF_MASK) {
+        if (dev && prefix->mask && prefix->mask <= 64 && dev->linklayer != TYP_DEV_LL_LO &&
+                dev->if_link && !is_zero(&dev->if_link->addr, sizeof (dev->if_link->addr))) {
 
-                dev_autoconfigIp6 = dev->global_prefix_conf_.mask ? dev->global_prefix_conf_ :
-                        ((global_prefix_cfg.mask ? global_prefix_cfg : default_autoconfigIp6));
+                autoPrefix = *prefix;
 
-                dev_autoconfigIp6.mask = DEF_AUTOCONF_MASK_DEV;
-
-                dev_autoconfigIp6.ip.s6_addr16[3] = htobe16(subNet);
-
-                dev_autoconfigIp6.ip.s6_addr[8 ] = dev->if_link->addr.u8[0];
-                dev_autoconfigIp6.ip.s6_addr[9 ] = dev->if_link->addr.u8[1];
-                dev_autoconfigIp6.ip.s6_addr[10] = dev->if_link->addr.u8[2];
-                dev_autoconfigIp6.ip.s6_addr[11] = 0xFF;
-                dev_autoconfigIp6.ip.s6_addr[12] = 0xFE;
-                dev_autoconfigIp6.ip.s6_addr[13] = dev->if_link->addr.u8[3];
-                dev_autoconfigIp6.ip.s6_addr[14] = dev->if_link->addr.u8[4];
-                dev_autoconfigIp6.ip.s6_addr[15] = dev->if_link->addr.u8[5];
+                autoPrefix.ip.s6_addr[8 ] = dev->if_link->addr.u8[0];
+                autoPrefix.ip.s6_addr[9 ] = dev->if_link->addr.u8[1];
+                autoPrefix.ip.s6_addr[10] = dev->if_link->addr.u8[2];
+                autoPrefix.ip.s6_addr[11] = 0xFF;
+                autoPrefix.ip.s6_addr[12] = 0xFE;
+                autoPrefix.ip.s6_addr[13] = dev->if_link->addr.u8[3];
+                autoPrefix.ip.s6_addr[14] = dev->if_link->addr.u8[4];
+                autoPrefix.ip.s6_addr[15] = dev->if_link->addr.u8[5];
 
                 // toggle the U/L bit (  http://en.wikipedia.org/wiki/IPv6_address#Modified_EUI-64 )
-                dev_autoconfigIp6.ip.s6_addr[8 ] |= 2;
+                autoPrefix.ip.s6_addr[8 ] |= 2;
         }
-        
-        return dev_autoconfigIp6;
+
+        dbgf_track(DBGT_INFO, "%s %s (autoconf.mask=%d dev->if_link_addr=%s)",
+                dev->label_cfg.str, netAsStr(&autoPrefix), prefix->mask,
+                (dev->if_link ? memAsHexString(&dev->if_link->addr, sizeof (dev->if_link->addr)) : "--"));
+
+        return autoPrefix;
 }
 
 STATIC_INLINE_FUNC
@@ -2609,7 +2622,11 @@ void dev_if_fix(void)
 
                 struct if_addr_node *ian;
                 struct avl_node *aan;
-                struct net_key autoIP6 = bmx6AutoEUI64Ip6(dev, DEF_AUTOCONF_SUBNET_NODEROUTE);
+                struct net_key autoIP6 = ZERO_NET6_KEY;
+
+                if (!global_prefix_cfg.mask && !dev->global_prefix_conf_.mask && autoconf_prefix_cfg.mask)
+                        autoIP6 = bmx6AutoEUI64Ip6(dev, &autoconf_prefix_cfg);
+
 
                 for (aan = NULL; (ian = avl_iterate_item(&dev->if_link->if_addr_tree, &aan));) {
 
@@ -2646,42 +2663,36 @@ void dev_if_fix(void)
                                 }
                         }
 
+                        if (!dev->if_global_addr && dev->announce) {
 
-                        if ((AF_CFG == AF_INET6 && !is_ip6llocal) && ip_auto_cfg && dev->announce && !dev->if_global_addr && autoIP6.mask) {
+                                if ((AF_CFG == AF_INET6 && !is_ip6llocal) && autoIP6.mask) {
 
-                                if (is_ip_equal(&autoIP6.ip, &ian->ip_addr) && autoIP6.mask == ian->ifa.ifa_prefixlen) {
+                                        if (is_ip_equal(&autoIP6.ip, &ian->ip_addr) && autoIP6.mask == ian->ifa.ifa_prefixlen) {
 
-                                        dev->if_global_addr = ian;
+                                                dev->if_global_addr = ian;
+                                        }
+
+                                } else if ((AF_CFG == AF_INET || !is_ip6llocal) && !autoIP6.mask) {
+
+                                        if (dev->global_prefix_conf_.mask &&
+                                                is_ip_net_equal(&dev->global_prefix_conf_.ip, &ian->ip_addr, dev->global_prefix_conf_.mask, dev->global_prefix_conf_.af)) {
+
+                                                dev->if_global_addr = ian;
+
+                                        } else if (!dev->global_prefix_conf_.mask && global_prefix_cfg.mask &&
+                                                is_ip_net_equal(&global_prefix_cfg.ip, &ian->ip_addr, global_prefix_cfg.mask, global_prefix_cfg.af)) {
+
+                                                dev->if_global_addr = ian;
+
+                                        } else if (!dev->global_prefix_conf_.mask && !global_prefix_cfg.mask) {
+
+                                                dev->if_global_addr = ian;
+                                        }
                                 }
-
-                        } else if ((AF_CFG == AF_INET || !is_ip6llocal) && !ip_auto_cfg && dev->announce && !dev->if_global_addr) {
-
-                                if (dev->global_prefix_conf_.mask &&
-                                        is_ip_net_equal(&dev->global_prefix_conf_.ip, &ian->ip_addr, dev->global_prefix_conf_.mask, dev->global_prefix_conf_.af)) {
-
-                                        dev->if_global_addr = ian;
-
-                                } else if (!dev->global_prefix_conf_.mask && global_prefix_cfg.mask &&
-                                        is_ip_net_equal(&global_prefix_cfg.ip, &ian->ip_addr, global_prefix_cfg.mask, global_prefix_cfg.af)) {
-
-                                        dev->if_global_addr = ian;
-
-                                } else if (!dev->global_prefix_conf_.mask && !global_prefix_cfg.mask) {
-
-                                        dev->if_global_addr = ian;
-                                }
-/*
-                        } else if (dev->if_global_addr) {
-
-                                dbgf_sys(DBGT_WARN, "discarded global IP=%s dev=%s (selected %s)! Use %s to refine",
-                                        ipXAsStr(af_cfg, &ian->ip_addr), ian->label.str,
-                                        dev->if_global_addr ? ipXAsStr(af_cfg, &dev->if_global_addr->ip_addr) : "NONE",
-                                        ARG_DEV_GLOBAL_PREFIX);
-*/
                         }
                 }
 
-                if (AF_CFG == AF_INET6 && ip_auto_cfg && dev->announce && !dev->if_global_addr && autoIP6.mask) {
+                if (AF_CFG == AF_INET6 && autoIP6.mask && dev->announce && !dev->if_global_addr) {
 
                         ipaddr(ADD, dev->if_link->index, AF_INET6, &autoIP6.ip, autoIP6.mask, NO /*deprecated*/);
                         dev->autoIP6Configured = autoIP6;
@@ -2757,7 +2768,7 @@ static void dev_check(IDM_T kernel_ip_config_changed)
 
                         if (dev->active) {
                                 dbgf_sys(DBGT_WARN, "detected changed but used %sprimary dev=%s ! Deactivating now...",
-                                        (dev == primary_dev_cfg ? "" : "non-"), dev->label_cfg.str);
+                                        (dev == primary_dev ? "" : "non-"), dev->label_cfg.str);
 
                                 dev_deactivate(dev);
                         }
@@ -2790,7 +2801,7 @@ static void dev_check(IDM_T kernel_ip_config_changed)
                                 dbgf_sys(DBGT_ERR,
                                         "%s=%s %s but no global addr", ARG_DEV, dev->label_cfg.str, "to-be announced");
 
-                        } else if (dev == primary_dev_cfg && !dev->if_global_addr) {
+                        } else if (dev == primary_dev && !dev->if_global_addr) {
 
                                 dbgf_sys(DBGT_ERR,
                                         "%s=%s %s but no global addr", ARG_DEV, dev->label_cfg.str, "primary dev");
@@ -3147,7 +3158,7 @@ static int32_t dev_status_creator(struct status_handl *handl, void* data)
                 sprintf(status[i].globalIp, "%s/%d", dev->ip_global_str, dev->if_global_addr ? dev->if_global_addr->ifa.ifa_prefixlen : -1);
                 status[i].multicastIp = dev->ip_brc_str;
                 status[i].helloSqn = dev->link_hello_sqn;
-                status[i].primary = (dev == primary_dev_cfg);
+                status[i].primary = (dev == primary_dev);
                 status[i].announced = dev->announce;
 
                 i++;
@@ -3165,50 +3176,42 @@ int32_t opt_dev_prefix(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
 	TRACE_FUNCTION_CALL;
 
 
-        if (!strcmp(opt->name, ARG_AUTOCONFIG)) {
+        if ((cmd == OPT_ADJUST || cmd == OPT_CHECK || cmd == OPT_APPLY)) {
 
-                if (cmd == OPT_APPLY) {
-                        struct avl_node *an = NULL;
-                        struct dev_node *dev;
-
-                        while ((dev = avl_iterate_item(&dev_name_tree, &an))) {
-                                dbgf_track(DBGT_INFO, "applying %s %s=%s", dev->label_cfg.str, opt->name, patch->val);
-
-                                dev->hard_conf_changed = YES;
-                                opt_dev_changed = YES;
-                        }
-                }
-
-        } else if ((cmd == OPT_ADJUST || cmd == OPT_CHECK || cmd == OPT_APPLY)) {
-
-                IDM_T is_global_prefix = (!strcmp(opt->name, ARG_GLOBAL_PREFIX));
+                IDM_T is_global_prefix = !strcmp(opt->name, ARG_GLOBAL_PREFIX);
                 struct net_key prefix = ZERO_NETCFG_KEY;
 
                 if (patch->diff == ADD) {
 
-                        if (str2netw(patch->val, &prefix.ip, cn, &prefix.mask, &prefix.af, NO) == FAILURE || !is_ip_valid(&prefix.ip, prefix.af) ||
+                        if (str2netw(patch->val, &prefix.ip, cn, &prefix.mask, &prefix.af, NO) == FAILURE ||
+                                (!is_ip_valid(&prefix.ip, prefix.af)) ||
                                 (prefix.af == AF_INET6 && (
-                                is_ip_net_equal(&prefix.ip, &IP6_MC_PREF, IP6_MC_PLEN, AF_INET6) ||
-                                XOR(is_global_prefix, !is_ip_net_equal(&prefix.ip, &IP6_LINKLOCAL_UC_PREF, IP6_LINKLOCAL_UC_PLEN, AF_INET6))))
-                                ) {
-                                dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "invalid prefix %s", netAsStr(&prefix));
+                                (is_ip_net_equal(&prefix.ip, &IP6_MC_PREF, IP6_MC_PLEN, AF_INET6)) ||
+                                (XOR(is_global_prefix, !is_ip_net_equal(&prefix.ip, &IP6_LINKLOCAL_UC_PREF, IP6_LINKLOCAL_UC_PLEN, AF_INET6)))
+                                ))) {
+
+                                dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "%s=%s invalid prefix %s",
+                                        opt->name, patch->val, netAsStr(&prefix));
+
                                 return FAILURE;
                         }
 
                         set_opt_parent_val(patch, netAsStr(&prefix));
                 }
 
+
                 if (cmd == OPT_APPLY) {
 
                         struct avl_node *an = NULL;
                         struct dev_node *dev;
 
                         while ((dev = avl_iterate_item(&dev_name_tree, &an))) {
-                                //mark all dev that are note specified more precise:
+
                                 if (is_global_prefix ? !dev->global_prefix_conf_.mask : !dev->llocal_prefix_conf_.mask) {
 
-                                        dbgf_track(DBGT_INFO, "applying %s %s=%s",
-                                                dev->label_cfg.str, opt->name, patch->val);
+                                        //mark all dev that are note specified more precise:
+                                        dbgf_track(DBGT_INFO, "applying %s %s=%s %s",
+                                                dev->label_cfg.str, opt->name, patch->val, netAsStr(&prefix));
 
                                         dev->hard_conf_changed = YES;
                                         opt_dev_changed = YES;
@@ -3219,6 +3222,73 @@ int32_t opt_dev_prefix(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                                 global_prefix_cfg = prefix;
                         else
                                 llocal_prefix_cfg = prefix;
+
+                }
+        }
+
+	return SUCCESS;
+}
+
+STATIC_FUNC
+int32_t opt_auto_prefix(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
+{
+	TRACE_FUNCTION_CALL;
+
+
+        if ((cmd == OPT_ADJUST || cmd == OPT_CHECK || cmd == OPT_APPLY)) {
+
+                struct net_key prefix = ZERO_NET6_KEY;
+                str2netw(DEF_AUTO_IP6_PREFIX, &prefix.ip, NULL, &prefix.mask, &prefix.af, NO);
+
+                if (patch->diff == ADD) {
+
+                        if (str2netw(patch->val, &prefix.ip, cn, &prefix.mask, &prefix.af, NO) == FAILURE ||
+                                (prefix.mask != DEF_AUTO_MASK_DISABLED && !is_ip_valid(&prefix.ip, prefix.af)) ||
+                                (prefix.af != AF_INET6) ||
+                                (is_ip_net_equal(&prefix.ip, &IP6_MC_PREF, IP6_MC_PLEN, AF_INET6)) ||
+                                (is_ip_net_equal(&prefix.ip, &IP6_LINKLOCAL_UC_PREF, IP6_LINKLOCAL_UC_PLEN, AF_INET6)) ||
+                                (prefix.mask != DEF_AUTO_IP6_MASK && prefix.mask != DEF_AUTO_MASK_DISABLED)
+                                ) {
+
+                                dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "%s=%s invalid prefix %s",
+                                        opt->name, patch->val, netAsStr(&prefix));
+
+                                return FAILURE;
+                        }
+
+                        set_opt_parent_val(patch, netAsStr(&prefix));
+                }
+
+
+                if (cmd == OPT_APPLY) {
+
+                        if (!strcmp(opt->name, ARG_AUTO_IP6_PREFIX) && !is_ip_equal(&autoconf_prefix_cfg.ip, &prefix.ip)) {
+
+                                struct avl_node *an = NULL;
+                                struct dev_node *dev;
+
+                                while ((dev = avl_iterate_item(&dev_name_tree, &an))) {
+
+                                        if (!global_prefix_cfg.mask && !dev->global_prefix_conf_.mask) {
+
+                                                //mark all dev that are note specified more precise:
+                                                dbgf_track(DBGT_INFO, "applying %s %s=%s %s",
+                                                        dev->label_cfg.str, opt->name, patch->val, netAsStr(&prefix));
+
+                                                dev->hard_conf_changed = YES;
+                                                opt_dev_changed = YES;
+                                        }
+                                }
+
+                                autoconf_prefix_cfg = prefix;
+
+                        } else if (!strcmp(opt->name, ARG_AUTO_REMOTE_PREFIX)) {
+
+                                remote_prefix_cfg = prefix;
+
+                                my_description_changed = YES;
+
+                        }
 
                 }
         }
@@ -3511,9 +3581,9 @@ static struct opt_type ip_options[]=
 			ARG_VALUE_FORM,	"specify iproute2 rule preference offset for tunnel networks"}
         ,
 	{ODI,ARG_IP,ARG_IP_TABLE_HNA, 0, 3,1,A_CS1,A_ADM,A_INI,A_CFA,A_ANY,	&ip_table_hna_cfg,	MIN_IP_TABLE_HNA,   MAX_IP_TABLE_HNA,   DEF_IP_TABLE_HNA,0,     opt_ip_version,
-			ARG_VALUE_FORM,	"specify iprout2 table for hna networks"},
+			ARG_VALUE_FORM,	"specify iproute2 table for hna networks"},
 	{ODI,ARG_IP,ARG_IP_TABLE_TUN, 0, 3,1,A_CS1,A_ADM,A_INI,A_CFA,A_ANY,	&ip_table_tun_cfg,	MIN_IP_TABLE_TUN,   MAX_IP_TABLE_TUN,   DEF_IP_TABLE_TUN,0,     opt_ip_version,
-			ARG_VALUE_FORM,	"specify iprout2 table for tunnel networks"}
+			ARG_VALUE_FORM,	"specify iproute2 table for tunnel networks"}
 
 #ifdef WITH_UNUSED
         ,
@@ -3531,8 +3601,11 @@ static struct opt_type ip_options[]=
 	{ODI,0,ARG_LLOCAL_PREFIX,	0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_dev_prefix,
 			ARG_PREFIX_FORM,HLP_LLOCAL_PREFIX}
         ,
-	{ODI,0,ARG_AUTOCONFIG,          'A',9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&ip_auto_cfg,	MIN_AUTOCONFIG,	MAX_AUTOCONFIG, DEF_AUTOCONFIG,0,opt_dev_prefix,
-			ARG_VALUE_FORM,	HLP_AUTOCONFIG}
+	{ODI,0,ARG_AUTO_IP6_PREFIX,     0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,      	0,      	0,              0,DEF_AUTO_IP6_PREFIX,opt_auto_prefix,
+			ARG_VALUE_FORM,	HLP_AUTO_IP6_PREFIX}
+        ,
+	{ODI,0,ARG_AUTO_REMOTE_PREFIX,  0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,      	0,      	0,              0,DEF_AUTO_REMOTE_PREFIX,opt_auto_prefix,
+			ARG_VALUE_FORM,	HLP_AUTO_REMOTE_PREFIX}
         ,
 	{ODI,0,ARG_DEV,		        'i',9,2,A_PM1N,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0, 		0,		0,0, 		opt_dev,
 			"<interface-name>", HLP_DEV}
@@ -3572,9 +3645,15 @@ void init_ip(void)
         assertion(-501254, is_zero((void*) &ZERO_NET_KEY, sizeof (ZERO_NET_KEY)));
         assertion(-501336, is_zero((void*) &llocal_prefix_cfg, sizeof (llocal_prefix_cfg)));
         assertion(-501337, is_zero((void*) &global_prefix_cfg, sizeof (global_prefix_cfg)));
-        assertion(-500000, is_zero((void*) &default_autoconfigIp6, sizeof (default_autoconfigIp6)));
+        assertion(-500000, is_zero((void*) &autoconf_prefix_cfg, sizeof (autoconf_prefix_cfg)));
 
-        str2netw(DEF_AUTOCONF_PREFIX_DEV, &default_autoconfigIp6.ip, NULL, &default_autoconfigIp6.mask, &default_autoconfigIp6.af, NO);
+        remote_prefix_cfg = ZERO_NET6_KEY;
+        str2netw(DEF_AUTO_IP6_PREFIX, &autoconf_prefix_cfg.ip, NULL, &autoconf_prefix_cfg.mask, &autoconf_prefix_cfg.af, NO);
+        str2netw(DEF_AUTO_REMOTE_PREFIX, &remote_prefix_cfg.ip, NULL, &remote_prefix_cfg.mask, &remote_prefix_cfg.af, NO);
+
+        memset(&default_tun_in, 0, sizeof (default_tun_in));
+        default_tun_in.tun6Id = -1;
+
 
         if (rtnl_open(&ip_rth) != SUCCESS) {
                 dbgf_sys(DBGT_ERR, "failed opening rtnl socket");

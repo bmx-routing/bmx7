@@ -106,9 +106,9 @@ extern IDM_T (*hna_configure_niit6to4) (IDM_T del, struct net_key *key);
 #define TYP_TUN_OUT_PREFIX_NET 129
 
 #define ARG_TUN_OUT_OVLP_ALLOW "allowOverlappingPrefix"
-#define DEF_TUN_OUT_OVLP_ALLOW 0
+#define DEF_TUN_OUT_OVLP_ALLOW 1
 #define ARG_TUN_OUT_OVLP_BREAK "breakOverlappingPrefix"
-#define DEF_TUN_OUT_OVLP_BREAK 0
+#define DEF_TUN_OUT_OVLP_BREAK 1
 #define MIN_TUN_OUT_OVLP 0
 #define MAX_TUN_OUT_OVLP 1
 

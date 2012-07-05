@@ -16,7 +16,7 @@
  */
 
 
-#define ARG_UHNA "hna"
+#define ARG_UHNA "unicastHna"
 
 #define HNA6_PREFIXLEN_MIN 32
 #define HNA4_PREFIXLEN_MIN 8

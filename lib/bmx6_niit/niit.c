@@ -276,7 +276,7 @@ int32_t opt_niit4_address(uint8_t cmd, uint8_t _save, struct opt_type *opt, stru
 
         if (cmd == OPT_APPLY) {
 
-                assertion(-500000, (net.af == AF_INET));
+                assertion(-501396, (net.af == AF_INET));
 
                 niit4_address = net;
 

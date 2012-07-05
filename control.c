@@ -1053,7 +1053,7 @@ void register_option(struct opt_type *opt, const char * category_name)
         assertion(-501229, IMPLIES(opt->parent_name, !strchr(opt->parent_name, '-')));
         assertion(-501230, IMPLIES(opt->name, !strchr(opt->name, '-')));
 
-//        assertion(-500000, (opt->order != 5));
+//        assertion(-501367, (opt->order != 5));
 
 
         // these are the valid combinations:

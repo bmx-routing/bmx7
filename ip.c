@@ -3651,7 +3651,7 @@ void init_ip(void)
         assertion(-501254, is_zero((void*) &ZERO_NET_KEY, sizeof (ZERO_NET_KEY)));
         assertion(-501336, is_zero((void*) &llocal_prefix_cfg, sizeof (llocal_prefix_cfg)));
         assertion(-501337, is_zero((void*) &global_prefix_cfg, sizeof (global_prefix_cfg)));
-        assertion(-500000, is_zero((void*) &autoconf_prefix_cfg, sizeof (autoconf_prefix_cfg)));
+        assertion(-501395, is_zero((void*) &autoconf_prefix_cfg, sizeof (autoconf_prefix_cfg)));
 
         remote_prefix_cfg = ZERO_NET6_KEY;
         str2netw(DEF_AUTO_IP6_PREFIX, &autoconf_prefix_cfg.ip, NULL, &autoconf_prefix_cfg.mask, &autoconf_prefix_cfg.af, NO);

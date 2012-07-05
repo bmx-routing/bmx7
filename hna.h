@@ -128,15 +128,17 @@ extern IDM_T (*hna_configure_niit6to4) (IDM_T del, struct net_key *key);
 #define MAX_TUN_OUT_MTU 65535
 
 
+#define  DESC_MSG_HNA_FLAG_NO_ROUTE 0x01
 
 struct hna_node {
 	struct net_key key;
 	struct orig_node *on;
+        uint8_t flags;
 };
 
 struct description_msg_hna4 {
 	uint8_t prefixlen;
-	uint8_t reserved;
+	uint8_t flags;
 	IP4_T    ip4;
 } __attribute__((packed));
 
@@ -148,7 +150,7 @@ FIELD_FORMAT_END }
 
 struct description_msg_hna6 {
 	uint8_t prefixlen;
-	uint8_t reserved;
+	uint8_t flags;
 	IP6_T    ip6;
 } __attribute__((packed));
 

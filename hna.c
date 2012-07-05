@@ -119,22 +119,28 @@ IDM_T configure_route(IDM_T del, struct orig_node *on, struct net_key *key)
 
 
 STATIC_FUNC
-void set_hna_to_key(struct net_key *key, struct description_msg_hna4 *uhna4, struct description_msg_hna6 *uhna6)
+uint8_t set_hna_to_key(struct net_key *key, struct description_msg_hna4 *uhna4, struct description_msg_hna6 *uhna6)
 {
+        uint8_t flags;
+
         if (uhna4) {
                 IPX_T ipX = ip4ToX(uhna4->ip4);
                 setNet(key, AF_INET, uhna4->prefixlen, &ipX);
+                flags = uhna4->flags;
 
         } else {
                 setNet(key, AF_INET6, uhna6->prefixlen, &uhna6->ip6);
+                flags = uhna6->flags;
         }
 
         ip_netmask_validate(&key->ip, key->mask, key->af, YES);
+
+        return flags;
 }
 
 
 STATIC_FUNC
-int _create_tlv_hna(uint8_t* data, uint16_t max_size, uint16_t pos, struct net_key *net)
+int _create_tlv_hna(uint8_t* data, uint16_t max_size, uint16_t pos, struct net_key *net, uint8_t flags)
 {
         TRACE_FUNCTION_CALL;
         int i;
@@ -159,6 +165,7 @@ int _create_tlv_hna(uint8_t* data, uint16_t max_size, uint16_t pos, struct net_k
                 memset( &hna4, 0, sizeof(hna4));
                 hna4.ip4 = ipXto4(net->ip);
                 hna4.prefixlen = net->mask;
+                hna4.flags = flags;
 
                 for (i = 0; i < pos / msg_size; i++) {
 
@@ -175,6 +182,7 @@ int _create_tlv_hna(uint8_t* data, uint16_t max_size, uint16_t pos, struct net_k
                 memset( &hna6, 0, sizeof(hna6));
                 hna6.ip6 = net->ip;
                 hna6.prefixlen = net->mask;
+                hna6.flags = flags;
 
                 for (i = 0; i < pos / msg_size; i++) {
 
@@ -281,23 +289,23 @@ int create_description_tlv_hna(struct tx_frame_iterator *it)
         if (!is_ip_set(&self->primary_ip))
                 return TLV_TX_DATA_IGNORED;
 
-        pos = _create_tlv_hna(data, max_size, pos, setNet(NULL, family, max_plen, &self->primary_ip));
+        pos = _create_tlv_hna(data, max_size, pos, setNet(NULL, family, max_plen, &self->primary_ip), 0);
 
 /*
         if (tun4_address.mask) {
                 struct net_key niit6_address = netX4ToNiit6(&tun4_address);
-                pos = _create_tlv_hna(data, max_size, pos, &niit6_address);
+                pos = _create_tlv_hna(data, max_size, pos, &niit6_address, 0);
         }
 
         if (tun6_address.mask)
-                pos = _create_tlv_hna(data, max_size, pos, &tun6_address);
+                pos = _create_tlv_hna(data, max_size, pos, &tun6_address, 0);
         
 
         struct tun_search_node *tsn;
         for (an = NULL; (tsn = avl_iterate_item(&tun_search_name_tree, &an));) {
                 if (tsn->srcPrefix.mask) {
                         struct net_key src = (tsn->srcPrefix.af == AF_INET) ? netX4ToNiit6(&tsn->srcPrefix) : tsn->srcPrefix;
-                        pos = _create_tlv_hna(data, max_size, pos, &src);
+                        pos = _create_tlv_hna(data, max_size, pos, &src, 0);
                 }
         }
 */
@@ -306,7 +314,7 @@ int create_description_tlv_hna(struct tx_frame_iterator *it)
         for (an = NULL; (dev = avl_iterate_item(&dev_ip_tree, &an));) {
 
                 if (dev->active && dev->announce)
-                        pos = _create_tlv_hna(data, max_size, pos, setNet(NULL, family, max_plen, &dev->if_global_addr->ip_addr));
+                        pos = _create_tlv_hna(data, max_size, pos, setNet(NULL, family, max_plen, &dev->if_global_addr->ip_addr), 0);
         }
 
 
@@ -329,7 +337,7 @@ int create_description_tlv_hna(struct tx_frame_iterator *it)
                                 default_tun_in.name_auto = 1;
                                 default_tun_in.tun6Id = 0;
                                 configure_tunnel_in(ADD, &default_tun_in);
-                                pos = _create_tlv_hna(data, max_size, pos, setNet(NULL, AF_INET6, 128, &default_tun_in.remote));
+                                pos = _create_tlv_hna(data, max_size, pos, setNet(NULL, AF_INET6, 128, &default_tun_in.remote), DESC_MSG_HNA_FLAG_NO_ROUTE);
                         }
 
                 } else {
@@ -345,14 +353,14 @@ int create_description_tlv_hna(struct tx_frame_iterator *it)
                                 tin->tun6Id = m++;
                                 configure_tunnel_in(ADD, tin);
                                 assertion(-501237, (tin->upIfIdx && tin->tun6Id == -1));
-                                pos = _create_tlv_hna(data, max_size, pos, setNet(NULL, AF_INET6, 128, &tin->remote));
+                                pos = _create_tlv_hna(data, max_size, pos, setNet(NULL, AF_INET6, 128, &tin->remote), DESC_MSG_HNA_FLAG_NO_ROUTE);
                         }
                 }
         }
 
 
         for (an = NULL; (un = avl_iterate_item(&local_uhna_tree, &an));)
-                pos = _create_tlv_hna(data, max_size, pos, &un->key);
+                pos = _create_tlv_hna(data, max_size, pos, &un->key, 0);
 
 
         return pos;
@@ -362,7 +370,7 @@ int create_description_tlv_hna(struct tx_frame_iterator *it)
 
 
 STATIC_FUNC
-void configure_hna(IDM_T del, struct net_key* key, struct orig_node *on)
+void configure_hna(IDM_T del, struct net_key* key, struct orig_node *on, uint8_t flags)
 {
         TRACE_FUNCTION_CALL;
         struct hna_node *un = avl_find_item( &global_uhna_tree, key );
@@ -385,6 +393,7 @@ void configure_hna(IDM_T del, struct net_key* key, struct orig_node *on)
                 un = debugMalloc( sizeof (struct hna_node), -300090 );
                 un->key = *key;
                 un->on = on;
+                un->flags = flags;
                 avl_insert(&global_uhna_tree, un, -300149);
 
                 if (on == self)
@@ -402,7 +411,7 @@ void configure_hna(IDM_T del, struct net_key* key, struct orig_node *on)
                         ip(IP_THROW_MY_HNA, del, NO, key, RT_TABLE_TUN, 0, 0, 0, 0, 0, 0);
                 }
 
-        } else if (on->curr_rt_lndev) {
+        } else if (on->curr_rt_lndev && !(flags & DESC_MSG_HNA_FLAG_NO_ROUTE)) {
 
                 configure_route(del, on, key);
                 if (hna_configure_niit4to6)
@@ -474,7 +483,7 @@ int process_description_tlv_hna(struct rx_frame_iterator *it)
         if (op == TLV_OP_NEW || op == TLV_OP_DEL) {
                 struct hna_node *un;
                 while ((un = find_orig_hna(on)))
-                        configure_hna(DEL, &un->key, on);
+                        configure_hna(DEL, &un->key, on, un->flags);
 
                 on->primary_ip = ZERO_IP;
                 ipXToStr(family, &ZERO_IP, on->primary_ip_str);
@@ -490,11 +499,12 @@ int process_description_tlv_hna(struct rx_frame_iterator *it)
         for (pos = 0; pos < it->frame_msgs_length; pos += msg_size) {
 
                 struct net_key key;
+                uint8_t flags;
 
                 if (it->frame_type == BMX_DSC_TLV_UHNA4)
-                        set_hna_to_key(&key, (struct description_msg_hna4 *) (it->frame_data + pos), NULL);
+                        flags = set_hna_to_key(&key, (struct description_msg_hna4 *) (it->frame_data + pos), NULL);
                 else
-                        set_hna_to_key(&key, NULL, (struct description_msg_hna6 *) (it->frame_data + pos));
+                        flags = set_hna_to_key(&key, NULL, (struct description_msg_hna6 *) (it->frame_data + pos));
 
 
                 dbgf_track(DBGT_INFO, "%s %s %s %s=%s",
@@ -543,7 +553,7 @@ int process_description_tlv_hna(struct rx_frame_iterator *it)
                                 ipFToStr( &key.ip, on->primary_ip_str);
                         }
 
-                        configure_hna(ADD, &key, on);
+                        configure_hna(ADD, &key, on, flags);
 
 
                 } else if (op >= TLV_OP_CUSTOM_MIN) {
@@ -551,7 +561,7 @@ int process_description_tlv_hna(struct rx_frame_iterator *it)
                         dbgf_all(DBGT_INFO, "configure_niit... op=%d  global_id=%s blocked=%d",
                                 op, globalIdAsString(&on->global_id), on->blocked);
 
-                        if (!on->blocked) {
+                        if (!on->blocked  && !(flags & DESC_MSG_HNA_FLAG_NO_ROUTE)) {
                                 //ASSERTION(-501314, (avl_find(&global_uhna_tree, &key)));
 
                                 if (op == TLV_OP_CUSTOM_NIIT6TO4_ADD) {
@@ -627,7 +637,7 @@ int32_t opt_uhna(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
                 }
 
                 if (cmd == OPT_APPLY) {
-                        configure_hna((patch->diff == DEL ? DEL : ADD), &hna, self);
+                        configure_hna((patch->diff == DEL ? DEL : ADD), &hna, self, 0);
                         my_description_changed = YES;
                 }
 
@@ -637,7 +647,7 @@ int32_t opt_uhna(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
                 struct hna_node * un;
 
                 while ((un = avl_first_item(&global_uhna_tree)))
-                        configure_hna(DEL, &un->key, self);
+                        configure_hna(DEL, &un->key, self, un->flags);
 	}
 
 	return SUCCESS;

@@ -2555,7 +2555,7 @@ struct net_key bmx6AutoEUI64Ip6(struct dev_node *dev, struct net_key *prefix)
 {
         struct net_key autoPrefix = ZERO_NET6_KEY;
 
-        if (dev && prefix->mask && prefix->mask <= 64 && dev->linklayer != TYP_DEV_LL_LO &&
+        if (dev && prefix->mask && prefix->mask <= 64 && /*dev->linklayer != TYP_DEV_LL_LO &&*/
                 dev->if_link && !is_zero(&dev->if_link->addr, sizeof (dev->if_link->addr))) {
 
                 autoPrefix = *prefix;
@@ -2573,8 +2573,8 @@ struct net_key bmx6AutoEUI64Ip6(struct dev_node *dev, struct net_key *prefix)
                 autoPrefix.ip.s6_addr[8 ] |= 2;
         }
 
-        dbgf_track(DBGT_INFO, "%s %s (autoconf.mask=%d dev->if_link_addr=%s)",
-                dev->label_cfg.str, netAsStr(&autoPrefix), prefix->mask,
+        dbgf_track(DBGT_INFO, "%s returnPrefix=%s (prefix=%s dev->if_link_addr=%s)",
+                dev->label_cfg.str, netAsStr(&autoPrefix), netAsStr(prefix),
                 (dev->if_link ? memAsHexString(&dev->if_link->addr, sizeof (dev->if_link->addr)) : "--"));
 
         return autoPrefix;
@@ -3648,6 +3648,7 @@ void init_ip(void)
         assertion(-501395, is_zero((void*) &autoconf_prefix_cfg, sizeof (autoconf_prefix_cfg)));
 
         remote_prefix_cfg = ZERO_NET6_KEY;
+        autoconf_prefix_cfg = ZERO_NET6_KEY;
         str2netw(DEF_AUTO_IP6_PREFIX, &autoconf_prefix_cfg.ip, NULL, &autoconf_prefix_cfg.mask, &autoconf_prefix_cfg.af, NO);
         str2netw(DEF_AUTO_REMOTE_PREFIX, &remote_prefix_cfg.ip, NULL, &remote_prefix_cfg.mask, &remote_prefix_cfg.af, NO);
 

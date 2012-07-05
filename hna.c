@@ -466,8 +466,8 @@ int process_description_tlv_hna(struct rx_frame_iterator *it)
 
 
         if (AF_CFG != family) {
-                dbgf_sys(DBGT_ERR, "invalid family %s", family2Str(family));
-                return TLV_RX_DATA_BLOCKED;
+                dbg_mute(10, DBGL_CHANGES, DBGT_WARN, "%s NOT supported in this mode", family2Str(family));
+                return TLV_RX_DATA_IGNORED;
         }
 
         if (op == TLV_OP_NEW || op == TLV_OP_DEL) {
@@ -2379,7 +2379,7 @@ STATIC_FUNC
 struct opt_type hna_options[]= {
 //     		ord parent long_name   shrt Attributes				*ival		min		max		default		*function
 
-	{ODI,0,ARG_UHNA,	 	'a',9,2,A_PM1N,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_uhna,
+	{ODI,0,ARG_UHNA,	 	'u',9,2,A_PM1N,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_uhna,
 			ARG_PREFIX_FORM,"specify host-network announcement (HNA) for defined ip range"}
 /*
         ,

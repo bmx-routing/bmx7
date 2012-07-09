@@ -783,8 +783,8 @@ void _add_tun_bit_node(struct tun_search_node *tsna, struct tun_net_node *tnna)
                                 struct tun_bit_node *tbn = debugMalloc(sizeof ( struct tun_bit_node), -300455);
                                 memset(tbn, 0, sizeof (struct tun_bit_node));
 
-                                tbn->tunBitKey.beInvTunBitMetric = htobe64(UMETRIC_MAX);
-                                tbn->tunBitKey.beIpMetric = htobe32(tbkn.tsn->ipmetric);
+                                tbn->tunBitKey.beInvTunBitMetric = hton64(UMETRIC_MAX);
+                                tbn->tunBitKey.beIpMetric = htonl(tbkn.tsn->ipmetric);
                                 tbn->tunBitKey.keyNodes = tbkn;
                                 tbn->tunBitKey.invNetKey = tsn_netKey->mask > tnn_netKey->mask ? *tsn_netKey : *tnn_netKey;
                                 tbn->tunBitKey.invNetKey.mask = 128 - tbn->tunBitKey.invNetKey.mask;
@@ -815,7 +815,7 @@ void configure_tun_bit(uint8_t del, struct tun_bit_node *tbn)
                 struct net_key netKey = tbn->tunBitKey.invNetKey;
                 netKey.mask = 128 - netKey.mask;
 
-                ip(IP_ROUTE_TUNS, DEL, NO, &netKey, RT_TABLE_TUN, 0, NULL, ton->upIfIdx, NULL, NULL, be32toh(tbn->tunBitKey.beIpMetric));
+                ip(IP_ROUTE_TUNS, DEL, NO, &netKey, RT_TABLE_TUN, 0, NULL, ton->upIfIdx, NULL, NULL, ntohl(tbn->tunBitKey.beIpMetric));
 
                 tbn->active = NO;
 
@@ -960,14 +960,14 @@ void _recalc_tun_bit_tree(void)
                 }
 
                 if (tnn->e2eMetric <= UMETRIC_MIN__NOT_ROUTABLE) {
-                        tbk_new.beInvTunBitMetric = htobe64(UMETRIC_MAX);
+                        tbk_new.beInvTunBitMetric = hton64(UMETRIC_MAX);
                 } else {
                         UMETRIC_T tunBitMetric = ((((tnn->e2eMetric * (100 + tsn->bonus)) / 100) *
                                 (100 + (tbn_curr->active ? tsn->hysteresis : 0))) / 100);
 
                         assertion(-501379, (UMETRIC_MAX >= tunBitMetric));
 
-                        tbk_new.beInvTunBitMetric = htobe64(UMETRIC_MAX - tunBitMetric);
+                        tbk_new.beInvTunBitMetric = hton64(UMETRIC_MAX - tunBitMetric);
                 }
 
                 assertion(-501380, (memcmp(&tbk_new, &tbk_prev, sizeof (struct tun_bit_key))));
@@ -1016,8 +1016,8 @@ void eval_tun_bit_tree(void  *unused)
                         assertion(-501382, IMPLIES(af == AF_INET, is_ip_set(tbn_curr->tunBitKey.keyNodes.tsn->srcPrefix.mask ? &tbn_curr->tunBitKey.keyNodes.tsn->srcPrefix.ip : &tun4_address.ip)));
                         assertion(-501383, IMPLIES(af == AF_INET6, is_ip_set(tbn_curr->tunBitKey.keyNodes.tsn->srcPrefix.mask ? &tbn_curr->tunBitKey.keyNodes.tsn->srcPrefix.ip : &tun6_address.ip)));
 
-                        if (ipMetric_begin != be32toh(tbn_curr->tunBitKey.beIpMetric)) {
-                                ipMetric_begin = be32toh(tbn_curr->tunBitKey.beIpMetric);
+                        if (ipMetric_begin != ntohl(tbn_curr->tunBitKey.beIpMetric)) {
+                                ipMetric_begin = ntohl(tbn_curr->tunBitKey.beIpMetric);
                                 tbn_begin = tbn_curr;
                         }
 
@@ -1779,7 +1779,7 @@ static int32_t tun_out_status_creator(struct status_handl *handl, void *data)
                                 status->advBw = status->advBwVal ? &status->advBwVal : NULL;
                                 status->pathMtc = tun->tunOutKey.on->curr_rt_local ? &tun->tunOutKey.on->curr_rt_local->mr.umetric : NULL;
                                 status->e2EMtc = tnn->e2eMetric ? &tnn->e2eMetric : NULL;
-                                status->tunMtcVal = tbn ? (UMETRIC_MAX - be64toh(tbn->tunBitKey.beInvTunBitMetric)) : 0;
+                                status->tunMtcVal = tbn ? (UMETRIC_MAX - ntoh64(tbn->tunBitKey.beInvTunBitMetric)) : 0;
                                 status->tunMtc = status->tunMtcVal ? &status->tunMtcVal : NULL;
                         } else {
                                 sprintf(status->advNet, DBG_NIL);

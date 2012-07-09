@@ -33,9 +33,11 @@
                 }                                                               \
         } while(0)
 
+static inline uint64_t ntoh64(uint64_t x) {
+        return (((uint64_t) ntohl(x & (uint64_t) 0xFFFFFFFFULL)) << 32) | ((uint64_t) ntohl((x & (uint64_t) 0xFFFFFFFF00000000ULL) >> 32));
+}
 
-
-
+#define hton64 ntoh64
 
 
 

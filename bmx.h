@@ -380,7 +380,7 @@ typedef uint8_t  FRAME_TYPE_T;
 
 #define HASH_SHA1_LEN SHA_DIGEST_SIZE  // sha.h: 20 bytes
 
-#define MAX_PACKET_SIZE 1600
+#define MAX_PACKET_SIZE 1500
 
 
 

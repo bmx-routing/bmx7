@@ -128,7 +128,7 @@ IDM_T validate_name_string(char* name, uint32_t field_len, char* exceptions)
                 char c = name[i];
 
                 if ((c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
-                        c == '-' || c == '-' || (c == '.' && (i != 0 && i != (string_len - 1))))
+                        c == '-' || c == '_' || (c == '.' && (i != 0 && i != (string_len - 1))))
                         continue;
 
                 if (exceptions) {

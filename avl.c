@@ -50,7 +50,7 @@ void *avl_find_item(struct avl_tree *tree, void *key)
 
 }
 
-void *avl_first(struct avl_tree *tree)
+struct avl_node *avl_first(struct avl_tree *tree)
 {
         struct avl_node * an = tree->root;
 
@@ -439,6 +439,20 @@ void *avl_remove(struct avl_tree *tree, void *key, int32_t tag)
 
         return node;
 
+}
+
+
+void *avl_remove_first_item(struct avl_tree *tree, int32_t tag) {
+
+        void *item = NULL;
+        struct avl_node *an = avl_first(tree);
+
+        if (an) {
+                item = avl_remove(tree, ((uint8_t*)an->item) + tree->key_offset, tag);
+                assertion(-501400, (an->item == item));
+        }
+
+        return item;
 }
 
 #ifdef AVL_DEBUG

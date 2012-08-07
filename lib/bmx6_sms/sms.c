@@ -425,11 +425,9 @@ static void sms_cleanup( void )
                 task_remove(check_for_changed_sms, NULL);
         }
 
-        while (json_sms_tree.items) {
-                struct json_sms *sms = avl_first_item(&json_sms_tree);
-                avl_remove(&json_sms_tree, sms->name, -300381);
-                debugFree(sms, -300382);
-        }
+        while (json_sms_tree.items)
+                debugFree(avl_remove_first_item(&json_sms_tree, -300381), -300382);
+
 
 }
 

@@ -18,6 +18,8 @@
 
 #define ARG_UHNA "unicastHna"
 
+#define BMX6_ROUTE_BMX6                 0
+
 #define HNA6_PREFIXLEN_MIN 32
 #define HNA4_PREFIXLEN_MIN 8
 
@@ -95,15 +97,15 @@ extern IDM_T (*hna_configure_niit6to4) (IDM_T del, struct net_key *key);
 #define ARG_TUN_OUT_HOSTNAME "gwName"
 #define ARG_TUN_OUT_PKID     "gwId"
 
-#define ARG_TUN_OUT_PREFIX_MIN "minPrefixLen"
-#define DEF_TUN_OUT_PREFIX_MIN 129 //assumes prefix from ARG_TUN_OUT_NET
-
-#define ARG_TUN_OUT_PREFIX_MAX "maxPrefixLen"
-#define DEF_TUN_OUT_PREFIX_MAX 128 //assumes prefix from ARG_TUN_OUT_NET
-
 #define MIN_TUN_OUT_PREFIX 0
 #define MAX_TUN_OUT_PREFIX 129
-#define TYP_TUN_OUT_PREFIX_NET 129
+#define TYP_TUN_OUT_PREFIX_NET 129 //assumes prefix from ARG_TUN_OUT_NET
+
+#define ARG_TUN_OUT_PREFIX_MIN "minPrefixLen"
+#define DEF_TUN_OUT_PREFIX_MIN TYP_TUN_OUT_PREFIX_NET
+
+#define ARG_TUN_OUT_PREFIX_MAX "maxPrefixLen"
+#define DEF_TUN_OUT_PREFIX_MAX 128
 
 #define ARG_TUN_OUT_OVLP_ALLOW "allowOverlappingPrefix"
 #define DEF_TUN_OUT_OVLP_ALLOW 1
@@ -249,7 +251,7 @@ FIELD_FORMAT_END }
 
 struct description_msg_tun4in6_net_adv {
         uint8_t tun6Id;
-        uint8_t reserved;
+        uint8_t bmx6_route_type;
         FMETRIC_U8_T bandwidth;
         uint8_t networkLen;
         IP4_T network;
@@ -257,7 +259,7 @@ struct description_msg_tun4in6_net_adv {
 
 #define DESCRIPTION_MSG_TUN4IN6_NET_ADV_FORMAT { \
 {FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_MEDI, "tun6Id" },  \
-{FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_LOW,  "reserved" },  \
+{FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_HIGH, "rtype" },  \
 {FIELD_TYPE_FMETRIC8, -1,   8, 1, FIELD_RELEVANCE_HIGH, "bandwidth" },  \
 {FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_HIGH, "networklen" },  \
 {FIELD_TYPE_IP4,      -1,  32, 1, FIELD_RELEVANCE_HIGH, "network" },  \
@@ -265,7 +267,7 @@ FIELD_FORMAT_END }
 
 struct description_msg_tun6in6_net_adv {
         uint8_t tun6Id;
-        uint8_t reserved;
+        uint8_t bmx6_route_type;
         FMETRIC_U8_T bandwidth;
         uint8_t networkLen;
         IP6_T network;
@@ -273,13 +275,29 @@ struct description_msg_tun6in6_net_adv {
 
 #define DESCRIPTION_MSG_TUN6IN6_NET_ADV_FORMAT { \
 {FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_MEDI, "tun6Id" },  \
-{FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_LOW,  "reserved" },  \
+{FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_HIGH, "rtype" },  \
 {FIELD_TYPE_FMETRIC8, -1,   8, 1, FIELD_RELEVANCE_HIGH, "bandwidth" },  \
 {FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_HIGH, "networklen" },  \
 {FIELD_TYPE_IPX6,     -1, 128, 1, FIELD_RELEVANCE_HIGH, "network" },  \
 FIELD_FORMAT_END }
 
 
+struct tunXin6_net_adv_node {
+	struct list_node list;
+        uint8_t bmx6_route_type;
+        FMETRIC_U8_T bandwidth;
+        struct net_key net;
+};
+
+
+
+struct tunXin6_net_adv_list_node {
+	struct list_node list;
+        struct list_head *adv_list; //LIST_SIMPEL()
+};
+
+
+extern struct list_head tunXin6_net_adv_list_list;
 
 struct tun_bit_key_nodes {
 
@@ -423,5 +441,6 @@ struct tun_in_node {
 };
 
 
+void set_tunXin6_net_adv_list(uint8_t del, struct list_head *adv_list);
 
 struct hna_node * find_overlapping_hna( IPX_T *ipX, uint8_t prefixlen, struct orig_node *except );

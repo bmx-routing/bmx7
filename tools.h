@@ -51,6 +51,7 @@ static inline uint64_t ntoh64(uint64_t x) {
 
 IDM_T hexStrToMem(char *s, uint8_t *m, uint16_t mLen);
 char* memAsHexString( const void* mem, uint32_t len);
+char* memAsHexStringSep( const void* mem, uint32_t len, uint16_t separator);
 char* memAsCharString( const char* mem, uint32_t len);
 
 IDM_T validate_char_string (const char* data, uint32_t len);
@@ -87,7 +88,7 @@ IDM_T str2netw(char* args, IPX_T *ipX, struct ctrl_node *cn, uint8_t *maskp, uin
 int8_t wordsEqual ( char *a, char *b );
 void wordCopy( char *out, char *in );
 uint32_t wordlen ( char *s );
-int32_t check_file( char *path, uint8_t write, uint8_t exec );
+int32_t check_file(char *path, uint8_t regular, uint8_t read, uint8_t write, uint8_t exec);
 int32_t check_dir( char *path, uint8_t create, uint8_t write );
 int32_t rm_dir_content(char* dir_name, char* prefix);
 

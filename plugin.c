@@ -349,7 +349,7 @@ int8_t activate_dyn_plugin( const char* name ) {
 	
 	int dl_tried = 0;
 
-	if ( check_file( dl_path, NO, YES ) == SUCCESS  &&
+	if ( check_file( dl_path, YES/*regular*/, YES/*read*/, NO/*writeble*/, YES/*executable*/ ) == SUCCESS  &&
 	     (dl_tried = 1)  &&  (dlhandle = dlopen( dl_path, RTLD_NOW )) )
 	{
 		

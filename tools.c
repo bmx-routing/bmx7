@@ -31,31 +31,39 @@
 #include "ip.h"
 #include "tools.h"
 
-char* memAsHexString( const void* mem, uint32_t len)
+char* memAsHexStringSep( const void* mem, uint32_t len, uint16_t separator)
 {
 #define MEMASSTR_BUFF_SIZE 2048
 #define MEMASSTR_BUFFERS 2
 #define MEMASSTR_STEP_SIZE 2
+#define TRAILER_LEN 4
+        separator = separator ? separator : MEMASSTR_BUFF_SIZE;
 	static uint8_t c=0;
         static char out[MEMASSTR_BUFFERS][MEMASSTR_BUFF_SIZE];
-        uint32_t i;
+        uint32_t i = 0, l = 0;
 
         if (!mem)
                 return NULL;
 
         c = (c+1) % MEMASSTR_BUFFERS;
 
-        for (i = 0; i < len && i < ((MEMASSTR_BUFF_SIZE / MEMASSTR_STEP_SIZE) - MEMASSTR_STEP_SIZE); i++) {
+        while (l < len && i < (MEMASSTR_BUFF_SIZE - TRAILER_LEN)) {
 
-                sprintf(&(out[c][i * MEMASSTR_STEP_SIZE]), "%.2X", ((uint8_t*) mem)[i]);
+                i += sprintf(&(out[c][i]), "%s%.2X", ((l && !(l % separator)) ? " " : ""), ((uint8_t*) mem)[l]);
+                l++;
         }
 
-        if (len > i)
-                return NULL;
+        if (l < len)
+                i += sprintf(&(out[c][i]), "...");
 
-        out[c][i * MEMASSTR_STEP_SIZE] = 0;
+        //out[c][i * MEMASSTR_STEP_SIZE] = 0;
 
         return out[c];
+}
+
+char* memAsHexString( const void* mem, uint32_t len)
+{
+        return memAsHexStringSep(mem, len, 0);
 }
 
 IDM_T hexStrToMem(char *s, uint8_t *m, uint16_t mLen)
@@ -489,10 +497,7 @@ IDM_T str2netw(char* args, IPX_T *ipX,  struct ctrl_node *cn, uint8_t *maskp, ui
 
 }
 
-
-
-
-int32_t check_file( char *path, uint8_t write, uint8_t exec ) {
+int32_t check_file(char *path, uint8_t regular, uint8_t read, uint8_t write, uint8_t exec) {
 
 	struct stat fstat;
 
@@ -505,11 +510,11 @@ int32_t check_file( char *path, uint8_t write, uint8_t exec ) {
 
 	} else {
 
-		if ( S_ISREG( fstat.st_mode )  &&
-		     (S_IRUSR & fstat.st_mode)  &&
-		     ((S_IWUSR & fstat.st_mode) || !write) &&
-		     ((S_IXUSR & fstat.st_mode) || !exec) )
-			return SUCCESS;
+                if ((!regular || (S_ISREG(fstat.st_mode))) &&
+                        (!read || (S_IRUSR & fstat.st_mode)) &&
+                        (!write || (S_IWUSR & fstat.st_mode)) &&
+                        (!exec || (S_IXUSR & fstat.st_mode)))
+                        return SUCCESS;
 
                 dbgf_sys(DBGT_ERR, "%s exists but has inapropriate permissions (%s)", path, strerror(errno));
 

@@ -729,15 +729,15 @@ int32_t opt_conf_file ( uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
 			
 			char *tmp_name = strrchr( tmp_path, '/');
 			
-			if ( !tmp_name  ||  tmp_name == tmp_path  ||  
-			     check_file( tmp_path, YES/*writable*/, NO/*executable*/ ) == FAILURE )
+			if ( !tmp_name  ||  tmp_name == tmp_path  ||
+                                check_file(tmp_path, YES/*regular*/, YES/*read*/, YES/*writable*/, NO/*executable*/) == FAILURE)
 				return FAILURE;
 			
 		} else if ( strchr( f, '/') == NULL  ||  strchr( f, '/') >= f+wordlen(f) ) {
 			
 			snprintf( tmp_path, strlen(UCI_CONFDIR)+1+wordlen(f)+1, "%s/%s", UCI_CONFDIR, f );
 			
-			if ( check_file( tmp_path, YES/*writable*/, NO/*executable*/ ) == FAILURE )
+			if ( check_file( tmp_path, YES/*regular*/, YES/*read*/, YES/*writable*/, NO/*executable*/ ) == FAILURE )
 				return FAILURE;
 				
 			
@@ -761,7 +761,7 @@ int32_t opt_conf_file ( uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
 		
 		sprintf( tmp_path, "%s/%s", conf_path, bmx_conf_name );
 		
-		if ( check_file( tmp_path, YES/*writable*/, NO/*executable*/ ) == FAILURE )
+		if ( check_file( tmp_path, YES/*regular*/, YES/*read*/, YES/*writable*/, NO/*executable*/ ) == FAILURE )
 			return SUCCESS; //no config file used
 
 		bmx_ctx = uci_alloc_context();

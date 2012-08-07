@@ -75,7 +75,7 @@ struct avl_node *avl_find( struct avl_tree *tree, void *key );
 void            *avl_find_item( struct avl_tree *tree, void *key );
 struct avl_node *avl_next( struct avl_tree *tree, void *key );
 void            *avl_next_item(struct avl_tree *tree, void *key);
-void            *avl_first(struct avl_tree *tree);
+struct avl_node *avl_first(struct avl_tree *tree);
 void            *avl_first_item(struct avl_tree *tree);
 struct avl_node *avl_iterate(struct avl_tree *tree, struct avl_node *it );
 void            *avl_iterate_item(struct avl_tree *tree, struct avl_node **it );
@@ -83,6 +83,7 @@ void           *_avl_find_item_by_field(struct avl_tree *tree, void *value, unsi
 #define          avl_find_item_by_field(tree,val,s,field) _avl_find_item_by_field( tree, val, (unsigned long)((&(((struct s*)0)->field))), sizeof(((struct s*)0)->field) )
 void             avl_insert(struct avl_tree *tree, void *node, int32_t tag);
 void            *avl_remove(struct avl_tree *tree, void *key, int32_t tag);
+void            *avl_remove_first_item(struct avl_tree *tree, int32_t tag);
 void             init_avl(void);
 
 #ifdef AVL_DEBUG

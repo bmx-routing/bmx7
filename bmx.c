@@ -1319,8 +1319,7 @@ void cleanup_all(int32_t status)
                 }
 
                 while (status_tree.items) {
-                        struct status_handl *handl = avl_first_item(&status_tree);
-                        avl_remove(&status_tree, handl->status_name, -300357);
+                        struct status_handl *handl = avl_remove_first_item(&status_tree, -300357);
                         if (handl->data)
                                 debugFree(handl->data, -300359);
                         debugFree(handl, -300363);

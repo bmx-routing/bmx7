@@ -570,7 +570,7 @@ int8_t track_rule_and_proceed(uint32_t network, int16_t mask, uint32_t prio, int
                                       int16_t rule_type, int8_t del, int8_t cmd);
 
 
-IDM_T track_route(IPX_T *dst, int16_t mask, uint32_t metric, int16_t table, int16_t rta_t, int8_t del, int8_t track_t);
+//IDM_T track_route(IPX_T *dst, int16_t mask, uint32_t metric, int16_t table, int16_t rta_t, int8_t del, int8_t track_t);
 
 
 

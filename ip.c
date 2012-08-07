@@ -1078,15 +1078,17 @@ static IDM_T kernel_if_config(void)
                         iov.iov_len = sizeof (buf);
 
                         int status = recvmsg(ip_rth.fd, &msg, 0);
+                        int err = errno;
+
                         dbgf(DBGL_TEST, DBGT_INFO, "rcvd %s_INFO status=%d",
                                 info == LINK_INFO ? "LINK" : "ADDR", status);
 
                         if (status < 0) {
 
-                                if (errno == EINTR || errno == EAGAIN)
+                                if (err == EINTR || err == EAGAIN)
                                         continue;
 
-                                dbgf_sys(DBGT_ERR, "netlink receive error %s (%d)", strerror(errno), errno);
+                                dbgf_sys(DBGT_ERR, "netlink receive error %s (%d)", strerror(err), err);
                                 return FAILURE;
 
                         } else if (status == 0) {

@@ -695,8 +695,9 @@ void dbg_printf(struct ctrl_node *cn, char *last, ...)
 //        vsnprintf(s, MAX_DBG_STR_SIZE, last, ap);
 
         if (vdprintf(cn->fd, last, ap) < 0) {
+                int err = errno;
                 wait_sec_msec(0, 100);
-                dprintf(cn->fd, "\nERROR: %s !\n", strerror(errno));
+                dprintf(cn->fd, "\nERROR: %s !\n", strerror(err));
         }
 
         va_end(ap);
@@ -1005,11 +1006,12 @@ int8_t is_valid_opt_ival(struct opt_type *opt, char *s, struct ctrl_node *cn)
 	
 	errno=0;
 	int ival = strtol(s, &invalids , 10);
-	
+        int err = errno;
+
 	if ( wordlen(s) < 1 || 
 	     ival < opt->imin || ival > opt->imax || 
 	     invalids!=(s+wordlen(s)) || 
-	     errno == ERANGE  || errno == EINVAL ) 
+	     err == ERANGE  || err == EINVAL ) 
 	{
 		
 		dbg_cn( cn, DBGL_SYS, DBGT_ERR, "--%s value %d is invalid! Must be %d <= <value> <= %d !",
@@ -1795,10 +1797,12 @@ int32_t opt_connect_client_to_daemon(uint8_t cmd, struct opt_type *opt, struct c
 				
 				if ( !FD_ISSET( unix_sock, &unix_wait_set )  )
 					continue;
-				
+
+				int err = 0;
 				do {
 					errno = 0;
 					recv_buff_len = read( unix_sock, unix_buff, MAX_UNIX_MSG_SIZE );
+                                        err = errno;
 					
 					if ( recv_buff_len > 0 ) {
 						char *p;
@@ -1809,25 +1813,25 @@ int32_t opt_connect_client_to_daemon(uint8_t cmd, struct opt_type *opt, struct c
 
 							//printf( "%s", unix_buff );
                                                         if (write(STDOUT_FILENO, unix_buff, strlen(unix_buff)) < 0) {
-                                                                dbgf_track(DBGT_WARN, "%s", strerror(errno));
+                                                                dbgf_track(DBGT_WARN, "%s", strerror(err));
                                                         }
 							break;
 							
                                                 }
                                                 //printf( "%s", unix_buff );
                                                 if (write(STDOUT_FILENO, unix_buff, strlen(unix_buff)) < 0) {
-                                                        dbgf_track(DBGT_WARN, "%s", strerror(errno));
+                                                        dbgf_track(DBGT_WARN, "%s", strerror(err));
                                                 }
 					}
 					
 				} while ( recv_buff_len > 0 );
 				
-				if ( recv_buff_len < 0  && ( errno == EWOULDBLOCK || errno == EAGAIN ) )
+				if ( recv_buff_len < 0  && ( err == EWOULDBLOCK || err == EAGAIN ) )
 					continue;
 				
 				if ( recv_buff_len < 0 ) {
 					dbgf_sys(DBGT_INFO, "sock returned %d errno %d: %s",
-					     recv_buff_len, errno, strerror(errno) );
+					     recv_buff_len, err, strerror(err) );
 				}
 				
 				if ( recv_buff_len <= 0 )

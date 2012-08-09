@@ -112,8 +112,6 @@ const uint8_t IP6_MC_PLEN = 8;
 
 
 static int nlsock_default = -1;
-static int nlsock_flush_all = -1;
-
 
 static int rt_sock = 0;
 
@@ -389,8 +387,8 @@ char *trackt2str(uint8_t cmd)
         else if ( cmd == IP_RULE_TEST )
 		return "RULE_TEST";
 
-        else if (cmd == IP_ROUTE_FLUSH_ALL)
-                return "ROUTE_FLUSH_ALL";
+        else if (cmd == IP_ROUTE_GET)
+                return "ROUTE_GET";
 
         else if (cmd == IP_ROUTE_FLUSH)
                 return "ROUTE_FLUSH";
@@ -680,7 +678,7 @@ struct dev_node * dev_get_by_name(char *name)
 
 
 STATIC_FUNC
-IDM_T kernel_if_fix(IDM_T purge_all, uint16_t curr_sqn)
+IDM_T kernel_get_if_config_post(IDM_T purge_all, uint16_t curr_sqn)
 {
 	TRACE_FUNCTION_CALL;
         uint16_t changed = 0;
@@ -767,7 +765,7 @@ IDM_T kernel_if_fix(IDM_T purge_all, uint16_t curr_sqn)
 }
 
 STATIC_INLINE_FUNC
-void kernel_if_addr_config(struct nlmsghdr *nlhdr, uint16_t index_sqn)
+void kernel_get_if_addr_config(struct nlmsghdr *nlhdr, uint16_t index_sqn)
 {
         TRACE_FUNCTION_CALL;
 
@@ -931,7 +929,7 @@ void kernel_if_addr_config(struct nlmsghdr *nlhdr, uint16_t index_sqn)
 
 
 STATIC_FUNC
-int kernel_if_link_config(struct nlmsghdr *nlhdr, uint16_t update_sqn)
+int kernel_get_if_link_config(struct nlmsghdr *nlhdr, uint16_t update_sqn)
 {
 	TRACE_FUNCTION_CALL;
 
@@ -1042,7 +1040,7 @@ int kernel_if_link_config(struct nlmsghdr *nlhdr, uint16_t update_sqn)
 
 
 
-static IDM_T kernel_if_config(void)
+static IDM_T kernel_get_if_config(void)
 {
 	TRACE_FUNCTION_CALL;
 
@@ -1132,9 +1130,9 @@ static IDM_T kernel_if_config(void)
 
 
                                 if (info == LINK_INFO )
-                                        kernel_if_link_config(nlhdr, index_sqn);
+                                        kernel_get_if_link_config(nlhdr, index_sqn);
                                 else
-                                        kernel_if_addr_config(nlhdr, index_sqn);
+                                        kernel_get_if_addr_config(nlhdr, index_sqn);
 
                         }
 
@@ -1158,34 +1156,27 @@ static IDM_T kernel_if_config(void)
                 }
         }
 
-        return kernel_if_fix(NO, index_sqn);
+        return kernel_get_if_config_post(NO, index_sqn);
 
 }
 
 
+
 STATIC_FUNC
-IDM_T rtnl_talk(void *req, int len, uint8_t family, uint8_t cmd, int8_t del, uint8_t quiet,
-        const IPX_T *net, uint8_t nmask, IPX_T *via, int8_t table_macro)
+IDM_T rtnl_talk(void *req, int len, uint8_t cmd, struct list_head *rtnl_get_list, uint8_t quiet)
 {
 
         // DONT USE setNet() here (because return pointer is static)!!!!!!!!!!!!!
 
-        uint32_t table = table_macro_to_table(table_macro);
         uint8_t more_data;
 	struct nlmsghdr *nh;
         struct sockaddr_nl nladdr;
         memset(&nladdr, 0, sizeof (struct sockaddr_nl));
 	nladdr.nl_family = AF_NETLINK;
 
-        int nlsock = 0;
+        errno = 0;
 
-        if ( cmd == IP_ROUTE_FLUSH_ALL )
-                nlsock = nlsock_flush_all;
-        else
-                nlsock = nlsock_default;
-
-
-        if (sendto(nlsock, req, len, 0, (struct sockaddr *) & nladdr, sizeof (struct sockaddr_nl)) < 0) {
+        if (sendto(nlsock_default, req, len, 0, (struct sockaddr *) & nladdr, sizeof (struct sockaddr_nl)) < 0) {
 
                 dbgf_sys(DBGT_ERR, "can't send netlink message to kernel: %s", strerror(errno));
                 EXITERROR(-501095, (0));
@@ -1213,22 +1204,17 @@ IDM_T rtnl_talk(void *req, int len, uint8_t family, uint8_t cmd, int8_t del, uin
 		msg.msg_control = NULL;
 
 		errno=0;
-		int status = recvmsg( nlsock, &msg, 0 );
+		int status = recvmsg( nlsock_default, &msg, 0 );
 
                 more_data = NO;
 
 		if ( status < 0 ) {
 
 			if ( errno == EINTR ) {
-
                                 dbgf_sys(DBGT_WARN, "(EINTR) %s", strerror(errno));
-
                         } else if (errno == EWOULDBLOCK || errno == EAGAIN) {
-
                                 dbgf_sys(DBGT_ERR, "(EWOULDBLOCK || EAGAIN) %s", strerror(errno));
-
                         } else {
-
                                 dbgf_sys(DBGT_ERR, "%s", strerror(errno));
                         }
 
@@ -1270,37 +1256,32 @@ IDM_T rtnl_talk(void *req, int len, uint8_t family, uint8_t cmd, int8_t del, uin
                         } else if ((nh->nlmsg_type == NLMSG_ERROR) && (((struct nlmsgerr*) NLMSG_DATA(nh))->error != 0)) {
 
                                 dbgf(quiet ? DBGL_ALL : DBGL_SYS, quiet ? DBGT_INFO : DBGT_ERR,
-                                        "can't %s %s to %s/%i via %s table %i: %s",
-                                        del2str(del), trackt2str(cmd), ipXAsStr(family, net), nmask, ipXAsStr(family, via),
-                                        table, strerror(-((struct nlmsgerr*) NLMSG_DATA(nh))->error));
+                                        "can't %s error=%s",
+//                                        "can't %s nlmsg_type=%d, ifa_family=%d ifa_index=%d ifa_prefixlen=%d error=%s",
+                                        trackt2str(cmd),
+                                        //req->nlh.nlmsg_type, req->ifa.ifa_family, req->ifa.ifa_index, req->ifa.ifa_prefixlen,
+                                        strerror(-((struct nlmsgerr*) NLMSG_DATA(nh))->error));
 
                                 EXITERROR(-501098, (cmd == IP_RULE_FLUSH || cmd == IP_ROUTE_FLUSH || cmd == IP_RULE_TEST));
                                 return FAILURE;
                         }
 
-                        if (cmd == IP_ROUTE_FLUSH_ALL) {
-
+                        if (rtnl_get_list) {
                                 struct rtmsg *rtm = (struct rtmsg *) NLMSG_DATA(nh);
                                 struct rtattr *rtap = (struct rtattr *) RTM_RTA(rtm);
                                 int rtl = RTM_PAYLOAD(nh);
 
-                                while (rtm->rtm_table == table && RTA_OK(rtap, rtl)) {
+                                while (RTA_OK(rtap, rtl)) {
 
-                                        if (rtap->rta_type == RTA_DST) {
+                                        struct rtnl_get_node *rgn = debugMalloc(sizeof (*rgn), -300000);
+                                        memset(rgn, 0, sizeof (*rgn));
+                                        rgn->rtm_table = rtm->rtm_table;
+                                        rgn->rta_type = rtap->rta_type;
+                                        rgn->net.af = rtm->rtm_family;
+                                        rgn->net.mask = rtm->rtm_dst_len;
+                                        rgn->net.ip = (rgn->net.af == AF_INET6) ? *((IPX_T *) RTA_DATA(rtap)) : ip4ToX(*((IP4_T *) RTA_DATA(rtap)));
 
-
-                                                IPX_T fip;
-                                                struct net_key netf;
-
-                                                if (rtm->rtm_family == AF_INET6)
-                                                        fip = *((IPX_T *) RTA_DATA(rtap));
-                                                else
-                                                        fip = ip4ToX(*((IP4_T *) RTA_DATA(rtap)));
-
-                                                setNet(&netf, family, rtm->rtm_dst_len, &fip);
-                                                ip(IP_ROUTE_FLUSH, DEL, YES, &netf, table_macro, 0, 0, 0, 0, 0, 0);
-
-                                        }
+                                        list_add_tail(rtnl_get_list, &rgn->list);
 
                                         rtap = RTA_NEXT(rtap, rtl);
                                 }
@@ -1310,7 +1291,7 @@ IDM_T rtnl_talk(void *req, int len, uint8_t family, uint8_t cmd, int8_t del, uin
 		}
 
                 if ( more_data ) {
-                        dbgf_track(DBGT_INFO, "more data via netlink socket %d...", nlsock);
+                        dbgf_track(DBGT_INFO, "more data via netlink socket %d...", nlsock_default);
                 } else {
                         break;
                 }
@@ -1320,7 +1301,7 @@ IDM_T rtnl_talk(void *req, int len, uint8_t family, uint8_t cmd, int8_t del, uin
 }
 
 
-IDM_T ipaddr(IDM_T del, uint32_t if_index, uint8_t family, IPX_T *ipX, uint8_t prefixlen, IDM_T deprecated)
+IDM_T kernel_set_addr(IDM_T del, uint32_t if_index, uint8_t family, IPX_T *ipX, uint8_t prefixlen, IDM_T deprecated)
 {
 
         struct ifamsg_req req;
@@ -1357,10 +1338,10 @@ IDM_T ipaddr(IDM_T del, uint32_t if_index, uint8_t family, IPX_T *ipX, uint8_t p
 
         dbgf_track(DBGT_INFO, "del=%d ifidx=%d ip=%s/%d deprecated=%d", del, if_index, ipXAsStr(family, ipX), prefixlen, deprecated);
 
-        return rtnl_talk(&req, req.nlh.nlmsg_len, family, IP_ADDRESS, del, NO, ipX, prefixlen, NULL, 0);
+        return rtnl_talk(&req, req.nlh.nlmsg_len, IP_ADDRESS, NULL, NO);
 }
 
-IDM_T iptunnel(IDM_T del, char *name, uint8_t proto, IPX_T *local, IPX_T *remote)
+IDM_T kernel_set_tun(IDM_T del, char *name, uint8_t proto, IPX_T *local, IPX_T *remote)
 {
 
         dbgf_track(DBGT_INFO, "del=%d name=%s proto=%d local=%s remote=%s",
@@ -1396,7 +1377,7 @@ IDM_T iptunnel(IDM_T del, char *name, uint8_t proto, IPX_T *local, IPX_T *remote
                 strncpy(req.ifr_name, name, IFNAMSIZ);
                 if ((ioctl(rt_sock, SIOCGIFFLAGS, &req))) {
                         dbgf_sys(DBGT_ERR, "getting tunnel flags name=%s %s", name, strerror(errno));
-                        iptunnel(DEL, name, 0, NULL, NULL);
+                        kernel_set_tun(DEL, name, 0, NULL, NULL);
                         return FAILURE;
                 }
 
@@ -1404,7 +1385,7 @@ IDM_T iptunnel(IDM_T del, char *name, uint8_t proto, IPX_T *local, IPX_T *remote
                         req.ifr_flags |= IFF_UP;
                         if ((ioctl(rt_sock, SIOCSIFFLAGS, &req))) {
                                 dbgf_sys(DBGT_ERR, "setting tunnel flags name=%s %s", name, strerror(errno));
-                                iptunnel(DEL, name, 0, NULL, NULL);
+                                kernel_set_tun(DEL, name, 0, NULL, NULL);
                                 return FAILURE;
                         }
                 }
@@ -1449,7 +1430,7 @@ IDM_T iptrack(uint8_t family, uint8_t cmd, uint8_t quiet, int8_t del, const IPX_
         if( cmd == IP_RULE_TEST)
                 return YES;
 
-        IDM_T flush = (cmd == IP_RULE_FLUSH || cmd == IP_ROUTE_FLUSH_ALL || cmd == IP_ROUTE_FLUSH);
+        IDM_T flush = (cmd == IP_RULE_FLUSH || cmd == IP_ROUTE_FLUSH);
 
 
         uint8_t cmd_t = (cmd > IP_ROUTES && cmd < IP_ROUTE_MAX) ? IP_ROUTES :
@@ -1554,59 +1535,42 @@ IDM_T iptrack(uint8_t family, uint8_t cmd, uint8_t quiet, int8_t del, const IPX_
 
 
 
-IDM_T ip(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_key *dst,
-        int8_t table_macro, int8_t prio_macro, IFNAME_T *iifname, int oif_idx, IPX_T *via, IPX_T *src, uint32_t metric)
+STATIC_FUNC
+IDM_T kernel_get_route(struct list_head *rtnl_get_list, uint8_t quiet, uint8_t family, uint32_t table)
 {
-        // DONT USE setNet() here (because return pointer is static)!!!!!!!!!!!!!
-
-	TRACE_FUNCTION_CALL;
-
-        assertion(-501127, IMPLIES(policy_routing == POLICY_RT_UNSET, (cmd == IP_RULE_TEST && initializing)));
-        assertion(-501234, (dst));
-        assertion(-500650, IMPLIES(is_ip_set(&dst->ip), is_ip_valid(&dst->ip, dst->af)));
-        assertion(-500651, IMPLIES(via, is_ip_valid(via, dst->af)));
-        assertion(-500652, IMPLIES(src, is_ip_valid(src, dst->af)));
-        assertion(-500653, (dst->af == AF_INET || dst->af == AF_INET6));
+        assertion(-500000, (rtnl_get_list));
+        assertion(-500000, (!rtnl_get_list->items && LIST_EMPTY(rtnl_get_list)));
 
         struct rtmsg_req req;
+        memset(&req, 0, sizeof (req));
+
+        req.nlh.nlmsg_len = NLMSG_LENGTH(sizeof(struct rtmsg));
+	req.nlh.nlmsg_pid = My_pid;
+
+        req.rtm.rtm_family = family;
+        req.rtm.rtm_table = table;
+
+        req.nlh.nlmsg_flags = NLM_F_REQUEST | NLM_F_ACK;
+
+        req.nlh.nlmsg_flags = NLM_F_REQUEST | NLM_F_DUMP;
+        req.nlh.nlmsg_type = RTM_GETROUTE;
+        req.rtm.rtm_scope = RTN_UNICAST;
+
+        return rtnl_talk(&req, req.nlh.nlmsg_len, IP_ROUTE_GET, rtnl_get_list, quiet);
+}
+
+
+STATIC_FUNC
+IDM_T kernel_set_route(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_key *dst,
+        int8_t table_macro, int8_t prio_macro, IFNAME_T *iifname, int oif_idx, IPX_T *via, IPX_T *src, uint32_t metric)
+{
 
         dbgf_all(DBGT_INFO, "1");
 
+        struct rtmsg_req req;
+        IDM_T llocal = (via && is_ip_equal(via, &dst->ip)) ? YES : NO;
         uint32_t prio = prio_macro_to_prio(prio_macro);
         uint32_t table = table_macro_to_table(table_macro);
-
-
-        assertion(-500672, (ip_netmask_validate((IPX_T*) &dst->ip, dst->mask, dst->af, NO) == SUCCESS));
-
-
-        IDM_T llocal = (via && is_ip_equal(via, &dst->ip)) ? YES : NO;
-
-/*
-        if (!is_ip_set(src))
-                src = NULL;
-*/
-
-        if ((cmd == IP_THROW_MY_HNA || cmd == IP_THROW_MY_NET) && (policy_routing != POLICY_RT_ENABLED || !ip_throw_rules_cfg))
-		return SUCCESS;
-
-        if (table == DEF_IP_TABLE_MAIN &&
-                (cmd == IP_RULE_DEFAULT || cmd == IP_RULE_FLUSH || cmd == IP_ROUTE_FLUSH || cmd == IP_ROUTE_FLUSH_ALL))
-                        return SUCCESS;
-
-
-
-        if (iptrack(dst->af, cmd, quiet, del, &dst->ip, dst->mask, table_macro, prio_macro, iifname, metric) == NO)
-                return SUCCESS;
-
-
-#ifndef NO_DEBUG_ALL
-        struct if_link_node *oif_iln = oif_idx ? avl_find_item(&if_link_tree, &oif_idx) : NULL;
-
-        dbgf_track( DBGT_INFO, "cmd=%s %s dst=%s iif=%s table=%d prio=%d oifIdx=%d oif=%s via=%s src=%s metric=%d",
-                trackt2str(cmd), del2str(del), netAsStr(dst),
-                iifname ? iifname->str : NULL, table, prio, oif_idx, oif_iln ? oif_iln->name.str : "???",
-                via ? ipXAsStr(dst->af, via) : DBG_NIL, src ? ipXAsStr(dst->af, src) : DBG_NIL, metric);
-#endif
 
         memset(&req, 0, sizeof (req));
 
@@ -1620,12 +1584,7 @@ IDM_T ip(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_key *dst,
 
         if (cmd > IP_ROUTES && cmd < IP_ROUTE_MAX) {
 
-                if ( cmd == IP_ROUTE_FLUSH_ALL ) {
-
-                        req.nlh.nlmsg_flags = NLM_F_REQUEST | NLM_F_DUMP;
-                        req.nlh.nlmsg_type = RTM_GETROUTE;
-                        req.rtm.rtm_scope = RTN_UNICAST;
-                } else if (del) {
+                if (del) {
                         req.nlh.nlmsg_type = RTM_DELROUTE;
                         req.rtm.rtm_scope = RT_SCOPE_NOWHERE;
                 } else {
@@ -1685,10 +1644,52 @@ IDM_T ip(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_key *dst,
         if (metric)
                 add_rtattr(&req.nlh, RTA_PRIORITY, (char*) & metric, sizeof (metric), 0);
 
-        errno = 0;
-
-        return rtnl_talk(&req, req.nlh.nlmsg_len, dst->af, cmd, del, quiet, &dst->ip, dst->mask, via, table_macro);
+        return rtnl_talk(&req, req.nlh.nlmsg_len, cmd, NULL, quiet);
 }
+
+IDM_T iproute(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_key *dst,
+        int8_t table_macro, int8_t prio_macro, IFNAME_T *iifname, int oif_idx, IPX_T *via, IPX_T *src, uint32_t metric)
+{
+        // DONT USE setNet() here (because return pointer is static)!!!!!!!!!!!!!
+
+	TRACE_FUNCTION_CALL;
+
+        assertion(-501127, IMPLIES(policy_routing == POLICY_RT_UNSET, (cmd == IP_RULE_TEST && initializing)));
+        assertion(-501234, (dst));
+        assertion(-500650, IMPLIES(is_ip_set(&dst->ip), is_ip_valid(&dst->ip, dst->af)));
+        assertion(-500651, IMPLIES(via, is_ip_valid(via, dst->af)));
+        assertion(-500652, IMPLIES(src, is_ip_valid(src, dst->af)));
+        assertion(-500653, (dst->af == AF_INET || dst->af == AF_INET6));
+        assertion(-500672, (ip_netmask_validate((IPX_T*) &dst->ip, dst->mask, dst->af, NO) == SUCCESS));
+
+
+        dbgf_all(DBGT_INFO, "1");
+
+        uint32_t prio = prio_macro_to_prio(prio_macro);
+        uint32_t table = table_macro_to_table(table_macro);
+
+        if ((cmd == IP_THROW_MY_HNA || cmd == IP_THROW_MY_NET) && (policy_routing != POLICY_RT_ENABLED || !ip_throw_rules_cfg))
+		return SUCCESS;
+
+        if (table == DEF_IP_TABLE_MAIN && (cmd == IP_RULE_DEFAULT || cmd == IP_RULE_FLUSH || cmd == IP_ROUTE_FLUSH))
+                return SUCCESS;
+
+        if (iptrack(dst->af, cmd, quiet, del, &dst->ip, dst->mask, table_macro, prio_macro, iifname, metric) == NO)
+                return SUCCESS;
+
+#ifndef NO_DEBUG_ALL
+        struct if_link_node *oif_iln = oif_idx ? avl_find_item(&if_link_tree, &oif_idx) : NULL;
+
+        dbgf_track( DBGT_INFO, "cmd=%s %s dst=%s iif=%s table=%d prio=%d oifIdx=%d oif=%s via=%s src=%s metric=%d",
+                trackt2str(cmd), del2str(del), netAsStr(dst),
+                iifname ? iifname->str : NULL, table, prio, oif_idx, oif_iln ? oif_iln->name.str : "???",
+                via ? ipXAsStr(dst->af, via) : DBG_NIL, src ? ipXAsStr(dst->af, src) : DBG_NIL, metric);
+#endif
+
+        return kernel_set_route(cmd, del, quiet, dst, table_macro, prio_macro, iifname, oif_idx, via, src, metric);
+}
+
+
 
 
 
@@ -2065,7 +2066,7 @@ void dev_deactivate( struct dev_node *dev )
 
         if (dev->autoIP6Configured.mask && !dev->activate_again) {
                 //if (dev->if_llocal_addr && dev->if_llocal_addr->iln->flags & IFF_UP)
-                ipaddr(DEL, dev->autoIP6IfIndex, AF_INET6, &dev->autoIP6Configured.ip, dev->autoIP6Configured.mask, NO /*deprecated*/);
+                kernel_set_addr(DEL, dev->autoIP6IfIndex, AF_INET6, &dev->autoIP6Configured.ip, dev->autoIP6Configured.mask, NO /*deprecated*/);
                 dev->autoIP6Configured = ZERO_NET6_KEY;
                 dev->autoIP6IfIndex = 0;
         }
@@ -2412,21 +2413,34 @@ error:
 
 
 STATIC_FUNC
-void ip_flush_routes(uint8_t family)
+        void ip_flush_routes(uint8_t family)
 {
 	TRACE_FUNCTION_CALL;
 
         assertion(-501128, (AF_CFG || policy_routing == POLICY_RT_ENABLED));
 
+        LIST_SIMPEL(rtnl_get_list, struct rtnl_get_node, list, list);
         int8_t table_macro;
-        struct net_key net = family == AF_INET ? ZERO_NET4_KEY : ZERO_NET6_KEY;
-
 
         for (table_macro = RT_TABLE_MIN; table_macro <= RT_TABLE_MAX; table_macro++) {
-                ip(IP_ROUTE_FLUSH_ALL, DEL, YES/*quiet*/, &net, table_macro, 0, 0, 0, 0, 0, 0);
-        }
 
+                struct rtnl_get_node * rgn;
+                uint32_t table = table_macro_to_table(table_macro);
+
+                kernel_get_route(&rtnl_get_list, NO, family, table_macro);
+
+                while ((rgn = list_del_head(&rtnl_get_list))) {
+
+                        assertion(-500000, (rgn->rtm_table == table && rgn->net.af == family));
+
+                        if (rgn->rta_type == RTA_DST)
+                                iproute(IP_ROUTE_FLUSH, DEL, YES/*quiet*/, &rgn->net, table_macro, 0, 0, 0, 0, 0, 0);
+
+                        debugFree(rgn, -300000);
+                }
+        }
 }
+
 
 STATIC_FUNC
 void ip_flush_rules(uint8_t family)
@@ -2443,7 +2457,7 @@ void ip_flush_rules(uint8_t family)
                 if (table_macro_to_table(table_macro) == DEF_IP_TABLE_MAIN)
                         continue;
 
-                while (ip(IP_RULE_FLUSH, DEL, YES, &net, table_macro, 0, 0, 0, 0, 0, 0) == SUCCESS) {
+                while (iproute(IP_RULE_FLUSH, DEL, YES, &net, table_macro, 0, 0, 0, 0, 0, 0) == SUCCESS) {
 
                         dbgf_sys(DBGT_ERR, "removed orphan %s rule to table %d", family2Str(AF_CFG), table_macro);
 
@@ -2469,7 +2483,7 @@ void ip_flush_tracked( uint8_t cmd )
                         continue;
 
                 setNet(&net, tn->k.family, tn->k.mask, &tn->k.net);
-                ip(tn->cmd, DEL, NO, &net, tn->k.table_macro, tn->k.prio_macro, &tn->k.iif, 0, 0, 0, tn->k.metric);
+                iproute(tn->cmd, DEL, NO, &net, tn->k.table_macro, tn->k.prio_macro, &tn->k.iif, 0, 0, 0, tn->k.metric);
 
                 an = NULL;
         }
@@ -2533,8 +2547,8 @@ int update_interface_rules(void)
                         setNet(&throw, ian->ifa.ifa_family, ian->ifa.ifa_prefixlen, &ian->ip_addr);
                         ip_netmask_validate(&throw.ip, throw.mask, throw.af, YES);
 
-                        ip(IP_THROW_MY_NET, ADD, NO, &throw, RT_TABLE_HNA, RT_PRIO_HNA, 0, (throw.af == AF_INET6 ? dev_lo_idx : 0), 0, 0, 0);
-                        ip(IP_THROW_MY_NET, ADD, NO, &throw, RT_TABLE_TUN, RT_PRIO_TUNS, 0, (throw.af == AF_INET6 ? dev_lo_idx : 0), 0, 0, 0);
+                        iproute(IP_THROW_MY_NET, ADD, NO, &throw, RT_TABLE_HNA, RT_PRIO_HNA, 0, (throw.af == AF_INET6 ? dev_lo_idx : 0), 0, 0, 0);
+                        iproute(IP_THROW_MY_NET, ADD, NO, &throw, RT_TABLE_TUN, RT_PRIO_TUNS, 0, (throw.af == AF_INET6 ? dev_lo_idx : 0), 0, 0, 0);
 
                 }
         }
@@ -2702,7 +2716,7 @@ void dev_if_fix(void)
 
                 if (AF_CFG == AF_INET6 && autoIP6.mask && dev->announce && !dev->if_global_addr) {
 
-                        ipaddr(ADD, dev->if_link->index, AF_INET6, &autoIP6.ip, autoIP6.mask, NO /*deprecated*/);
+                        kernel_set_addr(ADD, dev->if_link->index, AF_INET6, &autoIP6.ip, autoIP6.mask, NO /*deprecated*/);
                         dev->autoIP6Configured = autoIP6;
                         dev->autoIP6IfIndex = dev->if_link->index;
                 }
@@ -2897,7 +2911,7 @@ static void recv_ifevent_netlink_sk(int sk)
 	while( recvmsg (sk, &msg, 0) > 0 );
 
         //do NOT delay checking of interfaces to not miss ifdown/up of interfaces !!
-        if (kernel_if_config() == YES) //just call if changed!
+        if (kernel_get_if_config() == YES) //just call if changed!
                 dev_check(YES);
 
 }
@@ -2961,9 +2975,9 @@ IDM_T is_policy_rt_supported(void)
 
         tested_family = net.af;
 
-        if (ip(IP_RULE_TEST, ADD, YES, &net, RT_TABLE_HNA, RT_PRIO_HNA, 0, 0, 0, 0, 0) == SUCCESS) {
+        if (iproute(IP_RULE_TEST, ADD, YES, &net, RT_TABLE_HNA, RT_PRIO_HNA, 0, 0, 0, 0, 0) == SUCCESS) {
 
-                ip(IP_RULE_TEST, DEL, YES, &net, RT_TABLE_HNA, RT_PRIO_HNA, 0, 0, 0, 0, 0);
+                iproute(IP_RULE_TEST, DEL, YES, &net, RT_TABLE_HNA, RT_PRIO_HNA, 0, 0, 0, 0, 0);
 
                 return (tested_policy_rt = YES);
 
@@ -3089,16 +3103,16 @@ int32_t opt_ip_version(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                         ip_flush_routes(AF_INET);
                         ip_flush_rules(AF_INET);
 
-                        ip(IP_RULE_DEFAULT, ADD, NO, &ZERO_NET4_KEY, RT_TABLE_HNA, RT_PRIO_HNA, 0, 0, 0, 0, 0);
-                        ip(IP_RULE_DEFAULT, ADD, NO, &ZERO_NET4_KEY, RT_TABLE_TUN, RT_PRIO_TUNS, 0, 0, 0, 0, 0);
+                        iproute(IP_RULE_DEFAULT, ADD, NO, &ZERO_NET4_KEY, RT_TABLE_HNA, RT_PRIO_HNA, 0, 0, 0, 0, 0);
+                        iproute(IP_RULE_DEFAULT, ADD, NO, &ZERO_NET4_KEY, RT_TABLE_TUN, RT_PRIO_TUNS, 0, 0, 0, 0, 0);
 
                         if (AF_CFG == AF_INET6) {
                                 
                                 ip_flush_routes(AF_INET6);
                                 ip_flush_rules(AF_INET6);
 
-                                ip(IP_RULE_DEFAULT, ADD, NO, &ZERO_NET6_KEY, RT_TABLE_HNA, RT_PRIO_HNA, 0, 0, 0, 0, 0);
-                                ip(IP_RULE_DEFAULT, ADD, NO, &ZERO_NET6_KEY, RT_TABLE_TUN, RT_PRIO_TUNS, 0, 0, 0, 0, 0);
+                                iproute(IP_RULE_DEFAULT, ADD, NO, &ZERO_NET6_KEY, RT_TABLE_HNA, RT_PRIO_HNA, 0, 0, 0, 0, 0);
+                                iproute(IP_RULE_DEFAULT, ADD, NO, &ZERO_NET6_KEY, RT_TABLE_TUN, RT_PRIO_TUNS, 0, 0, 0, 0, 0);
                         }
 
 		}
@@ -3558,7 +3572,7 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
 
                 // will always be called whenever a dev-parameter is changed (due to OPT_POST and opt_dev_changed)
                 // is it needed by another option ?
-                dev_check(initializing ? kernel_if_config() == YES : NO);
+                dev_check(initializing ? kernel_get_if_config() == YES : NO);
 
         }
 
@@ -3678,9 +3692,6 @@ void init_ip(void)
         if( ( nlsock_default = open_netlink_socket()) <= 0 )
 		cleanup_all( -500067 );
 
-        if ((nlsock_flush_all = open_netlink_socket()) <= 0)
-		cleanup_all( -500658 );
-
         if (open_ifevent_netlink_sk() < 0)
                 cleanup_all(-500150);
 
@@ -3713,7 +3724,7 @@ void cleanup_ip(void)
 
         }
 
-        kernel_if_fix(YES,0);
+        kernel_get_if_config_post(YES,0);
 
 
         sysctl_restore(NULL);
@@ -3748,14 +3759,5 @@ void cleanup_ip(void)
                 close(nlsock_default);
                 nlsock_default = 0;
         }
-
-
-        if (nlsock_flush_all > 0) {
-                close(nlsock_flush_all);
-                nlsock_flush_all = 0;
-        }
-
-
-
 }
 

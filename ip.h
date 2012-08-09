@@ -495,6 +495,7 @@ enum {
 	IP_RULE_MAX,
 
 	IP_ROUTES,
+        IP_ROUTE_GET,
 	IP_ROUTE_FLUSH_ALL,
 	IP_ROUTE_FLUSH,
 	IP_THROW_MY_HNA,
@@ -505,6 +506,13 @@ enum {
 	IP_ROUTE_MAX,
 
         IP_ADDRESS
+};
+
+struct rtnl_get_node {
+        struct list_node list;
+        uint32_t rtm_table;
+        uint32_t rta_type;
+        struct net_key net;
 };
 
 
@@ -549,11 +557,11 @@ IDM_T is_ip_net_equal(const IPX_T *netA, const IPX_T *netB, const uint8_t plen, 
 // core:
 uint32_t get_if_index(IFNAME_T *name);
 
-IDM_T ipaddr(IDM_T del, uint32_t if_index, uint8_t family, IPX_T *ip, uint8_t prefixlen, IDM_T deprecated);
-IDM_T iptunnel(IDM_T del, char *name, uint8_t proto, IPX_T *local, IPX_T *remote);
+IDM_T kernel_set_addr(IDM_T del, uint32_t if_index, uint8_t family, IPX_T *ip, uint8_t prefixlen, IDM_T deprecated);
+IDM_T kernel_set_tun(IDM_T del, char *name, uint8_t proto, IPX_T *local, IPX_T *remote);
 IDM_T change_mtu(char *name, uint16_t mtu);
 
-IDM_T ip(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_key *net,
+IDM_T iproute(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_key *net,
         int8_t table_macro, int8_t prio_macro, IFNAME_T *iifname, int oif_idx, IPX_T *via, IPX_T *src, uint32_t metric);
 
 struct net_key bmx6AutoEUI64Ip6(struct dev_node *dev, struct net_key *prefix);

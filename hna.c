@@ -135,7 +135,7 @@ IDM_T configure_route(IDM_T del, struct orig_node *on, struct net_key *key)
         // update network routes:
         if (del) {
 
-                return ip(IP_ROUTE_HNA, DEL, NO, key, RT_TABLE_HNA, 0, NULL, 0, NULL, NULL, DEF_IP_METRIC);
+                return iproute(IP_ROUTE_HNA, DEL, NO, key, RT_TABLE_HNA, 0, NULL, 0, NULL, NULL, DEF_IP_METRIC);
 
         } else {
 
@@ -145,7 +145,7 @@ IDM_T configure_route(IDM_T del, struct orig_node *on, struct net_key *key)
                 ASSERTION(-500239, (avl_find(&link_dev_tree, &(lndev->key))));
                 assertion(-500579, (lndev->key.dev->if_llocal_addr));
 
-                return ip(IP_ROUTE_HNA, ADD, NO, key, RT_TABLE_HNA, 0, NULL,
+                return iproute(IP_ROUTE_HNA, ADD, NO, key, RT_TABLE_HNA, 0, NULL,
                         lndev->key.dev->if_llocal_addr->ifa.ifa_index, &(lndev->key.link->link_ip),
                         (key->af == AF_INET ? (&(self->primary_ip)) : NULL), DEF_IP_METRIC);
 
@@ -245,7 +245,7 @@ IDM_T configure_tunnel_in(uint8_t del, struct tun_in_node *tin)
 
         if (del && tin->upIfIdx) {
 
-                iptunnel(DEL, tin->nameKey.str, 0, NULL, NULL);
+                kernel_set_tun(DEL, tin->nameKey.str, 0, NULL, NULL);
                 tin->upIfIdx = 0;
                 tin->tun6Id = -1;
 
@@ -288,15 +288,15 @@ IDM_T configure_tunnel_in(uint8_t del, struct tun_in_node *tin)
 
                 assertion(-501312, (strlen(tin->nameKey.str)));
 
-                if (iptunnel(ADD, tin->nameKey.str, IPPROTO_IP, local, remote) == SUCCESS) {
+                if (kernel_set_tun(ADD, tin->nameKey.str, IPPROTO_IP, local, remote) == SUCCESS) {
 
                         tin->upIfIdx = get_if_index(&tin->nameKey);
 
                         if (tun4_address.mask)
-                                ipaddr(ADD, tin->upIfIdx, AF_INET, &tun4_address.ip, 32, NO /*deprecated*/);
+                                kernel_set_addr(ADD, tin->upIfIdx, AF_INET, &tun4_address.ip, 32, NO /*deprecated*/);
 
                         if (tun6_address.mask)
-                                ipaddr(ADD, tin->upIfIdx, AF_INET6, &tun6_address.ip, 128, NO /*deprecated*/);
+                                kernel_set_addr(ADD, tin->upIfIdx, AF_INET6, &tun6_address.ip, 128, NO /*deprecated*/);
                 }
 
         }
@@ -442,8 +442,8 @@ void configure_hna(IDM_T del, struct net_key* key, struct orig_node *on, uint8_t
                 // update throw routes:
                 if (policy_routing == POLICY_RT_ENABLED && ip_throw_rules_cfg) {
                         assertion(-501333, (key->af == AF_CFG));
-                        ip(IP_THROW_MY_HNA, del, NO, key, RT_TABLE_HNA, 0, 0, 0, 0, 0, 0);
-                        ip(IP_THROW_MY_HNA, del, NO, key, RT_TABLE_TUN, 0, 0, 0, 0, 0, 0);
+                        iproute(IP_THROW_MY_HNA, del, NO, key, RT_TABLE_HNA, 0, 0, 0, 0, 0, 0);
+                        iproute(IP_THROW_MY_HNA, del, NO, key, RT_TABLE_TUN, 0, 0, 0, 0, 0, 0);
                 }
 
         } else if (on->curr_rt_lndev && !(flags & DESC_MSG_HNA_FLAG_NO_ROUTE)) {
@@ -711,7 +711,7 @@ IDM_T configure_tunnel_out(uint8_t del, struct orig_node *on, struct tun_out_nod
 
         if (del && ton->upIfIdx) {
 
-                iptunnel(DEL, ton->name.str, 0, NULL, NULL);
+                kernel_set_tun(DEL, ton->name.str, 0, NULL, NULL);
                 ton->upIfIdx = 0;
                 ton->src4Ip = ZERO_IP;
                 ton->src6Ip = ZERO_IP;
@@ -744,7 +744,7 @@ IDM_T configure_tunnel_out(uint8_t del, struct orig_node *on, struct tun_out_nod
 
                 assertion(-501312, (strlen(ton->name.str)));
 
-                if (iptunnel(ADD, ton->name.str, IPPROTO_IP, local, remote) == SUCCESS)
+                if (kernel_set_tun(ADD, ton->name.str, IPPROTO_IP, local, remote) == SUCCESS)
                         ton->upIfIdx = get_if_index(&ton->name);
 
         }
@@ -850,7 +850,7 @@ void configure_tun_bit(uint8_t del, struct tun_bit_node *tbn)
                 struct net_key netKey = tbn->tunBitKey.invNetKey;
                 netKey.mask = 128 - netKey.mask;
 
-                ip(IP_ROUTE_TUNS, DEL, NO, &netKey, RT_TABLE_TUN, 0, NULL, ton->upIfIdx, NULL, NULL, ntohl(tbn->tunBitKey.beIpMetric));
+                iproute(IP_ROUTE_TUNS, DEL, NO, &netKey, RT_TABLE_TUN, 0, NULL, ton->upIfIdx, NULL, NULL, ntohl(tbn->tunBitKey.beIpMetric));
 
                 tbn->active = NO;
 
@@ -880,7 +880,7 @@ void configure_tun_bit(uint8_t del, struct tun_bit_node *tbn)
                 netKey.mask = 128 - netKey.mask;
 
                 if (!ton->upIfIdx && configure_tunnel_out(ADD, ton->tunOutKey.on, ton) == SUCCESS) {
-                        ipaddr(ADD, ton->upIfIdx, AF_INET6, &ton->localIp, 128, YES /*deprecated*/);
+                        kernel_set_addr(ADD, ton->upIfIdx, AF_INET6, &ton->localIp, 128, YES /*deprecated*/);
                         change_mtu(ton->name.str, tsn->mtu);
                         dbgf_track(DBGT_INFO, "Set MTU from %s as %d", ton->name.str, tsn->mtu);
                 }
@@ -896,7 +896,7 @@ void configure_tun_bit(uint8_t del, struct tun_bit_node *tbn)
 
                                 if (!is_ip_set(&ton->src4Ip)) {
                                         ton->src4Ip = srcIp4;
-                                        ipaddr(ADD, ton->upIfIdx, AF_INET, &srcIp4, 32, NO /*deprecated*/);
+                                        kernel_set_addr(ADD, ton->upIfIdx, AF_INET, &srcIp4, 32, NO /*deprecated*/);
                                 }
 
                         } else /*if (tsn->net.af == AF_INET6)*/ {
@@ -911,11 +911,11 @@ void configure_tun_bit(uint8_t del, struct tun_bit_node *tbn)
                                 if (!is_ip_set(&ton->src6Ip)) {
 
                                         ton->src6Ip = srcIp6;
-                                        ipaddr(ADD, ton->upIfIdx, AF_INET6, &srcIp6, 128, NO /*deprecated*/);
+                                        kernel_set_addr(ADD, ton->upIfIdx, AF_INET6, &srcIp6, 128, NO /*deprecated*/);
                                 }
                         }
 
-                        ip(IP_ROUTE_TUNS, ADD, NO, &netKey, RT_TABLE_TUN, 0, NULL, ton->upIfIdx, NULL, NULL, tsn->ipmetric);
+                        iproute(IP_ROUTE_TUNS, ADD, NO, &netKey, RT_TABLE_TUN, 0, NULL, ton->upIfIdx, NULL, NULL, tsn->ipmetric);
 
                         tbn->active = YES;
                 }
@@ -2366,7 +2366,7 @@ int32_t opt_tun_name(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct op
 
                         if (!strncmp(tun_name_prefix.str, iln->name.str, strlen(tun_name_prefix.str))) {
                                 dbgf_sys(DBGT_WARN, "removing orphan tunnel dev=%s", iln->name.str);
-                                iptunnel(DEL, iln->name.str, 0, NULL, NULL);
+                                kernel_set_tun(DEL, iln->name.str, 0, NULL, NULL);
                         }
                 }
         }

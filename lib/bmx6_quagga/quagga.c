@@ -241,6 +241,10 @@ void redist_rm_overlapping(void)
 
                         while ((ovlp = avl_next_item(&redist_out_tree, ovlp ? &ovlp->k : &t.k))) {
 
+                                dbgf_track(DBGT_INFO, "checking overlapping net=%s rtype=%d bw=%d min=%d new=%d in favor of net=%s rtype=%d bw=%d min=%d new=%d",
+                                        netAsStr(&routn->k.net), routn->k.bmx6_route_type, routn->k.bandwidth, routn->minAggregatePrefixLen, routn->new,
+                                        netAsStr(&ovlp->k.net), ovlp->k.bmx6_route_type, ovlp->k.bandwidth, ovlp->minAggregatePrefixLen, ovlp->new);
+
                                 if (ovlp->k.bandwidth.val.u8 != routn->k.bandwidth.val.u8 ||
                                         ovlp->k.bmx6_route_type != routn->k.bmx6_route_type ||
                                         ovlp->k.net.af != routn->k.net.af ||
@@ -265,8 +269,6 @@ void redist_rm_overlapping(void)
 STATIC_FUNC
 void redist_rm_aggregatable(void)
 {
-        dbgf_track(DBGT_INFO, "");
-
         struct redist_out_node *r1;
         struct avl_node *an = NULL;
 
@@ -277,48 +279,57 @@ void redist_rm_aggregatable(void)
 
         while (more) {
 
+                dbgf_track(DBGT_INFO, "");
+
                 more = NO;
 
                 while ((r1 = avl_iterate_item(&redist_out_tree, &an))) {
 
                         uint8_t v4 = (r1->k.net.af == AF_INET);
+                        uint8_t b1 = bit_get((uint8_t*)&(r1->k.net.ip), 128, r1->k.net.mask + (v4 ? 96 : 0) - 1);
 
-                        if (!r1->new || !r1->k.net.mask || r1->k.net.mask <= r1->minAggregatePrefixLen)
+                        dbgf_track(DBGT_INFO, "checking aggregation for net=%s rtype=%d bw=%d min=%d new=%d lastBit=%d %s",
+                                netAsStr(&r1->k.net), r1->k.bmx6_route_type, r1->k.bandwidth, r1->minAggregatePrefixLen,
+                                r1->new, b1, memAsHexStringSep(&r1->k.net.ip, 16, 2));
+
+                        if (!r1->new || !r1->k.net.mask || r1->k.net.mask <= r1->minAggregatePrefixLen || !b1)
                                 continue;
 
 
-                        if (bit_get((uint8_t*)&(r1->k.net.ip), v4 ? 32 : 128, r1->k.net.mask + (v4 ? 96 : 0))) {
+                        struct redist_out_node s0 = *r1;
+                        bit_set((uint8_t*)&(s0.k.net.ip), 128, s0.k.net.mask + (v4 ? 96 : 0) - 1, 0);
 
-                                struct redist_out_node s0 = *r1;
-                                bit_set((uint8_t*)&(s0.k.net.ip), v4 ? 32 : 128, s0.k.net.mask + (v4 ? 96 : 0), 0);
+                        struct redist_out_node *r0 = avl_find_item(&redist_out_tree, &s0.k);
 
-                                struct redist_out_node *r0 = avl_find_item(&redist_out_tree, &s0.k);
+                        dbgf_track(DBGT_INFO, "                    with net=%s rtype=%d bw=%d min=%d new=%d %s",
+                                netAsStr(&s0.k.net), s0.k.bmx6_route_type, s0.k.bandwidth, s0.minAggregatePrefixLen,
+                                s0.new, memAsHexStringSep(&s0.k.net.ip, 16, 2));
 
-                                if (r0 && r0->new && r0->k.net.mask > r0->minAggregatePrefixLen) {
+                        if (r0 && r0->new && r0->k.net.mask > r0->minAggregatePrefixLen) {
 
-                                        struct redist_out_node *ra;
+                                struct redist_out_node *ra;
 
-                                        s0.k.net.mask--;
+                                s0.k.net.mask--;
 
-                                        if ((ra = avl_find_item(&redist_out_tree, &s0.k))) {
-                                                assertion(-500000, (!ra->new));
-                                        } else {
-                                                ra = debugMalloc(sizeof (s0), -300000);
-                                                *ra = s0;
-                                                avl_insert(&redist_out_tree, ra, -300000);
-                                        }
-
-                                        ra->new = 1;
-                                        r0->new = 0;
-                                        r1->new = 0;
-                                        ra->minAggregatePrefixLen = MAX(r0->minAggregatePrefixLen, r1->minAggregatePrefixLen);
-                                        more = YES;
-
-                                        dbgf_track(DBGT_INFO, "aggregate neighboring net0=%s net1=%s into new=%s",
-                                                netAsStr(&r0->k.net), netAsStr(&r1->k.net), netAsStr(&ra->k.net));
-
+                                if ((ra = avl_find_item(&redist_out_tree, &s0.k))) {
+                                        assertion(-500000, (!ra->new));
+                                } else {
+                                        ra = debugMalloc(sizeof (s0), -300000);
+                                        *ra = s0;
+                                        avl_insert(&redist_out_tree, ra, -300000);
                                 }
+
+                                ra->new = 1;
+                                r0->new = 0;
+                                r1->new = 0;
+                                ra->minAggregatePrefixLen = MAX(r0->minAggregatePrefixLen, r1->minAggregatePrefixLen);
+                                more = YES;
+
+                                dbgf_track(DBGT_INFO, "                    aggregate neighboring net0=%s net1=%s into new=%s",
+                                        netAsStr(&r0->k.net), netAsStr(&r1->k.net), netAsStr(&ra->k.net));
+
                         }
+
                 }
         }
 }
@@ -1107,7 +1118,7 @@ static struct opt_type quagga_options[]= {
 	{ODI,ARG_REDIST,ARG_REDIST_PREFIX_MAX,0,9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,MIN_REDIST_PREFIX,MAX_REDIST_PREFIX,DEF_REDIST_PREFIX_MAX,0,opt_redistribute,
 			ARG_VALUE_FORM, "maximum prefix len to accept for redistribution (129 = network prefix len)"},
 	{ODI,ARG_REDIST,ARG_REDIST_AGGREGATE,0,9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,MIN_REDIST_AGGREGATE,MAX_REDIST_AGGREGATE,DEF_REDIST_AGGREGATE,0,opt_redistribute,
-			ARG_VALUE_FORM, "maximum prefix len to accept for redistribution"},
+			ARG_VALUE_FORM, "minimum prefix len to aggregate redistributions"},
 	{ODI,ARG_REDIST,ARG_REDIST_BW,    0,9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,		0,	        0,              0,0,            opt_redistribute,
 			ARG_VALUE_FORM,	"bandwidth to network as bits/sec (mandatory)"},
 	{ODI,ARG_REDIST,ARG_ROUTE_SYSTEM, 0,9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,   0,              0,              1,              0,0,            opt_redistribute,

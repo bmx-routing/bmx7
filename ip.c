@@ -2431,9 +2431,9 @@ STATIC_FUNC
 
                 while ((rgn = list_del_head(&rtnl_get_list))) {
 
-                        assertion(-500000, (rgn->rtm_table == table && rgn->net.af == family));
+                        assertion(-500000, (rgn->net.af == family));
 
-                        if (rgn->rta_type == RTA_DST)
+                        if (rgn->rtm_table == table && rgn->rta_type == RTA_DST)
                                 iproute(IP_ROUTE_FLUSH, DEL, YES/*quiet*/, &rgn->net, table_macro, 0, 0, 0, 0, 0, 0);
 
                         debugFree(rgn, -300000);

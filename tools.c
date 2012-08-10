@@ -56,7 +56,7 @@ char* memAsHexStringSep( const void* mem, uint32_t len, uint16_t separator)
         if (l < len)
                 i += sprintf(&(out[c][i]), "...");
 
-        //out[c][i * MEMASSTR_STEP_SIZE] = 0;
+        out[c][i] = 0;
 
         return out[c];
 }

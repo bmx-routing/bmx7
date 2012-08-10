@@ -273,7 +273,7 @@ uint8_t bit_get(const uint8_t *array, const uint16_t array_bit_size, uint16_t bi
         uint16_t byte_pos = bit / 8;
         uint8_t bit_pos = bit % 8;
 
-        return (array[byte_pos] & (0x01 << bit_pos)) ? 1 : 0;
+        return (array[byte_pos] & (0x01 << (7 - bit_pos))) ? 1 : 0;
 }
 
 void bit_set(uint8_t *array, uint16_t array_bit_size, uint16_t bit, IDM_T value)
@@ -284,9 +284,9 @@ void bit_set(uint8_t *array, uint16_t array_bit_size, uint16_t bit, IDM_T value)
         uint8_t bit_pos = bit % 8;
 
         if (value)
-                array[byte_pos] |= (0x01 << bit_pos);
+                array[byte_pos] |= (0x01 << (7 - bit_pos));
         else
-                array[byte_pos] &= ~(0x01 << bit_pos);
+                array[byte_pos] &= ~(0x01 << (7 - bit_pos));
 
         assertion(-500415, (!value == !bit_get(array, array_bit_size, bit)));
 }
@@ -307,10 +307,10 @@ uint16_t bits_get(uint8_t *array, uint16_t array_bit_size, uint16_t begin_bit, u
                 uint8_t val = array[pos];
 
                 if (pos == begin_byte)
-                        val = val & (0xFF << (begin_bit % 8));
+                        val = val & (0xFF >> (begin_bit % 8));
 
                 if (pos == end_byte)
-                        val = val & (0xFF >> (7-(end_bit % 8)));
+                        val = val & (0xFF << (7-(end_bit % 8)));
 
                 counted += BitsSetTable256[val];
 
@@ -342,8 +342,8 @@ uint16_t bits_get(uint8_t *array, uint16_t array_bit_size, uint16_t begin_bit, u
                 byte_clear(array, array_byte_size, (beg_byte + 1) % array_byte_size, (end_byte - 1) % array_byte_size);
 
 
-        uint8_t beg_mask = ~(0xFF << (beg_bit % 8));       //eg 2: ~(11111100) = 00000011
-        uint8_t end_mask = ~(0xFF >> (7 - (end_bit % 8))); //eg 3: ~(00001111) = 11110000
+        uint8_t beg_mask = ~(0xFF >> (beg_bit % 8));       //eg 1: ~(01111111) = 10000000
+        uint8_t end_mask = ~(0xFF << (7 - (end_bit % 8))); //eg 5: ~(11111100) = 00000011
 
         if (beg_byte == end_byte) {
 

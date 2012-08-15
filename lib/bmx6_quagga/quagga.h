@@ -91,7 +91,7 @@ diff --git a/zebra/zebra_rib.c b/zebra/zebra_rib.c
 
 ///////////////////////////////////////////////////////////////////////////////
 
-#define ZEBRA_VERSION 2
+#define ZEBRA_VERSION2 2
 
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -263,7 +263,7 @@ struct quagga_rt_dict {
 #define ZAPI_MESSAGE_METRIC   0x08
 
 /* Zserv protocol message header */
-struct zapiV1_header {
+struct zapiV2_header {
         uint16_t length;
         uint8_t marker; // always set to 255 in new zserv.
         uint8_t version;
@@ -349,7 +349,7 @@ struct zsock_write_node {
 struct zdata {
 	struct list_node list;
 //	char *zpacket;
-        struct zapiV1_header* hdr;
+        struct zapiV2_header* hdr;
         uint16_t len;
         uint16_t cmd;
 };

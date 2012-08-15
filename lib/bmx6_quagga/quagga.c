@@ -155,10 +155,10 @@ void zdata_parse_route(struct zdata *zd)
 {
         dbgf_track(DBGT_INFO,"");
 
-        assertion(-501402, ( zd->len >= sizeof (struct zapiV1_header) && zd->hdr->version == ZEBRA_VERSION));
+        assertion(-501402, ( zd->len >= sizeof (struct zapiV2_header) && zd->hdr->version == ZEBRA_VERSION2));
 
 
-        uint32_t ofs = sizeof (struct zapiV1_header);
+        uint32_t ofs = sizeof (struct zapiV2_header);
         struct zroute_node zrn;
         memset(&zrn, 0, sizeof (zrn));
 
@@ -542,7 +542,7 @@ void zsock_read_handler(void * nothing)
 
         while (ret > 0) {
                 // read lenght field:
-                const uint16_t max = sizeof (((struct zapiV1_header *) NULL)->length);
+                const uint16_t max = sizeof (((struct zapiV2_header *) NULL)->length);
 
                 if (zcfg.zread_buff_len == 0) {
                         zcfg.zread_buff = debugMalloc(max, -300478);
@@ -562,7 +562,7 @@ void zsock_read_handler(void * nothing)
                 if (zcfg.zread_len >= max) {
 
                         // read rest of packet:
-                        uint16_t zpl = ntohs(((struct zapiV1_header *) zcfg.zread_buff)->length);
+                        uint16_t zpl = ntohs(((struct zapiV2_header *) zcfg.zread_buff)->length);
 
                         if (zcfg.zread_buff_len == max) {
                                 zcfg.zread_buff = debugRealloc(zcfg.zread_buff, zpl, -300489);
@@ -574,12 +574,12 @@ void zsock_read_handler(void * nothing)
 
                         if (zcfg.zread_len >= zpl) {
 
-                                if (zcfg.zread_len == zpl && zcfg.zread_len >= sizeof (struct zapiV1_header) &&
-                                        ((struct zapiV1_header *) zcfg.zread_buff)->marker == ZEBRA_HEADER_MARKER &&
-                                        ((struct zapiV1_header *) zcfg.zread_buff)->version == ZEBRA_VERSION) {
+                                if (zcfg.zread_len == zpl && zcfg.zread_len >= sizeof (struct zapiV2_header) &&
+                                        ((struct zapiV2_header *) zcfg.zread_buff)->marker == ZEBRA_HEADER_MARKER &&
+                                        ((struct zapiV2_header *) zcfg.zread_buff)->version == ZEBRA_VERSION2) {
 
                                         struct zdata *zd = debugMalloc(sizeof (struct zdata), -300480);
-                                        zd->hdr = (struct zapiV1_header *) zcfg.zread_buff;
+                                        zd->hdr = (struct zapiV2_header *) zcfg.zread_buff;
                                         zd->len = zpl;
                                         zd->cmd = ntohs(zd->hdr->command);
 
@@ -688,13 +688,13 @@ void zsock_disconnect(void)
 STATIC_FUNC
 char* zsock_put_hdr(char *packet, uint16_t cmd, uint8_t data_len)
 {
-        struct zapiV1_header *hdr = (struct zapiV1_header*) packet;
-        hdr->version = ZEBRA_VERSION;
+        struct zapiV2_header *hdr = (struct zapiV2_header*) packet;
+        hdr->version = ZEBRA_VERSION2;
         hdr->marker = ZEBRA_HEADER_MARKER;
         hdr->command = htons(cmd);
-        hdr->length = htons(sizeof (struct zapiV1_header) +data_len);
+        hdr->length = htons(sizeof (struct zapiV2_header) +data_len);
 
-        return packet + sizeof (struct zapiV1_header);
+        return packet + sizeof (struct zapiV2_header);
 }
 
 
@@ -705,7 +705,7 @@ void zsock_send_cmd_typeU8(uint16_t cmd, uint8_t type)
         assertion(-501411, (cmd < ZEBRA_MESSAGE_MAX));
         assertion(-501412, (type < ZEBRA_ROUTE_MAX));
 
-        uint16_t len = sizeof (struct zapiV1_header) + sizeof (type);
+        uint16_t len = sizeof (struct zapiV2_header) + sizeof (type);
         char *p = debugMalloc(len, -300489);
         char *d = zsock_put_hdr(p, cmd, sizeof (type));
         *d = type;
@@ -884,11 +884,11 @@ void zsock_write( void* zpacket )
 
         while ((zwn = list_get_first(&zsock_write_list))) {
 
-                struct zapiV1_header *hdr = (struct zapiV1_header *) zwn->zpacket;
+                struct zapiV2_header *hdr = (struct zapiV2_header *) zwn->zpacket;
                 uint16_t len = ntohs(hdr->length);
 
                 assertion(-501421, (len > zwn->send));
-                assertion(-501422, (len >= sizeof (struct zapiV1_header)));
+                assertion(-501422, (len >= sizeof (struct zapiV2_header)));
 
                 do {
                         assertion(-501423, (zwn->send < len));

@@ -213,6 +213,12 @@ struct quagga_rt_dict {
 #define ZEBRA_HELLO                       23
 #define ZEBRA_MESSAGE_MAX                 24
 
+/* Subsequent Address Family Identifier. */
+#define SAFI_UNICAST              1
+#define SAFI_MULTICAST            2
+#define SAFI_RESERVED_3           3
+#define SAFI_MPLS_VPN             4
+#define SAFI_MAX                  5
 
 
 /* Zebra's family types. */
@@ -271,13 +277,35 @@ struct zapiV2_header {
 } __attribute__((packed));
 
 /* Zebra IPv4 route add message API. */
-struct zapiV2_route_write {
-        u_char type;
-        u_char flags;
-        u_char message;
+struct zapiV2_route_write0 {
+        struct zapiV2_header hdr;
+        uint8_t type;
+        uint8_t flags;
+        uint8_t message;
         uint16_t safi; // zclient.h uses uint8_t here  !! This field only exist in quagga/zebra/zserv.c:zread_ipvX_add/del()
+        uint8_t prefixlen;
+        uint8_t prefix[];
+};
+
+struct zapiV2_route4_write1 {
+        uint8_t nexthop_num;
+        uint8_t nexthop_type_af;
+        IP4_T nexthop;
+        uint8_t nexthop_type_ifidx;
+        uint32_t ifidx;
+        uint8_t distance;
+        uint32_t metric;
 } __attribute__((packed));
 
+struct zapiV2_route6_write1 {
+        uint8_t nexthop_num;
+        uint8_t nexthop_type_af;
+        IP6_T nexthop;
+        uint8_t nexthop_type_ifidx;
+        uint32_t ifidx;
+        uint8_t distance;
+        uint32_t metric;
+} __attribute__((packed));
 
 
 struct zroute_key {

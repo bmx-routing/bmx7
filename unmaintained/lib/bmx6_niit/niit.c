@@ -185,10 +185,10 @@ IDM_T configure_niit4to6(IDM_T del, struct net_key *key)
 
         // update network routes:
         if (del)
-                return iproute(IP_ROUTE_TUNS, DEL, NO, niit4, RT_TABLE_TUN, 0, NULL, 0, NULL, NULL, DEF_IP_METRIC);
+                return iproute(IP_ROUTE_TUNS, DEL, NO, niit4, RT_TABLE_TUN, 0, 0, NULL, NULL, DEF_IP_METRIC);
 
         else
-                return iproute(IP_ROUTE_TUNS, ADD, NO, niit4, RT_TABLE_TUN, 0, NULL, niit4to6_idx, NULL, &niit4_address.ip, DEF_IP_METRIC);
+                return iproute(IP_ROUTE_TUNS, ADD, NO, niit4, RT_TABLE_TUN, 0, niit4to6_idx, NULL, &niit4_address.ip, DEF_IP_METRIC);
 
 
         dbgf_sys(DBGT_ERR, "niit tunnel interface %s ERROR", DEF_NIIT_4TO6_DEV);

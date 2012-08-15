@@ -1417,7 +1417,7 @@ IDM_T change_mtu(char *name, uint16_t mtu)
 
 STATIC_FUNC
 IDM_T iptrack(uint8_t family, uint8_t cmd, uint8_t quiet, int8_t del, const IPX_T *net, uint8_t mask, int8_t table_macro,
-        int8_t prio_macro, IFNAME_T *iif, uint32_t metric)
+        int8_t prio_macro, /*IFNAME_T *iif,*/ uint32_t metric)
 {
 
         // DONT USE setNet() here (because return pointer is static)!!!!!!!!!!!!!
@@ -1439,7 +1439,7 @@ IDM_T iptrack(uint8_t family, uint8_t cmd, uint8_t quiet, int8_t del, const IPX_
         struct track_key sk;
         memset(&sk, 0, sizeof (sk));
         sk.net = *net;
-        sk.iif = iif ? *iif : ZERO_IFNAME;
+        //sk.iif = iif ? *iif : ZERO_IFNAME;
         sk.prio_macro = prio_macro;
         sk.table_macro = table_macro;
         sk.family = family;
@@ -1472,10 +1472,10 @@ IDM_T iptrack(uint8_t family, uint8_t cmd, uint8_t quiet, int8_t del, const IPX_
                 dbgf(
                         quiet ? DBGL_ALL  : (flush || (del && !first_tn)) ? DBGL_SYS : DBGL_CHANGES,
                         quiet ? DBGT_INFO : (flush || (del && !first_tn)) ? DBGT_ERR : DBGT_INFO,
-                        "   %s %s %s/%d  table %d  prio %d  dev %s exists %d tims with %d exact match",
+                        "   %s %s %s/%d  table=%d  prio=%d exists=%d exact_match=%d",
                         del2str(del), trackt2str(cmd), ipXAsStr(family, net), mask,
                         table_macro_to_table(table_macro), prio_macro_to_prio(prio_macro),
-                        iif ? iif->str : NULL, found, exact);
+                        /*iif ? iif->str : NULL,*/ found, exact);
 
                 EXITERROR(-500700, (!(!quiet && (flush || (del && !first_tn)))));
         }
@@ -1569,7 +1569,7 @@ IDM_T kernel_get_route(struct list_head *rtnl_get_list, uint8_t quiet, uint8_t f
 
 STATIC_FUNC
 IDM_T kernel_set_route(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_key *dst,
-        int8_t table_macro, int8_t prio_macro, IFNAME_T *iifname, int oif_idx, IPX_T *via, IPX_T *src, uint32_t metric)
+        int8_t table_macro, int8_t prio_macro, /*IFNAME_T *iifname,*/ int oif_idx, IPX_T *via, IPX_T *src, uint32_t metric)
 {
 
         dbgf_all(DBGT_INFO, "1");
@@ -1636,8 +1636,10 @@ IDM_T kernel_set_route(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_
                         add_rtattr(&req.nlh, RTA_SRC, (char*) &dst->ip, sizeof (IPX_T), dst->af);
                 }
 
+/*
                 if (iifname)
                         add_rtattr(&req.nlh, RTA_IIF, iifname->str, strlen(iifname->str) + 1, 0);
+*/
 
         } else {
 
@@ -1655,7 +1657,7 @@ IDM_T kernel_set_route(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_
 }
 
 IDM_T iproute(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_key *dst,
-        int8_t table_macro, int8_t prio_macro, IFNAME_T *iifname, int oif_idx, IPX_T *via, IPX_T *src, uint32_t metric)
+        int8_t table_macro, int8_t prio_macro, /*IFNAME_T *iifname,*/ int oif_idx, IPX_T *via, IPX_T *src, uint32_t metric)
 {
         // DONT USE setNet() here (because return pointer is static)!!!!!!!!!!!!!
 
@@ -1681,7 +1683,7 @@ IDM_T iproute(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_key *dst,
         if (table == DEF_IP_TABLE_MAIN && (cmd == IP_RULE_DEFAULT || cmd == IP_RULE_FLUSH || cmd == IP_ROUTE_FLUSH))
                 return SUCCESS;
 
-        if (iptrack(dst->af, cmd, quiet, del, &dst->ip, dst->mask, table_macro, prio_macro, iifname, metric) == NO)
+        if (iptrack(dst->af, cmd, quiet, del, &dst->ip, dst->mask, table_macro, prio_macro, /*iifname,*/ metric) == NO)
                 return SUCCESS;
 
 #ifndef NO_DEBUG_ALL
@@ -1689,11 +1691,11 @@ IDM_T iproute(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_key *dst,
 
         dbgf_track( DBGT_INFO, "cmd=%s %s dst=%s iif=%s table=%d prio=%d oifIdx=%d oif=%s via=%s src=%s metric=%d",
                 trackt2str(cmd), del2str(del), netAsStr(dst),
-                iifname ? iifname->str : NULL, table, prio, oif_idx, oif_iln ? oif_iln->name.str : "???",
+                /*iifname ? iifname->str : NULL,*/ table, prio, oif_idx, oif_iln ? oif_iln->name.str : "???",
                 via ? ipXAsStr(dst->af, via) : DBG_NIL, src ? ipXAsStr(dst->af, src) : DBG_NIL, metric);
 #endif
 
-        return kernel_set_route(cmd, del, quiet, dst, table_macro, prio_macro, iifname, oif_idx, via, src, metric);
+        return kernel_set_route(cmd, del, quiet, dst, table_macro, prio_macro, /*iifname,*/ oif_idx, via, src, metric);
 }
 
 
@@ -2441,7 +2443,7 @@ STATIC_FUNC
                         assertion(-500000, (rgn->net.af == family));
 
                         if (rgn->rtm_table == table && rgn->rta_type == RTA_DST)
-                                iproute(IP_ROUTE_FLUSH, DEL, YES/*quiet*/, &rgn->net, table_macro, 0, 0, 0, 0, 0, 0);
+                                iproute(IP_ROUTE_FLUSH, DEL, YES/*quiet*/, &rgn->net, table_macro, 0, 0, 0, 0, 0);
 
                         debugFree(rgn, -300000);
                 }
@@ -2464,7 +2466,7 @@ void ip_flush_rules(uint8_t family)
                 if (table_macro_to_table(table_macro) == DEF_IP_TABLE_MAIN)
                         continue;
 
-                while (iproute(IP_RULE_FLUSH, DEL, YES, &net, table_macro, 0, 0, 0, 0, 0, 0) == SUCCESS) {
+                while (iproute(IP_RULE_FLUSH, DEL, YES, &net, table_macro, 0, 0, 0, 0, 0) == SUCCESS) {
 
                         dbgf_sys(DBGT_ERR, "removed orphan %s rule to table %d", family2Str(AF_CFG), table_macro);
 
@@ -2490,7 +2492,7 @@ void ip_flush_tracked( uint8_t cmd )
                         continue;
 
                 setNet(&net, tn->k.family, tn->k.mask, &tn->k.net);
-                iproute(tn->cmd, DEL, NO, &net, tn->k.table_macro, tn->k.prio_macro, &tn->k.iif, 0, 0, 0, tn->k.metric);
+                iproute(tn->cmd, DEL, NO, &net, tn->k.table_macro, tn->k.prio_macro, 0, 0, 0, tn->k.metric);
 
                 an = NULL;
         }
@@ -2554,8 +2556,8 @@ int update_interface_rules(void)
                         setNet(&throw, ian->ifa.ifa_family, ian->ifa.ifa_prefixlen, &ian->ip_addr);
                         ip_netmask_validate(&throw.ip, throw.mask, throw.af, YES);
 
-                        iproute(IP_THROW_MY_NET, ADD, NO, &throw, RT_TABLE_HNA, RT_PRIO_HNA, 0, (throw.af == AF_INET6 ? dev_lo_idx : 0), 0, 0, 0);
-                        iproute(IP_THROW_MY_NET, ADD, NO, &throw, RT_TABLE_TUN, RT_PRIO_TUNS, 0, (throw.af == AF_INET6 ? dev_lo_idx : 0), 0, 0, 0);
+                        iproute(IP_THROW_MY_NET, ADD, NO, &throw, RT_TABLE_HNA, RT_PRIO_HNA, (throw.af == AF_INET6 ? dev_lo_idx : 0), 0, 0, 0);
+                        iproute(IP_THROW_MY_NET, ADD, NO, &throw, RT_TABLE_TUN, RT_PRIO_TUNS, (throw.af == AF_INET6 ? dev_lo_idx : 0), 0, 0, 0);
 
                 }
         }
@@ -2982,9 +2984,9 @@ IDM_T is_policy_rt_supported(void)
 
         tested_family = net.af;
 
-        if (iproute(IP_RULE_TEST, ADD, YES, &net, RT_TABLE_HNA, RT_PRIO_HNA, 0, 0, 0, 0, 0) == SUCCESS) {
+        if (iproute(IP_RULE_TEST, ADD, YES, &net, RT_TABLE_HNA, RT_PRIO_HNA, 0, 0, 0, 0) == SUCCESS) {
 
-                iproute(IP_RULE_TEST, DEL, YES, &net, RT_TABLE_HNA, RT_PRIO_HNA, 0, 0, 0, 0, 0);
+                iproute(IP_RULE_TEST, DEL, YES, &net, RT_TABLE_HNA, RT_PRIO_HNA, 0, 0, 0, 0);
 
                 return (tested_policy_rt = YES);
 
@@ -3110,16 +3112,16 @@ int32_t opt_ip_version(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                         ip_flush_routes(AF_INET);
                         ip_flush_rules(AF_INET);
 
-                        iproute(IP_RULE_DEFAULT, ADD, NO, &ZERO_NET4_KEY, RT_TABLE_HNA, RT_PRIO_HNA, 0, 0, 0, 0, 0);
-                        iproute(IP_RULE_DEFAULT, ADD, NO, &ZERO_NET4_KEY, RT_TABLE_TUN, RT_PRIO_TUNS, 0, 0, 0, 0, 0);
+                        iproute(IP_RULE_DEFAULT, ADD, NO, &ZERO_NET4_KEY, RT_TABLE_HNA, RT_PRIO_HNA, 0, 0, 0, 0);
+                        iproute(IP_RULE_DEFAULT, ADD, NO, &ZERO_NET4_KEY, RT_TABLE_TUN, RT_PRIO_TUNS, 0, 0, 0, 0);
 
                         if (AF_CFG == AF_INET6) {
                                 
                                 ip_flush_routes(AF_INET6);
                                 ip_flush_rules(AF_INET6);
 
-                                iproute(IP_RULE_DEFAULT, ADD, NO, &ZERO_NET6_KEY, RT_TABLE_HNA, RT_PRIO_HNA, 0, 0, 0, 0, 0);
-                                iproute(IP_RULE_DEFAULT, ADD, NO, &ZERO_NET6_KEY, RT_TABLE_TUN, RT_PRIO_TUNS, 0, 0, 0, 0, 0);
+                                iproute(IP_RULE_DEFAULT, ADD, NO, &ZERO_NET6_KEY, RT_TABLE_HNA, RT_PRIO_HNA, 0, 0, 0, 0);
+                                iproute(IP_RULE_DEFAULT, ADD, NO, &ZERO_NET6_KEY, RT_TABLE_TUN, RT_PRIO_TUNS, 0, 0, 0, 0);
                         }
 
 		}

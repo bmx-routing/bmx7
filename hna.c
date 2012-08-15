@@ -135,7 +135,7 @@ IDM_T configure_route(IDM_T del, struct orig_node *on, struct net_key *key)
         // update network routes:
         if (del) {
 
-                return iproute(IP_ROUTE_HNA, DEL, NO, key, RT_TABLE_HNA, 0, NULL, 0, NULL, NULL, DEF_IP_METRIC);
+                return iproute(IP_ROUTE_HNA, DEL, NO, key, RT_TABLE_HNA, 0, 0, NULL, NULL, DEF_IP_METRIC);
 
         } else {
 
@@ -145,7 +145,7 @@ IDM_T configure_route(IDM_T del, struct orig_node *on, struct net_key *key)
                 ASSERTION(-500239, (avl_find(&link_dev_tree, &(lndev->key))));
                 assertion(-500579, (lndev->key.dev->if_llocal_addr));
 
-                return iproute(IP_ROUTE_HNA, ADD, NO, key, RT_TABLE_HNA, 0, NULL,
+                return iproute(IP_ROUTE_HNA, ADD, NO, key, RT_TABLE_HNA, 0,
                         lndev->key.dev->if_llocal_addr->ifa.ifa_index, &(lndev->key.link->link_ip),
                         (key->af == AF_INET ? (&(self->primary_ip)) : NULL), DEF_IP_METRIC);
 
@@ -442,8 +442,8 @@ void configure_hna(IDM_T del, struct net_key* key, struct orig_node *on, uint8_t
                 // update throw routes:
                 if (policy_routing == POLICY_RT_ENABLED && ip_throw_rules_cfg) {
                         assertion(-501333, (key->af == AF_CFG));
-                        iproute(IP_THROW_MY_HNA, del, NO, key, RT_TABLE_HNA, 0, 0, 0, 0, 0, 0);
-                        iproute(IP_THROW_MY_HNA, del, NO, key, RT_TABLE_TUN, 0, 0, 0, 0, 0, 0);
+                        iproute(IP_THROW_MY_HNA, del, NO, key, RT_TABLE_HNA, 0, 0, 0, 0, 0);
+                        iproute(IP_THROW_MY_HNA, del, NO, key, RT_TABLE_TUN, 0, 0, 0, 0, 0);
                 }
 
         } else if (on->curr_rt_lndev && !(flags & DESC_MSG_HNA_FLAG_NO_ROUTE)) {
@@ -850,7 +850,7 @@ void configure_tun_bit(uint8_t del, struct tun_bit_node *tbn)
                 struct net_key netKey = tbn->tunBitKey.invNetKey;
                 netKey.mask = 128 - netKey.mask;
 
-                iproute(IP_ROUTE_TUNS, DEL, NO, &netKey, RT_TABLE_TUN, 0, NULL, ton->upIfIdx, NULL, NULL, ntohl(tbn->tunBitKey.beIpMetric));
+                iproute(IP_ROUTE_TUNS, DEL, NO, &netKey, RT_TABLE_TUN, 0, ton->upIfIdx, NULL, NULL, ntohl(tbn->tunBitKey.beIpMetric));
 
                 tbn->active = NO;
 
@@ -915,7 +915,7 @@ void configure_tun_bit(uint8_t del, struct tun_bit_node *tbn)
                                 }
                         }
 
-                        iproute(IP_ROUTE_TUNS, ADD, NO, &netKey, RT_TABLE_TUN, 0, NULL, ton->upIfIdx, NULL, NULL, tsn->ipmetric);
+                        iproute(IP_ROUTE_TUNS, ADD, NO, &netKey, RT_TABLE_TUN, 0, ton->upIfIdx, NULL, NULL, tsn->ipmetric);
 
                         tbn->active = YES;
                 }

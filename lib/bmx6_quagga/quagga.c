@@ -218,6 +218,8 @@ void zdata_parse_route(struct zdata *zd)
         zroute_dbg(DBGL_CHANGES, DBGT_INFO, __FUNCTION__, tmp);
 }
 
+
+
 STATIC_FUNC
 void redist_rm_overlapping(void)
 {
@@ -686,17 +688,44 @@ void zsock_disconnect(void)
 
 
 STATIC_FUNC
-char* zsock_put_hdr(char *packet, uint16_t cmd, uint8_t data_len)
+uint8_t* zsock_put_hdr(uint8_t *d, uint16_t cmd, uint8_t len)
 {
-        struct zapiV2_header *hdr = (struct zapiV2_header*) packet;
+        struct zapiV2_header *hdr = (struct zapiV2_header*) d;
         hdr->version = ZEBRA_VERSION2;
         hdr->marker = ZEBRA_HEADER_MARKER;
         hdr->command = htons(cmd);
-        hdr->length = htons(sizeof (struct zapiV2_header) +data_len);
+        hdr->length = htons(len);
 
-        return packet + sizeof (struct zapiV2_header);
+        return d + sizeof (struct zapiV2_header);
 }
 
+STATIC_FUNC
+uint8_t* zsock_put_mem(uint8_t *d, uint8_t * mem, uint16_t len)
+{
+        memcpy(d, mem, len);
+        return d + len;
+}
+
+STATIC_FUNC
+uint8_t* zsock_put_u8(uint8_t *d, uint8_t val)
+{
+        *((uint8_t*) d) = val;
+        return d + sizeof (val);
+}
+
+STATIC_FUNC
+uint8_t* zsock_put_u16(uint8_t *d, uint16_t val)
+{
+        *((uint16_t*) d) = val;
+        return d + sizeof (val);
+}
+
+STATIC_FUNC
+uint8_t* zsock_put_u32(uint8_t *d, uint32_t val)
+{
+        *((uint32_t*) d) = val;
+        return d + sizeof (val);
+}
 
 STATIC_FUNC
 void zsock_send_cmd_typeU8(uint16_t cmd, uint8_t type)
@@ -706,13 +735,13 @@ void zsock_send_cmd_typeU8(uint16_t cmd, uint8_t type)
         assertion(-501412, (type < ZEBRA_ROUTE_MAX));
 
         uint16_t len = sizeof (struct zapiV2_header) + sizeof (type);
-        char *p = debugMalloc(len, -300489);
-        char *d = zsock_put_hdr(p, cmd, sizeof (type));
-        *d = type;
+        uint8_t *d = debugMalloc(len, -300489);
+        d = zsock_put_hdr(d, cmd, len);
+        d = zsock_put_mem(d, &type, sizeof (type));
 
         dbgf_track(DBGT_INFO, "cmd=%s type=%s", zebraCmd2Str[cmd], zroute_dict[zroute_dict[type].zebra2Bmx].bmx2Name);
 
-        zsock_write(p);
+        zsock_write(d);
 }
 
 
@@ -735,6 +764,60 @@ void zsock_send_redist_request(void)
         }
         zcfg.bmx6_redist_bits_old = zcfg.bmx6_redist_bits_new;
 }
+
+
+STATIC_FUNC
+void zsock_send_route(int8_t del, const struct net_key *dst, uint32_t oif_idx, IPX_T *via, uint32_t metric)
+{
+        uint8_t len =
+                sizeof (struct zapiV2_header) +
+                1 + // uint8_t type;
+                1 + // uint8_t flags;
+                1 + // uint8_t message;
+                2 + // uint16_t safi; // zclient.h uses uint8_t here  !! This field only exist in quagga/zebra/zserv.c:zread_ipvX_add/del()
+                1 + // uint8_t prefixlen;
+                ((dst->mask + 7) / 8) + // uint8_t prefix[];
+                1 + // uint8_t nexthop_num;
+                (via ? 1 : 0) + // uint8_t nexthop_type_af;
+                (via ? (dst->af == AF_INET ? sizeof (IP4_T) : sizeof (IPX_T)) : 0) + // IP4/6_T nexthop;
+                1 + // uint8_t nexthop_type_ifidx;
+                4 + // uint32_t ifidx;
+                1 + // uint8_t distance;
+                4 + // uint32_t metric;
+                0;
+
+        uint8_t *d = debugMalloc(len, -300000);
+        uint8_t *p = d;
+        memset(p, 0, len);
+
+        d = zsock_put_hdr(d, (dst->af == AF_INET ? (del ? ZEBRA_IPV4_ROUTE_DELETE : ZEBRA_IPV4_ROUTE_ADD) : (del ? ZEBRA_IPV6_ROUTE_DELETE : ZEBRA_IPV6_ROUTE_ADD)), len);
+        d = zsock_put_u8(d, ZEBRA_ROUTE_BMX6); // type
+        d = zsock_put_u8(d, 0); // flags
+        d = zsock_put_u8(d, ZAPI_MESSAGE_NEXTHOP | ZAPI_MESSAGE_METRIC | ZAPI_MESSAGE_DISTANCE); // message
+        d = zsock_put_u16(d, htons(SAFI_UNICAST)); //safi
+        d = zsock_put_u8(d, dst->mask);
+        d = zsock_put_mem(d, (uint8_t*) & dst->ip.s6_addr32[(dst->af == AF_INET) ? 0 : 3], ((dst->mask + 7) / 8));
+
+        if (via) {
+                d = zsock_put_u8(d, 2);
+                *(d++) = 2;
+                d = zsock_put_mem(d, (uint8_t*) & via->s6_addr32[(dst->af == AF_INET) ? 0 : 3], (dst->af == AF_INET) ? 4 : 16);
+        } else {
+                d = zsock_put_u8(d, 1);
+        }
+
+        d = zsock_put_u8(d, ZEBRA_NEXTHOP_IFINDEX);
+        d = zsock_put_u32(d, htonl(oif_idx)); //if_index
+        d = zsock_put_u8(d, 0); // distance
+        d = zsock_put_u32(d, htonl(metric)); //metric
+
+        assertion(-500000, (d == p + len));
+
+        zsock_write(d);
+}
+
+
+
 
 STATIC_FUNC
 void zsock_connect(void *nothing)

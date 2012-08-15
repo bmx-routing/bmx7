@@ -1493,7 +1493,14 @@ IDM_T iptrack(uint8_t family, uint8_t cmd, uint8_t quiet, int8_t del, const IPX_
 
                         struct track_node *rem_tn = avl_remove(&iptrack_tree, &first_tn->k, -300250);
                         assertion(-501233, (rem_tn));
-                        assertion(-500882, (rem_tn == first_tn));
+                        //assertion(-500882, (rem_tn == first_tn));
+                        if (rem_tn != first_tn) {
+                                // if first_tn is not the first track_node of searched key then
+                                // first_tn and rem_tn are different and first_tn an be reused as rem_tn:
+                                first_tn->cmd = rem_tn->cmd;
+                                first_tn->items = rem_tn->items;
+                                assertion(-501425, (!memcmp(&first_tn->k, &rem_tn->k, sizeof (sk))));
+                        }
                         debugFree(rem_tn, -300072);
 
                 } else if (first_tn->items > 1) {

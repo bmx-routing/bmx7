@@ -1416,7 +1416,7 @@ IDM_T change_mtu(char *name, uint16_t mtu)
 
 
 STATIC_FUNC
-IDM_T iptrack(uint8_t family, uint8_t cmd, uint8_t quiet, int8_t del, const IPX_T *net, uint8_t mask, int8_t table_macro,
+IDM_T iptrack(const struct net_key *net,  uint8_t cmd, uint8_t quiet, int8_t del, int8_t table_macro,
         int8_t prio_macro, /*IFNAME_T *iif,*/ uint32_t metric)
 {
 
@@ -1442,8 +1442,6 @@ IDM_T iptrack(uint8_t family, uint8_t cmd, uint8_t quiet, int8_t del, const IPX_
         //sk.iif = iif ? *iif : ZERO_IFNAME;
         sk.prio_macro = prio_macro;
         sk.table_macro = table_macro;
-        sk.family = family;
-        sk.mask = mask;
         sk.metric = metric;
         sk.cmd_type = cmd_t;
 
@@ -1472,8 +1470,8 @@ IDM_T iptrack(uint8_t family, uint8_t cmd, uint8_t quiet, int8_t del, const IPX_
                 dbgf(
                         quiet ? DBGL_ALL  : (flush || (del && !first_tn)) ? DBGL_SYS : DBGL_CHANGES,
                         quiet ? DBGT_INFO : (flush || (del && !first_tn)) ? DBGT_ERR : DBGT_INFO,
-                        "   %s %s %s/%d  table=%d  prio=%d exists=%d exact_match=%d",
-                        del2str(del), trackt2str(cmd), ipXAsStr(family, net), mask,
+                        "   %s cmd=%s net=%s table=%d  prio=%d exists=%d exact_match=%d",
+                        del2str(del), trackt2str(cmd), netAsStr(net),
                         table_macro_to_table(table_macro), prio_macro_to_prio(prio_macro),
                         /*iif ? iif->str : NULL,*/ found, exact);
 
@@ -1683,7 +1681,7 @@ IDM_T iproute(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_key *dst,
         if (table == DEF_IP_TABLE_MAIN && (cmd == IP_RULE_DEFAULT || cmd == IP_RULE_FLUSH || cmd == IP_ROUTE_FLUSH))
                 return SUCCESS;
 
-        if (iptrack(dst->af, cmd, quiet, del, &dst->ip, dst->mask, table_macro, prio_macro, /*iifname,*/ metric) == NO)
+        if (iptrack(dst, cmd, quiet, del, table_macro, prio_macro, /*iifname,*/ metric) == NO)
                 return SUCCESS;
 
 #ifndef NO_DEBUG_ALL
@@ -2482,7 +2480,6 @@ void ip_flush_tracked( uint8_t cmd )
 	TRACE_FUNCTION_CALL;
         struct avl_node *an;
         struct track_node *tn;
-        struct net_key net;
 
         for (an = NULL; (tn = avl_iterate_item(&iptrack_tree, &an));) {
 
@@ -2491,8 +2488,7 @@ void ip_flush_tracked( uint8_t cmd )
                         (cmd == IP_RULE_FLUSH && tn->k.cmd_type == IP_RULES)))
                         continue;
 
-                setNet(&net, tn->k.family, tn->k.mask, &tn->k.net);
-                iproute(tn->cmd, DEL, NO, &net, tn->k.table_macro, tn->k.prio_macro, 0, 0, 0, tn->k.metric);
+                iproute(tn->cmd, DEL, NO, &tn->k.net, tn->k.table_macro, tn->k.prio_macro, 0, 0, 0, tn->k.metric);
 
                 an = NULL;
         }

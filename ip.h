@@ -467,12 +467,10 @@ struct dev_node {
 
 
 struct track_key {
-	IPX_T net;
+	struct net_key net;
 	//IFNAME_T iif;
 	int8_t prio_macro;
 	int8_t table_macro;
-	uint8_t family;
-	uint8_t mask;
 	uint32_t metric;
 	uint8_t cmd_type;
 };

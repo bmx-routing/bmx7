@@ -1410,7 +1410,7 @@ IDM_T change_mtu(char *name, uint16_t mtu)
 
 
 STATIC_FUNC
-IDM_T iptrack(const struct net_key *net,  uint8_t cmd, uint8_t quiet, int8_t del, int8_t table_macro,
+struct track_node *iptrack(const struct net_key *net, uint8_t cmd, uint8_t quiet, int8_t del, int8_t table_macro,
         int8_t prio_macro, /*IFNAME_T *iif,*/ uint32_t metric)
 {
 
@@ -1419,85 +1419,71 @@ IDM_T iptrack(const struct net_key *net,  uint8_t cmd, uint8_t quiet, int8_t del
 	TRACE_FUNCTION_CALL;
         assertion(-501232, (net));
         assertion(-500628, (cmd != IP_NOP));
-        assertion(-500629, (del || (cmd != IP_ROUTE_FLUSH && cmd != IP_RULE_FLUSH)));
-
-        if( cmd == IP_RULE_TEST)
-                return YES;
-
-        IDM_T flush = (cmd == IP_RULE_FLUSH || cmd == IP_ROUTE_FLUSH);
-
+        assertion(-500629, (cmd != IP_ROUTE_FLUSH && cmd != IP_RULE_FLUSH && cmd != IP_RULE_TEST));
 
         uint8_t cmd_t = (cmd > IP_ROUTES && cmd < IP_ROUTE_MAX) ? IP_ROUTES :
                 ((cmd > IP_RULES && cmd < IP_RULE_MAX) ? IP_RULES : IP_NOP);
 
-        struct track_key sk;
-        memset(&sk, 0, sizeof (sk));
-        sk.net = *net;
-        //sk.iif = iif ? *iif : ZERO_IFNAME;
-        sk.prio_macro = prio_macro;
-        sk.table_macro = table_macro;
-        sk.metric = metric;
-        sk.cmd_type = cmd_t;
+        static struct track_node ts;
+        memset(&ts, 0, sizeof (ts));
+        ts.k.net = *net;
+        ts.k.prio_macro = prio_macro;
+        ts.k.table_macro = table_macro;
+        ts.k.metric = metric;
+        ts.k.cmd_type = cmd_t;
 
-        int found = 0, exact = 0;
-        struct track_node *first_tn = NULL;
-        struct avl_node *an = avl_find(&iptrack_tree, &sk);
+        int found = 0;
+        struct track_node *exact = NULL;
+        struct avl_node *an = avl_find(&iptrack_tree, &ts.k);
         struct track_node *tn = an ? an->item : NULL;
 
         while (tn) {
+                assertion(-500000, IMPLIES(exact, (tn->cmd != cmd)));
 
-                if (!first_tn && (tn->cmd == cmd || flush))
-                        first_tn = tn;
-
-                if (tn->cmd == cmd) {
-                        assertion(-500887, (exact == 0));
-                        exact += tn->items;
-                }
+                if (!exact && tn->cmd == cmd)
+                        exact = tn;
 
                 found += tn->items;
 
-                tn = (tn = avl_iterate_item(&iptrack_tree, &an)) && !memcmp(&sk, &tn->k, sizeof (sk)) ? tn : NULL;
+                tn = (tn = avl_iterate_item(&iptrack_tree, &an)) && !memcmp(&ts.k, &tn->k, sizeof (ts.k)) ? tn : NULL;
         }
 
-        if (flush || (del && !first_tn) || (del && found != 1) || (!del && found > 0)) {
+        if ((del && !exact) || (del && found != 1) || (!del && found > 0)) {
 
                 dbgf(
-                        quiet ? DBGL_ALL  : (flush || (del && !first_tn)) ? DBGL_SYS : DBGL_CHANGES,
-                        quiet ? DBGT_INFO : (flush || (del && !first_tn)) ? DBGT_ERR : DBGT_INFO,
+                        quiet ? DBGL_ALL : (del && !exact) ? DBGL_SYS : DBGL_CHANGES,
+                        quiet ? DBGT_INFO : (del && !exact) ? DBGT_ERR : DBGT_INFO,
                         "   %s cmd=%s net=%s table=%d  prio=%d exists=%d exact_match=%d",
                         del2str(del), trackt2str(cmd), netAsStr(net),
                         table_macro_to_table(table_macro), prio_macro_to_prio(prio_macro),
-                        /*iif ? iif->str : NULL,*/ found, exact);
+                        /*iif ? iif->str : NULL,*/ found, exact ? exact->items : 0);
 
-                EXITERROR(-500700, (!(!quiet && (flush || (del && !first_tn)))));
+                EXITERROR(-500700, (!(!quiet && (del && !exact))));
         }
-
-        if (flush)
-                return YES;
 
         if (del) {
 
-                if (!first_tn) {
+                if (!exact) {
                         
                         assertion(-500883, (0));
 
-                } else if (first_tn->items == 1) {
+                } else if (exact->items == 1) {
 
-                        struct track_node *rem_tn = avl_remove(&iptrack_tree, &first_tn->k, -300250);
+                        struct track_node *rem_tn = avl_remove(&iptrack_tree, &exact->k, -300250);
                         assertion(-501233, (rem_tn));
                         //assertion(-500882, (rem_tn == first_tn));
-                        if (rem_tn != first_tn) {
+                        if (rem_tn != exact) {
                                 // if first_tn is not the first track_node of searched key then
                                 // first_tn and rem_tn are different and first_tn an be reused as rem_tn:
-                                first_tn->cmd = rem_tn->cmd;
-                                first_tn->items = rem_tn->items;
-                                assertion(-501425, (!memcmp(&first_tn->k, &rem_tn->k, sizeof (sk))));
+                                exact->cmd = rem_tn->cmd;
+                                exact->items = rem_tn->items;
+                                assertion(-501425, (!memcmp(&exact->k, &rem_tn->k, sizeof (ts.k))));
                         }
                         debugFree(rem_tn, -300072);
 
-                } else if (first_tn->items > 1) {
+                } else if (exact->items > 1) {
 
-                        first_tn->items--;
+                        exact->items--;
                 }
 
                 if ( found != 1 )
@@ -1507,17 +1493,13 @@ IDM_T iptrack(const struct net_key *net,  uint8_t cmd, uint8_t quiet, int8_t del
 
                 if (exact) {
 
-                        assertion(-500886, (first_tn));
-                        assertion(-500884, (!memcmp(&sk, &first_tn->k, sizeof (sk))));
-                        assertion(-500885, (first_tn->cmd == cmd));
-
-                        first_tn->items++;
+                        exact->items++;
 
                 } else {
 
                         struct track_node *tn = debugMalloc(sizeof ( struct track_node), -300030);
                         memset(tn, 0, sizeof ( struct track_node));
-                        tn->k = sk;
+                        tn->k = ts.k;
                         tn->items = 1;
                         tn->cmd = cmd;
 
@@ -1654,8 +1636,7 @@ IDM_T iproute(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_key *dst,
         // DONT USE setNet() here (because return pointer is static)!!!!!!!!!!!!!
 
 	TRACE_FUNCTION_CALL;
-
-        assertion(-501127, IMPLIES(policy_routing == POLICY_RT_UNSET, (cmd == IP_RULE_TEST && initializing)));
+        assertion(-500000, (cmd != IP_RULE_FLUSH && cmd != IP_ROUTE_FLUSH && cmd != IP_RULE_TEST));
         assertion(-501234, (dst));
         assertion(-500650, IMPLIES(is_ip_set(&dst->ip), is_ip_valid(&dst->ip, dst->af)));
         assertion(-500651, IMPLIES(via, is_ip_valid(via, dst->af)));
@@ -1672,7 +1653,7 @@ IDM_T iproute(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_key *dst,
         if ((cmd == IP_THROW_MY_HNA || cmd == IP_THROW_MY_NET) && (policy_routing != POLICY_RT_ENABLED || !ip_throw_rules_cfg))
 		return SUCCESS;
 
-        if (table == DEF_IP_TABLE_MAIN && (cmd == IP_RULE_DEFAULT || cmd == IP_RULE_FLUSH || cmd == IP_ROUTE_FLUSH))
+        if (table == DEF_IP_TABLE_MAIN && (cmd == IP_RULE_DEFAULT ))
                 return SUCCESS;
 
         if (iptrack(dst, cmd, quiet, del, table_macro, prio_macro, /*iifname,*/ metric) == NO)
@@ -2414,7 +2395,7 @@ error:
 
 
 STATIC_FUNC
-        void ip_flush_routes(uint8_t family)
+void ip_flush_routes(uint8_t family)
 {
 	TRACE_FUNCTION_CALL;
 
@@ -2435,7 +2416,7 @@ STATIC_FUNC
                         assertion(-500000, (rgn->net.af == family));
 
                         if (rgn->rtm_table == table && rgn->rta_type == RTA_DST)
-                                iproute(IP_ROUTE_FLUSH, DEL, YES/*quiet*/, &rgn->net, table_macro, 0, 0, 0, 0, 0);
+                                kernel_set_route(IP_ROUTE_FLUSH, DEL, NO, &rgn->net, table_macro, 0, 0, NULL, NULL, 0);
 
                         debugFree(rgn, -300000);
                 }
@@ -2458,10 +2439,8 @@ void ip_flush_rules(uint8_t family)
                 if (table_macro_to_table(table_macro) == DEF_IP_TABLE_MAIN)
                         continue;
 
-                while (iproute(IP_RULE_FLUSH, DEL, YES, &net, table_macro, 0, 0, 0, 0, 0) == SUCCESS) {
-
+                while (kernel_set_route(IP_RULE_FLUSH, DEL, YES, &net, table_macro, 0, 0, NULL, NULL, 0) == SUCCESS) {
                         dbgf_sys(DBGT_ERR, "removed orphan %s rule to table %d", family2Str(AF_CFG), table_macro);
-
                 }
         }
 }
@@ -2477,14 +2456,14 @@ void ip_flush_tracked( uint8_t cmd )
 
         for (an = NULL; (tn = avl_iterate_item(&iptrack_tree, &an));) {
 
-                if (!(cmd == tn->cmd ||
+                if (cmd == tn->cmd ||
                         (cmd == IP_ROUTE_FLUSH && tn->k.cmd_type == IP_ROUTES) ||
-                        (cmd == IP_RULE_FLUSH && tn->k.cmd_type == IP_RULES)))
-                        continue;
+                        (cmd == IP_RULE_FLUSH && tn->k.cmd_type == IP_RULES)) {
 
-                iproute(tn->cmd, DEL, NO, &tn->k.net, tn->k.table_macro, tn->k.prio_macro, 0, 0, 0, tn->k.metric);
+                        iproute(tn->cmd, DEL, NO, &tn->k.net, tn->k.table_macro, tn->k.prio_macro, 0, 0, 0, tn->k.metric);
 
-                an = NULL;
+                        an = NULL;
+                }
         }
 }
 
@@ -2974,20 +2953,21 @@ IDM_T is_policy_rt_supported(void)
 
         tested_family = net.af;
 
-        if (iproute(IP_RULE_TEST, ADD, YES, &net, RT_TABLE_HNA, RT_PRIO_HNA, 0, 0, 0, 0) == SUCCESS) {
+        assertion(-500000, IMPLIES(policy_routing == POLICY_RT_UNSET, (initializing)));
 
-                iproute(IP_RULE_TEST, DEL, YES, &net, RT_TABLE_HNA, RT_PRIO_HNA, 0, 0, 0, 0);
+        if (kernel_set_route(IP_RULE_TEST, ADD, YES, &net, RT_TABLE_HNA, RT_PRIO_HNA, 0, NULL, NULL, 0)) {
+                kernel_set_route(IP_RULE_TEST, DEL, YES, &net, RT_TABLE_HNA, RT_PRIO_HNA, 0, NULL, NULL, 0);
 
                 return (tested_policy_rt = YES);
 
         } else {
-
                 dbgf_sys(DBGT_ERR, "Disabled policy-routing for IPv%d! (Kernel requires %s,...)",
                         net.af == AF_INET ? 4 : 6,
                         net.af == AF_INET ? "IP_MULTIPLE_TABLES" : "CONFIG_IPV6_MULTIPLE_TABLES");
 
-                return ( tested_policy_rt = NO);
+                return (tested_policy_rt = NO);
         }
+
 }
 
 uint8_t _af_cfg(const char *func)
@@ -3710,13 +3690,19 @@ void cleanup_ip(void)
         // if ever started succesfully in daemon mode...
         if (policy_routing == POLICY_RT_ENABLED && ip_prio_rules_cfg) {
 
+                // flush default routes installed by bmx6:
                 ip_flush_tracked( IP_ROUTE_FLUSH );
+
+                // flush all routes in this bmx6 tables (there should be NOTHING!):
                 ip_flush_routes(AF_CFG);
                 if (AF_CFG == AF_INET6)
                         ip_flush_routes(AF_INET);
 
-
+                // flush default routes installed by bmx6:
                 ip_flush_tracked( IP_RULE_FLUSH );
+
+
+                // flush all rules pointing to bmx6 tables (there should be NOTHING!):
                 ip_flush_rules(AF_CFG);
                 if (AF_CFG == AF_INET6)
                         ip_flush_rules(AF_INET);

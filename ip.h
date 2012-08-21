@@ -482,29 +482,26 @@ struct track_node {
 };
 
 
-//ip() commands:
-enum {
-	IP_NOP,
+//iproute() commands:
+#define	IP_NOP             00
 
-	IP_RULES,
-	IP_RULE_FLUSH,
-	IP_RULE_DEFAULT,    //basic rules to interfaces, host, and networks routing tables
-	IP_RULE_TEST,
-	IP_RULE_MAX,
+#define IP_ADDRESS         01
+#define IP_RULES           02
+#define IP_RULE_FLUSH      03
+#define IP_RULE_DEFAULT    04 //basic rules to interfaces, host, and networks routing tables
+#define IP_RULE_TEST       05
+#define	IP_RULE_MAX        06
 
-	IP_ROUTES,
-        IP_ROUTE_GET,
-	IP_ROUTE_FLUSH_ALL,
-	IP_ROUTE_FLUSH,
-	IP_THROW_MY_HNA,
-	IP_THROW_MY_NET,
-	IP_ROUTE_HOST,
-	IP_ROUTE_HNA,
-	IP_ROUTE_TUNS,
-	IP_ROUTE_MAX,
-
-        IP_ADDRESS
-};
+#define IP_ROUTES          10
+#define IP_ROUTE_GET       11
+#define IP_ROUTE_FLUSH_ALL 12
+#define IP_ROUTE_FLUSH     13
+#define IP_THROW_MY_HNA    14
+#define IP_THROW_MY_NET    15
+#define IP_ROUTE_HOST      16
+#define IP_ROUTE_HNA       17
+#define IP_ROUTE_TUNS      18
+#define	IP_ROUTE_MAX       (IP_ROUTE_TUNS + BMX6_ROUTE_MAX)
 
 struct rtnl_get_node {
         struct list_node list;

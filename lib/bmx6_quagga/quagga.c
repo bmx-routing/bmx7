@@ -83,6 +83,8 @@ static AVL_TREE(zroute_tree, struct zroute_node, k);
 static AVL_TREE(redist_opt_tree, struct redistr_opt_node, nameKey);
 static AVL_TREE(redist_out_tree, struct redist_out_node, k);
 
+static AVL_TREE(export_opt_tree, struct export_opt_node, nameKey);
+
 static LIST_SIMPEL(tunXin6_net_adv_list, struct tunXin6_net_adv_node, list, list);
 
 static struct zebra_cfg zcfg;
@@ -235,7 +237,7 @@ void redist_rm_overlapping(void)
                         continue;
 
                 // find overlapping route entry:
-                if (routn->minAggregatePrefixLen != MAX_REDIST_AGGREGATE) {
+                if (routn->minAggregatePrefixLen != MAX_QUAGGA_AGGREGATE) {
                         struct redist_out_node *ovlp = NULL;
                         struct redist_out_node t = {.k =
                                 {.bandwidth = routn->k.bandwidth, .bmx6_route_type = routn->k.bmx6_route_type, .net =
@@ -382,13 +384,13 @@ void redistribute_routes(void)
                                 continue;
                         }
 
-                        if ((roptn->net.mask != MIN_REDIST_PREFIX ||
-                                roptn->netPrefixMin != DEF_REDIST_PREFIX_MIN ||
-                                roptn->netPrefixMax != DEF_REDIST_PREFIX_MAX)
+                        if ((roptn->net.mask != MIN_QUAGGA_PREFIX ||
+                                roptn->netPrefixMin != DEF_QUAGGA_PREFIX_MIN ||
+                                roptn->netPrefixMax != DEF_QUAGGA_PREFIX_MAX)
                                 && !(
-                                (roptn->netPrefixMax == TYP_REDIST_PREFIX_NET ?
+                                (roptn->netPrefixMax == TYP_QUAGGA_PREFIX_NET ?
                                 roptn->net.mask >= zrn->k.net.mask : roptn->netPrefixMax >= zrn->k.net.mask) &&
-                                (roptn->netPrefixMin == TYP_REDIST_PREFIX_NET ?
+                                (roptn->netPrefixMin == TYP_QUAGGA_PREFIX_NET ?
                                 roptn->net.mask <= zrn->k.net.mask : roptn->netPrefixMin <= zrn->k.net.mask) &&
                                 is_ip_net_equal(&roptn->net.ip, &zrn->k.net.ip, MIN(roptn->net.mask, zrn->k.net.mask), roptn->net.af))) {
 
@@ -1032,7 +1034,138 @@ int32_t opt_zsock_path(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
 
 
 
+STATIC_FUNC
+int32_t opt_export(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
+{
+        TRACE_FUNCTION_CALL;
+        struct export_opt_node *eon = NULL;
+        static uint8_t changed = NO;
 
+        if (cmd == OPT_ADJUST || cmd == OPT_CHECK || cmd == OPT_APPLY) {
+
+                struct opt_child *c = NULL;
+                char name[NETWORK_NAME_LEN] = {0};
+
+                dbgf_all(DBGT_INFO, "diff=%d cmd=%s  save=%d  opt=%s  patch=%s",
+                        patch->diff, opt_cmd2str[cmd], _save, opt->name, patch->val);
+
+                if (AF_CFG != AF_INET6)
+                        return FAILURE;
+
+                if (strlen(patch->val) >= NETWORK_NAME_LEN || validate_name_string(patch->val, strlen(patch->val) + 1, NULL) != SUCCESS)
+                        return FAILURE;
+
+                strcpy(name, patch->val);
+
+                eon = avl_find_item(&export_opt_tree, name);
+
+                struct net_key net = ZERO_NET_KEY;
+                net.af = eon ? eon->net.af : 0; // family of ARG_TUN_SEARCH_NETWORK and ARG_TUN_SEARCH_SRC must be the same!!!
+
+                if (cmd == OPT_APPLY) {
+
+                        changed = YES;
+
+                        //unlink_tun_net(NULL, NULL, NULL);
+
+                        if (!eon && patch->diff != DEL) {
+                                eon = debugMalloc(sizeof (struct export_opt_node), -300496);
+                                memset(eon, 0, sizeof (struct export_opt_node));
+                                strcpy(eon->nameKey, name);
+                                avl_insert(&export_opt_tree, eon, -300497);
+
+                                eon->hysteresis = DEF_QUAGGA_HYSTERESIS;
+                                eon->netPrefixMin = DEF_QUAGGA_PREFIX_MIN;
+                                eon->netPrefixMax = DEF_QUAGGA_PREFIX_MAX;
+                                eon->metric = DEF_QUAGGA_METRIC;
+                                eon->distance = DEF_QUAGGA_DISTANCE;
+                                eon->exportRTBmx6 = DEF_EXPORT_RTYPE_BMX;
+                                eon->exportUHna = DEF_EXPORT_UHNA;
+                                eon->exportOnly = DEF_EXPORT_ONLY;
+
+                        } else if (eon && patch->diff == DEL) {
+                                avl_remove(&export_opt_tree, &eon->nameKey, -300498);
+                                debugFree(eon, -300499);
+                        }
+                }
+
+                while ((c = list_iterate(&patch->childs_instance_list, c))) {
+
+                        if (!strcmp(c->opt->name, ARG_QUAGGA_NET)) {
+
+                                if (c->val) {
+
+                                        if (str2netw(c->val, &net.ip, cn, &net.mask, &net.af, NO) == FAILURE)
+                                                return FAILURE;
+
+                                        set_opt_child_val(c, netAsStr(&net));
+
+                                        if (cmd == OPT_APPLY && eon)
+                                                eon->net = net;
+
+
+                                } else if (cmd == OPT_APPLY && eon) {
+                                        setNet(&eon->net, net.af, 0, NULL);
+                                }
+
+                      
+
+                        } else if (cmd == OPT_APPLY && eon) {
+
+                                if (!strcmp(c->opt->name, ARG_QUAGGA_PREFIX_MIN)) {
+                                        eon->netPrefixMin = c->val ? strtol(c->val, NULL, 10) : DEF_QUAGGA_PREFIX_MIN;
+
+                                } else if (!strcmp(c->opt->name, ARG_QUAGGA_PREFIX_MAX)) {
+                                        eon->netPrefixMax = c->val ? strtol(c->val, NULL, 10) : DEF_QUAGGA_PREFIX_MAX;
+
+                                } else if (!strcmp(c->opt->name, ARG_QUAGGA_HYSTERESIS)) {
+                                        eon->hysteresis = c->val ? strtol(c->val, NULL, 10) : DEF_QUAGGA_HYSTERESIS;
+
+                                } else if (!strcmp(c->opt->name, ARG_QUAGGA_METRIC)) {
+                                        eon->metric = c->val ? strtol(c->val, NULL, 10) : DEF_QUAGGA_METRIC;
+
+                                } else if (!strcmp(c->opt->name, ARG_QUAGGA_DISTANCE)) {
+                                        eon->distance = c->val ? strtol(c->val, NULL, 10) : DEF_QUAGGA_DISTANCE;
+
+                                } else if (!strcmp(c->opt->name, ARG_EXPORT_RTYPE_BMX)) {
+                                        eon->distance = c->val ? strtol(c->val, NULL, 10) : DEF_EXPORT_RTYPE_BMX;
+
+                                } else if (!strcmp(c->opt->name, ARG_EXPORT_UHNA)) {
+                                        eon->distance = c->val ? strtol(c->val, NULL, 10) : DEF_EXPORT_UHNA;
+
+                                } else if (!strcmp(c->opt->name, ARG_EXPORT_ONLY)) {
+                                        eon->distance = c->val ? strtol(c->val, NULL, 10) : DEF_EXPORT_ONLY;
+
+                                }
+                        }
+                }
+
+
+        } else if (cmd == OPT_SET_POST) {
+
+                if (initializing) {
+
+                } else if (changed) {
+
+                }
+
+                changed = NO;
+
+
+        } else if (cmd == OPT_UNREGISTER) {
+
+                struct avl_node *an = NULL;
+
+                while ((eon = avl_iterate_item(&export_opt_tree, &an))) {
+                        avl_remove(&export_opt_tree, &eon->nameKey, -300501);
+                        debugFree(eon, -300502);
+                }
+
+        }
+
+        return SUCCESS;
+
+}
 
 STATIC_FUNC
 int32_t opt_redistribute(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
@@ -1074,9 +1207,9 @@ int32_t opt_redistribute(uint8_t cmd, uint8_t _save, struct opt_type *opt, struc
                                 strcpy(rdn->nameKey, name);
                                 avl_insert(&redist_opt_tree, rdn, -300497);
 
-                                rdn->hysteresis = DEF_REDIST_HYSTERESIS;
-                                rdn->netPrefixMin = DEF_REDIST_PREFIX_MIN;
-                                rdn->netPrefixMax = DEF_REDIST_PREFIX_MAX;
+                                rdn->hysteresis = DEF_QUAGGA_HYSTERESIS;
+                                rdn->netPrefixMin = DEF_QUAGGA_PREFIX_MIN;
+                                rdn->netPrefixMax = DEF_QUAGGA_PREFIX_MAX;
                         } else if (rdn && patch->diff == DEL) {
                                 avl_remove(&redist_opt_tree, &rdn->nameKey, -300498);
                                 debugFree(rdn, -300499);
@@ -1085,7 +1218,7 @@ int32_t opt_redistribute(uint8_t cmd, uint8_t _save, struct opt_type *opt, struc
 
                 while ((c = list_iterate(&patch->childs_instance_list, c))) {
 
-                        if (!strcmp(c->opt->name, ARG_REDIST_NET)) {
+                        if (!strcmp(c->opt->name, ARG_QUAGGA_NET)) {
 
                                 if (c->val) {
 
@@ -1102,7 +1235,7 @@ int32_t opt_redistribute(uint8_t cmd, uint8_t _save, struct opt_type *opt, struc
                                         setNet(&rdn->net, net.af, 0, NULL);
                                 }
 
-                        } else if (!strcmp(c->opt->name, ARG_REDIST_BW)) {
+                        } else if (!strcmp(c->opt->name, ARG_QUAGGA_BW)) {
 
                                 if (c->val) {
                                         char *endptr;
@@ -1123,17 +1256,17 @@ int32_t opt_redistribute(uint8_t cmd, uint8_t _save, struct opt_type *opt, struc
 
                         } else if (cmd == OPT_APPLY && rdn) {
 
-                                if (!strcmp(c->opt->name, ARG_REDIST_PREFIX_MIN)) {
-                                        rdn->netPrefixMin = c->val ? strtol(c->val, NULL, 10) : DEF_REDIST_PREFIX_MIN;
+                                if (!strcmp(c->opt->name, ARG_QUAGGA_PREFIX_MIN)) {
+                                        rdn->netPrefixMin = c->val ? strtol(c->val, NULL, 10) : DEF_QUAGGA_PREFIX_MIN;
 
-                                } else if (!strcmp(c->opt->name, ARG_REDIST_PREFIX_MAX)) {
-                                        rdn->netPrefixMax = c->val ? strtol(c->val, NULL, 10) : DEF_REDIST_PREFIX_MAX;
+                                } else if (!strcmp(c->opt->name, ARG_QUAGGA_PREFIX_MAX)) {
+                                        rdn->netPrefixMax = c->val ? strtol(c->val, NULL, 10) : DEF_QUAGGA_PREFIX_MAX;
 
-                                } else if (!strcmp(c->opt->name, ARG_REDIST_AGGREGATE)) {
-                                        rdn->minAggregatePrefixLen = c->val ? strtol(c->val, NULL, 10) : DEF_REDIST_AGGREGATE;
+                                } else if (!strcmp(c->opt->name, ARG_QUAGGA_AGGREGATE)) {
+                                        rdn->minAggregatePrefixLen = c->val ? strtol(c->val, NULL, 10) : DEF_QUAGGA_AGGREGATE;
 
-                                } else if (!strcmp(c->opt->name, ARG_REDIST_HYSTERESIS)) {
-                                        rdn->hysteresis = c->val ? strtol(c->val, NULL, 10) : DEF_REDIST_HYSTERESIS;
+                                } else if (!strcmp(c->opt->name, ARG_QUAGGA_HYSTERESIS)) {
+                                        rdn->hysteresis = c->val ? strtol(c->val, NULL, 10) : DEF_QUAGGA_HYSTERESIS;
 
                                 } else {
                                         uint8_t t;
@@ -1192,17 +1325,35 @@ static struct opt_type quagga_options[]= {
 	{ODI,0,ARG_ZAPI_DIR,		0,  2,1,A_PS1,A_ADM,A_INI,A_CFA,A_ANY,	0,		0,		0,		0,ZEBRA_SERV_PATH,opt_zsock_path,
 			ARG_DIR_FORM,	"" },
 
+	{ODI,0,ARG_EXPORT,     	          0,9,2,A_PM1N,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_export,
+		        ARG_NAME_FORM,  "arbitrary but unique name for exported network(s) depending on sub criterias"},
+	{ODI,ARG_EXPORT,ARG_QUAGGA_NET, 'n',9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,  0,              0,              0,              0,0,            opt_export,
+			ARG_PREFIX_FORM,"network permit filter (optional)"},
+	{ODI,ARG_EXPORT,ARG_EXPORT_RTYPE_BMX,'x',9,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,  0,         0,              1,       DEF_EXPORT_RTYPE_BMX,0,opt_export,
+			ARG_PREFIX_FORM,"export tun6 route type"},
+	{ODI,ARG_EXPORT,ARG_EXPORT_UHNA,'u',9,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,  0,              0,              1,       DEF_EXPORT_UHNA,0,     opt_export,
+			ARG_PREFIX_FORM,"export bmx6 unicast HNAs"},
+	{ODI,ARG_EXPORT,ARG_QUAGGA_PREFIX_MIN,0,9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,MIN_QUAGGA_PREFIX,MAX_QUAGGA_PREFIX,DEF_QUAGGA_PREFIX_MIN,0,opt_export,
+			ARG_VALUE_FORM, "minumum prefix len  (129 = network prefix len)"},
+	{ODI,ARG_EXPORT,ARG_QUAGGA_PREFIX_MAX,0,9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,MIN_QUAGGA_PREFIX,MAX_QUAGGA_PREFIX,DEF_QUAGGA_PREFIX_MAX,0,opt_export,
+			ARG_VALUE_FORM, "maximum prefix len  (129 = network prefix len)"},
+	{ODI,ARG_EXPORT,ARG_QUAGGA_METRIC,0,9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,        MIN_QUAGGA_METRIC,MAX_QUAGGA_METRIC,DEF_QUAGGA_METRIC,0,opt_export,
+			ARG_VALUE_FORM,	"metric to network"},
+	{ODI,ARG_EXPORT,ARG_QUAGGA_DISTANCE,0,9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,MIN_QUAGGA_DISTANCE,MAX_QUAGGA_DISTANCE,DEF_QUAGGA_DISTANCE,0,opt_export,
+			ARG_VALUE_FORM,	"distance to network"},
+	{ODI,ARG_EXPORT,ARG_EXPORT_ONLY,  0,9,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,  0,            MIN_EXPORT_ONLY,MAX_EXPORT_ONLY,DEF_EXPORT_ONLY,0,opt_export,
+			ARG_PREFIX_FORM,"do not add route to bmx6 tun table"},
 	{ODI,0,ARG_REDIST,     	          0,9,2,A_PM1N,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_redistribute,
 		        ARG_NAME_FORM,  "arbitrary but unique name for redistributed network(s) depending on sub criterias"},
-	{ODI,ARG_REDIST,ARG_REDIST_NET, 'n',9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,  0,              0,              0,              0,0,            opt_redistribute,
+	{ODI,ARG_REDIST,ARG_QUAGGA_NET, 'n',9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,  0,              0,              0,              0,0,            opt_redistribute,
 			ARG_PREFIX_FORM,"network permit filter (optional)"},
-	{ODI,ARG_REDIST,ARG_REDIST_PREFIX_MIN,0,9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,MIN_REDIST_PREFIX,MAX_REDIST_PREFIX,DEF_REDIST_PREFIX_MIN,0,opt_redistribute,
-			ARG_VALUE_FORM, "minumum prefix len to accept for redistribution (129 = network prefix len)"},
-	{ODI,ARG_REDIST,ARG_REDIST_PREFIX_MAX,0,9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,MIN_REDIST_PREFIX,MAX_REDIST_PREFIX,DEF_REDIST_PREFIX_MAX,0,opt_redistribute,
-			ARG_VALUE_FORM, "maximum prefix len to accept for redistribution (129 = network prefix len)"},
-	{ODI,ARG_REDIST,ARG_REDIST_AGGREGATE,0,9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,MIN_REDIST_AGGREGATE,MAX_REDIST_AGGREGATE,DEF_REDIST_AGGREGATE,0,opt_redistribute,
+	{ODI,ARG_REDIST,ARG_QUAGGA_PREFIX_MIN,0,9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,MIN_QUAGGA_PREFIX,MAX_QUAGGA_PREFIX,DEF_QUAGGA_PREFIX_MIN,0,opt_redistribute,
+			ARG_VALUE_FORM, "minumum prefix len (129 = network prefix len)"},
+	{ODI,ARG_REDIST,ARG_QUAGGA_PREFIX_MAX,0,9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,MIN_QUAGGA_PREFIX,MAX_QUAGGA_PREFIX,DEF_QUAGGA_PREFIX_MAX,0,opt_redistribute,
+			ARG_VALUE_FORM, "maximum prefix len (129 = network prefix len)"},
+	{ODI,ARG_REDIST,ARG_QUAGGA_AGGREGATE,0,9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,MIN_QUAGGA_AGGREGATE,MAX_QUAGGA_AGGREGATE,DEF_QUAGGA_AGGREGATE,0,opt_redistribute,
 			ARG_VALUE_FORM, "minimum prefix len to aggregate redistributions"},
-	{ODI,ARG_REDIST,ARG_REDIST_BW,    0,9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,		0,	        0,              0,0,            opt_redistribute,
+	{ODI,ARG_REDIST,ARG_QUAGGA_BW,    0,9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,		0,	        0,              0,0,            opt_redistribute,
 			ARG_VALUE_FORM,	"bandwidth to network as bits/sec (mandatory)"},
 	{ODI,ARG_REDIST,ARG_ROUTE_SYSTEM, 0,9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,   0,              0,              1,              0,0,            opt_redistribute,
 			ARG_PREFIX_FORM,"redistribute route type"},

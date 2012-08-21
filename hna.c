@@ -721,13 +721,13 @@ int32_t opt_uhna(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
 
 
 STATIC_FUNC
-IDM_T configure_tunnel_out(uint8_t del, struct orig_node *on, struct tun_out_node *ton)
+IDM_T configure_tunnel_out(uint8_t del, struct tun_out_node *ton)
 {
         TRACE_FUNCTION_CALL;
         assertion(-501292, (is_ip_set(&ton->localIp)));
-        assertion(-501235, (on));
-        assertion(-501321, (on != self));
-        assertion(-501343, IMPLIES(!del, (is_ip_set(&on->primary_ip))));
+        assertion(-501235, (ton->tunOutKey.on));
+        assertion(-501321, (ton->tunOutKey.on != self));
+        assertion(-501343, IMPLIES(!del, (is_ip_set(&ton->tunOutKey.on->primary_ip))));
         assertion(-501311, IMPLIES(ton->upIfIdx, ton->name.str[0]));
         assertion(-501344, IMPLIES(ton->upIfIdx, del));
 
@@ -752,8 +752,7 @@ IDM_T configure_tunnel_out(uint8_t del, struct orig_node *on, struct tun_out_nod
 
                         do {
                                 memset(&ton->name, 0, sizeof (ton->name));
-                                snprintf(ton->name.str, IFNAMSIZ - 1, "%s_%s%.4X",
-                                        tun_name_prefix.str, (on == self ? "in" : "out"), tun_idx++);
+                                snprintf(ton->name.str, IFNAMSIZ - 1, "%s_out%.4X", tun_name_prefix.str, tun_idx++);
 
                                 struct avl_node *an = NULL;
                                 iln = NULL;
@@ -894,7 +893,7 @@ void configure_tun_bit(uint8_t del, struct tun_bit_node *tbn)
                 assertion(-501236, IMPLIES(used, ton->upIfIdx));
 
                 if (!used)
-                        configure_tunnel_out(DEL, ton->tunOutKey.on, ton);
+                        configure_tunnel_out(DEL, ton);
 
         } else if (!del && !tbn->active) {
 
@@ -905,7 +904,7 @@ void configure_tun_bit(uint8_t del, struct tun_bit_node *tbn)
                 struct net_key netKey = tbn->tunBitKey.invNetKey;
                 netKey.mask = 128 - netKey.mask;
 
-                if (!ton->upIfIdx && configure_tunnel_out(ADD, ton->tunOutKey.on, ton) == SUCCESS) {
+                if (!ton->upIfIdx && configure_tunnel_out(ADD, ton) == SUCCESS) {
                         kernel_set_addr(ADD, ton->upIfIdx, AF_INET6, &ton->localIp, 128, YES /*deprecated*/);
                         change_mtu(ton->name.str, tsn->mtu);
                         dbgf_track(DBGT_INFO, "Set MTU from %s as %d", ton->name.str, tsn->mtu);

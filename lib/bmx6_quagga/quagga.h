@@ -351,36 +351,62 @@ struct zdata {
 
 
 #define ARG_ZAPI_DIR "zebraPath"
-#define ARG_REDIST      "redistribute"
-#define ARG_REDIST_NET  "network"
-#define ARG_REDIST_BW   "bandwidth"
-
-#define MIN_REDIST_PREFIX 0
-#define MAX_REDIST_PREFIX 129
-#define TYP_REDIST_PREFIX_NET 129 //assumes prefix from ARG_TUN_OUT_NET
-
-#define ARG_REDIST_PREFIX_MIN "minPrefixLen"
-#define DEF_REDIST_PREFIX_MIN TYP_REDIST_PREFIX_NET
-
-#define ARG_REDIST_PREFIX_MAX "maxPrefixLen"
-#define DEF_REDIST_PREFIX_MAX 128
-
-#define ARG_REDIST_AGGREGATE "aggregatePrefixLen"
-#define MIN_REDIST_AGGREGATE 0
-#define MAX_REDIST_AGGREGATE 128
-#define DEF_REDIST_AGGREGATE 0
-
-#define MIN_REDIST_TYPE 0
-#define MAX_REDIST_TYPE 1
-#define DEF_REDIST_TYPE 0
 
 
-#define ARG_REDIST_TYPE_ "type"
 
-#define ARG_REDIST_HYSTERESIS "hysteresis"
-#define DEF_REDIST_HYSTERESIS 20
-#define MIN_REDIST_HYSTERESIS 0
-#define MAX_REDIST_HYSTERESIS MIN(100000, (UMETRIC_MULTIPLY_MAX - 100))
+#define ARG_EXPORT           "export"
+
+#define ARG_EXPORT_UHNA      "unicastHna"
+#define DEF_EXPORT_UHNA      0
+
+#define ARG_EXPORT_RTYPE_BMX "bmx6"
+#define DEF_EXPORT_RTYPE_BMX 1
+
+#define ARG_EXPORT_ONLY   "exportOnly"
+#define DEF_EXPORT_ONLY   0
+#define MIN_EXPORT_ONLY   0
+#define MAX_EXPORT_ONLY   1
+
+
+#define ARG_REDIST        "redistribute"
+
+#define ARG_QUAGGA_NET    "network"
+#define ARG_QUAGGA_BW     "bandwidth"
+
+#define ARG_QUAGGA_METRIC "metric"
+#define DEF_QUAGGA_METRIC 0
+#define MIN_QUAGGA_METRIC 0
+#define MAX_QUAGGA_METRIC INT32_MAX
+
+#define ARG_QUAGGA_DISTANCE "distance"
+#define DEF_QUAGGA_DISTANCE 0
+#define MIN_QUAGGA_DISTANCE 0
+#define MAX_QUAGGA_DISTANCE UINT8_MAX
+
+#define MIN_QUAGGA_PREFIX 0
+#define MAX_QUAGGA_PREFIX 129
+#define TYP_QUAGGA_PREFIX_NET 129 //assumes prefix from ARG_TUN_OUT_NET
+
+#define ARG_QUAGGA_PREFIX_MIN "minPrefixLen"
+#define DEF_QUAGGA_PREFIX_MIN TYP_QUAGGA_PREFIX_NET
+
+#define ARG_QUAGGA_PREFIX_MAX "maxPrefixLen"
+#define DEF_QUAGGA_PREFIX_MAX 128
+
+#define ARG_QUAGGA_AGGREGATE "aggregatePrefixLen"
+#define MIN_QUAGGA_AGGREGATE 0
+#define MAX_QUAGGA_AGGREGATE 128
+#define DEF_QUAGGA_AGGREGATE 0
+
+//#define MIN_QUAGGA_RTYPE_ENABLED 0
+//#define MAX_QUAGGA_RTYPE_ENABLED 1
+//#define DEF_QUAGGA_RTYPE_ENABLED 0
+
+
+#define ARG_QUAGGA_HYSTERESIS "hysteresis"
+#define DEF_QUAGGA_HYSTERESIS 20
+#define MIN_QUAGGA_HYSTERESIS 0
+#define MAX_QUAGGA_HYSTERESIS MIN(100000, (UMETRIC_MULTIPLY_MAX - 100))
 
 #define NETWORK_NAME_LEN 32
 
@@ -393,5 +419,18 @@ struct redistr_opt_node {
         uint8_t netPrefixMax;
         uint8_t minAggregatePrefixLen;
         FMETRIC_U8_T bandwidth;
+};
+
+struct export_opt_node {
+        char nameKey[NETWORK_NAME_LEN];
+        struct net_key net;
+	uint8_t exportRTBmx6;
+	uint8_t exportUHna;
+	uint8_t exportOnly;
+        uint8_t netPrefixMin;
+        uint8_t netPrefixMax;
+	uint8_t distance;
+        uint32_t metric;
+	uint32_t hysteresis;
 };
 

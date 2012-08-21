@@ -87,7 +87,7 @@ static LIST_SIMPEL(tunXin6_net_adv_list, struct tunXin6_net_adv_node, list, list
 
 static struct zebra_cfg zcfg;
 
-static struct quagga_rt_dict zroute_dict[BMX6_ROUTE_MAX];
+static struct zapi_route_dict zapi_rt_dict[BMX6_ROUTE_MAX];
 
 
 STATIC_FUNC void zsock_write(void* zpacket);
@@ -146,7 +146,7 @@ void zroute_dbg(int8_t dbgl, int8_t dbgt, const char *func, struct zroute_node *
                 func, zrn->old, zrn->cnt,
                 (zrn->cnt > 1 || zrn->cnt < 0) ? "INVALID" : (zrn->old != zrn->cnt) ? "CHANGED" : "UNCHANGED",
                 netAsStr(&zrn->k.net), ipXAsStr(zrn->k.net.af, &zrn->k.via),
-                zrn->k.ztype < ZEBRA_ROUTE_MAX ? zroute_dict[zroute_dict[zrn->k.ztype].zebra2Bmx].bmx2Name : memAsHexStringSep(&zrn->k.ztype, 1, 0),
+                zrn->k.ztype < ZEBRA_ROUTE_MAX ? bmx6_rt_dict[zapi_rt_dict[zrn->k.ztype].zebra2Bmx].bmx2Name : memAsHexStringSep(&zrn->k.ztype, 1, 0),
                 zrn->k.ifindex, zrn->k.metric, zrn->k.distance, zrn->flags, zrn->message);
 }
 
@@ -376,7 +376,7 @@ void redistribute_routes(void)
 
                         if (roptn->bmx6_redist_bits &&
                                 !bit_get(((uint8_t*) & roptn->bmx6_redist_bits),
-                                sizeof (&roptn->bmx6_redist_bits)*8, zroute_dict[zrn->k.ztype].zebra2Bmx)) {
+                                sizeof (&roptn->bmx6_redist_bits)*8, zapi_rt_dict[zrn->k.ztype].zebra2Bmx)) {
                                 
                                 dbgf_track(DBGT_INFO, "skipping C");
                                 continue;
@@ -398,7 +398,7 @@ void redistribute_routes(void)
 
                         memset(&routf, 0, sizeof (routf));
 
-                        routf.k.bmx6_route_type = zroute_dict[zrn->k.ztype].zebra2Bmx;
+                        routf.k.bmx6_route_type = zapi_rt_dict[zrn->k.ztype].zebra2Bmx;
                         routf.k.net = roptn->net.mask >= zrn->k.net.mask ? roptn->net : zrn->k.net;
                         routf.k.bandwidth = roptn->bandwidth;
                         routf.k.must_be_one = 1; // to let alv_next_item find the first one
@@ -739,7 +739,7 @@ void zsock_send_cmd_typeU8(uint16_t cmd, uint8_t type)
         d = zsock_put_hdr(d, cmd, len);
         d = zsock_put_mem(d, &type, sizeof (type));
 
-        dbgf_track(DBGT_INFO, "cmd=%s type=%s", zebraCmd2Str[cmd], zroute_dict[zroute_dict[type].zebra2Bmx].bmx2Name);
+        dbgf_track(DBGT_INFO, "cmd=%s type=%s", zebraCmd2Str[cmd], bmx6_rt_dict[zapi_rt_dict[type].zebra2Bmx].bmx2Name);
 
         zsock_write(d);
 }
@@ -757,9 +757,9 @@ void zsock_send_redist_request(void)
                 uint8_t old = bit_get((uint8_t*) & zcfg.bmx6_redist_bits_old, (sizeof (zcfg.bmx6_redist_bits_old) * 8), route_type);
 
                 if (new && !old)
-                        zsock_send_cmd_typeU8(ZEBRA_REDISTRIBUTE_ADD, zroute_dict[route_type].bmx2Zebra);
+                        zsock_send_cmd_typeU8(ZEBRA_REDISTRIBUTE_ADD, zapi_rt_dict[route_type].bmx2Zebra);
                 else if (!new && old)
-                        zsock_send_cmd_typeU8(ZEBRA_REDISTRIBUTE_DELETE, zroute_dict[route_type].bmx2Zebra);
+                        zsock_send_cmd_typeU8(ZEBRA_REDISTRIBUTE_DELETE, zapi_rt_dict[route_type].bmx2Zebra);
 
         }
         zcfg.bmx6_redist_bits_old = zcfg.bmx6_redist_bits_new;
@@ -1138,7 +1138,7 @@ int32_t opt_redistribute(uint8_t cmd, uint8_t _save, struct opt_type *opt, struc
                                 } else {
                                         uint8_t t;
                                         for (t = 0; t < BMX6_ROUTE_MAX; t++) {
-                                                if (!strcmp(c->opt->name, zroute_dict[t].bmx2Name)) {
+                                                if (!strcmp(c->opt->name, bmx6_rt_dict[t].bmx2Name)) {
                                                         bit_set((uint8_t*) &rdn->bmx6_redist_bits,
                                                                 sizeof (rdn->bmx6_redist_bits) * 8,
                                                                 t, (c->val && strtol(c->val, NULL, 10) == 1));
@@ -1249,21 +1249,22 @@ static int32_t quagga_init( void )
 {
 
         assertion(-501424, (ZEBRA_ROUTE_MAX == BMX6_ROUTE_MAX));
-        set_rt_dict(BMX6_ROUTE_SYSTEM, ZEBRA_ROUTE_SYSTEM, ARG_ROUTE_SYSTEM);
-        set_rt_dict(BMX6_ROUTE_KERNEL, ZEBRA_ROUTE_KERNEL, ARG_ROUTE_KERNEL);
-        set_rt_dict(BMX6_ROUTE_CONNECT, ZEBRA_ROUTE_CONNECT, ARG_ROUTE_CONNECT);
-        set_rt_dict(BMX6_ROUTE_STATIC, ZEBRA_ROUTE_STATIC, ARG_ROUTE_STATIC);
-        set_rt_dict(BMX6_ROUTE_RIP, ZEBRA_ROUTE_RIP, ARG_ROUTE_RIP);
-        set_rt_dict(BMX6_ROUTE_RIPNG, ZEBRA_ROUTE_RIPNG, ARG_ROUTE_RIPNG);
-        set_rt_dict(BMX6_ROUTE_OSPF, ZEBRA_ROUTE_OSPF, ARG_ROUTE_OSPF);
-        set_rt_dict(BMX6_ROUTE_OSPF6, ZEBRA_ROUTE_OSPF6, ARG_ROUTE_OSPF6);
-        set_rt_dict(BMX6_ROUTE_ISIS, ZEBRA_ROUTE_ISIS, ARG_ROUTE_ISIS);
-        set_rt_dict(BMX6_ROUTE_BGP, ZEBRA_ROUTE_BGP, ARG_ROUTE_BGP);
-        set_rt_dict(BMX6_ROUTE_BABEL, ZEBRA_ROUTE_BABEL, ARG_ROUTE_BABEL);
-        set_rt_dict(BMX6_ROUTE_BMX6, ZEBRA_ROUTE_BMX6, ARG_ROUTE_BMX6);
-        set_rt_dict(BMX6_ROUTE_HSLS, ZEBRA_ROUTE_HSLS, ARG_ROUTE_HSLS);
-        set_rt_dict(BMX6_ROUTE_OLSR, ZEBRA_ROUTE_OLSR, ARG_ROUTE_OLSR);
-        set_rt_dict(BMX6_ROUTE_BATMAN, ZEBRA_ROUTE_BATMAN, ARG_ROUTE_BATMAN);
+	memset(&zapi_rt_dict, 0, sizeof(zapi_rt_dict));
+        set_zapi_rt_dict(BMX6_ROUTE_SYSTEM, ZEBRA_ROUTE_SYSTEM);
+        set_zapi_rt_dict(BMX6_ROUTE_KERNEL, ZEBRA_ROUTE_KERNEL);
+        set_zapi_rt_dict(BMX6_ROUTE_CONNECT, ZEBRA_ROUTE_CONNECT);
+        set_zapi_rt_dict(BMX6_ROUTE_STATIC, ZEBRA_ROUTE_STATIC);
+        set_zapi_rt_dict(BMX6_ROUTE_RIP, ZEBRA_ROUTE_RIP);
+        set_zapi_rt_dict(BMX6_ROUTE_RIPNG, ZEBRA_ROUTE_RIPNG);
+        set_zapi_rt_dict(BMX6_ROUTE_OSPF, ZEBRA_ROUTE_OSPF);
+        set_zapi_rt_dict(BMX6_ROUTE_OSPF6, ZEBRA_ROUTE_OSPF6);
+        set_zapi_rt_dict(BMX6_ROUTE_ISIS, ZEBRA_ROUTE_ISIS);
+        set_zapi_rt_dict(BMX6_ROUTE_BGP, ZEBRA_ROUTE_BGP);
+        set_zapi_rt_dict(BMX6_ROUTE_BABEL, ZEBRA_ROUTE_BABEL);
+        set_zapi_rt_dict(BMX6_ROUTE_BMX6, ZEBRA_ROUTE_BMX6);
+        set_zapi_rt_dict(BMX6_ROUTE_HSLS, ZEBRA_ROUTE_HSLS);
+        set_zapi_rt_dict(BMX6_ROUTE_OLSR, ZEBRA_ROUTE_OLSR);
+        set_zapi_rt_dict(BMX6_ROUTE_BATMAN, ZEBRA_ROUTE_BATMAN);
 
 
         memset(&zcfg, 0, sizeof (zcfg));

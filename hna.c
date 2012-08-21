@@ -43,6 +43,8 @@
 
 #define CODE_CATEGORY_NAME "hna"
 
+
+
 static AVL_TREE(global_uhna_tree, struct hna_node, key );
 static AVL_TREE(local_uhna_tree, struct hna_node, key );
 
@@ -70,6 +72,26 @@ IDM_T (*hna_configure_niit6to4) (IDM_T del, struct net_key *key) = NULL;
 
 static IFNAME_T tun_name_prefix = {{DEF_TUN_NAME_PREFIX}};
 
+
+struct bmx6_route_dict bmx6_rt_dict[BMX6_ROUTE_MAX];
+
+char* bmx6RouteBits2String(uint32_t bmx6_route_bits)
+{
+	static char r[BMX6_ROUTE_MAX+1];
+
+	//memset(r, ' ', sizeof(r));
+	//r[BMX6_ROUTE_MAX] = 0;
+
+	uint8_t t, p=0;
+	for (t = 0; t < BMX6_ROUTE_MAX; t++) {
+		if (bit_get((uint8_t*) &bmx6_route_bits, sizeof (bmx6_route_bits) * 8, t))
+			r[p++] = bmx6_rt_dict[t].bmx2Char;
+	}
+
+	r[p] = 0;
+
+	return r;
+}
 
 void set_tunXin6_net_adv_list(uint8_t del, struct list_head *adv_list)
 {
@@ -792,6 +814,8 @@ void _add_tun_bit_node(struct tun_search_node *tsna, struct tun_net_node *tnna)
                                 globalIdAsString(&on->global_id));
 
                         if (!(
+                                (tbkn.tsn->bmx6RouteBits == 0 ||
+                                bit_get( (uint8_t*)&tbkn.tsn->bmx6RouteBits, sizeof(tbkn.tsn->bmx6RouteBits), tbkn.tnn->tunNetKey.bmx6RouteType )) &&
                                 tsn_netKey->af == tnn_netKey->af &&
                                 (tbkn.tsn->netPrefixMax == TYP_TUN_OUT_PREFIX_NET ?
                                 tsn_netKey->mask >= tnn_netKey->mask : tbkn.tsn->netPrefixMax >= tnn_netKey->mask) &&
@@ -1638,6 +1662,9 @@ int process_description_tlv_tunXin6_net_adv(struct rx_frame_iterator *it)
                         if (adv->bandwidth.val.u8 == 0)
                                 continue;
 
+			if(adv->bmx6_route_type >= BMX6_ROUTE_MAX)
+                                continue;
+
                         if (it->op == TLV_OP_NEW) {
 
                                 struct tun_out_key tok = set_tun_adv_key(it->on, adv->tun6Id);
@@ -1648,6 +1675,7 @@ int process_description_tlv_tunXin6_net_adv(struct rx_frame_iterator *it)
                                         struct tun_net_key tnk = ZERO_TUN_NET_KEY;
                                         tnk.tun = ton;
                                         tnk.netKey = net;
+					tnk.bmx6RouteType = adv->bmx6_route_type;
 
                                         struct tun_net_node *tnn = avl_find_item(&tun_net_tree, &tnk);
 
@@ -1737,6 +1765,7 @@ int process_description_tlv_tunXin6_net_adv(struct rx_frame_iterator *it)
 
 struct tun_out_status {
         char* name;
+        char searchType[BMX6_ROUTE_MAX+1];
         char searchNet[IPX_PREFIX_STR_LEN];
         uint32_t min;
         uint32_t max;
@@ -1749,6 +1778,7 @@ struct tun_out_status {
         char *tunName;
         char tunRoute[IPX_PREFIX_STR_LEN];
         GLOBAL_ID_T *remoteId;
+        char* advType;
         char advNet[IPX_PREFIX_STR_LEN];
         UMETRIC_T advBwVal;
         UMETRIC_T *advBw;
@@ -1763,6 +1793,7 @@ struct tun_out_status {
 
 static const struct field_format tun_out_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      tun_out_status, name,        1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       tun_out_status, searchType,  1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       tun_out_status, searchNet,   1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              tun_out_status, min,         1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              tun_out_status, max,         1, FIELD_RELEVANCE_HIGH),
@@ -1775,6 +1806,7 @@ static const struct field_format tun_out_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      tun_out_status, tunName,     1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       tun_out_status, tunRoute,    1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, tun_out_status, remoteId,    1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      tun_out_status, advType,     1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       tun_out_status, advNet,      1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           tun_out_status, advBwVal,    1, FIELD_RELEVANCE_LOW),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_UMETRIC,   tun_out_status, advBw,       1, FIELD_RELEVANCE_HIGH),
@@ -1832,6 +1864,7 @@ static int32_t tun_out_status_creator(struct status_handl *handl, void *data)
                                 status->remoteId = &tun->tunOutKey.on->global_id;
                                 status->localTunIp = &tun->localIp;
                                 status->remoteTunIp = &tun->remoteIp;
+                                status->advType = bmx6_rt_dict[tnn->tunNetKey.bmx6RouteType].bmx2Name;
                                 sprintf(status->advNet, netAsStr(&tnn->tunNetKey.netKey));
                                 status->advBwVal = fmetric_to_umetric(fmetric_u8_to_fmu16(tnn->bandwidth));
                                 status->advBw = status->advBwVal ? &status->advBwVal : NULL;
@@ -1858,6 +1891,7 @@ static int32_t tun_out_status_creator(struct status_handl *handl, void *data)
 
                         if(tsn) {
                                 status->name = tsn->nameKey;
+                                sprintf(status->searchType, "%s", bmx6RouteBits2String(tsn->bmx6RouteBits));
                                 sprintf(status->searchNet, "%s", netAsStr(&(tsn->net)));
                                 status->searchId = &(tsn->global_id);
                                 status->min = tsn->netPrefixMin == TYP_TUN_OUT_PREFIX_NET ? tsn->net.mask : tsn->netPrefixMin;
@@ -1982,6 +2016,7 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                                 AVL_INIT_TREE(tsn->tun_bit_tree, struct tun_bit_node, tunBitKey.keyNodes);
                                 strcpy(tsn->nameKey, name);
                                 avl_insert(&tun_search_tree, tsn, -300433);
+                                tsn->bmx6RouteBits = 0;
                                 tsn->mtu = DEF_TUN_OUT_MTU;
                                 tsn->ipmetric = DEF_IP_METRIC;
                                 tsn->hysteresis = DEF_TUN_OUT_HYSTERESIS;
@@ -2124,7 +2159,18 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
 
                                 if (cmd == OPT_APPLY && tsn)
                                         tsn->mtu = c->val ? strtol(c->val, NULL, 10) : DEF_TUN_OUT_MTU;
-                        }
+
+                        } else {
+				uint8_t t;
+				for (t = 0; t < BMX6_ROUTE_MAX; t++) {
+					if (!strcmp(c->opt->name, bmx6_rt_dict[t].bmx2Name)) {
+						bit_set((uint8_t*) &tsn->bmx6RouteBits,
+							sizeof (tsn->bmx6RouteBits) * 8,
+							t, (c->val && strtol(c->val, NULL, 10) == 1));
+					}
+				}
+
+			}
                 }
         }
 
@@ -2525,8 +2571,33 @@ struct opt_type hna_options[]= {
 	{ODI,ARG_TUN_OUT,ARG_TUN_OUT_IPMETRIC,0,9,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,	        0,         MAX_TUN_OUT_IPMETRIC,DEF_IP_METRIC,0,opt_tun_search,
 			ARG_VALUE_FORM, "ip metric for local routing table entries"},
 	{ODI,ARG_TUN_OUT,ARG_TUN_OUT_MTU,0,9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,   MIN_TUN_OUT_MTU,MAX_TUN_OUT_MTU,DEF_TUN_OUT_MTU,0,            opt_tun_search,
-			ARG_VALUE_FORM, "MTU of outgoing tunnel"}
-        ,
+			ARG_VALUE_FORM, "MTU of outgoing tunnel"},
+	{ODI,ARG_TUN_OUT,ARG_ROUTE_SYSTEM, 0,9,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,   0,              0,              1,              0,0,          opt_tun_search,
+			ARG_PREFIX_FORM,"only route type"},
+	{ODI,ARG_TUN_OUT,ARG_ROUTE_KERNEL, 0,9,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,   0,              0,              1,              0,0,          opt_tun_search,
+			ARG_PREFIX_FORM,"only route type"},
+	{ODI,ARG_TUN_OUT,ARG_ROUTE_CONNECT,0,9,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,   0,              0,              1,              0,0,          opt_tun_search,
+			ARG_PREFIX_FORM,"only route type"},
+	{ODI,ARG_TUN_OUT,ARG_ROUTE_RIP,    0,9,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,   0,              0,              1,              0,0,          opt_tun_search,
+			ARG_PREFIX_FORM,"only route type"},
+	{ODI,ARG_TUN_OUT,ARG_ROUTE_RIPNG,  0,9,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,   0,              0,              1,              0,0,          opt_tun_search,
+			ARG_PREFIX_FORM,"only route type"},
+	{ODI,ARG_TUN_OUT,ARG_ROUTE_OSPF,   0,9,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,   0,              0,              1,              0,0,          opt_tun_search,
+			ARG_PREFIX_FORM,"only route type"},
+	{ODI,ARG_TUN_OUT,ARG_ROUTE_OSPF6,  0,9,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,   0,              0,              1,              0,0,          opt_tun_search,
+			ARG_PREFIX_FORM,"only route type"},
+	{ODI,ARG_TUN_OUT,ARG_ROUTE_ISIS,   0,9,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,   0,              0,              1,              0,0,          opt_tun_search,
+			ARG_PREFIX_FORM,"only route type"},
+	{ODI,ARG_TUN_OUT,ARG_ROUTE_BGP,    0,9,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,   0,              0,              1,              0,0,          opt_tun_search,
+			ARG_PREFIX_FORM,"only route type"},
+	{ODI,ARG_TUN_OUT,ARG_ROUTE_BABEL,  0,9,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,   0,              0,              1,              0,0,          opt_tun_search,
+			ARG_PREFIX_FORM,"only route type"},
+	{ODI,ARG_TUN_OUT,ARG_ROUTE_HSLS,   0,9,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,   0,              0,              1,              0,0,          opt_tun_search,
+			ARG_PREFIX_FORM,"only route type"},
+	{ODI,ARG_TUN_OUT,ARG_ROUTE_OLSR,   0,9,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,   0,              0,              1,              0,0,          opt_tun_search,
+			ARG_PREFIX_FORM,"only route type"},
+	{ODI,ARG_TUN_OUT,ARG_ROUTE_BATMAN, 0,9,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,   0,              0,              1,              0,0,          opt_tun_search,
+			ARG_PREFIX_FORM,"only route type"},
 	{ODI,0,ARG_TUNS,	        0,9,2,A_PS0,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
 			0,		"show announced and used tunnels and related networks"}
 
@@ -2576,7 +2647,24 @@ int32_t hna_init( void )
         //assertion(-501327, tun_search_net_tree.key_size == sizeof (struct tun_search_key));
         assertion(-501328, tun_search_tree.key_size == NETWORK_NAME_LEN);
 
-        struct frame_handl tlv_handl;
+
+	memset(&bmx6_rt_dict, 0, sizeof(bmx6_rt_dict));
+        set_bmx6_rt_dict(BMX6_ROUTE_SYSTEM,  'X', ARG_ROUTE_SYSTEM);
+        set_bmx6_rt_dict(BMX6_ROUTE_KERNEL,  'K', ARG_ROUTE_KERNEL);
+        set_bmx6_rt_dict(BMX6_ROUTE_CONNECT, 'C', ARG_ROUTE_CONNECT);
+        set_bmx6_rt_dict(BMX6_ROUTE_STATIC,  'S', ARG_ROUTE_STATIC);
+        set_bmx6_rt_dict(BMX6_ROUTE_RIP,     'R', ARG_ROUTE_RIP);
+        set_bmx6_rt_dict(BMX6_ROUTE_RIPNG,   'R', ARG_ROUTE_RIPNG);
+        set_bmx6_rt_dict(BMX6_ROUTE_OSPF,    'O', ARG_ROUTE_OSPF);
+        set_bmx6_rt_dict(BMX6_ROUTE_OSPF6,   'O', ARG_ROUTE_OSPF6);
+        set_bmx6_rt_dict(BMX6_ROUTE_ISIS,    'I', ARG_ROUTE_ISIS);
+        set_bmx6_rt_dict(BMX6_ROUTE_BGP,     'B', ARG_ROUTE_BGP);
+        set_bmx6_rt_dict(BMX6_ROUTE_BABEL,   'A', ARG_ROUTE_BABEL);
+        set_bmx6_rt_dict(BMX6_ROUTE_BMX6,    'x', ARG_ROUTE_BMX6);
+        set_bmx6_rt_dict(BMX6_ROUTE_HSLS,    'H', ARG_ROUTE_HSLS);
+        set_bmx6_rt_dict(BMX6_ROUTE_OLSR,    'o', ARG_ROUTE_OLSR);
+        set_bmx6_rt_dict(BMX6_ROUTE_BATMAN,  'b', ARG_ROUTE_BATMAN);
+
         
         static const struct field_format hna4_format[] = DESCRIPTION_MSG_HNA4_FORMAT;
         static const struct field_format hna6_format[] = DESCRIPTION_MSG_HNA6_FORMAT;
@@ -2588,6 +2676,7 @@ int32_t hna_init( void )
         static const struct field_format tun4in6_adv_format[] = DESCRIPTION_MSG_TUN4IN6_NET_ADV_FORMAT;
         static const struct field_format tun6in6_adv_format[] = DESCRIPTION_MSG_TUN6IN6_NET_ADV_FORMAT;
 
+        struct frame_handl tlv_handl;
 
         memset( &tlv_handl, 0, sizeof(tlv_handl));
         tlv_handl.min_msg_size = sizeof (struct description_msg_hna4);

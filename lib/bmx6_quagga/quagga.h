@@ -103,7 +103,7 @@ diff --git a/zebra/zebra_rib.c b/zebra/zebra_rib.c
 ///////////////////////////////////////////////////////////////////////////////
 // from quagga/lib/route_types.h (BMX6 patched: quagga/lib/route_types.txt):
 
-/* Zebra route's types. */
+/* Zebra route types. */
 #define ZEBRA_ROUTE_SYSTEM               0
 #define ZEBRA_ROUTE_KERNEL               1
 #define ZEBRA_ROUTE_CONNECT              2
@@ -122,52 +122,19 @@ diff --git a/zebra/zebra_rib.c b/zebra/zebra_rib.c
 #define ZEBRA_ROUTE_MAX                  15
 
 
-/* BMX6 route's types. */
-#define BMX6_ROUTE_BMX6                 0
-#define BMX6_ROUTE_SYSTEM               1
-#define BMX6_ROUTE_KERNEL               2
-#define BMX6_ROUTE_CONNECT              3
-#define BMX6_ROUTE_STATIC               4
-#define BMX6_ROUTE_RIP                  5
-#define BMX6_ROUTE_RIPNG                6
-#define BMX6_ROUTE_OSPF                 7
-#define BMX6_ROUTE_OSPF6                8
-#define BMX6_ROUTE_ISIS                 9
-#define BMX6_ROUTE_BGP                  10
-#define BMX6_ROUTE_BABEL                11
-#define BMX6_ROUTE_HSLS                 12
-#define BMX6_ROUTE_OLSR                 13
-#define BMX6_ROUTE_BATMAN               14
-#define BMX6_ROUTE_MAX                  15
-
-#define ARG_ROUTE_SYSTEM               "system"
-#define ARG_ROUTE_KERNEL               "kernel"
-#define ARG_ROUTE_CONNECT              "connect"
-#define ARG_ROUTE_STATIC               "static"
-#define ARG_ROUTE_RIP                  "rip"
-#define ARG_ROUTE_RIPNG                "ripng"
-#define ARG_ROUTE_OSPF                 "ospf"
-#define ARG_ROUTE_OSPF6                "ospf6"
-#define ARG_ROUTE_ISIS                 "isis"
-#define ARG_ROUTE_BGP                  "bgp"
-#define ARG_ROUTE_BABEL                "babel"
-#define ARG_ROUTE_BMX6                 "bmx6"
-#define ARG_ROUTE_HSLS                 "hsls"
-#define ARG_ROUTE_OLSR                 "olsr"
-#define ARG_ROUTE_BATMAN               "batman"
+/* BMX6 route's types: look at hna.h. */
 
 
-struct quagga_rt_dict {
-        char* bmx2Name;
+
+struct zapi_route_dict {
         uint8_t bmx2Zebra;
         uint8_t zebra2Bmx;
 };
 
 
-#define set_rt_dict( B, Z, N ) do { \
-        zroute_dict[ B ].bmx2Name = N; \
-        zroute_dict[ B ].bmx2Zebra = Z; \
-        zroute_dict[ Z ].zebra2Bmx = B; \
+#define set_zapi_rt_dict( B, Z ) do { \
+        zapi_rt_dict[ B ].bmx2Zebra = Z; \
+        zapi_rt_dict[ Z ].zebra2Bmx = B; \
 } while (0)
 
 ///////////////////////////////////////////////////////////////////////////////

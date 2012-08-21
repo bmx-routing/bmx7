@@ -405,10 +405,14 @@ char *trackt2str(uint8_t cmd)
 	else if ( cmd == IP_ROUTE_HNA )
 		return "ROUTE_HNA";
 
-	else if ( cmd == IP_ROUTE_TUNS )
-		return "ROUTE_TUNS";
+        else if(cmd == IP_ROUTE_TUNS )
+                return "ROUTE_TUNS";
 
-	else if ( cmd == IP_ADDRESS )
+	else if ( cmd > IP_ROUTE_TUNS && cmd < IP_ROUTE_MAX ) {
+
+                return bmx6_rt_dict[ (cmd - IP_ROUTE_TUNS) ].bmx2Name;
+
+	} else if ( cmd == IP_ADDRESS )
 		return "ADDRESS";
 
         return "TRACK_ILLEGAL";

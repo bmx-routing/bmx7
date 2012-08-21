@@ -873,8 +873,9 @@ void configure_tun_bit(uint8_t del, struct tun_bit_node *tbn)
                 struct tun_out_node *ton = tbn->tunBitKey.keyNodes.tnn->tunNetKey.tun;
                 struct net_key netKey = tbn->tunBitKey.invNetKey;
                 netKey.mask = 128 - netKey.mask;
+                uint8_t rtype = tbn->tunBitKey.keyNodes.tnn->tunNetKey.bmx6RouteType;
 
-                iproute(IP_ROUTE_TUNS, DEL, NO, &netKey, RT_TABLE_TUN, 0, ton->upIfIdx, NULL, NULL, ntohl(tbn->tunBitKey.beIpMetric));
+                iproute((IP_ROUTE_TUNS + rtype) , DEL, NO, &netKey, RT_TABLE_TUN, 0, ton->upIfIdx, NULL, NULL, ntohl(tbn->tunBitKey.beIpMetric));
 
                 tbn->active = NO;
 
@@ -899,6 +900,7 @@ void configure_tun_bit(uint8_t del, struct tun_bit_node *tbn)
 
                 struct tun_search_node *tsn = tbn->tunBitKey.keyNodes.tsn;
                 struct tun_net_node *tnn = tbn->tunBitKey.keyNodes.tnn;
+                uint8_t rtype = tnn->tunNetKey.bmx6RouteType;
                 struct tun_out_node *ton = tnn->tunNetKey.tun;
                 struct net_key netKey = tbn->tunBitKey.invNetKey;
                 netKey.mask = 128 - netKey.mask;
@@ -939,7 +941,7 @@ void configure_tun_bit(uint8_t del, struct tun_bit_node *tbn)
                                 }
                         }
 
-                        iproute(IP_ROUTE_TUNS, ADD, NO, &netKey, RT_TABLE_TUN, 0, ton->upIfIdx, NULL, NULL, tsn->ipmetric);
+                        iproute((IP_ROUTE_TUNS + rtype), ADD, NO, &netKey, RT_TABLE_TUN, 0, ton->upIfIdx, NULL, NULL, tsn->ipmetric);
 
                         tbn->active = YES;
                 }

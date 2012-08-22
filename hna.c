@@ -871,6 +871,7 @@ void configure_tun_bit(uint8_t del, struct tun_bit_node *tbn)
                 memset(&rte, 0, sizeof(rte));
                 rte.exportDistance = tbn->tunBitKey.keyNodes.tsn->exportDistance;
                 rte.exportOnly = tbn->tunBitKey.keyNodes.tsn->exportOnly;
+                rte.ipexport = NO; // not yet
                 rtep = &rte;
         }
 

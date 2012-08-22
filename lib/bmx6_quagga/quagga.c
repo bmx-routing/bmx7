@@ -624,81 +624,6 @@ void zsock_fd_handler(int fd)
 
 
 
-STATIC_FUNC
-void fix_export(void)
-{
-
-        static int TOOD;
-
-}
-
-STATIC_FUNC
-void zsock_disconnect(void)
-{
-
-        dbgf_sys(DBGT_WARN, "");
-
-        ipexport = NULL;
-        fix_export();
-
-        if (zcfg.socket > 0) {
-                set_fd_hook(zcfg.socket, zsock_fd_handler, DEL);
-                close(zcfg.socket);
-                zcfg.socket = 0;
-        }
-
-
-
-        //zsock_write_flush();
-
-        struct zsock_write_node *zwn;
-
-        while ((zwn = list_del_head(&zsock_write_list))) {
-                debugFree(zwn->zpacket, -300482);
-                debugFree(zwn, -300483);
-        }
-
-        task_remove(zsock_write, NULL);
-
-
-        //zsock_read_flush();
-
-        if (zcfg.zread_buff) {
-                debugFree(zcfg.zread_buff, -300484);
-                zcfg.zread_buff = NULL;
-                zcfg.zread_buff_len = 0;
-                zcfg.zread_len = 0;
-        }
-        assertion(-501409, (!zcfg.zread_len));
-
-        struct zdata *zd;
-
-        while ((zd = list_del_head(&zdata_read_list))) {
-                debugFree(zd->hdr, -300485);
-                debugFree(zd, -300486);
-        }
-
-        while (zroute_tree.items)
-                debugFree(avl_remove_first_item(&zroute_tree, -300487), -300488);
-
-        task_remove(zsock_read_handler, NULL);
-
-        if (!terminating) {
-                task_remove(zsock_connect, NULL);
-                task_register(0, zsock_connect, NULL, -300000);
-        }
-
-        while (redist_out_tree.items) {
-                debugFree(avl_remove_first_item(&redist_out_tree, -300000), -300000);
-                my_description_changed = YES;
-        }
-
-        while (tunXin6_net_adv_list.items) {
-                struct tunXin6_net_adv_node *tn = list_del_head(&tunXin6_net_adv_list);
-                debugFree(tn, -300000);
-        }
-
-}
 
 
 STATIC_FUNC
@@ -834,6 +759,73 @@ void zsock_send_route(int8_t del, const struct net_key *dst, uint32_t oif_idx, I
 
 
 STATIC_FUNC
+void zsock_disconnect(void)
+{
+
+        dbgf_sys(DBGT_WARN, "");
+
+        if (zcfg.socket > 0) {
+                set_fd_hook(zcfg.socket, zsock_fd_handler, DEL);
+                close(zcfg.socket);
+                zcfg.socket = 0;
+        }
+
+
+
+        //zsock_write_flush();
+
+        struct zsock_write_node *zwn;
+
+        while ((zwn = list_del_head(&zsock_write_list))) {
+                debugFree(zwn->zpacket, -300482);
+                debugFree(zwn, -300483);
+        }
+
+        task_remove(zsock_write, NULL);
+
+
+        //zsock_read_flush();
+
+        if (zcfg.zread_buff) {
+                debugFree(zcfg.zread_buff, -300484);
+                zcfg.zread_buff = NULL;
+                zcfg.zread_buff_len = 0;
+                zcfg.zread_len = 0;
+        }
+        assertion(-501409, (!zcfg.zread_len));
+
+        struct zdata *zd;
+
+        while ((zd = list_del_head(&zdata_read_list))) {
+                debugFree(zd->hdr, -300485);
+                debugFree(zd, -300486);
+        }
+
+        while (zroute_tree.items)
+                debugFree(avl_remove_first_item(&zroute_tree, -300487), -300488);
+
+        task_remove(zsock_read_handler, NULL);
+
+        if (!terminating) {
+                task_remove(zsock_connect, NULL);
+                task_register(0, zsock_connect, NULL, -300000);
+        }
+
+        while (redist_out_tree.items) {
+                debugFree(avl_remove_first_item(&redist_out_tree, -300000), -300000);
+                my_description_changed = YES;
+        }
+
+        while (tunXin6_net_adv_list.items) {
+                struct tunXin6_net_adv_node *tn = list_del_head(&tunXin6_net_adv_list);
+                debugFree(tn, -300000);
+        }
+
+        set_ipexport( NULL );
+}
+
+
+STATIC_FUNC
 void zsock_connect(void *nothing)
 {
 
@@ -901,9 +893,8 @@ void zsock_connect(void *nothing)
         zcfg.bmx6_redist_bits_old = 0;
         zsock_send_redist_request();
 
-        fix_export();
+        set_ipexport( zsock_send_route );
 
-        ipexport = zsock_send_route;
 
         return;
 

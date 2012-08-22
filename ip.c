@@ -151,7 +151,7 @@ static int32_t if4_send_redirects_all_orig = -1;
 static int32_t if4_send_redirects_default_orig = -1;
 
 
-void (*ipexport) (int8_t del, const struct net_key *dst, uint32_t oif_idx, IPX_T *via, uint32_t metric, uint8_t distance) = NULL;
+static void (*ipexport) (int8_t del, const struct net_key *dst, uint32_t oif_idx, IPX_T *via, uint32_t metric, uint8_t distance) = NULL;
 
 struct bmx6_route_dict bmx6_rt_dict[BMX6_ROUTE_MAX];
 
@@ -277,6 +277,7 @@ IDM_T get_if_req(IFNAME_T *dev_name, struct ifreq *if_req, int siocgi_req)
 }
 
 extern unsigned int if_nametoindex (const char *);
+
 
 uint32_t get_if_index(IFNAME_T *name) {
         return if_nametoindex(name->str);
@@ -1417,118 +1418,6 @@ IDM_T change_mtu(char *name, uint16_t mtu)
 }
 
 
-STATIC_FUNC
-IDM_T iptrack(const struct net_key *net, uint8_t cmd, uint8_t quiet, int8_t del, int8_t table_macro,
-        int8_t prio_macro, /*IFNAME_T *iif,*/ uint32_t metric, struct route_export *rte)
-{
-
-        // DONT USE setNet() here (because return pointer is static)!!!!!!!!!!!!!
-
-	TRACE_FUNCTION_CALL;
-        assertion(-501232, (net));
-        assertion(-500628, (cmd != IP_NOP));
-        assertion(-500629, (cmd != IP_ROUTE_FLUSH && cmd != IP_RULE_FLUSH && cmd != IP_RULE_TEST));
-        assertion(-500000, ((cmd > IP_ROUTES && cmd < IP_ROUTE_MAX) || (cmd > IP_RULES && cmd < IP_RULE_MAX)));
-
-        static struct track_node ts;
-        memset(&ts, 0, sizeof (ts));
-        ts.k.net = *net;
-        ts.k.prio_macro = prio_macro;
-        ts.k.table_macro = table_macro;
-        ts.k.metric = metric;
-        ts.k.cmd_type = (cmd > IP_ROUTES && cmd < IP_ROUTE_MAX) ? IP_ROUTES :IP_RULES;
-
-        int found = 0;
-        struct track_node *exact = NULL;
-        struct avl_node *an = avl_find(&iptrack_tree, &ts.k);
-        struct track_node *tn = an ? an->item : NULL;
-
-        while (tn) {
-                assertion(-500000, IMPLIES(exact, (tn->cmd != cmd)));
-
-                if (!exact && tn->cmd == cmd)
-                        exact = tn;
-
-                found += tn->items;
-
-                tn = (tn = avl_iterate_item(&iptrack_tree, &an)) && !memcmp(&ts.k, &tn->k, sizeof (ts.k)) ? tn : NULL;
-        }
-
-        if ((del && !exact) || (del && found != 1) || (!del && found > 0)) {
-                dbgf(
-                        quiet ? DBGL_ALL : (del && !exact) ? DBGL_SYS : DBGL_CHANGES,
-                        quiet ? DBGT_INFO : (del && !exact) ? DBGT_ERR : DBGT_INFO,
-                        "   %s cmd=%s net=%s table=%d  prio=%d exists=%d exact_match=%d",
-                        del2str(del), trackt2str(cmd), netAsStr(net),
-                        table_macro_to_table(table_macro), prio_macro_to_prio(prio_macro),
-                        /*iif ? iif->str : NULL,*/ found, exact ? exact->items : 0);
-
-                EXITERROR(-500700, (!(!quiet && (del && !exact))));
-        }
-
-        assertion(-500000, IMPLIES(!del && (cmd >= IP_ROUTE_TUNS && cmd < IP_ROUTE_MAX), found == 0 && !exact));
-        assertion(-500000, IMPLIES(del && (cmd >= IP_ROUTE_TUNS && cmd < IP_ROUTE_MAX), found == 1 && exact));
-        assertion(-500000, IMPLIES(exact, exact->rt_exp.exportOnly == (rte ? rte->exportOnly : 0) ));
-        assertion(-500000, IMPLIES(exact, exact->rt_exp.exportDistance = (rte ? rte->exportDistance : TYP_EXPORT_DISTANCE_INFINITE)));
-
-
-
-        if (del) {
-
-                if (!exact) {
-                        
-                        assertion(-500883, (0));
-
-                } else if (exact->items == 1) {
-
-                        struct track_node *rem_tn = avl_remove(&iptrack_tree, &exact->k, -300250);
-                        assertion(-501233, (rem_tn));
-                        //assertion(-500882, (rem_tn == first_tn));
-                        if (rem_tn != exact) {
-                                // if first_tn is not the first track_node of searched key then
-                                // first_tn and rem_tn are different and first_tn an be reused as rem_tn:
-                                exact->cmd = rem_tn->cmd;
-                                exact->items = rem_tn->items;
-                                assertion(-501425, (!memcmp(&exact->k, &rem_tn->k, sizeof (ts.k))));
-                        }
-                        debugFree(rem_tn, -300072);
-
-                } else if (exact->items > 1) {
-
-                        exact->items--;
-                }
-
-                if ( found != 1 )
-                        return NO;
-
-	} else {
-
-                if (exact) {
-
-                        exact->items++;
-
-                } else {
-
-                        struct track_node *tn = debugMalloc(sizeof ( struct track_node), -300030);
-                        memset(tn, 0, sizeof ( struct track_node));
-                        tn->k = ts.k;
-                        tn->items = 1;
-                        tn->cmd = cmd;
-                        tn->rt_exp.exportOnly = rte ? rte->exportOnly : 0;
-                        tn->rt_exp.exportDistance = rte ? rte->exportDistance : TYP_EXPORT_DISTANCE_INFINITE;
-
-                        avl_insert(&iptrack_tree, tn, -300251);
-                }
-
-                if (found > 0)
-                        return NO;
-
-	}
-
-        return YES;
-}
-
-
 
 STATIC_FUNC
 IDM_T kernel_get_route(struct list_head *rtnl_get_list, uint8_t quiet, uint8_t family, uint32_t table)
@@ -1644,8 +1533,177 @@ IDM_T kernel_set_route(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_
         return rtnl_talk(&req, req.nlh.nlmsg_len, cmd, NULL, quiet);
 }
 
+
+void set_ipexport( void (*func) (int8_t del, const struct net_key *dst, uint32_t oif_idx, IPX_T *via, uint32_t metric, uint8_t distance) )
+{
+        static int TOOD;
+
+        assertion(-500000, (func ? !ipexport : !!ipexport ));
+
+        ipexport = func;
+
+
+        struct avl_node *an = NULL;
+        struct track_node *tn;
+
+        while ((tn = avl_iterate_item(&iptrack_tree, &an))) {
+
+                assertion(-500000, (tn->rt_exp.exportDistance <= MAX_EXPORT_DISTANCE));
+
+                if (tn->rt_exp.exportDistance == TYP_EXPORT_DISTANCE_INFINITE)
+                        continue;
+
+                assertion(-500000, (tn->cmd >= IP_ROUTE_TUNS && tn->cmd < IP_ROUTE_MAX && tn->items == 1));
+
+                IPX_T *via = is_ip_set(&tn->via) ? &tn->via : NULL;
+                IPX_T *src = is_ip_set(&tn->src) ? &tn->src : NULL;
+
+                if (func) {
+                        assertion(-500000, (!tn->rt_exp.ipexport));
+
+                        if(tn->rt_exp.exportOnly)
+                                kernel_set_route(tn->cmd, DEL, NO, &tn->k.net, tn->k.table_macro, tn->k.prio_macro, tn->oif_idx, via, src, tn->k.metric);
+
+                        (*func)(ADD, &tn->k.net, tn->oif_idx, via, tn->k.metric, tn->rt_exp.exportDistance);
+
+                        tn->rt_exp.ipexport = 1;
+
+                } else {
+                        assertion(-500000, (tn->rt_exp.ipexport));
+
+                        if(tn->rt_exp.exportOnly)
+                                kernel_set_route(tn->cmd, ADD, NO, &tn->k.net, tn->k.table_macro, tn->k.prio_macro, tn->oif_idx, via, src, tn->k.metric);
+
+                        tn->rt_exp.ipexport = 0;
+                }
+        }
+}
+
+
+
+
+STATIC_FUNC
+IDM_T iptrack(const struct net_key *net, uint8_t cmd, uint8_t quiet, int8_t del, int8_t table_macro, int8_t prio_macro,
+        int oif_idx, IPX_T *via, IPX_T *src, uint32_t metric, struct route_export *rte)
+{
+
+        // DONT USE setNet() here (because return pointer is static)!!!!!!!!!!!!!
+
+	TRACE_FUNCTION_CALL;
+        assertion(-501232, (net));
+        assertion(-500628, (cmd != IP_NOP));
+        assertion(-500629, (cmd != IP_ROUTE_FLUSH && cmd != IP_RULE_FLUSH && cmd != IP_RULE_TEST));
+        assertion(-500000, ((cmd > IP_ROUTES && cmd < IP_ROUTE_MAX) || (cmd > IP_RULES && cmd < IP_RULE_MAX)));
+
+        static struct track_node ts;
+        memset(&ts, 0, sizeof (ts));
+        ts.k.net = *net;
+        ts.k.prio_macro = prio_macro;
+        ts.k.table_macro = table_macro;
+        ts.k.metric = metric;
+        ts.k.cmd_type = (cmd > IP_ROUTES && cmd < IP_ROUTE_MAX) ? IP_ROUTES :IP_RULES;
+
+        int found = 0;
+        struct track_node *exact = NULL;
+        struct avl_node *an = avl_find(&iptrack_tree, &ts.k);
+        struct track_node *tn = an ? an->item : NULL;
+
+        while (tn) {
+                assertion(-500000, IMPLIES(exact, (tn->cmd != cmd)));
+
+                if (!exact && tn->cmd == cmd)
+                        exact = tn;
+
+                found += tn->items;
+
+                tn = (tn = avl_iterate_item(&iptrack_tree, &an)) && !memcmp(&ts.k, &tn->k, sizeof (ts.k)) ? tn : NULL;
+        }
+
+        if ((del && !exact) || (del && found != 1) || (!del && found > 0)) {
+                dbgf(
+                        quiet ? DBGL_ALL : (del && !exact) ? DBGL_SYS : DBGL_CHANGES,
+                        quiet ? DBGT_INFO : (del && !exact) ? DBGT_ERR : DBGT_INFO,
+                        "   %s cmd=%s net=%s table=%d  prio=%d exists=%d exact_match=%d",
+                        del2str(del), trackt2str(cmd), netAsStr(net),
+                        table_macro_to_table(table_macro), prio_macro_to_prio(prio_macro),
+                        /*iif ? iif->str : NULL,*/ found, exact ? exact->items : 0);
+
+                EXITERROR(-500700, (!(!quiet && (del && !exact))));
+        }
+
+        assertion(-500000, IMPLIES(!del && (cmd >= IP_ROUTE_TUNS && cmd < IP_ROUTE_MAX), found == 0 && !exact));
+        assertion(-500000, IMPLIES(del && (cmd >= IP_ROUTE_TUNS && cmd < IP_ROUTE_MAX), found == 1 && exact));
+        assertion(-500000, IMPLIES(exact, exact->rt_exp.exportOnly == (rte ? rte->exportOnly : 0) ));
+        assertion(-500000, IMPLIES(exact, exact->rt_exp.exportDistance = (rte ? rte->exportDistance : TYP_EXPORT_DISTANCE_INFINITE)));
+        assertion(-500000, IMPLIES(exact, exact->rt_exp.ipexport = (rte ? rte->ipexport : 0 )));
+
+
+
+        if (del) {
+
+                if (!exact) {
+
+                        assertion(-500883, (0));
+
+                } else if (exact->items == 1) {
+
+                        struct track_node *rem_tn = avl_remove(&iptrack_tree, &exact->k, -300250);
+                        assertion(-501233, (rem_tn));
+                        //assertion(-500882, (rem_tn == first_tn));
+                        if (rem_tn != exact) {
+                                // if first_tn is not the first track_node of searched key then
+                                // first_tn and rem_tn are different and first_tn an be reused as rem_tn:
+                                assertion(-501425, (!memcmp(&exact->k, &rem_tn->k, sizeof (ts.k))));
+                                memcpy(exact, rem_tn, sizeof(*exact));
+                        }
+                        debugFree(rem_tn, -300072);
+
+                } else if (exact->items > 1) {
+
+                        exact->items--;
+                }
+
+                if ( found != 1 )
+                        return NO;
+
+	} else {
+
+                if (exact) {
+
+                        exact->items++;
+
+                } else {
+
+                        struct track_node *tn = debugMalloc(sizeof ( struct track_node), -300030);
+                        memset(tn, 0, sizeof ( struct track_node));
+                        tn->k = ts.k;
+                        tn->items = 1;
+                        tn->cmd = cmd;
+                        tn->rt_exp.exportOnly = rte ? rte->exportOnly : 0;
+                        tn->rt_exp.exportDistance = rte ? rte->exportDistance : TYP_EXPORT_DISTANCE_INFINITE;
+                        tn->rt_exp.ipexport = rte ? rte->ipexport : 0;
+
+                        if (cmd >= IP_ROUTE_TUNS && cmd < IP_ROUTE_MAX) {
+                                tn->oif_idx = oif_idx;
+                                tn->src = *src;
+                                tn->via = *via;
+                        }
+
+                        avl_insert(&iptrack_tree, tn, -300251);
+                }
+
+                if (found > 0)
+                        return NO;
+
+	}
+
+        return YES;
+}
+
+
+
 IDM_T iproute(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_key *dst, int8_t table_macro, int8_t prio_macro,
-        /*IFNAME_T *iifname,*/ int oif_idx, IPX_T *via, IPX_T *src, uint32_t metric, struct route_export *rte)
+        int oif_idx, IPX_T *via, IPX_T *src, uint32_t metric, struct route_export *rte)
 {
         // DONT USE setNet() here (because return pointer is static)!!!!!!!!!!!!!
 
@@ -1657,12 +1715,16 @@ IDM_T iproute(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_key *dst,
         assertion(-500652, IMPLIES(src, is_ip_valid(src, dst->af)));
         assertion(-500653, (dst->af == AF_INET || dst->af == AF_INET6));
         assertion(-500672, (ip_netmask_validate((IPX_T*) &dst->ip, dst->mask, dst->af, NO) == SUCCESS));
-
-
-        dbgf_all(DBGT_INFO, "1");
+        assertion(-500000, IMPLIES(rte, !rte->ipexport));
 
         uint32_t prio = prio_macro_to_prio(prio_macro);
         uint32_t table = table_macro_to_table(table_macro);
+
+        dbgf_all(DBGT_INFO, "1");
+
+        if(rte && rte->exportDistance != TYP_EXPORT_DISTANCE_INFINITE && ipexport)
+                rte->ipexport = YES;
+
 
         if ((cmd == IP_THROW_MY_HNA || cmd == IP_THROW_MY_NET) && (policy_routing != POLICY_RT_ENABLED || !ip_throw_rules_cfg))
 		return SUCCESS;
@@ -1670,7 +1732,7 @@ IDM_T iproute(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_key *dst,
         if (table == DEF_IP_TABLE_MAIN && (cmd == IP_RULE_DEFAULT ))
                 return SUCCESS;
 
-        if (iptrack(dst, cmd, quiet, del, table_macro, prio_macro, /*iifname,*/ metric, rte) == NO)
+        if (iptrack(dst, cmd, quiet, del, table_macro, prio_macro, oif_idx, via, src, metric, rte) == NO)
                 return SUCCESS;
 
 #ifndef NO_DEBUG_ALL
@@ -1682,11 +1744,11 @@ IDM_T iproute(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_key *dst,
                 via ? ipXAsStr(dst->af, via) : DBG_NIL, src ? ipXAsStr(dst->af, src) : DBG_NIL, metric);
 #endif
 
-        if(ipexport && rte)
-                ipexport(del, dst, oif_idx, via, metric, rte->exportDistance);
+        if(rte && rte->ipexport)
+                (*ipexport)(del, dst, oif_idx, via, metric, rte->exportDistance);
 
-        if(!ipexport || !rte || !rte->exportOnly)
-                return kernel_set_route(cmd, del, quiet, dst, table_macro, prio_macro, /*iifname,*/ oif_idx, via, src, metric);
+        if(!rte || !rte->ipexport || !rte->exportOnly)
+                return kernel_set_route(cmd, del, quiet, dst, table_macro, prio_macro, oif_idx, via, src, metric);
 
         return SUCCESS;
 }

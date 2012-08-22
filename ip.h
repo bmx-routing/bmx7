@@ -283,6 +283,8 @@ extern struct avl_tree if_link_tree;
 extern struct avl_tree dev_ip_tree;
 extern struct avl_tree dev_name_tree;
 
+//extern struct avl_tree iptrack_tree;
+
 
 //extern int32_t prio_rules;
 //extern int32_t throw_rules;
@@ -543,10 +545,11 @@ extern struct bmx6_route_dict bmx6_rt_dict[BMX6_ROUTE_MAX];
 struct route_export {
         uint32_t exportDistance;
         uint8_t exportOnly;
+	uint8_t ipexport;
 };
 
 
-extern void (*ipexport) (int8_t del, const struct net_key *dst, uint32_t oif_idx, IPX_T *via, uint32_t metric, uint8_t distance);
+//extern void (*ipexport) (int8_t del, const struct net_key *dst, uint32_t oif_idx, IPX_T *via, uint32_t metric, uint8_t distance);
 
 
 struct track_key {
@@ -563,6 +566,9 @@ struct track_node {
         uint32_t items;
 	int8_t cmd;
 	struct route_export rt_exp;
+	uint32_t oif_idx;
+	IPX_T via;
+	IPX_T src;
 };
 
 
@@ -619,6 +625,7 @@ IDM_T kernel_set_addr(IDM_T del, uint32_t if_index, uint8_t family, IPX_T *ip, u
 IDM_T kernel_set_tun(IDM_T del, char *name, uint8_t proto, IPX_T *local, IPX_T *remote);
 IDM_T change_mtu(char *name, uint16_t mtu);
 
+void set_ipexport( void (*func) (int8_t del, const struct net_key *dst, uint32_t oif_idx, IPX_T *via, uint32_t metric, uint8_t distance) );
 IDM_T iproute(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_key *net, int8_t table_macro, int8_t prio_macro, 
 	/*IFNAME_T *iifname,*/ int oif_idx, IPX_T *via, IPX_T *src, uint32_t metric, struct route_export *rte);
 

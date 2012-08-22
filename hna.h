@@ -18,53 +18,6 @@
 
 #define ARG_UHNA "unicastHna"
 
-/* BMX6 route types. */
-#define BMX6_ROUTE_BMX6                 0
-#define BMX6_ROUTE_SYSTEM               1
-#define BMX6_ROUTE_KERNEL               2
-#define BMX6_ROUTE_CONNECT              3
-#define BMX6_ROUTE_STATIC               4
-#define BMX6_ROUTE_RIP                  5
-#define BMX6_ROUTE_RIPNG                6
-#define BMX6_ROUTE_OSPF                 7
-#define BMX6_ROUTE_OSPF6                8
-#define BMX6_ROUTE_ISIS                 9
-#define BMX6_ROUTE_BGP                  10
-#define BMX6_ROUTE_BABEL                11
-#define BMX6_ROUTE_HSLS                 12
-#define BMX6_ROUTE_OLSR                 13
-#define BMX6_ROUTE_BATMAN               14
-#define BMX6_ROUTE_MAX                  15
-
-#define ARG_ROUTE_BMX6                 "bmx6"
-#define ARG_ROUTE_SYSTEM               "system"
-#define ARG_ROUTE_KERNEL               "kernel"
-#define ARG_ROUTE_CONNECT              "connect"
-#define ARG_ROUTE_STATIC               "static"
-#define ARG_ROUTE_RIP                  "rip"
-#define ARG_ROUTE_RIPNG                "ripng"
-#define ARG_ROUTE_OSPF                 "ospf"
-#define ARG_ROUTE_OSPF6                "ospf6"
-#define ARG_ROUTE_ISIS                 "isis"
-#define ARG_ROUTE_BGP                  "bgp"
-#define ARG_ROUTE_BABEL                "babel"
-#define ARG_ROUTE_HSLS                 "hsls"
-#define ARG_ROUTE_OLSR                 "olsr"
-#define ARG_ROUTE_BATMAN               "batman"
-
-
-struct bmx6_route_dict {
-        char* bmx2Name;
-	char  bmx2Char;
-};
-
-#define set_bmx6_rt_dict( B, C, N ) do { \
-        bmx6_rt_dict[ B ].bmx2Name = N; \
-        bmx6_rt_dict[ B ].bmx2Char = C; \
-} while (0)
-
-
-extern struct bmx6_route_dict bmx6_rt_dict[BMX6_ROUTE_MAX];
 
 
 #define HNA6_PREFIXLEN_MIN 32
@@ -175,6 +128,18 @@ extern IDM_T (*hna_configure_niit6to4) (IDM_T del, struct net_key *key);
 #define DEF_TUN_OUT_MTU 1460
 #define MIN_TUN_OUT_MTU 1280
 #define MAX_TUN_OUT_MTU 65535
+
+#define ARG_EXPORT_DISTANCE "exportDistance"
+#define TYP_EXPORT_DISTANCE_INFINITE 256
+#define MIN_EXPORT_DISTANCE 0
+#define MAX_EXPORT_DISTANCE TYP_EXPORT_DISTANCE_INFINITE
+#define DEF_EXPORT_DISTANCE TYP_EXPORT_DISTANCE_INFINITE
+
+#define ARG_EXPORT_ONLY   "exportOnly"
+#define DEF_EXPORT_ONLY   0
+#define MIN_EXPORT_ONLY   0
+#define MAX_EXPORT_ONLY   1
+
 
 
 #define  DESC_MSG_HNA_FLAG_NO_ROUTE 0x01
@@ -381,6 +346,8 @@ struct tun_search_node {
 //        struct tun_search_key tunSearchKey;
         char nameKey[NETWORK_NAME_LEN];
 	uint32_t bmx6RouteBits;
+	uint16_t exportDistance;
+	uint8_t exportOnly;
         struct net_key net;
         uint8_t netPrefixMin;
         uint8_t netPrefixMax;

@@ -73,7 +73,6 @@ IDM_T (*hna_configure_niit6to4) (IDM_T del, struct net_key *key) = NULL;
 static IFNAME_T tun_name_prefix = {{DEF_TUN_NAME_PREFIX}};
 
 
-struct bmx6_route_dict bmx6_rt_dict[BMX6_ROUTE_MAX];
 
 char* bmx6RouteBits2String(uint32_t bmx6_route_bits)
 {
@@ -127,7 +126,6 @@ void set_tunXin6_net_adv_list(uint8_t del, struct list_head *adv_list)
 }
 
 
-
 STATIC_FUNC
 void hna_dev_event_hook(int32_t cb_id, void* unused)
 {
@@ -157,7 +155,7 @@ IDM_T configure_route(IDM_T del, struct orig_node *on, struct net_key *key)
         // update network routes:
         if (del) {
 
-                return iproute(IP_ROUTE_HNA, DEL, NO, key, RT_TABLE_HNA, 0, 0, NULL, NULL, DEF_IP_METRIC);
+                return iproute(IP_ROUTE_HNA, DEL, NO, key, RT_TABLE_HNA, 0, 0, NULL, NULL, DEF_IP_METRIC, NULL);
 
         } else {
 
@@ -169,7 +167,7 @@ IDM_T configure_route(IDM_T del, struct orig_node *on, struct net_key *key)
 
                 return iproute(IP_ROUTE_HNA, ADD, NO, key, RT_TABLE_HNA, 0,
                         lndev->key.dev->if_llocal_addr->ifa.ifa_index, &(lndev->key.link->link_ip),
-                        (key->af == AF_INET ? (&(self->primary_ip)) : NULL), DEF_IP_METRIC);
+                        (key->af == AF_INET ? (&(self->primary_ip)) : NULL), DEF_IP_METRIC, NULL);
 
         }
 }
@@ -464,8 +462,8 @@ void configure_hna(IDM_T del, struct net_key* key, struct orig_node *on, uint8_t
                 // update throw routes:
                 if (policy_routing == POLICY_RT_ENABLED && ip_throw_rules_cfg) {
                         assertion(-501333, (key->af == AF_CFG));
-                        iproute(IP_THROW_MY_HNA, del, NO, key, RT_TABLE_HNA, 0, 0, 0, 0, 0);
-                        iproute(IP_THROW_MY_HNA, del, NO, key, RT_TABLE_TUN, 0, 0, 0, 0, 0);
+                        iproute(IP_THROW_MY_HNA, del, NO, key, RT_TABLE_HNA, 0, 0, 0, 0, 0, NULL);
+                        iproute(IP_THROW_MY_HNA, del, NO, key, RT_TABLE_TUN, 0, 0, 0, 0, 0, NULL);
                 }
 
         } else if (on->curr_rt_lndev && !(flags & DESC_MSG_HNA_FLAG_NO_ROUTE)) {
@@ -862,10 +860,19 @@ void _add_tun_bit_node(struct tun_search_node *tsna, struct tun_net_node *tnna)
 }
 
 
+
 STATIC_FUNC
 void configure_tun_bit(uint8_t del, struct tun_bit_node *tbn)
 {
         TRACE_FUNCTION_CALL;
+
+        struct route_export rte, *rtep = NULL;
+        if( tbn->tunBitKey.keyNodes.tsn->exportDistance != TYP_EXPORT_DISTANCE_INFINITE ) {
+                memset(&rte, 0, sizeof(rte));
+                rte.exportDistance = tbn->tunBitKey.keyNodes.tsn->exportDistance;
+                rte.exportOnly = tbn->tunBitKey.keyNodes.tsn->exportOnly;
+                rtep = &rte;
+        }
 
         if (del && tbn->active) {
 
@@ -874,7 +881,7 @@ void configure_tun_bit(uint8_t del, struct tun_bit_node *tbn)
                 netKey.mask = 128 - netKey.mask;
                 uint8_t rtype = tbn->tunBitKey.keyNodes.tnn->tunNetKey.bmx6RouteType;
 
-                iproute((IP_ROUTE_TUNS + rtype) , DEL, NO, &netKey, RT_TABLE_TUN, 0, ton->upIfIdx, NULL, NULL, ntohl(tbn->tunBitKey.beIpMetric));
+                iproute((IP_ROUTE_TUNS + rtype), DEL, NO, &netKey, RT_TABLE_TUN, 0, ton->upIfIdx, NULL, NULL, ntohl(tbn->tunBitKey.beIpMetric), rtep);
 
                 tbn->active = NO;
 
@@ -940,7 +947,7 @@ void configure_tun_bit(uint8_t del, struct tun_bit_node *tbn)
                                 }
                         }
 
-                        iproute((IP_ROUTE_TUNS + rtype), ADD, NO, &netKey, RT_TABLE_TUN, 0, ton->upIfIdx, NULL, NULL, tsn->ipmetric);
+                        iproute((IP_ROUTE_TUNS + rtype), ADD, NO, &netKey, RT_TABLE_TUN, 0, ton->upIfIdx, NULL, NULL, tsn->ipmetric, rtep);
 
                         tbn->active = YES;
                 }
@@ -2018,6 +2025,8 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                                 strcpy(tsn->nameKey, name);
                                 avl_insert(&tun_search_tree, tsn, -300433);
                                 tsn->bmx6RouteBits = 0;
+                                tsn->exportDistance = DEF_EXPORT_DISTANCE;
+                                tsn->exportOnly = DEF_EXPORT_ONLY;
                                 tsn->mtu = DEF_TUN_OUT_MTU;
                                 tsn->ipmetric = DEF_IP_METRIC;
                                 tsn->hysteresis = DEF_TUN_OUT_HYSTERESIS;
@@ -2049,36 +2058,6 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                                 } else if (cmd == OPT_APPLY && tsn) {
                                         setNet(&tsn->net, net.af, 0, NULL);
                                 }
-
-                        } else if (!strcmp(c->opt->name, ARG_TUN_OUT_PREFIX_MIN)) {
-
-                                if (cmd == OPT_APPLY && tsn)
-                                        tsn->netPrefixMin = c->val ? strtol(c->val, NULL, 10) : DEF_TUN_OUT_PREFIX_MIN;
-
-                        } else if (!strcmp(c->opt->name, ARG_TUN_OUT_PREFIX_MAX)) {
-
-                                if (cmd == OPT_APPLY && tsn)
-                                        tsn->netPrefixMax = c->val ? strtol(c->val, NULL, 10) : DEF_TUN_OUT_PREFIX_MAX;
-
-                        } else if (!strcmp(c->opt->name, ARG_TUN_OUT_OVLP_ALLOW)) {
-
-                                if (cmd == OPT_APPLY && tsn)
-                                        tsn->allowOverlappingLargerPrefixes = c->val ? strtol(c->val, NULL, 10) : DEF_TUN_OUT_OVLP_ALLOW;
-
-                        } else if (!strcmp(c->opt->name, ARG_TUN_OUT_OVLP_BREAK)) {
-
-                                if (cmd == OPT_APPLY && tsn)
-                                        tsn->breakOverlappingSmallerPrefixes = c->val ? strtol(c->val, NULL, 10) : DEF_TUN_OUT_OVLP_BREAK;
-
-                        } else if (!strcmp(c->opt->name, ARG_TUN_OUT_IPMETRIC)) {
-
-                                if (cmd == OPT_APPLY && tsn)
-                                        tsn->ipmetric = c->val ? strtol(c->val, NULL, 10) : DEF_IP_METRIC;
-
-                        } else if (!strcmp(c->opt->name, ARG_TUN_OUT_TYPE)) {
-
-                                if (cmd == OPT_APPLY && tsn)
-                                        tsn->srcType = c->val ? strtol(c->val, NULL, 10) : 0;
 
                         } else if (!strcmp(c->opt->name, ARG_TUN_OUT_IP)) {
 
@@ -2122,7 +2101,7 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                                                 memset(tsn->global_id.name, 0, sizeof (tsn->global_id.name));
                                                 sprintf(tsn->global_id.name, c->val);
                                         }
-                                        
+
                                 } else if ( cmd == OPT_APPLY && tsn ) {
                                         memset(tsn->global_id.name, 0, sizeof (tsn->global_id.name));
                                 }
@@ -2146,32 +2125,53 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                                         memset(&tsn->global_id.pkid, 0, GLOBAL_ID_PKID_LEN);
                                 }
 
-                        } else if (!strcmp(c->opt->name, ARG_TUN_OUT_HYSTERESIS)) {
+                        } else if (cmd == OPT_APPLY && tsn) {
 
-                                if (cmd == OPT_APPLY && tsn)
+                               if (!strcmp(c->opt->name, ARG_TUN_OUT_PREFIX_MIN))
+                                       tsn->netPrefixMin = c->val ? strtol(c->val, NULL, 10) : DEF_TUN_OUT_PREFIX_MIN;
+
+                               else if (!strcmp(c->opt->name, ARG_TUN_OUT_PREFIX_MAX))
+                                        tsn->netPrefixMax = c->val ? strtol(c->val, NULL, 10) : DEF_TUN_OUT_PREFIX_MAX;
+
+                               else if (!strcmp(c->opt->name, ARG_TUN_OUT_OVLP_ALLOW))
+                                       tsn->allowOverlappingLargerPrefixes = c->val ? strtol(c->val, NULL, 10) : DEF_TUN_OUT_OVLP_ALLOW;
+
+                               else if (!strcmp(c->opt->name, ARG_TUN_OUT_OVLP_BREAK))
+                                       tsn->breakOverlappingSmallerPrefixes = c->val ? strtol(c->val, NULL, 10) : DEF_TUN_OUT_OVLP_BREAK;
+
+                               else if (!strcmp(c->opt->name, ARG_TUN_OUT_IPMETRIC))
+                                       tsn->ipmetric = c->val ? strtol(c->val, NULL, 10) : DEF_IP_METRIC;
+
+                               else if (!strcmp(c->opt->name, ARG_TUN_OUT_TYPE))
+                                        tsn->srcType = c->val ? strtol(c->val, NULL, 10) : 0;
+
+                               else if (!strcmp(c->opt->name, ARG_TUN_OUT_HYSTERESIS))
                                         tsn->hysteresis = c->val ? strtol(c->val, NULL, 10) : DEF_TUN_OUT_HYSTERESIS;
 
-                        } else if (!strcmp(c->opt->name, ARG_TUN_OUT_BONUS)) {
+                               else if (!strcmp(c->opt->name, ARG_TUN_OUT_BONUS))
+                                       tsn->bonus = c->val ? strtol(c->val, NULL, 10) : DEF_TUN_OUT_BONUS;
 
-                                if (cmd == OPT_APPLY && tsn)
-                                        tsn->bonus = c->val ? strtol(c->val, NULL, 10) : DEF_TUN_OUT_BONUS;
+                               else if (!strcmp(c->opt->name, ARG_TUN_OUT_MTU))
+                                       tsn->mtu = c->val ? strtol(c->val, NULL, 10) : DEF_TUN_OUT_MTU;
 
-                        }  else if (!strcmp(c->opt->name, ARG_TUN_OUT_MTU)) {
+                               else if (!strcmp(c->opt->name, ARG_EXPORT_DISTANCE))
+                                       tsn->exportDistance = c->val ? strtol(c->val, NULL, 10) : DEF_EXPORT_DISTANCE;
 
-                                if (cmd == OPT_APPLY && tsn)
-                                        tsn->mtu = c->val ? strtol(c->val, NULL, 10) : DEF_TUN_OUT_MTU;
+                               else if (!strcmp(c->opt->name, ARG_EXPORT_ONLY))
+                                       tsn->exportDistance = c->val ? strtol(c->val, NULL, 10) : DEF_EXPORT_ONLY;
 
-                        } else {
-				uint8_t t;
-				for (t = 0; t < BMX6_ROUTE_MAX; t++) {
-					if (!strcmp(c->opt->name, bmx6_rt_dict[t].bmx2Name)) {
-						bit_set((uint8_t*) &tsn->bmx6RouteBits,
-							sizeof (tsn->bmx6RouteBits) * 8,
-							t, (c->val && strtol(c->val, NULL, 10) == 1));
-					}
-				}
+                               else {
+                                       uint8_t t;
+                                       for (t = 0; t < BMX6_ROUTE_MAX; t++) {
+                                               if (!strcmp(c->opt->name, bmx6_rt_dict[t].bmx2Name)) {
+                                                       bit_set((uint8_t*) &tsn->bmx6RouteBits,
+                                                               sizeof (tsn->bmx6RouteBits) * 8,
+                                                               t, (c->val && strtol(c->val, NULL, 10) == 1));
+                                               }
+                                       }
+                               }
 
-			}
+                        }
                 }
         }
 
@@ -2599,6 +2599,10 @@ struct opt_type hna_options[]= {
 			ARG_PREFIX_FORM,"only route type"},
 	{ODI,ARG_TUN_OUT,ARG_ROUTE_BATMAN, 0,9,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,   0,              0,              1,              0,0,          opt_tun_search,
 			ARG_PREFIX_FORM,"only route type"},
+	{ODI,ARG_TUN_OUT,ARG_EXPORT_DISTANCE,0,9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,MIN_EXPORT_DISTANCE,MAX_EXPORT_DISTANCE,DEF_EXPORT_DISTANCE,0,opt_tun_search,
+			ARG_VALUE_FORM,	"export distance to network (256 == no export). Requires quagga plugin!"},
+	{ODI,ARG_TUN_OUT,ARG_EXPORT_ONLY,  0,9,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,  0,            MIN_EXPORT_ONLY,MAX_EXPORT_ONLY,DEF_EXPORT_ONLY,0,opt_tun_search,
+			ARG_PREFIX_FORM,"do not add route to bmx6 tun table!  Requires quagga plugin!"},
 	{ODI,0,ARG_TUNS,	        0,9,2,A_PS0,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
 			0,		"show announced and used tunnels and related networks"}
 
@@ -2648,23 +2652,6 @@ int32_t hna_init( void )
         //assertion(-501327, tun_search_net_tree.key_size == sizeof (struct tun_search_key));
         assertion(-501328, tun_search_tree.key_size == NETWORK_NAME_LEN);
 
-
-	memset(&bmx6_rt_dict, 0, sizeof(bmx6_rt_dict));
-        set_bmx6_rt_dict(BMX6_ROUTE_SYSTEM,  'X', ARG_ROUTE_SYSTEM);
-        set_bmx6_rt_dict(BMX6_ROUTE_KERNEL,  'K', ARG_ROUTE_KERNEL);
-        set_bmx6_rt_dict(BMX6_ROUTE_CONNECT, 'C', ARG_ROUTE_CONNECT);
-        set_bmx6_rt_dict(BMX6_ROUTE_STATIC,  'S', ARG_ROUTE_STATIC);
-        set_bmx6_rt_dict(BMX6_ROUTE_RIP,     'R', ARG_ROUTE_RIP);
-        set_bmx6_rt_dict(BMX6_ROUTE_RIPNG,   'R', ARG_ROUTE_RIPNG);
-        set_bmx6_rt_dict(BMX6_ROUTE_OSPF,    'O', ARG_ROUTE_OSPF);
-        set_bmx6_rt_dict(BMX6_ROUTE_OSPF6,   'O', ARG_ROUTE_OSPF6);
-        set_bmx6_rt_dict(BMX6_ROUTE_ISIS,    'I', ARG_ROUTE_ISIS);
-        set_bmx6_rt_dict(BMX6_ROUTE_BGP,     'B', ARG_ROUTE_BGP);
-        set_bmx6_rt_dict(BMX6_ROUTE_BABEL,   'A', ARG_ROUTE_BABEL);
-        set_bmx6_rt_dict(BMX6_ROUTE_BMX6,    'x', ARG_ROUTE_BMX6);
-        set_bmx6_rt_dict(BMX6_ROUTE_HSLS,    'H', ARG_ROUTE_HSLS);
-        set_bmx6_rt_dict(BMX6_ROUTE_OLSR,    'o', ARG_ROUTE_OLSR);
-        set_bmx6_rt_dict(BMX6_ROUTE_BATMAN,  'b', ARG_ROUTE_BATMAN);
 
         
         static const struct field_format hna4_format[] = DESCRIPTION_MSG_HNA4_FORMAT;

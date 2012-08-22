@@ -151,6 +151,10 @@ static int32_t if4_send_redirects_all_orig = -1;
 static int32_t if4_send_redirects_default_orig = -1;
 
 
+void (*ipexport) (int8_t del, const struct net_key *dst, uint32_t oif_idx, IPX_T *via, uint32_t metric, uint8_t distance) = NULL;
+
+struct bmx6_route_dict bmx6_rt_dict[BMX6_ROUTE_MAX];
+
 
 
 STATIC_FUNC
@@ -1420,8 +1424,8 @@ IDM_T change_mtu(char *name, uint16_t mtu)
 
 
 STATIC_FUNC
-struct track_node *iptrack(const struct net_key *net, uint8_t cmd, uint8_t quiet, int8_t del, int8_t table_macro,
-        int8_t prio_macro, /*IFNAME_T *iif,*/ uint32_t metric)
+IDM_T iptrack(const struct net_key *net, uint8_t cmd, uint8_t quiet, int8_t del, int8_t table_macro,
+        int8_t prio_macro, /*IFNAME_T *iif,*/ uint32_t metric, struct route_export *rte)
 {
 
         // DONT USE setNet() here (because return pointer is static)!!!!!!!!!!!!!
@@ -1430,9 +1434,7 @@ struct track_node *iptrack(const struct net_key *net, uint8_t cmd, uint8_t quiet
         assertion(-501232, (net));
         assertion(-500628, (cmd != IP_NOP));
         assertion(-500629, (cmd != IP_ROUTE_FLUSH && cmd != IP_RULE_FLUSH && cmd != IP_RULE_TEST));
-
-        uint8_t cmd_t = (cmd > IP_ROUTES && cmd < IP_ROUTE_MAX) ? IP_ROUTES :
-                ((cmd > IP_RULES && cmd < IP_RULE_MAX) ? IP_RULES : IP_NOP);
+        assertion(-500000, ((cmd > IP_ROUTES && cmd < IP_ROUTE_MAX) || (cmd > IP_RULES && cmd < IP_RULE_MAX)));
 
         static struct track_node ts;
         memset(&ts, 0, sizeof (ts));
@@ -1440,7 +1442,7 @@ struct track_node *iptrack(const struct net_key *net, uint8_t cmd, uint8_t quiet
         ts.k.prio_macro = prio_macro;
         ts.k.table_macro = table_macro;
         ts.k.metric = metric;
-        ts.k.cmd_type = cmd_t;
+        ts.k.cmd_type = (cmd > IP_ROUTES && cmd < IP_ROUTE_MAX) ? IP_ROUTES :IP_RULES;
 
         int found = 0;
         struct track_node *exact = NULL;
@@ -1459,7 +1461,6 @@ struct track_node *iptrack(const struct net_key *net, uint8_t cmd, uint8_t quiet
         }
 
         if ((del && !exact) || (del && found != 1) || (!del && found > 0)) {
-
                 dbgf(
                         quiet ? DBGL_ALL : (del && !exact) ? DBGL_SYS : DBGL_CHANGES,
                         quiet ? DBGT_INFO : (del && !exact) ? DBGT_ERR : DBGT_INFO,
@@ -1470,6 +1471,13 @@ struct track_node *iptrack(const struct net_key *net, uint8_t cmd, uint8_t quiet
 
                 EXITERROR(-500700, (!(!quiet && (del && !exact))));
         }
+
+        assertion(-500000, IMPLIES(!del && (cmd >= IP_ROUTE_TUNS && cmd < IP_ROUTE_MAX), found == 0 && !exact));
+        assertion(-500000, IMPLIES(del && (cmd >= IP_ROUTE_TUNS && cmd < IP_ROUTE_MAX), found == 1 && exact));
+        assertion(-500000, IMPLIES(exact, exact->rt_exp.exportOnly == (rte ? rte->exportOnly : 0) ));
+        assertion(-500000, IMPLIES(exact, exact->rt_exp.exportDistance = (rte ? rte->exportDistance : TYP_EXPORT_DISTANCE_INFINITE)));
+
+
 
         if (del) {
 
@@ -1512,6 +1520,8 @@ struct track_node *iptrack(const struct net_key *net, uint8_t cmd, uint8_t quiet
                         tn->k = ts.k;
                         tn->items = 1;
                         tn->cmd = cmd;
+                        tn->rt_exp.exportOnly = rte ? rte->exportOnly : 0;
+                        tn->rt_exp.exportDistance = rte ? rte->exportDistance : TYP_EXPORT_DISTANCE_INFINITE;
 
                         avl_insert(&iptrack_tree, tn, -300251);
                 }
@@ -1640,8 +1650,8 @@ IDM_T kernel_set_route(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_
         return rtnl_talk(&req, req.nlh.nlmsg_len, cmd, NULL, quiet);
 }
 
-IDM_T iproute(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_key *dst,
-        int8_t table_macro, int8_t prio_macro, /*IFNAME_T *iifname,*/ int oif_idx, IPX_T *via, IPX_T *src, uint32_t metric)
+IDM_T iproute(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_key *dst, int8_t table_macro, int8_t prio_macro,
+        /*IFNAME_T *iifname,*/ int oif_idx, IPX_T *via, IPX_T *src, uint32_t metric, struct route_export *rte)
 {
         // DONT USE setNet() here (because return pointer is static)!!!!!!!!!!!!!
 
@@ -1666,7 +1676,7 @@ IDM_T iproute(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_key *dst,
         if (table == DEF_IP_TABLE_MAIN && (cmd == IP_RULE_DEFAULT ))
                 return SUCCESS;
 
-        if (iptrack(dst, cmd, quiet, del, table_macro, prio_macro, /*iifname,*/ metric) == NO)
+        if (iptrack(dst, cmd, quiet, del, table_macro, prio_macro, /*iifname,*/ metric, rte) == NO)
                 return SUCCESS;
 
 #ifndef NO_DEBUG_ALL
@@ -1678,7 +1688,13 @@ IDM_T iproute(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_key *dst,
                 via ? ipXAsStr(dst->af, via) : DBG_NIL, src ? ipXAsStr(dst->af, src) : DBG_NIL, metric);
 #endif
 
-        return kernel_set_route(cmd, del, quiet, dst, table_macro, prio_macro, /*iifname,*/ oif_idx, via, src, metric);
+        if(ipexport && rte)
+                ipexport(del, dst, oif_idx, via, metric, rte->exportDistance);
+
+        if(!ipexport || !rte || !rte->exportOnly)
+                return kernel_set_route(cmd, del, quiet, dst, table_macro, prio_macro, /*iifname,*/ oif_idx, via, src, metric);
+
+        return SUCCESS;
 }
 
 
@@ -2470,7 +2486,7 @@ void ip_flush_tracked( uint8_t cmd )
                         (cmd == IP_ROUTE_FLUSH && tn->k.cmd_type == IP_ROUTES) ||
                         (cmd == IP_RULE_FLUSH && tn->k.cmd_type == IP_RULES)) {
 
-                        iproute(tn->cmd, DEL, NO, &tn->k.net, tn->k.table_macro, tn->k.prio_macro, 0, 0, 0, tn->k.metric);
+                        iproute(tn->cmd, DEL, NO, &tn->k.net, tn->k.table_macro, tn->k.prio_macro, 0, 0, 0, tn->k.metric, NULL);
 
                         an = NULL;
                 }
@@ -2535,8 +2551,8 @@ int update_interface_rules(void)
                         setNet(&throw, ian->ifa.ifa_family, ian->ifa.ifa_prefixlen, &ian->ip_addr);
                         ip_netmask_validate(&throw.ip, throw.mask, throw.af, YES);
 
-                        iproute(IP_THROW_MY_NET, ADD, NO, &throw, RT_TABLE_HNA, RT_PRIO_HNA, (throw.af == AF_INET6 ? dev_lo_idx : 0), 0, 0, 0);
-                        iproute(IP_THROW_MY_NET, ADD, NO, &throw, RT_TABLE_TUN, RT_PRIO_TUNS, (throw.af == AF_INET6 ? dev_lo_idx : 0), 0, 0, 0);
+                        iproute(IP_THROW_MY_NET, ADD, NO, &throw, RT_TABLE_HNA, RT_PRIO_HNA, (throw.af == AF_INET6 ? dev_lo_idx : 0), 0, 0, 0, NULL);
+                        iproute(IP_THROW_MY_NET, ADD, NO, &throw, RT_TABLE_TUN, RT_PRIO_TUNS, (throw.af == AF_INET6 ? dev_lo_idx : 0), 0, 0, 0, NULL);
 
                 }
         }
@@ -3092,16 +3108,16 @@ int32_t opt_ip_version(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                         ip_flush_routes(AF_INET);
                         ip_flush_rules(AF_INET);
 
-                        iproute(IP_RULE_DEFAULT, ADD, NO, &ZERO_NET4_KEY, RT_TABLE_HNA, RT_PRIO_HNA, 0, 0, 0, 0);
-                        iproute(IP_RULE_DEFAULT, ADD, NO, &ZERO_NET4_KEY, RT_TABLE_TUN, RT_PRIO_TUNS, 0, 0, 0, 0);
+                        iproute(IP_RULE_DEFAULT, ADD, NO, &ZERO_NET4_KEY, RT_TABLE_HNA, RT_PRIO_HNA, 0, 0, 0, 0, NULL);
+                        iproute(IP_RULE_DEFAULT, ADD, NO, &ZERO_NET4_KEY, RT_TABLE_TUN, RT_PRIO_TUNS, 0, 0, 0, 0, NULL);
 
                         if (AF_CFG == AF_INET6) {
                                 
                                 ip_flush_routes(AF_INET6);
                                 ip_flush_rules(AF_INET6);
 
-                                iproute(IP_RULE_DEFAULT, ADD, NO, &ZERO_NET6_KEY, RT_TABLE_HNA, RT_PRIO_HNA, 0, 0, 0, 0);
-                                iproute(IP_RULE_DEFAULT, ADD, NO, &ZERO_NET6_KEY, RT_TABLE_TUN, RT_PRIO_TUNS, 0, 0, 0, 0);
+                                iproute(IP_RULE_DEFAULT, ADD, NO, &ZERO_NET6_KEY, RT_TABLE_HNA, RT_PRIO_HNA, 0, 0, 0, 0, NULL);
+                                iproute(IP_RULE_DEFAULT, ADD, NO, &ZERO_NET6_KEY, RT_TABLE_TUN, RT_PRIO_TUNS, 0, 0, 0, 0, NULL);
                         }
 
 		}
@@ -3657,6 +3673,25 @@ void init_ip(void)
         assertion(-501336, is_zero((void*) &llocal_prefix_cfg, sizeof (llocal_prefix_cfg)));
         assertion(-501337, is_zero((void*) &global_prefix_cfg, sizeof (global_prefix_cfg)));
         assertion(-501395, is_zero((void*) &autoconf_prefix_cfg, sizeof (autoconf_prefix_cfg)));
+
+        memset(&bmx6_rt_dict, 0, sizeof(bmx6_rt_dict));
+        set_bmx6_rt_dict(BMX6_ROUTE_SYSTEM,  'X', ARG_ROUTE_SYSTEM);
+        set_bmx6_rt_dict(BMX6_ROUTE_KERNEL,  'K', ARG_ROUTE_KERNEL);
+        set_bmx6_rt_dict(BMX6_ROUTE_CONNECT, 'C', ARG_ROUTE_CONNECT);
+        set_bmx6_rt_dict(BMX6_ROUTE_STATIC,  'S', ARG_ROUTE_STATIC);
+        set_bmx6_rt_dict(BMX6_ROUTE_RIP,     'R', ARG_ROUTE_RIP);
+        set_bmx6_rt_dict(BMX6_ROUTE_RIPNG,   'R', ARG_ROUTE_RIPNG);
+        set_bmx6_rt_dict(BMX6_ROUTE_OSPF,    'O', ARG_ROUTE_OSPF);
+        set_bmx6_rt_dict(BMX6_ROUTE_OSPF6,   'O', ARG_ROUTE_OSPF6);
+        set_bmx6_rt_dict(BMX6_ROUTE_ISIS,    'I', ARG_ROUTE_ISIS);
+        set_bmx6_rt_dict(BMX6_ROUTE_BGP,     'B', ARG_ROUTE_BGP);
+        set_bmx6_rt_dict(BMX6_ROUTE_BABEL,   'A', ARG_ROUTE_BABEL);
+        set_bmx6_rt_dict(BMX6_ROUTE_BMX6,    'x', ARG_ROUTE_BMX6);
+        set_bmx6_rt_dict(BMX6_ROUTE_HSLS,    'H', ARG_ROUTE_HSLS);
+        set_bmx6_rt_dict(BMX6_ROUTE_OLSR,    'o', ARG_ROUTE_OLSR);
+        set_bmx6_rt_dict(BMX6_ROUTE_BATMAN,  'b', ARG_ROUTE_BATMAN);
+
+
 
         remote_prefix_cfg = ZERO_NET6_KEY;
         autoconf_prefix_cfg = ZERO_NET6_KEY;

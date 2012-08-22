@@ -466,20 +466,54 @@ struct dev_node {
 };
 
 
-struct track_key {
-	struct net_key net;
-	//IFNAME_T iif;
-	int8_t prio_macro;
-	int8_t table_macro;
-	uint32_t metric;
-	uint8_t cmd_type;
+
+
+/* BMX6 route types. */
+#define BMX6_ROUTE_BMX6                 0
+#define BMX6_ROUTE_SYSTEM               1
+#define BMX6_ROUTE_KERNEL               2
+#define BMX6_ROUTE_CONNECT              3
+#define BMX6_ROUTE_STATIC               4
+#define BMX6_ROUTE_RIP                  5
+#define BMX6_ROUTE_RIPNG                6
+#define BMX6_ROUTE_OSPF                 7
+#define BMX6_ROUTE_OSPF6                8
+#define BMX6_ROUTE_ISIS                 9
+#define BMX6_ROUTE_BGP                  10
+#define BMX6_ROUTE_BABEL                11
+#define BMX6_ROUTE_HSLS                 12
+#define BMX6_ROUTE_OLSR                 13
+#define BMX6_ROUTE_BATMAN               14
+#define BMX6_ROUTE_MAX                  15
+
+#define ARG_ROUTE_BMX6                 "bmx6"
+#define ARG_ROUTE_SYSTEM               "system"
+#define ARG_ROUTE_KERNEL               "kernel"
+#define ARG_ROUTE_CONNECT              "connect"
+#define ARG_ROUTE_STATIC               "static"
+#define ARG_ROUTE_RIP                  "rip"
+#define ARG_ROUTE_RIPNG                "ripng"
+#define ARG_ROUTE_OSPF                 "ospf"
+#define ARG_ROUTE_OSPF6                "ospf6"
+#define ARG_ROUTE_ISIS                 "isis"
+#define ARG_ROUTE_BGP                  "bgp"
+#define ARG_ROUTE_BABEL                "babel"
+#define ARG_ROUTE_HSLS                 "hsls"
+#define ARG_ROUTE_OLSR                 "olsr"
+#define ARG_ROUTE_BATMAN               "batman"
+
+struct bmx6_route_dict {
+        char* bmx2Name;
+	char  bmx2Char;
 };
 
-struct track_node {
-        struct track_key k;
-        uint32_t items;
-	int8_t cmd;
-};
+#define set_bmx6_rt_dict( B, C, N ) do { \
+        bmx6_rt_dict[ B ].bmx2Name = N; \
+        bmx6_rt_dict[ B ].bmx2Char = C; \
+} while (0)
+
+
+extern struct bmx6_route_dict bmx6_rt_dict[BMX6_ROUTE_MAX];
 
 
 //iproute() commands:
@@ -502,6 +536,35 @@ struct track_node {
 #define IP_ROUTE_HNA       17
 #define IP_ROUTE_TUNS      18
 #define	IP_ROUTE_MAX       (IP_ROUTE_TUNS + BMX6_ROUTE_MAX)
+
+
+
+
+struct route_export {
+        uint32_t exportDistance;
+        uint8_t exportOnly;
+};
+
+
+extern void (*ipexport) (int8_t del, const struct net_key *dst, uint32_t oif_idx, IPX_T *via, uint32_t metric, uint8_t distance);
+
+
+struct track_key {
+	struct net_key net;
+	//IFNAME_T iif;
+	int8_t prio_macro;
+	int8_t table_macro;
+	uint32_t metric;
+	uint8_t cmd_type;
+};
+
+struct track_node {
+        struct track_key k;
+        uint32_t items;
+	int8_t cmd;
+	struct route_export rt_exp;
+};
+
 
 struct rtnl_get_node {
         struct list_node list;
@@ -556,8 +619,8 @@ IDM_T kernel_set_addr(IDM_T del, uint32_t if_index, uint8_t family, IPX_T *ip, u
 IDM_T kernel_set_tun(IDM_T del, char *name, uint8_t proto, IPX_T *local, IPX_T *remote);
 IDM_T change_mtu(char *name, uint16_t mtu);
 
-IDM_T iproute(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_key *net,
-        int8_t table_macro, int8_t prio_macro, /*IFNAME_T *iifname,*/ int oif_idx, IPX_T *via, IPX_T *src, uint32_t metric);
+IDM_T iproute(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_key *net, int8_t table_macro, int8_t prio_macro, 
+	/*IFNAME_T *iifname,*/ int oif_idx, IPX_T *via, IPX_T *src, uint32_t metric, struct route_export *rte);
 
 struct net_key bmx6AutoEUI64Ip6(struct dev_node *dev, struct net_key *prefix);
 

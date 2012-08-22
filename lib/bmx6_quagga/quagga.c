@@ -16,6 +16,7 @@
  */
 
 
+
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <stdarg.h>
@@ -83,7 +84,7 @@ static AVL_TREE(zroute_tree, struct zroute_node, k);
 static AVL_TREE(redist_opt_tree, struct redistr_opt_node, nameKey);
 static AVL_TREE(redist_out_tree, struct redist_out_node, k);
 
-static AVL_TREE(export_opt_tree, struct export_opt_node, nameKey);
+//static AVL_TREE(export_opt_tree, struct export_opt_node, nameKey);
 
 static LIST_SIMPEL(tunXin6_net_adv_list, struct tunXin6_net_adv_node, list, list);
 
@@ -151,6 +152,8 @@ void zroute_dbg(int8_t dbgl, int8_t dbgt, const char *func, struct zroute_node *
                 zrn->k.ztype < ZEBRA_ROUTE_MAX ? bmx6_rt_dict[zapi_rt_dict[zrn->k.ztype].zebra2Bmx].bmx2Name : memAsHexStringSep(&zrn->k.ztype, 1, 0),
                 zrn->k.ifindex, zrn->k.metric, zrn->k.distance, zrn->flags, zrn->message);
 }
+
+
 
 STATIC_FUNC
 void zdata_parse_route(struct zdata *zd)
@@ -621,13 +624,22 @@ void zsock_fd_handler(int fd)
 
 
 
+STATIC_FUNC
+void fix_export(void)
+{
 
+        static int TOOD;
+
+}
 
 STATIC_FUNC
 void zsock_disconnect(void)
 {
 
         dbgf_sys(DBGT_WARN, "");
+
+        ipexport = NULL;
+        fix_export();
 
         if (zcfg.socket > 0) {
                 set_fd_hook(zcfg.socket, zsock_fd_handler, DEL);
@@ -769,7 +781,7 @@ void zsock_send_redist_request(void)
 
 
 STATIC_FUNC
-void zsock_send_route(int8_t del, const struct net_key *dst, uint32_t oif_idx, IPX_T *via, uint32_t metric)
+void zsock_send_route(int8_t del, const struct net_key *dst, uint32_t oif_idx, IPX_T *via, uint32_t metric, uint8_t distance)
 {
         uint8_t len =
                 sizeof (struct zapiV2_header) +
@@ -810,7 +822,7 @@ void zsock_send_route(int8_t del, const struct net_key *dst, uint32_t oif_idx, I
 
         d = zsock_put_u8(d, ZEBRA_NEXTHOP_IFINDEX);
         d = zsock_put_u32(d, htonl(oif_idx)); //if_index
-        d = zsock_put_u8(d, 0); // distance
+        d = zsock_put_u8(d, distance); // distance
         d = zsock_put_u32(d, htonl(metric)); //metric
 
         assertion(-500000, (d == p + len));
@@ -888,6 +900,10 @@ void zsock_connect(void *nothing)
         zsock_send_cmd_typeU8(ZEBRA_HELLO, ZEBRA_ROUTE_BMX6);
         zcfg.bmx6_redist_bits_old = 0;
         zsock_send_redist_request();
+
+        fix_export();
+
+        ipexport = zsock_send_route;
 
         return;
 
@@ -1033,7 +1049,7 @@ int32_t opt_zsock_path(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
 }
 
 
-
+/*
 STATIC_FUNC
 int32_t opt_export(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
 {
@@ -1166,6 +1182,7 @@ int32_t opt_export(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_
         return SUCCESS;
 
 }
+*/
 
 STATIC_FUNC
 int32_t opt_redistribute(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
@@ -1324,7 +1341,7 @@ static struct opt_type quagga_options[]= {
 	
 	{ODI,0,ARG_ZAPI_DIR,		0,  2,1,A_PS1,A_ADM,A_INI,A_CFA,A_ANY,	0,		0,		0,		0,ZEBRA_SERV_PATH,opt_zsock_path,
 			ARG_DIR_FORM,	"" },
-
+/*
 	{ODI,0,ARG_EXPORT,     	          0,9,2,A_PM1N,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_export,
 		        ARG_NAME_FORM,  "arbitrary but unique name for exported network(s) depending on sub criterias"},
 	{ODI,ARG_EXPORT,ARG_QUAGGA_NET, 'n',9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,  0,              0,              0,              0,0,            opt_export,
@@ -1343,7 +1360,8 @@ static struct opt_type quagga_options[]= {
 			ARG_VALUE_FORM,	"distance to network"},
 	{ODI,ARG_EXPORT,ARG_EXPORT_ONLY,  0,9,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,  0,            MIN_EXPORT_ONLY,MAX_EXPORT_ONLY,DEF_EXPORT_ONLY,0,opt_export,
 			ARG_PREFIX_FORM,"do not add route to bmx6 tun table"},
-	{ODI,0,ARG_REDIST,     	          0,9,2,A_PM1N,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_redistribute,
+*/
+ 	{ODI,0,ARG_REDIST,     	          0,9,2,A_PM1N,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_redistribute,
 		        ARG_NAME_FORM,  "arbitrary but unique name for redistributed network(s) depending on sub criterias"},
 	{ODI,ARG_REDIST,ARG_QUAGGA_NET, 'n',9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,  0,              0,              0,              0,0,            opt_redistribute,
 			ARG_PREFIX_FORM,"network permit filter (optional)"},
@@ -1424,6 +1442,7 @@ static int32_t quagga_init( void )
         register_options_array(quagga_options, sizeof ( quagga_options), CODE_CATEGORY_NAME);
 
         set_tunXin6_net_adv_list(ADD, &tunXin6_net_adv_list);
+
 
 	return SUCCESS;
 }

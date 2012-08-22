@@ -243,7 +243,7 @@ struct zapiV2_header {
         uint16_t command;
 } __attribute__((packed));
 
-/* Zebra IPv4 route add message API. */
+/*
 struct zapiV2_route_write0 {
         struct zapiV2_header hdr;
         uint8_t type;
@@ -273,7 +273,7 @@ struct zapiV2_route6_write1 {
         uint8_t distance;
         uint32_t metric;
 } __attribute__((packed));
-
+*/
 
 struct zroute_key {
         struct net_key net;
@@ -353,7 +353,7 @@ struct zdata {
 #define ARG_ZAPI_DIR "zebraPath"
 
 
-
+/*
 #define ARG_EXPORT           "export"
 
 #define ARG_EXPORT_UHNA      "unicastHna"
@@ -366,7 +366,7 @@ struct zdata {
 #define DEF_EXPORT_ONLY   0
 #define MIN_EXPORT_ONLY   0
 #define MAX_EXPORT_ONLY   1
-
+*/
 
 #define ARG_REDIST        "redistribute"
 
@@ -421,6 +421,7 @@ struct redistr_opt_node {
         FMETRIC_U8_T bandwidth;
 };
 
+/*
 struct export_opt_node {
         char nameKey[NETWORK_NAME_LEN];
         struct net_key net;
@@ -433,4 +434,4 @@ struct export_opt_node {
         uint32_t metric;
 	uint32_t hysteresis;
 };
-
+*/

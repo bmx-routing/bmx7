@@ -167,6 +167,7 @@ struct float_u16 {
 	}val;
 };
 
+
 typedef struct float_u16 FMETRIC_U16_T;
 
 

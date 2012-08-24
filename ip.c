@@ -1666,9 +1666,8 @@ IDM_T iptrack(const struct net_key *net, uint8_t cmd, uint8_t quiet, int8_t del,
         assertion(-500000, IMPLIES(!del && (cmd >= IP_ROUTE_TUNS && cmd < IP_ROUTE_MAX), found == 0 && !exact));
         assertion(-500000, IMPLIES(del && (cmd >= IP_ROUTE_TUNS && cmd < IP_ROUTE_MAX), found == 1 && exact));
         assertion(-500000, IMPLIES(exact, exact->rt_exp.exportOnly == (rte ? rte->exportOnly : 0) ));
-        assertion(-500000, IMPLIES(exact, exact->rt_exp.exportDistance = (rte ? rte->exportDistance : TYP_EXPORT_DISTANCE_INFINITE)));
-        assertion(-500000, IMPLIES(exact, exact->rt_exp.ipexport = (rte ? rte->ipexport : 0 )));
-
+        assertion(-500000, IMPLIES(exact, exact->rt_exp.exportDistance == (rte ? rte->exportDistance : TYP_EXPORT_DISTANCE_INFINITE)));
+        assertion(-500000, IMPLIES(exact, exact->rt_exp.ipexport == (rte ? rte->ipexport : 0 )));
 
 
         if (del) {
@@ -2576,6 +2575,7 @@ void ip_flush_tracked( uint8_t cmd )
                         (cmd == IP_ROUTE_FLUSH && tn->k.cmd_type == IP_ROUTES) ||
                         (cmd == IP_RULE_FLUSH && tn->k.cmd_type == IP_RULES)) {
 
+/*
                         struct route_export rte, *rtep = NULL;
                         if( tn->rt_exp.exportDistance != TYP_EXPORT_DISTANCE_INFINITE ) {
                                 memset(&rte, 0, sizeof(rte));
@@ -2584,8 +2584,9 @@ void ip_flush_tracked( uint8_t cmd )
                                 rte.ipexport = NO; // not yet
                                 rtep = &rte;
                         }
+*/
 
-                        iproute(tn->cmd, DEL, NO, &tn->k.net, tn->k.table_macro, tn->k.prio_macro, 0, 0, 0, tn->k.metric, rtep);
+                        iproute(tn->cmd, DEL, NO, &tn->k.net, tn->k.table_macro, tn->k.prio_macro, 0, 0, 0, tn->k.metric, NULL);
 
                         an = NULL;
                 }

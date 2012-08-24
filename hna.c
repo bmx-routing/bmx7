@@ -2191,7 +2191,7 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                 eval_tun_bit_tree(NULL);
 
                 //set_tun_net(NULL);
-                my_description_changed = YES;
+                //my_description_changed = YES;
         }
 
 

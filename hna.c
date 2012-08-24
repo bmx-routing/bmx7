@@ -86,8 +86,10 @@ char* bmx6RouteBits2String(uint32_t bmx6_route_bits)
 		if (bit_get((uint8_t*) &bmx6_route_bits, sizeof (bmx6_route_bits) * 8, t))
 			r[p++] = bmx6_rt_dict[t].bmx2Char;
 	}
-
-	r[p] = 0;
+        if(p)
+                r[p] = 0;
+        else
+                sprintf(r, "---");
 
 	return r;
 }

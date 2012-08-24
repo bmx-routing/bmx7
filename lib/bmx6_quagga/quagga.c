@@ -627,7 +627,7 @@ void zsock_fd_handler(int fd)
 
 
 STATIC_FUNC
-uint8_t* zsock_put_hdr(uint8_t *d, uint16_t cmd, uint8_t len)
+uint8_t* zsock_put_hdr(uint8_t *d, uint16_t cmd, uint16_t len)
 {
         struct zapiV2_header *hdr = (struct zapiV2_header*) d;
         hdr->version = ZEBRA_VERSION2;
@@ -674,13 +674,14 @@ void zsock_send_cmd_typeU8(uint16_t cmd, uint8_t type)
         assertion(-501412, (type < ZEBRA_ROUTE_MAX));
 
         uint16_t len = sizeof (struct zapiV2_header) + sizeof (type);
-        uint8_t *d = debugMalloc(len, -300489);
+        uint8_t *d = debugMalloc(len, -300489), *p = d;
         d = zsock_put_hdr(d, cmd, len);
-        d = zsock_put_mem(d, &type, sizeof (type));
+        d = zsock_put_u8(d, type);
 
-        dbgf_track(DBGT_INFO, "cmd=%s type=%s", zebraCmd2Str[cmd], bmx6_rt_dict[zapi_rt_dict[type].zebra2Bmx].bmx2Name);
+        dbgf_track(DBGT_INFO, "cmd=%s type=%s len=%d",
+                zebraCmd2Str[cmd], bmx6_rt_dict[zapi_rt_dict[type].zebra2Bmx].bmx2Name, len);
 
-        zsock_write(d);
+        zsock_write(p);
 }
 
 
@@ -725,8 +726,7 @@ void zsock_send_route(int8_t del, const struct net_key *dst, uint32_t oif_idx, I
                 4 + // uint32_t metric;
                 0;
 
-        uint8_t *d = debugMalloc(len, -300511);
-        uint8_t *p = d;
+        uint8_t *d = debugMalloc(len, -300511), *p = d;
         memset(p, 0, len);
 
         d = zsock_put_hdr(d, (dst->af == AF_INET ? (del ? ZEBRA_IPV4_ROUTE_DELETE : ZEBRA_IPV4_ROUTE_ADD) : (del ? ZEBRA_IPV6_ROUTE_DELETE : ZEBRA_IPV6_ROUTE_ADD)), len);
@@ -752,7 +752,7 @@ void zsock_send_route(int8_t del, const struct net_key *dst, uint32_t oif_idx, I
 
         assertion(-501428, (d == p + len));
 
-        zsock_write(d);
+        zsock_write(p);
 }
 
 
@@ -959,6 +959,7 @@ void zsock_write( void* zpacket )
 
         task_remove(zsock_write, NULL);
 
+        dbgf_track(DBGT_INFO, "write len=%d", zp ? ntohs(((struct zapiV2_header *) zp)->length): 0);
 
         if (zp) {
                 zwn = debugMalloc(sizeof (struct zsock_write_node), -300492);
@@ -988,8 +989,8 @@ void zsock_write( void* zpacket )
                         int ret = 0;
                         errno = 0;
 
-                        dbgf_track(DBGT_INFO, "write len=%d data=%s",
-                                len - zwn->send, memAsHexStringSep(zwn->zpacket + zwn->send, len - zwn->send, 4));
+                        dbgf_track(DBGT_INFO, "write len=%d tot=%d data=%s",
+                                len - zwn->send, len, memAsHexStringSep(zwn->zpacket + zwn->send, len - zwn->send, 4));
 
                         if ((ret = write(zcfg.socket, zwn->zpacket + zwn->send, len - zwn->send)) < 0) {
 

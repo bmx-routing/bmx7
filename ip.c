@@ -183,6 +183,7 @@ int rtnl_open(struct rtnl_handle *rth)
 */
 
 
+/*
 	if (setsockopt(rth->fd,SOL_SOCKET,SO_SNDBUF,&sndbuf,sizeof(sndbuf)) < 0) {
 		dbgf_sys(DBGT_ERR, "SO_SNDBUF");
 		return FAILURE;
@@ -192,6 +193,7 @@ int rtnl_open(struct rtnl_handle *rth)
 		dbgf_sys(DBGT_ERR, "SO_RCVBUF");
 		return FAILURE;
 	}
+*/
 
 	memset(&rth->local, 0, sizeof(rth->local));
 	rth->local.nl_family = AF_NETLINK;

@@ -562,7 +562,7 @@ void zsock_read_handler(void * nothing)
 
                 if (ret == 0 && (++no_data_cnt) >= 2)
                         zsock_disconnect();
-                else
+                else if (ret > 0)
                         no_data_cnt = 0;
 
 
@@ -710,7 +710,7 @@ STATIC_FUNC
 void zsock_send_route(int8_t del, const struct net_key *dst, uint32_t oif_idx, IPX_T *via, uint32_t metric, uint8_t distance)
 {
         dbgf_track(DBGT_INFO, "del=%d dst=%s idx=%d via=%s metric=%d distance=%d",
-                del, netAsStr(dst), oif_idx, netAsStr(via), metric, distance)
+                del, netAsStr(dst), oif_idx, ipXAsStr(dst->af, via), metric, distance)
 
         uint8_t len =
                 sizeof (struct zapiV2_header) +
@@ -738,12 +738,12 @@ void zsock_send_route(int8_t del, const struct net_key *dst, uint32_t oif_idx, I
         d = zsock_put_u8(d, ZAPI_MESSAGE_NEXTHOP | ZAPI_MESSAGE_METRIC | ZAPI_MESSAGE_DISTANCE); // message
         d = zsock_put_u16(d, htons(SAFI_UNICAST)); //safi
         d = zsock_put_u8(d, dst->mask);
-        d = zsock_put_mem(d, (uint8_t*) & dst->ip.s6_addr32[(dst->af == AF_INET) ? 0 : 3], ((dst->mask + 7) / 8));
+        d = zsock_put_mem(d, (uint8_t*) & dst->ip.s6_addr32[(dst->af == AF_INET) ? 3 : 0], ((dst->mask + 7) / 8));
 
         if (via) {
                 d = zsock_put_u8(d, 2);
                 *(d++) = 2;
-                d = zsock_put_mem(d, (uint8_t*) & via->s6_addr32[(dst->af == AF_INET) ? 0 : 3], (dst->af == AF_INET) ? 4 : 16);
+                d = zsock_put_mem(d, (uint8_t*) & via->s6_addr32[(dst->af == AF_INET) ? 3 : 0], (dst->af == AF_INET) ? 4 : 16);
         } else {
                 d = zsock_put_u8(d, 1);
         }

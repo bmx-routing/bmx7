@@ -105,10 +105,10 @@ void set_tunXin6_net_adv_list(uint8_t del, struct list_head *adv_list)
 
 			if ( del ) {
                                 list_del_next(( &tunXin6_net_adv_list_list), prev_pos);
-				debugFree( n, -300000 );
+				debugFree( n, -300516 );
                                 return;
 			} else {
-                                cleanup_all(-500000);
+                                cleanup_all(-501440);
 			}
 
 		} else {
@@ -116,9 +116,9 @@ void set_tunXin6_net_adv_list(uint8_t del, struct list_head *adv_list)
 		}
 	}
 
-        assertion(-500000, (!del));
+        assertion(-501441, (!del));
 
-        n = debugMalloc(sizeof ( struct tunXin6_net_adv_list_node), -300000);
+        n = debugMalloc(sizeof ( struct tunXin6_net_adv_list_node), -300517);
         memset(n, 0, sizeof ( struct tunXin6_net_adv_list_node));
 
         n->adv_list = adv_list;
@@ -1523,8 +1523,8 @@ uint16_t create_description_tlv_tunXin6_net_adv_msg(struct tx_frame_iterator *it
 
         dbgf_track(DBGT_INFO, "src=%s dst=%s", tun ? ip6AsStr(&tun->remote) : "--", ip6AsStr(&adv->network));
 
-        assertion(-500000, (adv->bandwidth.val.u8));
-        assertion(-500000, ip_netmask_validate(&adv->network, adv->networkLen, (is4in6 ? AF_INET : AF_INET6), NO /*force*/) == SUCCESS);
+        assertion(-501442, (adv->bandwidth.val.u8));
+        assertion(-501443, ip_netmask_validate(&adv->network, adv->networkLen, (is4in6 ? AF_INET : AF_INET6), NO /*force*/) == SUCCESS);
 
         if (m < tx_iterator_cache_msg_space_max(it) && tun ) {
 

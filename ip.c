@@ -111,7 +111,7 @@ const IP6_T   IP6_MC_PREF = {{{0xFF,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0}}};
 const uint8_t IP6_MC_PLEN = 8;
 
 
-static int nlsock_default = -1;
+// static int nlsock_default = -1;
 
 static int io_sock = 0;
 
@@ -163,8 +163,8 @@ int rtnl_open(struct rtnl_handle *rth)
         unsigned subscriptions = 0;
         int protocol = NETLINK_ROUTE;
 	socklen_t addr_len;
-	int sndbuf = 32768;
-        int rcvbuf = 1024 * 1024;
+//	int sndbuf = 32768;
+//        int rcvbuf = 1024 * 1024;
 
 	memset(rth, 0, sizeof(*rth));
 
@@ -222,6 +222,7 @@ int rtnl_open(struct rtnl_handle *rth)
 
 
 
+/*
 STATIC_FUNC
 int open_netlink_socket( void ) {
 
@@ -244,6 +245,7 @@ int open_netlink_socket( void ) {
 
 	return sock;
 }
+*/
 
 
 
@@ -1444,7 +1446,7 @@ void kernel_get_route_list_nlhdr(struct nlmsghdr *nh, void *rtnl_get_listp )
 
         while (RTA_OK(rtap, rtl)) {
 
-                struct rtnl_get_node *rgn = debugMalloc(sizeof (*rgn), -300000);
+                struct rtnl_get_node *rgn = debugMalloc(sizeof (*rgn), -300518);
                 memset(rgn, 0, sizeof (*rgn));
                 rgn->rtm_table = rtm->rtm_table;
                 rgn->rta_type = rtap->rta_type;
@@ -2539,7 +2541,7 @@ void ip_flush_routes(uint8_t family)
                         if (rgn->rtm_table == table && rgn->rta_type == RTA_DST)
                                 kernel_set_route(IP_ROUTE_FLUSH, DEL, NO, &rgn->net, table_macro, 0, 0, NULL, NULL, 0);
 
-                        debugFree(rgn, -300000);
+                        debugFree(rgn, -300519);
                 }
         }
 }

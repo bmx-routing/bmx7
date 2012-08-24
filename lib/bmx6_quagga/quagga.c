@@ -319,11 +319,11 @@ void redist_rm_aggregatable(void)
                                 s0.k.net.mask--;
 
                                 if ((ra = avl_find_item(&redist_out_tree, &s0.k))) {
-                                        assertion(-500000, (!ra->new));
+                                        assertion(-501426, (!ra->new));
                                 } else {
-                                        ra = debugMalloc(sizeof (s0), -300000);
+                                        ra = debugMalloc(sizeof (s0), -300503);
                                         *ra = s0;
-                                        avl_insert(&redist_out_tree, ra, -300000);
+                                        avl_insert(&redist_out_tree, ra, -300504);
                                 }
 
                                 ra->new = 1;
@@ -410,8 +410,8 @@ void redistribute_routes(void)
                         routf.minAggregatePrefixLen = roptn->minAggregatePrefixLen;
 
                         if (!(routn = avl_find_item(&redist_out_tree, &routf.k))) {
-                                *(routn = debugMalloc(sizeof (routf), -300000)) = routf;
-                                avl_insert(&redist_out_tree, routn, -300000);
+                                *(routn = debugMalloc(sizeof (routf), -300505)) = routf;
+                                avl_insert(&redist_out_tree, routn, -300506);
                                 dbgf_track(DBGT_INFO, "addding");
                         } else {
                                 dbgf_track(DBGT_INFO, "reusing");
@@ -443,8 +443,8 @@ void redistribute_routes(void)
                         redist_changed = YES;
 
                 if (!routn->new) {
-                        avl_remove(&redist_out_tree, &routn->k, -300000);
-                        debugFree(routn, -300000);
+                        avl_remove(&redist_out_tree, &routn->k, -300507);
+                        debugFree(routn, -300508);
                         continue;
                 }
 
@@ -460,11 +460,11 @@ void redistribute_routes(void)
 
                 while (tunXin6_net_adv_list.items) {
                         struct tunXin6_net_adv_node *tn = list_del_head(&tunXin6_net_adv_list);
-                        debugFree(tn, -300000);
+                        debugFree(tn, -300509);
                 }
 
                 while ((routn = avl_iterate_item(&redist_out_tree, &ran))) {
-                        struct tunXin6_net_adv_node *tn = debugMalloc(sizeof (struct tunXin6_net_adv_node), -300000);
+                        struct tunXin6_net_adv_node *tn = debugMalloc(sizeof (struct tunXin6_net_adv_node), -300510);
                         memset(tn, 0, sizeof (*tn));
                         tn->bandwidth = routn->k.bandwidth;
                         tn->bmx6_route_type = routn->k.bmx6_route_type;
@@ -523,7 +523,7 @@ void zdata_parse(void)
 
                         if (zrn->cnt == 0) {
                                 struct zroute_node *tmp = avl_remove(&zroute_tree, &zrn->k, -300476);
-                                assertion(-500000, (tmp == zrn));
+                                assertion(-501427, (tmp == zrn));
                                 debugFree(zrn, -300477);
                                 continue;
                         }
@@ -725,7 +725,7 @@ void zsock_send_route(int8_t del, const struct net_key *dst, uint32_t oif_idx, I
                 4 + // uint32_t metric;
                 0;
 
-        uint8_t *d = debugMalloc(len, -300000);
+        uint8_t *d = debugMalloc(len, -300511);
         uint8_t *p = d;
         memset(p, 0, len);
 
@@ -750,7 +750,7 @@ void zsock_send_route(int8_t del, const struct net_key *dst, uint32_t oif_idx, I
         d = zsock_put_u8(d, distance); // distance
         d = zsock_put_u32(d, htonl(metric)); //metric
 
-        assertion(-500000, (d == p + len));
+        assertion(-501428, (d == p + len));
 
         zsock_write(d);
 }
@@ -808,17 +808,17 @@ void zsock_disconnect(void)
 
         if (!terminating) {
                 task_remove(zsock_connect, NULL);
-                task_register(0, zsock_connect, NULL, -300000);
+                task_register(0, zsock_connect, NULL, -300512);
         }
 
         while (redist_out_tree.items) {
-                debugFree(avl_remove_first_item(&redist_out_tree, -300000), -300000);
+                debugFree(avl_remove_first_item(&redist_out_tree, -300513), -300514);
                 my_description_changed = YES;
         }
 
         while (tunXin6_net_adv_list.items) {
                 struct tunXin6_net_adv_node *tn = list_del_head(&tunXin6_net_adv_list);
-                debugFree(tn, -300000);
+                debugFree(tn, -300515);
         }
 
         set_ipexport( NULL );
@@ -967,7 +967,7 @@ void zsock_write( void* zpacket )
                 list_add_tail(&zsock_write_list, &zwn->list);
         }
 
-        assertion(-500000, (!writing));
+        assertion(-501429, (!writing));
 
         if (writing)
                 return;
@@ -1252,7 +1252,7 @@ int32_t opt_redistribute(uint8_t cmd, uint8_t _save, struct opt_type *opt, struc
                                         if (ull > UMETRIC_MAX || ull < UMETRIC_FM8_MIN || *endptr != '\0')
                                                 return FAILURE;
 
-                                        assertion(-500000, (sizeof (ull) == sizeof (UMETRIC_T)));
+                                        assertion(-501430, (sizeof (ull) == sizeof (UMETRIC_T)));
 
                                         if (cmd == OPT_APPLY && rdn)
                                                 rdn->bandwidth = umetric_to_fmu8((UMETRIC_T*) & ull);

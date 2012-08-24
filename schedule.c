@@ -398,14 +398,11 @@ loop4Event:
 				pb.i.unicast = YES;
 					
 				struct msghdr msghdr;
-				struct iovec iovec;
+				struct iovec iovec = {.iov_base = pb.packet.data, .iov_len = sizeof(pb.packet.data) - 1};
 				char buf[4096];
 				struct cmsghdr *cp;
 				struct timeval *tv_stamp = NULL;
 	
-				iovec.iov_base = pb.packet.data;
-				iovec.iov_len = sizeof(pb.packet.data) - 1;
-				
 				msghdr.msg_name = (struct sockaddr *)&pb.i.addr;
 				msghdr.msg_namelen = addr_len;
 				msghdr.msg_iov = &iovec;

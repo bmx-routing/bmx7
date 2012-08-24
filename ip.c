@@ -113,7 +113,7 @@ const uint8_t IP6_MC_PLEN = 8;
 
 static int nlsock_default = -1;
 
-static int rt_sock = 0;
+static int io_sock = 0;
 
 struct rtnl_handle ip_rth = { .fd = -1 };
 
@@ -173,6 +173,15 @@ int rtnl_open(struct rtnl_handle *rth)
                 dbgf_sys(DBGT_ERR, "Cannot open netlink socket");
 		return FAILURE;
 	}
+
+/*
+        if ( fcntl( rth->fd, F_SETFL, O_NONBLOCK) < 0 ) {
+		dbgf_sys(DBGT_ERR, "can't set netlink socket nonblocking : (%s)",  strerror(errno));
+		close(rth->fd);
+		return FAILURE;
+	}
+*/
+
 
 	if (setsockopt(rth->fd,SOL_SOCKET,SO_SNDBUF,&sndbuf,sizeof(sndbuf)) < 0) {
 		dbgf_sys(DBGT_ERR, "SO_SNDBUF");
@@ -264,7 +273,7 @@ IDM_T get_if_req(IFNAME_T *dev_name, struct ifreq *if_req, int siocgi_req)
                 strncpy(if_req->ifr_name, dev_name->str, IFNAMSIZ - 1);
 
         errno = 0;
-        if ( ioctl( rt_sock, siocgi_req, if_req ) < 0 ) {
+        if ( ioctl( io_sock, siocgi_req, if_req ) < 0 ) {
 
                 if (siocgi_req != SIOCGIWNAME) {
                         dbgf_sys(DBGT_ERR, "can't get SIOCGI %d of interface %s: %s",
@@ -383,6 +392,20 @@ char *trackt2str(uint8_t cmd)
 	if ( cmd == IP_NOP )
 		return "TRACK_NOP";
 
+        else if (cmd == IP_LINK_GET)
+                return "LINK_GET";
+
+        else if (cmd == IP_ADDR_GET)
+                return "ADDR_GET";
+
+        else if (cmd == IP_ROUTE_GET)
+                return "ROUTE_GET";
+
+
+        else if ( cmd == IP_ADDRESS_SET )
+		return "ADDRESS_SET";
+
+
         else if ( cmd == IP_RULE_FLUSH )
 		return "RULE_FLUSH";
 
@@ -392,8 +415,6 @@ char *trackt2str(uint8_t cmd)
         else if ( cmd == IP_RULE_TEST )
 		return "RULE_TEST";
 
-        else if (cmd == IP_ROUTE_GET)
-                return "ROUTE_GET";
 
         else if (cmd == IP_ROUTE_FLUSH)
                 return "ROUTE_FLUSH";
@@ -417,8 +438,7 @@ char *trackt2str(uint8_t cmd)
 
                 return bmx6_rt_dict[ (cmd - IP_ROUTE_TUNS) ].bmx2Name;
 
-	} else if ( cmd == IP_ADDRESS )
-		return "ADDRESS";
+	} 
 
         return "TRACK_ILLEGAL";
 }
@@ -681,6 +701,124 @@ struct dev_node * dev_get_by_name(char *name)
 
 
 STATIC_FUNC
+IDM_T rtnl_talk(void *req, int len, uint8_t cmd, uint8_t quiet, void (*func) (struct nlmsghdr *nh, void *data) ,void *data)
+{
+
+        // DONT USE setNet() here (because return pointer is static)!!!!!!!!!!!!!
+
+        static uint8_t busy = 0;
+        assertion(-500000, (!busy));
+        busy = 1;
+
+        errno = 0;
+        if (send(ip_rth.fd, req, len, 0) < 0) {
+
+                dbgf_sys(DBGT_ERR, "can't send netlink message to kernel: %s", strerror(errno));
+                busy = 0;
+                EXITERROR(-501095, (0));
+		return FAILURE;
+        }
+
+        int max_retries = 10;
+        uint8_t more_data;
+
+        //TODO: see ip/libnetlink.c rtnl_talk() for HOWTO
+        do {
+                char buf[4096]; // less causes lost messages !!??
+                memset(buf, 0, sizeof(buf));
+
+                struct iovec iov = {.iov_base = buf, .iov_len = sizeof (buf)};
+                struct sockaddr_nl nla = {.nl_family = 0 }; //{.nl_family = AF_NETLINK}; //TODO: not sure here, maybe only for cmd==IP_ADDR_GET and IP_LINK_GET
+                struct msghdr msg = {.msg_name = (void *)&nla, .msg_namelen = sizeof(nla), .msg_iov = &iov, .msg_iovlen = 1};
+                struct nlmsghdr *nh;
+
+                more_data = NO;
+
+		errno=0;
+		int status = recvmsg( ip_rth.fd, &msg, 0 );
+                int err = errno;
+
+                dbgf(DBGL_CHANGES, DBGT_INFO, "rcvd %s status=%d err=%d %s", trackt2str(cmd), status, err, strerror(err));
+
+
+		if ( status < 0 ) {
+
+                        dbgf_sys(DBGT_ERR, "%s", strerror(err));
+
+                        if ( (err == EINTR || err == EWOULDBLOCK || err == EAGAIN ) && max_retries-- > 0 ) {
+                                usleep(500);
+                                upd_time( NULL );
+                                more_data = YES;
+                                continue;
+                        } else {
+                                dbgf_sys(DBGT_ERR, "giving up!");
+                                busy = 0;
+                                EXITERROR(-501096, (0));
+                                return FAILURE;
+                        }
+
+		} else if (status == 0) {
+                        dbgf_sys(DBGT_ERR, "netlink EOF");
+                        busy = 0;
+                        EXITERROR(-501097, (0));
+                        return FAILURE;
+                }
+
+                if (msg.msg_flags & MSG_TRUNC) {
+                        dbgf_track(DBGT_INFO, "MSG_TRUNC");
+                        more_data = YES;
+                }
+
+
+		for ( nh = (struct nlmsghdr *)buf; NLMSG_OK(nh, (size_t)status); nh = NLMSG_NEXT(nh, status) ) {
+
+                        if (nla.nl_pid || nh->nlmsg_pid != ip_rth.local.nl_pid || nh->nlmsg_seq != ip_rth.seq) {
+
+                                dbgf_sys(DBGT_ERR, "pid/sqn mismatch: status=%d  "
+                                        "nl_pid=%d ==0!?  nlmsg_pid=%d == local.nl_pid=%d!? "
+                                        "nlmsg_seq=%d == ip_rth.dump=%d!?",
+                                        status,
+                                        nla.nl_pid, nh->nlmsg_pid, ip_rth.local.nl_pid,
+                                        nh->nlmsg_seq, ip_rth.seq);
+
+                                busy = 0;
+                                assertion(-500000, (0)); //continue;
+                        }
+
+                        if ((nh->nlmsg_type == NLMSG_ERROR)) {
+
+                                dbgf(quiet ? DBGL_ALL : DBGL_SYS, quiet ? DBGT_INFO : DBGT_ERR, "%s error=%s",
+                                        trackt2str(cmd),
+                                        (((struct nlmsgerr*) NLMSG_DATA(nh))->error) ?
+                                                strerror(-((struct nlmsgerr*) NLMSG_DATA(nh))->error) : "???");
+
+                                busy = 0;
+                                EXITERROR(-501098, (cmd == IP_RULE_FLUSH || cmd == IP_ROUTE_FLUSH || cmd == IP_RULE_TEST));
+                                return FAILURE;
+                        }
+
+                        if (nh->nlmsg_flags & NLM_F_MULTI) {
+                                dbgf_all( DBGT_INFO, "NLM_F_MULTI");
+                                more_data = YES;
+                        }
+
+                        if (nh->nlmsg_type == NLMSG_DONE) {
+                                dbgf_track(DBGT_INFO, "NLMSG_DONE");
+                                more_data = NO;
+                                break;
+                        }
+
+                        if (func)
+                                (*func)(nh, data);
+		}
+
+        } while (more_data);
+
+        busy=0;
+        return SUCCESS;
+}
+
+STATIC_FUNC
 IDM_T kernel_get_if_config_post(IDM_T purge_all, uint16_t curr_sqn)
 {
 	TRACE_FUNCTION_CALL;
@@ -767,13 +905,13 @@ IDM_T kernel_get_if_config_post(IDM_T purge_all, uint16_t curr_sqn)
         }
 }
 
-STATIC_INLINE_FUNC
-void kernel_get_if_addr_config(struct nlmsghdr *nlhdr, uint16_t index_sqn)
+
+STATIC_FUNC
+void kernel_get_if_addr_config(struct nlmsghdr *nh, void *index_sqnp)
 {
         TRACE_FUNCTION_CALL;
-
-        int len = nlhdr->nlmsg_len;
-        struct ifaddrmsg *if_addr = NLMSG_DATA(nlhdr);
+        uint16_t index_sqn = *((uint16_t*) index_sqnp);
+        struct ifaddrmsg *if_addr = NLMSG_DATA(nh);
         int index = if_addr->ifa_index;
         int family = if_addr->ifa_family;
         struct if_link_node *iln = avl_find_item(&if_link_tree, &index);
@@ -784,22 +922,14 @@ void kernel_get_if_addr_config(struct nlmsghdr *nlhdr, uint16_t index_sqn)
         if (family != AF_INET && family != AF_INET6)
                 return;
 
-        if (nlhdr->nlmsg_type != RTM_NEWADDR)
+        if (nh->nlmsg_type != RTM_NEWADDR)
                 return;
 
-        if (len < (int) NLMSG_LENGTH(sizeof (if_addr)))
-                return;
-
-
-        len -= NLMSG_LENGTH(sizeof (*if_addr));
-        if (len < 0) {
-                dbgf_sys(DBGT_ERR, "BUG: wrong nlmsg len %d", len);
-                return;
-        }
+        assertion(-500000, (nh->nlmsg_len >= (int) NLMSG_LENGTH(sizeof (*if_addr))));
 
         struct rtattr * rta_tb[IFA_MAX + 1];
 
-        parse_rtattr(rta_tb, IFA_MAX, IFA_RTA(if_addr), nlhdr->nlmsg_len - NLMSG_LENGTH(sizeof (*if_addr)));
+        parse_rtattr(rta_tb, IFA_MAX, IFA_RTA(if_addr), nh->nlmsg_len - NLMSG_LENGTH(sizeof (*if_addr)));
 
 
         if (!rta_tb[IFA_LOCAL])
@@ -835,7 +965,7 @@ void kernel_get_if_addr_config(struct nlmsghdr *nlhdr, uint16_t index_sqn)
                                 iln->index, ipXAsStr(old_ian->ifa.ifa_family, &ip_addr));
                 }
 
-                if (nlhdr->nlmsg_len > old_ian->nlmsghdr->nlmsg_len) {
+                if (nh->nlmsg_len > old_ian->nlmsghdr->nlmsg_len) {
 
                         if (old_ian->dev) {
                                 old_ian->dev->hard_conf_changed = YES;
@@ -846,14 +976,14 @@ void kernel_get_if_addr_config(struct nlmsghdr *nlhdr, uint16_t index_sqn)
                         avl_remove(&iln->if_addr_tree, &ip_addr, -300239);
                         dbgf_sys(DBGT_ERR, "new size");
 
-                } else if (memcmp(nlhdr, old_ian->nlmsghdr, nlhdr->nlmsg_len)) {
+                } else if (memcmp(nh, old_ian->nlmsghdr, nh->nlmsg_len)) {
 
-                        if (nlhdr->nlmsg_len != old_ian->nlmsghdr->nlmsg_len) {
+                        if (nh->nlmsg_len != old_ian->nlmsghdr->nlmsg_len) {
                                 dbgf_sys(DBGT_ERR, "different data and size %d != %d",
-                                        nlhdr->nlmsg_len, old_ian->nlmsghdr->nlmsg_len);
+                                        nh->nlmsg_len, old_ian->nlmsghdr->nlmsg_len);
                         }
 
-                        memcpy(old_ian->nlmsghdr, nlhdr, nlhdr->nlmsg_len);
+                        memcpy(old_ian->nlmsghdr, nh, nh->nlmsg_len);
                         new_ian = old_ian;
 
                 } else {
@@ -863,9 +993,9 @@ void kernel_get_if_addr_config(struct nlmsghdr *nlhdr, uint16_t index_sqn)
         }
 
         if (!new_ian) {
-                new_ian = debugMalloc(sizeof (struct if_addr_node) +nlhdr->nlmsg_len, -300234);
-                memset(new_ian, 0, sizeof (struct if_addr_node) +nlhdr->nlmsg_len);
-                memcpy(new_ian->nlmsghdr, nlhdr, nlhdr->nlmsg_len);
+                new_ian = debugMalloc(sizeof (struct if_addr_node) +nh->nlmsg_len, -300234);
+                memset(new_ian, 0, sizeof (struct if_addr_node) +nh->nlmsg_len);
+                memcpy(new_ian->nlmsghdr, nh, nh->nlmsg_len);
                 new_ian->ip_addr = ip_addr;
                 new_ian->iln = iln;
                 avl_insert(&iln->if_addr_tree, new_ian, -300238);
@@ -932,26 +1062,27 @@ void kernel_get_if_addr_config(struct nlmsghdr *nlhdr, uint16_t index_sqn)
 
 
 STATIC_FUNC
-int kernel_get_if_link_config(struct nlmsghdr *nlhdr, uint16_t update_sqn)
+void kernel_get_if_link_config(struct nlmsghdr *nh, void *update_sqnp)
 {
 	TRACE_FUNCTION_CALL;
 
-	struct ifinfomsg *if_link_info = NLMSG_DATA(nlhdr);
+        uint16_t update_sqn = *((uint16_t*) update_sqnp);
+
+	struct ifinfomsg *if_link_info = NLMSG_DATA(nh);
 	//struct idxmap *im, **imp;
 	struct rtattr *tb[IFLA_MAX+1];
 
         uint16_t changed = 0;
 
-	if (nlhdr->nlmsg_type != RTM_NEWLINK)
-		return 0;
+	if (nh->nlmsg_type != RTM_NEWLINK)
+		return;
 
-	if (nlhdr->nlmsg_len < NLMSG_LENGTH(sizeof(if_link_info)))
-		return -1;
+        assertion(-500000, (nh->nlmsg_len >= NLMSG_LENGTH(sizeof(*if_link_info))));
 
-	parse_rtattr(tb, IFLA_MAX, IFLA_RTA(if_link_info), IFLA_PAYLOAD(nlhdr));
+	parse_rtattr(tb, IFLA_MAX, IFLA_RTA(if_link_info), IFLA_PAYLOAD(nh));
 
         if (!tb[IFLA_IFNAME])
-                return 0;
+                return;
 
         int index = if_link_info->ifi_index;
         struct if_link_node *new_ilx = NULL;
@@ -963,23 +1094,23 @@ int kernel_get_if_link_config(struct nlmsghdr *nlhdr, uint16_t update_sqn)
                         dbgf_sys(DBGT_ERR, "ifi %d found several times!", old_ilx->index);
                 }
 
-                assertion(-500902, (nlhdr->nlmsg_len >= sizeof (struct nlmsghdr)));
+                assertion(-500902, (nh->nlmsg_len >= sizeof (struct nlmsghdr)));
 
-                if (nlhdr->nlmsg_len > old_ilx->nlmsghdr->nlmsg_len) {
+                if (nh->nlmsg_len > old_ilx->nlmsghdr->nlmsg_len) {
 
                         avl_remove(&if_link_tree, &index, -300240);
                         dbgf_track(DBGT_INFO, "CHANGED and MORE nlmsg_len");
 
-                } else if (memcmp(nlhdr, old_ilx->nlmsghdr, nlhdr->nlmsg_len)) {
+                } else if (memcmp(nh, old_ilx->nlmsghdr, nh->nlmsg_len)) {
 
-                        if (nlhdr->nlmsg_len != old_ilx->nlmsghdr->nlmsg_len) {
+                        if (nh->nlmsg_len != old_ilx->nlmsghdr->nlmsg_len) {
                                 dbgf_track(DBGT_INFO, "CHANGED and LESS nlmsg_len %d < %d",
-                                        nlhdr->nlmsg_len, old_ilx->nlmsghdr->nlmsg_len);
+                                        nh->nlmsg_len, old_ilx->nlmsghdr->nlmsg_len);
                         } else {
-                                dbgf_track(DBGT_INFO, "CHANGED but EQUAL nlmsg_len %d", nlhdr->nlmsg_len);
+                                dbgf_track(DBGT_INFO, "CHANGED but EQUAL nlmsg_len %d", nh->nlmsg_len);
                         }
                         
-                        memcpy(old_ilx->nlmsghdr, nlhdr, nlhdr->nlmsg_len);
+                        memcpy(old_ilx->nlmsghdr, nh, nh->nlmsg_len);
                         new_ilx = old_ilx;
                 
                 } else {
@@ -988,12 +1119,12 @@ int kernel_get_if_link_config(struct nlmsghdr *nlhdr, uint16_t update_sqn)
         }
 
         if (!new_ilx) {
-                new_ilx = debugMalloc(sizeof (struct if_link_node) + nlhdr->nlmsg_len, -300231);
+                new_ilx = debugMalloc(sizeof (struct if_link_node) + nh->nlmsg_len, -300231);
                 memset(new_ilx, 0, sizeof (struct if_link_node));
                 new_ilx->index = if_link_info->ifi_index;
                 AVL_INIT_TREE(new_ilx->if_addr_tree, struct if_addr_node, ip_addr);
                 avl_insert(&if_link_tree, new_ilx, -300233);
-                memcpy(new_ilx->nlmsghdr, nlhdr, nlhdr->nlmsg_len);
+                memcpy(new_ilx->nlmsghdr, nh, nh->nlmsg_len);
         }
 
         IFNAME_T devname = ZERO_IFNAME;
@@ -1035,7 +1166,7 @@ int kernel_get_if_link_config(struct nlmsghdr *nlhdr, uint16_t update_sqn)
         if (old_ilx && old_ilx != new_ilx)
                 debugFree(old_ilx, -300241);
 
-	return 0;
+	return;
 }
 
 
@@ -1048,47 +1179,63 @@ static IDM_T kernel_get_if_config(void)
 	TRACE_FUNCTION_CALL;
 
         static uint16_t index_sqn = 0;
-        int rtm_type[2] = {RTM_GETLINK, RTM_GETADDR};
-        int msg_count;
-        int info;
+        int ai;
 
         index_sqn++;
         dbgf_all( DBGT_INFO, "%d", index_sqn);
 
-        for (info = LINK_INFO; info <= ADDR_INFO; info++) {
+#define LINK_INFO 0
+#define ADDR_INFO 1
+
+        for (ai = LINK_INFO; ai <= ADDR_INFO; ai++) {
 
                 struct ip_req req;
-                struct sockaddr_nl nla;
-                struct iovec iov;
-                struct msghdr msg = {.msg_name = &nla, .msg_namelen = sizeof (nla), .msg_iov = &iov, .msg_iovlen = 1};
-                char buf[4096]; //char buf[16384];
 
-                iov.iov_base = buf;
 
                 memset(&req, 0, sizeof (req));
+
                 req.nlh.nlmsg_len = sizeof (req);
-                req.nlh.nlmsg_type = rtm_type[info];
+                req.nlh.nlmsg_pid = My_pid;
+                req.nlh.nlmsg_seq = ++ip_rth.seq;
+
+                req.nlh.nlmsg_type = ai ? RTM_GETADDR : RTM_GETLINK;
                 req.nlh.nlmsg_flags = NLM_F_ROOT | NLM_F_MATCH | NLM_F_REQUEST;
-                req.nlh.nlmsg_pid = 0;
-                req.nlh.nlmsg_seq = ip_rth.dump = ++ip_rth.seq;
+
                 req.rtg.rtgen_family = AF_UNSPEC;
+
+                rtnl_talk(&req, req.nlh.nlmsg_len, (ai ? IP_ADDR_GET : IP_LINK_GET), NO,
+//                        kernel_get_if_link_config, &index_sqn);
+                        (ai ? kernel_get_if_addr_config : kernel_get_if_link_config), &index_sqn);
+        }
+
+        return kernel_get_if_config_post(NO, index_sqn);
+/*
+
+        {
+                struct ip_req req;
 
                 if (send(ip_rth.fd, (void*) & req, sizeof (req), 0) < 0) {
                         dbgf_sys(DBGT_ERR, "failed");
                         return FAILURE;
                 }
 
-                dbgf(DBGL_TEST, DBGT_INFO, "send %s_INFO request", info == LINK_INFO ? "LINK" : "ADDR");
+                dbgf(DBGL_TEST, DBGT_INFO, "send %s_INFO request", ai ? "ADDR" : "LINK");
 
                 while (1) {
 
-                        iov.iov_len = sizeof (buf);
+                        struct sockaddr_nl nla;
+                        char buf[4096]; //char buf[16384];
+                        struct iovec iov = {.iov_base = buf, .iov_len = sizeof (buf)};
+                        struct msghdr msg = {.msg_name = &nla, .msg_namelen = sizeof (nla), .msg_iov = &iov, .msg_iovlen = 1};
+
+                        struct nlmsghdr *nh;
+
 
                         int status = recvmsg(ip_rth.fd, &msg, 0);
                         int err = errno;
 
                         dbgf(DBGL_TEST, DBGT_INFO, "rcvd %s_INFO status=%d",
-                                info == LINK_INFO ? "LINK" : "ADDR", status);
+                                ai == LINK_INFO ? "LINK" : "ADDR", status);
 
                         if (status < 0) {
 
@@ -1104,45 +1251,39 @@ static IDM_T kernel_get_if_config(void)
                                 return FAILURE;
                         }
 
-                        struct nlmsghdr *nlhdr = (struct nlmsghdr*) buf;
+                        for (nh = (struct nlmsghdr*) buf; NLMSG_OK(nh, (unsigned) status); nh = NLMSG_NEXT(nh, status)) {
 
-                        msg_count = 0;
-
-                        for (; NLMSG_OK(nlhdr, (unsigned) status); nlhdr = NLMSG_NEXT(nlhdr, status)) {
-
-                                msg_count++;
-
-                                if (nla.nl_pid || nlhdr->nlmsg_pid != ip_rth.local.nl_pid || nlhdr->nlmsg_seq != ip_rth.dump) {
-                                        dbgf_sys(DBGT_ERR, "pid/sqn mismatch: msg=%d status=%d  "
+                                if (nla.nl_pid || nh->nlmsg_pid != ip_rth.local.nl_pid || nh->nlmsg_seq != ip_rth.seq) {
+                                        dbgf_sys(DBGT_ERR, "pid/sqn mismatch: status=%d  "
                                                 "nl_pid=%d ==0!?  nlmsg_pid=%d == local.nl_pid=%d!? "
                                                 "nlmsg_seq=%d == ip_rth.dump=%d!?",
-                                                msg_count, status, nla.nl_pid, nlhdr->nlmsg_pid,
-                                                ip_rth.local.nl_pid, nlhdr->nlmsg_seq, ip_rth.dump);
+                                                status, nla.nl_pid, nh->nlmsg_pid,
+                                                ip_rth.local.nl_pid, nh->nlmsg_seq, ip_rth.seq);
                                         continue;
                                 }
 
-                                if (nlhdr->nlmsg_type == NLMSG_DONE) {
+                                if (nh->nlmsg_type == NLMSG_DONE) {
                                         dbgf(DBGL_TEST, DBGT_INFO, "NLMSG_DONE");
                                         break;
                                 }
 
-                                if (nlhdr->nlmsg_type == NLMSG_ERROR) {
+                                if (nh->nlmsg_type == NLMSG_ERROR) {
                                         dbgf_sys(DBGT_ERR, "NLMSG_ERROR");
                                         return FAILURE;
                                 }
 
 
-                                if (info == LINK_INFO )
-                                        kernel_get_if_link_config(nlhdr, index_sqn);
+                                if (ai == LINK_INFO )
+                                        kernel_get_if_link_config(nh, &index_sqn);
                                 else
-                                        kernel_get_if_addr_config(nlhdr, index_sqn);
+                                        kernel_get_if_addr_config(nh, &index_sqn);
 
                         }
 
-                        dbgf(DBGL_TEST, DBGT_INFO, "processed %d %s msgs status=%d",
-                                msg_count, info == LINK_INFO ? "LINK" : "ADDR", status);
+                        dbgf(DBGL_TEST, DBGT_INFO, "processed %s msgs status=%d",
+                                ai == LINK_INFO ? "LINK" : "ADDR", status);
                         
-                        if (nlhdr->nlmsg_type == NLMSG_DONE) {
+                        if (nh->nlmsg_type == NLMSG_DONE) {
                                 dbgf(DBGL_TEST, DBGT_INFO, "NLMSG_DONE");
                                 break;
                         }
@@ -1160,148 +1301,10 @@ static IDM_T kernel_get_if_config(void)
         }
 
         return kernel_get_if_config_post(NO, index_sqn);
-
+*/
 }
 
 
-
-STATIC_FUNC
-IDM_T rtnl_talk(void *req, int len, uint8_t cmd, struct list_head *rtnl_get_list, uint8_t quiet)
-{
-
-        // DONT USE setNet() here (because return pointer is static)!!!!!!!!!!!!!
-
-        uint8_t more_data;
-	struct nlmsghdr *nh;
-        struct sockaddr_nl nladdr;
-        memset(&nladdr, 0, sizeof (struct sockaddr_nl));
-	nladdr.nl_family = AF_NETLINK;
-
-        errno = 0;
-
-        if (sendto(nlsock_default, req, len, 0, (struct sockaddr *) & nladdr, sizeof (struct sockaddr_nl)) < 0) {
-
-                dbgf_sys(DBGT_ERR, "can't send netlink message to kernel: %s", strerror(errno));
-                EXITERROR(-501095, (0));
-		return FAILURE;
-        }
-
-        int max_retries = 10;
-
-        //TODO: see ip/libnetlink.c rtnl_talk() for HOWTO
-        while (1) {
-                struct msghdr msg;
-                char buf[4096]; // less causes lost messages !!??
-                memset(&msg, 0, sizeof (struct msghdr));
-
-                memset(&nladdr, 0, sizeof (struct sockaddr_nl));
-                nladdr.nl_family = AF_NETLINK;
-
-                memset(buf, 0, sizeof(buf));
-                struct iovec iov = {.iov_base = buf, .iov_len = sizeof (buf)};
-
-		msg.msg_name = (void *)&nladdr;
-		msg.msg_namelen = sizeof(nladdr);
-		msg.msg_iov = &iov;
-		msg.msg_iovlen = 1;
-		msg.msg_control = NULL;
-
-		errno=0;
-		int status = recvmsg( nlsock_default, &msg, 0 );
-
-                more_data = NO;
-
-		if ( status < 0 ) {
-
-			if ( errno == EINTR ) {
-                                dbgf_sys(DBGT_WARN, "(EINTR) %s", strerror(errno));
-                        } else if (errno == EWOULDBLOCK || errno == EAGAIN) {
-                                dbgf_sys(DBGT_ERR, "(EWOULDBLOCK || EAGAIN) %s", strerror(errno));
-                        } else {
-                                dbgf_sys(DBGT_ERR, "%s", strerror(errno));
-                        }
-
-                        if ( max_retries-- > 0 ) {
-                                usleep(500);
-                                upd_time( NULL );
-                                continue;
-                        } else {
-                                dbgf_sys(DBGT_ERR, "giving up!");
-                                EXITERROR(-501096, (0));
-                                return FAILURE;
-                        }
-
-		} else if (status == 0) {
-                        dbgf_sys(DBGT_ERR, "netlink EOF");
-                        EXITERROR(-501097, (0));
-                        return FAILURE;
-                }
-
-                if (msg.msg_flags & MSG_TRUNC) {
-                        dbgf_track(DBGT_INFO, "MSG_TRUNC");
-                        more_data = YES;
-                }
-
-		nh = (struct nlmsghdr *)buf;
-
-		while ( NLMSG_OK(nh, (size_t)status) ) {
-
-                        if (nh->nlmsg_flags & NLM_F_MULTI) {
-                                dbgf_all( DBGT_INFO, "NLM_F_MULTI");
-                                more_data = YES;
-                        }
-
-                        if (nh->nlmsg_type == NLMSG_DONE) {
-                                dbgf_track(DBGT_INFO, "NLMSG_DONE");
-                                more_data = NO;
-                                break;
-
-                        } else if ((nh->nlmsg_type == NLMSG_ERROR) && (((struct nlmsgerr*) NLMSG_DATA(nh))->error != 0)) {
-
-                                dbgf(quiet ? DBGL_ALL : DBGL_SYS, quiet ? DBGT_INFO : DBGT_ERR,
-                                        "can't %s error=%s",
-//                                        "can't %s nlmsg_type=%d, ifa_family=%d ifa_index=%d ifa_prefixlen=%d error=%s",
-                                        trackt2str(cmd),
-                                        //req->nlh.nlmsg_type, req->ifa.ifa_family, req->ifa.ifa_index, req->ifa.ifa_prefixlen,
-                                        strerror(-((struct nlmsgerr*) NLMSG_DATA(nh))->error));
-
-                                EXITERROR(-501098, (cmd == IP_RULE_FLUSH || cmd == IP_ROUTE_FLUSH || cmd == IP_RULE_TEST));
-                                return FAILURE;
-                        }
-
-                        if (rtnl_get_list) {
-                                struct rtmsg *rtm = (struct rtmsg *) NLMSG_DATA(nh);
-                                struct rtattr *rtap = (struct rtattr *) RTM_RTA(rtm);
-                                int rtl = RTM_PAYLOAD(nh);
-
-                                while (RTA_OK(rtap, rtl)) {
-
-                                        struct rtnl_get_node *rgn = debugMalloc(sizeof (*rgn), -300000);
-                                        memset(rgn, 0, sizeof (*rgn));
-                                        rgn->rtm_table = rtm->rtm_table;
-                                        rgn->rta_type = rtap->rta_type;
-                                        rgn->net.af = rtm->rtm_family;
-                                        rgn->net.mask = rtm->rtm_dst_len;
-                                        rgn->net.ip = (rgn->net.af == AF_INET6) ? *((IPX_T *) RTA_DATA(rtap)) : ip4ToX(*((IP4_T *) RTA_DATA(rtap)));
-
-                                        list_add_tail(rtnl_get_list, &rgn->list);
-
-                                        rtap = RTA_NEXT(rtap, rtl);
-                                }
-                        }
-
-                        nh = NLMSG_NEXT(nh, status);
-		}
-
-                if ( more_data ) {
-                        dbgf_track(DBGT_INFO, "more data via netlink socket %d...", nlsock_default);
-                } else {
-                        break;
-                }
-        }
-
-        return SUCCESS;
-}
 
 
 IDM_T kernel_set_addr(IDM_T del, uint32_t if_index, uint8_t family, IPX_T *ipX, uint8_t prefixlen, IDM_T deprecated)
@@ -1313,6 +1316,9 @@ IDM_T kernel_set_addr(IDM_T del, uint32_t if_index, uint8_t family, IPX_T *ipX, 
 	memset(&req, 0, sizeof(req));
 
         req.nlh.nlmsg_len = NLMSG_LENGTH(sizeof (struct ifaddrmsg));
+        req.nlh.nlmsg_pid = My_pid;
+        req.nlh.nlmsg_seq = ++ip_rth.seq;
+
         req.nlh.nlmsg_flags = NLM_F_REQUEST | NLM_F_ACK | (del ? 0 : (NLM_F_CREATE | NLM_F_EXCL));
         req.nlh.nlmsg_type = del ? RTM_DELADDR : RTM_NEWADDR;
 	req.ifa.ifa_family = family;
@@ -1341,7 +1347,7 @@ IDM_T kernel_set_addr(IDM_T del, uint32_t if_index, uint8_t family, IPX_T *ipX, 
 
         dbgf_track(DBGT_INFO, "del=%d ifidx=%d ip=%s/%d deprecated=%d", del, if_index, ipXAsStr(family, ipX), prefixlen, deprecated);
 
-        return rtnl_talk(&req, req.nlh.nlmsg_len, IP_ADDRESS, NULL, NO);
+        return rtnl_talk(&req, req.nlh.nlmsg_len, IP_ADDRESS_SET, NO, NULL, NULL);
 }
 
 IDM_T kernel_set_tun(IDM_T del, char *name, uint8_t proto, IPX_T *local, IPX_T *remote)
@@ -1370,7 +1376,7 @@ IDM_T kernel_set_tun(IDM_T del, char *name, uint8_t proto, IPX_T *local, IPX_T *
         strncpy(req.ifr_name, del ? name : "ip6tnl0", IFNAMSIZ);
         req.ifr_ifru.ifru_data = &p;
 
-        if ((ioctl(rt_sock, del ? SIOCDELTUNNEL : SIOCADDTUNNEL, &req))) {
+        if ((ioctl(io_sock, del ? SIOCDELTUNNEL : SIOCADDTUNNEL, &req))) {
                 dbgf_sys(DBGT_ERR, "creating tunnel dev name=%s %s", name, strerror(errno));
                 return FAILURE;
         }
@@ -1378,7 +1384,7 @@ IDM_T kernel_set_tun(IDM_T del, char *name, uint8_t proto, IPX_T *local, IPX_T *
         if(!del) {
                 memset(&req, 0, sizeof (req));
                 strncpy(req.ifr_name, name, IFNAMSIZ);
-                if ((ioctl(rt_sock, SIOCGIFFLAGS, &req))) {
+                if ((ioctl(io_sock, SIOCGIFFLAGS, &req))) {
                         dbgf_sys(DBGT_ERR, "getting tunnel flags name=%s %s", name, strerror(errno));
                         kernel_set_tun(DEL, name, 0, NULL, NULL);
                         return FAILURE;
@@ -1386,7 +1392,7 @@ IDM_T kernel_set_tun(IDM_T del, char *name, uint8_t proto, IPX_T *local, IPX_T *
 
                 if ((req.ifr_flags & IFF_UP) != IFF_UP) {
                         req.ifr_flags |= IFF_UP;
-                        if ((ioctl(rt_sock, SIOCSIFFLAGS, &req))) {
+                        if ((ioctl(io_sock, SIOCSIFFLAGS, &req))) {
                                 dbgf_sys(DBGT_ERR, "setting tunnel flags name=%s %s", name, strerror(errno));
                                 kernel_set_tun(DEL, name, 0, NULL, NULL);
                                 return FAILURE;
@@ -1403,13 +1409,13 @@ IDM_T change_mtu(char *name, uint16_t mtu)
 
 	req.ifr_addr.sa_family = AF_INET;
 	strcpy(req.ifr_name, name);
-	if (ioctl(rt_sock, SIOCGIFMTU, (caddr_t)&req) < 0) {
+	if (ioctl(io_sock, SIOCGIFMTU, (caddr_t)&req) < 0) {
         	dbgf_sys(DBGT_ERR, "Can't read '%s' device %s", name, strerror(errno));
         	return FAILURE;
 	}
     
 	req.ifr_mtu = mtu;
-    	if (ioctl(rt_sock, SIOCSIFMTU, (caddr_t)&req) < 0) {
+    	if (ioctl(io_sock, SIOCSIFMTU, (caddr_t)&req) < 0) {
         	dbgf_sys(DBGT_ERR, "Can't set MTU from '%s' %s", name, strerror(errno));
                 return FAILURE;
 
@@ -1418,6 +1424,33 @@ IDM_T change_mtu(char *name, uint16_t mtu)
 }
 
 
+
+
+STATIC_FUNC
+void kernel_get_route_list_nlhdr(struct nlmsghdr *nh, void *rtnl_get_listp )
+{
+        assertion(-500000, rtnl_get_listp);
+        struct list_head *rtnl_get_list = ((struct list_head *) rtnl_get_listp);
+
+        struct rtmsg *rtm = (struct rtmsg *) NLMSG_DATA(nh);
+        struct rtattr *rtap = (struct rtattr *) RTM_RTA(rtm);
+        int rtl = RTM_PAYLOAD(nh);
+
+        while (RTA_OK(rtap, rtl)) {
+
+                struct rtnl_get_node *rgn = debugMalloc(sizeof (*rgn), -300000);
+                memset(rgn, 0, sizeof (*rgn));
+                rgn->rtm_table = rtm->rtm_table;
+                rgn->rta_type = rtap->rta_type;
+                rgn->net.af = rtm->rtm_family;
+                rgn->net.mask = rtm->rtm_dst_len;
+                rgn->net.ip = (rgn->net.af == AF_INET6) ? *((IPX_T *) RTA_DATA(rtap)) : ip4ToX(*((IP4_T *) RTA_DATA(rtap)));
+
+                list_add_tail(rtnl_get_list, &rgn->list);
+
+                rtap = RTA_NEXT(rtap, rtl);
+        }
+}
 
 STATIC_FUNC
 IDM_T kernel_get_route(struct list_head *rtnl_get_list, uint8_t quiet, uint8_t family, uint32_t table)
@@ -1430,6 +1463,7 @@ IDM_T kernel_get_route(struct list_head *rtnl_get_list, uint8_t quiet, uint8_t f
 
         req.nlh.nlmsg_len = NLMSG_LENGTH(sizeof(struct rtmsg));
 	req.nlh.nlmsg_pid = My_pid;
+        req.nlh.nlmsg_seq = ++ip_rth.seq;
 
         req.rtm.rtm_family = family;
         req.rtm.rtm_table = table;
@@ -1440,13 +1474,14 @@ IDM_T kernel_get_route(struct list_head *rtnl_get_list, uint8_t quiet, uint8_t f
         req.nlh.nlmsg_type = RTM_GETROUTE;
         req.rtm.rtm_scope = RTN_UNICAST;
 
-        return rtnl_talk(&req, req.nlh.nlmsg_len, IP_ROUTE_GET, rtnl_get_list, quiet);
+        return rtnl_talk(&req, req.nlh.nlmsg_len, IP_ROUTE_GET, quiet, kernel_get_route_list_nlhdr, rtnl_get_list);
+
 }
 
 
 STATIC_FUNC
 IDM_T kernel_set_route(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_key *dst,
-        int8_t table_macro, int8_t prio_macro, /*IFNAME_T *iifname,*/ int oif_idx, IPX_T *via, IPX_T *src, uint32_t metric)
+        int8_t table_macro, int8_t prio_macro, int oif_idx, IPX_T *via, IPX_T *src, uint32_t metric)
 {
 
         dbgf_all(DBGT_INFO, "1");
@@ -1460,6 +1495,7 @@ IDM_T kernel_set_route(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_
 
         req.nlh.nlmsg_len = NLMSG_LENGTH(sizeof(struct rtmsg));
 	req.nlh.nlmsg_pid = My_pid;
+        req.nlh.nlmsg_seq = ++ip_rth.seq;
 
         req.rtm.rtm_family = dst->af;
         req.rtm.rtm_table = table;
@@ -1530,7 +1566,7 @@ IDM_T kernel_set_route(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_
         if (metric)
                 add_rtattr(&req.nlh, RTA_PRIORITY, (char*) & metric, sizeof (metric), 0);
 
-        return rtnl_talk(&req, req.nlh.nlmsg_len, cmd, NULL, quiet);
+        return rtnl_talk(&req, req.nlh.nlmsg_len, cmd, quiet, NULL, NULL);
 }
 
 
@@ -2949,14 +2985,9 @@ static void recv_ifevent_netlink_sk(int sk)
         TRACE_FUNCTION_CALL;
 	char buf[4096]; //test this with a very small value !!
 	struct sockaddr_nl sa;
-        struct iovec iov;
+        struct iovec iov = {.iov_base = buf, .iov_len = sizeof (buf)};
 
         dbgf_track(DBGT_INFO, "detected changed interface status! Going to check interfaces!");
-
-        memset(&iov, 0, sizeof (struct iovec));
-
-        iov.iov_base = buf;
-        iov.iov_len = sizeof (buf);
 
         struct msghdr msg; // = {(void *) & sa, sizeof (sa), &iov, 1, NULL, 0, 0};
         memset( &msg, 0, sizeof( struct msghdr));
@@ -3762,13 +3793,15 @@ void init_ip(void)
         }
 
         errno=0;
-	if ( !rt_sock  &&  (rt_sock = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-		dbgf_sys(DBGT_ERR, "can't create routing socket %s:",  strerror(errno) );
+	if ( !io_sock  &&  (io_sock = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+		dbgf_sys(DBGT_ERR, "can't create io socket %s:",  strerror(errno) );
 		cleanup_all( -500021 );
 	}
 
+/*
         if( ( nlsock_default = open_netlink_socket()) <= 0 )
 		cleanup_all( -500067 );
+*/
 
         if (open_ifevent_netlink_sk() < 0)
                 cleanup_all(-500150);
@@ -3833,15 +3866,17 @@ void cleanup_ip(void)
         }
 
 
-        if ( rt_sock ) {
-                close(rt_sock);
-                rt_sock = 0;
+        if ( io_sock ) {
+                close(io_sock);
+                io_sock = 0;
         }
 
 
+/*
         if( nlsock_default > 0 ) {
                 close(nlsock_default);
                 nlsock_default = 0;
         }
+*/
 }
 

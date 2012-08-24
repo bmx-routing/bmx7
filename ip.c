@@ -2556,11 +2556,13 @@ void ip_flush_rules(uint8_t family)
 
         for (table_macro = RT_TABLE_MIN; table_macro <= RT_TABLE_MAX; table_macro++) {
 
-                if (table_macro_to_table(table_macro) == DEF_IP_TABLE_MAIN)
+                uint32_t table = table_macro_to_table(table_macro);
+
+                if (table == DEF_IP_TABLE_MAIN)
                         continue;
 
                 while (kernel_set_route(IP_RULE_FLUSH, DEL, YES, &net, table_macro, 0, 0, NULL, NULL, 0) == SUCCESS) {
-                        dbgf_sys(DBGT_ERR, "removed orphan %s rule to table %d", family2Str(AF_CFG), table_macro);
+                        dbgf_sys(DBGT_ERR, "removed orphan %s rule to table %d", family2Str(family), table);
                 }
         }
 }

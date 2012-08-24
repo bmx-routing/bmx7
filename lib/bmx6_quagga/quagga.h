@@ -18,78 +18,14 @@
 /*
 
 BGP/Quagga plugin inspired by:
-http://www.nongnu.org/quagga/zhh.html
+http://olsr.org/git/?p=olsrd.git;a=tree;f=lib/quagga;h=031772d0be26605f97bc08b10694c8429252921f;hb=04ab230c75111be01b86c419c54f48dc6f6daa2e
 http://www.mail-archive.com/b.a.t.m.a.n@lists.open-mesh.org/msg00529.html
 https://dev.openwrt.org/browser/packages/net/quagga/patches/120-quagga_manet.patch
 https://github.com/zioproto/quagga-manet/commits/olsrpatch-0.99.21
-http://olsr.org/git/?p=olsrd.git;a=tree;f=lib/quagga;h=031772d0be26605f97bc08b10694c8429252921f;hb=04ab230c75111be01b86c419c54f48dc6f6daa2e
+http://www.nongnu.org/quagga/zhh.html
  */
 
 
-/*
- * check this patch from olsr-0.6.3/src/lib/quagga/patches/quagga-0.99.32.diff
- 
-diff --git a/zebra/rt_netlink.c b/zebra/rt_netlink.c
-index 5909131..92288bd 100644
---- a/zebra/rt_netlink.c
-+++ b/zebra/rt_netlink.c
-@@ -1623,6 +1623,9 @@ netlink_route_multipath (int cmd, struct prefix *p, struct rib *rib,
-                         addattr_l (&req.n, sizeof req, RTA_PREFSRC,
- 				 &nexthop->src.ipv4, bytelen);
-
-+		      if (rib->type == ZEBRA_ROUTE_OLSR)
-+			req.r.rtm_scope = RT_SCOPE_LINK;
-+
-
-
-
-
-
-
-
-diff --git a/zebra/zebra_rib.c b/zebra/zebra_rib.c
-@@ -381,6 +384,18 @@ nexthop_active_ipv4 (struct rib *rib, struct nexthop *nexthop, int set,
-
- 	      return 1;
- 	    }
-+	  else if (match->type == ZEBRA_ROUTE_OLSR)
-+	    {
-+	      for (newhop = match->nexthop; newhop; newhop = newhop->next)
-+		if (CHECK_FLAG (newhop->flags, NEXTHOP_FLAG_FIB)
-+		    && newhop->type == NEXTHOP_TYPE_IFINDEX)
-+		  {
-+		    if (nexthop->type == NEXTHOP_TYPE_IPV4)
-+		      nexthop->ifindex = newhop->ifindex;
-+		    return 1;
-+		  }
-+	      return 0;
-+	    }
- 	  else if (CHECK_FLAG (rib->flags, ZEBRA_FLAG_INTERNAL))
- 	    {
- 	      for (newhop = match->nexthop; newhop; newhop = newhop->next)
-@@ -483,6 +498,18 @@ nexthop_active_ipv6 (struct rib *rib, struct nexthop *nexthop, int set,
-
- 	      return 1;
- 	    }
-+	  else if (match->type == ZEBRA_ROUTE_OLSR)
-+	    {
-+	      for (newhop = match->nexthop; newhop; newhop = newhop->next)
-+		if (CHECK_FLAG (newhop->flags, NEXTHOP_FLAG_FIB)
-+		    && newhop->type == NEXTHOP_TYPE_IFINDEX)
-+		  {
-+		    if (nexthop->type == NEXTHOP_TYPE_IPV6)
-+		      nexthop->ifindex = newhop->ifindex;
-+		    return 1;
-+		  }
-+	      return 0;
-+	    }
- 	  else if (CHECK_FLAG (rib->flags, ZEBRA_FLAG_INTERNAL))
- 	    {
- 	      for (newhop = match->nexthop; newhop; newhop = newhop->next)
-
-*/
-
-///////////////////////////////////////////////////////////////////////////////
 
 #define ZEBRA_VERSION2 2
 
@@ -243,37 +179,6 @@ struct zapiV2_header {
         uint16_t command;
 } __attribute__((packed));
 
-/*
-struct zapiV2_route_write0 {
-        struct zapiV2_header hdr;
-        uint8_t type;
-        uint8_t flags;
-        uint8_t message;
-        uint16_t safi; // zclient.h uses uint8_t here  !! This field only exist in quagga/zebra/zserv.c:zread_ipvX_add/del()
-        uint8_t prefixlen;
-        uint8_t prefix[];
-};
-
-struct zapiV2_route4_write1 {
-        uint8_t nexthop_num;
-        uint8_t nexthop_type_af;
-        IP4_T nexthop;
-        uint8_t nexthop_type_ifidx;
-        uint32_t ifidx;
-        uint8_t distance;
-        uint32_t metric;
-} __attribute__((packed));
-
-struct zapiV2_route6_write1 {
-        uint8_t nexthop_num;
-        uint8_t nexthop_type_af;
-        IP6_T nexthop;
-        uint8_t nexthop_type_ifidx;
-        uint32_t ifidx;
-        uint8_t distance;
-        uint32_t metric;
-} __attribute__((packed));
-*/
 
 struct zroute_key {
         struct net_key net;
@@ -306,13 +211,6 @@ struct redist_out_node {
         uint8_t old;
         uint8_t new;
 };
-
-
-//struct zdata {
-//        struct zapiV2_header* hdr;
-//        uint16_t len;
-//        uint16_t cmd;
-//};
 
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -420,18 +318,3 @@ struct redistr_opt_node {
         uint8_t minAggregatePrefixLen;
         FMETRIC_U8_T bandwidth;
 };
-
-/*
-struct export_opt_node {
-        char nameKey[NETWORK_NAME_LEN];
-        struct net_key net;
-	uint8_t exportRTBmx6;
-	uint8_t exportUHna;
-	uint8_t exportOnly;
-        uint8_t netPrefixMin;
-        uint8_t netPrefixMax;
-	uint8_t distance;
-        uint32_t metric;
-	uint32_t hysteresis;
-};
-*/

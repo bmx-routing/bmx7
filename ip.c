@@ -180,11 +180,8 @@ int rtnl_open(struct rtnl_handle *rth)
 		close(rth->fd);
 		return FAILURE;
 	}
-*/
 
-
-/*
-	if (setsockopt(rth->fd,SOL_SOCKET,SO_SNDBUF,&sndbuf,sizeof(sndbuf)) < 0) {
+ 	if (setsockopt(rth->fd,SOL_SOCKET,SO_SNDBUF,&sndbuf,sizeof(sndbuf)) < 0) {
 		dbgf_sys(DBGT_ERR, "SO_SNDBUF");
 		return FAILURE;
 	}
@@ -219,35 +216,6 @@ int rtnl_open(struct rtnl_handle *rth)
 	rth->seq = time(NULL);
 	return SUCCESS;
 }
-
-
-
-/*
-STATIC_FUNC
-int open_netlink_socket( void ) {
-
-        int sock = 0;
-	if ( ( sock = socket( AF_NETLINK, SOCK_DGRAM, NETLINK_ROUTE ) ) < 0 ) {
-
-		dbgf_sys(DBGT_ERR, "can't create netlink socket for routing table manipulation: %s",
-		     strerror(errno) );
-
-		return -1;
-	}
-
-
-	if ( fcntl( sock, F_SETFL, O_NONBLOCK) < 0 ) {
-
-		dbgf_sys(DBGT_ERR, "can't set netlink socket nonblocking : (%s)",  strerror(errno));
-		close(sock);
-		return -1;
-	}
-
-	return sock;
-}
-*/
-
-
 
 
 STATIC_FUNC
@@ -1212,104 +1180,10 @@ static IDM_T kernel_get_if_config(void)
                 req.rtg.rtgen_family = AF_UNSPEC;
 
                 rtnl_talk(&req, req.nlh.nlmsg_len, (ai ? IP_ADDR_GET : IP_LINK_GET), NO,
-//                        kernel_get_if_link_config, &index_sqn);
                         (ai ? kernel_get_if_addr_config : kernel_get_if_link_config), &index_sqn);
         }
 
         return kernel_get_if_config_post(NO, index_sqn);
-/*
-
-        {
-                struct ip_req req;
-
-                if (send(ip_rth.fd, (void*) & req, sizeof (req), 0) < 0) {
-                        dbgf_sys(DBGT_ERR, "failed");
-                        return FAILURE;
-                }
-
-                dbgf(DBGL_TEST, DBGT_INFO, "send %s_INFO request", ai ? "ADDR" : "LINK");
-
-                while (1) {
-
-                        struct sockaddr_nl nla;
-                        char buf[4096]; //char buf[16384];
-                        struct iovec iov = {.iov_base = buf, .iov_len = sizeof (buf)};
-                        struct msghdr msg = {.msg_name = &nla, .msg_namelen = sizeof (nla), .msg_iov = &iov, .msg_iovlen = 1};
-
-                        struct nlmsghdr *nh;
-
-
-                        int status = recvmsg(ip_rth.fd, &msg, 0);
-                        int err = errno;
-
-                        dbgf(DBGL_TEST, DBGT_INFO, "rcvd %s_INFO status=%d",
-                                ai == LINK_INFO ? "LINK" : "ADDR", status);
-
-                        if (status < 0) {
-
-                                if (err == EINTR || err == EAGAIN)
-                                        continue;
-
-                                dbgf_sys(DBGT_ERR, "netlink receive error %s (%d)", strerror(err), err);
-                                return FAILURE;
-
-                        } else if (status == 0) {
-
-                                dbgf_sys(DBGT_ERR, "EOF on netlink");
-                                return FAILURE;
-                        }
-
-                        for (nh = (struct nlmsghdr*) buf; NLMSG_OK(nh, (unsigned) status); nh = NLMSG_NEXT(nh, status)) {
-
-                                if (nla.nl_pid || nh->nlmsg_pid != ip_rth.local.nl_pid || nh->nlmsg_seq != ip_rth.seq) {
-                                        dbgf_sys(DBGT_ERR, "pid/sqn mismatch: status=%d  "
-                                                "nl_pid=%d ==0!?  nlmsg_pid=%d == local.nl_pid=%d!? "
-                                                "nlmsg_seq=%d == ip_rth.dump=%d!?",
-                                                status, nla.nl_pid, nh->nlmsg_pid,
-                                                ip_rth.local.nl_pid, nh->nlmsg_seq, ip_rth.seq);
-                                        continue;
-                                }
-
-                                if (nh->nlmsg_type == NLMSG_DONE) {
-                                        dbgf(DBGL_TEST, DBGT_INFO, "NLMSG_DONE");
-                                        break;
-                                }
-
-                                if (nh->nlmsg_type == NLMSG_ERROR) {
-                                        dbgf_sys(DBGT_ERR, "NLMSG_ERROR");
-                                        return FAILURE;
-                                }
-
-
-                                if (ai == LINK_INFO )
-                                        kernel_get_if_link_config(nh, &index_sqn);
-                                else
-                                        kernel_get_if_addr_config(nh, &index_sqn);
-
-                        }
-
-                        dbgf(DBGL_TEST, DBGT_INFO, "processed %s msgs status=%d",
-                                ai == LINK_INFO ? "LINK" : "ADDR", status);
-                        
-                        if (nh->nlmsg_type == NLMSG_DONE) {
-                                dbgf(DBGL_TEST, DBGT_INFO, "NLMSG_DONE");
-                                break;
-                        }
-
-                        if (msg.msg_flags & MSG_TRUNC) {
-                                dbgf_sys(DBGT_ERR, "Message truncated");
-                                continue;
-                        }
-
-                        if (status) {
-                                dbgf_sys(DBGT_ERR, "Remnant of size %d", status);
-                                return FAILURE;
-                        }
-                }
-        }
-
-        return kernel_get_if_config_post(NO, index_sqn);
-*/
 }
 
 
@@ -1556,11 +1430,6 @@ IDM_T kernel_set_route(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_
                         req.rtm.rtm_src_len = dst->mask;
                         add_rtattr(&req.nlh, RTA_SRC, (char*) &dst->ip, sizeof (IPX_T), dst->af);
                 }
-
-/*
-                if (iifname)
-                        add_rtattr(&req.nlh, RTA_IIF, iifname->str, strlen(iifname->str) + 1, 0);
-*/
 
         } else {
 
@@ -2584,17 +2453,6 @@ void ip_flush_tracked( uint8_t cmd )
                 if (cmd == tn->cmd ||
                         (cmd == IP_ROUTE_FLUSH && tn->k.cmd_type == IP_ROUTES) ||
                         (cmd == IP_RULE_FLUSH && tn->k.cmd_type == IP_RULES)) {
-
-/*
-                        struct route_export rte, *rtep = NULL;
-                        if( tn->rt_exp.exportDistance != TYP_EXPORT_DISTANCE_INFINITE ) {
-                                memset(&rte, 0, sizeof(rte));
-                                rte.exportDistance = tn->rt_exp.exportDistance;
-                                rte.exportOnly = tn->rt_exp.exportOnly;
-                                rte.ipexport = NO; // not yet
-                                rtep = &rte;
-                        }
-*/
 
                         iproute(tn->cmd, DEL, NO, &tn->k.net, tn->k.table_macro, tn->k.prio_macro, 0, 0, 0, tn->k.metric, NULL);
 
@@ -3819,11 +3677,6 @@ void init_ip(void)
 		cleanup_all( -500021 );
 	}
 
-/*
-        if( ( nlsock_default = open_netlink_socket()) <= 0 )
-		cleanup_all( -500067 );
-*/
-
         if (open_ifevent_netlink_sk() < 0)
                 cleanup_all(-500150);
 
@@ -3892,12 +3745,4 @@ void cleanup_ip(void)
                 io_sock = 0;
         }
 
-
-/*
-        if( nlsock_default > 0 ) {
-                close(nlsock_default);
-                nlsock_default = 0;
-        }
-*/
 }
-

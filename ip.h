@@ -75,13 +75,6 @@ typedef struct ifname IFNAME_T;
 #define MAX_TUN_REMOTE_IPS       255 // limited by 8-bit tun6Id range and (65 - DEF_AUTO_REMOTE_MASK) bit size
 
 
-//#define DEF_AUTO_PREFIX        "fd66:66:66::/48"
-//#define DEF_AUTO_MASK          48      // DO NOT CHANGE THIS
-//#define DEF_AUTO_SUBNET_NODE   0x0000
-//#define DEF_AUTO_SUBNET_REMOTE_MIN 0xFF00
-//#define DEF_AUTO_SUBNET_REMOTE_MAX 0xFFFF
-
-
 #define ARG_INTERFACES "interfaces"
 
 
@@ -94,9 +87,6 @@ typedef struct ifname IFNAME_T;
 #define ARG_DEV_LLOCAL_PREFIX   "llocalPrefix"
 #define HLP_DEV_LLOCAL_PREFIX   "specify link-local prefix for interface"
 
-//#define ARG_DEV_TTL		"ttl"
-//#define HLP_DEV_TTL             "set TTL of generated OGMs"
-//#define ARG_DEV_CLONE		"clone"
 
 #define ARG_DEV_ANNOUNCE        "announce"
 #define DEF_DEV_ANNOUNCE        YES
@@ -310,19 +300,11 @@ struct ifamsg_req {
         char buf[RT_REQ_BUFFSIZE];
 };
 
-//struct ifa_cacheinfo {
-//	__u32	ifa_prefered;
-//	__u32	ifa_valid;
-//	__u32	cstamp; /* created timestamp, hundredths of seconds */
-//	__u32	tstamp; /* updated timestamp, hundredths of seconds */
-//};
 
 struct rtnl_handle {
 	int			fd;
 	struct sockaddr_nl	local;
-//	struct sockaddr_nl	peer;
 	__u32			seq;
-//	__u32			dump;
 };
 
 #define IPV6_DEFAULT_TNL_ENCAP_LIMIT 4
@@ -552,9 +534,6 @@ struct route_export {
 };
 
 
-//extern void (*ipexport) (int8_t del, const struct net_key *dst, uint32_t oif_idx, IPX_T *via, uint32_t metric, uint8_t distance);
-
-
 struct track_key {
 	struct net_key net;
 	//IFNAME_T iif;
@@ -630,23 +609,15 @@ IDM_T change_mtu(char *name, uint16_t mtu);
 
 void set_ipexport( void (*func) (int8_t del, const struct net_key *dst, uint32_t oif_idx, IPX_T *via, uint32_t metric, uint8_t distance) );
 IDM_T iproute(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_key *net, int8_t table_macro, int8_t prio_macro, 
-	/*IFNAME_T *iifname,*/ int oif_idx, IPX_T *via, IPX_T *src, uint32_t metric, struct route_export *rte);
+	int oif_idx, IPX_T *via, IPX_T *src, uint32_t metric, struct route_export *rte);
 
 struct net_key bmx6AutoEUI64Ip6(struct dev_node *dev, struct net_key *prefix);
 
-//static IDM_T kernel_if_config(void);
-
 void sysctl_config(struct dev_node *dev_node);
-
-//static void dev_check(IDM_T ip_config_changed);
-//static void dev_check2(void);
 
 
 int8_t track_rule_and_proceed(uint32_t network, int16_t mask, uint32_t prio, int16_t rt_table, char* iif,
                                       int16_t rule_type, int8_t del, int8_t cmd);
-
-
-//IDM_T track_route(IPX_T *dst, int16_t mask, uint32_t metric, int16_t table, int16_t rta_t, int8_t del, int8_t track_t);
 
 
 

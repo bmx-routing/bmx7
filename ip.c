@@ -539,8 +539,12 @@ char *netAsStr(const struct net_key *net)
 
 	c = (c+1) % IP2S_ARRAY_LEN;
 
-        ipXToStr(net->af, &net->ip, str[c]);
-        sprintf(&((str[c]) [ strlen(str[c])]), "/%d", net->mask);
+        if(net) {
+                ipXToStr(net->af, &net->ip, str[c]);
+                sprintf(&((str[c]) [ strlen(str[c])]), "/%d", net->mask);
+        } else {
+                sprintf(str[c], "---");
+        }
 
         return str[c];
 }

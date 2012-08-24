@@ -379,7 +379,7 @@ void redistribute_routes(void)
                                 continue;
                         }
 
-                        if (roptn->bmx6_redist_bits &&
+                        if (/*roptn->bmx6_redist_bits &&*/
                                 !bit_get(((uint8_t*) & roptn->bmx6_redist_bits),
                                 sizeof (&roptn->bmx6_redist_bits)*8, zapi_rt_dict[zrn->k.ztype].zebra2Bmx)) {
                                 
@@ -1283,7 +1283,7 @@ int32_t opt_redistribute(uint8_t cmd, uint8_t _save, struct opt_type *opt, struc
                                                 if (!strcmp(c->opt->name, bmx6_rt_dict[t].bmx2Name)) {
                                                         bit_set((uint8_t*) &rdn->bmx6_redist_bits,
                                                                 sizeof (rdn->bmx6_redist_bits) * 8,
-                                                                t, (c->val && strtol(c->val, NULL, 10) == 1));
+                                                                t, (c->val && strtol(c->val, NULL, 10) == 1) ? 1 : 0);
                                                 }
                                         }
                                 }

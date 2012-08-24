@@ -224,8 +224,6 @@ typedef struct ifname IFNAME_T;
 
 #define IP2S_ARRAY_LEN 10
 
-#define LINK_INFO 0
-#define ADDR_INFO 1
 
 //#define IPV6_MC_ALL_ROUTERS "FF02::2"
 
@@ -322,9 +320,9 @@ struct ifamsg_req {
 struct rtnl_handle {
 	int			fd;
 	struct sockaddr_nl	local;
-	struct sockaddr_nl	peer;
+//	struct sockaddr_nl	peer;
 	__u32			seq;
-	__u32			dump;
+//	__u32			dump;
 };
 
 #define IPV6_DEFAULT_TNL_ENCAP_LIMIT 4
@@ -521,22 +519,27 @@ extern struct bmx6_route_dict bmx6_rt_dict[BMX6_ROUTE_MAX];
 //iproute() commands:
 #define	IP_NOP             00
 
-#define IP_ADDRESS         01
-#define IP_RULES           02
-#define IP_RULE_FLUSH      03
-#define IP_RULE_DEFAULT    04 //basic rules to interfaces, host, and networks routing tables
-#define IP_RULE_TEST       05
-#define	IP_RULE_MAX        06
+#define IP_LINK_GET        01
+#define IP_ADDR_GET        02
+#define IP_ROUTE_GET       03
 
-#define IP_ROUTES          10
-#define IP_ROUTE_GET       11
-#define IP_ROUTE_FLUSH_ALL 12
-#define IP_ROUTE_FLUSH     13
-#define IP_THROW_MY_HNA    14
-#define IP_THROW_MY_NET    15
-#define IP_ROUTE_HOST      16
-#define IP_ROUTE_HNA       17
-#define IP_ROUTE_TUNS      18
+
+#define IP_ADDRESS_SET     11
+
+#define IP_RULES           20
+#define IP_RULE_FLUSH      21
+#define IP_RULE_DEFAULT    22 //basic rules to interfaces, host, and networks routing tables
+#define IP_RULE_TEST       23
+#define	IP_RULE_MAX        24
+
+#define IP_ROUTES          30
+#define IP_ROUTE_FLUSH_ALL 31
+#define IP_ROUTE_FLUSH     32
+#define IP_THROW_MY_HNA    33
+#define IP_THROW_MY_NET    34
+#define IP_ROUTE_HOST      35
+#define IP_ROUTE_HNA       36
+#define IP_ROUTE_TUNS      37
 #define	IP_ROUTE_MAX       (IP_ROUTE_TUNS + BMX6_ROUTE_MAX)
 
 

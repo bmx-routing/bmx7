@@ -1542,8 +1542,6 @@ IDM_T kernel_set_route(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_
 
 void set_ipexport( void (*func) (int8_t del, const struct net_key *dst, uint32_t oif_idx, IPX_T *via, uint32_t metric, uint8_t distance) )
 {
-        static int TOOD;
-
         assertion(-500000, (func ? !ipexport : !!ipexport ));
 
         ipexport = func;
@@ -1691,8 +1689,8 @@ IDM_T iptrack(const struct net_key *net, uint8_t cmd, uint8_t quiet, int8_t del,
 
                         if (cmd >= IP_ROUTE_TUNS && cmd < IP_ROUTE_MAX) {
                                 tn->oif_idx = oif_idx;
-                                tn->src = *src;
-                                tn->via = *via;
+                                tn->src = src ? *src : ZERO_IP;
+                                tn->via = via ? *via : ZERO_IP;
                         }
 
                         avl_insert(&iptrack_tree, tn, -300251);
@@ -1744,9 +1742,9 @@ IDM_T iproute(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_key *dst,
 #ifndef NO_DEBUG_ALL
         struct if_link_node *oif_iln = oif_idx ? avl_find_item(&if_link_tree, &oif_idx) : NULL;
 
-        dbgf_track( DBGT_INFO, "cmd=%s %s dst=%s iif=%s table=%d prio=%d oifIdx=%d oif=%s via=%s src=%s metric=%d",
+        dbgf_track( DBGT_INFO, "cmd=%s %s dst=%s table=%d prio=%d oifIdx=%d oif=%s via=%s src=%s metric=%d",
                 trackt2str(cmd), del2str(del), netAsStr(dst),
-                /*iifname ? iifname->str : NULL,*/ table, prio, oif_idx, oif_iln ? oif_iln->name.str : "???",
+                table, prio, oif_idx, oif_iln ? oif_iln->name.str : "???",
                 via ? ipXAsStr(dst->af, via) : DBG_NIL, src ? ipXAsStr(dst->af, src) : DBG_NIL, metric);
 #endif
 

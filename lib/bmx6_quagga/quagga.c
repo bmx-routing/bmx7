@@ -709,6 +709,9 @@ void zsock_send_redist_request(void)
 STATIC_FUNC
 void zsock_send_route(int8_t del, const struct net_key *dst, uint32_t oif_idx, IPX_T *via, uint32_t metric, uint8_t distance)
 {
+        dbgf_track(DBGT_INFO, "del=%d dst=%s idx=%d via=%s metric=%d distance=%d",
+                del, netAsStr(dst), oif_idx, netAsStr(via), metric, distance)
+
         uint8_t len =
                 sizeof (struct zapiV2_header) +
                 1 + // uint8_t type;

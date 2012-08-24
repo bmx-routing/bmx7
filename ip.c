@@ -3070,7 +3070,7 @@ IDM_T is_policy_rt_supported(void)
 
         assertion(-500000, IMPLIES(policy_routing == POLICY_RT_UNSET, (initializing)));
 
-        if (kernel_set_route(IP_RULE_TEST, ADD, YES, &net, RT_TABLE_HNA, RT_PRIO_HNA, 0, NULL, NULL, 0)) {
+        if (kernel_set_route(IP_RULE_TEST, ADD, YES, &net, RT_TABLE_HNA, RT_PRIO_HNA, 0, NULL, NULL, 0) == SUCCESS) {
                 kernel_set_route(IP_RULE_TEST, DEL, YES, &net, RT_TABLE_HNA, RT_PRIO_HNA, 0, NULL, NULL, 0);
 
                 return (tested_policy_rt = YES);
@@ -3179,8 +3179,9 @@ int32_t opt_ip_version(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
 
                 assertion(-501131, (policy_routing != POLICY_RT_UNSET));
 
-                dbgf_track(DBGT_INFO, "%s=%d policy_routing=%d %s=%d %s=%d %s=%d %s=%d %s=%d %s=%d %s=%d",
-                        ARG_IP, (AF_CFG == AF_INET ? 4 : 6), (policy_routing == POLICY_RT_ENABLED),
+                dbgf_track(DBGT_INFO, "%s=%d %s=%d %s=%d %s=%d %s=%d %s=%d %s=%d %s=%d %s=%d",
+                        ARG_IP, (AF_CFG == AF_INET ? 4 : 6),
+                        "policy_routing", (policy_routing == POLICY_RT_ENABLED),
                         ARG_IP_POLICY_ROUTING, ip_policy_rt_cfg,
                         ARG_IP_THROW_RULES, ip_throw_rules_cfg,
                         ARG_IP_PRIO_RULES, ip_prio_rules_cfg,

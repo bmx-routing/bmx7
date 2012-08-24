@@ -432,10 +432,12 @@ void ipXToStr(int family, const IPX_T *addr, char *str)
         assertion(-500583, (str));
         uint32_t *a;
 
-        if (!addr)
-                a = (uint32_t *)&(ZERO_IP.s6_addr32[0]);
+        if (!addr && (family == AF_INET6 || family == AF_INET)) {
 
-        else if (family == AF_INET) {
+                strcpy(str, "---");
+                return;
+
+        } else if (family == AF_INET) {
 
                 a = (uint32_t *)&(addr->s6_addr32[3]);
 

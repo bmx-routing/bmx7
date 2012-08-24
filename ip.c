@@ -734,7 +734,7 @@ IDM_T rtnl_talk(void *req, int len, uint8_t cmd, uint8_t quiet, void (*func) (st
                 memset(buf, 0, sizeof(buf));
 
                 struct iovec iov = {.iov_base = buf, .iov_len = sizeof (buf)};
-                struct sockaddr_nl nla = {.nl_family = 0 }; //{.nl_family = AF_NETLINK}; //TODO: not sure here, maybe only for cmd==IP_ADDR_GET and IP_LINK_GET
+                struct sockaddr_nl nla = {.nl_family = AF_NETLINK }; //{.nl_family = AF_NETLINK}; //TODO: not sure here, maybe only for cmd==IP_ADDR_GET and IP_LINK_GET
                 struct msghdr msg = {.msg_name = (void *)&nla, .msg_namelen = sizeof(nla), .msg_iov = &iov, .msg_iovlen = 1};
                 struct nlmsghdr *nh;
 
@@ -791,18 +791,6 @@ IDM_T rtnl_talk(void *req, int len, uint8_t cmd, uint8_t quiet, void (*func) (st
                                 assertion(-500000, (0)); //continue;
                         }
 
-                        if ((nh->nlmsg_type == NLMSG_ERROR)) {
-
-                                dbgf(quiet ? DBGL_ALL : DBGL_SYS, quiet ? DBGT_INFO : DBGT_ERR, "%s error=%s",
-                                        trackt2str(cmd),
-                                        (((struct nlmsgerr*) NLMSG_DATA(nh))->error) ?
-                                                strerror(-((struct nlmsgerr*) NLMSG_DATA(nh))->error) : "???");
-
-                                busy = 0;
-                                EXITERROR(-501098, (cmd == IP_RULE_FLUSH || cmd == IP_ROUTE_FLUSH || cmd == IP_RULE_TEST));
-                                return FAILURE;
-                        }
-
                         if (nh->nlmsg_flags & NLM_F_MULTI) {
                                 dbgf_all( DBGT_INFO, "NLM_F_MULTI");
                                 more_data = YES;
@@ -812,7 +800,17 @@ IDM_T rtnl_talk(void *req, int len, uint8_t cmd, uint8_t quiet, void (*func) (st
                                 dbgf_track(DBGT_INFO, "NLMSG_DONE");
                                 more_data = NO;
                                 break;
+                                
+                        } else if (nh->nlmsg_type == NLMSG_ERROR && ((struct nlmsgerr*) NLMSG_DATA(nh))->error) {
+
+                                dbgf(quiet ? DBGL_ALL : DBGL_SYS, quiet ? DBGT_INFO : DBGT_ERR, "%s error=%s",
+                                        trackt2str(cmd), strerror(-((struct nlmsgerr*) NLMSG_DATA(nh))->error));
+
+                                busy = 0;
+                                EXITERROR(-501098, (cmd == IP_RULE_FLUSH || cmd == IP_ROUTE_FLUSH || cmd == IP_RULE_TEST));
+                                return FAILURE;
                         }
+
 
                         if (func)
                                 (*func)(nh, data);

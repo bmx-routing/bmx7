@@ -2576,7 +2576,16 @@ void ip_flush_tracked( uint8_t cmd )
                         (cmd == IP_ROUTE_FLUSH && tn->k.cmd_type == IP_ROUTES) ||
                         (cmd == IP_RULE_FLUSH && tn->k.cmd_type == IP_RULES)) {
 
-                        iproute(tn->cmd, DEL, NO, &tn->k.net, tn->k.table_macro, tn->k.prio_macro, 0, 0, 0, tn->k.metric, NULL);
+                        struct route_export rte, *rtep = NULL;
+                        if( tn->rt_exp.exportDistance != TYP_EXPORT_DISTANCE_INFINITE ) {
+                                memset(&rte, 0, sizeof(rte));
+                                rte.exportDistance = tn->rt_exp.exportDistance;
+                                rte.exportOnly = tn->rt_exp.exportOnly;
+                                rte.ipexport = NO; // not yet
+                                rtep = &rte;
+                        }
+
+                        iproute(tn->cmd, DEL, NO, &tn->k.net, tn->k.table_macro, tn->k.prio_macro, 0, 0, 0, tn->k.metric, rtep);
 
                         an = NULL;
                 }

@@ -2017,11 +2017,6 @@ void dev_deactivate( struct dev_node *dev )
         if (dev->announce)
                 my_description_changed = YES;
 
-        if (dev == primary_dev && !terminating) {
-                dbgf_mute(30, DBGL_SYS, DBGT_WARN,
-                        "Using an IP on the loopback device as primary interface ensures reachability under your primary IP!");
-        }
-
         if (dev == primary_dev || dev == primary_phy) {
                 struct avl_node *an = NULL;
                 struct dev_node *ipdev;
@@ -2055,6 +2050,7 @@ void dev_deactivate( struct dev_node *dev )
                 kernel_set_addr(DEL, dev->autoIP6IfIndex, AF_INET6, &dev->autoIP6Configured.ip, dev->autoIP6Configured.mask, NO /*deprecated*/);
                 dev->autoIP6Configured = ZERO_NET6_KEY;
                 dev->autoIP6IfIndex = 0;
+                dev->activate_cancelled = 1;
         }
 
 
@@ -2753,31 +2749,23 @@ static void dev_check(IDM_T kernel_ip_config_changed)
         struct dev_node *dev;
 
 	dbgf_all( DBGT_INFO, " " );
-/*
-
-	if ( !dev_name_tree.items ) {
-                dbgf_sys(DBGT_ERR, "No interfaces specified");
-		cleanup_all( CLEANUP_FAILURE );
-        }
-*/
-
-
 
         // fix all dev->.._ian stuff here:
         dev_if_fix();
 
         for (an = NULL; (dev = avl_iterate_item(&dev_name_tree, &an));) {
 
-                if (dev->hard_conf_changed) {
+                dev->activate_cancelled = 0;
 
+                if (dev->hard_conf_changed)
                         dev->activate_again = NO;
 
-                        if (dev->active) {
-                                dbgf_sys(DBGT_WARN, "detected changed but used %sprimary dev=%s ! Deactivating now...",
-                                        (dev == primary_dev ? "" : "non-"), dev->label_cfg.str);
+                if (dev->hard_conf_changed && dev->active) {
 
-                                dev_deactivate(dev);
-                        }
+                        dbgf_sys(DBGT_WARN, "detected changed but used %sprimary dev=%s ! Deactivating now...",
+                                (dev == primary_dev ? "" : "non-"), dev->label_cfg.str);
+
+                        dev_deactivate(dev);
                 }
 
                 IDM_T iff_up = dev->if_llocal_addr && (dev->if_llocal_addr->iln->flags & IFF_UP);
@@ -2793,14 +2781,19 @@ static void dev_check(IDM_T kernel_ip_config_changed)
 
                 assertion(-500598, (!(dev->active && !iff_up) && !(dev->active && iff_up && dev->hard_conf_changed)));
 
-                if (!dev->active && iff_up && (dev->hard_conf_changed || dev->activate_again)) {
+                if (iff_up && !dev->active && (dev->hard_conf_changed || dev->activate_again)) {
 
                         struct dev_node *tmp_dev = avl_find_item(&dev_ip_tree, &dev->if_llocal_addr->ip_addr);
 
                         if (tmp_dev && !wordsEqual(tmp_dev->name_phy_cfg.str, dev->name_phy_cfg.str)) {
 
                                 dbgf_sys(DBGT_ERR, "%s=%s IP %-15s already used for IF %s",
-                                       ARG_DEV, dev->label_cfg.str, dev->ip_llocal_str, tmp_dev->label_cfg.str);
+                                        ARG_DEV, dev->label_cfg.str, dev->ip_llocal_str, tmp_dev->label_cfg.str);
+
+                        } else if (dev->activate_cancelled) {
+
+                                dbgf_sys(DBGT_ERR,
+                                        "%s=%s activation delayed", ARG_DEV, dev->label_cfg.str);
 
                         } else if (dev->announce && !dev->if_global_addr) {
 
@@ -2827,35 +2820,22 @@ static void dev_check(IDM_T kernel_ip_config_changed)
                                         dev->label_cfg.str);
 
                                 dev_activate(dev);
-			}
+                        }
                 }
 
+
                 if (!dev->active) {
-
-/*
-                        if (initializing && dev == primary_dev_cfg) {
-				dbgf_sys(DBGT_ERR,
-                                        "at least primary %s=%s MUST be operational at startup! "
-                                        "Use loopback (e.g. ip addr add fd01:2345::6789/128 dev lo) if nothing else is available!",
-                                        ARG_DEV, dev->label_cfg.str);
-
-				cleanup_all( CLEANUP_FAILURE );
-                        }
-*/
-
                         dbgf_sys(DBGT_WARN, "not using interface %s (retrying later): %s %s ila=%d iln=%d",
                                 dev->label_cfg.str, iff_up ? "UP" : "DOWN",
                                 dev->hard_conf_changed ? "CHANGED" : "UNCHANGED",
                                 dev->if_llocal_addr ? 1 : 0, dev->if_llocal_addr && dev->if_llocal_addr->iln ? 1 : 0);
-
                 }
 
                 dev->hard_conf_changed = NO;
 
-                if (dev->active && dev->soft_conf_changed) {
-
+                if (dev->active && dev->soft_conf_changed)
 			dev_reconfigure_soft( dev );
-                }
+
         }
 
         if (kernel_ip_config_changed) {

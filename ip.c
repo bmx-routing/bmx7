@@ -999,7 +999,7 @@ void kernel_get_if_addr_config(struct nlmsghdr *nh, void *index_sqnp)
 
         if (!old_ian ||
                 old_ian->ifa.ifa_family != if_addr->ifa_family ||
-                old_ian->ifa.ifa_flags != if_addr->ifa_flags ||
+                //old_ian->ifa.ifa_flags != if_addr->ifa_flags ||
                 old_ian->ifa.ifa_prefixlen != if_addr->ifa_prefixlen ||
                 old_ian->ifa.ifa_scope != if_addr->ifa_scope ||
                 old_ian->ifa.ifa_index != if_addr->ifa_index ||

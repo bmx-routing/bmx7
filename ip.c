@@ -1008,7 +1008,19 @@ void kernel_get_if_addr_config(struct nlmsghdr *nh, void *index_sqnp)
                 memcmp(&old_ian->ip_mcast, &ip_mcast, alen)
                 ) {
 
-                dbgf_track(DBGT_INFO, "%s addr %s CHANGED", label.str, ipXAsStr(family, &ip_addr));
+                dbgf_track(DBGT_INFO, "%s addr %s CHANGED old=%d", label.str, ipXAsStr(family, &ip_addr), old_ian?1:0);
+
+                if(old_ian) {
+                        dbgf_track(DBGT_INFO, "fa=%d|%d flags=%X|%X plen=%d|%d scope=%d|%d idx=%d|%d label=%s|%s mcast=%s|%s )",
+                                old_ian->ifa.ifa_family, if_addr->ifa_family,
+                                old_ian->ifa.ifa_flags, if_addr->ifa_flags,
+                                old_ian->ifa.ifa_prefixlen, if_addr->ifa_prefixlen,
+                                old_ian->ifa.ifa_scope,if_addr->ifa_scope,
+                                old_ian->ifa.ifa_index,if_addr->ifa_index,
+                                old_ian->label.str, label.str,
+                                memAsHexString(&old_ian->ip_mcast, alen), memAsHexString(&ip_mcast, alen));
+                }
+
 
                 if (new_ian->dev) {
                         new_ian->dev->hard_conf_changed = YES;

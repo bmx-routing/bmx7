@@ -388,7 +388,7 @@ int create_description_tlv_hna(struct tx_frame_iterator *it)
 
                 if (!tun_in_tree.items) {
 
-                        if (autoRemotePrefix.mask) {
+                        if (autoRemotePrefix.mask && (tun4_address.mask || tun6_address.mask)) {
                                 memset(&default_tun_in, 0, sizeof (default_tun_in));
                                 default_tun_in.remote = autoRemotePrefix.ip;
                                 default_tun_in.name_auto = 1;

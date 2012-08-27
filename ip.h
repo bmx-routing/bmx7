@@ -385,6 +385,7 @@ struct dev_node {
         int autoIP6IfIndex;
 	uint8_t active;
 	uint8_t activate_again;
+	uint8_t activate_cancelled;
 	uint16_t lndevs_tmp;
 
 	DEVADV_IDX_T dev_adv_idx;

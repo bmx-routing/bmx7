@@ -2523,11 +2523,11 @@ struct opt_type hna_options[]= {
 			ARG_NAME_FORM, "specify first letters of local tunnel-interface names"}
         ,
 	{ODI,0,ARG_TUN_ADV, 	        0,9,1,A_PM1N,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_tun_in_dev,
-                ARG_ADDR_FORM, "define incoming ipip tunnel interface name\n"},
+                ARG_NAME_FORM, "define incoming ipip tunnel interface name\n"},
 //                "        WARNING: This creates a general ipip link allowing to tunnel arbitrary IP packets to this node!\n"
 //                "        Use /dev=<NAME> option and firewall rules to filter deprecated packets"},
 	{ODI,ARG_TUN_ADV,ARG_TUN_ADV_REMOTE,0,9,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,		0,	        0,              0,0,            opt_tun_in_dev,
-			ARG_NAME_FORM,	"remote dummy ip of tunnel interface"},
+			ARG_ADDR_FORM,	"remote dummy ip of tunnel interface"},
 	{ODI,ARG_TUN_ADV,ARG_TUN_ADV_INGRESS4,  0,9,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,	        0,	        0,              0,0,            opt_tun_in_dev,
 			ARG_PREFIX_FORM,"IPv4 source prefix (ingress filter)"},
 	{ODI,ARG_TUN_ADV,ARG_TUN_ADV_INGRESS6,  0,9,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,	        0,	        0,              0,0,            opt_tun_in_dev,

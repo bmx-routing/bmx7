@@ -64,6 +64,9 @@ IDM_T terminating = 0;
 IDM_T initializing = YES;
 IDM_T cleaning_up = NO;
 
+const IDM_T CONST_YES = YES;
+const IDM_T CONST_NO = NO;
+
 static struct timeval start_time_tv;
 static struct timeval curr_tv;
 

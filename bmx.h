@@ -549,6 +549,10 @@ enum NoYes {
 	YES
 };
 
+extern const IDM_T CONST_YES;
+extern const IDM_T CONST_NO;
+
+
 enum ADGSN {
 	ADD,
 	DEL,

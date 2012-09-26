@@ -150,7 +150,7 @@ static int32_t if4_rp_filter_default_orig = -1;
 static int32_t if4_send_redirects_all_orig = -1;
 static int32_t if4_send_redirects_default_orig = -1;
 
-
+static void dev_check(void *kernel_ip_config_changed);
 static void (*ipexport) (int8_t del, const struct net_key *dst, uint32_t oif_idx, IPX_T *via, uint32_t metric, uint8_t distance) = NULL;
 
 struct bmx6_route_dict bmx6_rt_dict[BMX6_ROUTE_MAX];
@@ -2136,6 +2136,7 @@ IDM_T dev_init_sockets(struct dev_node *dev)
                         ipFAsStr(&dev->if_llocal_addr->ip_addr), strerror(errno));
 
                 dev->activate_again = YES;
+                task_register(1000, dev_check, NULL, -300000);
                 return FAILURE;
         }
 
@@ -2741,7 +2742,7 @@ void dev_if_fix(void)
 }
 
 
-static void dev_check(IDM_T kernel_ip_config_changed)
+static void dev_check(void *kernel_ip_config_changed)
 {
 	TRACE_FUNCTION_CALL;
 
@@ -2749,6 +2750,8 @@ static void dev_check(IDM_T kernel_ip_config_changed)
         struct dev_node *dev;
 
 	dbgf_all( DBGT_INFO, " " );
+
+        task_remove( dev_check, NULL);
 
         // fix all dev->.._ian stuff here:
         dev_if_fix();
@@ -2838,7 +2841,7 @@ static void dev_check(IDM_T kernel_ip_config_changed)
 
         }
 
-        if (kernel_ip_config_changed) {
+        if (kernel_ip_config_changed && (*((IDM_T*)kernel_ip_config_changed))) {
 
                 update_interface_rules();
 
@@ -2871,7 +2874,7 @@ static void recv_ifevent_netlink_sk(int sk)
 
         //do NOT delay checking of interfaces to not miss ifdown/up of interfaces !!
         if (kernel_get_if_config() == YES) //just call if changed!
-                dev_check(YES);
+                dev_check((void*)&CONST_YES);
 
 }
 
@@ -3533,7 +3536,7 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
 
                 // will always be called whenever a dev-parameter is changed (due to OPT_POST and opt_dev_changed)
                 // is it needed by another option ?
-                dev_check(initializing ? kernel_get_if_config() == YES : NO);
+                dev_check(initializing && kernel_get_if_config() ? (void*)&CONST_YES : (void*)&CONST_NO);
 
         }
 
@@ -3682,6 +3685,8 @@ void init_ip(void)
 
 void cleanup_ip(void)
 {
+
+        task_remove( dev_check, NULL);
 
         close_ifevent_netlink_sk();
 

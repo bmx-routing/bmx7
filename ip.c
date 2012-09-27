@@ -2136,6 +2136,7 @@ IDM_T dev_init_sockets(struct dev_node *dev)
                         ipFAsStr(&dev->if_llocal_addr->ip_addr), strerror(errno));
 
                 dev->activate_again = YES;
+                task_remove(dev_check, NULL);
                 task_register(1000, dev_check, NULL, -300000);
                 return FAILURE;
         }

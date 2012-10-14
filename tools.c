@@ -563,7 +563,7 @@ int32_t rm_dir_content(char* dir_name, char* prefix)
         struct dirent *d;
         DIR *dir = opendir(dir_name);
 
-        while ((d = readdir(dir))) {
+        while (dir && (d = readdir(dir))) {
 
                 if (!prefix || !strncmp(d->d_name, prefix, strlen(prefix))) {
 

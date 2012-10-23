@@ -585,6 +585,8 @@ int32_t rm_dir_content(char* dir_name, char* prefix)
                 }
         }
 
+        closedir(dir);
+
         return SUCCESS;
 }
 

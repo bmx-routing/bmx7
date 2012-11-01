@@ -314,6 +314,16 @@ struct rtnl_handle {
 #define SIOCADDTUNNEL   (SIOCDEVPRIVATE + 1)
 #define SIOCDELTUNNEL   (SIOCDEVPRIVATE + 2)
 
+/* don't add encapsulation limit if one isn't present in inner packet */
+#define IP6_TNL_F_IGN_ENCAP_LIMIT 0x1
+/* copy the traffic class field from the inner packet */
+#define IP6_TNL_F_USE_ORIG_TCLASS 0x2
+/* copy the flowlabel from the inner packet */
+#define IP6_TNL_F_USE_ORIG_FLOWLABEL 0x4
+/* being used for Mobile IPv6 */
+#define IP6_TNL_F_MIP6_DEV 0x8
+/* copy DSCP from the outer packet */
+#define IP6_TNL_F_RCV_DSCP_COPY 0x10
 
 
 struct ip6_tnl_parm {
@@ -606,7 +616,9 @@ uint32_t get_if_index(IFNAME_T *name);
 
 IDM_T kernel_set_addr(IDM_T del, uint32_t if_index, uint8_t family, IPX_T *ip, uint8_t prefixlen, IDM_T deprecated);
 IDM_T kernel_set_tun(IDM_T del, char *name, uint8_t proto, IPX_T *local, IPX_T *remote);
-IDM_T change_mtu(char *name, uint16_t mtu);
+uint32_t kernel_get_mtu(char *name);
+IDM_T kernel_set_mtu(char *name, uint16_t mtu);
+
 
 void set_ipexport( void (*func) (int8_t del, const struct net_key *dst, uint32_t oif_idx, IPX_T *via, uint32_t metric, uint8_t distance) );
 IDM_T iproute(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_key *net, int8_t table_macro, int8_t prio_macro, 

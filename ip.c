@@ -1257,8 +1257,9 @@ IDM_T kernel_set_tun(IDM_T del, char *name, uint8_t proto, IPX_T *local, IPX_T *
 
         memset(&p, 0, sizeof (p));
         strncpy(p.name, name, IFNAMSIZ);
+        p.flags |= IP6_TNL_F_IGN_ENCAP_LIMIT;
         p.hop_limit = DEFAULT_TNL_HOP_LIMIT;
-        p.encap_limit = IPV6_DEFAULT_TNL_ENCAP_LIMIT;
+//        p.encap_limit = IPV6_DEFAULT_TNL_ENCAP_LIMIT;
         p.proto = proto;
 
         if(remote)
@@ -1294,26 +1295,53 @@ IDM_T kernel_set_tun(IDM_T del, char *name, uint8_t proto, IPX_T *local, IPX_T *
                 }
         }
 
+        //kernel_get_mtu(name);
+
         return SUCCESS;
 }
 
-IDM_T change_mtu(char *name, uint16_t mtu)
+
+uint32_t kernel_get_mtu(char *name)
 {
 	struct ifreq req;
-
+        memset(&req, 0, sizeof (req));
 	req.ifr_addr.sa_family = AF_INET;
 	strcpy(req.ifr_name, name);
+
 	if (ioctl(io_sock, SIOCGIFMTU, (caddr_t)&req) < 0) {
-        	dbgf_sys(DBGT_ERR, "Can't read '%s' device %s", name, strerror(errno));
+        	dbgf_sys(DBGT_ERR, "Can't read MTU from device=%s: %s", name, strerror(errno));
         	return FAILURE;
 	}
+
+        dbgf_all(DBGT_INFO, "Get device=%s mtu=%d", name, req.ifr_mtu);
+
+	return req.ifr_mtu;
+}
+
+
+IDM_T kernel_set_mtu(char *name, uint16_t mtu)
+{
+	struct ifreq req;
+        memset(&req, 0, sizeof (req));
+	req.ifr_addr.sa_family = AF_INET;
+	strcpy(req.ifr_name, name);
+
+/*
+	if (ioctl(io_sock, SIOCGIFMTU, (caddr_t)&req) < 0) {
+        	dbgf_sys(DBGT_ERR, "Can't read MTU from device=%s: %s", name, strerror(errno));
+        	return FAILURE;
+	}
+*/
     
 	req.ifr_mtu = mtu;
     	if (ioctl(io_sock, SIOCSIFMTU, (caddr_t)&req) < 0) {
-        	dbgf_sys(DBGT_ERR, "Can't set MTU from '%s' %s", name, strerror(errno));
+        	dbgf_sys(DBGT_ERR, "Can't set MTU=%d from device=%s: %s", mtu, name, strerror(errno));
                 return FAILURE;
 
 	}
+
+        dbgf_track(DBGT_INFO, "Set device=%s mtu=%d", name, mtu);
+
 	return SUCCESS;
 }
 

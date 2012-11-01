@@ -72,6 +72,7 @@ IDM_T (*hna_configure_niit6to4) (IDM_T del, struct net_key *key) = NULL;
 
 static IFNAME_T tun_name_prefix = {{DEF_TUN_NAME_PREFIX}};
 
+static int32_t tun_out_mtu = DEF_TUN_OUT_MTU;
 
 
 char* bmx6RouteBits2String(uint32_t bmx6_route_bits)
@@ -738,6 +739,8 @@ IDM_T configure_tunnel_out(uint8_t del, struct tun_out_node *ton)
                 ton->src4Ip = ZERO_IP;
                 ton->src6Ip = ZERO_IP;
 
+                return SUCCESS;
+
 
         } else if (!del && !ton->upIfIdx) {
 
@@ -765,12 +768,18 @@ IDM_T configure_tunnel_out(uint8_t del, struct tun_out_node *ton)
 
                 assertion(-501312, (strlen(ton->name.str)));
 
-                if (kernel_set_tun(ADD, ton->name.str, IPPROTO_IP, local, remote) == SUCCESS)
-                        ton->upIfIdx = get_if_index(&ton->name);
+                if (kernel_set_tun(ADD, ton->name.str, IPPROTO_IP, local, remote) == SUCCESS &&
+                        (ton->upIfIdx = get_if_index(&ton->name)) > 0 &&
+                        (ton->orig_mtu = kernel_get_mtu(ton->name.str)) >= MIN_TUN_OUT_MTU ) {
 
+                        return SUCCESS;
+                }
         }
 
-        return (XOR(del, ton->upIfIdx)) ? SUCCESS : FAILURE;
+        if(ton->upIfIdx)
+                configure_tunnel_out(DEL, ton);
+
+        return FAILURE;
 }
 
 
@@ -861,6 +870,20 @@ void _add_tun_bit_node(struct tun_search_node *tsna, struct tun_net_node *tnna)
         }
 }
 
+STATIC_FUNC
+void set_tun_out_mtu(struct tun_out_node *ton, uint16_t new_mtu) {
+
+        if(ton->upIfIdx && new_mtu != ton->curr_mtu) {
+
+                if(new_mtu == DEF_TUN_OUT_MTU) {
+                        kernel_set_mtu(ton->name.str, ton->orig_mtu);
+                        ton->curr_mtu = DEF_TUN_OUT_MTU;
+                } else {
+                        kernel_set_mtu(ton->name.str, new_mtu);
+                        ton->curr_mtu = new_mtu;
+                }
+        }
+}
 
 
 STATIC_FUNC
@@ -915,9 +938,11 @@ void configure_tun_bit(uint8_t del, struct tun_bit_node *tbn)
                 netKey.mask = 128 - netKey.mask;
 
                 if (!ton->upIfIdx && configure_tunnel_out(ADD, ton) == SUCCESS) {
+                        
                         kernel_set_addr(ADD, ton->upIfIdx, AF_INET6, &ton->localIp, 128, YES /*deprecated*/);
-                        change_mtu(ton->name.str, tsn->mtu);
-                        dbgf_track(DBGT_INFO, "Set MTU from %s as %d", ton->name.str, tsn->mtu);
+
+                        if(tun_out_mtu != ton->curr_mtu)
+                                set_tun_out_mtu(ton, tun_out_mtu);
                 }
 
                 if (ton->upIfIdx) {
@@ -2030,7 +2055,6 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                                 tsn->bmx6RouteBits = 0;
                                 tsn->exportDistance = DEF_EXPORT_DISTANCE;
                                 tsn->exportOnly = DEF_EXPORT_ONLY;
-                                tsn->mtu = DEF_TUN_OUT_MTU;
                                 tsn->ipmetric = DEF_IP_METRIC;
                                 tsn->hysteresis = DEF_TUN_OUT_HYSTERESIS;
                                 tsn->netPrefixMin = DEF_TUN_OUT_PREFIX_MIN;
@@ -2153,9 +2177,6 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
 
                                else if (!strcmp(c->opt->name, ARG_TUN_OUT_BONUS))
                                        tsn->bonus = c->val ? strtol(c->val, NULL, 10) : DEF_TUN_OUT_BONUS;
-
-                               else if (!strcmp(c->opt->name, ARG_TUN_OUT_MTU))
-                                       tsn->mtu = c->val ? strtol(c->val, NULL, 10) : DEF_TUN_OUT_MTU;
 
                                else if (!strcmp(c->opt->name, ARG_EXPORT_DISTANCE))
                                        tsn->exportDistance = c->val ? strtol(c->val, NULL, 10) : DEF_EXPORT_DISTANCE;
@@ -2428,6 +2449,34 @@ int32_t opt_tun_name(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct op
 
 
 STATIC_FUNC
+int32_t opt_tun_out_mtu(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
+{
+	TRACE_FUNCTION_CALL;
+
+        if ( cmd == OPT_APPLY ) {
+
+                tun_out_mtu = patch->diff != DEL ? strtol(patch->val, NULL, 10) : DEF_TUN_OUT_MTU;
+
+
+                struct tun_out_node *ton;
+                struct avl_node *an = NULL;
+
+                while((ton = avl_iterate_item(&tun_out_tree, &an))) {
+
+                        dbgf_track(DBGT_INFO, "checking dev=%s, curr_mtu=%d orig_mtu=%d tun_out_mtu=%d",
+                                ton->name.str, ton->curr_mtu, ton->orig_mtu, tun_out_mtu);
+
+                        if(ton->upIfIdx && tun_out_mtu != ton->curr_mtu)
+                                set_tun_out_mtu(ton, tun_out_mtu);
+
+                }
+        }
+        
+        return SUCCESS;
+}
+
+
+STATIC_FUNC
 int32_t opt_tun_address(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
 {
 	TRACE_FUNCTION_CALL;
@@ -2516,6 +2565,8 @@ struct opt_type hna_options[]= {
 	{ODI,0,ARG_TUN6_ADDRESS,        0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_tun_address,
 			ARG_PREFIX_FORM,HLP_TUN6_ADDRESS}
         ,
+	{ODI,0,ARG_TUN_OUT_MTU,         0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0, MIN_TUN_OUT_MTU,MAX_TUN_OUT_MTU,DEF_TUN_OUT_MTU,0,		opt_tun_out_mtu,
+			ARG_VALUE_FORM, "MTU of outgoing tunnel"},
 
 
 
@@ -2574,8 +2625,6 @@ struct opt_type hna_options[]= {
 			ARG_VALUE_FORM, "specify in percent a metric bonus (preference) for GWs matching this tunOut spec when compared with other tunOut specs for same network"},
 	{ODI,ARG_TUN_OUT,ARG_TUN_OUT_IPMETRIC,0,9,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,	        0,         MAX_TUN_OUT_IPMETRIC,DEF_IP_METRIC,0,opt_tun_search,
 			ARG_VALUE_FORM, "ip metric for local routing table entries"},
-	{ODI,ARG_TUN_OUT,ARG_TUN_OUT_MTU,0,9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,   MIN_TUN_OUT_MTU,MAX_TUN_OUT_MTU,DEF_TUN_OUT_MTU,0,            opt_tun_search,
-			ARG_VALUE_FORM, "MTU of outgoing tunnel"},
 	{ODI,ARG_TUN_OUT,ARG_ROUTE_SYSTEM, 0,9,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,   0,              0,              1,              0,0,          opt_tun_search,
 			ARG_PREFIX_FORM,"only route type"},
 	{ODI,ARG_TUN_OUT,ARG_ROUTE_KERNEL, 0,9,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,   0,              0,              1,              0,0,          opt_tun_search,

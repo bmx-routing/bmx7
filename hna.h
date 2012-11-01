@@ -124,8 +124,9 @@ extern IDM_T (*hna_configure_niit6to4) (IDM_T del, struct net_key *key);
 #define MIN_TUN_OUT_BONUS 0
 #define MAX_TUN_OUT_BONUS MIN(INT32_MAX, (UMETRIC_MULTIPLY_MAX - MAX_TUN_OUT_HYSTERESIS))
 
-#define ARG_TUN_OUT_MTU "mtu"
-#define DEF_TUN_OUT_MTU 1460
+#define ARG_TUN_OUT_MTU "tunMtu"
+#define DEF_TUN_OUT_MTU 0
+//#define DEF_TUN_OUT_MTU 1460
 #define MIN_TUN_OUT_MTU 1280
 #define MAX_TUN_OUT_MTU 65535
 
@@ -357,7 +358,6 @@ struct tun_search_node {
         uint32_t hysteresis;
         uint32_t bonus;
         uint32_t ipmetric;
-	uint32_t mtu;
 
         GLOBAL_ID_T global_id;
         struct net_key srcPrefix;
@@ -422,6 +422,8 @@ struct tun_out_node {
         IFNAME_T name;
         uint8_t name_auto;
         uint32_t upIfIdx;
+	uint16_t curr_mtu; // DEF_TUN_OUT_MTU == orig_mtu
+	uint16_t orig_mtu;
 
         IPX_T src4Ip;
         IPX_T src6Ip;

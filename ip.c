@@ -851,7 +851,7 @@ IDM_T kernel_get_if_config_post(IDM_T purge_all, uint16_t curr_sqn)
                                 iln->index, iln->name.str, memAsHexString(&iln->addr, iln->alen));
 
                         avl_remove(&if_link_tree, &iln->index, -300232);
-                        avl_remove(&if_link_tree, &iln->name, -300234);
+                        avl_remove(&if_link_tree, &iln->name, -300521);
                         debugFree(iln, -300230);
                         changed++;
 
@@ -969,12 +969,12 @@ void kernel_get_if_addr_config(struct nlmsghdr *nh, void *index_sqnp)
         }
 
         if (!new_ian) {
-                new_ian = debugMalloc(sizeof (struct if_addr_node) +nh->nlmsg_len, -300234);
+                new_ian = debugMalloc(sizeof (struct if_addr_node) +nh->nlmsg_len, -300522);
                 memset(new_ian, 0, sizeof (struct if_addr_node) +nh->nlmsg_len);
                 memcpy(new_ian->nlmsghdr, nh, nh->nlmsg_len);
                 new_ian->ip_addr = ip_addr;
                 new_ian->iln = iln;
-                avl_insert(&iln->if_addr_tree, new_ian, -300238);
+                avl_insert(&iln->if_addr_tree, new_ian, -300520);
         }
 
         IFNAME_T label = {{0}};

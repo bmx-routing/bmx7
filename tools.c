@@ -506,7 +506,7 @@ int32_t check_file(char *path, uint8_t regular, uint8_t read, uint8_t write, uin
 
 	if ( stat_ret  < 0 ) {
 
-                dbgf_track(DBGT_WARN, "%s does not exist! (%s)", path, strerror(errno));
+                dbgf_mute(20, DBGL_CHANGES, DBGT_WARN, "%s does not exist! (%s)", path, strerror(errno));
 
 	} else {
 
@@ -516,7 +516,7 @@ int32_t check_file(char *path, uint8_t regular, uint8_t read, uint8_t write, uin
                         (!exec || (S_IXUSR & fstat.st_mode)))
                         return SUCCESS;
 
-                dbgf_sys(DBGT_ERR, "%s exists but has inapropriate permissions (%s)", path, strerror(errno));
+                dbgf_mute(25, DBGL_CHANGES, DBGT_ERR, "%s exists but has inappropriate permissions (%s)", path, strerror(errno));
 
 	}
 

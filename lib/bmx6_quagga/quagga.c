@@ -909,7 +909,7 @@ zsock_connect_error:
 
         zcfg.socket = 0;
 
-        dbgf_sys(DBGT_WARN, "failed, retrying in %d sec", ZSOCK_RECONNECT_TO / 1000);
+        dbgf_mute(25, DBGL_SYS, DBGT_WARN, "failed, retrying in %d sec", ZSOCK_RECONNECT_TO / 1000);
 
         task_register(ZSOCK_RECONNECT_TO, zsock_connect, NULL, -300490);
 

@@ -3002,15 +3002,16 @@ int32_t opt_run_dir(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt
 static struct opt_type control_options[]= 
 {
 //        ord parent long_name          shrt Attributes				*ival		min		max		default		*func,*syntax,*help
-		
-	{ODI,0,ARG_HELP,		'h',9,2,A_PS0N,A_USR,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_help,
+
+//		                            v order of ARG_HELP should be higher than ARG_CONFIG_FILE order and less or equal to ARG_CONNECT order !!!
+	{ODI,0,ARG_HELP,		'h',3,2,A_PS0N,A_USR,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_help,
 			0,		"summarize help"},
-	{ODI,ARG_HELP,ARG_RELEVANCE,    'r',9,2,A_CS1,A_USR,A_DYI,A_ARG,A_ANY,	0,	       MIN_RELEVANCE,   MAX_RELEVANCE,  DEF_RELEVANCE,0, opt_help,
+	{ODI,ARG_HELP,ARG_RELEVANCE,    'r',3,2,A_CS1,A_USR,A_DYI,A_ARG,A_ANY,	0,	       MIN_RELEVANCE,   MAX_RELEVANCE,  DEF_RELEVANCE,0, opt_help,
 			ARG_VALUE_FORM,	HLP_ARG_RELEVANCE}
         ,
-	{ODI,0,ARG_VERBOSE_HELP,	'H',9,2,A_PS0N,A_USR,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_help,
+	{ODI,0,ARG_VERBOSE_HELP,	'H',3,2,A_PS0N,A_USR,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_help,
 			0,		"show verbose help"},
-	{ODI,ARG_VERBOSE_HELP,ARG_RELEVANCE,'r',9,2,A_CS1,A_USR,A_DYI,A_ARG,A_ANY,	0,	       MIN_RELEVANCE,   MAX_RELEVANCE,  DEF_RELEVANCE,0, opt_help,
+	{ODI,ARG_VERBOSE_HELP,ARG_RELEVANCE,'r',3,2,A_CS1,A_USR,A_DYI,A_ARG,A_ANY,	0,	       MIN_RELEVANCE,   MAX_RELEVANCE,  DEF_RELEVANCE,0, opt_help,
 			ARG_VALUE_FORM,	HLP_ARG_RELEVANCE}
         ,
 		

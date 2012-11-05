@@ -13,6 +13,9 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
  * 02110-1301, USA
+ *
+ * Contributors:
+ *	Simó Albert i Beltran
  */
 
 #include <stdio.h>
@@ -561,31 +564,37 @@ int32_t rm_dir_content(char* dir_name, char* prefix)
         assertion(-501287, dir_name);
 
         struct dirent *d;
-        DIR *dir = opendir(dir_name);
+        DIR *dir ;
 
-        while (dir && (d = readdir(dir))) {
+        if ((dir = opendir(dir_name))) {
 
-                if (!prefix || !strncmp(d->d_name, prefix, strlen(prefix))) {
+                while ((d = readdir(dir))) {
 
-                        char rm_file[MAX_PATH_SIZE];
-                        sprintf(rm_file, "%s/%s", dir_name, d->d_name);
+                        if (!prefix || !strncmp(d->d_name, prefix, strlen(prefix))) {
 
-                        if (validate_name_string(d->d_name, strlen(d->d_name) + 1, ":") == SUCCESS) {
+                                char rm_file[MAX_PATH_SIZE];
+                                sprintf(rm_file, "%s/%s", dir_name, d->d_name);
 
-                                dbgf_track(DBGT_INFO, "removing stale file: %s", rm_file);
+                                if (validate_name_string(d->d_name, strlen(d->d_name) + 1, ":") == SUCCESS) {
 
-                                if (remove(rm_file) != 0) {
-                                        dbgf_sys(DBGT_ERR, "could not remove file %s: %s", rm_file, strerror(errno));
-                                        return FAILURE;
+                                        dbgf_track(DBGT_INFO, "removing stale file: %s", rm_file);
+
+                                        if (remove(rm_file) != 0) {
+                                                dbgf_sys(DBGT_ERR, "could not remove file %s: %s",
+                                                        rm_file, strerror(errno));
+                                                return FAILURE;
+                                        }
+                                } else {
+                                        dbgf_track(DBGT_INFO, "keeping file: %s", rm_file);
                                 }
-
-                        } else {
-                                dbgf_track(DBGT_ERR, "keeping file: %s", rm_file);
                         }
                 }
+                closedir(dir);
+                return SUCCESS;
+        } else {
+                dbgf_sys(DBGT_ERR, "failed opening dir=%s : %s", dir_name, strerror(errno));
+                return FAILURE;
         }
-
-        return SUCCESS;
 }
 
 

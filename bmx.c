@@ -2360,6 +2360,9 @@ int main(int argc, char *argv[])
 	signal( SIGPIPE, SIG_IGN );
 	signal( SIGSEGV, segmentation_fault );
 
+#ifdef TEST_DEBUG_MALLOC
+        debugMalloc(1, -300000); //testing debugMalloc
+#endif
         init_tools();
 
 	init_control();

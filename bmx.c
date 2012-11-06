@@ -674,6 +674,8 @@ void free_orig_node(struct orig_node *on)
         if (on->desc && on->added) {
                 //cb_plugin_hooks(PLUGIN_CB_DESCRIPTION_DESTROY, on);
                 process_description_tlvs(NULL, on, on->desc, TLV_OP_DEL, FRAME_TYPE_PROCESS_ALL, NULL, NULL);
+        } else {
+                cache_desc_tlv_hashes(TLV_OP_DEL, on, 0, BMX_DSC_TLV_MAX, NULL, 0);
         }
 
         if ( on->dhn ) {

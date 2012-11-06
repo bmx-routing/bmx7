@@ -2490,15 +2490,14 @@ int32_t rx_msg_hello_adv(struct rx_frame_iterator *it)
 }
 
 
-void cache_desc_tlv_hashes(uint8_t op, struct orig_node *on, int8_t t_start, int8_t t_end, int8_t t, uint8_t *t_data, int32_t t_data_len)
+void cache_desc_tlv_hashes(uint8_t op, struct orig_node *on, int8_t t_start, int8_t t, uint8_t *t_data, int32_t t_data_len)
 {
-
         assertion(-501356, ((op == TLV_OP_DEL || op == TLV_OP_TEST || op == TLV_OP_NEW)));
-        assertion(-501357, (t_start <= t_end && t_start <= t && t <= t_end));
+        assertion(-501357, (t_start <= t));
 
         int8_t hn_type;
 
-        for (hn_type = t_start; hn_type <= t_end; hn_type++) {
+        for (hn_type = t_start; hn_type <= t; hn_type++) {
 
                 struct desc_tlv_hash_node * hn = avl_find_item(&on->desc_tlv_hash_tree, &hn_type);
 
@@ -2512,7 +2511,6 @@ void cache_desc_tlv_hashes(uint8_t op, struct orig_node *on, int8_t t_start, int
                         }
 
                         if (hn) {
-
                                 if (t_data && hn_type == t) {
                                         ShaUpdate(&bmx_sha, (byte*) t_data, t_data_len);
                                         ShaFinal(&bmx_sha, (byte*) & hn->test_hash);
@@ -2520,12 +2518,7 @@ void cache_desc_tlv_hashes(uint8_t op, struct orig_node *on, int8_t t_start, int
                                         memset(&hn->test_hash, 0, sizeof (SHA1_T));
                                 }
 
-                                if (memcmp(&hn->curr_hash, &hn->test_hash, sizeof (SHA1_T))) {
-                                        hn->test_changed = 1;
-                                } else {
-                                        hn->test_changed = 0;
-                                }
-
+                                hn->test_changed = memcmp(&hn->curr_hash, &hn->test_hash, sizeof (SHA1_T)) ? 1 : 0;
                         }
 
                 } else if (op == TLV_OP_NEW) {
@@ -2533,9 +2526,7 @@ void cache_desc_tlv_hashes(uint8_t op, struct orig_node *on, int8_t t_start, int
                         assertion(-501358, IMPLIES(t_data && hn_type == t, hn));
                         assertion(-501359, IMPLIES(hn && hn_type != t, !is_zero(&hn->curr_hash, sizeof (SHA1_T)) && is_zero(&hn->test_hash, sizeof (SHA1_T))));
 
-
                         if (hn) {
-
                                 if (hn->test_changed) {
                                         hn->prev_hash = hn->curr_hash;
                                         hn->curr_hash = hn->test_hash;
@@ -2551,7 +2542,6 @@ void cache_desc_tlv_hashes(uint8_t op, struct orig_node *on, int8_t t_start, int
                 }
 
                 if (hn) {
-
                         if (op == TLV_OP_DEL || (
                                 is_zero(&hn->test_hash, sizeof (SHA1_T)) &&
                                 is_zero(&hn->curr_hash, sizeof (SHA1_T)) &&
@@ -2578,7 +2568,7 @@ int32_t rx_frame_iterate(struct rx_frame_iterator *it)
                 if (it->on && it->process_filter == FRAME_TYPE_PROCESS_ALL && it->frame_type < it->handl_max &&
                         (it->op == TLV_OP_DEL || it->op == TLV_OP_TEST || it->op == TLV_OP_NEW)) {
 
-                        cache_desc_tlv_hashes(it->op, it->on, (it->frame_type + 1), it->handl_max, it->handl_max, NULL, 0);
+                        cache_desc_tlv_hashes(it->op, it->on, (it->frame_type + 1), it->handl_max, NULL, 0);
                  }
 
                 dbgf_all(DBGT_INFO, "%s - frames_pos=%d frames_length=%d : DONE", it->caller, it->frames_pos, it->frames_length);
@@ -2631,7 +2621,7 @@ int32_t rx_frame_iterate(struct rx_frame_iterator *it)
                 if (it->on && it->process_filter == FRAME_TYPE_PROCESS_ALL &&
                         (it->op == TLV_OP_DEL || it->op == TLV_OP_TEST || it->op == TLV_OP_NEW)) {
 
-                        cache_desc_tlv_hashes(it->op, it->on, (it->frame_type + 1), f_type, f_type, f_data, f_data_len);
+                        cache_desc_tlv_hashes(it->op, it->on, (it->frame_type + 1), f_type, f_data, f_data_len);
                  }
 
 

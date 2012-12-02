@@ -3534,7 +3534,7 @@ void update_my_description_adv(void)
 
                 iterator_result = tx_frame_iterate(NO/*iterate_msg*/, &it);
 
-                assertion(-500792, (iterator_result >= TLV_TX_DATA_DONE));
+                assertion(-500798, (iterator_result >= TLV_TX_DATA_DONE));
         }
 
         dsc->extensionLen = htons(it.frames_out_pos);

@@ -2165,7 +2165,7 @@ IDM_T dev_init_sockets(struct dev_node *dev)
 
                 dev->activate_again = YES;
                 task_remove(dev_check, NULL);
-                task_register(1000, dev_check, NULL, -300000);
+                task_register(1000, dev_check, NULL, -300523);
                 return FAILURE;
         }
 

@@ -150,7 +150,7 @@ void zroute_dbg(int8_t dbgl, int8_t dbgt, const char *func, struct zroute_node *
                 (zrn->cnt > 1 || zrn->cnt < 0) ? "INVALID" : (zrn->old != zrn->cnt) ? "CHANGED" : "UNCHANGED",
                 netAsStr(&zrn->k.net), ipXAsStr(zrn->k.net.af, &zrn->k.via),
                 zrn->k.ztype < ZEBRA_ROUTE_MAX ? bmx6_rt_dict[zapi_rt_dict[zrn->k.ztype].zebra2Bmx].bmx2Name : memAsHexStringSep(&zrn->k.ztype, 1, 0),
-                zrn->k.ifindex, zrn->k.metric, zrn->k.distance, zrn->flags, zrn->message);
+                zrn->k.ifindex, zrn->metric, zrn->distance, zrn->flags, zrn->message);
 }
 
 
@@ -194,13 +194,10 @@ void zdata_parse_route(struct zdata *zd)
         }
 
         if (zrn.message & ZAPI_MESSAGE_DISTANCE)
-                zrn.k.distance = zdata_get_u8(zd, &ofs);
+                zrn.distance = zdata_get_u8(zd, &ofs);
         
-        if (zrn.message & ZAPI_MESSAGE_METRIC) {
-                uint32_t metric = ntohl(zdata_get_u32(zd, &ofs));
-                if (zrn.k.ztype != ZEBRA_ROUTE_CONNECT)
-                        zrn.k.metric = metric;
-        }
+        if (zrn.message & ZAPI_MESSAGE_METRIC)
+                zrn.metric = ntohl(zdata_get_u32(zd, &ofs));
 
         assertion(-501405, (zd->len == ofs));
 
@@ -212,6 +209,7 @@ void zdata_parse_route(struct zdata *zd)
         if (tmp) {
                 tmp->cnt += (zd->cmd == ZEBRA_IPV4_ROUTE_ADD || zd->cmd == ZEBRA_IPV6_ROUTE_ADD) ? (+1) : (-1);
         } else {
+                zroute_dbg(DBGL_SYS, DBGT_INFO, __FUNCTION__, &zrn);
                 assertion(-501406, (zd->cmd == ZEBRA_IPV4_ROUTE_ADD || zd->cmd == ZEBRA_IPV6_ROUTE_ADD));
                 tmp = debugMalloc(sizeof (zrn), -300472);
                 memset(tmp, 0, sizeof (*tmp));
@@ -674,7 +672,7 @@ void zsock_send_cmd_typeU8(uint16_t cmd, uint8_t type)
         assertion(-501412, (type < ZEBRA_ROUTE_MAX));
 
         uint16_t len = sizeof (struct zapiV2_header) + sizeof (type);
-        uint8_t *d = debugMalloc(len, -300489), *p = d;
+        uint8_t *d = debugMalloc(len, -300524), *p = d;
         d = zsock_put_hdr(d, cmd, len);
         d = zsock_put_u8(d, type);
 

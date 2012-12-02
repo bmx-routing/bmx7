@@ -184,9 +184,7 @@ struct zroute_key {
         struct net_key net;
         IPX_T via;
         uint32_t ifindex;
-        uint32_t metric;
         uint8_t ztype;
-        uint8_t distance;
 };
 
 struct zroute_node {
@@ -196,6 +194,8 @@ struct zroute_node {
         uint8_t message;
         int8_t cnt;
         uint8_t old;
+        uint32_t metric;
+        uint8_t distance;
 };
 
 struct redist_out_key {

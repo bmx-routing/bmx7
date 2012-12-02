@@ -3534,7 +3534,7 @@ void update_my_description_adv(void)
 
                 iterator_result = tx_frame_iterate(NO/*iterate_msg*/, &it);
 
-                assertion_dbg(-500798, (iterator_result >= TLV_TX_DATA_DONE),
+                assertion_dbg(-500798, (iterator_result >= TLV_TX_DATA_DONE || iterator_result == TLV_TX_DATA_FULL),
                 "frame_type=%d iterator_result=%d", it.frame_type, iterator_result);
         }
 

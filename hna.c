@@ -1572,7 +1572,7 @@ uint16_t create_description_tlv_tunXin6_net_adv_msg(struct tx_frame_iterator *it
                 m++;
 
         } else if (tun) {
-                dbgf_sys(DBGT_ERR, "NO description space left for src=%s dst=%s",
+                dbgf_mute(30, DBGL_SYS, DBGT_ERR, "NO description space left for src=%s dst=%s",
                         ip6AsStr(&tun->remote), ip6AsStr(&adv->network));
         }
 

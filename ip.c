@@ -716,7 +716,10 @@ IDM_T rtnl_talk(void *req, int len, uint8_t cmd, uint8_t quiet, void (*func) (st
 		int status = recvmsg( ip_rth.fd, &msg, 0 );
                 int err = errno;
 
-                dbgf(DBGL_CHANGES, DBGT_INFO, "rcvd %s status=%d err=%d %s", trackt2str(cmd), status, err, strerror(err));
+                if (err) {
+                        dbgf(DBGL_CHANGES, DBGT_INFO, "rcvd %s status=%d err=%d %s",
+                                trackt2str(cmd), status, err, strerror(err));
+                }
 
 
 		if ( status < 0 ) {
@@ -1087,16 +1090,12 @@ void kernel_get_if_link_config(struct nlmsghdr *nh, void *update_sqnp)
                 if (nh->nlmsg_len > old_ilx->nlmsghdr->nlmsg_len) {
 
                         avl_remove(&if_link_tree, &index, -300240);
-                        dbgf_track(DBGT_INFO, "CHANGED and MORE nlmsg_len");
+                        dbgf_all(DBGT_INFO, "CHANGED and MORE nlmsg_len");
 
                 } else if (memcmp(nh, old_ilx->nlmsghdr, nh->nlmsg_len)) {
 
-                        if (nh->nlmsg_len != old_ilx->nlmsghdr->nlmsg_len) {
-                                dbgf_track(DBGT_INFO, "CHANGED and LESS nlmsg_len %d < %d",
-                                        nh->nlmsg_len, old_ilx->nlmsghdr->nlmsg_len);
-                        } else {
-                                dbgf_track(DBGT_INFO, "CHANGED but EQUAL nlmsg_len %d", nh->nlmsg_len);
-                        }
+                        dbgf_all(DBGT_INFO, "CHANGED nlmsg_len new=%d  old=%d",
+                                nh->nlmsg_len, old_ilx->nlmsghdr->nlmsg_len);
                         
                         memcpy(old_ilx->nlmsghdr, nh, nh->nlmsg_len);
                         new_ilx = old_ilx;

@@ -143,10 +143,10 @@ uint32_t zdata_get_u32(struct zdata *zd, uint32_t *offset)
         return ret ? *ret : 0;
 }
 
-void zroute_dbg(int8_t dbgl, int8_t dbgt, const char *func, struct zroute_node *zrn)
+void zroute_dbg(int8_t dbgl, int8_t dbgt, const char *func, struct zroute_node *zrn, char* misc1, char* misc2)
 {
-        dbgf(dbgl, dbgt, "%s old=%d cnt=%d %s route=%s via=%s type=%s ifidx=%d metric=%d distance=%d flags=%X message=%X",
-                func, zrn->old, zrn->cnt,
+        dbgf(dbgl, dbgt, "%s %s %s old=%d cnt=%d %s route=%s via=%s type=%s ifidx=%d metric=%d distance=%d flags=%X message=%X",
+                func, misc1, misc2, zrn->old, zrn->cnt,
                 (zrn->cnt > 1 || zrn->cnt < 0) ? "INVALID" : (zrn->old != zrn->cnt) ? "CHANGED" : "UNCHANGED",
                 netAsStr(&zrn->k.net), ipXAsStr(zrn->k.net.af, &zrn->k.via),
                 zrn->k.ztype < ZEBRA_ROUTE_MAX ? bmx6_rt_dict[zapi_rt_dict[zrn->k.ztype].zebra2Bmx].bmx2Name : memAsHexStringSep(&zrn->k.ztype, 1, 0),
@@ -158,10 +158,11 @@ void zroute_dbg(int8_t dbgl, int8_t dbgt, const char *func, struct zroute_node *
 STATIC_FUNC
 void zdata_parse_route(struct zdata *zd)
 {
-        dbgf_track(DBGT_INFO,"");
+        dbgf_all(DBGT_INFO,"");
 
         assertion(-501402, ( zd->len >= sizeof (struct zapiV2_header) && zd->hdr->version == ZEBRA_VERSION2));
-
+        assertion(-500000, (zd->cmd == ZEBRA_IPV4_ROUTE_ADD || zd->cmd == ZEBRA_IPV4_ROUTE_DELETE ||
+                        zd->cmd == ZEBRA_IPV6_ROUTE_ADD || zd->cmd == ZEBRA_IPV6_ROUTE_DELETE));
 
         uint32_t ofs = sizeof (struct zapiV2_header);
         struct zroute_node zrn;
@@ -203,22 +204,19 @@ void zdata_parse_route(struct zdata *zd)
 
         struct zroute_node *tmp = avl_find_item(&zroute_tree, &zrn.k);
 
-        dbgf_track(DBGT_INFO, "%s %s",
-                zd->cmd < ZEBRA_MESSAGE_MAX ? zebraCmd2Str[zd->cmd] : memAsHexStringSep(&zd->cmd, 1, 0), (tmp ? "old" : "new"));
-
         if (tmp) {
                 tmp->cnt += (zd->cmd == ZEBRA_IPV4_ROUTE_ADD || zd->cmd == ZEBRA_IPV6_ROUTE_ADD) ? (+1) : (-1);
+                zroute_dbg(DBGL_SYS, DBGT_INFO, __FUNCTION__, tmp, zebraCmd2Str[zd->cmd], "OLD");
         } else {
-                zroute_dbg(DBGL_SYS, DBGT_INFO, __FUNCTION__, &zrn);
-                assertion(-501406, (zd->cmd == ZEBRA_IPV4_ROUTE_ADD || zd->cmd == ZEBRA_IPV6_ROUTE_ADD));
                 tmp = debugMalloc(sizeof (zrn), -300472);
                 memset(tmp, 0, sizeof (*tmp));
                 *tmp = zrn;
-                avl_insert(&zroute_tree, tmp, -300473);
                 tmp->cnt += 1;
+                zroute_dbg(DBGL_SYS, DBGT_INFO, __FUNCTION__, tmp, zebraCmd2Str[zd->cmd], "NEW");
+                assertion(-501406, (zd->cmd == ZEBRA_IPV4_ROUTE_ADD || zd->cmd == ZEBRA_IPV6_ROUTE_ADD));
+                avl_insert(&zroute_tree, tmp, -300473);
         }
 
-        zroute_dbg(DBGL_CHANGES, DBGT_INFO, __FUNCTION__, tmp);
 }
 
 
@@ -246,7 +244,7 @@ void redist_rm_overlapping(void)
 
                         while ((ovlp = avl_next_item(&redist_out_tree, ovlp ? &ovlp->k : &t.k))) {
 
-                                dbgf_track(DBGT_INFO, "checking overlapping net=%s rtype=%d bw=%d min=%d new=%d in favor of net=%s rtype=%d bw=%d min=%d new=%d",
+                                dbgf_all(DBGT_INFO, "checking overlapping net=%s rtype=%d bw=%d min=%d new=%d in favor of net=%s rtype=%d bw=%d min=%d new=%d",
                                         netAsStr(&routn->k.net), routn->k.bmx6_route_type, routn->k.bandwidth, routn->minAggregatePrefixLen, routn->new,
                                         netAsStr(&ovlp->k.net), ovlp->k.bmx6_route_type, ovlp->k.bandwidth, ovlp->minAggregatePrefixLen, ovlp->new);
 
@@ -293,7 +291,7 @@ void redist_rm_aggregatable(void)
                         uint8_t v4 = (r1->k.net.af == AF_INET);
                         uint8_t b1 = bit_get((uint8_t*)&(r1->k.net.ip), 128, r1->k.net.mask + (v4 ? 96 : 0) - 1);
 
-                        dbgf_track(DBGT_INFO, "checking aggregation for net=%s rtype=%d bw=%d min=%d new=%d lastBit=%d %s",
+                        dbgf_all(DBGT_INFO, "checking aggregation for net=%s rtype=%d bw=%d min=%d new=%d lastBit=%d %s",
                                 netAsStr(&r1->k.net), r1->k.bmx6_route_type, r1->k.bandwidth, r1->minAggregatePrefixLen,
                                 r1->new, b1, memAsHexStringSep(&r1->k.net.ip, 16, 2));
 
@@ -306,7 +304,7 @@ void redist_rm_aggregatable(void)
 
                         struct redist_out_node *r0 = avl_find_item(&redist_out_tree, &s0.k);
 
-                        dbgf_track(DBGT_INFO, "                    with net=%s rtype=%d bw=%d min=%d new=%d %s",
+                        dbgf_all(DBGT_INFO, "                    with net=%s rtype=%d bw=%d min=%d new=%d %s",
                                 netAsStr(&s0.k.net), s0.k.bmx6_route_type, s0.k.bandwidth, s0.minAggregatePrefixLen,
                                 s0.new, memAsHexStringSep(&s0.k.net.ip, 16, 2));
 
@@ -363,17 +361,15 @@ void redistribute_routes(void)
 
         for (zri = NULL; (zrn = avl_iterate_item(&zroute_tree, &zri));) {
 
-                zroute_dbg(DBGL_CHANGES, DBGT_INFO, "parsing", zrn);
-
                 for (ropti = NULL; (roptn = avl_iterate_item(&redist_opt_tree, &ropti));) {
 
                         if (roptn->net.af && roptn->net.af != zrn->k.net.af) {
-                                dbgf_track(DBGT_INFO, "skipping A");
+                                dbgf_all(DBGT_INFO, "skipping A");
                                 continue;
                         }
 
                         if (roptn->bandwidth.val.u8 == 0) {
-                                dbgf_track(DBGT_INFO, "skipping B");
+                                dbgf_all(DBGT_INFO, "skipping B");
                                 continue;
                         }
 
@@ -381,7 +377,7 @@ void redistribute_routes(void)
                                 !bit_get(((uint8_t*) & roptn->bmx6_redist_bits),
                                 sizeof (&roptn->bmx6_redist_bits)*8, zapi_rt_dict[zrn->k.ztype].zebra2Bmx)) {
                                 
-                                dbgf_track(DBGT_INFO, "skipping C");
+                                dbgf_all(DBGT_INFO, "skipping C");
                                 continue;
                         }
 
@@ -395,7 +391,7 @@ void redistribute_routes(void)
                                 roptn->net.mask <= zrn->k.net.mask : roptn->netPrefixMin <= zrn->k.net.mask) &&
                                 is_ip_net_equal(&roptn->net.ip, &zrn->k.net.ip, MIN(roptn->net.mask, zrn->k.net.mask), roptn->net.af))) {
 
-                                dbgf_track(DBGT_INFO, "skipping D");
+                                dbgf_all(DBGT_INFO, "skipping D");
                                 continue;
                         }
 
@@ -410,9 +406,13 @@ void redistribute_routes(void)
                         if (!(routn = avl_find_item(&redist_out_tree, &routf.k))) {
                                 *(routn = debugMalloc(sizeof (routf), -300505)) = routf;
                                 avl_insert(&redist_out_tree, routn, -300506);
-                                dbgf_track(DBGT_INFO, "addding");
+                                if ( __dbgf_track() ) {
+                                        zroute_dbg(DBGL_CHANGES, DBGT_INFO, __FUNCTION__, zrn, "parsing", "adding");
+                                }
                         } else {
-                                dbgf_track(DBGT_INFO, "reusing");
+                                if ( __dbgf_track() ) {
+                                        zroute_dbg(DBGL_CHANGES, DBGT_INFO, __FUNCTION__, zrn, "parsing", "reusing");
+                                }
                         }
 
                         routn->new = 1;
@@ -434,7 +434,7 @@ void redistribute_routes(void)
         while ((routn = avl_next_item(&redist_out_tree, &routf.k))) {
                 routf = *routn;
 
-                dbgf_track(DBGT_INFO, "old=%d new=%d rtype=%d bandwith=%d net=%s",
+                dbgf_all(DBGT_INFO, "old=%d new=%d rtype=%d bandwith=%d net=%s",
                         routn->old, routn->new, routn->k.bmx6_route_type, routn->k.bandwidth.val.u8, netAsStr(&routn->k.net));
 
                 if (routn->new != routn->old) // 10, 11, 01, 00
@@ -509,7 +509,7 @@ void zdata_parse(void)
                 while ((zrn = avl_next_item(&zroute_tree, &zri.k))) {
                         zri = *zrn;
 
-                        zroute_dbg(DBGL_CHANGES, DBGT_INFO, __FUNCTION__, zrn);
+//                        zroute_dbg(DBGL_CHANGES, DBGT_INFO, __FUNCTION__, zrn, "", "");
 
                         if (zrn->old != zrn->cnt)
                                 new_routes = 1;
@@ -590,7 +590,7 @@ void zsock_read_handler(void * nothing)
 
                                         list_add_tail(&zdata_read_list, &zd->list);
 
-                                        dbgf_track(DBGT_INFO, "full ZAPI len=%d data=%s",
+                                        dbgf_all(DBGT_INFO, "full ZAPI len=%d data=%s",
                                                 zcfg.zread_buff_len, memAsHexStringSep(zcfg.zread_buff, zcfg.zread_buff_len, 4));
 
                                 } else {
@@ -927,7 +927,7 @@ int zsock_read(char* buff, int max)
         int err = errno;
 
         if (rlen >= 0) {
-                dbgf_track(DBGT_INFO, "read len=%d data=%s", rlen, memAsHexStringSep(buff, rlen, 4));
+                dbgf_all(DBGT_INFO, "read len=%d data=%s", rlen, memAsHexStringSep(buff, rlen, 4));
 
         } else {
 

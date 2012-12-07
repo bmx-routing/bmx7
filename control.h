@@ -158,8 +158,8 @@ struct dbg_histogram {
 #define dbgf_track(...);
 #define dbg_track(...);
 #else
-#define dbgf_track( dbgt, ... ); _dbgf( DBGL_CHANGES, dbgt, __FUNCTION__, __VA_ARGS__ );
-#define dbg_track( dbgt, ... ); dbg( DBGL_CHANGES, dbgt, __VA_ARGS__ );
+#define dbgf_track( dbgt, ... ); { if ( __dbgf_track() ) { _dbgf( DBGL_CHANGES, dbgt, __FUNCTION__, __VA_ARGS__ ); } }
+#define dbg_track( dbgt, ... );  { if ( __dbgf_track() ) { dbg( DBGL_CHANGES, dbgt, __VA_ARGS__ ); } }
 #endif
 
 #ifdef  NO_DEBUG_SYS
@@ -182,6 +182,7 @@ void dbg_mute(uint32_t check_len, int8_t dbgl, int8_t dbgt, char *last, ...);
 void _dbgf_mute(uint32_t check_len, int8_t dbgl, int8_t dbgt, const char *f, char *last, ...);
 void _dbgf_all ( int8_t dbgt, const char *f, char *last, ... );
 uint8_t __dbgf_all( void );
+uint8_t __dbgf_track( void );
 
 void dbg_printf( struct ctrl_node *cn, char *last, ...  );
 void dbg_spaces(struct ctrl_node *cn, uint16_t spaces);

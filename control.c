@@ -665,6 +665,14 @@ uint8_t __dbgf_all( void ) {
 	return YES;
 }
 
+uint8_t __dbgf_track( void ) {
+
+	if ( debug_level != DBGL_CHANGES  &&  LIST_EMPTY( &dbgl_clients[DBGL_CHANGES] ) )
+		return NO;
+
+	return YES;
+}
+
 void dbg_spaces(struct ctrl_node *cn, uint16_t spaces)
 {
         uint16_t i;

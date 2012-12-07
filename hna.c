@@ -62,8 +62,8 @@ LIST_SIMPEL(tunXin6_net_adv_list_list, struct tunXin6_net_adv_list_node, list, l
 
 static const struct tun_net_key ZERO_TUN_NET_KEY = {.tun = NULL};
 
-static struct net_key tun4_address;
-static struct net_key tun6_address;
+struct net_key tun4_address;
+struct net_key tun6_address;
 
 IDM_T (*hna_configure_niit4to6) (IDM_T del, struct net_key *key) = NULL;
 IDM_T (*hna_configure_niit6to4) (IDM_T del, struct net_key *key) = NULL;
@@ -2519,7 +2519,7 @@ int32_t opt_tun_address(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
 
         if (cmd == OPT_APPLY) {
 
-                if (net.af == AF_INET) {
+                if (!strcmp(opt->name, ARG_TUN4_ADDRESS)) {
                         tun4_address = net;
                 } else {
                         tun6_address = net;

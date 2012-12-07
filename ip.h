@@ -372,11 +372,6 @@ struct if_addr_node {
 };
 
 
-struct net_key {
-        uint8_t af;   //family
-	uint8_t mask; //prefixlen
-	IPX_T ip;     //address
-};
 
 struct tx_link_node {
 	struct list_head tx_tasks_list[FRAME_TYPE_ARRSZ]; // scheduled frames and messages

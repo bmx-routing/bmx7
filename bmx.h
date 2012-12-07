@@ -72,6 +72,12 @@ typedef struct in6_addr IP6_T;
 
 typedef IP6_T IPX_T;
 
+struct net_key {
+        uint8_t af;   //family
+	uint8_t mask; //prefixlen
+	IPX_T ip;     //address
+};
+
 typedef union {
 	uint8_t   u8[GEN_ADDR_LEN];
 	uint16_t u16[GEN_ADDR_LEN / sizeof(uint16_t)];
@@ -86,7 +92,13 @@ typedef union {
 } MAC_T;
 
 
+/*
+ * from hna.h:
+ */
 
+
+extern struct net_key tun4_address;
+extern struct net_key tun6_address;
 
 
 /*
@@ -645,6 +657,7 @@ enum {
 	FIELD_TYPE_IPX4,
 	FIELD_TYPE_IPX6,
 	FIELD_TYPE_IPX6P,
+	FIELD_TYPE_NETP,
 	FIELD_TYPE_MAC,
 
 	FIELD_TYPE_END
@@ -652,7 +665,8 @@ enum {
 
 #define FIELD_STANDARD_SIZES {-1,-1,-1,-8,-8,(8*sizeof(char*)),(8*sizeof(GLOBAL_ID_T*)),(8*sizeof(GLOBAL_ID_T)), \
                               (8*sizeof(UMETRIC_T)),(8*sizeof(UMETRIC_T*)),(8*sizeof(FMETRIC_U8_T)), \
-                              (8*sizeof(IP4_T)), (8*sizeof(IPX_T)), (8*sizeof(IPX_T)), (8*sizeof(IP6_T)),(8*sizeof(IP6_T*)), (8*sizeof(MAC_T))}
+                              (8*sizeof(IP4_T)), (8*sizeof(IPX_T)), (8*sizeof(IPX_T)), (8*sizeof(IP6_T)), \
+                              (8*sizeof(IP6_T*)), (8*sizeof(struct net_key*)), (8*sizeof(MAC_T))}
 // negative values mean size must be multiple of negativ value, positive values mean absolute bit sizes
 
 #define FIELD_FORMAT_MAX_ITEMS 100

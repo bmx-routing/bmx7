@@ -1466,6 +1466,10 @@ char *field_dbg_value(const struct field_format *format, uint16_t min_msg_size, 
 
                 val = ipFAsStr((IPX_T*) p);
 
+        } else if (field_type == FIELD_TYPE_NETP) {
+
+                val = *pp ? netAsStr(*((struct net_key**) pp)) : DBG_NIL;
+
         } else if (field_type == FIELD_TYPE_MAC) {
 
                 val = macAsStr((MAC_T*) p);
@@ -1767,6 +1771,8 @@ struct bmx_status {
         uint16_t codeVersion;
         GLOBAL_ID_T *globalId;
         IPX_T primaryIp;
+        struct net_key *tun6Address;
+        struct net_key *tun4Address;
         LOCAL_ID_T myLocalId;
         char *uptime;
         char cpu[6];
@@ -1779,6 +1785,8 @@ static const struct field_format bmx_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              bmx_status, codeVersion,   1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, bmx_status, globalId,      1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_IPX,               bmx_status, primaryIp,     1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_NETP,              bmx_status, tun6Address,   1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_NETP,              bmx_status, tun4Address,   1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_BINARY,     bmx_status, myLocalId,     1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      bmx_status, uptime,        1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       bmx_status, cpu,           1, FIELD_RELEVANCE_HIGH),
@@ -1794,6 +1802,8 @@ static int32_t bmx_status_creator(struct status_handl *handl, void *data)
         status->codeVersion = CODE_VERSION;
         status->globalId = &self->global_id;
         status->primaryIp = self->primary_ip;
+        status->tun6Address = tun6_address.af ? &tun6_address : NULL;
+        status->tun4Address = tun4_address.af ? &tun4_address : NULL;
         status->myLocalId = my_local_id;
         status->uptime = get_human_uptime(0);
         sprintf(status->cpu, "%d.%1d", s_curr_avg_cpu_load / 10, s_curr_avg_cpu_load % 10);

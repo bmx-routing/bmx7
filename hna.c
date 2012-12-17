@@ -1100,7 +1100,6 @@ void eval_tun_bit_tree(void  *unused)
 
         for (af = AF_INET; af == AF_INET || af == AF_INET6; af += (AF_INET6 - AF_INET)) {
 
-                uint32_t ipMetric_begin = ((uint32_t) - 1);
                 struct tun_bit_node *tbn_begin = NULL;
 
                 while ((tbn_curr = avl_next_item(&tun_bit_tree, tbn_curr ? &tbn_curr->tunBitKey : NULL))) {
@@ -1111,15 +1110,13 @@ void eval_tun_bit_tree(void  *unused)
                         assertion(-501382, IMPLIES(af == AF_INET, is_ip_set(tbn_curr->tunBitKey.keyNodes.tsn->srcPrefix.mask ? &tbn_curr->tunBitKey.keyNodes.tsn->srcPrefix.ip : &tun4_address.ip)));
                         assertion(-501383, IMPLIES(af == AF_INET6, is_ip_set(tbn_curr->tunBitKey.keyNodes.tsn->srcPrefix.mask ? &tbn_curr->tunBitKey.keyNodes.tsn->srcPrefix.ip : &tun6_address.ip)));
 
-                        if (ipMetric_begin != ntohl(tbn_curr->tunBitKey.beIpMetric)) {
-                                ipMetric_begin = ntohl(tbn_curr->tunBitKey.beIpMetric);
+                        if (!tbn_begin || tbn_begin->tunBitKey.beIpMetric != tbn_curr->tunBitKey.beIpMetric)
                                 tbn_begin = tbn_curr;
-                        }
 
                         struct tun_bit_node *tbn_crash = tbn_begin;
                         uint8_t crash_is_better = YES;
 
-                        for (; tbn_crash && tbn_crash->tunBitKey.beIpMetric == tbn_curr->tunBitKey.beIpMetric;
+                        for (; tbn_crash && tbn_crash->tunBitKey.beIpMetric == tbn_begin->tunBitKey.beIpMetric;
                                 tbn_crash = avl_next_item(&tun_bit_tree, &tbn_crash->tunBitKey)) {
 
                                 if (af != tbn_crash->tunBitKey.invNetKey.af)
@@ -1136,13 +1133,11 @@ void eval_tun_bit_tree(void  *unused)
 
                                 } else if (crash_is_better) {
 
-                                        if (currNet.mask >= crashNet.mask &&
-                                                ((is_ip_equal(&currNet.ip, &crashNet.ip) && currNet.mask == crashNet.mask) || (
-
-                                                !tbn_crash->tunBitKey.keyNodes.tsn->allowOverlappingLargerPrefixes &&
-                                                !tbn_curr->tunBitKey.keyNodes.tsn->breakOverlappingSmallerPrefixes &&
-                                                is_ip_net_equal(&currNet.ip, &crashNet.ip, crashNet.mask, af)
-                                                ))) {
+                                        if (currNet.mask >= crashNet.mask && is_ip_net_equal(&currNet.ip, &crashNet.ip, crashNet.mask, af) &&
+                                                // curr is equal or more specific:
+                                                (currNet.mask == crashNet.mask ||
+                                                !(tbn_crash->tunBitKey.keyNodes.tsn->allowOverlappingLargerPrefixes &&
+                                                  tbn_curr->tunBitKey.keyNodes.tsn->breakOverlappingSmallerPrefixes) ) ) {
 
                                                 if (tbn_curr->active)
                                                         configure_tun_bit(DEL, tbn_curr);
@@ -1150,24 +1145,22 @@ void eval_tun_bit_tree(void  *unused)
                                                 break;
                                         }
 
-                                } else {
+                                } else { // curr is better:
 
-                                        if (currNet.mask <= crashNet.mask &&
-                                                ((is_ip_equal(&currNet.ip, &crashNet.ip) && currNet.mask == crashNet.mask) || (
-
-                                                !tbn_crash->tunBitKey.keyNodes.tsn->breakOverlappingSmallerPrefixes &&
-                                                !tbn_curr->tunBitKey.keyNodes.tsn->allowOverlappingLargerPrefixes &&
-                                                is_ip_net_equal(&currNet.ip, &crashNet.ip, currNet.mask, af)
-                                                ))) {
+                                        if ( currNet.mask <= crashNet.mask && is_ip_net_equal(&currNet.ip, &crashNet.ip, currNet.mask, af) &&
+                                                // crash is equal or more specific:
+                                                (currNet.mask == crashNet.mask ||
+                                                !(tbn_crash->tunBitKey.keyNodes.tsn->breakOverlappingSmallerPrefixes &&
+                                                  tbn_curr->tunBitKey.keyNodes.tsn->allowOverlappingLargerPrefixes))
+                                                ) {
 
                                                 if (tbn_crash->active)
                                                         configure_tun_bit(DEL, tbn_crash);
-
                                         }
                                 }
                         }
 
-                        if (!tbn_crash || tbn_crash->tunBitKey.beIpMetric != tbn_curr->tunBitKey.beIpMetric)
+                        if (!tbn_crash || tbn_crash->tunBitKey.beIpMetric != tbn_begin->tunBitKey.beIpMetric)
                                 configure_tun_bit(ADD, tbn_curr);
 
                 }
@@ -2182,7 +2175,7 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                                        tsn->exportDistance = c->val ? strtol(c->val, NULL, 10) : DEF_EXPORT_DISTANCE;
 
                                else if (!strcmp(c->opt->name, ARG_EXPORT_ONLY))
-                                       tsn->exportDistance = c->val ? strtol(c->val, NULL, 10) : DEF_EXPORT_ONLY;
+                                       tsn->exportOnly = c->val ? strtol(c->val, NULL, 10) : DEF_EXPORT_ONLY;
 
                                else {
                                        uint8_t t;
@@ -2614,9 +2607,9 @@ struct opt_type hna_options[]= {
 	{ODI,ARG_TUN_OUT,ARG_TUN_OUT_PREFIX_MAX,0,9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,MIN_TUN_OUT_PREFIX,MAX_TUN_OUT_PREFIX,DEF_TUN_OUT_PREFIX_MAX,0,opt_tun_search,
 			ARG_VALUE_FORM, "maximum prefix len for accepting advertised tunnel network, 129 = network prefix len"},
 	{ODI,ARG_TUN_OUT,ARG_TUN_OUT_OVLP_ALLOW,0,9,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,MIN_TUN_OUT_OVLP,MAX_TUN_OUT_OVLP,DEF_TUN_OUT_OVLP_ALLOW,0,opt_tun_search,
-			ARG_VALUE_FORM, "allow overlapping larger tunRoute prefixes (with worse tunMetric) configured with same ipMetric"},
+			ARG_VALUE_FORM, "allow overlapping other tunRoutes with worse tunMetric but larger prefix length"},
 	{ODI,ARG_TUN_OUT,ARG_TUN_OUT_OVLP_BREAK,0,9,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,MIN_TUN_OUT_OVLP,MAX_TUN_OUT_OVLP,DEF_TUN_OUT_OVLP_BREAK,0,opt_tun_search,
-			ARG_VALUE_FORM, "let this tunRoute break smaller tunRoute prefixes with better tunMetric"},
+			ARG_VALUE_FORM, "let this tunRoute break other tunRoutes with better tunMetric but smaller prefix length"},
 	{ODI,ARG_TUN_OUT,ARG_TUN_OUT_PKID,0,9,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,	        0,              0,              0,0,            opt_tun_search,
 			ARG_SHA2_FORM,  "pkid of remote tunnel endpoint"},
 	{ODI,ARG_TUN_OUT,ARG_TUN_OUT_HYSTERESIS,0,9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,MIN_TUN_OUT_HYSTERESIS,MAX_TUN_OUT_HYSTERESIS,DEF_TUN_OUT_HYSTERESIS,0,opt_tun_search,

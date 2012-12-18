@@ -107,7 +107,6 @@ void cb_packet_hooks(struct packet_buff *pb);
 // for initializing:
 
 struct plugin {
-	uint32_t plugin_code_version;
 	uint32_t plugin_size;
 	char *plugin_name;
 	int32_t (*cb_init) ( void );

@@ -463,7 +463,6 @@ struct plugin* get_plugin( void ) {
 
 	sms_plugin.plugin_name = CODE_CATEGORY_NAME;
 	sms_plugin.plugin_size = sizeof ( struct plugin );
-        sms_plugin.plugin_code_version = CODE_VERSION;
 	sms_plugin.cb_init = sms_init;
 	sms_plugin.cb_cleanup = sms_cleanup;
 

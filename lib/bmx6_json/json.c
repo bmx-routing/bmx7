@@ -769,7 +769,6 @@ struct plugin* get_plugin( void ) {
 
 	json_plugin.plugin_name = CODE_CATEGORY_NAME;
 	json_plugin.plugin_size = sizeof ( struct plugin );
-        json_plugin.plugin_code_version = CODE_VERSION;
 	json_plugin.cb_init = json_init;
 	json_plugin.cb_cleanup = json_cleanup;
         json_plugin.cb_plugin_handler[PLUGIN_CB_DESCRIPTION_CREATED] = (void (*) (int32_t, void*)) json_description_event_hook;

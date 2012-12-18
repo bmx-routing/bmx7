@@ -2834,7 +2834,6 @@ struct plugin *hna_get_plugin( void ) {
 
 	hna_plugin.plugin_name = CODE_CATEGORY_NAME;
 	hna_plugin.plugin_size = sizeof ( struct plugin );
-        hna_plugin.plugin_code_version = CODE_VERSION;
         hna_plugin.cb_init = hna_init;
 	hna_plugin.cb_cleanup = hna_cleanup;
         hna_plugin.cb_plugin_handler[PLUGIN_CB_SYS_DEV_EVENT] = hna_dev_event_hook;

@@ -915,7 +915,6 @@ struct plugin* get_plugin( void ) {
 	
 	conf_plugin.plugin_name = CODE_CATEGORY_NAME;
 	conf_plugin.plugin_size = sizeof ( struct plugin );
-        conf_plugin.plugin_code_version = CODE_VERSION;
 	conf_plugin.cb_init = init_conf;
 	conf_plugin.cb_cleanup = cleanup_conf;
 

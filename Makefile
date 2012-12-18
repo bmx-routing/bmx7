@@ -15,8 +15,8 @@
 # 02110-1301, USA
 
 
-
-  CFLAGS +=	 -pedantic -Wall -W -Wno-unused-parameter -Os -g3 -std=gnu99 -I./
+  GIT_REV = $(shell [ -d .git ] && git --no-pager log -n 1 --oneline|cut -d " " -f 1 || echo 0)
+  CFLAGS += -pedantic -Wall -W -Wno-unused-parameter -Os -g3 -std=gnu99 -I./ -DGIT_REV=\"$(GIT_REV)\"
 #-DHAVE_CONFIG_H
 
 # optinal defines:

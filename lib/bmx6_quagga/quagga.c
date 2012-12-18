@@ -1295,7 +1295,6 @@ struct plugin* get_plugin( void ) {
 
 	quagga_plugin.plugin_name = CODE_CATEGORY_NAME;
 	quagga_plugin.plugin_size = sizeof ( struct plugin );
-        quagga_plugin.plugin_code_version = CODE_VERSION;
 	quagga_plugin.cb_init = quagga_init;
 	quagga_plugin.cb_cleanup = quagga_cleanup;
 

@@ -1621,7 +1621,6 @@ struct plugin *metrics_get_plugin( void ) {
 
 	metrics_plugin.plugin_name = CODE_CATEGORY_NAME;
 	metrics_plugin.plugin_size = sizeof ( struct plugin );
-        metrics_plugin.plugin_code_version = CODE_VERSION;
         metrics_plugin.cb_init = init_metrics;
 	metrics_plugin.cb_cleanup = cleanup_metrics;
 

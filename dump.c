@@ -439,7 +439,6 @@ struct plugin *dump_get_plugin( void ) {
 
 	dump_plugin.plugin_name = CODE_CATEGORY_NAME;
 	dump_plugin.plugin_size = sizeof ( struct plugin );
-        dump_plugin.plugin_code_version = CODE_VERSION;
 	dump_plugin.cb_init = init_dump;
 	dump_plugin.cb_cleanup = cleanup_dump;
         dump_plugin.cb_plugin_handler[PLUGIN_CB_BMX_DEV_EVENT] = init_cleanup_dev_traffic_data;

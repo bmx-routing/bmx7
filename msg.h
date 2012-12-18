@@ -571,7 +571,7 @@ struct msg_dhash_adv { // 2 + X bytes
 struct description { // 48 bytes
 	GLOBAL_ID_T globalId; // 32 bytes
 
-        uint16_t codeVersion; // 2 bytes
+        uint16_t revision; // 2 bytes //TODO: increase to 4 bytes
 	uint16_t capabilities;// 2 bytes
 
         DESC_SQN_T descSqn;   // 2 bytes
@@ -607,7 +607,7 @@ struct msg_description_adv { // IPv6: >= 92 bytes
 #define DESCRIPTION_MSG_FORMAT { \
 {FIELD_TYPE_UINT,             -1, (8*sizeof(IID_T)),       0, FIELD_RELEVANCE_MEDI, "transmitterIid4x"}, \
 {FIELD_TYPE_GLOBAL_ID,        -1, (8*sizeof(GLOBAL_ID_T)), 1, FIELD_RELEVANCE_HIGH, "globalId"},  \
-{FIELD_TYPE_UINT,             -1, 16,                      0, FIELD_RELEVANCE_MEDI, "codeVersion" }, \
+{FIELD_TYPE_HEX,              -1, 16,                      0, FIELD_RELEVANCE_MEDI, "revision" }, \
 {FIELD_TYPE_HEX,              -1, 16,                      0, FIELD_RELEVANCE_MEDI, "capabilities" }, \
 {FIELD_TYPE_UINT,             -1, 16,                      0, FIELD_RELEVANCE_MEDI, "descSqn" }, \
 {FIELD_TYPE_UINT,             -1, (8*sizeof(OGM_SQN_T)),   0, FIELD_RELEVANCE_MEDI, "ogmSqnMin" }, \

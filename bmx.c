@@ -1256,8 +1256,8 @@ static void segmentation_fault(int32_t sig)
                 debug_function_calls();
 #endif
 
-                dbg(DBGL_SYS, DBGT_ERR, "Terminating with error code %d (%s-%s-cv%d)! Please notify a developer",
-                        sig, BMX_BRANCH, BRANCH_VERSION, CODE_VERSION);
+                dbg(DBGL_SYS, DBGT_ERR, "Terminating with error code %d (%s-%s-rev%s)! Please notify a developer",
+                        sig, BMX_BRANCH, BRANCH_VERSION, GIT_REV);
 
                 if (initializing) {
                         dbg_sys(DBGT_ERR,
@@ -1767,8 +1767,8 @@ void register_status_handl(uint16_t min_msg_size, IDM_T multiline, const struct 
 
 struct bmx_status {
         char version[(sizeof(BMX_BRANCH)-1) + (sizeof("-")-1) + (sizeof(BRANCH_VERSION)-1) + 1];
-        uint16_t compatibility;
-        uint16_t codeVersion;
+        uint16_t compat;
+        char* revision;
         GLOBAL_ID_T *globalId;
         IPX_T primaryIp;
         struct net_key *tun6Address;
@@ -1781,8 +1781,8 @@ struct bmx_status {
 
 static const struct field_format bmx_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       bmx_status, version,       1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              bmx_status, compatibility, 1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              bmx_status, codeVersion,   1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              bmx_status, compat,        1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      bmx_status, revision,      1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, bmx_status, globalId,      1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_IPX,               bmx_status, primaryIp,     1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_NETP,              bmx_status, tun6Address,   1, FIELD_RELEVANCE_HIGH),
@@ -1798,8 +1798,8 @@ static int32_t bmx_status_creator(struct status_handl *handl, void *data)
 {
         struct bmx_status *status = (struct bmx_status *) (handl->data = debugRealloc(handl->data, sizeof (struct bmx_status), -300365));
         sprintf(status->version, "%s-%s", BMX_BRANCH, BRANCH_VERSION);
-        status->compatibility = COMPATIBILITY_VERSION;
-        status->codeVersion = CODE_VERSION;
+        status->compat = COMPATIBILITY_VERSION;
+        status->revision = GIT_REV;
         status->globalId = &self->global_id;
         status->primaryIp = self->primary_ip;
         status->tun6Address = tun6_address.af ? &tun6_address : NULL;
@@ -2002,8 +2002,8 @@ int32_t opt_version(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt
 
         assertion(-501257, !strcmp(opt->name, ARG_VERSION));
 
-        dbg_printf(cn, "%s-%s compatibility=%d codeVersion=%d\n",
-                        BMX_BRANCH, BRANCH_VERSION, COMPATIBILITY_VERSION, CODE_VERSION);
+        dbg_printf(cn, "%s-%s comPatibility=%d revision=%s\n",
+                        BMX_BRANCH, BRANCH_VERSION, COMPATIBILITY_VERSION, GIT_REV);
 
         if (initializing)
                 cleanup_all(CLEANUP_SUCCESS);

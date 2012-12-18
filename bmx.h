@@ -33,11 +33,15 @@
  * dont touch this for compatibility reasons:
  */
 
-#define CODE_VERSION 9             // to be incremented after each critical code change
 #define BMX_BRANCH "BMX6"
 #define BRANCH_VERSION "0.1-alpha" //put exactly one distinct word inside the string like "0.3-pre-alpha" or "0.3-rc1" or "0.3"
 
 #define COMPATIBILITY_VERSION 16
+
+#ifndef GIT_REV
+#define GIT_REV "0"             // to be incremented after each critical code change
+#endif
+extern uint32_t rev_u32;
 
 /*
  * from iid.h:

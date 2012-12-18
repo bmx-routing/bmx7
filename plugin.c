@@ -247,11 +247,11 @@ int activate_plugin(struct plugin *p, void *dlhandle, const char *dl_name)
 		return FAILURE;
 	
 
-        if (p->plugin_size != sizeof ( struct plugin) || (p->plugin_code_version != CODE_VERSION)) {
+        if (p->plugin_size != sizeof ( struct plugin)) {
 
                 dbgf_sys(DBGT_ERR,
-                        "plugin with unexpected size %d != %zu, revision %d != %d",
-                        p->plugin_size, sizeof ( struct plugin), p->plugin_code_version, CODE_VERSION);
+                        "plugin with unexpected size %d != %zu, revision=%s",
+                        p->plugin_size, sizeof ( struct plugin), GIT_REV);
 
                 return FAILURE;
         }

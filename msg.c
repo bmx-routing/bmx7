@@ -3510,7 +3510,13 @@ void update_my_description_adv(void)
         dsc->ogmSqnRange = htons(self->ogmSqn_rangeSize);
         dsc->txInterval = htons(my_tx_interval);
 
-        dsc->codeVersion = htons(CODE_VERSION);
+        uint32_t rev_u32;
+        char rev_string[5];
+        strncpy( rev_string, GIT_REV, sizeof(rev_string));
+        rev_string[sizeof(rev_string)-1] = 0;
+        sscanf(rev_string, "%X", &rev_u32);
+
+        dsc->revision = htons(rev_u32);
         dsc->descSqn = htons(++(self->descSqn));
         dsc->reservedTtl = my_ttl;
 
@@ -3899,7 +3905,6 @@ struct plugin *msg_get_plugin( void ) {
 
 	msg_plugin.plugin_name = CODE_CATEGORY_NAME;
 	msg_plugin.plugin_size = sizeof ( struct plugin );
-        msg_plugin.plugin_code_version = CODE_VERSION;
         msg_plugin.cb_init = init_msg;
 	msg_plugin.cb_cleanup = cleanup_msg;
 

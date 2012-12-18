@@ -61,7 +61,7 @@ const IFNAME_T ZERO_IFNAME = {{0}};
 
 static const char *_af_cfg_read = NULL;
 
-static int dev_lo_idx = 0;
+int dev_lo_idx = 0;
 
 
 
@@ -396,6 +396,9 @@ char *trackt2str(uint8_t cmd)
 
 	else if ( cmd == IP_THROW_MY_NET )
 		return "THROW_MY_NET";
+
+	else if ( cmd == IP_THROW_MY_TUNS )
+		return "THROW_MY_TUNS";
 
 	else if ( cmd == IP_ROUTE_HOST )
 		return "ROUTE_HOST";
@@ -866,7 +869,8 @@ IDM_T kernel_get_if_config_post(IDM_T purge_all, uint16_t curr_sqn)
 
                         changed += iln->changed;
 
-                        dbgf_sys(DBGT_WARN, "link=%s dev=%s configuration CHANGED",
+                        dbgf(terminating || initializing ? DBGL_ALL : DBGL_SYS, DBGT_WARN,
+                                "link=%s dev=%s configuration CHANGED",
                                 iln->name.str, dev ? dev->label_cfg.str : "ERROR");
 
                 }
@@ -874,7 +878,7 @@ IDM_T kernel_get_if_config_post(IDM_T purge_all, uint16_t curr_sqn)
 
         if (changed) {
 
-                dbgf_sys(DBGT_WARN, "network configuration CHANGED");
+                dbgf(terminating || initializing ? DBGL_ALL : DBGL_SYS, DBGT_WARN, "network configuration CHANGED");
                 return YES;
         
         } else {
@@ -1433,7 +1437,7 @@ IDM_T kernel_set_route(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_
                         req.nlh.nlmsg_type = RTM_NEWROUTE;
                         req.rtm.rtm_scope = ((cmd == IP_ROUTE_HNA || cmd == IP_ROUTE_HOST) && llocal) ? RT_SCOPE_LINK : RT_SCOPE_UNIVERSE;
                         req.rtm.rtm_protocol = RTPROT_STATIC;
-                        req.rtm.rtm_type = (cmd == IP_THROW_MY_HNA || cmd == IP_THROW_MY_NET) ? RTN_THROW : RTN_UNICAST;
+                        req.rtm.rtm_type = (cmd == IP_THROW_MY_HNA || cmd == IP_THROW_MY_NET || cmd == IP_THROW_MY_TUNS) ? RTN_THROW : RTN_UNICAST;
                 }
 
                 if (is_ip_set(&dst->ip)) {
@@ -1675,7 +1679,8 @@ IDM_T iproute(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_key *dst,
                 rte->ipexport = YES;
 
 
-        if ((cmd == IP_THROW_MY_HNA || cmd == IP_THROW_MY_NET) && (policy_routing != POLICY_RT_ENABLED || !ip_throw_rules_cfg))
+        if ((cmd == IP_THROW_MY_HNA || cmd == IP_THROW_MY_NET || cmd == IP_THROW_MY_TUNS) &&
+                (policy_routing != POLICY_RT_ENABLED || !ip_throw_rules_cfg))
 		return SUCCESS;
 
         if (table == DEF_IP_TABLE_MAIN && (cmd == IP_RULE_DEFAULT ))
@@ -2556,8 +2561,8 @@ int update_interface_rules(void)
                         setNet(&throw, ian->ifa.ifa_family, ian->ifa.ifa_prefixlen, &ian->ip_addr);
                         ip_netmask_validate(&throw.ip, throw.mask, throw.af, YES);
 
-                        iproute(IP_THROW_MY_NET, ADD, NO, &throw, RT_TABLE_HNA, RT_PRIO_HNA, (throw.af == AF_INET6 ? dev_lo_idx : 0), 0, 0, 0, NULL);
-                        iproute(IP_THROW_MY_NET, ADD, NO, &throw, RT_TABLE_TUN, RT_PRIO_TUNS, (throw.af == AF_INET6 ? dev_lo_idx : 0), 0, 0, 0, NULL);
+                        iproute(IP_THROW_MY_NET, ADD, NO, &throw, RT_TABLE_HNA, 0, (throw.af == AF_INET6 ? dev_lo_idx : 0), 0, 0, 0, NULL);
+                        iproute(IP_THROW_MY_NET, ADD, NO, &throw, RT_TABLE_TUN, 0, (throw.af == AF_INET6 ? dev_lo_idx : 0), 0, 0, 0, NULL);
 
                 }
         }
@@ -3564,7 +3569,8 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
 
                 // will always be called whenever a dev-parameter is changed (due to OPT_POST and opt_dev_changed)
                 // is it needed by another option ?
-                dev_check(initializing && kernel_get_if_config() ? (void*)&CONST_YES : (void*)&CONST_NO);
+                dev_check( initializing ? (void*)&CONST_YES : (void*)&CONST_NO );
+//                dev_check((initializing && kernel_get_if_config()) ? (void*)&CONST_YES : (void*)&CONST_NO);
 
         }
 
@@ -3707,6 +3713,7 @@ void init_ip(void)
 
         register_status_handl(sizeof (struct dev_status), 1, dev_status_format, ARG_INTERFACES, dev_status_creator);
 
+        kernel_get_if_config();
 
 //        InitSha(&ip_sha);
 }

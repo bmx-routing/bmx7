@@ -465,8 +465,8 @@ void configure_hna(IDM_T del, struct net_key* key, struct orig_node *on, uint8_t
                 // update throw routes:
                 if (policy_routing == POLICY_RT_ENABLED && ip_throw_rules_cfg) {
                         assertion(-501333, (key->af == AF_CFG));
-                        iproute(IP_THROW_MY_HNA, del, NO, key, RT_TABLE_HNA, 0, 0, 0, 0, 0, NULL);
-                        iproute(IP_THROW_MY_HNA, del, NO, key, RT_TABLE_TUN, 0, 0, 0, 0, 0, NULL);
+                        iproute(IP_THROW_MY_HNA, del, NO, key, RT_TABLE_HNA, 0, (key->af == AF_INET6 ? dev_lo_idx : 0), 0, 0, 0, NULL);
+                        iproute(IP_THROW_MY_HNA, del, NO, key, RT_TABLE_TUN, 0, (key->af == AF_INET6 ? dev_lo_idx : 0), 0, 0, 0, NULL);
                 }
 
         } else if (on->curr_rt_lndev && !(flags & DESC_MSG_HNA_FLAG_NO_ROUTE)) {
@@ -1952,12 +1952,12 @@ int32_t opt_tun_in_net(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
 {
         TRACE_FUNCTION_CALL;
 
-        if (cmd == OPT_ADJUST || cmd == OPT_CHECK) {
+        dbgf_all(DBGT_INFO, "diff=%d cmd=%s  save=%d  opt=%s  patch=%s",
+                   patch?patch->diff:-1, opt_cmd2str[cmd], _save, opt->name, patch?patch->val:NULL);
+
+        if (cmd == OPT_ADJUST || cmd == OPT_CHECK || cmd == OPT_APPLY) {
 
                 struct net_key net = ZERO_NET_KEY;
-
-                dbgf_all(DBGT_INFO, "diff=%d cmd=%s  save=%d  opt=%s  patch=%s",
-                        patch->diff, opt_cmd2str[cmd], _save, opt->name, patch->val);
 
                 if (AF_CFG != AF_INET6)
                         return FAILURE;
@@ -1967,10 +1967,8 @@ int32_t opt_tun_in_net(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                         return FAILURE;
                 }
 
-                if(cmd == OPT_ADJUST)
+                if (cmd == OPT_ADJUST)
                         set_opt_parent_val(patch, netAsStr(&net));
-
-
 
                 struct opt_child *c = NULL;
 
@@ -1997,12 +1995,20 @@ int32_t opt_tun_in_net(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                                 }
                         }
                 }
+
+                if (cmd == OPT_APPLY) {
+
+                        if (policy_routing == POLICY_RT_ENABLED && ip_throw_rules_cfg &&
+                                (patch->diff == ADD || patch->diff == DEL)) {
+
+//                              iproute(IP_THROW_MY_HNA, patch->diff, NO, &net, RT_TABLE_HNA, 0, 0, 0, 0, 0, NULL);
+                                iproute(IP_THROW_MY_TUNS, patch->diff, NO, &net, RT_TABLE_TUN, 0, (net.af == AF_INET6 ? dev_lo_idx : 0), 0, 0, 0, NULL);
+                        }
+
+
+                        my_description_changed = YES;
+                }
 	}
-
-
-        if (cmd == OPT_APPLY) {
-                my_description_changed = YES;
-        }
 
 	return SUCCESS;
 }

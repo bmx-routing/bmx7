@@ -135,7 +135,7 @@ typedef struct ifname IFNAME_T;
 #define DEF_IP_POLICY_ROUTING 1
 
 #define ARG_IP_THROW_RULES "throwRules"
-#define DEF_IP_THROW_RULES 0
+#define DEF_IP_THROW_RULES 1
 
 #define ARG_IP_PRIO_RULES "prioRules"
 #define DEF_IP_PRIO_RULES 1
@@ -254,6 +254,7 @@ extern const IP6_T   IP6_MC_PREF;
 extern const uint8_t IP6_MC_PLEN;
 
 
+extern int dev_lo_idx;
 
 extern struct dev_node *primary_dev;
 extern struct dev_node *primary_phy;
@@ -525,9 +526,10 @@ extern struct bmx6_route_dict bmx6_rt_dict[BMX6_ROUTE_MAX];
 #define IP_ROUTE_FLUSH     32
 #define IP_THROW_MY_HNA    33
 #define IP_THROW_MY_NET    34
-#define IP_ROUTE_HOST      35
-#define IP_ROUTE_HNA       36
-#define IP_ROUTE_TUNS      37
+#define IP_THROW_MY_TUNS   35
+#define IP_ROUTE_HOST      36
+#define IP_ROUTE_HNA       37
+#define IP_ROUTE_TUNS      38
 #define	IP_ROUTE_MAX       (IP_ROUTE_TUNS + BMX6_ROUTE_MAX)
 
 

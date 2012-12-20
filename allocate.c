@@ -191,7 +191,7 @@ void checkLeak(void)
 
 }
 
-void *_debugMalloc(uint32_t length, int32_t tag)
+void *_debugMalloc(uint32_t length, int32_t tag, uint8_t reset)
 {
 	
 	unsigned char *memory;
@@ -230,14 +230,17 @@ void *_debugMalloc(uint32_t length, int32_t tag)
 
 #endif //#ifdef MEMORY_USAGE
 
+        if (reset)
+                memset(chunk, 0, length);
+
 	return chunk;
 }
 
-void *_debugRealloc(void *memoryParameter, uint32_t length, int32_t tag)
+void *_debugRealloc(void *memoryParameter, uint32_t length, int32_t tag, uint8_t reset)
 {
 
-        unsigned char *result = _debugMalloc(length, tag);
-
+        unsigned char *result = _debugMalloc(length, tag, 0);
+        uint32_t copyLength = 0;
 
 	if (memoryParameter) { /* if memoryParameter==NULL, realloc() should work like malloc() !! */
 
@@ -259,7 +262,7 @@ void *_debugRealloc(void *memoryParameter, uint32_t length, int32_t tag)
 			cleanup_all( -500079 );
 		}
 
-                uint32_t copyLength = (length < chunkHeader->length) ? length : chunkHeader->length;
+                copyLength = (length < chunkHeader->length) ? length : chunkHeader->length;
 
                 if (copyLength)
                         memcpy(result, memoryParameter, copyLength);
@@ -267,8 +270,12 @@ void *_debugRealloc(void *memoryParameter, uint32_t length, int32_t tag)
 		debugFree(memoryParameter, -300280);
 	}
 
+        if (reset)
+                memset( ( (uint8_t*)result + copyLength), 0, (length - copyLength));
+
 	return result;
 }
+
 
 void _debugFree(void *memoryParameter, int tag)
 {
@@ -344,7 +351,7 @@ void debugMemory( struct ctrl_node *cn )
 {
 }
 
-void *_debugMalloc(uint32_t length, int32_t tag)
+void *debugMalloc(uint32_t length, int32_t tag)
 {
         void *result = malloc(length);
 
@@ -357,7 +364,7 @@ void *_debugMalloc(uint32_t length, int32_t tag)
 	return result;
 }
 
-void *_debugRealloc(void *memory, uint32_t length, int32_t tag)
+void *debugRealloc(void *memory, uint32_t length, int32_t tag)
 {
         void *result = realloc(memory, length);
 
@@ -369,7 +376,7 @@ void *_debugRealloc(void *memory, uint32_t length, int32_t tag)
 	return result;
 }
 
-void _debugFree(void *memory, int32_t tag)
+void debugFree(void *memory, int32_t tag)
 {
 	free(memory);
 }

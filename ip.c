@@ -61,6 +61,7 @@ const IFNAME_T ZERO_IFNAME = {{0}};
 
 static const char *_af_cfg_read = NULL;
 
+//TODO: remove me!!??
 int dev_lo_idx = 0;
 
 
@@ -2561,8 +2562,9 @@ int update_interface_rules(void)
                         setNet(&throw, ian->ifa.ifa_family, ian->ifa.ifa_prefixlen, &ian->ip_addr);
                         ip_netmask_validate(&throw.ip, throw.mask, throw.af, YES);
 
-                        iproute(IP_THROW_MY_NET, ADD, NO, &throw, RT_TABLE_HNA, 0, (throw.af == AF_INET6 ? dev_lo_idx : 0), 0, 0, 0, NULL);
-                        iproute(IP_THROW_MY_NET, ADD, NO, &throw, RT_TABLE_TUN, 0, (throw.af == AF_INET6 ? dev_lo_idx : 0), 0, 0, 0, NULL);
+			//TODO: Fix (set oif_idx=0) as soon as this becomes mainline: http://permalink.gmane.org/gmane.linux.network/242277
+                        iproute(IP_THROW_MY_NET, ADD, NO, &throw, RT_TABLE_HNA, 0, (throw.af == AF_INET6 ? iln->index : 0), 0, 0, 0, NULL);
+                        iproute(IP_THROW_MY_NET, ADD, NO, &throw, RT_TABLE_TUN, 0, (throw.af == AF_INET6 ? iln->index : 0), 0, 0, 0, NULL);
 
                 }
         }

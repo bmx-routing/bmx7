@@ -463,11 +463,16 @@ void configure_hna(IDM_T del, struct net_key* key, struct orig_node *on, uint8_t
         if (on == self) {
 
                 // update throw routes:
+		/*
+		 * HNAs should not be thrown. They are a promise to be routed!
+		 * The correct solution would be to drop conflicting OGMs
+		 *
                 if (policy_routing == POLICY_RT_ENABLED && ip_throw_rules_cfg) {
                         assertion(-501333, (key->af == AF_CFG));
                         iproute(IP_THROW_MY_HNA, del, NO, key, RT_TABLE_HNA, 0, (key->af == AF_INET6 ? dev_lo_idx : 0), 0, 0, 0, NULL);
                         iproute(IP_THROW_MY_HNA, del, NO, key, RT_TABLE_TUN, 0, (key->af == AF_INET6 ? dev_lo_idx : 0), 0, 0, 0, NULL);
                 }
+		 */
 
         } else if (on->curr_rt_lndev && !(flags & DESC_MSG_HNA_FLAG_NO_ROUTE)) {
 
@@ -2001,8 +2006,9 @@ int32_t opt_tun_in_net(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                         if (policy_routing == POLICY_RT_ENABLED && ip_throw_rules_cfg &&
                                 (patch->diff == ADD || patch->diff == DEL)) {
 
-//                              iproute(IP_THROW_MY_HNA, patch->diff, NO, &net, RT_TABLE_HNA, 0, 0, 0, 0, 0, NULL);
-                                iproute(IP_THROW_MY_TUNS, patch->diff, NO, &net, RT_TABLE_TUN, 0, (net.af == AF_INET6 ? dev_lo_idx : 0), 0, 0, 0, NULL);
+				// This command may fail unless the following kernel patch is appplied:
+				// http://permalink.gmane.org/gmane.linux.network/242277
+                                iproute(IP_THROW_MY_TUNS, patch->diff, NO, &net, RT_TABLE_TUN, 0, 0 /*(net.af == AF_INET6 ? dev_lo_idx : 0)*/, 0, 0, 0, NULL);
                         }
 
 

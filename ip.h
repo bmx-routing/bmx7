@@ -63,17 +63,15 @@ typedef struct ifname IFNAME_T;
 
 #define DEF_AUTO_MASK_DISABLED   0  // DO NOT CHANGE THIS
 
-#define DEF_AUTO_IP6_PREFIX      "fd66:66:66::/64"
-#define DEF_AUTO_IP6_MASK        64 // DO NOT CHANGE THIS
+#define DEF_AUTO_IP6_PREFIX      "fd66:66:66::/56"
+#define DEF_AUTO_IP6_MASK        56 // DO NOT CHANGE THIS
 #define ARG_AUTO_IP6_PREFIX      "ipAutoPrefix"
-#define HLP_AUTO_IP6_PREFIX      "Autoconfigure IPv6 addresses (MUST be something/64 to enable or ::/0 to disable)"
+#define HLP_AUTO_IP6_PREFIX      "Autoconfigure IPv6 addresses (MUST be something/56 to enable or ::/0 to disable)"
+#define DEF_AUTO_IP6_BYTE6       0x00
+#define DEF_AUTO_IP6_DEVMASK     64
 
-#define DEF_AUTO_REMOTE_PREFIX   "fd66:66:66:ff00::/56"
-#define DEF_AUTO_REMOTE_MASK     56 // DO NOT CHANGE THIS
-#define ARG_AUTO_REMOTE_PREFIX   "tunInRemotePrefix"
-#define HLP_AUTO_REMOTE_PREFIX   "Autoconfigure incoming tunnel and its IPv6 remote address (MUST be something/64 to enable or ::/0 to disable)"
 #define MAX_TUN_REMOTE_IPS       255 // limited by 8-bit tun6Id range and (65 - DEF_AUTO_REMOTE_MASK) bit size
-
+#define DEF_TUN_REMOTE_BYTE6     0xFF
 
 #define ARG_INTERFACES "interfaces"
 
@@ -229,7 +227,7 @@ extern const struct net_key ZERO_NET4_KEY;
 extern const struct net_key ZERO_NET6_KEY;
 
 
-extern struct net_key remote_prefix_cfg;
+extern struct net_key autoconf_prefix_cfg;
 extern struct tun_in_node default_tun_in;
 
 #ifdef NO_ASSERTIONS

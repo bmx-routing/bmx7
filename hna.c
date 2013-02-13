@@ -379,7 +379,8 @@ int create_description_tlv_hna(struct tx_frame_iterator *it)
         if (family == AF_INET6) {
 
                 struct tun_in_node *tin;
-                struct net_key autoRemotePrefix = bmx6AutoEUI64Ip6(primary_phy, &remote_prefix_cfg);
+                struct net_key autoRemotePrefix = bmx6AutoEUI64Ip6(primary_phy, &autoconf_prefix_cfg);
+		autoRemotePrefix.ip.s6_addr[6] = DEF_TUN_REMOTE_BYTE6;
 
                 if (default_tun_in.tun6Id >= 0)
                         configure_tunnel_in(DEL, &default_tun_in);

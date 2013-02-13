@@ -89,8 +89,7 @@ const MAC_T ZERO_MAC = {{0}};
 //TODO: make this configurable
 static struct net_key llocal_prefix_cfg;
 static struct net_key global_prefix_cfg;
-static struct net_key autoconf_prefix_cfg;
-struct net_key remote_prefix_cfg;
+struct net_key autoconf_prefix_cfg;
 struct tun_in_node default_tun_in;
 
 
@@ -2662,8 +2661,12 @@ void dev_if_fix(void)
                 struct avl_node *aan;
                 struct net_key autoIP6 = ZERO_NET6_KEY;
 
-                if (!global_prefix_cfg.mask && !dev->global_prefix_conf_.mask && autoconf_prefix_cfg.mask)
+                if (!global_prefix_cfg.mask && !dev->global_prefix_conf_.mask && autoconf_prefix_cfg.mask) {
                         autoIP6 = bmx6AutoEUI64Ip6(dev, &autoconf_prefix_cfg);
+			autoIP6.mask = DEF_AUTO_IP6_DEVMASK;
+			autoIP6.ip.s6_addr[6] = DEF_AUTO_IP6_BYTE6;
+			autoIP6.ip.s6_addr[7] = (uint8_t)dev->if_link->index; //different ULAs for equal MAC addresses!!
+		}
 
 
                 for (aan = NULL; (ian = avl_iterate_item(&dev->if_link->if_addr_tree, &aan));) {
@@ -2731,6 +2734,8 @@ void dev_if_fix(void)
                 }
 
                 if (AF_CFG == AF_INET6 && autoIP6.mask && dev->announce && !dev->if_global_addr) {
+
+			dbgf_sys(DBGT_INFO, "Autoconfiguring dev=%s idx=%d ip=%s", dev->label_cfg.str, dev->if_link->index, netAsStr(&autoIP6))
 
                         kernel_set_addr(ADD, dev->if_link->index, AF_INET6, &autoIP6.ip, autoIP6.mask, NO /*deprecated*/);
                         dev->autoIP6Configured = autoIP6;
@@ -2825,8 +2830,8 @@ static void dev_check(void *kernel_ip_config_changed)
 
                         if (tmp_dev && !wordsEqual(tmp_dev->name_phy_cfg.str, dev->name_phy_cfg.str)) {
 
-                                dbgf_sys(DBGT_ERR, "%s=%s IP %-15s already used for IF %s",
-                                        ARG_DEV, dev->label_cfg.str, dev->ip_llocal_str, tmp_dev->label_cfg.str);
+                                dbgf_sys(DBGT_WARN, "%s=%s llocal=%s already used for dev=%s",
+                                        ARG_DEV, dev->label_cfg.str, ipFAsStr(&dev->if_llocal_addr->ip_addr), tmp_dev->label_cfg.str);
 
                         } else if (dev->activate_cancelled) {
 
@@ -3268,7 +3273,7 @@ int32_t opt_auto_prefix(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
                                 (prefix.af != AF_INET6) ||
                                 (is_ip_net_equal(&prefix.ip, &IP6_MC_PREF, IP6_MC_PLEN, AF_INET6)) ||
                                 (is_ip_net_equal(&prefix.ip, &IP6_LINKLOCAL_UC_PREF, IP6_LINKLOCAL_UC_PLEN, AF_INET6)) ||
-                                (prefix.mask != DEF_AUTO_IP6_MASK && prefix.mask != DEF_AUTO_MASK_DISABLED)
+                                (prefix.mask != DEF_AUTO_MASK_DISABLED && prefix.mask != DEF_AUTO_IP6_MASK)
                                 ) {
 
                                 dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "%s=%s invalid prefix %s",
@@ -3302,15 +3307,9 @@ int32_t opt_auto_prefix(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
                                 }
 
                                 autoconf_prefix_cfg = prefix;
-
-                        } else if (!strcmp(opt->name, ARG_AUTO_REMOTE_PREFIX)) {
-
-                                remote_prefix_cfg = prefix;
-
-                                my_description_changed = YES;
+				my_description_changed = YES;
 
                         }
-
                 }
         }
 
@@ -3626,9 +3625,6 @@ static struct opt_type ip_options[]=
 	{ODI,0,ARG_AUTO_IP6_PREFIX,     0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,      	0,      	0,              0,DEF_AUTO_IP6_PREFIX,opt_auto_prefix,
 			ARG_VALUE_FORM,	HLP_AUTO_IP6_PREFIX}
         ,
-	{ODI,0,ARG_AUTO_REMOTE_PREFIX,  0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,      	0,      	0,              0,DEF_AUTO_REMOTE_PREFIX,opt_auto_prefix,
-			ARG_VALUE_FORM,	HLP_AUTO_REMOTE_PREFIX}
-        ,
 	{ODI,0,ARG_DEV,		        'i',9,2,A_PM1N,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0, 		0,		0,0, 		opt_dev,
 			"<interface-name>", HLP_DEV}
         ,
@@ -3688,10 +3684,8 @@ void init_ip(void)
 
 
 
-        remote_prefix_cfg = ZERO_NET6_KEY;
         autoconf_prefix_cfg = ZERO_NET6_KEY;
         str2netw(DEF_AUTO_IP6_PREFIX, &autoconf_prefix_cfg.ip, NULL, &autoconf_prefix_cfg.mask, &autoconf_prefix_cfg.af, NO);
-        str2netw(DEF_AUTO_REMOTE_PREFIX, &remote_prefix_cfg.ip, NULL, &remote_prefix_cfg.mask, &remote_prefix_cfg.af, NO);
 
         memset(&default_tun_in, 0, sizeof (default_tun_in));
         default_tun_in.tun6Id = -1;

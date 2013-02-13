@@ -2119,7 +2119,7 @@ static struct opt_type bmx_options[]=
 			ARG_VALUE_FORM,	"timeout in ms for purging stale originators"}
         ,
 	{ODI,0,ARG_LINK_PURGE_TO,    	0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&link_purge_to,	MIN_LINK_PURGE_TO,MAX_LINK_PURGE_TO,DEF_LINK_PURGE_TO,0,0,
-			ARG_VALUE_FORM,	"timeout in ms for purging stale originators"}
+			ARG_VALUE_FORM,	"timeout in ms for purging stale links"}
         ,
 	{ODI,0,ARG_DAD_TO,        	0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&dad_to,	MIN_DAD_TO,	MAX_DAD_TO,	DEF_DAD_TO,0,	0,
 			ARG_VALUE_FORM,	"duplicate address (DAD) detection timout in ms"}

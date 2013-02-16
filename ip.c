@@ -127,7 +127,7 @@ struct dev_node *primary_phy = NULL;
 
 AVL_TREE(if_link_tree, struct if_link_node, index);
 
-AVL_TREE(dev_ip_tree, struct dev_node, llocal_ip_key);
+AVL_TREE(dev_ip_tree, struct dev_node, llip_key);
 AVL_TREE(dev_name_tree, struct dev_node, name_phy_cfg);
 
 AVL_TREE(iptrack_tree, struct track_node, k);
@@ -1980,13 +1980,13 @@ void dev_deactivate( struct dev_node *dev )
         dbgf_sys(DBGT_WARN, "deactivating %s=%s llocal=%s global=%s",
                 ARG_DEV, dev->label_cfg.str, dev->ip_llocal_str, dev->ip_global_str);
 
-        if (!is_ip_set(&dev->llocal_ip_key)) {
+        if (!is_ip_set(&dev->llip_key.ip)) {
                 dbgf_sys(DBGT_ERR, "no address given to remove in dev_ip_tree!");
-        } else if (!avl_find(&dev_ip_tree, &dev->llocal_ip_key)) {
-                dbgf_sys(DBGT_ERR, "%s not in dev_ip_tree!", ipFAsStr(&dev->llocal_ip_key));
+        } else if (!avl_find(&dev_ip_tree, &dev->llip_key)) {
+                dbgf_sys(DBGT_ERR, "%s not in dev_ip_tree!", ipFAsStr(&dev->llip_key.ip));
         } else {
-                avl_remove(&dev_ip_tree, &dev->llocal_ip_key, -300192);
-                dev->llocal_ip_key = ZERO_IP;
+                avl_remove(&dev_ip_tree, &dev->llip_key, -300192);
+                dev->llip_key.ip = ZERO_IP;
         }
 
 
@@ -2023,7 +2023,7 @@ void dev_deactivate( struct dev_node *dev )
                         dev->rx_fullbrc_sock = 0;
                 }
 
-                dev->dev_adv_idx = DEVADV_IDX_INVALID;
+                dev->llip_key.idx = DEVADV_IDX_INVALID;
         }
 
 
@@ -2270,7 +2270,7 @@ DEVADV_IDX_T get_free_devidx(void)
                 idx = ((idx + 1) > DEVADV_IDX_MAX ? DEVADV_IDX_MIN : (idx + 1));
 
                 for (an = NULL; ((dev = avl_iterate_item(&dev_ip_tree, &an)));) {
-                        if (dev->dev_adv_idx == idx)
+                        if (dev->llip_key.idx == idx)
                                 break;
                 }
 
@@ -2346,7 +2346,7 @@ void dev_activate( struct dev_node *dev )
                 if (dev_init_sockets(dev) == FAILURE)
                         goto error;
 
-                if ((dev->dev_adv_idx = get_free_devidx()) == DEVADV_IDX_INVALID)
+                if ((dev->llip_key.idx = get_free_devidx()) == DEVADV_IDX_INVALID)
                         goto error;
 
                 if (my_local_id == LOCAL_ID_INVALID && new_local_id(dev) == LOCAL_ID_INVALID)
@@ -2358,8 +2358,8 @@ void dev_activate( struct dev_node *dev )
         // from here on, nothing should fail anymore !!:
 
 
-        assertion(-500592, (!avl_find(&dev_ip_tree, &dev->if_llocal_addr->ip_addr)));
-        dev->llocal_ip_key = dev->if_llocal_addr->ip_addr;
+        dev->llip_key.ip = dev->if_llocal_addr->ip_addr;
+        assertion(-500592, (!avl_find(&dev_ip_tree, &dev->llip_key)));
         avl_insert(&dev_ip_tree, dev, -300151);
 
 
@@ -2826,32 +2826,38 @@ static void dev_check(void *kernel_ip_config_changed)
 
                 if (iff_up && !dev->active && (dev->hard_conf_changed || dev->activate_again)) {
 
-                        struct dev_node *tmp_dev = avl_find_item(&dev_ip_tree, &dev->if_llocal_addr->ip_addr);
+			struct dev_ip_key devip_key = { .ip = dev->if_llocal_addr->ip_addr, .idx=0 };
+                        struct dev_node *tmp_dev = avl_find_item(&dev_ip_tree, &devip_key);
 
-                        if (tmp_dev && !wordsEqual(tmp_dev->name_phy_cfg.str, dev->name_phy_cfg.str)) {
+                        while ((tmp_dev || (tmp_dev = avl_next_item(&dev_ip_tree, &devip_key)))
+				&& is_ip_equal(&tmp_dev->llip_key.ip, &dev->if_llocal_addr->ip_addr)) {
 
-                                dbgf_sys(DBGT_WARN, "%s=%s llocal=%s already used for dev=%s",
-                                        ARG_DEV, dev->label_cfg.str, ipFAsStr(&dev->if_llocal_addr->ip_addr), tmp_dev->label_cfg.str);
+				devip_key = tmp_dev->llip_key;
 
-                        } else if (dev->activate_cancelled) {
+				if (!wordsEqual(tmp_dev->name_phy_cfg.str, dev->name_phy_cfg.str)) {
 
-                                dbgf_sys(DBGT_ERR,
-                                        "%s=%s activation delayed", ARG_DEV, dev->label_cfg.str);
+					dbgf_sys(DBGT_WARN, "%s=%s llocal=%s already used for dev=%s idx=0x%X",
+						ARG_DEV, dev->label_cfg.str, ipFAsStr(&dev->if_llocal_addr->ip_addr),
+						tmp_dev->label_cfg.str, tmp_dev->llip_key.idx);
+				}
+				tmp_dev = NULL;
+			}
+
+			if (dev->activate_cancelled) {
+
+                                dbgf_sys(DBGT_ERR, "%s=%s activation delayed", ARG_DEV, dev->label_cfg.str);
 
                         } else if (dev->announce && !dev->if_global_addr) {
 
-                                dbgf_sys(DBGT_ERR,
-                                        "%s=%s %s but no global addr", ARG_DEV, dev->label_cfg.str, "to-be announced");
+                                dbgf_sys(DBGT_ERR, "%s=%s %s but no global addr", ARG_DEV, dev->label_cfg.str, "to-be announced");
 
                         } else if (dev == primary_dev && !dev->if_global_addr) {
 
-                                dbgf_sys(DBGT_ERR,
-                                        "%s=%s %s but no global addr", ARG_DEV, dev->label_cfg.str, "primary dev");
+                                dbgf_sys(DBGT_ERR, "%s=%s %s but no global addr", ARG_DEV, dev->label_cfg.str, "primary dev");
 
                         } else if (wordsEqual(DEV_LO, dev->name_phy_cfg.str) && !dev->if_global_addr) {
 
-                                dbgf_sys(DBGT_ERR,
-                                        "%s=%s %s but no global addr", ARG_DEV, dev->label_cfg.str, "loopback");
+                                dbgf_sys(DBGT_ERR, "%s=%s %s but no global addr", ARG_DEV, dev->label_cfg.str, "loopback");
 
                         } else if (dev_ip_tree.items == DEVADV_IDX_MAX) {
 
@@ -3172,7 +3178,7 @@ static int32_t dev_status_creator(struct status_handl *handl, void* data)
 
 
                 status[i].devName = dev->label_cfg.str;
-                status[i].devIdx = dev->dev_adv_idx;
+                status[i].devIdx = dev->llip_key.idx;
                 status[i].state = iff_up ? "UP":"DOWN";
                 status[i].type = !dev->active ? "INACTIVE" :
                         (dev->linklayer == TYP_DEV_LL_LO ? "loopback" :

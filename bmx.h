@@ -69,6 +69,17 @@ typedef struct dhash_node IID_NODE_T;
 #define IPX_STR_LEN INET6_ADDRSTRLEN
 #define IPX_PREFIX_STR_LEN (INET6_ADDRSTRLEN + 4)
 
+typedef uint16_t DEVADV_SQN_T;
+#define DEVADV_SQN_DISABLED 0 // dev-adv are not provided by this node!
+#define DEVADV_SQN_DAD_RANGE 256
+#define DEVADV_SQN_MAX ((DEVADV_SQN_T)-1)
+
+typedef uint8_t DEVADV_IDX_T;
+//#define DEVADV_IDX_BIT_SIZE (8*sizeof(DEVADV_IDX_T))
+#define DEVADV_IDX_INVALID 0
+#define DEVADV_IDX_ALL 0
+#define DEVADV_IDX_MIN 1
+#define DEVADV_IDX_MAX ((DEVADV_IDX_T)-1)
 
 typedef uint32_t IP4_T;
 
@@ -81,6 +92,12 @@ struct net_key {
 	uint8_t mask; //prefixlen
 	IPX_T ip;     //address
 };
+
+struct dev_ip_key {
+	IPX_T ip; // copy of dev->if_llocal_addr->ip_addr
+	DEVADV_IDX_T idx;
+};
+
 
 typedef union {
 	uint8_t   u8[GEN_ADDR_LEN];
@@ -321,22 +338,12 @@ typedef uint32_t PKT_SQN_T;
 #define PKT_SQN_DAD_TOLERANCE 100
 #define PKT_SQN_MAX ((PKT_SQN_T)-1)
 
-typedef uint16_t DEVADV_SQN_T;
-#define DEVADV_SQN_DISABLED 0 // dev-adv are not provided by this node!
-#define DEVADV_SQN_DAD_RANGE 256
-#define DEVADV_SQN_MAX ((DEVADV_SQN_T)-1)
 
 typedef uint16_t LINKADV_SQN_T;
 #define LINKADV_SQN_DAD_RANGE 256
 #define LINKADV_SQN_MAX ((LINKADV_SQN_T)-1)
 
 
-typedef uint8_t DEVADV_IDX_T;
-//#define DEVADV_IDX_BIT_SIZE (8*sizeof(DEVADV_IDX_T))
-#define DEVADV_IDX_INVALID 0
-#define DEVADV_IDX_ALL 0
-#define DEVADV_IDX_MIN 1
-#define DEVADV_IDX_MAX ((DEVADV_IDX_T)-1)
 
 typedef uint32_t LOCAL_ID_T;
 #define LOCAL_ID_BIT_SIZE (8*sizeof(LOCAL_ID_T))

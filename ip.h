@@ -376,6 +376,8 @@ struct tx_link_node {
 	struct list_head tx_tasks_list[FRAME_TYPE_ARRSZ]; // scheduled frames and messages
 };
 
+
+
 struct dev_node {
 
 	struct if_link_node *if_link;
@@ -392,7 +394,7 @@ struct dev_node {
 	uint8_t activate_cancelled;
 	uint16_t lndevs_tmp;
 
-	DEVADV_IDX_T dev_adv_idx;
+//	DEVADV_IDX_T dev_adv_idx; //TODO: Remove (use llip_key.idx instead)
 	int16_t dev_adv_msg;
 
 	IFNAME_T name_phy_cfg;  //key for dev_name_tree
@@ -400,7 +402,8 @@ struct dev_node {
 
 	struct link_dev_node dummy_lndev;
 
-	IPX_T llocal_ip_key; // copy of dev->if_llocal_addr->ip_addr;
+	struct dev_ip_key llip_key;
+//	IPX_T llocal_ip_key; //TODO: Remove (use llip_key.ip instead)
 	MAC_T mac;
 
 

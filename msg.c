@@ -1250,11 +1250,11 @@ void update_my_dev_adv(void)
                 if (dev->linklayer == TYP_DEV_LL_LO)
                         continue;
 
-                my_dev_adv_buff[msg].dev_idx = dev->dev_adv_idx;
+                my_dev_adv_buff[msg].dev_idx = dev->llip_key.idx;
                 my_dev_adv_buff[msg].channel = dev->channel;
                 my_dev_adv_buff[msg].tx_bitrate_min = umetric_to_fmu8(&dev->umetric_min);
                 my_dev_adv_buff[msg].tx_bitrate_max = umetric_to_fmu8(&dev->umetric_max);
-                my_dev_adv_buff[msg].llip = dev->llocal_ip_key;
+                my_dev_adv_buff[msg].llip = dev->llip_key.ip;
                 my_dev_adv_buff[msg].mac = dev->mac;
 
                 dev->dev_adv_msg = msg++;
@@ -1407,7 +1407,7 @@ int32_t rx_frame_dev_adv( struct rx_frame_iterator *it)
 STATIC_FUNC
 void set_link_adv_msg(uint16_t msg, struct link_dev_node *lndev)
 {
-        my_link_adv_buff[msg].transmitter_dev_idx = lndev->key.dev->dev_adv_idx;
+        my_link_adv_buff[msg].transmitter_dev_idx = lndev->key.dev->llip_key.idx;
         my_link_adv_buff[msg].peer_dev_idx = lndev->key.link->key.dev_idx;
         my_link_adv_buff[msg].peer_local_id = lndev->key.link->key.local_id;
         lndev->link_adv_msg = msg;
@@ -1730,7 +1730,7 @@ int32_t rx_frame_rp_adv(struct rx_frame_iterator *it)
 
                 for (lndev = NULL; (lndev = list_iterate(&link->lndev_list, lndev));) {
 
-                        if (lndev->key.dev->dev_adv_idx == local->link_adv[m].peer_dev_idx) {
+                        if (lndev->key.dev->llip_key.idx == local->link_adv[m].peer_dev_idx) {
 
                                 lndev->tx_probe_umetric = (UMETRIC_MAX * ((UMETRIC_T) (adv[m].rp_127range))) / 127;
                                 lndev_assign_best(local, lndev);
@@ -3049,7 +3049,7 @@ void next_tx_task_list(struct dev_node *dev, struct tx_frame_iterator *it, struc
                                         "found %s   link nb: nb_local_id=%X nb_dev_idx=%d nbIP=%s   via lndev: my_dev=%s my_dev_idx=%d with lndev->tx_tasks_list[].items=%d",
                                         it->handls[it->frame_type].name,
                                         ntohl(link->key.local_id), link->key.dev_idx, ipFAsStr(&link->link_ip),
-                                        dev->label_cfg.str, dev->dev_adv_idx, it->tx_task_list->items);
+                                        dev->label_cfg.str, dev->llip_key.idx, it->tx_task_list->items);
 
                                 return;
                         }
@@ -3127,7 +3127,7 @@ void tx_packet(void *devp)
                                 it.ttn->task.link == avl_find_item(&link_tree, &it.ttn->task.link->key))));
 
                         ASSERTION(-500920, (IMPLIES(!handl->is_advertisement, it.ttn->task.dev &&
-                                it.ttn->task.dev == avl_find_item(&dev_ip_tree, &it.ttn->task.dev->llocal_ip_key))));
+                                it.ttn->task.dev == avl_find_item(&dev_ip_tree, &it.ttn->task.dev->llip_key))));
 
 
 
@@ -3239,7 +3239,7 @@ void tx_packet(void *devp)
                         packet_hdr->link_adv_sqn = htons(my_link_adv_sqn);
                         packet_hdr->pkt_sqn = htonl(++my_packet_sqn);
                         packet_hdr->local_id = my_local_id;
-                        packet_hdr->dev_idx = dev->dev_adv_idx;
+                        packet_hdr->dev_idx = dev->llip_key.idx;
 
                         cb_packet_hooks(&pb);
 

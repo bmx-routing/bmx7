@@ -989,12 +989,21 @@ void rx_packet( struct packet_buff *pb )
 {
         TRACE_FUNCTION_CALL;
 
-        struct dev_node *oif, *iif = pb->i.iif;
+        struct dev_node *iif = pb->i.iif;
         
         if (drop_all_packets)
                 return;
 
         assertion(-500841, ((iif->active && iif->if_llocal_addr)));
+
+        struct packet_header *hdr = &pb->packet.header;
+        uint16_t pkt_length = ntohs(hdr->pkt_length);
+        pb->i.transmittersIID = ntohs(hdr->transmitterIID);
+        pb->i.pkt_sqn = ntohl(hdr->pkt_sqn);
+        pb->i.link_sqn = ntohs(hdr->link_adv_sqn);
+
+        pb->i.link_key.local_id = hdr->local_id;
+        pb->i.link_key.dev_idx = hdr->dev_idx;
 
         if (AF_CFG == AF_INET) {
                 pb->i.llip = ip4ToX((*((struct sockaddr_in*) &(pb->i.addr))).sin_addr.s_addr);
@@ -1009,14 +1018,6 @@ void rx_packet( struct packet_buff *pb )
         }
         //TODO: check broadcast source!!
 
-        struct packet_header *hdr = &pb->packet.header;
-        uint16_t pkt_length = ntohs(hdr->pkt_length);
-        pb->i.transmittersIID = ntohs(hdr->transmitterIID);
-        pb->i.pkt_sqn = ntohl(hdr->pkt_sqn);
-        pb->i.link_sqn = ntohs(hdr->link_adv_sqn);
-
-        pb->i.link_key.dev_idx = hdr->dev_idx;
-        pb->i.link_key.local_id = hdr->local_id;
 
 
         ipFToStr(&pb->i.llip, pb->i.llip_str);
@@ -1034,24 +1035,37 @@ void rx_packet( struct packet_buff *pb )
                 goto process_packet_error;
         }
 
-        if ((oif = avl_find_item(&dev_ip_tree, &pb->i.llip))) {
 
-                ASSERTION(-500840, (oif == iif)); // so far, only unique own interface IPs are allowed!!
-
-                if (((my_local_id != pb->i.link_key.local_id || oif->dev_adv_idx != pb->i.link_key.dev_idx) &&
+	struct dev_ip_key any_key = { .ip = pb->i.llip, .idx = 0 };
+	struct dev_node *aif;
+        if (((aif = avl_find_item(&dev_ip_tree, &any_key)) || (aif = avl_next_item(&dev_ip_tree, &any_key))) &&
+		is_ip_equal(&pb->i.llip, &aif->llip_key.ip)) {
+		
+		struct dev_ip_key oif_key = { .ip = pb->i.llip, .idx = pb->i.link_key.dev_idx };
+		struct dev_node *oif = avl_find_item(&dev_ip_tree, &oif_key);
+		aif = oif ? oif : aif;
+		if (!oif || (((my_local_id != pb->i.link_key.local_id || aif->llip_key.idx != pb->i.link_key.dev_idx) &&
                         (((TIME_T) (bmx_time - my_local_id_timestamp)) > (4 * (TIME_T) my_tx_interval))) ||
-                        ((myIID4me != pb->i.transmittersIID) && (((TIME_T) (bmx_time - myIID4me_timestamp)) > (4 * (TIME_T) my_tx_interval)))) {
+                        ((myIID4me != pb->i.transmittersIID) && (((TIME_T) (bmx_time - myIID4me_timestamp)) > (4 * (TIME_T) my_tx_interval))))) {
 
                         // my local_id  or myIID4me might have just changed and then, due to delay,
                         // I might receive my own packet back containing my previous (now non-matching) local_id of myIID4me
-                        dbgf_sys(DBGT_ERR, "DAD-Alert (duplicate Address) from NB=%s via dev=%s "
-                                "my_local_id=%X dev_idx=0x%X  rcvd local_id=%X dev_idx=0x%X  myIID4me=%d rcvdIID=%d",
-                                oif->ip_llocal_str, iif->label_cfg.str,
-                                ntohl(my_local_id), iif->dev_adv_idx, ntohl(pb->i.link_key.local_id), pb->i.link_key.dev_idx,
+                        dbgf_sys(DBGT_ERR, "DAD-Alert (duplicate Address) from NB=%s via dev=%s idx=0X%X"
+                                "my_local_id=%X rcvd local_id=%X dev_idx=0x%X  myIID4me=%d rcvdIID=%d",
+                                pb->i.llip_str, iif->label_cfg.str, iif->llip_key.idx,
+                                ntohl(my_local_id), ntohl(pb->i.link_key.local_id), pb->i.link_key.dev_idx,
                                 myIID4me, pb->i.transmittersIID);
 
                         goto process_packet_error;
-                }
+
+                } else if (oif && oif != iif && is_ip_equal(&oif->llip_key.ip, &iif->llip_key.ip)) {
+
+			//ASSERTION(-500840, (oif == iif)); // so far, only unique own interface IPs are allowed!!
+                        dbgf_sys(DBGT_ERR, "Link-Alert! Rcvd my own packet on different dev=%s idx=0x%X than send dev=%s idx=0x%X "
+				"with same link-local ip=%s my_local_id=%X ! Separate links or fix link-local IPs!!!",
+                                iif->label_cfg.str, iif->llip_key.idx, oif->label_cfg.str, oif->llip_key.idx,
+				iif->ip_llocal_str, ntohl(my_local_id));
+		}
 
                 return;
         }
@@ -1064,7 +1078,7 @@ void rx_packet( struct packet_buff *pb )
 
                 dbgf_sys(DBGT_WARN, "DAD-Alert (duplicate link ID, this can happen) via dev=%s NB=%s "
                         "is using my local_id=%X dev_idx=0x%X!  Choosing new local_id=%X dev_idx=0x%X for myself, dropping packet",
-                        iif->label_cfg.str, pb->i.llip_str, ntohl(pb->i.link_key.local_id), pb->i.link_key.dev_idx, ntohl(my_local_id), iif->dev_adv_idx);
+                        iif->label_cfg.str, pb->i.llip_str, ntohl(pb->i.link_key.local_id), pb->i.link_key.dev_idx, ntohl(my_local_id), iif->llip_key.idx);
 
                 return;
         }
@@ -1900,7 +1914,7 @@ static int32_t link_status_creator(struct status_handl *handl, void *data)
                                 status[i].bestTxLink = (lndev == local->best_tp_lndev);
                                 status[i].routes = (lndev == local->best_rp_lndev) ? local->orig_routes : 0;
                                 status[i].wantsOgms = (lndev == local->best_rp_lndev) ? local->rp_ogm_request_rcvd : 0;
-                                status[i].myDevIdx = lndev->key.dev->dev_adv_idx;
+                                status[i].myDevIdx = lndev->key.dev->llip_key.idx;
                                 status[i].nbDevIdx = link->key.dev_idx;
                                 status[i].lastHelloSqn = link->hello_sqn_max;
                                 status[i].lastHelloAdv = ((TIME_T) (bmx_time - link->hello_time_max)) / 1000;

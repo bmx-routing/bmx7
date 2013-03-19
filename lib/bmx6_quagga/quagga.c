@@ -158,7 +158,7 @@ void zroute_dbg(int8_t dbgl, int8_t dbgt, const char *func, struct zroute_node *
 STATIC_FUNC
 void zdata_parse_route(struct zdata *zd)
 {
-        dbgf_all(DBGT_INFO,"");
+        dbgf_all(DBGT_INFO," ");
 
         assertion(-501402, ( zd->len >= sizeof (struct zapiV2_header) && zd->hdr->version == ZEBRA_VERSION2));
         assertion(-500000, (zd->cmd == ZEBRA_IPV4_ROUTE_ADD || zd->cmd == ZEBRA_IPV4_ROUTE_DELETE ||
@@ -225,7 +225,7 @@ STATIC_FUNC
 void redist_rm_overlapping(void)
 {
 
-        dbgf_track(DBGT_INFO, "");
+        dbgf_track(DBGT_INFO, " ");
 
         struct redist_out_node *routn;
         struct avl_node *an = NULL;
@@ -245,8 +245,8 @@ void redist_rm_overlapping(void)
                         while ((ovlp = avl_next_item(&redist_out_tree, ovlp ? &ovlp->k : &t.k))) {
 
                                 dbgf_all(DBGT_INFO, "checking overlapping net=%s rtype=%d bw=%d min=%d new=%d in favor of net=%s rtype=%d bw=%d min=%d new=%d",
-                                        netAsStr(&routn->k.net), routn->k.bmx6_route_type, routn->k.bandwidth, routn->minAggregatePrefixLen, routn->new,
-                                        netAsStr(&ovlp->k.net), ovlp->k.bmx6_route_type, ovlp->k.bandwidth, ovlp->minAggregatePrefixLen, ovlp->new);
+                                        netAsStr(&routn->k.net), routn->k.bmx6_route_type, routn->k.bandwidth.val.u8, routn->minAggregatePrefixLen, routn->new,
+                                        netAsStr(&ovlp->k.net), ovlp->k.bmx6_route_type, ovlp->k.bandwidth.val.u8, ovlp->minAggregatePrefixLen, ovlp->new);
 
                                 if (ovlp->k.bandwidth.val.u8 != routn->k.bandwidth.val.u8 ||
                                         ovlp->k.bmx6_route_type != routn->k.bmx6_route_type ||
@@ -282,7 +282,7 @@ void redist_rm_aggregatable(void)
 
         while (more) {
 
-                dbgf_track(DBGT_INFO, "");
+                dbgf_track(DBGT_INFO, " ");
 
                 more = NO;
 
@@ -292,7 +292,7 @@ void redist_rm_aggregatable(void)
                         uint8_t b1 = bit_get((uint8_t*)&(r1->k.net.ip), 128, r1->k.net.mask + (v4 ? 96 : 0) - 1);
 
                         dbgf_all(DBGT_INFO, "checking aggregation for net=%s rtype=%d bw=%d min=%d new=%d lastBit=%d %s",
-                                netAsStr(&r1->k.net), r1->k.bmx6_route_type, r1->k.bandwidth, r1->minAggregatePrefixLen,
+                                netAsStr(&r1->k.net), r1->k.bmx6_route_type, r1->k.bandwidth.val.u8, r1->minAggregatePrefixLen,
                                 r1->new, b1, memAsHexStringSep(&r1->k.net.ip, 16, 2));
 
                         if (!r1->new || !r1->k.net.mask || r1->k.net.mask <= r1->minAggregatePrefixLen || !b1)
@@ -305,7 +305,7 @@ void redist_rm_aggregatable(void)
                         struct redist_out_node *r0 = avl_find_item(&redist_out_tree, &s0.k);
 
                         dbgf_all(DBGT_INFO, "                    with net=%s rtype=%d bw=%d min=%d new=%d %s",
-                                netAsStr(&s0.k.net), s0.k.bmx6_route_type, s0.k.bandwidth, s0.minAggregatePrefixLen,
+                                netAsStr(&s0.k.net), s0.k.bmx6_route_type, s0.k.bandwidth.val.u8, s0.minAggregatePrefixLen,
                                 s0.new, memAsHexStringSep(&s0.k.net.ip, 16, 2));
 
                         if (r0 && r0->new && r0->k.net.mask > r0->minAggregatePrefixLen) {
@@ -341,7 +341,7 @@ STATIC_FUNC
 void redistribute_routes(void)
 {
 
-        dbgf_track(DBGT_INFO, "");
+        dbgf_track(DBGT_INFO, " ");
 
         struct zroute_node *zrn;
         struct avl_node *zri;
@@ -477,7 +477,7 @@ void redistribute_routes(void)
 STATIC_FUNC
 void zdata_parse(void)
 {
-        dbgf_track(DBGT_INFO, "");
+        dbgf_track(DBGT_INFO, " ");
 
         struct zdata * zd;
         uint8_t new_routes = 0;
@@ -539,7 +539,7 @@ void zsock_read_handler(void * nothing)
 {
         assertion(-501407, (zcfg.socket > 0));
 
-        dbgf_track(DBGT_INFO,"");
+        dbgf_track(DBGT_INFO," ");
 
         task_remove(zsock_read_handler, NULL);
         int ret = 1;
@@ -708,7 +708,7 @@ STATIC_FUNC
 void zsock_send_route(int8_t del, const struct net_key *dst, uint32_t oif_idx, IPX_T *via, uint32_t metric, uint8_t distance)
 {
         dbgf_track(DBGT_INFO, "del=%d dst=%s idx=%d via=%s metric=%d distance=%d",
-                del, netAsStr(dst), oif_idx, ipXAsStr(dst->af, via), metric, distance)
+                del, netAsStr(dst), oif_idx, ipXAsStr(dst->af, via), metric, distance);
 
         uint8_t len =
                 sizeof (struct zapiV2_header) +
@@ -763,7 +763,7 @@ STATIC_FUNC
 void zsock_disconnect(void)
 {
 
-        dbgf_sys(DBGT_WARN, "");
+        dbgf_sys(DBGT_WARN, " ");
 
         if (zcfg.socket > 0) {
                 set_fd_hook(zcfg.socket, zsock_fd_handler, DEL);

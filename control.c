@@ -657,22 +657,6 @@ void _dbgf_all ( int8_t dbgt,  const char *f, char *last, ... ) {
 	debug_output ( 0, 0, DBGL_ALL, dbgt, f, dbg_string_out );
 }
 
-uint8_t __dbgf_all( void ) {
-	
-	if ( debug_level != DBGL_ALL  &&  LIST_EMPTY( &dbgl_clients[DBGL_ALL] ) )
-		return NO;
-	
-	return YES;
-}
-
-uint8_t __dbgf_track( void ) {
-
-	if ( debug_level != DBGL_CHANGES  &&  LIST_EMPTY( &dbgl_clients[DBGL_CHANGES] ) )
-		return NO;
-
-	return YES;
-}
-
 void dbg_spaces(struct ctrl_node *cn, uint16_t spaces)
 {
         uint16_t i;
@@ -742,6 +726,21 @@ void dbg_printf(struct ctrl_node *cn, char *last, ...)
 
 #endif
 
+uint8_t __dbgf_all( void ) {
+
+	if ( debug_level != DBGL_ALL  &&  LIST_EMPTY( &dbgl_clients[DBGL_ALL] ) )
+		return NO;
+
+	return YES;
+}
+
+uint8_t __dbgf_track( void ) {
+
+	if ( debug_level != DBGL_CHANGES  &&  LIST_EMPTY( &dbgl_clients[DBGL_CHANGES] ) )
+		return NO;
+
+	return YES;
+}
 
 
 

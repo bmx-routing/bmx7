@@ -467,7 +467,7 @@ int bmx_load_config ( uint8_t cmd, struct opt_type *opt, struct ctrl_node *cn ) 
 	struct uci_ptr sptr, optr;
 
         dbgf_all(DBGT_INFO, "cmd=%s opt_name=%s bmx_ctx=%p bmx_conf_name=%s opt_cfg_t=%d",
-                opt_cmd2str[ cmd ], opt->name, bmx_ctx, bmx_conf_name, opt->cfg_t);
+                opt_cmd2str[ cmd ], opt->name, (void*)bmx_ctx, bmx_conf_name, opt->cfg_t);
 
 	
 	if ( !bmx_ctx  ||  !bmx_conf_name )

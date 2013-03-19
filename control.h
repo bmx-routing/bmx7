@@ -181,8 +181,6 @@ void _dbgf_cn(struct ctrl_node *cn, int8_t dbgl, int8_t dbgt, const char *f, cha
 void dbg_mute(uint32_t check_len, int8_t dbgl, int8_t dbgt, char *last, ...);
 void _dbgf_mute(uint32_t check_len, int8_t dbgl, int8_t dbgt, const char *f, char *last, ...);
 void _dbgf_all ( int8_t dbgt, const char *f, char *last, ... );
-uint8_t __dbgf_all( void );
-uint8_t __dbgf_track( void );
 
 void dbg_printf( struct ctrl_node *cn, char *last, ...  );
 void dbg_spaces(struct ctrl_node *cn, uint16_t spaces);
@@ -207,6 +205,9 @@ void dbg_spaces(struct ctrl_node *cn, uint16_t spaces);
 #define dbg_printf( cn, ...  ) 			printf( __VA_ARGS__ )
 #define dbg_spaces(cn, spaces)
 #endif
+
+uint8_t __dbgf_all( void );
+uint8_t __dbgf_track( void );
 
 void accept_ctrl_node( void );
 void handle_ctrl_node( struct ctrl_node *cn );

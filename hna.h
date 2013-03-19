@@ -84,8 +84,9 @@ extern IDM_T (*hna_configure_niit6to4) (IDM_T del, struct net_key *key);
 #define ARG_TUN_IN_NET "tunInNet"
 #define ARG_TUN_IN_NET_DEV ARG_TUN_ADV
 #define ARG_TUN_IN_NET_BW "bandwidth"
-
-
+#define MIN_TUN_IN_NET_BW UMETRIC_FM8_MIN
+#define MAX_TUN_IN_NET_BW UMETRIC_MAX
+#define DEF_TUN_IN_NET_BW UMETRIC_FM8_MIN
 
 #define ARG_TUN_OUT          "tunOut"
 #define ARG_TUN_OUT_NET      "network"

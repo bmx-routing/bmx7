@@ -1629,8 +1629,9 @@ int create_description_tlv_tunXin6_net_adv(struct tx_frame_iterator *it)
 
                 adv.bmx6_route_type = BMX6_ROUTE_BMX6;
 
-                if (um <= UMETRIC_MIN__NOT_ROUTABLE)
-                        continue;
+
+                if (!adv.bandwidth.val.u8)
+			adv.bandwidth.val.u8 = 1;//continue;
 
                 m = create_description_tlv_tunXin6_net_adv_msg(it, &adv, m, tun_name);
         }
@@ -1985,7 +1986,7 @@ int32_t opt_tun_in_net(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                                 char *endptr;
                                 unsigned long long ull = strtoul(c->val, &endptr, 10);
 
-                                if (ull > UMETRIC_MAX || ull < UMETRIC_FM8_MIN || *endptr != '\0')
+                                if (ull > MAX_TUN_IN_NET_BW || ull < MIN_TUN_IN_NET_BW || *endptr != '\0')
                                         return FAILURE;
 
                         } else if (!strcmp(c->opt->name, ARG_TUN_IN_NET_DEV) && c->val) {
@@ -2601,7 +2602,7 @@ struct opt_type hna_options[]= {
         {ODI,0,ARG_TUN_IN_NET,	 	0,9,2,A_PM1N,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,	        opt_tun_in_net,
 			ARG_PREFIX_FORM,"network reachable via this tunnel"},
 	{ODI,ARG_TUN_IN_NET,ARG_TUN_IN_NET_BW, 'b',9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,		0,	        0,              0,0,            opt_tun_in_net,
-			ARG_VALUE_FORM,	"bandwidth to network as bits/sec (mandatory)"},
+			ARG_VALUE_FORM,	"bandwidth to network as bits/sec  default: 36  range: [36 ... 128849018880]"},
 	{ODI,ARG_TUN_IN_NET,ARG_TUN_IN_NET_DEV,0,9,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY, 0,		0,              0,              0,0,            opt_tun_in_net,
 			ARG_ADDR_FORM,	"to be used incoming tunnel interface (optional)"},
         

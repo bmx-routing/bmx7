@@ -1114,7 +1114,7 @@ int32_t opt_redistribute(uint8_t cmd, uint8_t _save, struct opt_type *opt, struc
 
                                 if (c->val) {
                                         char *endptr;
-                                        unsigned long long ull = strtoul(c->val, &endptr, 10);
+                                        unsigned long long int ull = strtoull(c->val, &endptr, 10);
 
                                         if (ull > UMETRIC_MAX || ull < UMETRIC_FM8_MIN || *endptr != '\0')
                                                 return FAILURE;

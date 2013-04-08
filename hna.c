@@ -1046,11 +1046,12 @@ void _recalc_tun_bit_tree(void)
 
                         struct orig_node *on = tnn->tunNetKey.tun->tunOutKey.on;
 
-                        UMETRIC_T linkQuality = UMETRIC_MAX;
-                        UMETRIC_T linkMax = fmetric_to_umetric(fmetric_u8_to_fmu16(tnn->bandwidth));
+                        UMETRIC_T linkMax = UMETRIC_MAX;
+                        UMETRIC_T tnnBandwidth = fmetric_to_umetric(fmetric_u8_to_fmu16(tnn->bandwidth));
+                        UMETRIC_T linkQuality = tnnBandwidth >= tsn->minBW ? UMETRIC_MAX : tnnBandwidth;
                         UMETRIC_T pathMetric = on->curr_rt_local ? (on->curr_rt_local->mr.umetric) : 0;
 
-                        if (linkMax <= UMETRIC_MIN__NOT_ROUTABLE || pathMetric <= UMETRIC_MIN__NOT_ROUTABLE)
+                        if (linkQuality <= UMETRIC_MIN__NOT_ROUTABLE || pathMetric <= UMETRIC_MIN__NOT_ROUTABLE)
                                 tnn->e2eMetric = UMETRIC_MIN__NOT_ROUTABLE;
                         else
                                 tnn->e2eMetric = apply_metric_algo(&linkQuality, &linkMax, &pathMetric, on->path_metricalgo);
@@ -1809,6 +1810,7 @@ struct tun_out_status {
         uint32_t bOSP;
         uint32_t hyst;
         uint32_t bonus;
+        UMETRIC_T *minBw;
         GLOBAL_ID_T *searchId;
         uint32_t ipMtc;
         char *tunName;
@@ -1837,6 +1839,7 @@ static const struct field_format tun_out_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              tun_out_status, bOSP,        1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              tun_out_status, hyst,        1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              tun_out_status, bonus,       1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_UMETRIC,   tun_out_status, minBw,       1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, tun_out_status, searchId,    1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              tun_out_status, ipMtc,       1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      tun_out_status, tunName,     1, FIELD_RELEVANCE_HIGH),
@@ -1936,6 +1939,7 @@ static int32_t tun_out_status_creator(struct status_handl *handl, void *data)
                                 status->bOSP = tsn->breakOverlappingSmallerPrefixes;
                                 status->hyst = tsn->hysteresis;
                                 status->bonus = tsn->bonus;
+				status->minBw = tsn->minBW ? &tsn->minBW : NULL;
                                 status->ipMtc = tsn->ipmetric;
                         } else {
                                 status->name = DBG_NIL;
@@ -1984,7 +1988,7 @@ int32_t opt_tun_in_net(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                         if (!strcmp(c->opt->name, ARG_TUN_IN_NET_BW) && c->val) {
 
                                 char *endptr;
-                                unsigned long long ull = strtoul(c->val, &endptr, 10);
+                                unsigned long long int ull = strtoull(c->val, &endptr, 10);
 
                                 if (ull > MAX_TUN_IN_NET_BW || ull < MIN_TUN_IN_NET_BW || *endptr != '\0')
                                         return FAILURE;
@@ -2064,6 +2068,7 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                                 tsn->exportOnly = DEF_EXPORT_ONLY;
                                 tsn->ipmetric = DEF_IP_METRIC;
                                 tsn->hysteresis = DEF_TUN_OUT_HYSTERESIS;
+				tsn->minBW = DEF_TUN_OUT_MIN_BW;
                                 tsn->netPrefixMin = DEF_TUN_OUT_PREFIX_MIN;
                                 tsn->netPrefixMax = DEF_TUN_OUT_PREFIX_MAX;
                                 tsn->allowOverlappingLargerPrefixes = DEF_TUN_OUT_OVLP_ALLOW;
@@ -2158,6 +2163,23 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                                 } else if (cmd == OPT_APPLY && tsn) {
                                         memset(&tsn->global_id.pkid, 0, GLOBAL_ID_PKID_LEN);
                                 }
+
+			} else if (!strcmp(c->opt->name, ARG_TUN_OUT_MIN_BW)) {
+
+				if(c->val) {
+
+					char *endptr;
+					unsigned long long int ull = strtoull(c->val, &endptr, 10);
+
+					if (ull > MAX_TUN_IN_NET_BW || ull < MIN_TUN_IN_NET_BW || *endptr != '\0')
+						return FAILURE;
+
+					if (cmd == OPT_APPLY && tsn)
+						tsn->minBW = ull;
+
+				} else if (cmd == OPT_APPLY && tsn) {
+					tsn->minBW = DEF_TUN_OUT_MIN_BW;
+				}
 
                         } else if (cmd == OPT_APPLY && tsn) {
 
@@ -2602,7 +2624,7 @@ struct opt_type hna_options[]= {
         {ODI,0,ARG_TUN_IN_NET,	 	0,9,2,A_PM1N,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,	        opt_tun_in_net,
 			ARG_PREFIX_FORM,"network reachable via this tunnel"},
 	{ODI,ARG_TUN_IN_NET,ARG_TUN_IN_NET_BW, 'b',9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,		0,	        0,              0,0,            opt_tun_in_net,
-			ARG_VALUE_FORM,	"bandwidth to network as bits/sec  default: 36  range: [36 ... 128849018880]"},
+			ARG_VALUE_FORM,	"bandwidth to network as bits/sec  default: 1000  range: [36 ... 128849018880]"},
 	{ODI,ARG_TUN_IN_NET,ARG_TUN_IN_NET_DEV,0,9,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY, 0,		0,              0,              0,0,            opt_tun_in_net,
 			ARG_ADDR_FORM,	"to be used incoming tunnel interface (optional)"},
         
@@ -2630,6 +2652,8 @@ struct opt_type hna_options[]= {
 			ARG_VALUE_FORM, "specify in percent how much the metric to an alternative GW must be better than to curr GW"},
 	{ODI,ARG_TUN_OUT,ARG_TUN_OUT_BONUS,0,9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,       MIN_TUN_OUT_BONUS,MAX_TUN_OUT_BONUS,DEF_TUN_OUT_BONUS,0,opt_tun_search,
 			ARG_VALUE_FORM, "specify in percent a metric bonus (preference) for GWs matching this tunOut spec when compared with other tunOut specs for same network"},
+	{ODI,ARG_TUN_OUT,ARG_TUN_OUT_MIN_BW, 0,9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,		0,	        0,              0,0,            opt_tun_search,
+			ARG_VALUE_FORM,	"min bandwidth as bits/sec beyond which GW's advertised bandwidth is ignored  default: 100000  range: [36 ... 128849018880]"},
 	{ODI,ARG_TUN_OUT,ARG_TUN_OUT_IPMETRIC,0,9,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,	        0,         MAX_TUN_OUT_IPMETRIC,DEF_IP_METRIC,0,opt_tun_search,
 			ARG_VALUE_FORM, "ip metric for local routing table entries"},
 	{ODI,ARG_TUN_OUT,ARG_ROUTE_SYSTEM, 0,9,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,   0,              0,              1,              0,0,          opt_tun_search,

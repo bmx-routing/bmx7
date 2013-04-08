@@ -83,10 +83,11 @@ extern IDM_T (*hna_configure_niit6to4) (IDM_T del, struct net_key *key);
 
 #define ARG_TUN_IN_NET "tunInNet"
 #define ARG_TUN_IN_NET_DEV ARG_TUN_ADV
+
 #define ARG_TUN_IN_NET_BW "bandwidth"
 #define MIN_TUN_IN_NET_BW UMETRIC_FM8_MIN
 #define MAX_TUN_IN_NET_BW UMETRIC_MAX
-#define DEF_TUN_IN_NET_BW UMETRIC_FM8_MIN
+#define DEF_TUN_IN_NET_BW 1000
 
 #define ARG_TUN_OUT          "tunOut"
 #define ARG_TUN_OUT_NET      "network"
@@ -124,6 +125,11 @@ extern IDM_T (*hna_configure_niit6to4) (IDM_T del, struct net_key *key);
 #define DEF_TUN_OUT_BONUS 0
 #define MIN_TUN_OUT_BONUS 0
 #define MAX_TUN_OUT_BONUS MIN(INT32_MAX, (UMETRIC_MULTIPLY_MAX - MAX_TUN_OUT_HYSTERESIS))
+
+#define ARG_TUN_OUT_MIN_BW "minBandwidth"
+#define MIN_TUN_OUT_MIN_BW UMETRIC_FM8_MIN
+#define MAX_TUN_OUT_MIN_BW UMETRIC_MAX
+#define DEF_TUN_OUT_MIN_BW 100000
 
 #define ARG_TUN_OUT_MTU "tunMtu"
 #define DEF_TUN_OUT_MTU 0
@@ -358,6 +364,7 @@ struct tun_search_node {
         
         uint32_t hysteresis;
         uint32_t bonus;
+	UMETRIC_T minBW;
         uint32_t ipmetric;
 
         GLOBAL_ID_T global_id;

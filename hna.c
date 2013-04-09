@@ -1631,8 +1631,10 @@ int create_description_tlv_tunXin6_net_adv(struct tx_frame_iterator *it)
                 adv.bmx6_route_type = BMX6_ROUTE_BMX6;
 
 
-                if (!adv.bandwidth.val.u8)
-			adv.bandwidth.val.u8 = 1;//continue;
+                if (!adv.bandwidth.val.u8) {
+			UMETRIC_T bw = DEF_TUN_IN_NET_BW;
+			adv.bandwidth = umetric_to_fmu8(&bw);
+		}
 
                 m = create_description_tlv_tunXin6_net_adv_msg(it, &adv, m, tun_name);
         }

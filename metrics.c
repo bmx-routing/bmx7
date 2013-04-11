@@ -1260,7 +1260,7 @@ void metricalgo_assign(struct orig_node *on, struct host_metricalgo *host_algo)
 	metricalgo_remove(on);
 
 	assertion(-500684, (!on->path_metricalgo));
-	assertion(-500000, (!on->metricSqnMaxArr));
+	assertion(-501522, (!on->metricSqnMaxArr));
 
 	if (!host_algo)
 		host_algo = &my_hostmetricalgo;

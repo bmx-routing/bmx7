@@ -31,6 +31,8 @@
 #include <arpa/inet.h>
 #include <sys/ioctl.h>
 #include <fcntl.h>
+#include <linux/if_tun.h> /* TUNSETPERSIST, ... */
+#include <linux/if.h>     /* ifr_if, ifr_tun */
 
 #include <sys/types.h>
 #include <asm/types.h>
@@ -83,7 +85,7 @@ static int32_t base_port = DEF_BASE_PORT;
 static int32_t Lo_rule = DEF_LO_RULE;
 #endif
 
-const IPX_T ZERO_IP = {{{0}}};
+const IPX_T ZERO_IP = { { { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 } } };
 const MAC_T ZERO_MAC = {{0}};
 
 //TODO: make this configurable
@@ -129,6 +131,7 @@ AVL_TREE(if_link_tree, struct if_link_node, index);
 
 AVL_TREE(dev_ip_tree, struct dev_node, llip_key);
 AVL_TREE(dev_name_tree, struct dev_node, name_phy_cfg);
+AVL_TREE(tun_name_tree, struct ifname, str);
 
 AVL_TREE(iptrack_tree, struct track_node, k);
 
@@ -363,6 +366,9 @@ char *trackt2str(uint8_t cmd)
 {
 	if ( cmd == IP_NOP )
 		return "TRACK_NOP";
+
+        else if (cmd == IP_LINK_DEL)
+                return "LINK_DEL";
 
         else if (cmd == IP_LINK_GET)
                 return "LINK_GET";
@@ -688,7 +694,7 @@ IDM_T rtnl_talk(void *req, int len, uint8_t cmd, uint8_t quiet, void (*func) (st
         // DONT USE setNet() here (because return pointer is static)!!!!!!!!!!!!!
 
         static uint8_t busy = 0;
-        assertion(-500000, (!busy));
+        assertion(-501494, (!busy));
         busy = 1;
 
         errno = 0;
@@ -766,7 +772,7 @@ IDM_T rtnl_talk(void *req, int len, uint8_t cmd, uint8_t quiet, void (*func) (st
                                         nh->nlmsg_seq, ip_rth.seq);
 
                                 busy = 0;
-                                assertion(-500000, (0)); //continue;
+                                assertion(-501495, (0)); //continue;
                         }
 
                         if (nh->nlmsg_flags & NLM_F_MULTI) {
@@ -908,7 +914,7 @@ void kernel_get_if_addr_config(struct nlmsghdr *nh, void *index_sqnp)
         if (nh->nlmsg_type != RTM_NEWADDR)
                 return;
 
-        assertion(-500000, (nh->nlmsg_len >= (int) NLMSG_LENGTH(sizeof (*if_addr))));
+        assertion(-501496, (nh->nlmsg_len >= (int) NLMSG_LENGTH(sizeof (*if_addr))));
 
         struct rtattr * rta_tb[IFA_MAX + 1];
 
@@ -1072,7 +1078,7 @@ void kernel_get_if_link_config(struct nlmsghdr *nh, void *update_sqnp)
 	if (nh->nlmsg_type != RTM_NEWLINK)
 		return;
 
-        assertion(-500000, (nh->nlmsg_len >= NLMSG_LENGTH(sizeof(*if_link_info))));
+        assertion(-501497, (nh->nlmsg_len >= NLMSG_LENGTH(sizeof(*if_link_info))));
 
 	parse_rtattr(tb, IFLA_MAX, IFLA_RTA(if_link_info), IFLA_PAYLOAD(nh));
 
@@ -1203,7 +1209,6 @@ static IDM_T kernel_get_if_config(void)
 
 
 
-
 IDM_T kernel_set_addr(IDM_T del, uint32_t if_index, uint8_t family, IPX_T *ipX, uint8_t prefixlen, IDM_T deprecated)
 {
 
@@ -1247,60 +1252,266 @@ IDM_T kernel_set_addr(IDM_T del, uint32_t if_index, uint8_t family, IPX_T *ipX, 
         return rtnl_talk(&req, req.nlh.nlmsg_len, IP_ADDRESS_SET, NO, NULL, NULL);
 }
 
-IDM_T kernel_set_tun(IDM_T del, char *name, uint8_t proto, IPX_T *local, IPX_T *remote)
+
+IDM_T kernel_set_flags(char *name, int fd, int get_req, int set_req, uint16_t up_flags, uint16_t down_flags)
+{
+        struct ifreq req;
+	memset(&req, 0, sizeof (req));
+	strncpy(req.ifr_name, name, IFNAMSIZ);
+	if (get_req && (ioctl(fd ? fd : io_sock, get_req, &req))) {
+		dbgf_sys(DBGT_ERR, "getting dev=%s request=%d flags up=%X down=%X %s", name, get_req, up_flags, down_flags, strerror(errno));
+		return FAILURE;
+	}
+
+	req.ifr_flags &= ~down_flags;
+	req.ifr_flags |= up_flags;
+
+	if ((ioctl(fd ? fd : io_sock, set_req, &req))) {
+		dbgf_sys(DBGT_ERR, "setting dev=%s request=%d flags up=%X down=%X %s", name, set_req, up_flags, down_flags, strerror(errno));
+		return FAILURE;
+	}
+	return SUCCESS;
+}
+
+
+int32_t kernel_get_ifidx( char *name )
+{
+        struct ifreq req;
+	memset(&req, 0, sizeof (req));
+	strncpy(req.ifr_name, name, IFNAMSIZ);
+
+	if ( ioctl( io_sock, SIOCGIFINDEX, &req ) < 0 ) {
+		dbgf_sys(DBGT_ERR, "getting idx for dev=%s %s", name, strerror(errno));
+		return FAILURE;
+	}
+
+	return req.ifr_ifindex;
+}
+
+
+IDM_T kernel_link_del(char *name)
+{
+        dbgf_track(DBGT_INFO, "name=%s", name);
+	struct iplink_req req;
+
+	memset(&req, 0, sizeof(req));
+
+	req.nlh.nlmsg_len = NLMSG_LENGTH(sizeof(struct ifinfomsg));
+	req.nlh.nlmsg_pid = My_pid;
+        req.nlh.nlmsg_seq = ++ip_rth.seq;
+	req.nlh.nlmsg_flags = NLM_F_REQUEST | NLM_F_ACK;
+	req.nlh.nlmsg_type = RTM_DELLINK;
+	req.ifi.ifi_family = AF_UNSPEC;
+	req.ifi.ifi_index = kernel_get_ifidx(name);
+
+	if (rtnl_talk(&req, req.nlh.nlmsg_len, IP_LINK_DEL, NO, NULL, NULL) != SUCCESS) {
+		dbgf_sys(DBGT_ERR, "Failed removing link=%s", name);
+		return FAILURE;
+	}
+	return SUCCESS;
+}
+
+
+
+IDM_T kernel_dev_exists(char *name)
+{
+        dbgf_track(DBGT_INFO, "name=%s tun_name_tree.items=%d", name, tun_name_tree.items);
+
+	IFNAME_T tnKey = {{0}};
+	strcpy(tnKey.str, name);
+
+	if (avl_find(&tun_name_tree, tnKey.str))
+		return YES;
+
+	struct if_link_node *iln = NULL;
+	struct avl_node *an = NULL;
+
+	while ((iln = avl_iterate_item(&if_link_tree, &an))) {
+		if (!strcmp(iln->name.str, tnKey.str))
+			return YES;
+	}
+
+	return NO;
+}
+
+void kernel_dev_tun_del( char *name, int32_t fd ) {
+
+        dbgf_track(DBGT_INFO, "name=%s tun_name_tree.items=%d fd=%d ", name, tun_name_tree.items, fd);
+
+	IFNAME_T tnKey = {{0}};
+	strcpy(tnKey.str,name);
+	IFNAME_T *tn;
+	if ((tn = avl_find_item(&tun_name_tree, tnKey.str))) {
+		avl_remove(&tun_name_tree, tn->str, -300538);
+		debugFree(tn, -300539);
+	}
+	assertion(-501498, (initializing || tn));
+
+
+	if ( DEF_TUN_OUT_PERSIST && ioctl( fd, TUNSETPERSIST, 0 ) < 0 ) {
+
+		dbg( DBGL_SYS, DBGT_ERR, "can't delete catch_all tunnel device: %s", strerror(errno) );
+		assertion(-501499,(0));
+		return;
+	}
+
+	dbgf( DBGL_SYS, DBGT_INFO, "closing catch_all tunnel!" );
+
+	close( fd );
+
+	return;
+}
+
+
+int32_t kernel_dev_tun_add( char *name, int32_t *fdp, IDM_T accept_local_ipv4 )
+{
+	int32_t sock_opts;
+	int32_t ifidx;
+	int32_t fd;
+
+        dbgf_track(DBGT_INFO, "name=%s tun_name_tree.items=%d", name, tun_name_tree.items);
+
+	IFNAME_T *tn = 	debugMalloc(sizeof(IFNAME_T), -300540);
+	memset(tn, 0, sizeof(IFNAME_T));
+	strcpy(tn->str,name);
+	assertion(-501500, (!avl_find_item(&tun_name_tree, tn->str)));
+	avl_insert(&tun_name_tree, tn, -300541);
+
+
+	if ( ( fd = open( "/dev/net/tun", O_RDWR ) ) < 0 ) {
+		dbg( DBGL_SYS, DBGT_ERR, "can't open tun device (/dev/net/tun): %s", strerror(errno) );
+		return FAILURE;
+	}
+
+	if ( kernel_set_flags( name, fd, 0, TUNSETIFF, IFF_TUN | IFF_NO_PI, -1)  == FAILURE )
+		goto kernel_dev_tun_add_error;
+
+	if( DEF_TUN_OUT_PERSIST && ioctl( fd, TUNSETPERSIST, 1 ) < 0 ) {
+		dbg( DBGL_SYS, DBGT_ERR, "can't set tun device (TUNSETPERSIST): %s", strerror(errno) );
+		close(fd);
+		return FAILURE;
+	}
+
+	if ( kernel_set_flags( name, 0, SIOCGIFFLAGS, SIOCSIFFLAGS, IFF_UP|IFF_RUNNING, 0) == FAILURE )
+		goto kernel_dev_tun_add_error;
+
+
+	/* make tun socket non blocking */
+	sock_opts = fcntl( fd, F_GETFL, 0 );
+	if (fcntl( fd, F_SETFL, sock_opts | O_NONBLOCK ) < 0 ) {
+		dbg_sys(DBGT_ERR, "Failed set tunnel dev=%s sock O_NONBLOCK: %s", name, strerror(errno));
+		goto kernel_dev_tun_add_error;
+	}
+
+	if ((ifidx = kernel_get_ifidx( name )) == FAILURE)
+		goto kernel_dev_tun_add_error;
+
+	if (accept_local_ipv4) {
+		char filename[100];
+		int32_t dummy;
+		sprintf(filename,"ipv4/conf/%s/accept_local", name);
+		if (check_proc_sys_net(filename, 1, &dummy)==FAILURE)
+			goto kernel_dev_tun_add_error;
+	}
+
+
+	if (fdp)
+		*fdp = fd;
+
+	return ifidx;
+
+kernel_dev_tun_add_error:
+
+	if ( fd > -1 )
+		kernel_dev_tun_del(name, fd );
+
+	if (fdp)
+		*fdp = 0;
+
+	return FAILURE;
+}
+
+
+IDM_T kernel_tun_del(char *name)
 {
 
-        dbgf_track(DBGT_INFO, "del=%d name=%s proto=%d local=%s remote=%s",
-                del, name, proto, ip6AsStr(local), ip6AsStr(remote));
+        dbgf_track(DBGT_INFO, "name=%s tun_name_tree.items=%d", name, tun_name_tree.items);
 
-        struct ip6_tnl_parm p;
+	IFNAME_T tnKey = {{0}};
+	strcpy(tnKey.str,name);
+	IFNAME_T *tn;
+	if ((tn = avl_find_item(&tun_name_tree, tnKey.str))) {
+		avl_remove(&tun_name_tree, tn->str, -300542);
+		debugFree(tn, -300543);
+	}
+	assertion(-501501, (initializing || tn));
+
         struct ifreq req;
 
         assertion(-501293, (name && strlen(name)));
 
-        memset(&p, 0, sizeof (p));
-        strncpy(p.name, name, IFNAMSIZ);
-        p.flags |= IP6_TNL_F_IGN_ENCAP_LIMIT;
-        p.hop_limit = DEFAULT_TNL_HOP_LIMIT;
-//        p.encap_limit = IPV6_DEFAULT_TNL_ENCAP_LIMIT;
-        p.proto = proto;
-
-        if(remote)
-                p.raddr = *remote;
-        if(local)
-                p.laddr = *local;
 
         memset(&req, 0, sizeof (req));
-        strncpy(req.ifr_name, del ? name : "ip6tnl0", IFNAMSIZ);
-        req.ifr_ifru.ifru_data = &p;
+        strncpy(req.ifr_name, name, IFNAMSIZ);
 
-        if ((ioctl(io_sock, del ? SIOCDELTUNNEL : SIOCADDTUNNEL, &req))) {
-                dbgf_sys(DBGT_ERR, "creating tunnel dev name=%s %s", name, strerror(errno));
+        if ((ioctl(io_sock, SIOCDELTUNNEL, &req))) {
+                dbgf_sys(DBGT_ERR, "Failed deleting tunnel dev=%s %s", name, strerror(errno));
                 return FAILURE;
         }
 
-        if(!del) {
-                memset(&req, 0, sizeof (req));
-                strncpy(req.ifr_name, name, IFNAMSIZ);
-                if ((ioctl(io_sock, SIOCGIFFLAGS, &req))) {
-                        dbgf_sys(DBGT_ERR, "getting tunnel flags name=%s %s", name, strerror(errno));
-                        kernel_set_tun(DEL, name, 0, NULL, NULL);
-                        return FAILURE;
-                }
+        return SUCCESS;
+}
 
-                if ((req.ifr_flags & IFF_UP) != IFF_UP) {
-                        req.ifr_flags |= IFF_UP;
-                        if ((ioctl(io_sock, SIOCSIFFLAGS, &req))) {
-                                dbgf_sys(DBGT_ERR, "setting tunnel flags name=%s %s", name, strerror(errno));
-                                kernel_set_tun(DEL, name, 0, NULL, NULL);
-                                return FAILURE;
-                        }
-                }
+
+int32_t kernel_tun_add(char *name, uint8_t proto, IPX_T *local, IPX_T *remote)
+{
+
+        dbgf_track(DBGT_INFO, "name=%s tun_name_tree.items=%d proto=%d local=%s remote=%s",
+		name, tun_name_tree.items, proto, ip6AsStr(local), ip6AsStr(remote));
+
+	IFNAME_T *tn = 	debugMalloc(sizeof(IFNAME_T), -300544);
+	memset(tn, 0, sizeof(IFNAME_T));
+	strcpy(tn->str,name);
+	assertion(-501502, (!avl_find_item(&tun_name_tree, tn->str)));
+	avl_insert(&tun_name_tree, tn, -300545);
+
+
+        struct ifreq req;
+	struct ip6_tnl_parm p;
+	int32_t idx;
+
+        assertion(-501293, (name && strlen(name)));
+
+
+        memset(&req, 0, sizeof (req));
+        strncpy(req.ifr_name, "ip6tnl0", IFNAMSIZ);
+
+	memset(&p, 0, sizeof (p));
+	strncpy(p.name, name, IFNAMSIZ);
+	p.flags |= IP6_TNL_F_IGN_ENCAP_LIMIT;
+	p.hop_limit = DEFAULT_TNL_HOP_LIMIT;
+	//        p.encap_limit = IPV6_DEFAULT_TNL_ENCAP_LIMIT;
+	p.proto = proto;
+
+	if(remote)
+		p.raddr = *remote;
+	if(local)
+		p.laddr = *local;
+	req.ifr_ifru.ifru_data = &p;
+
+        if ((ioctl(io_sock, SIOCADDTUNNEL, &req))) {
+                dbgf_sys(DBGT_ERR, "Failed adding tunnel dev=%s %s", name, strerror(errno));
+                return FAILURE;
         }
 
-        //kernel_get_mtu(name);
+	if ( kernel_set_flags( name, 0, SIOCGIFFLAGS, SIOCSIFFLAGS, IFF_UP, 0 ) != SUCCESS ||
+		(idx = kernel_get_ifidx( name )) <= 0) {
+		IDM_T result = kernel_tun_del(name);
+		assertion(-501502, (result==SUCCESS));
+		return FAILURE;
+	}
 
-        return SUCCESS;
+	return idx;
 }
 
 
@@ -1354,7 +1565,7 @@ IDM_T kernel_set_mtu(char *name, uint16_t mtu)
 STATIC_FUNC
 void kernel_get_route_list_nlhdr(struct nlmsghdr *nh, void *rtnl_get_listp )
 {
-        assertion(-500000, rtnl_get_listp);
+        assertion(-501503, rtnl_get_listp);
         struct list_head *rtnl_get_list = ((struct list_head *) rtnl_get_listp);
 
         struct rtmsg *rtm = (struct rtmsg *) NLMSG_DATA(nh);
@@ -1380,8 +1591,8 @@ void kernel_get_route_list_nlhdr(struct nlmsghdr *nh, void *rtnl_get_listp )
 STATIC_FUNC
 IDM_T kernel_get_route(struct list_head *rtnl_get_list, uint8_t quiet, uint8_t family, uint32_t table)
 {
-        assertion(-500000, (rtnl_get_list));
-        assertion(-500000, (!rtnl_get_list->items && LIST_EMPTY(rtnl_get_list)));
+        assertion(-501504, (rtnl_get_list));
+        assertion(-501505, (!rtnl_get_list->items && LIST_EMPTY(rtnl_get_list)));
 
         struct rtmsg_req req;
         memset(&req, 0, sizeof (req));
@@ -1492,7 +1703,7 @@ IDM_T kernel_set_route(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_
 
 void set_ipexport( void (*func) (int8_t del, const struct net_key *dst, uint32_t oif_idx, IPX_T *via, uint32_t metric, uint8_t distance) )
 {
-        assertion(-500000, (func ? !ipexport : !!ipexport ));
+        assertion(-501506, (func ? !ipexport : !!ipexport ));
 
         ipexport = func;
 
@@ -1502,18 +1713,18 @@ void set_ipexport( void (*func) (int8_t del, const struct net_key *dst, uint32_t
 
         while ((tn = avl_iterate_item(&iptrack_tree, &an))) {
 
-                assertion(-500000, (tn->rt_exp.exportDistance <= MAX_EXPORT_DISTANCE));
+                assertion(-501507, (tn->rt_exp.exportDistance <= MAX_EXPORT_DISTANCE));
 
                 if (tn->rt_exp.exportDistance == TYP_EXPORT_DISTANCE_INFINITE)
                         continue;
 
-                assertion(-500000, (tn->cmd >= IP_ROUTE_TUNS && tn->cmd < IP_ROUTE_MAX && tn->items == 1));
+                assertion(-501508, (tn->cmd >= IP_ROUTE_TUNS && tn->cmd < IP_ROUTE_MAX && tn->items == 1));
 
                 IPX_T *via = is_ip_set(&tn->via) ? &tn->via : NULL;
                 IPX_T *src = is_ip_set(&tn->src) ? &tn->src : NULL;
 
                 if (func) {
-                        assertion(-500000, (!tn->rt_exp.ipexport));
+                        assertion(-501509, (!tn->rt_exp.ipexport));
 
                         if(tn->rt_exp.exportOnly)
                                 kernel_set_route(tn->cmd, DEL, NO, &tn->k.net, tn->k.table_macro, tn->k.prio_macro, tn->oif_idx, via, src, tn->k.metric);
@@ -1523,7 +1734,7 @@ void set_ipexport( void (*func) (int8_t del, const struct net_key *dst, uint32_t
                         tn->rt_exp.ipexport = 1;
 
                 } else {
-                        assertion(-500000, (tn->rt_exp.ipexport));
+                        assertion(-501510, (tn->rt_exp.ipexport));
 
                         if(tn->rt_exp.exportOnly)
                                 kernel_set_route(tn->cmd, ADD, NO, &tn->k.net, tn->k.table_macro, tn->k.prio_macro, tn->oif_idx, via, src, tn->k.metric);
@@ -1547,7 +1758,7 @@ IDM_T iptrack(const struct net_key *net, uint8_t cmd, uint8_t quiet, int8_t del,
         assertion(-501232, (net));
         assertion(-500628, (cmd != IP_NOP));
         assertion(-500629, (cmd != IP_ROUTE_FLUSH && cmd != IP_RULE_FLUSH && cmd != IP_RULE_TEST));
-        assertion(-500000, ((cmd > IP_ROUTES && cmd < IP_ROUTE_MAX) || (cmd > IP_RULES && cmd < IP_RULE_MAX)));
+        assertion(-501511, ((cmd > IP_ROUTES && cmd < IP_ROUTE_MAX) || (cmd > IP_RULES && cmd < IP_RULE_MAX)));
 
         static struct track_node ts;
         memset(&ts, 0, sizeof (ts));
@@ -1563,7 +1774,7 @@ IDM_T iptrack(const struct net_key *net, uint8_t cmd, uint8_t quiet, int8_t del,
         struct track_node *tn = an ? an->item : NULL;
 
         while (tn) {
-                assertion(-500000, IMPLIES(exact, (tn->cmd != cmd)));
+                assertion(-501512, IMPLIES(exact, (tn->cmd != cmd)));
 
                 if (!exact && tn->cmd == cmd)
                         exact = tn;
@@ -1585,11 +1796,11 @@ IDM_T iptrack(const struct net_key *net, uint8_t cmd, uint8_t quiet, int8_t del,
                 EXITERROR(-500700, (!(!quiet && (del && !exact))));
         }
 
-        assertion(-500000, IMPLIES(!del && (cmd >= IP_ROUTE_TUNS && cmd < IP_ROUTE_MAX), found == 0 && !exact));
-        assertion(-500000, IMPLIES(del && (cmd >= IP_ROUTE_TUNS && cmd < IP_ROUTE_MAX), found == 1 && exact));
-        assertion(-500000, IMPLIES(exact, exact->rt_exp.exportOnly == (rte ? rte->exportOnly : 0) ));
-        assertion(-500000, IMPLIES(exact, exact->rt_exp.exportDistance == (rte ? rte->exportDistance : TYP_EXPORT_DISTANCE_INFINITE)));
-        assertion(-500000, IMPLIES(exact, exact->rt_exp.ipexport == (rte ? rte->ipexport : 0 )));
+        assertion(-501513, IMPLIES(!del && (cmd >= IP_ROUTE_TUNS && cmd < IP_ROUTE_MAX), found == 0 && !exact));
+        assertion(-501514, IMPLIES(del && (cmd >= IP_ROUTE_TUNS && cmd < IP_ROUTE_MAX), found == 1 && exact));
+        assertion(-501515, IMPLIES(exact, exact->rt_exp.exportOnly == (rte ? rte->exportOnly : 0) ));
+        assertion(-501516, IMPLIES(exact, exact->rt_exp.exportDistance == (rte ? rte->exportDistance : TYP_EXPORT_DISTANCE_INFINITE)));
+        assertion(-501517, IMPLIES(exact, exact->rt_exp.ipexport == (rte ? rte->ipexport : 0 )));
 
 
         if (del) {
@@ -1661,14 +1872,14 @@ IDM_T iproute(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_key *dst,
         // DONT USE setNet() here (because return pointer is static)!!!!!!!!!!!!!
 
 	TRACE_FUNCTION_CALL;
-        assertion(-500000, (cmd != IP_RULE_FLUSH && cmd != IP_ROUTE_FLUSH && cmd != IP_RULE_TEST));
+        assertion(-501518, (cmd != IP_RULE_FLUSH && cmd != IP_ROUTE_FLUSH && cmd != IP_RULE_TEST));
         assertion(-501234, (dst));
         assertion(-500650, IMPLIES(is_ip_set(&dst->ip), is_ip_valid(&dst->ip, dst->af)));
         assertion(-500651, IMPLIES(via, is_ip_valid(via, dst->af)));
         assertion(-500652, IMPLIES(src, is_ip_valid(src, dst->af)));
         assertion(-500653, (dst->af == AF_INET || dst->af == AF_INET6));
         assertion(-500672, (ip_netmask_validate((IPX_T*) &dst->ip, dst->mask, dst->af, NO) == SUCCESS));
-        assertion(-500000, IMPLIES(rte, !rte->ipexport));
+        assertion(-501519, IMPLIES(rte, !rte->ipexport));
 
         uint32_t prio = prio_macro_to_prio(prio_macro);
         uint32_t table = table_macro_to_table(table_macro);
@@ -1712,8 +1923,7 @@ IDM_T iproute(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_key *dst,
 
 
 
-STATIC_FUNC
-void check_proc_sys_net(char *file, int32_t desired, int32_t *backup)
+IDM_T check_proc_sys_net(char *file, int32_t desired, int32_t *backup)
 {
 	TRACE_FUNCTION_CALL;
         FILE *f;
@@ -1725,13 +1935,13 @@ void check_proc_sys_net(char *file, int32_t desired, int32_t *backup)
 	if((f = fopen(filename, "r" )) == NULL) {
 
 		dbgf_sys(DBGT_ERR, "can't open %s for reading! retry later..", filename );
-
-		return;
+		return FAILURE;
 	}
 
 	if(fscanf(f, "%d", &state) < 0 ) {
                  dbgf_track(DBGT_WARN, "%s", strerror(errno));
         }
+
 	fclose(f);
 
 	if ( backup )
@@ -1746,7 +1956,7 @@ void check_proc_sys_net(char *file, int32_t desired, int32_t *backup)
 		          "Use --%s=1 to enforce proper cleanup",
 		          file, ARG_PEDANTIC_CLEANUP );
 
-		return;
+		return FAILURE;
 	}
 
 
@@ -1757,13 +1967,13 @@ void check_proc_sys_net(char *file, int32_t desired, int32_t *backup)
 		if((f = fopen(filename, "w" )) == NULL) {
 
                         dbgf_sys(DBGT_ERR, "can't open %s for writing! retry later...", filename);
-			return;
+			return FAILURE;
 		}
 
 		fprintf(f, "%d", desired?1:0 );
 		fclose(f);
-
 	}
+	return SUCCESS;
 }
 
 void sysctl_restore(struct dev_node *dev)
@@ -2090,23 +2300,29 @@ void dev_deactivate( struct dev_node *dev )
 }
 
 
-STATIC_FUNC
-void set_sockaddr_storage(struct sockaddr_storage *ss, IPX_T *ipx)
+struct sockaddr_storage set_sockaddr_storage(uint8_t af, IPX_T *ipx, int32_t port)
 {
         TRACE_FUNCTION_CALL;
-        memset(ss, 0, sizeof ( struct sockaddr_storage));
 
-        ss->ss_family = AF_CFG;
+	union {
+		struct sockaddr_storage sosa;
+		struct sockaddr_in soin4;
+		struct sockaddr_in6 soin6;
+	} s;
+
+        memset(&s, 0, sizeof (s));
+
+	s.sosa.ss_family = af;//AF_CFG
 
         if (AF_CFG == AF_INET) {
-                struct sockaddr_in *in = (struct sockaddr_in*) ss;
-                in->sin_port = htons(base_port);
-                in->sin_addr.s_addr = ipXto4(*ipx);
+                s.soin4.sin_port = htons(port/*base_port*/);
+                s.soin4.sin_addr.s_addr = ipXto4(*ipx);
         } else {
-                struct sockaddr_in6 *in6 = (struct sockaddr_in6*) ss;
-                in6->sin6_port = htons(base_port);
-                in6->sin6_addr = *ipx;
+                s.soin6.sin6_port = htons(port/*base_port*/);
+                s.soin6.sin6_addr = *ipx;
         }
+
+	return s.sosa;
 }
 
 
@@ -2127,7 +2343,7 @@ IDM_T dev_init_sockets(struct dev_node *dev)
                 return FAILURE;
         }
 
-        set_sockaddr_storage(&dev->llocal_unicast_addr, &dev->if_llocal_addr->ip_addr);
+        dev->llocal_unicast_addr = set_sockaddr_storage(AF_CFG, &dev->if_llocal_addr->ip_addr, base_port);
 
         if (AF_CFG == AF_INET) {
                 if (setsockopt(dev->unicast_sock, SOL_SOCKET, SO_BROADCAST, &set_on, sizeof (set_on)) < 0) {
@@ -2186,7 +2402,7 @@ IDM_T dev_init_sockets(struct dev_node *dev)
 #endif
 
 
-        set_sockaddr_storage(&dev->tx_netwbrc_addr, &dev->if_llocal_addr->ip_mcast);
+        dev->tx_netwbrc_addr = set_sockaddr_storage(AF_CFG, &dev->if_llocal_addr->ip_mcast, base_port);
 
 
 
@@ -2208,9 +2424,9 @@ IDM_T dev_init_sockets(struct dev_node *dev)
                 // if the mcast address is the full-broadcast address
                 // we'll listen on the network-broadcast address :
                 IPX_T brc = ip4ToX(ipXto4(dev->if_llocal_addr->ip_addr) | htonl(~(0XFFFFFFFF << dev->if_llocal_addr->ifa.ifa_prefixlen)));
-                set_sockaddr_storage(&rx_netwbrc_addr, &brc);
+                rx_netwbrc_addr = set_sockaddr_storage(AF_CFG, &brc, base_port);
         } else {
-                set_sockaddr_storage(&rx_netwbrc_addr, &dev->if_llocal_addr->ip_mcast);
+                rx_netwbrc_addr = set_sockaddr_storage(AF_CFG, &dev->if_llocal_addr->ip_mcast, base_port);
         }
 
 
@@ -2229,9 +2445,9 @@ IDM_T dev_init_sockets(struct dev_node *dev)
 
         if (AF_CFG == AF_INET) {
                 // we'll always listen on the full-broadcast address
-                struct sockaddr_storage rx_fullbrc_addr;
                 IPX_T brc = ip4ToX(0XFFFFFFFF);
-                set_sockaddr_storage(&rx_fullbrc_addr, &brc);
+                struct sockaddr_storage rx_fullbrc_addr = set_sockaddr_storage(AF_CFG, &brc, base_port);
+                
 
                 // get fullbrc recv socket
                 if ((dev->rx_fullbrc_sock = socket(pf_domain, SOCK_DGRAM, 0)) < 0) {
@@ -2447,7 +2663,7 @@ void ip_flush_routes(uint8_t family)
 
                 while ((rgn = list_del_head(&rtnl_get_list))) {
 
-                        assertion(-500000, (rgn->net.af == family));
+                        assertion(-501520, (rgn->net.af == family));
 
                         if (rgn->rtm_table == table && rgn->rta_type == RTA_DST)
                                 kernel_set_route(IP_ROUTE_FLUSH, DEL, NO, &rgn->net, table_macro, 0, 0, NULL, NULL, 0);
@@ -2983,7 +3199,7 @@ IDM_T is_policy_rt_supported(void)
 
         tested_family = net.af;
 
-        assertion(-500000, IMPLIES(policy_routing == POLICY_RT_UNSET, (initializing)));
+        assertion(-501521, IMPLIES(policy_routing == POLICY_RT_UNSET, (initializing)));
 
         if (kernel_set_route(IP_RULE_TEST, ADD, YES, &net, RT_TABLE_HNA, RT_PRIO_HNA, 0, NULL, NULL, 0) == SUCCESS) {
                 kernel_set_route(IP_RULE_TEST, DEL, YES, &net, RT_TABLE_HNA, RT_PRIO_HNA, 0, NULL, NULL, 0);

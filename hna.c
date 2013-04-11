@@ -15,6 +15,9 @@
  * 02110-1301, USA
  */
 
+#include "avl.h"
+
+
 
 #include <stdio.h>
 #include <unistd.h>
@@ -30,7 +33,11 @@
 #include <sys/ioctl.h>
 //#include <net/if.h>
 
-
+//#include <linux/if_tun.h> /* TUNSETPERSIST, ... */
+//#include <linux/if.h>     /* ifr_if, ifr_tun */
+#include <fcntl.h>        /* open(), O_RDWR */
+#include <netinet/ip.h>
+#include <netinet/ip6.h>
 
 #include "bmx.h"
 #include "msg.h"
@@ -57,10 +64,12 @@ static AVL_TREE(tun_bit_tree, struct tun_bit_node, tunBitKey);          // ident
 
 static AVL_TREE(tun_net_tree, struct tun_net_node, tunNetKey);          // rcvd tun_out network advs
 static AVL_TREE(tun_out_tree, struct tun_out_node, tunOutKey);          // rcvd tun_out advs
+static AVL_TREE(tun_catch_tree, struct tun_dev_node, tunCatchKey);          // active tun_out tunnels
 
 LIST_SIMPEL(tunXin6_net_adv_list_list, struct tunXin6_net_adv_list_node, list, list);
 
 static const struct tun_net_key ZERO_TUN_NET_KEY = {.tun = NULL};
+static const struct tun_catch_key ZERO_TUN_DEV_KEY = {.srcAf=0};
 
 struct net_key tun4_address;
 struct net_key tun6_address;
@@ -73,7 +82,11 @@ IDM_T (*hna_configure_niit6to4) (IDM_T del, struct net_key *key) = NULL;
 static IFNAME_T tun_name_prefix = {{DEF_TUN_NAME_PREFIX}};
 
 static int32_t tun_out_mtu = DEF_TUN_OUT_MTU;
+static int32_t tun_dedicated_to = DEF_TUN_OUT_TO;
 
+
+STATIC_FUNC
+void configure_tun_bit(uint8_t del, struct tun_bit_node *tbn, IDM_T asDfltTun);
 
 char* bmx6RouteBits2String(uint32_t bmx6_route_bits)
 {
@@ -254,6 +267,60 @@ int _create_tlv_hna(uint8_t* data, uint16_t max_size, uint16_t pos, struct net_k
         return (pos + msg_size);
 }
 
+STATIC_FUNC
+IFNAME_T tun_out_get_free_name(char *typename, char *postname)
+{
+	assertion(-501446, (strlen(tun_name_prefix.str) + strlen(typename) + 4 <= IFNAMSIZ - 1));
+
+	static uint16_t tun_idx = 0;
+	uint16_t tun_idx_check = tun_idx;
+	IFNAME_T name;
+
+	static char ifNameChars[] = "_-0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+	memset(&name, 0, sizeof (name));
+	snprintf(name.str + strlen(name.str), IFNAMSIZ - 1 - strlen(name.str), "%s", tun_name_prefix.str);
+
+	assertion(-501447, (IFNAMSIZ - 1 > strlen(name.str)));
+	snprintf(name.str + strlen(name.str), IFNAMSIZ - 1 - strlen(name.str), "%s", typename);
+
+	if (IFNAMSIZ - 1 > strlen(name.str))
+		snprintf(name.str + strlen(name.str), IFNAMSIZ - 1 - strlen(name.str), "%s", postname);
+	//check if tun->name is already used:
+
+	check_string(name.str, ifNameChars, '_');
+
+	if (!kernel_dev_exists(name.str))
+		return name;
+
+	do {
+
+		memset(&name, 0, sizeof (name));
+		snprintf(name.str + strlen(name.str), IFNAMSIZ - 5 - strlen(name.str), "%s", tun_name_prefix.str);
+
+		assertion(-501448, (IFNAMSIZ - 5 > strlen(name.str)));
+		snprintf(name.str + strlen(name.str), IFNAMSIZ - 5 - strlen(name.str), "%s", typename);
+
+		if (IFNAMSIZ - 5 > strlen(name.str))
+			snprintf(name.str + strlen(name.str), IFNAMSIZ - 5 - strlen(name.str), "%s", postname);
+
+		assertion(-501449, (IFNAMSIZ - 5 >= strlen(name.str) ));
+		snprintf(name.str  + strlen(name.str), IFNAMSIZ - 1 - strlen(name.str), "%.4X", tun_idx++);
+
+		//check if tun->name is already used:
+		check_string(name.str, ifNameChars, '_');
+
+		if (!kernel_dev_exists(name.str))
+			return name;
+
+	} while(tun_idx != tun_idx_check);
+
+
+	assertion(-501450, (0));
+
+	memset(&name, 0, sizeof (name));
+	return name;
+}
 
 STATIC_FUNC
 IDM_T configure_tunnel_in(uint8_t del, struct tun_in_node *tin)
@@ -268,7 +335,8 @@ IDM_T configure_tunnel_in(uint8_t del, struct tun_in_node *tin)
 
         if (del && tin->upIfIdx) {
 
-                kernel_set_tun(DEL, tin->nameKey.str, 0, NULL, NULL);
+                IDM_T result = kernel_tun_del(tin->nameKey.str);
+		assertion(-501451, (result==SUCCESS));
                 tin->upIfIdx = 0;
                 tin->tun6Id = -1;
 
@@ -292,28 +360,14 @@ IDM_T configure_tunnel_in(uint8_t del, struct tun_in_node *tin)
                 IPX_T *remote = &tin->remote;
 
                 if (tin->name_auto) {
-
-                        static uint16_t tun_idx = 0;
-                        struct if_link_node *iln = NULL;
-
-                        do {
-                                memset(&tin->nameKey, 0, sizeof (tin->nameKey));
-                                snprintf(tin->nameKey.str, IFNAMSIZ - 1, "%s_%s%.4X", tun_name_prefix.str, "in", tun_idx++);
-
-                                struct avl_node *an = NULL;
-                                iln = NULL;
-                                //check if tun->name is already used:
-                                while ((iln = avl_iterate_item(&if_link_tree, &an)) && strcmp(iln->name.str, tin->nameKey.str));
-
-                        } while (iln);
-
+			char tun6IdStr[5] = {0};
+			sprintf(tun6IdStr, "%X", tin->tun6Id);
+			tin->nameKey  = tun_out_get_free_name(DEF_TUN_NAME_TYPE_IN,tun6IdStr);
                 }
 
                 assertion(-501312, (strlen(tin->nameKey.str)));
 
-                if (kernel_set_tun(ADD, tin->nameKey.str, IPPROTO_IP, local, remote) == SUCCESS) {
-
-                        tin->upIfIdx = get_if_index(&tin->nameKey);
+                if ((tin->upIfIdx = kernel_tun_add(tin->nameKey.str, IPPROTO_IP, local, remote)) > 0) {
 
                         if (tun4_address.mask)
                                 kernel_set_addr(ADD, tin->upIfIdx, AF_INET, &tun4_address.ip, 32, NO /*deprecated*/);
@@ -721,12 +775,436 @@ int32_t opt_uhna(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
 
 
 
+STATIC_FUNC
+uint16_t set_tun_out_mtu(char *name, uint16_t orig_mtu, uint16_t def_mtu, uint16_t new_mtu) {
+
+	if(new_mtu == def_mtu) {
+		kernel_set_mtu(name, orig_mtu);
+		return def_mtu;
+	} else {
+		kernel_set_mtu(name, new_mtu);
+		return new_mtu;
+	}
+}
 
 
 
 
+#define MTU_MAX 1500
+
+struct tun_packet
+{
+	union
+	{
+		struct iphdr ip4hdr;
+		struct ip6_hdr ip6hdr;
+		uint8_t data[MTU_MAX+1000];
+	} t;
+} __attribute__((packed));
+
+STATIC_FUNC
+void tun_out_state_set(struct tun_out_node *ton, IDM_T tdn_state)
+{
+        TRACE_FUNCTION_CALL;
+
+        assertion(-500204, (ton));
+	assertion(-501452, (tdn_state==TDN_STATE_CATCHALL || tdn_state==TDN_STATE_DEDICATED));
+
+	assertion(-501453, (IMPLIES(tdn_state==TDN_STATE_CATCHALL, ton->tdnDedicated[0] || ton->tdnDedicated[1])));
+	assertion(-501453, (IMPLIES(tdn_state==TDN_STATE_DEDICATED, ton->tdnCatchAll[0] || ton->tdnCatchAll[1])));
+
+	struct avl_node *used_tnn_it = NULL;
+	struct tun_net_node *used_tnn;
+	while ((used_tnn = avl_iterate_item(&ton->tun_net_tree, &used_tnn_it))) {
+
+//		if (af == used_tnn->tunNetKey.netKey.af) {
+
+		struct avl_node *used_tbn_it = NULL;
+		struct tun_bit_node *used_tbn;
+		while ( (used_tbn = avl_iterate_item(&used_tnn->tun_bit_tree, &used_tbn_it))) {
+			
+			if (used_tbn->active_tdn)
+				configure_tun_bit(ADD, used_tbn, tdn_state);
+		}
+//	}
+	}
+}
+
+STATIC_FUNC
+void tun_out_state_catchAll(void *tonp)
+{
+	tun_out_state_set(tonp, TDN_STATE_CATCHALL);
+}
 
 
+STATIC_FUNC
+void tun_out_catchAll_hook(int fd)
+{
+	// pick catched packet,  open dedicated tunnel, reroute all related active tun_bit_nodes via dedicated tunnel, and retransmit catched packet
+
+	TRACE_FUNCTION_CALL;
+	dbgf_track(DBGT_INFO, "fd=%d",fd);
+
+	static struct tun_packet tp;
+	int32_t tp_len;
+
+	assertion(-501456, (fcntl( fd, F_GETFL, 0 ) & O_NONBLOCK));
+
+
+
+	while ( ( tp_len = read( fd, &tp, sizeof(tp) ) ) > 0 ) {
+
+		uint8_t isv4 = (tp.t.ip4hdr.version==4);
+		int32_t plen = -1;
+
+		if ( tp_len > MTU_MAX || 
+			(tp.t.ip4hdr.version!=4 && tp.t.ip4hdr.version!=6) ||
+			( isv4 && tp_len <= (int)sizeof(struct iphdr)  ) ||
+			(!isv4 && tp_len <= (int)sizeof(struct ip6_hdr)) /*||
+			(tp_len != (plen=ntohs( isv4 ? tp.t.ip4hdr.tot_len : tp.t.ip6hdr.ip6_ctlun.ip6_un1.ip6_un1_plen)))*/ ) {
+
+			dbgf_sys(DBGT_ERR, "Rcvd invalid packet len=%d=%d ipVersion=%d !",
+				tp_len, plen, tp.t.ip4hdr.version);
+
+		} else {
+			uint8_t af = isv4 ? AF_INET : AF_INET6;
+			IPX_T dst4;
+			IPX_T *dst;
+			if (isv4) {
+				dst4 = ip4ToX(tp.t.ip4hdr.daddr);
+				dst = &dst4;
+			} else {
+				dst = &tp.t.ip6hdr.ip6_dst;
+			}
+
+			dbgf_track(DBGT_INFO, "Rcvd len=%d bytes ipVersion=%d len=%d src=%s dst=%s",
+				tp_len, tp.t.ip4hdr.version,
+				ntohs( isv4 ? tp.t.ip4hdr.tot_len : tp.t.ip6hdr.ip6_ctlun.ip6_un1.ip6_un1_plen),
+				isv4 ? ip4AsStr(tp.t.ip4hdr.saddr) : ip6AsStr(&tp.t.ip6hdr.ip6_src), ipXAsStr(af, dst));
+
+			struct tun_out_node *ton = NULL;
+			struct avl_node *an=NULL;
+			struct tun_bit_node *tbn;
+			while( (tbn=avl_iterate_item(&tun_bit_tree, &an)) ) {
+
+				if (tbn->active_tdn && tbn->tunBitKey.invNetKey.af == af) {
+
+					uint8_t mask = 128 - tbn->tunBitKey.invNetKey.mask;
+
+					if (is_ip_net_equal(dst, &tbn->tunBitKey.invNetKey.ip, mask, af)) {
+
+						struct tun_net_node *tnn = tbn->tunBitKey.keyNodes.tnn;
+						ton = tnn->tunNetKey.tun;
+
+						if (tbn->active_tdn->tunCatch_fd) {
+
+							tun_out_state_set(ton, TDN_STATE_DEDICATED);
+
+						} else {
+							dbgf_track(DBGT_WARN,"tunnel dev=%s to orig=%s already dedicated!",
+								tbn->active_tdn->name.str, globalIdAsString(&ton->tunOutKey.on->global_id));
+						}
+						break;
+					}
+				}
+			}
+
+			if (ton) {
+				//if (af==AF_INET || af==AF_INET6) {
+
+					// This should only work with IPv6 and non-local IPv6 src addresses. But it works always!!!!
+
+				assertion( -500000, (tbn->active_tdn && tbn->active_tdn==ton->tdnDedicated[isv4] && !ton->tdnDedicated[isv4]->tunCatch_fd));
+
+					struct tun_catch_key key = {.srcAf=af};
+					struct tun_dev_node *tdn = avl_next_item(&tun_catch_tree, &key);
+
+					if (tdn && tdn->tunCatchKey.srcAf == af) {
+
+						int written = write( tdn->tunCatch_fd, &tp, tp_len );
+
+						dbgf(written==tp_len? DBGL_CHANGES: DBGL_SYS, written==tp_len? DBGT_INFO : DBGT_ERR,
+						"%ssendto dst=%s len=%d (wrote=%d) fd=%d dev=%s (via dev=%s)! %s",
+						( written != tp_len ) ? "Failed " : "",
+						isv4 ? ip4AsStr(tp.t.ip4hdr.daddr) : ip6AsStr(&tp.t.ip6hdr.ip6_dst),
+						tp_len, written, tdn->tunCatch_fd, tdn->name.str,
+						ton->tdnDedicated[isv4]->name.str,
+						( written != tp_len ) ? strerror(errno) : "");
+						
+					} else {
+						dbgf_sys(DBGT_ERR, "No catchAll available for dst=%s len=%d",
+							isv4 ? ip4AsStr(tp.t.ip4hdr.daddr) : ip6AsStr(&tp.t.ip6hdr.ip6_dst), tp_len);
+					}
+/*
+				} else {
+					// This should always work with own addresses. But it does not with IPv4 !!!
+					//http://www.pdbuchan.com/rawsock/rawsock.html
+					// Request raw socket descriptor:
+					int sockfd = socket(af, SOCK_RAW, IPPROTO_RAW);
+					if ( sockfd <= 0 ) {
+						dbgf_sys(DBGT_ERR, "Failed creating RAW socket=%d %s", sockfd, strerror(errno));
+					}
+
+					if (af == AF_INET) {
+						// For whatever reason this does not work for IPv4 !!!
+
+						// Set flag that socket expects provided IPv4 header:
+						const int optval = 1;
+						int sockopt = setsockopt(sockfd, IPPROTO_IP, IP_HDRINCL, &optval, sizeof(optval));
+						if ( sockopt != 0 ) {
+							dbgf_sys(DBGT_ERR, "Failed sockopt=%d %s", sockopt, strerror(errno));
+						}
+
+						// Bind socket to interface index:
+						struct ifreq ifr;
+						memset (&ifr, 0, sizeof (ifr));
+						snprintf (ifr.ifr_name, sizeof (ifr.ifr_name), "%s", ton->tdnUP[isv4]->name.str);
+						ifr.ifr_ifindex = ton->tdnUP[isv4]->ifIdx;
+
+						if (setsockopt (sockfd, SOL_SOCKET, SO_BINDTODEVICE, &ifr, sizeof (ifr)) < 0) {
+							dbgf_sys(DBGT_ERR, "Failed bind to interface %s", strerror(errno));
+						}
+					}
+
+					struct sockaddr_storage sast = set_sockaddr_storage(af, dst ,0);
+					int written = sendto( sockfd, &tp, tp_len, 0, (struct sockaddr *) &sast, sizeof(sast) );
+
+					dbgf(written==tp_len? DBGL_CHANGES: DBGL_SYS, written==tp_len? DBGT_INFO : DBGT_ERR,
+						"%ssendto dst=%s len=%d (wrote=%d) fd=%d dev=%s idx=%d! %s",
+						( written != tp_len ) ? "Failed " : "",
+						isv4 ? ip4AsStr(tp.t.ip4hdr.daddr) : ip6AsStr(&tp.t.ip6hdr.ip6_dst),
+						tp_len, written, sockfd, ton->tdnUP[isv4]->name.str, ton->tdnUP[isv4]->ifIdx,
+						( written != tp_len ) ? strerror(errno) : "");
+
+					if ( sockfd > 0 )
+						close(sockfd);
+				}
+*/
+			} else {
+				dbgf_track(DBGT_WARN, "NO tunnel found for dst=%s len=%d ! Discarding packet!",
+					isv4 ? ip4AsStr(tp.t.ip4hdr.daddr) : ip6AsStr(&tp.t.ip6hdr.ip6_dst), tp_len );
+
+			}
+		}
+	}
+}
+
+
+STATIC_FUNC
+struct tun_dev_node * tun_out_del(struct tun_bit_node *tbn)
+{
+        TRACE_FUNCTION_CALL;
+
+	struct tun_search_node *tsn = tbn->tunBitKey.keyNodes.tsn;
+	struct tun_net_node *tnn = tbn->tunBitKey.keyNodes.tnn;
+	struct tun_out_node *ton = tnn->tunNetKey.tun;
+	uint8_t isv4 = (tsn->net.af==AF_INET);
+	struct tun_dev_node *tdnActive = tbn->active_tdn;
+
+	dbgf_track(DBGT_INFO, "tunnel dev=%s", tdnActive->name.str);
+
+        assertion(-501460, (is_ip_set(&ton->localIp)));
+        assertion(-501461, (ton->tunOutKey.on));
+        assertion(-501462, (ton->tunOutKey.on != self));
+        assertion(-501463, (tdnActive));
+        assertion(-501464, (tdnActive->ifIdx));
+        assertion(-501465, (tdnActive->orig_mtu));
+        assertion(-501466, (tdnActive->name.str[0]));
+        assertion(-501469, avl_find_item(&tdnActive->tbnTunDevTree[isv4], &tbn->tunBitKey.keyNodes));
+
+	if ( tdnActive->tunCatch_fd ) {
+
+		assertion(-501467, (tdnActive->tunCatchKey.srcAf == tsn->net.af));
+		assertion(-501468, (tdnActive->tunCatch_fd > 0));
+
+		avl_remove(&tdnActive->tbnTunDevTree[isv4], &tbn->tunBitKey.keyNodes, -300526);
+
+		struct avl_node *an = NULL;
+		struct tun_bit_node *ton_tbn;
+		while((ton_tbn=avl_iterate_item(&tdnActive->tbnTunDevTree[isv4], &an)) && ton_tbn->tunBitKey.keyNodes.tnn->tunNetKey.tun!=ton);
+		if (!ton_tbn)
+			ton->tdnCatchAll[isv4] = NULL;
+
+		if (!tdnActive->tbnTunDevTree[isv4].items) {
+
+			set_fd_hook(tdnActive->tunCatch_fd, tun_out_catchAll_hook, DEL);
+
+			// always keep one per each address family for re-sending catched packets (via tun_dflt):
+			if (!is_ip_equal(&tdnActive->tunCatchKey.srcIp, (isv4?&tun4_address.ip:&tun6_address.ip))) {
+				avl_remove(&tun_catch_tree, &tdnActive->tunCatchKey, -300527);
+				kernel_dev_tun_del( tdnActive->name.str, tdnActive->tunCatch_fd );
+				debugFree(tdnActive, -300528);
+			}
+		}
+
+	} else {  //dedicated:
+
+		assertion(-501468, (tdnActive == ton->tdnDedicated[isv4]));
+		assertion(-501470, IMPLIES(tdnActive != ton->tdnDedicated[!isv4], ton->tdnDedicated[!isv4] == NULL));
+
+		avl_remove(&tdnActive->tbnTunDevTree[isv4], &tbn->tunBitKey.keyNodes, -300000);
+
+		if (!tdnActive->tbnTunDevTree[isv4].items) {
+
+			ton->tdnDedicated[isv4] = NULL;
+
+			kernel_set_addr(DEL, tdnActive->ifIdx, isv4?AF_INET:AF_INET6, &tdnActive->srcIp[isv4], isv4?32:128, NO/*deprecated*/);
+			tdnActive->srcIp[isv4] = ZERO_IP;
+
+			if (!tdnActive->tbnTunDevTree[!isv4].items) {
+				assertion(-500000, (!ton->tdnDedicated[!isv4]));
+
+				IDM_T result = kernel_tun_del(tdnActive->name.str);
+				assertion(-501471, (result==SUCCESS));
+				debugFree(tdnActive, -300531);
+
+				task_remove(tun_out_state_catchAll, ton);
+			}
+			
+		}
+	}
+
+	return (tbn->active_tdn = NULL);
+}
+
+
+
+
+STATIC_FUNC
+struct tun_dev_node *tun_out_add(struct tun_bit_node *tbn, IDM_T tdn_state)
+{
+        TRACE_FUNCTION_CALL;
+
+	struct tun_search_node *tsn = tbn->tunBitKey.keyNodes.tsn;
+	struct tun_net_node *tnn = tbn->tunBitKey.keyNodes.tnn;
+	struct tun_out_node *ton = tnn->tunNetKey.tun;
+	uint8_t isv4 = (tsn->net.af==AF_INET);
+	struct tun_dev_node *tdnActive = tbn->active_tdn;
+
+	IPX_T srcIp = tsn->srcPrefix.mask ? tsn->srcPrefix.ip : (isv4 ? tun4_address.ip : tun6_address.ip);
+
+
+	assertion(-501472, (is_ip_set(&srcIp)));
+        assertion(-501292, (is_ip_set(&ton->localIp)));
+        assertion(-501235, (ton->tunOutKey.on));
+        assertion(-501321, (ton->tunOutKey.on != self));
+        assertion(-501343, (is_ip_set(&ton->tunOutKey.on->primary_ip)));
+
+	dbgf_track(DBGT_INFO, "tdn_state=%d", tdn_state);
+
+	assertion(-501473, (tdn_state==TDN_STATE_CATCHALL||tdn_state==TDN_STATE_DEDICATED||tdn_state==TDN_STATE_CURRENT));
+
+	if ( tdn_state==TDN_STATE_CATCHALL ||
+		(tdn_state==TDN_STATE_CURRENT && (tdnActive ? (tdnActive->tunCatch_fd>0) : (!tdnActive && tun_dedicated_to>0) ) ) ) {
+
+		//set TDN_STATE_CATCHALL
+
+		struct tun_catch_key tunDevKey = {.srcIp=srcIp, .srcAf=(isv4?AF_INET:AF_INET6)};
+
+		if ( tdnActive && !tdnActive->tunCatch_fd )
+			tdnActive = tun_out_del( tbn );
+
+		if ( !tdnActive ) {
+
+			if ( !(tdnActive = avl_find_item(&tun_catch_tree, &tunDevKey)) ) {
+
+				tdnActive = debugMalloc(sizeof(struct tun_dev_node), -300532);
+				memset(tdnActive, 0, sizeof(struct tun_dev_node));
+				AVL_INIT_TREE(tdnActive->tbnTunDevTree[0], struct tun_bit_node, tunBitKey.keyNodes);
+				AVL_INIT_TREE(tdnActive->tbnTunDevTree[1], struct tun_bit_node, tunBitKey.keyNodes);
+
+				tdnActive->name  = tun_out_get_free_name(DEF_TUN_NAME_TYPE_DFLT,isv4?"IP4":"IP6");
+				tdnActive->ifIdx = kernel_dev_tun_add(tdnActive->name.str, &tdnActive->tunCatch_fd, isv4?1:0);
+				tdnActive->orig_mtu = kernel_get_mtu(tdnActive->name.str);
+				tdnActive->curr_mtu = set_tun_out_mtu( tdnActive->name.str, tdnActive->orig_mtu, DEF_TUN_OUT_MTU, tun_out_mtu);
+
+				tdnActive->srcIp[isv4] = srcIp;
+				kernel_set_addr(ADD, tdnActive->ifIdx, isv4?AF_INET:AF_INET6, &srcIp, isv4?32:128, NO/*deprecated*/);
+
+				tdnActive->tunCatchKey = tunDevKey;
+				avl_insert(&tun_catch_tree, tdnActive, -300533 );
+			}
+
+			if (!tdnActive->tbnTunDevTree[0].items && !tdnActive->tbnTunDevTree[1].items )
+				set_fd_hook(tdnActive->tunCatch_fd, tun_out_catchAll_hook, ADD);
+
+			avl_insert(&tdnActive->tbnTunDevTree[isv4], tbn, -300534);
+
+			assertion(-500000, IMPLIES(ton->tdnCatchAll[isv4], ton->tdnCatchAll[isv4] == tdnActive));
+			ton->tdnCatchAll[isv4] = tdnActive;
+		}
+
+		assertion(-501474, (tdnActive));
+		assertion(-501475, (tdnActive->tunCatch_fd > 0));
+		assertion(-501476, (tdnActive->ifIdx > 0));
+		assertion(-501477, (tdnActive->orig_mtu >= MIN_TUN_OUT_MTU));
+		assertion(-501478, (!is_ip_set(&tdnActive->srcIp[!isv4])));
+		assertion(-501479, (is_ip_equal(&tdnActive->srcIp[isv4], &srcIp)));
+		assertion(-501480, (is_ip_equal(&tdnActive->tunCatchKey.srcIp, &srcIp)));
+		assertion(-501481, (avl_find_item(&tun_catch_tree, &tunDevKey)));
+		assertion(-501482, (avl_find_item(&tdnActive->tbnTunDevTree[isv4], &tbn->tunBitKey.keyNodes)));
+		assertion(-501483, (tdnActive->tunCatchKey.srcAf == isv4?AF_INET:AF_INET6));
+		assertion(-500000, (ton->tdnCatchAll[isv4] == tdnActive));
+
+	} else if ( tdn_state==TDN_STATE_DEDICATED ||
+		(tdn_state==TDN_STATE_CURRENT && (tdnActive ? (tdnActive->tunCatch_fd==0) : (tun_dedicated_to==0) ) ) ) {
+
+		if ( tdnActive && tdnActive->tunCatch_fd )
+			tdnActive = tun_out_del( tbn );
+
+		if ( !tdnActive ) {
+
+			if ( !( (tdnActive=ton->tdnDedicated[isv4]) || (tdnActive=ton->tdnDedicated[!isv4]) ) ) {
+
+				tdnActive = debugMalloc(sizeof(struct tun_dev_node), -300535);
+				memset(tdnActive, 0, sizeof(struct tun_dev_node));
+				AVL_INIT_TREE(tdnActive->tbnTunDevTree[0], struct tun_bit_node, tunBitKey.keyNodes);
+				AVL_INIT_TREE(tdnActive->tbnTunDevTree[1], struct tun_bit_node, tunBitKey.keyNodes);
+
+				tdnActive->name  = tun_out_get_free_name(DEF_TUN_NAME_TYPE_OUT,ton->tunOutKey.on->global_id.name);
+				tdnActive->ifIdx = kernel_tun_add(tdnActive->name.str, IPPROTO_IP, &ton->localIp, &ton->remoteIp);
+				tdnActive->orig_mtu = kernel_get_mtu(tdnActive->name.str);
+				tdnActive->curr_mtu = set_tun_out_mtu( tdnActive->name.str, tdnActive->orig_mtu, DEF_TUN_OUT_MTU, tun_out_mtu);
+
+				kernel_set_addr(ADD, tdnActive->ifIdx, AF_INET6, &ton->localIp, 128, YES /*deprecated*/);
+			}
+
+			avl_insert(&tdnActive->tbnTunDevTree[isv4], tbn, -300000);
+
+			assertion(-500000, IMPLIES(ton->tdnDedicated[isv4], ton->tdnDedicated[isv4] == tdnActive));
+			ton->tdnDedicated[isv4] = tdnActive;
+		}
+
+		assertion(-501484, (tdnActive));
+		assertion(-501485, (tdnActive->ifIdx > 0));
+		assertion(-501486, (tdnActive->orig_mtu >= MIN_TUN_OUT_MTU));
+		assertion(-501487, (!tdnActive->tunCatch_fd));
+		assertion(-500000, (ton->tdnDedicated[isv4] == tdnActive));
+
+		if (is_ip_set(&tdnActive->srcIp[isv4])) {
+			assertion(-501488, (is_ip_equal(&tdnActive->srcIp[isv4], &srcIp)));
+		} else {
+			tdnActive->srcIp[isv4] = srcIp;
+			kernel_set_addr(ADD, tdnActive->ifIdx, isv4?AF_INET:AF_INET6, &srcIp, isv4?32:128, NO/*deprecated*/);
+		}
+
+		task_remove(tun_out_state_catchAll, ton);
+
+		if (tun_dedicated_to>0)
+			task_register(tun_dedicated_to, tun_out_state_catchAll, ton, -300536);
+
+
+	} else {
+		assertion(-501489, (0));
+	}
+
+	dbgf_track(DBGT_INFO, "tunnel dev=%s dflt_fd=%d done!", tdnActive->name.str, tdnActive->tunCatch_fd);
+
+	assertion(-500000, IMPLIES(tbn->active_tdn, tbn->active_tdn==tdnActive));
+	return (tbn->active_tdn=tdnActive);
+}
+
+/*
 STATIC_FUNC
 IDM_T configure_tunnel_out(uint8_t del, struct tun_out_node *ton)
 {
@@ -750,32 +1228,23 @@ IDM_T configure_tunnel_out(uint8_t del, struct tun_out_node *ton)
 
         } else if (!del && !ton->upIfIdx) {
 
+		static uint16_t tun_idx = 0;
+		struct if_link_node *iln = NULL;
 
-                IPX_T *local = &ton->localIp;
-                IPX_T *remote = &ton->remoteIp;
+		do {
+			memset(&ton->name, 0, sizeof (ton->name));
+			snprintf(ton->name.str, IFNAMSIZ - 1, "%s_out%.4X", tun_name_prefix.str, tun_idx++);
 
-                if (ton->name_auto) {
+			struct avl_node *an = NULL;
+			iln = NULL;
+			//check if tun->name is already used:
+			while ((iln = avl_iterate_item(&if_link_tree, &an)) && strcmp(iln->name.str, ton->name.str));
 
-                        static uint16_t tun_idx = 0;
-                        struct if_link_node *iln = NULL;
-
-                        do {
-                                memset(&ton->name, 0, sizeof (ton->name));
-                                snprintf(ton->name.str, IFNAMSIZ - 1, "%s_out%.4X", tun_name_prefix.str, tun_idx++);
-
-                                struct avl_node *an = NULL;
-                                iln = NULL;
-                                //check if tun->name is already used:
-                                while ((iln = avl_iterate_item(&if_link_tree, &an)) && strcmp(iln->name.str, ton->name.str));
-
-                        } while (iln);
-
-                }
+		} while (iln);
 
                 assertion(-501312, (strlen(ton->name.str)));
 
-                if (kernel_set_tun(ADD, ton->name.str, IPPROTO_IP, local, remote) == SUCCESS &&
-                        (ton->upIfIdx = get_if_index(&ton->name)) > 0 &&
+                if ((ton->upIfIdx = kernel_set_tun(ADD, ton->name.str, IPPROTO_IP, &ton->localIp, &ton->remoteIp)) > 0 &&
                         (ton->orig_mtu = kernel_get_mtu(ton->name.str)) >= MIN_TUN_OUT_MTU ) {
 
                         return SUCCESS;
@@ -787,6 +1256,61 @@ IDM_T configure_tunnel_out(uint8_t del, struct tun_out_node *ton)
 
         return FAILURE;
 }
+*/
+
+
+
+
+STATIC_FUNC
+void configure_tun_bit(uint8_t del, struct tun_bit_node *tbn, IDM_T tdn_state)
+{
+        TRACE_FUNCTION_CALL;
+
+	struct tun_search_node *tsn = tbn->tunBitKey.keyNodes.tsn;
+	struct tun_net_node *tnn = tbn->tunBitKey.keyNodes.tnn;
+	struct tun_out_node *ton = tnn->tunNetKey.tun;
+	//uint8_t isv4 = (tsn->net.af==AF_INET);
+	uint8_t rtype = tnn->tunNetKey.bmx6RouteType;
+	struct net_key netKey = tbn->tunBitKey.invNetKey;
+	netKey.mask = 128 - netKey.mask;
+        struct route_export rte, *rtep = NULL;
+        if( tsn->exportDistance != TYP_EXPORT_DISTANCE_INFINITE ) {
+                memset(&rte, 0, sizeof(rte));
+                rte.exportDistance = tsn->exportDistance;
+                rte.exportOnly = tsn->exportOnly;
+                rte.ipexport = NO; // not yet
+                rtep = &rte;
+        }
+
+	assertion(-501490, (tsn->net.af == tnn->tunNetKey.netKey.af));
+	assertion(-501491, (tsn->net.af == tbn->tunBitKey.invNetKey.af));
+	assertion(-501492, (tdn_state==TDN_STATE_CURRENT || tdn_state==TDN_STATE_DEDICATED || tdn_state==TDN_STATE_CATCHALL));
+
+	dbgf_track(DBGT_INFO, "%s %s via orig %s asDfltTun=%d tbn_active=%s",
+	       del?"DEL":"ADD", netAsStr(&netKey), globalIdAsString(&ton->tunOutKey.on->global_id),
+	       tdn_state, tbn->active_tdn ? tbn->active_tdn->name.str : "---");
+
+
+        if (del && tbn->active_tdn) {
+
+                iproute((IP_ROUTE_TUNS + rtype), DEL, NO, &netKey, RT_TABLE_TUN, 0, tbn->active_tdn->ifIdx, NULL, NULL, ntohl(tbn->tunBitKey.beIpMetric), rtep);
+
+		tun_out_del( tbn );
+
+        } else if (!del && (!tbn->active_tdn || (tbn->active_tdn && (
+			(tdn_state==TDN_STATE_DEDICATED && tbn->active_tdn->tunCatch_fd>0) ||
+			(tdn_state==TDN_STATE_CATCHALL && tbn->active_tdn->tunCatch_fd<=0) ) ) ) ) {
+
+			if (tbn->active_tdn)
+				iproute((IP_ROUTE_TUNS + rtype), DEL, NO, &netKey, RT_TABLE_TUN, 0, tbn->active_tdn->ifIdx, NULL, NULL, ntohl(tbn->tunBitKey.beIpMetric), rtep);
+			
+			tun_out_add( tbn, tdn_state );
+			assertion(-500000, (tbn->active_tdn));
+			iproute((IP_ROUTE_TUNS + rtype), ADD, NO, &netKey, RT_TABLE_TUN, 0, tbn->active_tdn->ifIdx, NULL, NULL, ntohl(tbn->tunBitKey.beIpMetric), rtep);
+			
+        }
+}
+
 
 
 STATIC_FUNC
@@ -876,117 +1400,7 @@ void _add_tun_bit_node(struct tun_search_node *tsna, struct tun_net_node *tnna)
         }
 }
 
-STATIC_FUNC
-void set_tun_out_mtu(struct tun_out_node *ton, uint16_t new_mtu) {
 
-        if(ton->upIfIdx && new_mtu != ton->curr_mtu) {
-
-                if(new_mtu == DEF_TUN_OUT_MTU) {
-                        kernel_set_mtu(ton->name.str, ton->orig_mtu);
-                        ton->curr_mtu = DEF_TUN_OUT_MTU;
-                } else {
-                        kernel_set_mtu(ton->name.str, new_mtu);
-                        ton->curr_mtu = new_mtu;
-                }
-        }
-}
-
-
-STATIC_FUNC
-void configure_tun_bit(uint8_t del, struct tun_bit_node *tbn)
-{
-        TRACE_FUNCTION_CALL;
-
-        struct route_export rte, *rtep = NULL;
-        if( tbn->tunBitKey.keyNodes.tsn->exportDistance != TYP_EXPORT_DISTANCE_INFINITE ) {
-                memset(&rte, 0, sizeof(rte));
-                rte.exportDistance = tbn->tunBitKey.keyNodes.tsn->exportDistance;
-                rte.exportOnly = tbn->tunBitKey.keyNodes.tsn->exportOnly;
-                rte.ipexport = NO; // not yet
-                rtep = &rte;
-        }
-
-        if (del && tbn->active) {
-
-                struct tun_out_node *ton = tbn->tunBitKey.keyNodes.tnn->tunNetKey.tun;
-                struct net_key netKey = tbn->tunBitKey.invNetKey;
-                netKey.mask = 128 - netKey.mask;
-                uint8_t rtype = tbn->tunBitKey.keyNodes.tnn->tunNetKey.bmx6RouteType;
-
-                iproute((IP_ROUTE_TUNS + rtype), DEL, NO, &netKey, RT_TABLE_TUN, 0, ton->upIfIdx, NULL, NULL, ntohl(tbn->tunBitKey.beIpMetric), rtep);
-
-                tbn->active = NO;
-
-                uint8_t used = NO;
-                struct avl_node *used_tnn_it = NULL;
-                struct tun_net_node *used_tnn;
-                while (!used && (used_tnn = avl_iterate_item(&ton->tun_net_tree, &used_tnn_it))) {
-                        struct avl_node *used_tbn_it = NULL;
-                        struct tun_bit_node *used_tbn;
-                        while (!used && (used_tbn = avl_iterate_item(&used_tnn->tun_bit_tree, &used_tbn_it))) {
-                                if (used_tbn->active)
-                                        used = YES;
-                        }
-                }
-
-                assertion(-501236, IMPLIES(used, ton->upIfIdx));
-
-                if (!used)
-                        configure_tunnel_out(DEL, ton);
-
-        } else if (!del && !tbn->active) {
-
-                struct tun_search_node *tsn = tbn->tunBitKey.keyNodes.tsn;
-                struct tun_net_node *tnn = tbn->tunBitKey.keyNodes.tnn;
-                uint8_t rtype = tnn->tunNetKey.bmx6RouteType;
-                struct tun_out_node *ton = tnn->tunNetKey.tun;
-                struct net_key netKey = tbn->tunBitKey.invNetKey;
-                netKey.mask = 128 - netKey.mask;
-
-                if (!ton->upIfIdx && configure_tunnel_out(ADD, ton) == SUCCESS) {
-                        
-                        kernel_set_addr(ADD, ton->upIfIdx, AF_INET6, &ton->localIp, 128, YES /*deprecated*/);
-
-                        if(tun_out_mtu != ton->curr_mtu)
-                                set_tun_out_mtu(ton, tun_out_mtu);
-                }
-
-                if (ton->upIfIdx) {
-
-                        if (tsn->net.af == AF_INET) {
-
-                                IPX_T srcIp4 = tsn->srcPrefix.mask ? tsn->srcPrefix.ip : tun4_address.ip;
-
-                                assertion(-501373, (is_ip_set(&srcIp4)));
-                                assertion(-501374, IMPLIES(is_ip_set(&ton->src4Ip), is_ip_equal(&ton->src4Ip, &srcIp4)));
-
-                                if (!is_ip_set(&ton->src4Ip)) {
-                                        ton->src4Ip = srcIp4;
-                                        kernel_set_addr(ADD, ton->upIfIdx, AF_INET, &srcIp4, 32, NO /*deprecated*/);
-                                }
-
-                        } else /*if (tsn->net.af == AF_INET6)*/ {
-                                
-                                assertion(-501375, (tsn->net.af == AF_INET6));
-
-                                IPX_T srcIp6 = tsn->srcPrefix.mask ? tsn->srcPrefix.ip : tun6_address.ip;
-
-                                assertion(-501376, (is_ip_set(&srcIp6)));
-                                assertion(-501377, IMPLIES(is_ip_set(&ton->src6Ip), is_ip_equal(&ton->src6Ip, &srcIp6)));
-
-                                if (!is_ip_set(&ton->src6Ip)) {
-
-                                        ton->src6Ip = srcIp6;
-                                        kernel_set_addr(ADD, ton->upIfIdx, AF_INET6, &srcIp6, 128, NO /*deprecated*/);
-                                }
-                        }
-
-                        iproute((IP_ROUTE_TUNS + rtype), ADD, NO, &netKey, RT_TABLE_TUN, 0, ton->upIfIdx, NULL, NULL, tsn->ipmetric, rtep);
-
-                        tbn->active = YES;
-                }
-        }
-}
 
 STATIC_FUNC
 void _del_tun_bit_node(struct tun_search_node *tsn, struct tun_net_node *tnn)
@@ -1003,7 +1417,7 @@ void _del_tun_bit_node(struct tun_search_node *tsn, struct tun_net_node *tnn)
                 avl_remove(&(tbn->tunBitKey.keyNodes.tnn->tun_bit_tree), &tbn->tunBitKey.keyNodes, -300461);
                 avl_remove(&tun_bit_tree, &tbn->tunBitKey, -300462);
 
-                configure_tun_bit(DEL, tbn);
+                configure_tun_bit(DEL, tbn, TDN_STATE_CURRENT);
 
                 debugFree(tbn, -300463);
         }
@@ -1065,7 +1479,7 @@ void _recalc_tun_bit_tree(void)
                         tbk_new.beInvTunBitMetric = hton64(UMETRIC_MAX);
                 } else {
                         UMETRIC_T tunBitMetric = ((((tnn->e2eMetric * (100 + tsn->bonus)) / 100) *
-                                (100 + (tbn_curr->active ? tsn->hysteresis : 0))) / 100);
+                                (100 + (tbn_curr->active_tdn ? tsn->hysteresis : 0))) / 100);
 
                         assertion(-501379, (UMETRIC_MAX >= tunBitMetric));
 
@@ -1146,8 +1560,8 @@ void eval_tun_bit_tree(void  *unused)
                                                 !(tbn_crash->tunBitKey.keyNodes.tsn->allowOverlappingLargerPrefixes &&
                                                   tbn_curr->tunBitKey.keyNodes.tsn->breakOverlappingSmallerPrefixes) ) ) {
 
-                                                if (tbn_curr->active)
-                                                        configure_tun_bit(DEL, tbn_curr);
+                                                if (tbn_curr->active_tdn)
+                                                        configure_tun_bit(DEL, tbn_curr, TDN_STATE_CURRENT);
 
                                                 break;
                                         }
@@ -1161,14 +1575,14 @@ void eval_tun_bit_tree(void  *unused)
                                                   tbn_curr->tunBitKey.keyNodes.tsn->allowOverlappingLargerPrefixes))
                                                 ) {
 
-                                                if (tbn_crash->active)
-                                                        configure_tun_bit(DEL, tbn_crash);
+                                                if (tbn_crash->active_tdn)
+                                                        configure_tun_bit(DEL, tbn_crash, TDN_STATE_CURRENT);
                                         }
                                 }
                         }
 
                         if (!tbn_crash || tbn_crash->tunBitKey.beIpMetric != tbn_begin->tunBitKey.beIpMetric)
-                                configure_tun_bit(ADD, tbn_curr);
+                                configure_tun_bit(ADD, tbn_curr, TDN_STATE_CURRENT);
 
                 }
         }
@@ -1249,7 +1663,7 @@ IDM_T terminate_tun_out(struct orig_node *on, struct tun_out_node *tona, struct 
                         ip6AsStr(&ton->localIp), ton->tunOutKey.tun6Id, globalIdAsString(&ton->tunOutKey.on->global_id),
                         memAsHexString(&ton->tunOutKey, sizeof (key)), tun_out_tree.items, ton->tun_net_tree.items);
 
-                used |= (ton->upIfIdx) ? YES : NO;
+                used |= (ton->tdnDedicated[0] || ton->tdnDedicated[1] || ton->tdnCatchAll[0] || ton->tdnCatchAll[1]);
 
                 while ((tnn = (tnna ? tnna : avl_first_item(&ton->tun_net_tree)))) {
 
@@ -1404,7 +1818,6 @@ int process_description_tlv_tun6_adv(struct rx_frame_iterator *it)
                         tun->tunOutKey = key;
                         tun->localIp = adv->localIp;
                         tun->remoteIp = it->on->primary_ip;
-                        tun->name_auto = 1;
                         AVL_INIT_TREE(tun->tun_net_tree, struct tun_net_node, tunNetKey);
                         avl_insert(&tun_out_tree, tun, -300427);
                 }
@@ -1918,12 +2331,12 @@ static int32_t tun_out_status_creator(struct status_handl *handl, void *data)
                         }
                         
                         if (tbn) {
-                                struct tun_out_node *tun = tbn->tunBitKey.keyNodes.tnn->tunNetKey.tun;
-
-                                status->tunName = (tbn->active ? (strlen(tun->name.str) ? tun->name.str : "ERROR") : DBG_NIL);
                                 struct net_key tunRoute = tbn->tunBitKey.invNetKey;
                                 tunRoute.mask = tbn ? (128 - tunRoute.mask) : 0;
                                 sprintf(status->tunRoute, netAsStr(&tunRoute));
+
+                                status->tunName = (tbn->active_tdn ? tbn->active_tdn->name.str : DBG_NIL);
+
                         } else {
                                 status->tunName = DBG_NIL;
                                 sprintf(status->tunRoute, DBG_NIL);
@@ -2468,7 +2881,10 @@ int32_t opt_tun_name(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct op
 
                         if (!strncmp(tun_name_prefix.str, iln->name.str, strlen(tun_name_prefix.str))) {
                                 dbgf_sys(DBGT_WARN, "removing orphan tunnel dev=%s", iln->name.str);
-                                kernel_set_tun(DEL, iln->name.str, 0, NULL, NULL);
+                                if (kernel_tun_del(iln->name.str) != SUCCESS ) {
+					IDM_T result = kernel_link_del(iln->name.str);
+					assertion(-501493, (result==SUCCESS));
+				}
                         }
                 }
         }
@@ -2477,6 +2893,71 @@ int32_t opt_tun_name(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct op
         return SUCCESS;
 }
 
+
+
+
+
+STATIC_FUNC
+void purge_tunCatchTree(void )
+{
+	struct tun_dev_node *tdnUP;
+	while ( (tdnUP = avl_first_item(&tun_catch_tree)) ) {
+		assertion(-500000, (!tdnUP->tbnTunDevTree[0].items && !tdnUP->tbnTunDevTree[1].items));
+		avl_remove(&tun_catch_tree, &tdnUP->tunCatchKey, -300546);
+		kernel_dev_tun_del( tdnUP->name.str, tdnUP->tunCatch_fd );
+		debugFree(tdnUP, -300547);
+	}
+}
+
+STATIC_FUNC
+int32_t opt_tun_state_dedicated_to(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
+{
+	TRACE_FUNCTION_CALL;
+
+        if ( cmd == OPT_APPLY ) {
+
+		static int32_t prev_to = DEF_TUN_OUT_TO;
+		prev_to = tun_dedicated_to;
+                tun_dedicated_to = patch->diff != DEL ? strtol(patch->val, NULL, 10) : DEF_TUN_OUT_TO;
+
+                struct tun_out_node *ton;
+                struct avl_node *an = NULL;
+
+                while((ton = avl_iterate_item(&tun_out_tree, &an))) {
+			uint8_t isv4;
+			struct tun_dev_node *tdnUP;
+
+			for ( isv4=0; isv4<=1; isv4++ ) {
+
+				if ((tdnUP = ton->tdnCatchAll[isv4])) {
+
+					assertion(-500000, (tdnUP->tunCatch_fd>0));
+
+					if (tun_dedicated_to==0) {
+						tun_out_state_set(ton, TDN_STATE_DEDICATED);
+					} else if (tun_dedicated_to>0) {
+					}
+				}
+
+				if ((tdnUP = ton->tdnDedicated[isv4])) {
+
+					assertion(-500000, (tdnUP->tunCatch_fd==0));
+
+					if (tun_dedicated_to>0) {
+						tun_out_state_set(ton, TDN_STATE_CATCHALL);
+					} else if (tun_dedicated_to==0) {
+						if (prev_to>0)
+							task_remove(tun_out_state_catchAll, ton);
+					}
+				}
+			}			
+                }
+
+		if (prev_to>0 && tun_dedicated_to==0)
+			purge_tunCatchTree();
+        }
+	return SUCCESS;
+}
 
 
 STATIC_FUNC
@@ -2488,21 +2969,18 @@ int32_t opt_tun_out_mtu(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
 
                 tun_out_mtu = patch->diff != DEL ? strtol(patch->val, NULL, 10) : DEF_TUN_OUT_MTU;
 
-
                 struct tun_out_node *ton;
                 struct avl_node *an = NULL;
 
                 while((ton = avl_iterate_item(&tun_out_tree, &an))) {
-
-                        dbgf_track(DBGT_INFO, "checking dev=%s, curr_mtu=%d orig_mtu=%d tun_out_mtu=%d",
-                                ton->name.str, ton->curr_mtu, ton->orig_mtu, tun_out_mtu);
-
-                        if(ton->upIfIdx && tun_out_mtu != ton->curr_mtu)
-                                set_tun_out_mtu(ton, tun_out_mtu);
-
+			uint8_t isv4;
+			for ( isv4=0; isv4<=1; isv4++ ) {
+				struct tun_dev_node *tdnUP = ton->tdnDedicated[isv4];
+				if(tdnUP && tun_out_mtu != tdnUP->curr_mtu)
+					tdnUP->curr_mtu = set_tun_out_mtu( tdnUP->name.str, tdnUP->orig_mtu, DEF_TUN_OUT_MTU, tun_out_mtu);
+			}
                 }
         }
-        
         return SUCCESS;
 }
 
@@ -2596,7 +3074,10 @@ struct opt_type hna_options[]= {
 	{ODI,0,ARG_TUN6_ADDRESS,        0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_tun_address,
 			ARG_PREFIX_FORM,HLP_TUN6_ADDRESS}
         ,
-	{ODI,0,ARG_TUN_OUT_MTU,         0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0, MIN_TUN_OUT_MTU,MAX_TUN_OUT_MTU,DEF_TUN_OUT_MTU,0,		opt_tun_out_mtu,
+	{ODI,0,ARG_TUN_OUT_TIMEOUT,     0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,              MIN_TUN_OUT_TO,MAX_TUN_OUT_TO,DEF_TUN_OUT_TO,0, opt_tun_state_dedicated_to,
+			ARG_VALUE_FORM, "timeout for reactive (dedicated) outgoing tunnels"},
+
+	{ODI,0,ARG_TUN_OUT_MTU,         0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,              MIN_TUN_OUT_MTU,MAX_TUN_OUT_MTU,DEF_TUN_OUT_MTU,0, opt_tun_out_mtu,
 			ARG_VALUE_FORM, "MTU of outgoing tunnel"},
 
 
@@ -2721,8 +3202,13 @@ STATIC_FUNC
 void hna_cleanup( void )
 {
         TRACE_FUNCTION_CALL;
+
         task_remove((void(*)(void*))eval_tun_bit_tree, NULL);
+
+	purge_tunCatchTree();
+
         set_route_change_hooks(hna_route_change_hook, DEL);
+
         if (hna_net_keys)
                 debugFree(hna_net_keys, -300471);
 }

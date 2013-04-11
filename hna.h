@@ -62,9 +62,20 @@ extern IDM_T (*hna_configure_niit6to4) (IDM_T del, struct net_key *key);
 
 #define ARG_TUN_NAME_PREFIX "tunDevName"
 #define MAX_TUN_NAME_PREFIX_LEN 7
-#define DEF_TUN_NAME_PREFIX "bmx6"
+#define DEF_TUN_NAME_PREFIX "x6"
+#define DEF_TUN_NAME_TYPE_IN "In_"
+#define DEF_TUN_NAME_TYPE_OUT "Out_"
+#define DEF_TUN_NAME_TYPE_DFLT "Catch_"
 
+#define ARG_TUN_OUT_TIMEOUT "tunOutTimeout"
+#define MIN_TUN_OUT_TO 0
+#define MAX_TUN_OUT_TO 3600000
+#define DEF_TUN_OUT_TO 60000
+#define DEF_TUN_OUT_PERSIST 1
 
+#define TDN_STATE_CATCHALL 1
+#define TDN_STATE_DEDICATED 0
+#define TDN_STATE_CURRENT -1
 
 
 #define ARG_TUN_ADV  "tunIn"
@@ -337,7 +348,8 @@ struct tun_bit_node {
 
         struct tun_bit_key tunBitKey;
 
-        uint8_t active;
+        //uint8_t active; //REMOVE
+	struct tun_dev_node *active_tdn;
 };
 
 
@@ -403,6 +415,8 @@ struct tun_net_node {
         struct avl_tree tun_bit_tree;
 };
 
+
+
 struct tun_out_key {
         struct orig_node *on;
         int16_t tun6Id;
@@ -427,18 +441,37 @@ struct tun_out_node {
 
         //the status:
         struct tun_out_key tunOutKey; // key for tunnel_out_tree
-        IFNAME_T name;
-        uint8_t name_auto;
-        uint32_t upIfIdx;
-	uint16_t curr_mtu; // DEF_TUN_OUT_MTU == orig_mtu
-	uint16_t orig_mtu;
 
-        IPX_T src4Ip;
-        IPX_T src6Ip;
+	//struct tun_dev_node *tdnUP[2]; //0:ipv6, 1:ipv4 //REMOVE
+	struct tun_dev_node *tdnDedicated[2]; //0:ipv6, 1:ipv4
+	struct tun_dev_node *tdnCatchAll[2]; //0:ipv6, 1:ipv4
+
+	//TIME_SEC_T tdnLastUsed_ts;
 
         struct avl_tree tun_net_tree;
 };
 
+
+struct tun_catch_key {
+	uint8_t srcAf;
+	IPX_T srcIp;
+};
+
+struct tun_dev_node {
+
+        IFNAME_T name;
+        int32_t ifIdx;
+	uint16_t curr_mtu; // DEF_TUN_OUT_MTU == orig_mtu
+	uint16_t orig_mtu;
+
+	IPX_T srcIp[2]; //0:ipv6, 1:ipv6
+	
+	//remaining parameters depend on dflt_fd:
+	int32_t tunCatch_fd;
+        struct tun_catch_key tunCatchKey;
+//        struct avl_tree tunCatchOutTree; //REMOVE
+        struct avl_tree tbnTunDevTree[2];
+};
 
 struct tun_in_node {
 
@@ -462,7 +495,7 @@ struct tun_in_node {
 
         //the status:
         int16_t tun6Id;
-        uint32_t upIfIdx;
+        int32_t upIfIdx;
 };
 
 char* bmx6RouteBits2String(uint32_t bmx6_route_bits);

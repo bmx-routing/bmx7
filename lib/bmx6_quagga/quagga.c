@@ -161,7 +161,7 @@ void zdata_parse_route(struct zdata *zd)
         dbgf_all(DBGT_INFO," ");
 
         assertion(-501402, ( zd->len >= sizeof (struct zapiV2_header) && zd->hdr->version == ZEBRA_VERSION2));
-        assertion(-500000, (zd->cmd == ZEBRA_IPV4_ROUTE_ADD || zd->cmd == ZEBRA_IPV4_ROUTE_DELETE ||
+        assertion(-501445, (zd->cmd == ZEBRA_IPV4_ROUTE_ADD || zd->cmd == ZEBRA_IPV4_ROUTE_DELETE ||
                         zd->cmd == ZEBRA_IPV6_ROUTE_ADD || zd->cmd == ZEBRA_IPV6_ROUTE_DELETE));
 
         uint32_t ofs = sizeof (struct zapiV2_header);

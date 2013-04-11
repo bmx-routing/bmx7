@@ -54,6 +54,7 @@ char* memAsHexString( const void* mem, uint32_t len);
 char* memAsHexStringSep( const void* mem, uint32_t len, uint16_t separator);
 char* memAsCharString( const char* mem, uint32_t len);
 
+IDM_T check_string(char*s, char *okChars, char replaceChar);
 IDM_T validate_char_string (const char* data, uint32_t len);
 IDM_T validate_name_string(char* name, uint32_t field_len, char* exceptions);
 

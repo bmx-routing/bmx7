@@ -279,6 +279,11 @@ extern struct avl_tree dev_name_tree;
 //extern IDM_T dev_soft_conf_changed; // temporary enabled to trigger changed interface configuration
 
 
+struct iplink_req {
+	struct nlmsghdr	nlh;
+	struct ifinfomsg ifi;
+};
+
 
 struct ip_req {
 	struct nlmsghdr nlh;
@@ -509,9 +514,11 @@ extern struct bmx6_route_dict bmx6_rt_dict[BMX6_ROUTE_MAX];
 //iproute() commands:
 #define	IP_NOP             00
 
-#define IP_LINK_GET        01
-#define IP_ADDR_GET        02
-#define IP_ROUTE_GET       03
+#define IP_LINK_DEL        01
+
+#define IP_LINK_GET        03
+#define IP_ADDR_GET        04
+#define IP_ROUTE_GET       05
 
 
 #define IP_ADDRESS_SET     11
@@ -611,18 +618,30 @@ IDM_T is_ip_net_equal(const IPX_T *netA, const IPX_T *netB, const uint8_t plen, 
 
 // core:
 uint32_t get_if_index(IFNAME_T *name);
-
+IDM_T kernel_set_flags(char *name, int fd, int get_req, int set_req, uint16_t up_flags, uint16_t down_flags);
 IDM_T kernel_set_addr(IDM_T del, uint32_t if_index, uint8_t family, IPX_T *ip, uint8_t prefixlen, IDM_T deprecated);
-IDM_T kernel_set_tun(IDM_T del, char *name, uint8_t proto, IPX_T *local, IPX_T *remote);
+
+IDM_T kernel_link_del(char *name);
+
+IDM_T kernel_dev_exists(char *name);
+int32_t kernel_tun_add(char *name, uint8_t proto, IPX_T *local, IPX_T *remote);
+IDM_T kernel_tun_del(char *name);
+
+void kernel_dev_tun_del( char *name, int32_t fd );
+int32_t kernel_dev_tun_add( char *name, int32_t *fdp, IDM_T accept_local_ipv4 );
+
 uint32_t kernel_get_mtu(char *name);
+int32_t kernel_get_ifidx( char *name );
 IDM_T kernel_set_mtu(char *name, uint16_t mtu);
 
-
+struct sockaddr_storage set_sockaddr_storage(uint8_t af, IPX_T *ipx, int32_t port);
 void set_ipexport( void (*func) (int8_t del, const struct net_key *dst, uint32_t oif_idx, IPX_T *via, uint32_t metric, uint8_t distance) );
 IDM_T iproute(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_key *net, int8_t table_macro, int8_t prio_macro, 
 	int oif_idx, IPX_T *via, IPX_T *src, uint32_t metric, struct route_export *rte);
 
 struct net_key bmx6AutoEUI64Ip6(struct dev_node *dev, struct net_key *prefix);
+
+IDM_T check_proc_sys_net(char *file, int32_t desired, int32_t *backup);
 
 void sysctl_config(struct dev_node *dev_node);
 

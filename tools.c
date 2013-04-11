@@ -106,6 +106,29 @@ IDM_T hexStrToMem(char *s, uint8_t *m, uint16_t mLen)
         return SUCCESS;
 }
 
+IDM_T check_string(char*s, char *okChars, char replaceChar)
+{
+	uint32_t i,j;
+
+	for (i=0; i<strlen(s);i++) {
+		IDM_T ok = NO;
+		for (j=0;j<strlen(okChars);j++) {
+			if (s[i] == okChars[j] ) {
+				ok = YES;
+				break;
+			}
+		}
+		if (!ok) {
+			if (replaceChar)
+				s[i] = replaceChar;
+			else
+				return FAILURE;
+		}
+	}
+	return SUCCESS;
+
+}
+
 
 IDM_T validate_char_string(const char* data, uint32_t len)
 {

@@ -91,12 +91,12 @@ struct net_key {
         uint8_t af;   //family
 	uint8_t mask; //prefixlen
 	IPX_T ip;     //address
-};
+} __attribute__((packed));
 
 struct dev_ip_key {
 	IPX_T ip; // copy of dev->if_llocal_addr->ip_addr
 	DEVADV_IDX_T idx;
-};
+} __attribute__((packed));
 
 
 typedef union {
@@ -774,7 +774,7 @@ struct tx_task_content {
 	IID_T myIID4x;
 	IID_T neighIID4x;
 	uint16_t type;
-};
+} __attribute__((packed));
 
 struct tx_task_node {
 	struct list_node list;
@@ -821,7 +821,7 @@ struct local_node {
 	TIME_T rp_adv_time;
 	IDM_T rp_ogm_request_rcvd;
 	int32_t orig_routes;
-};
+} __attribute__((packed));
 
 
 extern struct avl_tree link_tree;
@@ -829,7 +829,7 @@ extern struct avl_tree link_tree;
 struct link_node_key {
 	DEVADV_IDX_T dev_idx;
 	LOCAL_ID_T local_id;
-};
+} __attribute__((packed));
 
 struct link_node {
 
@@ -851,7 +851,7 @@ struct link_node {
 struct link_dev_key {
 	struct link_node *link;
 	struct dev_node *dev;
-};
+} __attribute__((packed));
 
 struct router_node {
 

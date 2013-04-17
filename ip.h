@@ -550,7 +550,7 @@ struct track_key {
 	int8_t table_macro;
 	uint32_t metric;
 	uint8_t cmd_type;
-};
+} __attribute__((packed));
 
 struct track_node {
         struct track_key k;

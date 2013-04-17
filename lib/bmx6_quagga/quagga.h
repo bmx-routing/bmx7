@@ -185,7 +185,7 @@ struct zroute_key {
         IPX_T via;
         uint32_t ifindex;
         uint8_t ztype;
-};
+} __attribute__((packed));
 
 struct zroute_node {
         struct zroute_key k;
@@ -203,7 +203,7 @@ struct redist_out_key {
         FMETRIC_U8_T bandwidth;
         struct net_key net;
         uint8_t must_be_one; // to find_next route_type and bandwidth if net is zero
-};
+} __attribute__((packed));
 
 struct redist_out_node {
         struct redist_out_key k;

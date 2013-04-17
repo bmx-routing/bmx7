@@ -323,7 +323,7 @@ struct tun_bit_key_nodes {
 
         struct tun_search_node *tsn;
         struct tun_net_node *tnn;
-};
+} __attribute__((packed));
 
 struct tun_bit_key {
 
@@ -331,7 +331,7 @@ struct tun_bit_key {
         UMETRIC_T beInvTunBitMetric;
         struct net_key invNetKey;
         struct tun_bit_key_nodes keyNodes;
-};
+} __attribute__((packed));
 
 struct tun_bit_node {
 
@@ -387,7 +387,7 @@ struct tun_net_key {
         uint8_t bmx6RouteType;
         struct net_key netKey;
         struct tun_out_node *tun;
-};
+} __attribute__((packed));
 
 struct tun_net_node {
 
@@ -406,7 +406,7 @@ struct tun_net_node {
 struct tun_out_key {
         struct orig_node *on;
         int16_t tun6Id;
-};
+} __attribute__((packed));
 
 
 struct tun_out_node {

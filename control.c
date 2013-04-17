@@ -66,10 +66,13 @@ static struct dbg_histogram dbgl_history[2][DBG_HIST_SIZE];
 static uint8_t debug_system_active = NO;
 
 
+
 static char *init_string = NULL;
 
 static int32_t Testing = NO;
 int32_t Load_config;
+
+static int32_t dbg_syslog = DEF_DBG_SYSLOG;
 
 char *prog_name;
 
@@ -499,7 +502,7 @@ void debug_output(uint32_t check_len, struct ctrl_node *cn, int8_t dbgl, int8_t 
 		if ( dbgl == DBGL_SYS  ||  debug_level == DBGL_ALL  ||  debug_level == dbgl)
                         printf("[%d %8u] %s%s: %s\n", My_pid, bmx_time, dbgt2str[dbgt], f ? f : "", s);
 		
-		if ( dbgl == DBGL_SYS )
+		if ( (dbg_syslog||initializing||terminating) && dbgl == DBGL_SYS )
 			syslog( LOG_ERR, "%s%s: %s\n", dbgt2str[dbgt], f?f:"", s );
 		
 		return;
@@ -537,14 +540,15 @@ void debug_output(uint32_t check_len, struct ctrl_node *cn, int8_t dbgl, int8_t 
 	
 		if ( check_len )
 			mute_dbgl_sys = check_dbg_history( DBGL_SYS, s, check_len );
-		
-		if ( mute_dbgl_sys != DBG_HIST_MUTED )
-			syslog( LOG_ERR, "%s%s%s%s\n", dbgt2str[dbgt], f?f:"", f?"(): ":"", s );
-		
-		if ( mute_dbgl_sys == DBG_HIST_MUTING )
-			syslog( LOG_ERR, "%smuting further messages (with equal first %d bytes) for at most %d seconds\n", 
-			        dbgt2str[DBGT_WARN], check_len, dbg_mute_to/1000 );
-		
+
+		if (dbg_syslog||initializing||terminating) {
+			if ( mute_dbgl_sys != DBG_HIST_MUTED )
+				syslog( LOG_ERR, "%s%s%s%s\n", dbgt2str[dbgt], f?f:"", f?"(): ":"", s );
+
+			if ( mute_dbgl_sys == DBG_HIST_MUTING )
+				syslog( LOG_ERR, "%smuting further messages (with equal first %d bytes) for at most %d seconds\n",
+					dbgt2str[DBGT_WARN], check_len, dbg_mute_to/1000 );
+		}
 	}
 
 	for ( j = 0; j < i; j++ ) {
@@ -3043,6 +3047,8 @@ static struct opt_type control_options[]=
 	{ODI,0,ARG_RUN_DIR,		0,  2,1,A_PS1,A_ADM,A_INI,A_CFA,A_ANY,	0,		0,		0,		0,DEF_RUN_DIR,	opt_run_dir,
 			ARG_DIR_FORM,	"set runtime DIR of "BMX_PID_FILE", "BMX_UNIX_SOCK_FILE", ... - default: " DEF_RUN_DIR " (must be defined before --" ARG_CONNECT ")."},
 		
+	{ODI,0,ARG_DBG_SYSLOG,          0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&dbg_syslog,	MIN_DBG_SYSLOG,	MAX_DBG_SYSLOG,	DEF_DBG_SYSLOG,0,0,
+			ARG_VALUE_FORM,"Disable/Enable syslog warnings"},
 		
 		
 	{ODI,0,"loopMode",		'l',3,1,A_PS0,A_ADM,A_INI,A_ARG,A_ANY,	&loop_mode,	0, 		1,		0,0, 		0,

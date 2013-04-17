@@ -69,6 +69,13 @@ extern int32_t Client_mode;
 #define ARG_RUN_DIR "runtimeDir"
 #define DEF_RUN_DIR "/var/run/bmx6"
 
+
+#define ARG_DBG_SYSLOG "syslog"
+#define DEF_DBG_SYSLOG 1
+#define MIN_DBG_SYSLOG 0
+#define MAX_DBG_SYSLOG 1
+
+
 extern char run_dir[];
 
 #define CHR_QUIT '#'

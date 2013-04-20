@@ -26,7 +26,10 @@
 #define DUMP_DIRECTION_IN 1
 #define DUMP_DIRECTION_ARRSZ 2
 
-#define DUMP_STATISTIC_PERIOD 1000
+#define DEF_DUMP_PERIOD 1000
+#define MIN_DUMP_PERIOD 100
+#define MAX_DUMP_PERIOD 1000000
+#define ARG_DUMP_PERIOD "trafficCapturePeriod"
 
 #define ARG_DUMP  "traffic"
 #define ARG_DUMP_ALL     "all"

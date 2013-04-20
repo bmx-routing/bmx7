@@ -31,11 +31,14 @@
 
 #define CODE_CATEGORY_NAME "traffic"
 
-#define LESS_ROUNDING_ERRORS 0
 #define IMPROVE_ROUNDOFF 10
 
-static int32_t dump_regression_exp = DEF_DUMP_REGRESSION_EXP;
+static int64_t curr_dump_period = DEF_DUMP_PERIOD;
+static int32_t next_dump_period = DEF_DUMP_PERIOD;
+static int32_t prev_dump_period = DEF_DUMP_PERIOD;
 
+static int32_t dump_regression_exp = DEF_DUMP_REGRESSION_EXP;
+static uint32_t dump_iteration = 0;
 
 static IDM_T dump_terminating = NO;
 static int32_t data_dev_plugin_registry = FAILURE;
@@ -51,23 +54,19 @@ void update_traffic_statistics_data(struct dump_data *data)
         for (i = 0; i < DUMP_DIRECTION_ARRSZ; i++) {
 
                 for (t = 0; t < DUMP_TYPE_ARRSZ; t++) {
-                        data->pre_all[i][t] = data->tmp_all[i][t];
+                        data->pre_all[i][t] = (((int64_t)(data->tmp_all[i][t])) * 1000) / curr_dump_period;
 
-                        data->avg_all[i][t] <<= LESS_ROUNDING_ERRORS;
                         data->avg_all[i][t] -= (data->avg_all[i][t] >> dump_regression_exp);
-                        data->avg_all[i][t] += (((data->tmp_all[i][t]) << LESS_ROUNDING_ERRORS) >> dump_regression_exp);
-                        data->avg_all[i][t] >>= LESS_ROUNDING_ERRORS;
+                        data->avg_all[i][t] += ((data->pre_all[i][t]) >> dump_regression_exp);
                         data->tmp_all[i][t] = 0;
                 }
 
 
                 for (t = 0; t < FRAME_TYPE_ARRSZ; t++) {
-                        data->pre_frame[i][t] = data->tmp_frame[i][t];
+                        data->pre_frame[i][t] = (((int64_t)(data->tmp_frame[i][t])) * 1000) / curr_dump_period;
 
-                        data->avg_frame[i][t] <<= LESS_ROUNDING_ERRORS;
                         data->avg_frame[i][t] -= (data->avg_frame[i][t] >> dump_regression_exp);
-                        data->avg_frame[i][t] += (((data->tmp_frame[i][t]) << LESS_ROUNDING_ERRORS) >> dump_regression_exp);
-                        data->avg_frame[i][t] >>= LESS_ROUNDING_ERRORS;
+                        data->avg_frame[i][t] += ((data->pre_frame[i][t]) >> dump_regression_exp);
                         data->tmp_frame[i][t] = 0;
                 }
         }
@@ -80,7 +79,9 @@ void update_traffic_statistics_task(void *data)
         struct dev_node *dev;
         struct avl_node *an = NULL;
 
-        task_register(DUMP_STATISTIC_PERIOD, update_traffic_statistics_task, NULL, -300348);
+	dump_iteration++;
+	curr_dump_period = prev_dump_period;
+
         update_traffic_statistics_data( &dump_all );
 
         while ((dev = avl_iterate_item(&dev_name_tree, &an))) {
@@ -92,6 +93,10 @@ void update_traffic_statistics_task(void *data)
                         update_traffic_statistics_data(*dump_dev_plugin_data);
 
         }
+
+        task_register(next_dump_period, update_traffic_statistics_task, NULL, -300348);
+	prev_dump_period = next_dump_period;
+
 }
 
 STATIC_FUNC
@@ -332,8 +337,8 @@ int32_t opt_traffic_statistics(uint8_t cmd, uint8_t _save, struct opt_type *opt,
                 struct dev_node *dev;
                 struct avl_node *an = NULL;
 
-                dbg_printf(cn, "traffic statistics [B/%dsec]:       last second        |    weighted averages  \n",
-                        DUMP_STATISTIC_PERIOD / 1000);
+                dbg_printf(cn, "iteration=%d as [Bytes/sec], averaged over %.1f secs and as weighted averages\n",
+                        dump_iteration, (float)curr_dump_period / 1000);
 
                 dbg_printf(cn, "%20s ( %% )     in ( %% )    out ( %% )  |   all ( %% )     in ( %% )    out ( %% )\n"," ");
 
@@ -342,15 +347,14 @@ int32_t opt_traffic_statistics(uint8_t cmd, uint8_t _save, struct opt_type *opt,
 
                 while ((dev = avl_iterate_item(&dev_name_tree, &an))) {
 
-                        if (strcmp(patch->val, ARG_DUMP_ALL) && strcmp(patch->val, dev->label_cfg.str))
-                                continue;
+                        if (!strcmp(patch->val, ARG_DUMP_ALL) || !strcmp(patch->val, dev->label_cfg.str)) {
 
-                        struct dump_data **dump_dev_plugin_data =
-                                (struct dump_data **) (get_plugin_data(dev, PLUGIN_DATA_DEV, data_dev_plugin_registry));
+				struct dump_data **dump_dev_plugin_data = (struct dump_data **)
+				(get_plugin_data(dev, PLUGIN_DATA_DEV, data_dev_plugin_registry));
 
-                        if (dev->active && *dump_dev_plugin_data)
-                                dbg_traffic_statistics(*dump_dev_plugin_data, cn, dev->label_cfg.str);
-
+				if (dev->active && *dump_dev_plugin_data)
+					dbg_traffic_statistics(*dump_dev_plugin_data, cn, dev->label_cfg.str);
+			}
                 }
 
                 dbg_printf(cn, "\n");
@@ -367,10 +371,13 @@ struct opt_type dump_options[]=
 {
 //       ord parent long_name             shrt Attributes                            *ival              min                 max                default              *func,*syntax,*help
 
-        {ODI, 0, ARG_DUMP_REGRESSION_EXP,  0,  9,1, A_PS1, A_ADM, A_DYN, A_ARG, A_ANY, &dump_regression_exp,MIN_DUMP_REGRESSION_EXP,MAX_DUMP_REGRESSION_EXP,DEF_DUMP_REGRESSION_EXP,0,0,
+        {ODI, 0, ARG_DUMP_PERIOD,          0,  9,1, A_PS1, A_ADM, A_DYI, A_ARG, A_ANY, &next_dump_period,    MIN_DUMP_PERIOD,    MAX_DUMP_PERIOD,   DEF_DUMP_PERIOD,0,   0,
+			ARG_VALUE_FORM,	"set duration in ms for how long traffic is measured for calculating interval averages"}
+        ,
+        {ODI, 0, ARG_DUMP_REGRESSION_EXP,  0,  9,1, A_PS1, A_ADM, A_DYI, A_ARG, A_ANY, &dump_regression_exp,MIN_DUMP_REGRESSION_EXP,MAX_DUMP_REGRESSION_EXP,DEF_DUMP_REGRESSION_EXP,0,0,
 			ARG_VALUE_FORM,	"set regression exponent for traffic-dump statistics "}
         ,
-	{ODI, 0, ARG_DUMP,     	           0,  9,1, A_PS1, A_USR, A_DYN, A_ARG, A_ANY, 0,                 0,                  0,                 0,0,                  opt_traffic_statistics,
+	{ODI, 0, ARG_DUMP,     	           0,  9,2, A_PS1, A_USR, A_DYN, A_ARG, A_ANY, 0,                 0,                  0,                 0,0,                  opt_traffic_statistics,
 			"<DEV>",		"show traffic statistics for given device name, summary, or all\n"}
 
 };
@@ -423,7 +430,7 @@ int32_t init_dump( void )
 
         register_options_array(dump_options, sizeof ( dump_options), CODE_CATEGORY_NAME);
 
-        task_register(DUMP_STATISTIC_PERIOD, update_traffic_statistics_task, NULL, -300349);
+        task_register(next_dump_period, update_traffic_statistics_task, NULL, -300349);
 
         set_packet_hook(dump, ADD);
 

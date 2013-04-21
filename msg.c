@@ -302,8 +302,13 @@ IDM_T process_description_tlvs(struct packet_buff *pb, struct orig_node *on, str
         if (filter == FRAME_TYPE_PROCESS_ALL && op == TLV_OP_NEW) {
                 on->added = YES;
                 block_orig_node(NO, on);
+
+		if (!on->path_metricalgo)
+			metricalgo_assign(on, NULL);
+
         } else if (filter == FRAME_TYPE_PROCESS_ALL && op == TLV_OP_DEL) {
                 on->added = NO;
+		metricalgo_remove(on);
         }
 
         return TLV_RX_DATA_DONE;

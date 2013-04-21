@@ -39,6 +39,8 @@
 
 #define CODE_CATEGORY_NAME "metric"
 
+static int32_t descMetricalgo = DEF_DESC_METRICALGO;
+
 static int32_t my_path_algo = DEF_METRIC_ALGO;
 static int32_t my_path_rp_exp_numerator = DEF_PATH_RP_EXP_NUMERATOR;
 static int32_t my_path_rp_exp_divisor = DEF_PATH_RP_EXP_DIVISOR;
@@ -1221,6 +1223,11 @@ int create_description_tlv_metricalgo(struct tx_frame_iterator *it)
         if (metricalgo_tlv_to_host(&tlv_algo, &my_hostmetricalgo, sizeof (struct description_tlv_metricalgo)) == FAILURE)
                 cleanup_all(-500844);
 
+
+	if (!descMetricalgo)
+		return TLV_TX_DATA_IGNORED;
+
+
         if (tx_iterator_cache_data_space_pref(it) < ((int) sizeof (struct description_tlv_metricalgo))) {
 
                 dbgf_sys(DBGT_ERR, "unable to announce metric due to limiting --%s", ARG_UDPD_SIZE);
@@ -1233,6 +1240,44 @@ int create_description_tlv_metricalgo(struct tx_frame_iterator *it)
         return sizeof (struct description_tlv_metricalgo);
 }
 
+
+void metricalgo_remove(struct orig_node *on)
+{
+	if (on->path_metricalgo) {
+		debugFree(on->path_metricalgo, -300285);
+		on->path_metricalgo = NULL;
+	}
+
+	if (on->metricSqnMaxArr) {
+		debugFree(on->metricSqnMaxArr, -300307);
+		on->metricSqnMaxArr = NULL;
+	}
+}
+
+void metricalgo_assign(struct orig_node *on, struct host_metricalgo *host_algo)
+{
+
+	metricalgo_remove(on);
+
+	assertion(-500684, (!on->path_metricalgo));
+	assertion(-500000, (!on->metricSqnMaxArr));
+
+	if (!host_algo)
+		host_algo = &my_hostmetricalgo;
+
+	on->path_metricalgo = debugMalloc(sizeof (struct host_metricalgo), -300286);
+	memcpy(on->path_metricalgo, host_algo, sizeof (struct host_metricalgo));
+
+	on->metricSqnMaxArr = debugMalloc(((on->path_metricalgo->lounge_size + 1) * sizeof (UMETRIC_T)), -300308);
+	memset(on->metricSqnMaxArr, 0, ((on->path_metricalgo->lounge_size + 1) * sizeof (UMETRIC_T)));
+
+	// migrate current router_nodes->mr.clr position to new sqn_range:
+	struct router_node *rn;
+	struct avl_node *an = NULL;
+
+	while ((rn = avl_iterate_item(&on->rt_tree, &an)))
+		reconfigure_metric_record_position(&rn->mr, on->path_metricalgo, on->ogmSqn_rangeMin, on->ogmSqn_rangeMin, 0, NO);
+}
 
 
 STATIC_FUNC
@@ -1256,41 +1301,12 @@ int process_description_tlv_metricalgo(struct rx_frame_iterator *it )
                         return FAILURE;
         }
 
-        if (op == TLV_OP_NEW || op == TLV_OP_DEL) {
+        if (op == TLV_OP_DEL)
+		metricalgo_remove(on);
 
-                if (on->path_metricalgo) {
-                        debugFree(on->path_metricalgo, -300285);
-                        on->path_metricalgo = NULL;
-                }
 
-                if (on->metricSqnMaxArr) {
-                        debugFree(on->metricSqnMaxArr, -300307);
-                        on->metricSqnMaxArr = NULL;
-                }
-        }
-
-        if (op == TLV_OP_NEW) {
-
-                if (metricalgo_tlv_to_host(tlv_algo, &host_algo, it->frame_msgs_length) == FAILURE)
-                        return FAILURE;
-
-                assertion(-500684, (!on->path_metricalgo));
-
-                on->path_metricalgo = debugMalloc(sizeof (struct host_metricalgo), -300286);
-
-                memcpy(on->path_metricalgo, &host_algo, sizeof (struct host_metricalgo));
-
-                on->metricSqnMaxArr = debugMalloc(((on->path_metricalgo->lounge_size + 1) * sizeof (UMETRIC_T)), -300308);
-                memset(on->metricSqnMaxArr, 0, ((on->path_metricalgo->lounge_size + 1) * sizeof (UMETRIC_T)));
-
-                // migrate current router_nodes->mr.clr position to new sqn_range:
-                struct router_node *rn;
-                struct avl_node *an = NULL;
-
-                while ((rn = avl_iterate_item(&on->rt_tree, &an)))
-                        reconfigure_metric_record_position(&rn->mr, on->path_metricalgo, on->ogmSqn_rangeMin, on->ogmSqn_rangeMin, 0, NO);
-                
-        }
+        if (op == TLV_OP_NEW)
+		metricalgo_assign(on, &host_algo);
 
         return it->frame_msgs_length;
 }
@@ -1470,6 +1486,9 @@ struct opt_type metrics_options[]=
         ,
         {ODI, 0, ARG_PATH_WINDOW, 0, 9,1, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &my_path_window, MIN_PATH_WINDOW, MAX_PATH_WINDOW, DEF_PATH_WINDOW,0, opt_path_metricalgo,
 			ARG_VALUE_FORM,	"set path window size (PWS) for end2end path-quality calculation (path metric)"}
+        ,
+        {ODI, 0, ARG_DESC_METRICALGO,0, 9,2, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &descMetricalgo, MIN_DESC_METRICALGO, MAX_DESC_METRICALGO, DEF_DESC_METRICALGO,0, opt_path_metricalgo,
+			ARG_VALUE_FORM,	"enable/disable inclusion of metric algo in node description (other nodes will use their default algo)"}
         ,
 #endif
 	{ODI, 0, ARG_PATH_LOUNGE,          0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&my_path_lounge, MIN_PATH_LOUNGE,MAX_PATH_LOUNGE,DEF_PATH_LOUNGE,0, opt_path_metricalgo,

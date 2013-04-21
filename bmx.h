@@ -290,12 +290,6 @@ typedef uint16_t OGM_SQN_T;
 #define OGM_SQN_MAX      OGM_SQN_MASK
 #define OGM_SQN_STEP     1
 
-#define OGM_SQN_DIV      5
-
-#define MIN_OGM_SQN_RANGE 32
-#define MAX_OGM_SQN_RANGE 8192 // changing this will cause compatibility trouble
-#define DEF_OGM_SQN_RANGE MAX_OGM_SQN_RANGE
-#define ARG_OGM_SQN_RANGE "ogmSqnRange"
 
 
 typedef uint16_t OGM_MIX_T;

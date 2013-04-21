@@ -36,6 +36,8 @@
 
 static int32_t pref_udpd_size = DEF_UDPD_SIZE;
 
+static int32_t ogmSqnRange = DEF_OGM_SQN_RANGE;
+
 static int32_t ogm_adv_tx_iters = DEF_OGM_TX_ITERS;
 static int32_t ogm_ack_tx_iters = DEF_OGM_ACK_TX_ITERS;
 
@@ -72,6 +74,7 @@ TIME_T myIID4me_timestamp = 0;
 
 
 static PKT_SQN_T my_packet_sqn = 0;
+static IDM_T first_packet = YES;
 
 static struct msg_dev_adv *my_dev_adv_buff = NULL;
 static DEVADV_SQN_T my_dev_adv_sqn = 0;
@@ -3312,6 +3315,7 @@ void tx_packets( void *unused ) {
                         }
                 }
         }
+	first_packet = NO;
 }
 
 
@@ -3344,7 +3348,7 @@ IDM_T validate_description(struct description *desc)
 
         if (
                 validate_param(desc->reservedTtl, MIN_TTL, MAX_TTL, ARG_TTL) ||
-                validate_param(ntohs(desc->ogmSqnRange), MIN_OGM_SQN_RANGE, MAX_OGM_SQN_RANGE, ARG_OGM_SQN_RANGE) ||
+                validate_param(ntohs(desc->ogmSqnRange), _MIN_OGM_SQN_RANGE, _MAX_OGM_SQN_RANGE, ARG_OGM_SQN_RANGE) ||
                 validate_param(ntohs(desc->txInterval), MIN_TX_INTERVAL, MAX_TX_INTERVAL, ARG_TX_INTERVAL) ||
                 0
                 ) {
@@ -3387,10 +3391,10 @@ struct dhash_node * process_description(struct packet_buff *pb, struct descripti
                         }
 
                         if (ntohs(desc->descSqn) == ((DESC_SQN_T) (on->descSqn + 1)) &&
-                                UXX_LT(OGM_SQN_MASK, ntohs(desc->ogmSqnMin), (on->ogmSqn_rangeMin + MAX_OGM_SQN_RANGE))) {
+                                UXX_LT(OGM_SQN_MASK, ntohs(desc->ogmSqnMin), (on->ogmSqn_rangeMin + _MAX_OGM_SQN_RANGE))) {
 
                                 dbgf_sys(DBGT_ERR, "DAD-Alert: new ogm_sqn_min %d not > old %d + %d",
-                                        ntohs(desc->ogmSqnMin), on->ogmSqn_rangeMin, MAX_OGM_SQN_RANGE);
+                                        ntohs(desc->ogmSqnMin), on->ogmSqn_rangeMin, _MAX_OGM_SQN_RANGE);
 
                                 goto process_desc0_ignore;
                         }
@@ -3494,13 +3498,14 @@ void update_my_description_adv(void)
 
 
         // add some randomness to the ogm_sqn_range, that not all nodes invalidate at the same time:
-        uint16_t random_range = ((DEF_OGM_SQN_RANGE - (DEF_OGM_SQN_RANGE / OGM_SQN_DIV)) >= MIN_OGM_SQN_RANGE) ?
-                DEF_OGM_SQN_RANGE - rand_num(DEF_OGM_SQN_RANGE / OGM_SQN_DIV) :
-                DEF_OGM_SQN_RANGE + rand_num(DEF_OGM_SQN_RANGE / OGM_SQN_DIV);
+        int32_t random_range = first_packet ? rand_num(ogmSqnRange) :
+		ogmSqnRange - (ogmSqnRange / (_DEF_OGM_SQN_DIV*2)) + rand_num(ogmSqnRange / _DEF_OGM_SQN_DIV);
+
+	random_range = MAX(_MIN_OGM_SQN_RANGE, MIN(_MAX_OGM_SQN_RANGE, random_range));
 
         self->ogmSqn_rangeSize = ((OGM_SQN_MASK)&(random_range + OGM_SQN_STEP - 1));
 
-        self->ogmSqn_rangeMin = ((OGM_SQN_MASK)&(self->ogmSqn_rangeMin + MAX_OGM_SQN_RANGE));
+        self->ogmSqn_rangeMin = ((OGM_SQN_MASK)&(self->ogmSqn_rangeMin + _MAX_OGM_SQN_RANGE));
 
         self->ogmSqn_maxRcvd = set_ogmSqn_toBeSend_and_aggregated(self, UMETRIC_MAX,
                 (OGM_SQN_MASK)&(self->ogmSqn_rangeMin - (self->ogmSqn_next == self->ogmSqn_send ? OGM_SQN_STEP : 0)),
@@ -3660,8 +3665,11 @@ struct opt_type msg_options[]=
 //       ord parent long_name             shrt Attributes                            *ival              min                 max                default              *func,*syntax,*help
 
 #ifndef LESS_OPTIONS
-        {ODI, 0, ARG_UDPD_SIZE,            0,  9,0, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &pref_udpd_size,   MIN_UDPD_SIZE,      MAX_UDPD_SIZE,     DEF_UDPD_SIZE,0,       0,
+        {ODI, 0, ARG_UDPD_SIZE,            0,  9,0, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &pref_udpd_size, MIN_UDPD_SIZE,      MAX_UDPD_SIZE,     DEF_UDPD_SIZE,0,      0,
 			ARG_VALUE_FORM,	"set preferred udp-data size for send packets"}
+        ,
+        {ODI, 0, ARG_OGM_SQN_RANGE,        0,  9,0, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &ogmSqnRange,    MIN_OGM_SQN_RANGE,  MAX_OGM_SQN_RANGE, DEF_OGM_SQN_RANGE,0,  0,
+			ARG_VALUE_FORM,	"set average OGM sequence number range (affects frequency of bmx6 description updates)"}
         ,
         {ODI, 0, ARG_OGM_TX_ITERS,         0,  9,0, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &ogm_adv_tx_iters,MIN_OGM_TX_ITERS,MAX_OGM_TX_ITERS,DEF_OGM_TX_ITERS,0,0,
 			ARG_VALUE_FORM,	"set maximum resend attempts for ogm aggregations"}

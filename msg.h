@@ -101,6 +101,15 @@
 #define DEF_DHASH_REQ_TX_ITERS 10 //TODO: will blow lndev->tx_task_list[] if new local_ids appeare just for a moment
 #define ARG_DHS0_REQS_TX_ITERS "descShaReqSends"
 
+#define _DEF_OGM_SQN_DIV   5
+#define _MIN_OGM_SQN_RANGE 32
+#define _MAX_OGM_SQN_RANGE 8192 // changing this will cause compatibility trouble
+
+
+#define MIN_OGM_SQN_RANGE _MIN_OGM_SQN_RANGE + (_MIN_OGM_SQN_RANGE/(2*_DEF_OGM_SQN_DIV))
+#define MAX_OGM_SQN_RANGE _MAX_OGM_SQN_RANGE - (_MAX_OGM_SQN_RANGE/(2*_DEF_OGM_SQN_DIV))
+#define DEF_OGM_SQN_RANGE MAX_OGM_SQN_RANGE
+#define ARG_OGM_SQN_RANGE "ogmSqnRange"
 
 #define MIN_OGM_TX_ITERS 0
 #define MAX_OGM_TX_ITERS 30

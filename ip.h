@@ -133,7 +133,7 @@ typedef struct ifname IFNAME_T;
 #define DEF_IP_POLICY_ROUTING 1
 
 #define ARG_IP_THROW_RULES "throwRules"
-#define DEF_IP_THROW_RULES 1
+#define DEF_IP_THROW_RULES 0
 
 #define ARG_IP_PRIO_RULES "prioRules"
 #define DEF_IP_PRIO_RULES 1

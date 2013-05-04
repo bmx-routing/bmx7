@@ -68,11 +68,11 @@ int dev_lo_idx = 0;
 
 
 
-static int32_t ip_prio_hna_cfg = DEF_IP_RULE_HNA;
+int32_t ip_prio_hna_cfg = DEF_IP_RULE_HNA;
 static int32_t ip_prio_tun_cfg = DEF_IP_RULE_TUN;
-static int32_t ip_table_hna_cfg = DEF_IP_TABLE_HNA;
+int32_t ip_table_hna_cfg = DEF_IP_TABLE_HNA;
 static int32_t ip_table_tun_cfg = DEF_IP_TABLE_TUN;
-static int32_t ip_prio_rules_cfg = DEF_IP_PRIO_RULES;
+int32_t ip_prio_rules_cfg = DEF_IP_PRIO_RULES;
 int32_t ip_throw_rules_cfg = DEF_IP_THROW_RULES;
 int32_t ip_policy_rt_cfg = DEF_IP_POLICY_ROUTING;
 
@@ -298,12 +298,15 @@ void add_rtattr(struct nlmsghdr *nlh, int rta_type, char *data, uint16_t data_le
 
 
 STATIC_FUNC
-uint32_t prio_macro_to_prio(int8_t prio_macro)
+uint32_t prio_macro_to_prio(int32_t prio_macro)
 {
-        assertion(-501100, (IMPLIES(prio_macro, (prio_macro >= RT_PRIO_MIN && prio_macro <= RT_PRIO_MAX))));
+        assertion(-501100, (IMPLIES(prio_macro<0, (prio_macro >= RT_PRIO_MIN && prio_macro <= RT_PRIO_MAX))));
 
         if (policy_routing == POLICY_RT_DISABLED)
                 return 0;
+
+	else if (prio_macro>=0)
+		return prio_macro;
 
         else if (prio_macro == RT_PRIO_HNA)
 		return ip_prio_hna_cfg;
@@ -316,12 +319,15 @@ uint32_t prio_macro_to_prio(int8_t prio_macro)
 
 
 STATIC_FUNC
-uint32_t table_macro_to_table(int8_t table_macro)
+uint32_t table_macro_to_table(int32_t table_macro)
 {
-        assertion(-501101, (IMPLIES(table_macro, (table_macro >= RT_TABLE_MIN && table_macro <= RT_TABLE_MAX))));
+        assertion(-501101, (IMPLIES(table_macro<0, (table_macro >= RT_TABLE_MIN && table_macro <= RT_TABLE_MAX))));
 
         if (policy_routing == POLICY_RT_DISABLED)
                 return 0;
+
+	else if (table_macro>=0)
+		return table_macro;
 
 	else if ( table_macro == RT_TABLE_HNA )
 		return ip_table_hna_cfg;
@@ -1617,15 +1623,13 @@ IDM_T kernel_get_route(struct list_head *rtnl_get_list, uint8_t quiet, uint8_t f
 
 STATIC_FUNC
 IDM_T kernel_set_route(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_key *dst,
-        int8_t table_macro, int8_t prio_macro, int oif_idx, IPX_T *via, IPX_T *src, uint32_t metric)
+        uint32_t table, uint32_t prio, int oif_idx, IPX_T *via, IPX_T *src, uint32_t metric)
 {
 
         dbgf_all(DBGT_INFO, "1");
 
         struct rtmsg_req req;
         IDM_T llocal = (via && is_ip_equal(via, &dst->ip)) ? YES : NO;
-        uint32_t prio = prio_macro_to_prio(prio_macro);
-        uint32_t table = table_macro_to_table(table_macro);
 
         memset(&req, 0, sizeof (req));
 
@@ -1727,7 +1731,7 @@ void set_ipexport( void (*func) (int8_t del, const struct net_key *dst, uint32_t
                         assertion(-501509, (!tn->rt_exp.ipexport));
 
                         if(tn->rt_exp.exportOnly)
-                                kernel_set_route(tn->cmd, DEL, NO, &tn->k.net, tn->k.table_macro, tn->k.prio_macro, tn->oif_idx, via, src, tn->k.metric);
+                                kernel_set_route(tn->cmd, DEL, NO, &tn->k.net, tn->k.table, tn->k.prio, tn->oif_idx, via, src, tn->k.metric);
 
                         (*func)(ADD, &tn->k.net, tn->oif_idx, via, tn->k.metric, tn->rt_exp.exportDistance);
 
@@ -1737,7 +1741,7 @@ void set_ipexport( void (*func) (int8_t del, const struct net_key *dst, uint32_t
                         assertion(-501510, (tn->rt_exp.ipexport));
 
                         if(tn->rt_exp.exportOnly)
-                                kernel_set_route(tn->cmd, ADD, NO, &tn->k.net, tn->k.table_macro, tn->k.prio_macro, tn->oif_idx, via, src, tn->k.metric);
+                                kernel_set_route(tn->cmd, ADD, NO, &tn->k.net, tn->k.table, tn->k.prio, tn->oif_idx, via, src, tn->k.metric);
 
                         tn->rt_exp.ipexport = 0;
                 }
@@ -1748,7 +1752,7 @@ void set_ipexport( void (*func) (int8_t del, const struct net_key *dst, uint32_t
 
 
 STATIC_FUNC
-IDM_T iptrack(const struct net_key *net, uint8_t cmd, uint8_t quiet, int8_t del, int8_t table_macro, int8_t prio_macro,
+IDM_T iptrack(const struct net_key *net, uint8_t cmd, uint8_t quiet, int8_t del, uint32_t table, uint32_t prio,
         int oif_idx, IPX_T *via, IPX_T *src, uint32_t metric, struct route_export *rte)
 {
 
@@ -1763,8 +1767,8 @@ IDM_T iptrack(const struct net_key *net, uint8_t cmd, uint8_t quiet, int8_t del,
         static struct track_node ts;
         memset(&ts, 0, sizeof (ts));
         ts.k.net = *net;
-        ts.k.prio_macro = prio_macro;
-        ts.k.table_macro = table_macro;
+        ts.k.prio = prio;
+        ts.k.table = table;
         ts.k.metric = metric;
         ts.k.cmd_type = (cmd > IP_ROUTES && cmd < IP_ROUTE_MAX) ? IP_ROUTES :IP_RULES;
 
@@ -1789,8 +1793,7 @@ IDM_T iptrack(const struct net_key *net, uint8_t cmd, uint8_t quiet, int8_t del,
                         quiet ? DBGL_ALL : (del && !exact) ? DBGL_SYS : DBGL_CHANGES,
                         quiet ? DBGT_INFO : (del && !exact) ? DBGT_ERR : DBGT_INFO,
                         "   %s cmd=%s net=%s table=%d  prio=%d exists=%d exact_match=%d",
-                        del2str(del), trackt2str(cmd), netAsStr(net),
-                        table_macro_to_table(table_macro), prio_macro_to_prio(prio_macro),
+                        del2str(del), trackt2str(cmd), netAsStr(net), table, prio,
                         /*iif ? iif->str : NULL,*/ found, exact ? exact->items : 0);
 
                 EXITERROR(-500700, (!(!quiet && (del && !exact))));
@@ -1866,7 +1869,7 @@ IDM_T iptrack(const struct net_key *net, uint8_t cmd, uint8_t quiet, int8_t del,
 
 
 
-IDM_T iproute(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_key *dst, int8_t table_macro, int8_t prio_macro,
+IDM_T iproute(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_key *dst, int32_t table_macro, int32_t prio_macro,
         int oif_idx, IPX_T *via, IPX_T *src, uint32_t metric, struct route_export *rte)
 {
         // DONT USE setNet() here (because return pointer is static)!!!!!!!!!!!!!
@@ -1894,10 +1897,12 @@ IDM_T iproute(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_key *dst,
                 (policy_routing != POLICY_RT_ENABLED || !ip_throw_rules_cfg))
 		return SUCCESS;
 
-        if (table == DEF_IP_TABLE_MAIN && (cmd == IP_RULE_DEFAULT ))
+        if (cmd == IP_RULE_DEFAULT && (table == DEF_IP_TABLE_MAIN || policy_routing != POLICY_RT_ENABLED || !ip_prio_rules_cfg ))
                 return SUCCESS;
 
-        if (iptrack(dst, cmd, quiet, del, table_macro, prio_macro, oif_idx, via, src, metric, rte) == NO)
+
+
+        if (iptrack(dst, cmd, quiet, del, table, prio, oif_idx, via, src, metric, rte) == NO)
                 return SUCCESS;
 
 #ifndef NO_DEBUG_ALL
@@ -1913,7 +1918,7 @@ IDM_T iproute(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_key *dst,
                 (*ipexport)(del, dst, oif_idx, via, metric, rte->exportDistance);
 
         if(!rte || !rte->ipexport || !rte->exportOnly)
-                return kernel_set_route(cmd, del, quiet, dst, table_macro, prio_macro, oif_idx, via, src, metric);
+                return kernel_set_route(cmd, del, quiet, dst, table, prio, oif_idx, via, src, metric);
 
         return SUCCESS;
 }
@@ -2644,57 +2649,52 @@ error:
 }
 
 
-STATIC_FUNC
-void ip_flush_routes(uint8_t family)
+
+void ip_flush_routes(uint8_t family, int32_t table_macro)
 {
 	TRACE_FUNCTION_CALL;
 
         assertion(-501128, (AF_CFG || policy_routing == POLICY_RT_ENABLED));
 
         LIST_SIMPEL(rtnl_get_list, struct rtnl_get_node, list, list);
-        int8_t table_macro;
+	struct rtnl_get_node * rgn;
+	uint32_t table = table_macro_to_table(table_macro);
 
-        for (table_macro = RT_TABLE_MIN; table_macro <= RT_TABLE_MAX; table_macro++) {
+	if (table == DEF_IP_TABLE_MAIN || policy_routing != POLICY_RT_ENABLED || !ip_prio_rules_cfg)
+		return;
 
-                struct rtnl_get_node * rgn;
-                uint32_t table = table_macro_to_table(table_macro);
+	kernel_get_route(&rtnl_get_list, NO, family, table);
 
-                kernel_get_route(&rtnl_get_list, NO, family, table_macro);
+	while ((rgn = list_del_head(&rtnl_get_list))) {
 
-                while ((rgn = list_del_head(&rtnl_get_list))) {
+		assertion(-501520, (rgn->net.af == family));
 
-                        assertion(-501520, (rgn->net.af == family));
+		if (rgn->rtm_table == table && rgn->rta_type == RTA_DST) {
+			kernel_set_route(IP_ROUTE_FLUSH, DEL, NO, &rgn->net, table, 0, 0, NULL, NULL, 0);
+			dbgf_sys(DBGT_ERR, "removed orphan %s route=%s table=%d", family2Str(family), netAsStr(&rgn->net), table);
+		}
 
-                        if (rgn->rtm_table == table && rgn->rta_type == RTA_DST)
-                                kernel_set_route(IP_ROUTE_FLUSH, DEL, NO, &rgn->net, table_macro, 0, 0, NULL, NULL, 0);
-
-                        debugFree(rgn, -300519);
-                }
-        }
+		debugFree(rgn, -300519);
+	}
 }
 
 
-STATIC_FUNC
-void ip_flush_rules(uint8_t family)
+void ip_flush_rules(uint8_t family, int32_t table_macro)
 {
 	TRACE_FUNCTION_CALL;
 
         assertion(-501129, (AF_CFG || policy_routing == POLICY_RT_ENABLED));
 
-        int8_t table_macro;
         struct net_key net = family == AF_INET ? ZERO_NET4_KEY : ZERO_NET6_KEY;
 
-        for (table_macro = RT_TABLE_MIN; table_macro <= RT_TABLE_MAX; table_macro++) {
+	uint32_t table = table_macro_to_table(table_macro);
 
-                uint32_t table = table_macro_to_table(table_macro);
+	if (table == DEF_IP_TABLE_MAIN || policy_routing != POLICY_RT_ENABLED || !ip_prio_rules_cfg)
+		return;
 
-                if (table == DEF_IP_TABLE_MAIN)
-                        continue;
-
-                while (kernel_set_route(IP_RULE_FLUSH, DEL, YES, &net, table_macro, 0, 0, NULL, NULL, 0) == SUCCESS) {
-                        dbgf_sys(DBGT_ERR, "removed orphan %s rule to table %d", family2Str(family), table);
-                }
-        }
+	while (kernel_set_route(IP_RULE_FLUSH, DEL, YES, &net, table, 0, 0, NULL, NULL, 0) == SUCCESS) {
+		dbgf_sys(DBGT_ERR, "removed orphan %s rule to table %d", family2Str(family), table);
+	}
 }
 
 
@@ -2712,7 +2712,7 @@ void ip_flush_tracked( uint8_t cmd )
                         (cmd == IP_ROUTE_FLUSH && tn->k.cmd_type == IP_ROUTES) ||
                         (cmd == IP_RULE_FLUSH && tn->k.cmd_type == IP_RULES)) {
 
-                        iproute(tn->cmd, DEL, NO, &tn->k.net, tn->k.table_macro, tn->k.prio_macro, 0, 0, 0, tn->k.metric, NULL);
+                        iproute(tn->cmd, DEL, NO, &tn->k.net, tn->k.table, tn->k.prio, 0, 0, 0, tn->k.metric, NULL);
 
                         an = NULL;
                 }
@@ -2779,7 +2779,7 @@ int update_interface_rules(void)
 
 			//TODO: Fix (set oif_idx=0) as soon as this becomes mainline: http://permalink.gmane.org/gmane.linux.network/242277
                         iproute(IP_THROW_MY_NET, ADD, NO, &throw, RT_TABLE_HNA, 0, (throw.af == AF_INET6 ? iln->index : 0), 0, 0, 0, NULL);
-                        iproute(IP_THROW_MY_NET, ADD, NO, &throw, RT_TABLE_TUN, 0, (throw.af == AF_INET6 ? iln->index : 0), 0, 0, 0, NULL);
+                        //iproute(IP_THROW_MY_NET, ADD, NO, &throw, RT_TABLE_TUN, 0, (throw.af == AF_INET6 ? iln->index : 0), 0, 0, 0, NULL);
 
                 }
         }
@@ -3191,6 +3191,8 @@ IDM_T is_policy_rt_supported(void)
         static IDM_T tested_policy_rt = POLICY_RT_UNSET;
         static uint8_t tested_family = 0;
         struct net_key net = ZERO_NETCFG_KEY;
+	uint32_t prio = prio_macro_to_prio(RT_PRIO_HNA);
+        uint32_t table = table_macro_to_table(RT_TABLE_HNA);
 
         if (net.af == tested_family) {
                 assertion(-501132, (tested_policy_rt != POLICY_RT_UNSET));
@@ -3201,8 +3203,8 @@ IDM_T is_policy_rt_supported(void)
 
         assertion(-501521, IMPLIES(policy_routing == POLICY_RT_UNSET, (initializing)));
 
-        if (kernel_set_route(IP_RULE_TEST, ADD, YES, &net, RT_TABLE_HNA, RT_PRIO_HNA, 0, NULL, NULL, 0) == SUCCESS) {
-                kernel_set_route(IP_RULE_TEST, DEL, YES, &net, RT_TABLE_HNA, RT_PRIO_HNA, 0, NULL, NULL, 0);
+        if (kernel_set_route(IP_RULE_TEST, ADD, YES, &net, table, prio, 0, NULL, NULL, 0) == SUCCESS) {
+                kernel_set_route(IP_RULE_TEST, DEL, YES, &net, table, prio, 0, NULL, NULL, 0);
 
                 return (tested_policy_rt = YES);
 
@@ -3324,24 +3326,23 @@ int32_t opt_ip_version(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                         );
 
 		// add rule for hosts and announced interfaces and networks
-                if (policy_routing == POLICY_RT_ENABLED && ip_prio_rules_cfg /*&& primary_dev_cfg*/) {
 
-                        ip_flush_routes(AF_INET);
-                        ip_flush_rules(AF_INET);
+		ip_flush_routes(AF_INET, RT_TABLE_HNA);
+		ip_flush_rules(AF_INET, RT_TABLE_HNA);
 
-                        iproute(IP_RULE_DEFAULT, ADD, NO, &ZERO_NET4_KEY, RT_TABLE_HNA, RT_PRIO_HNA, 0, 0, 0, 0, NULL);
-                        iproute(IP_RULE_DEFAULT, ADD, NO, &ZERO_NET4_KEY, RT_TABLE_TUN, RT_PRIO_TUNS, 0, 0, 0, 0, NULL);
+		iproute(IP_RULE_DEFAULT, ADD, NO, &ZERO_NET4_KEY, RT_TABLE_HNA, RT_PRIO_HNA, 0, 0, 0, 0, NULL);
+		//iproute(IP_RULE_DEFAULT, ADD, NO, &ZERO_NET4_KEY, RT_TABLE_TUN, RT_PRIO_TUNS, 0, 0, 0, 0, NULL);
 
-                        if (AF_CFG == AF_INET6) {
-                                
-                                ip_flush_routes(AF_INET6);
-                                ip_flush_rules(AF_INET6);
+		if (AF_CFG == AF_INET6) {
 
-                                iproute(IP_RULE_DEFAULT, ADD, NO, &ZERO_NET6_KEY, RT_TABLE_HNA, RT_PRIO_HNA, 0, 0, 0, 0, NULL);
-                                iproute(IP_RULE_DEFAULT, ADD, NO, &ZERO_NET6_KEY, RT_TABLE_TUN, RT_PRIO_TUNS, 0, 0, 0, 0, NULL);
-                        }
+			ip_flush_routes(AF_INET6, RT_TABLE_HNA);
+			ip_flush_rules(AF_INET6, RT_TABLE_HNA);
 
+			iproute(IP_RULE_DEFAULT, ADD, NO, &ZERO_NET6_KEY, RT_TABLE_HNA, RT_PRIO_HNA, 0, 0, 0, 0, NULL);
+			//iproute(IP_RULE_DEFAULT, ADD, NO, &ZERO_NET6_KEY, RT_TABLE_TUN, RT_PRIO_TUNS, 0, 0, 0, 0, NULL);
 		}
+
+
 
         }
 
@@ -3806,69 +3807,70 @@ static struct opt_type ip_options[]=
 {
 //        ord parent long_name          shrt, order, relevance, Attributes...	*ival		min		max		default		*func,*syntax,*help
 	{ODI,0,ARG_IP,	                'I',3,2, A_PS1N,A_ADM,A_INI,A_CFA,A_ANY,	NULL,    0,0,0,/*MIN_IP_VERSION, MAX_IP_VERSION,*/ DEF_IP_VERSION,  opt_ip_version,
-			ARG_VALUE_FORM,	"select ip protocol Version 4 or 6"}
-        ,
+			ARG_VALUE_FORM,	"select ip protocol Version 4 or 6"},
 
 	{ODI,ARG_IP,ARG_IP_POLICY_ROUTING,0,3,1,A_CS1,A_ADM,A_INI,A_CFA,A_ANY,	&ip_policy_rt_cfg,0, 		1,		DEF_IP_POLICY_ROUTING,0,opt_ip_version,
-			ARG_VALUE_FORM,	"disable policy routing (throw and priority rules)"}
-        ,
+			ARG_VALUE_FORM,	"disable policy routing (throw and priority rules)"},
+
 	{ODI,ARG_IP,ARG_IP_THROW_RULES,	 0, 3,1,A_CS1,A_ADM,A_INI,A_CFA,A_ANY,	&ip_throw_rules_cfg,0, 		1,		DEF_IP_THROW_RULES,0,opt_ip_version,
-			ARG_VALUE_FORM,	"disable/enable default throw rules"}
-        ,
+			ARG_VALUE_FORM,	"disable/enable default throw rules"},
+
 	{ODI,ARG_IP,ARG_IP_PRIO_RULES,	 0, 3,1,A_CS1,A_ADM,A_INI,A_CFA,A_ANY,	&ip_prio_rules_cfg, 0, 		1,		DEF_IP_PRIO_RULES,0, opt_ip_version,
-			ARG_VALUE_FORM,	"disable/enable default priority rules"}
-        ,
+			ARG_VALUE_FORM,	"disable/enable default priority rules"},
+
 	{ODI,ARG_IP,ARG_IP_RULE_HNA,	 0, 3,1,A_CS1,A_ADM,A_INI,A_CFA,A_ANY,	&ip_prio_hna_cfg,	MIN_IP_RULE_HNA,MAX_IP_RULE_HNA,DEF_IP_RULE_HNA,0,opt_ip_version,
 			ARG_VALUE_FORM,	"specify iproute2 rule preference offset for hna networks"},
+/*
 	{ODI,ARG_IP,ARG_IP_RULE_TUN,	 0, 3,1,A_CS1,A_ADM,A_INI,A_CFA,A_ANY,	&ip_prio_tun_cfg,	MIN_IP_RULE_TUN,MAX_IP_RULE_TUN,DEF_IP_RULE_TUN,0,opt_ip_version,
-			ARG_VALUE_FORM,	"specify iproute2 rule preference offset for tunnel networks"}
-        ,
+			ARG_VALUE_FORM,	"specify iproute2 rule preference offset for tunnel networks"},
+*/
 	{ODI,ARG_IP,ARG_IP_TABLE_HNA, 0, 3,1,A_CS1,A_ADM,A_INI,A_CFA,A_ANY,	&ip_table_hna_cfg,	MIN_IP_TABLE_HNA,   MAX_IP_TABLE_HNA,   DEF_IP_TABLE_HNA,0,     opt_ip_version,
 			ARG_VALUE_FORM,	"specify iproute2 table for hna networks"},
+/*
 	{ODI,ARG_IP,ARG_IP_TABLE_TUN, 0, 3,1,A_CS1,A_ADM,A_INI,A_CFA,A_ANY,	&ip_table_tun_cfg,	MIN_IP_TABLE_TUN,   MAX_IP_TABLE_TUN,   DEF_IP_TABLE_TUN,0,     opt_ip_version,
-			ARG_VALUE_FORM,	"specify iproute2 table for tunnel networks"}
+			ARG_VALUE_FORM,	"specify iproute2 table for tunnel networks"},
+*/
 
 #ifdef WITH_UNUSED
-        ,
+
         {ODI,0,"lo_rule",		0,  4,0,A_PS1,A_ADM,A_INI,A_CFA,A_ANY,	&Lo_rule,	0, 		1,		DEF_LO_RULE,0,	0,
-			ARG_VALUE_FORM,	"disable/enable autoconfiguration of lo rule"}
+			ARG_VALUE_FORM,	"disable/enable autoconfiguration of lo rule"},
 #endif
-        ,
+
 	{ODI,0,ARG_INTERFACES,	        0,  9,2,A_PS0,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
-			0,		"show interfaces\n"}
-        ,
+			0,		"show interfaces\n"},
 
 	{ODI,0,ARG_GLOBAL_PREFIX,	0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_dev_prefix,
-			ARG_PREFIX_FORM,HLP_GLOBAL_PREFIX}
-        ,
-	{ODI,0,ARG_LLOCAL_PREFIX,	0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_dev_prefix,
-			ARG_PREFIX_FORM,HLP_LLOCAL_PREFIX}
-        ,
-	{ODI,0,ARG_AUTO_IP6_PREFIX,     0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,      	0,      	0,              0,DEF_AUTO_IP6_PREFIX,opt_auto_prefix,
-			ARG_VALUE_FORM,	HLP_AUTO_IP6_PREFIX}
-        ,
-	{ODI,0,ARG_DEV,		        'i',9,2,A_PM1N,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0, 		0,		0,0, 		opt_dev,
-			"<interface-name>", HLP_DEV}
-        ,
-	{ODI,ARG_DEV,ARG_DEV_ANNOUNCE,  'a',9,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		1,		DEF_DEV_ANNOUNCE,0,opt_dev,
-			ARG_VALUE_FORM,	HLP_DEV_ANNOUNCE}
-        ,
-	{ODI,ARG_DEV,ARG_DEV_LL,	 'l',9,0,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		MIN_DEV_LL,	MAX_DEV_LL,     DEF_DEV_LL,0,	opt_dev,
-			ARG_VALUE_FORM,	HLP_DEV_LL}
-        ,
-	{ODI,ARG_DEV,ARG_DEV_GLOBAL_PREFIX,0, 9,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,  0,		0,              0,              0,0,              opt_dev,
-			ARG_VALUE_FORM,	HLP_DEV_GLOBAL_PREFIX}
-        ,
-	{ODI,ARG_DEV,ARG_DEV_LLOCAL_PREFIX,0, 9,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,  0,		0,              0,              0,0,              opt_dev,
-			ARG_VALUE_FORM,	HLP_DEV_LLOCAL_PREFIX}
-        ,
-	{ODI,ARG_DEV,ARG_DEV_BITRATE_MAX,'r',9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,              0,              0,0,              opt_dev,
-			ARG_VALUE_FORM,	HLP_DEV_BITRATE_MAX}
-        ,
-	{ODI,ARG_DEV,ARG_DEV_BITRATE_MIN, 0, 9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,              0,              0,0,              opt_dev,
-			ARG_VALUE_FORM,	HLP_DEV_BITRATE_MIN}
+			ARG_PREFIX_FORM,HLP_GLOBAL_PREFIX},
 
-        ,
+	{ODI,0,ARG_LLOCAL_PREFIX,	0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_dev_prefix,
+			ARG_PREFIX_FORM,HLP_LLOCAL_PREFIX},
+
+	{ODI,0,ARG_AUTO_IP6_PREFIX,     0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,      	0,      	0,              0,DEF_AUTO_IP6_PREFIX,opt_auto_prefix,
+			ARG_VALUE_FORM,	HLP_AUTO_IP6_PREFIX},
+
+	{ODI,0,ARG_DEV,		        'i',9,2,A_PM1N,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0, 		0,		0,0, 		opt_dev,
+			"<interface-name>", HLP_DEV},
+
+	{ODI,ARG_DEV,ARG_DEV_ANNOUNCE,  'a',9,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		1,		DEF_DEV_ANNOUNCE,0,opt_dev,
+			ARG_VALUE_FORM,	HLP_DEV_ANNOUNCE},
+
+	{ODI,ARG_DEV,ARG_DEV_LL,	 'l',9,0,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		MIN_DEV_LL,	MAX_DEV_LL,     DEF_DEV_LL,0,	opt_dev,
+			ARG_VALUE_FORM,	HLP_DEV_LL},
+
+	{ODI,ARG_DEV,ARG_DEV_GLOBAL_PREFIX,0, 9,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,  0,		0,              0,              0,0,              opt_dev,
+			ARG_VALUE_FORM,	HLP_DEV_GLOBAL_PREFIX},
+
+	{ODI,ARG_DEV,ARG_DEV_LLOCAL_PREFIX,0, 9,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,  0,		0,              0,              0,0,              opt_dev,
+			ARG_VALUE_FORM,	HLP_DEV_LLOCAL_PREFIX},
+
+	{ODI,ARG_DEV,ARG_DEV_BITRATE_MAX,'r',9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,              0,              0,0,              opt_dev,
+			ARG_VALUE_FORM,	HLP_DEV_BITRATE_MAX},
+
+	{ODI,ARG_DEV,ARG_DEV_BITRATE_MIN, 0, 9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,              0,              0,0,              opt_dev,
+			ARG_VALUE_FORM,	HLP_DEV_BITRATE_MIN},
+
+
 	{ODI,0,ARG_PEDANTIC_CLEANUP,	  0, 9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&Pedantic_cleanup,0,		1,		DEF_PEDANTIC_CLEANUP,0,0,
 			ARG_VALUE_FORM,	"disable/enable pedantic cleanup of system configuration (like ip_forward,..) \n"
 			"	at program termination. Its generally safer to keep this disabled to not mess up \n"
@@ -3944,26 +3946,23 @@ void cleanup_ip(void)
         close_ifevent_netlink_sk();
 
         // if ever started succesfully in daemon mode...
-        if (policy_routing == POLICY_RT_ENABLED && ip_prio_rules_cfg) {
+	// flush default routes installed by bmx6:
+	ip_flush_tracked( IP_ROUTE_FLUSH );
 
-                // flush default routes installed by bmx6:
-                ip_flush_tracked( IP_ROUTE_FLUSH );
+	// flush all routes in this bmx6 tables (there should be NOTHING!):
+	ip_flush_routes(AF_CFG, RT_TABLE_HNA);
+	if (AF_CFG == AF_INET6)
+		ip_flush_routes(AF_INET, RT_TABLE_HNA);
 
-                // flush all routes in this bmx6 tables (there should be NOTHING!):
-                ip_flush_routes(AF_CFG);
-                if (AF_CFG == AF_INET6)
-                        ip_flush_routes(AF_INET);
-
-                // flush default routes installed by bmx6:
-                ip_flush_tracked( IP_RULE_FLUSH );
+	// flush default routes installed by bmx6:
+	ip_flush_tracked( IP_RULE_FLUSH );
 
 
-                // flush all rules pointing to bmx6 tables (there should be NOTHING!):
-                ip_flush_rules(AF_CFG);
-                if (AF_CFG == AF_INET6)
-                        ip_flush_rules(AF_INET);
+	// flush all rules pointing to bmx6 tables (there should be NOTHING!):
+	ip_flush_rules(AF_CFG, RT_TABLE_HNA);
+	if (AF_CFG == AF_INET6)
+		ip_flush_rules(AF_INET, RT_TABLE_HNA);
 
-        }
 
         kernel_get_if_config_post(YES,0);
 

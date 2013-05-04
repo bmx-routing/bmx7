@@ -105,10 +105,24 @@ extern IDM_T (*hna_configure_niit6to4) (IDM_T del, struct net_key *key);
 #define ARG_TUN_OUT_IP       "address"
 #define ARG_TUN_OUT_TYPE     "srcType"
 #define ARG_TUN_OUT_PREFIX   "srcRangeMin"
+
 #define ARG_TUN_OUT_IPMETRIC "ipMetric"
+#define DEF_TUN_OUT_IPMETRIC DEF_IP_METRIC
 #define MAX_TUN_OUT_IPMETRIC INT32_MAX
+#define MIN_TUN_OUT_IPMETRIC 0
+
 #define ARG_TUN_OUT_HOSTNAME "gwName"
 #define ARG_TUN_OUT_PKID     "gwId"
+
+#define ARG_TUN_OUT_TRULE "tableRule"
+#define DEF_TUN_OUT_TABLE DEF_IP_TABLE_TUN
+#define MIN_TUN_OUT_TABLE MIN_IP_TABLE_TUN
+#define MAX_TUN_OUT_TABLE MAX_IP_TABLE_TUN
+#define DEF_TUN_OUT_RULE DEF_IP_RULE_TUN
+#define MIN_TUN_OUT_RULE MIN_IP_RULE_TUN
+#define MAX_TUN_OUT_RULE MAX_IP_RULE_TUN
+#define DEF_TUN_OUT_TRULE "32766/254"
+#define FORM_TUN_OUT_TRULE "<PREF>/<TABLE>"
 
 #define MIN_TUN_OUT_PREFIX 0
 #define MAX_TUN_OUT_PREFIX 129
@@ -331,13 +345,12 @@ struct tunXin6_net_adv_list_node {
 extern struct list_head tunXin6_net_adv_list_list;
 
 struct tun_bit_key_nodes {
-
         struct tun_search_node *tsn;
         struct tun_net_node *tnn;
 } __attribute__((packed));
 
 struct tun_bit_key {
-
+        uint32_t beIpRule;
         uint32_t beIpMetric;
         UMETRIC_T beInvTunBitMetric;
         struct net_key invNetKey;
@@ -348,6 +361,7 @@ struct tun_bit_node {
 
         struct tun_bit_key tunBitKey;
 
+        uint32_t ipTable;
         //uint8_t active; //REMOVE
 	struct tun_dev_node *active_tdn;
 };
@@ -378,6 +392,8 @@ struct tun_search_node {
         uint32_t bonus;
 	UMETRIC_T minBW;
         uint32_t ipmetric;
+        uint32_t iptable;
+        uint32_t iprule;
 
         GLOBAL_ID_T global_id;
         struct net_key srcPrefix;

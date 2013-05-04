@@ -156,12 +156,12 @@ typedef struct ifname IFNAME_T;
 #define ARG_IP_RULE_HNA "tablePrefHnas"
 #define MIN_IP_RULE_HNA 3
 #define MAX_IP_RULE_HNA 32766
-#define DEF_IP_RULE_HNA 6000 // avoid conflicts with bmxd and others
+#define DEF_IP_RULE_HNA 60 // avoid conflicts with bmxd and others
 
 #define ARG_IP_RULE_TUN "tablePrefTuns"
 #define MIN_IP_RULE_TUN 3
-#define MAX_IP_RULE_TUN 64000
-#define DEF_IP_RULE_TUN 6001 //32766
+#define MAX_IP_RULE_TUN U16_MAX //64000
+#define DEF_IP_RULE_TUN 32766
 
 #define RT_TABLE_MAX   -1
 //#define RT_TABLE_HOSTS -1
@@ -176,15 +176,15 @@ typedef struct ifname IFNAME_T;
 
 #define ARG_IP_TABLE_HNA "tableHnas"
 #define DEF_IP_TABLE_HNA 60 //avoid conflicts with bmxd and others
-#define MIN_IP_TABLE_HNA 0
-#define MAX_IP_TABLE_HNA 32000
+#define MIN_IP_TABLE_HNA 1
+#define MAX_IP_TABLE_HNA 254
 
 #define DEF_IP_TABLE_MAIN 254
 
 #define ARG_IP_TABLE_TUN "tableTuns"
-#define DEF_IP_TABLE_TUN 61 //254 //avoid conflicts with bmxd and others
-#define MIN_IP_TABLE_TUN 0
-#define MAX_IP_TABLE_TUN 32000
+#define DEF_IP_TABLE_TUN 254 //61 //avoid conflicts with bmxd and others
+#define MIN_IP_TABLE_TUN 1
+#define MAX_IP_TABLE_TUN 254
 
 
 //extern int32_t base_port;
@@ -258,6 +258,10 @@ extern struct dev_node *primary_dev;
 extern struct dev_node *primary_phy;
 extern IDM_T niit_enabled;
 
+
+extern int32_t ip_prio_hna_cfg;
+extern int32_t ip_table_hna_cfg;
+extern int32_t ip_prio_rules_cfg;
 extern int32_t ip_throw_rules_cfg;
 extern int32_t ip_policy_rt_cfg;
 extern int32_t policy_routing;
@@ -553,8 +557,8 @@ struct route_export {
 struct track_key {
 	struct net_key net;
 	//IFNAME_T iif;
-	int8_t prio_macro;
-	int8_t table_macro;
+	uint32_t prio;
+	uint32_t table;
 	uint32_t metric;
 	uint8_t cmd_type;
 } __attribute__((packed));
@@ -636,8 +640,12 @@ IDM_T kernel_set_mtu(char *name, uint16_t mtu);
 
 struct sockaddr_storage set_sockaddr_storage(uint8_t af, IPX_T *ipx, int32_t port);
 void set_ipexport( void (*func) (int8_t del, const struct net_key *dst, uint32_t oif_idx, IPX_T *via, uint32_t metric, uint8_t distance) );
-IDM_T iproute(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_key *net, int8_t table_macro, int8_t prio_macro, 
-	int oif_idx, IPX_T *via, IPX_T *src, uint32_t metric, struct route_export *rte);
+
+IDM_T iproute(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_key *dst, int32_t table_macro, int32_t prio_macro,
+        int oif_idx, IPX_T *via, IPX_T *src, uint32_t metric, struct route_export *rte);
+
+void ip_flush_routes(uint8_t family, int32_t table_macro);
+void ip_flush_rules(uint8_t family, int32_t table_macro);
 
 struct net_key bmx6AutoEUI64Ip6(struct dev_node *dev, struct net_key *prefix);
 

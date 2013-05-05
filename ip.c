@@ -833,8 +833,7 @@ IDM_T kernel_get_if_config_post(IDM_T purge_all, uint16_t curr_sqn)
 
                         if ( purge_all || curr_sqn != ian->update_sqn) {
 
-                                dbgf(terminating || initializing ? DBGL_ALL : DBGL_SYS, DBGT_WARN,
-                                        "addr index %d %s addr %s REMOVED",
+                                dbgf_track(DBGT_WARN, "addr index %d %s addr %s REMOVED",
                                         iln->index, ian->label.str, ipXAsStr(ian->ifa.ifa_family, &ian->ip_addr));
 
                                 if (ian->dev) {
@@ -864,8 +863,7 @@ IDM_T kernel_get_if_config_post(IDM_T purge_all, uint16_t curr_sqn)
 
                         assertion(-500565, (!iln->if_addr_tree.items));
 
-                        dbgf(terminating || initializing ? DBGL_ALL : DBGL_SYS, DBGT_WARN,
-                                "link index %d %s addr %s REMOVED",
+                        dbgf_track(DBGT_WARN, "link index %d %s addr %s REMOVED",
                                 iln->index, iln->name.str, memAsHexString(&iln->addr, iln->alen));
 
                         avl_remove(&if_link_tree, &iln->index, -300232);
@@ -881,20 +879,16 @@ IDM_T kernel_get_if_config_post(IDM_T purge_all, uint16_t curr_sqn)
 
                         changed += iln->changed;
 
-                        dbgf(terminating || initializing ? DBGL_ALL : DBGL_SYS, DBGT_WARN,
-                                "link=%s dev=%s configuration CHANGED",
+                        dbgf_track(DBGT_WARN, "link=%s dev=%s configuration CHANGED",
                                 iln->name.str, dev ? dev->label_cfg.str : "ERROR");
 
                 }
         }
 
         if (changed) {
-
-                dbgf(terminating || initializing ? DBGL_ALL : DBGL_SYS, DBGT_WARN, "network configuration CHANGED");
+                dbgf_track(DBGT_WARN, "network configuration CHANGED");
                 return YES;
-        
         } else {
-
                 dbgf_all(DBGT_INFO, "network configuration UNCHANGED");
                 return NO;
         }

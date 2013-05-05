@@ -179,7 +179,9 @@ typedef struct ifname IFNAME_T;
 #define MIN_IP_TABLE_HNA 1
 #define MAX_IP_TABLE_HNA 254
 
+#define DEF_IP_TABLE_LOCAL 255
 #define DEF_IP_TABLE_MAIN 254
+#define DEF_IP_TABLE_DEFAULT 253
 
 #define ARG_IP_TABLE_TUN "tableTuns"
 #define DEF_IP_TABLE_TUN 254 //61 //avoid conflicts with bmxd and others

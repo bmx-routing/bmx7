@@ -2654,8 +2654,6 @@ void ip_flush_routes(uint8_t family, int32_t table_macro)
 {
 	TRACE_FUNCTION_CALL;
 
-        assertion(-501128, (AF_CFG || policy_routing == POLICY_RT_ENABLED));
-
         LIST_SIMPEL(rtnl_get_list, struct rtnl_get_node, list, list);
 	struct rtnl_get_node * rgn;
 	uint32_t table = table_macro_to_table(table_macro);
@@ -2683,13 +2681,11 @@ void ip_flush_rules(uint8_t family, int32_t table_macro)
 {
 	TRACE_FUNCTION_CALL;
 
-        assertion(-501129, (AF_CFG || policy_routing == POLICY_RT_ENABLED));
-
         struct net_key net = family == AF_INET ? ZERO_NET4_KEY : ZERO_NET6_KEY;
 
 	uint32_t table = table_macro_to_table(table_macro);
 
-	if (table == DEF_IP_TABLE_MAIN || policy_routing != POLICY_RT_ENABLED || !ip_prio_rules_cfg)
+	if (table == DEF_IP_TABLE_MAIN || table == DEF_IP_TABLE_DEFAULT || policy_routing != POLICY_RT_ENABLED || !ip_prio_rules_cfg)
 		return;
 
 	while (kernel_set_route(IP_RULE_FLUSH, DEL, YES, &net, table, 0, 0, NULL, NULL, 0) == SUCCESS) {

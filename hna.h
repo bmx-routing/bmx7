@@ -471,7 +471,7 @@ struct tun_out_node {
 struct tun_catch_key {
 	uint8_t srcAf;
 	IPX_T srcIp;
-};
+} __attribute__((packed));
 
 struct tun_dev_node {
 

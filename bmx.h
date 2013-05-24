@@ -118,9 +118,6 @@ typedef union {
  */
 
 
-extern struct net_key tun4_address;
-extern struct net_key tun6_address;
-
 
 /*
  * from bmx.h:
@@ -538,8 +535,6 @@ extern int32_t my_ttl;
 
 #define ARG_HELP		"help"
 #define ARG_VERBOSE_HELP	"verboseHelp"
-#define ARG_EXP			"extraHelp"
-#define ARG_VERBOSE_EXP		"verboseExtraHelp"
 
 #define ARG_VERSION		"version"
 
@@ -1120,7 +1115,7 @@ void rx_packet( struct packet_buff *pb );
 /*
  * ASSERTION / PARANOIA ERROR CODES:
  * Negative numbers are used as SIGSEV error codes !
- * Currently used numbers are: -500000 -500001 ... -501522
+ * Currently used numbers are: -500000 -500001 ... -501571
  */
 
 //#define paranoia( code , problem ) do { if ( (problem) ) { cleanup_all( code ); } }while(0)

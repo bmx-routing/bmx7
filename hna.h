@@ -34,11 +34,6 @@
 #define DEF_IP_METRIC      1024
 #define ARG_IP_METRIC      "ipMetric"
 
-#define ARG_TUN6_ADDRESS  "tun6Address"
-#define HLP_TUN6_ADDRESS  "specify default IPv6 tunnel address and announced range"
-
-#define ARG_TUN4_ADDRESS  "tun4Address"
-#define HLP_TUN4_ADDRESS  "specify default IPv4 tunnel address and announced range"
 
 //#define DEF_NIIT_PREFIX   { { { 0,0,0,0,0,0,0,0,0,0,0xFF,0xFF,0,0,0,0 } } }
 //#define DEF_NIIT_4TO6_DEV "niit4to6"
@@ -58,14 +53,21 @@
 extern IDM_T (*hna_configure_niit4to6) (IDM_T del, struct net_key *key);
 extern IDM_T (*hna_configure_niit6to4) (IDM_T del, struct net_key *key);
 
+//extern struct net_key tun4_address;
+//extern struct net_key tun6_address;
+extern IFNAME_T tun_name_prefix;
+
+extern struct avl_tree tun_in_tree;
+
 #define ARG_TUNS "tunnels"
 
 #define ARG_TUN_NAME_PREFIX "tunDevName"
-#define MAX_TUN_NAME_PREFIX_LEN 7
-#define DEF_TUN_NAME_PREFIX "x6"
+#define MAX_TUN_NAME_PREFIX_LEN 5
+#define DEF_TUN_NAME_PREFIX "bmx"
 #define DEF_TUN_NAME_TYPE_IN "In_"
 #define DEF_TUN_NAME_TYPE_OUT "Out_"
-#define DEF_TUN_NAME_TYPE_DFLT "Catch_"
+#define DEF_TUN_NAME_TYPE_CATCH4 "C4"
+#define DEF_TUN_NAME_TYPE_CATCH6 "C6"
 
 #define ARG_TUN_OUT_TIMEOUT "tunOutTimeout"
 #define MIN_TUN_OUT_TO 0
@@ -78,31 +80,40 @@ extern IDM_T (*hna_configure_niit6to4) (IDM_T del, struct net_key *key);
 #define TDN_STATE_CURRENT -1
 
 
-#define ARG_TUN_ADV  "tunIn"
-#define ARG_TUN_ADV_REMOTE "remote"
-
-#define ARG_TUN_ADV_INGRESS4 "ingressPrefix4"
-#define ARG_TUN_ADV_INGRESS6 "ingressPrefix6"
-
-#define ARG_TUN_ADV_SRC4_TYPE "srcType4"
-#define ARG_TUN_ADV_SRC4_MIN "srcPrefix4Min"
-
-#define ARG_TUN_ADV_SRC6_TYPE "srcType6"
-#define ARG_TUN_ADV_SRC6_MIN "srcPrefix6Min"
+#define ARG_TUN_DEV  "tunDev"
+#define ARG_TUN_DEV_ADDR4 "tun4Address"
+#define HLP_TUN_DEV_ADDR4  "specify default IPv4 tunnel address and announced range"
+#define ARG_TUN_DEV_ADDR6 "tun6Address"
+#define HLP_TUN_DEV_ADDR6  "specify default IPv6 tunnel address and announced range"
 
 
+#define ARG_TUN_DEV_REMOTE "remote"
 
-#define ARG_TUN_IN_NET "tunInNet"
-#define ARG_TUN_IN_NET_DEV ARG_TUN_ADV
+#define ARG_TUN_DEV_INGRESS4 "ingress4Prefix"
+#define ARG_TUN_DEV_INGRESS6 "ingress6Prefix"
 
-#define ARG_TUN_IN_NET_BW "bandwidth"
-#define MIN_TUN_IN_NET_BW UMETRIC_FM8_MIN
-#define MAX_TUN_IN_NET_BW UMETRIC_MAX
-#define DEF_TUN_IN_NET_BW 1000
+#define ARG_TUN_DEV_SRC4_TYPE "src4Type"
+#define ARG_TUN_DEV_SRC4_MIN "src4PrefixMin"
+
+#define ARG_TUN_DEV_SRC6_TYPE "src6Type"
+#define ARG_TUN_DEV_SRC6_MIN "src6PrefixMin"
+
+
+
+#define ARG_TUN_IN "tunIn"
+
+#define HLP_TUN_IN_DEV "to be used incoming tunnel interface name"
+
+#define ARG_TUN_IN_NET "network"
+#define ARG_TUN_IN_BW  "bandwidth"
+#define MIN_TUN_IN_BW  UMETRIC_FM8_MIN
+#define MAX_TUN_IN_BW  UMETRIC_MAX
+#define DEF_TUN_IN_BW  1000
+#define HLP_TUN_IN_BW  "bandwidth to network as bits/sec  default: 1000  range: [36 ... 128849018880]"
 
 #define ARG_TUN_OUT          "tunOut"
 #define ARG_TUN_OUT_NET      "network"
-#define ARG_TUN_OUT_IP       "address"
+#define ARG_TUN_OUT_SRCRT    "srcNet"
 #define ARG_TUN_OUT_TYPE     "srcType"
 #define ARG_TUN_OUT_PREFIX   "srcRangeMin"
 
@@ -332,6 +343,7 @@ struct tunXin6_net_adv_node {
         uint8_t bmx6_route_type;
         FMETRIC_U8_T bandwidth;
         struct net_key net;
+	char *tunInDev;
 };
 
 
@@ -396,7 +408,8 @@ struct tun_search_node {
         uint32_t iprule;
 
         GLOBAL_ID_T global_id;
-        struct net_key srcPrefix;
+        struct net_key srcRtNet;
+//	IFNAME_T tunName;
 
         uint8_t srcType;
         uint8_t srcPrefixMin;
@@ -414,7 +427,7 @@ struct tun_search_node {
 struct tun_net_key {
         uint8_t bmx6RouteType;
         struct net_key netKey;
-        struct tun_out_node *tun;
+        struct tun_out_node *ton;
 } __attribute__((packed));
 
 struct tun_net_node {
@@ -446,14 +459,11 @@ struct tun_out_node {
         IP6_T remoteIp;         // the primary IP of the remote tunnel end
 
         // the advertised part (by description_msg_src6in6_adv):
-        struct net_key ingress4Prefix;
-        struct net_key ingress6Prefix;
+        struct net_key ingressPrefix[2];
 
-        uint8_t src4Type;
-        uint8_t src4PrefixMin;
+        uint8_t srcType[2];
+        uint8_t srcPrefixMin[2];
 
-        uint8_t src6Type;
-        uint8_t src6PrefixMin;
 
         //the status:
         struct tun_out_key tunOutKey; // key for tunnel_out_tree
@@ -469,24 +479,20 @@ struct tun_out_node {
 
 
 struct tun_catch_key {
-	uint8_t srcAf;
-	IPX_T srcIp;
+	uint8_t afKey; 	//only set if registered in tun_catch_tree
+	struct tun_in_node *tin;
 } __attribute__((packed));
 
 struct tun_dev_node {
 
-        IFNAME_T name;
+        IFNAME_T nameKey;
+	struct tun_catch_key tunCatchKey;
+	int32_t tunCatch_fd;
+
         int32_t ifIdx;
 	uint16_t curr_mtu; // DEF_TUN_OUT_MTU == orig_mtu
 	uint16_t orig_mtu;
-
-	IPX_T srcIp[2]; //0:ipv6, 1:ipv6
-	
-	//remaining parameters depend on dflt_fd:
-	int32_t tunCatch_fd;
-        struct tun_catch_key tunCatchKey;
-//        struct avl_tree tunCatchOutTree; //REMOVE
-        struct avl_tree tbnTunDevTree[2];
+        struct avl_tree tun_bit_tree[2];
 };
 
 struct tun_in_node {
@@ -497,21 +503,20 @@ struct tun_in_node {
 
         // the advertised part (by description_msg_tun6_adv):
         IP6_T remote;
+	struct net_key tunAddr46[2];
+
 
         // the advertised part (by description_msg_src6in6_adv):
-        struct net_key ingress4Prefix;
-        struct net_key ingress6Prefix;
+        struct net_key ingressPrefix46[2];
 
-
-        uint8_t src4Type;
-        uint8_t src4PrefixMin;
-
-        uint8_t src6Type;
-        uint8_t src6PrefixMin;
+        uint8_t srcType46[2];
+        uint8_t srcPrefixMin46[2];
 
         //the status:
         int16_t tun6Id;
         int32_t upIfIdx;
+
+	struct avl_tree tun_dev_tree;
 };
 
 char* bmx6RouteBits2String(uint32_t bmx6_route_bits);

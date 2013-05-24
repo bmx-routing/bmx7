@@ -174,10 +174,13 @@ typedef struct ifname IFNAME_T;
 //#define MIN_IP_TABLE_HOST 0
 //#define MAX_IP_TABLE_HOST 32000
 
+#define MIN_IP_TABLE 1
+#define MAX_IP_TABLE 254
+
 #define ARG_IP_TABLE_HNA "tableHnas"
 #define DEF_IP_TABLE_HNA 60 //avoid conflicts with bmxd and others
-#define MIN_IP_TABLE_HNA 1
-#define MAX_IP_TABLE_HNA 254
+#define MIN_IP_TABLE_HNA MIN_IP_TABLE
+#define MAX_IP_TABLE_HNA MAX_IP_TABLE
 
 #define DEF_IP_TABLE_LOCAL 255
 #define DEF_IP_TABLE_MAIN 254
@@ -185,8 +188,8 @@ typedef struct ifname IFNAME_T;
 
 #define ARG_IP_TABLE_TUN "tableTuns"
 #define DEF_IP_TABLE_TUN 254 //61 //avoid conflicts with bmxd and others
-#define MIN_IP_TABLE_TUN 1
-#define MAX_IP_TABLE_TUN 254
+#define MIN_IP_TABLE_TUN MIN_IP_TABLE
+#define MAX_IP_TABLE_TUN MAX_IP_TABLE
 
 
 //extern int32_t base_port;
@@ -220,12 +223,18 @@ typedef struct ifname IFNAME_T;
 //#define IPV6_LINK_LOCAL_UNICAST_U32 0xFE800000
 //#define IPV6_MULTICAST_U32 0xFF000000
 
-extern const IPX_T ZERO_IP;
-extern const MAC_T ZERO_MAC;
+extern const IPX_T  ZERO_IP;
+extern const MAC_T  ZERO_MAC;
+extern const ADDR_T ZERO_ADDR;
+
 extern const struct link_dev_key ZERO_LINK_KEY;
 
+#define ZERO_NET_KEY_INIT {.af = 0}
 extern const struct net_key ZERO_NET_KEY;
+
+#define ZERO_NET4_KEY_INIT {.af = AF_INET}
 extern const struct net_key ZERO_NET4_KEY;
+#define ZERO_NET6_KEY_INIT {.af = AF_INET6}
 extern const struct net_key ZERO_NET6_KEY;
 
 
@@ -263,6 +272,7 @@ extern IDM_T niit_enabled;
 
 extern int32_t ip_prio_hna_cfg;
 extern int32_t ip_table_hna_cfg;
+extern int32_t ip_table_tun_cfg;
 extern int32_t ip_prio_rules_cfg;
 extern int32_t ip_throw_rules_cfg;
 extern int32_t ip_policy_rt_cfg;
@@ -466,55 +476,87 @@ struct dev_node {
 	void *plugin_data[];
 };
 
-
-
-
 /* BMX6 route types. */
-#define BMX6_ROUTE_BMX6                 0
-#define BMX6_ROUTE_SYSTEM               1
-#define BMX6_ROUTE_KERNEL               2
-#define BMX6_ROUTE_CONNECT              3
-#define BMX6_ROUTE_STATIC               4
-#define BMX6_ROUTE_RIP                  5
-#define BMX6_ROUTE_RIPNG                6
-#define BMX6_ROUTE_OSPF                 7
-#define BMX6_ROUTE_OSPF6                8
-#define BMX6_ROUTE_ISIS                 9
-#define BMX6_ROUTE_BGP                  10
-#define BMX6_ROUTE_BABEL                11
-#define BMX6_ROUTE_HSLS                 12
-#define BMX6_ROUTE_OLSR                 13
-#define BMX6_ROUTE_BATMAN               14
-#define BMX6_ROUTE_MAX                  15
+#define BMX6_ROUTE_UNSPEC     0
+#define BMX6_ROUTE_REDIRECT   1
+#define BMX6_ROUTE_KERNEL     2
+#define BMX6_ROUTE_BOOT	      3
+#define BMX6_ROUTE_STATIC     4
 
-#define ARG_ROUTE_BMX6                 "bmx6"
-#define ARG_ROUTE_SYSTEM               "system"
-#define ARG_ROUTE_KERNEL               "kernel"
-#define ARG_ROUTE_CONNECT              "connect"
-#define ARG_ROUTE_STATIC               "static"
-#define ARG_ROUTE_RIP                  "rip"
-#define ARG_ROUTE_RIPNG                "ripng"
-#define ARG_ROUTE_OSPF                 "ospf"
-#define ARG_ROUTE_OSPF6                "ospf6"
-#define ARG_ROUTE_ISIS                 "isis"
-#define ARG_ROUTE_BGP                  "bgp"
-#define ARG_ROUTE_BABEL                "babel"
-#define ARG_ROUTE_HSLS                 "hsls"
-#define ARG_ROUTE_OLSR                 "olsr"
-#define ARG_ROUTE_BATMAN               "batman"
+#define BMX6_ROUTE_GATED      8	/* Apparently, GateD */
+#define BMX6_ROUTE_RA	      9	/* RDISC/ND router advertisements */
+#define BMX6_ROUTE_MRT	      10	/* Merit MRT */
+#define BMX6_ROUTE_ZEBRA      11	/* Zebra */
+#define BMX6_ROUTE_BIRD	      12	/* BIRD */
+#define BMX6_ROUTE_DNROUTED   13	/* DECnet routing daemon */
+#define BMX6_ROUTE_XORP	      14	/* XORP */
+#define BMX6_ROUTE_NTK	      15	/* Netsukuku */
+#define BMX6_ROUTE_DHCP	      16      /* DHCP client */
 
-struct bmx6_route_dict {
-        char* bmx2Name;
-	char  bmx2Char;
+#define BMX6_ROUTE_SYSTEM     18
+#define BMX6_ROUTE_CONNECT    19
+#define BMX6_ROUTE_RIP        20
+#define BMX6_ROUTE_RIPNG      21
+#define BMX6_ROUTE_OSPF       22
+#define BMX6_ROUTE_OSPF6      23
+#define BMX6_ROUTE_ISIS       24
+#define BMX6_ROUTE_BGP        25
+#define BMX6_ROUTE_BABEL      26
+#define BMX6_ROUTE_HSLS       27
+#define BMX6_ROUTE_OLSR       28
+#define BMX6_ROUTE_BMX6       29
+#define BMX6_ROUTE_BATMAN     30
+#define BMX6_ROUTE_MAX        31
+
+#define ARG_ROUTE_UNSPEC      "unspecified"
+#define ARG_ROUTE_REDIRECT    "redirect"
+#define ARG_ROUTE_KERNEL      "kernel"
+#define ARG_ROUTE_BOOT	      "boot"
+#define ARG_ROUTE_STATIC      "static"
+
+#define ARG_ROUTE_GATED       "gated"
+#define ARG_ROUTE_RA	      "ra"
+#define ARG_ROUTE_MRT	      "mrt"
+#define ARG_ROUTE_ZEBRA       "zebra"
+#define ARG_ROUTE_BIRD	      "bird"
+#define ARG_ROUTE_DNROUTED    "decnet"
+#define ARG_ROUTE_XORP	      "xorp"
+#define ARG_ROUTE_NTK	      "netsukuku"
+#define ARG_ROUTE_DHCP	      "dhcp"
+
+#define ARG_ROUTE_SYSTEM      "system"
+#define ARG_ROUTE_CONNECT     "connect"
+#define ARG_ROUTE_RIP         "rip"
+#define ARG_ROUTE_RIPNG       "ripng"
+#define ARG_ROUTE_OSPF        "ospf"
+#define ARG_ROUTE_OSPF6       "ospf6"
+#define ARG_ROUTE_ISIS        "isis"
+#define ARG_ROUTE_BGP         "bgp"
+#define ARG_ROUTE_BABEL       "babel"
+#define ARG_ROUTE_HSLS        "hsls"
+#define ARG_ROUTE_OLSR        "olsr"
+#define ARG_ROUTE_BMX6        "bmx6"
+#define ARG_ROUTE_BATMAN      "batman"
+
+#define HLP_TUN_OUT_TYPE "match only enabled type(s)"
+
+struct sys_route_dict {
+        char* sys2Name;
+	char  sys2Char;
+	uint8_t sys2bmx;
+	uint8_t bmx2sys;
+
 };
 
-#define set_bmx6_rt_dict( B, C, N ) do { \
-        bmx6_rt_dict[ B ].bmx2Name = N; \
-        bmx6_rt_dict[ B ].bmx2Char = C; \
+#define set_rt_dict( S, T, C, N, B ) do { \
+        S[ T ].sys2Name = N; \
+        S[ T ].sys2Char = C; \
+	S[ T ].sys2bmx  = B; \
+	S[ B ].bmx2sys  = T; \
 } while (0)
 
 
-extern struct bmx6_route_dict bmx6_rt_dict[BMX6_ROUTE_MAX];
+extern struct sys_route_dict bmx6_rt_dict[BMX6_ROUTE_MAX];
 
 
 //iproute() commands:
@@ -578,6 +620,7 @@ struct track_node {
 
 struct rtnl_get_node {
         struct list_node list;
+	uint16_t nlmsg_type;
         uint32_t rtm_table;
         uint32_t rta_type;
         struct net_key net;
@@ -623,6 +666,9 @@ IDM_T is_ip_net_equal(const IPX_T *netA, const IPX_T *netB, const uint8_t plen, 
 
 
 // core:
+
+IDM_T rtnl_rcv( int fd, uint32_t pid, uint32_t seq, uint8_t cmd, uint8_t quiet, void (*func) (struct nlmsghdr *nh, void *data) ,void *data);
+
 uint32_t get_if_index(IFNAME_T *name);
 IDM_T kernel_set_flags(char *name, int fd, int get_req, int set_req, uint16_t up_flags, uint16_t down_flags);
 IDM_T kernel_set_addr(IDM_T del, uint32_t if_index, uint8_t family, IPX_T *ip, uint8_t prefixlen, IDM_T deprecated);
@@ -639,6 +685,7 @@ int32_t kernel_dev_tun_add( char *name, int32_t *fdp, IDM_T accept_local_ipv4 );
 uint32_t kernel_get_mtu(char *name);
 int32_t kernel_get_ifidx( char *name );
 IDM_T kernel_set_mtu(char *name, uint16_t mtu);
+IDM_T kernel_get_route(uint8_t quiet, uint8_t family, uint32_t table, void (*func) (struct nlmsghdr *nh, void *data) );
 
 struct sockaddr_storage set_sockaddr_storage(uint8_t af, IPX_T *ipx, int32_t port);
 void set_ipexport( void (*func) (int8_t del, const struct net_key *dst, uint32_t oif_idx, IPX_T *via, uint32_t metric, uint8_t distance) );
@@ -649,7 +696,7 @@ IDM_T iproute(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_key *dst,
 void ip_flush_routes(uint8_t family, int32_t table_macro);
 void ip_flush_rules(uint8_t family, int32_t table_macro);
 
-struct net_key bmx6AutoEUI64Ip6(struct dev_node *dev, struct net_key *prefix);
+struct net_key bmx6AutoEUI64Ip6(ADDR_T mac, struct net_key *prefix);
 
 IDM_T check_proc_sys_net(char *file, int32_t desired, int32_t *backup);
 

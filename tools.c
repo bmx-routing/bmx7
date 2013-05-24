@@ -502,19 +502,22 @@ IDM_T str2netw(char* args, IPX_T *ipX,  struct ctrl_node *cn, uint8_t *maskp, ui
 
         if (is_addr) {
                 IPX_T netw = *ipX;
-                if (ip_netmask_validate(&netw, (maskp ? *maskp : (family == AF_INET ? 32 : 128)), family, YES) == FAILURE)
+                if ((ip_netmask_validate(&netw, (maskp ? *maskp : (family == AF_INET ? 32 : 128)), family, YES) == FAILURE) ||
+			(maskp && *maskp != (family == AF_INET ? 32 : 128) && !memcmp(&netw, ipX, sizeof (netw)))) {
+			dbgf_cn( cn, DBGL_SYS, DBGT_ERR, "Address required! NOT network!");
                         return FAILURE;
-
-                if (maskp && *maskp != (family == AF_INET ? 32 : 128) && !memcmp(&netw, ipX, sizeof (netw)))
-                        return FAILURE;
+		}
 
         } else {
-                if (ip_netmask_validate(ipX, (maskp ? *maskp : (family == AF_INET ? 32 : 128)), family, NO) == FAILURE)
+                if (ip_netmask_validate(ipX, (maskp ? *maskp : (family == AF_INET ? 32 : 128)), family, NO) == FAILURE) {
+			dbgf_cn( cn, DBGL_SYS, DBGT_ERR, "Network required! NOT address!");
                         return FAILURE;
+		}
         }
 
-        if (familyp && (*familyp == AF_INET || *familyp == AF_INET6) && *familyp != family)
-                return FAILURE;
+        if (familyp && (*familyp == AF_INET || *familyp == AF_INET6) && *familyp != family) {
+		dbgf_cn( cn, DBGL_SYS, DBGT_ERR, "%s required!", family2Str(*familyp));
+	}
 
         if (familyp)
                 *familyp = family;

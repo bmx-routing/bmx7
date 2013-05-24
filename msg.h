@@ -172,6 +172,7 @@
 #define FRAME_TYPE_OGM_ACK     23 // most simple BMX-NG (type 0) OGM advertisements
 
 #define FRAME_TYPE_NOP         24
+#define FRAME_TYPE_MAX_KNOWN    24
 #define FRAME_TYPE_MAX         (FRAME_TYPE_ARRSZ-1)
 
 
@@ -707,9 +708,9 @@ struct msg_ogm_ack {
 #define BMX_DSC_TLV_TUN6_MAX            0x0A
 
 #define BMX_DSC_TLV_JSON_SMS    0x10
+#define BMX_DSC_TLV_MAX_KNOWN    0x10
 #define BMX_DSC_TLV_MAX         (FRAME_TYPE_ARRSZ-1)
 #define BMX_DSC_TLV_ARRSZ       (FRAME_TYPE_ARRSZ)
-
 
 
 

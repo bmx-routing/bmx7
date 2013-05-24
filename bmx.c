@@ -35,6 +35,7 @@
 #include "bmx.h"
 #include "msg.h"
 #include "ip.h"
+#include "hna.h"
 #include "schedule.h"
 #include "tools.h"
 #include "metrics.h"
@@ -1813,14 +1814,15 @@ static const struct field_format bmx_status_format[] = {
 
 static int32_t bmx_status_creator(struct status_handl *handl, void *data)
 {
+	struct tun_in_node *tin = avl_first_item(&tun_in_tree);
         struct bmx_status *status = (struct bmx_status *) (handl->data = debugRealloc(handl->data, sizeof (struct bmx_status), -300365));
         sprintf(status->version, "%s-%s", BMX_BRANCH, BRANCH_VERSION);
         status->compat = COMPATIBILITY_VERSION;
         status->revision = GIT_REV;
         status->globalId = &self->global_id;
         status->primaryIp = self->primary_ip;
-        status->tun6Address = tun6_address.af ? &tun6_address : NULL;
-        status->tun4Address = tun4_address.af ? &tun4_address : NULL;
+        status->tun4Address = tin ? &tin->tunAddr46[1] : NULL;
+        status->tun6Address = tin ? &tin->tunAddr46[0] : NULL;
         status->myLocalId = my_local_id;
         status->uptime = get_human_uptime(0);
         sprintf(status->cpu, "%d.%1d", s_curr_avg_cpu_load / 10, s_curr_avg_cpu_load % 10);
@@ -2106,7 +2108,7 @@ static struct opt_type bmx_options[]=
 {
 //        ord parent long_name          shrt Attributes				*ival		min		max		default		*func,*syntax,*help
 
-	{ODI,0,ARG_VERSION,		'v',0,2,A_PS0,A_USR,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_version,
+	{ODI,0,ARG_VERSION,		'v',9,2,A_PS0,A_USR,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_version,
 			0,		"show version"},
 
 	{ODI,0,ARG_SHOW,		's',  9,2,A_PS1N,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
@@ -2393,16 +2395,13 @@ int main(int argc, char *argv[])
         debugMalloc(1, -300525); //testing debugMalloc
 #endif
         init_tools();
-
 	init_control();
-
-        init_ip();
-
-
-	//init_schedule();
-
         init_avl();
 
+	init_bmx();
+        init_ip();
+
+	//init_schedule();
 
         if (init_plugin() == SUCCESS) {
 
@@ -2438,8 +2437,6 @@ int main(int argc, char *argv[])
         } else {
                 assertion(-500809, (0));
         }
-
-	init_bmx();
 
 	apply_init_args( argc, argv );
 

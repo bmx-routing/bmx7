@@ -54,9 +54,9 @@
 uint8_t __af_cfg = DEF_IP_FAMILY;
 struct net_key __ZERO_NETCFG_KEY = {.af = DEF_IP_FAMILY};
 
-const struct net_key ZERO_NET_KEY = {.af = 0};
-const struct net_key ZERO_NET4_KEY = {.af = AF_INET};
-const struct net_key ZERO_NET6_KEY = {.af = AF_INET6};
+const struct net_key ZERO_NET_KEY = ZERO_NET_KEY_INIT;
+const struct net_key ZERO_NET4_KEY = ZERO_NET4_KEY_INIT;
+const struct net_key ZERO_NET6_KEY = ZERO_NET6_KEY_INIT;
 
 
 const IFNAME_T ZERO_IFNAME = {{0}};
@@ -71,7 +71,7 @@ int dev_lo_idx = 0;
 int32_t ip_prio_hna_cfg = DEF_IP_RULE_HNA;
 static int32_t ip_prio_tun_cfg = DEF_IP_RULE_TUN;
 int32_t ip_table_hna_cfg = DEF_IP_TABLE_HNA;
-static int32_t ip_table_tun_cfg = DEF_IP_TABLE_TUN;
+int32_t ip_table_tun_cfg = DEF_IP_TABLE_TUN;
 int32_t ip_prio_rules_cfg = DEF_IP_PRIO_RULES;
 int32_t ip_throw_rules_cfg = DEF_IP_THROW_RULES;
 int32_t ip_policy_rt_cfg = DEF_IP_POLICY_ROUTING;
@@ -85,8 +85,9 @@ static int32_t base_port = DEF_BASE_PORT;
 static int32_t Lo_rule = DEF_LO_RULE;
 #endif
 
-const IPX_T ZERO_IP = { { { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 } } };
-const MAC_T ZERO_MAC = {{0}};
+const IPX_T  ZERO_IP = { { { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 } } };
+const MAC_T  ZERO_MAC = {{0}};
+const ADDR_T ZERO_ADDR = {{0}};
 
 //TODO: make this configurable
 static struct net_key llocal_prefix_cfg;
@@ -156,7 +157,7 @@ static int32_t if4_send_redirects_default_orig = -1;
 static void dev_check(void *kernel_ip_config_changed);
 static void (*ipexport) (int8_t del, const struct net_key *dst, uint32_t oif_idx, IPX_T *via, uint32_t metric, uint8_t distance) = NULL;
 
-struct bmx6_route_dict bmx6_rt_dict[BMX6_ROUTE_MAX];
+struct sys_route_dict bmx6_rt_dict[BMX6_ROUTE_MAX];
 
 
 
@@ -423,7 +424,7 @@ char *trackt2str(uint8_t cmd)
 
 	else if ( cmd > IP_ROUTE_TUNS && cmd < IP_ROUTE_MAX ) {
 
-                return bmx6_rt_dict[ (cmd - IP_ROUTE_TUNS) ].bmx2Name;
+                return bmx6_rt_dict[ (cmd - IP_ROUTE_TUNS) ].sys2Name;
 
 	} 
 
@@ -436,9 +437,9 @@ char *family2Str(uint8_t family)
 
         switch (family) {
         case AF_INET:
-                return "inet";
+                return "IPv4";
         case AF_INET6:
-                return "inet6";
+                return "IPv6";
         default:
                 sprintf( b, "%d ???", family);
                 return b;
@@ -692,26 +693,8 @@ struct dev_node * dev_get_by_name(char *name)
         return avl_find_item(&dev_name_tree, &key);
 }
 
-
-STATIC_FUNC
-IDM_T rtnl_talk(void *req, int len, uint8_t cmd, uint8_t quiet, void (*func) (struct nlmsghdr *nh, void *data) ,void *data)
+IDM_T rtnl_rcv( int fd, uint32_t pid, uint32_t seq, uint8_t cmd, uint8_t quiet, void (*func) (struct nlmsghdr *nh, void *data) ,void *data)
 {
-
-        // DONT USE setNet() here (because return pointer is static)!!!!!!!!!!!!!
-
-        static uint8_t busy = 0;
-        assertion(-501494, (!busy));
-        busy = 1;
-
-        errno = 0;
-        if (send(ip_rth.fd, req, len, 0) < 0) {
-
-                dbgf_sys(DBGT_ERR, "can't send netlink message to kernel: %s", strerror(errno));
-                busy = 0;
-                EXITERROR(-501095, (0));
-		return FAILURE;
-        }
-
         int max_retries = 10;
         uint8_t more_data;
 
@@ -728,7 +711,7 @@ IDM_T rtnl_talk(void *req, int len, uint8_t cmd, uint8_t quiet, void (*func) (st
                 more_data = NO;
 
 		errno=0;
-		int status = recvmsg( ip_rth.fd, &msg, 0 );
+		int status = recvmsg( fd, &msg, 0 );
                 int err = errno;
 
                 if (err) {
@@ -748,14 +731,12 @@ IDM_T rtnl_talk(void *req, int len, uint8_t cmd, uint8_t quiet, void (*func) (st
                                 continue;
                         } else {
                                 dbgf_sys(DBGT_ERR, "giving up!");
-                                busy = 0;
                                 EXITERROR(-501096, (0));
                                 return FAILURE;
                         }
 
 		} else if (status == 0) {
                         dbgf_sys(DBGT_ERR, "netlink EOF");
-                        busy = 0;
                         EXITERROR(-501097, (0));
                         return FAILURE;
                 }
@@ -768,16 +749,13 @@ IDM_T rtnl_talk(void *req, int len, uint8_t cmd, uint8_t quiet, void (*func) (st
 
 		for ( nh = (struct nlmsghdr *)buf; NLMSG_OK(nh, (size_t)status); nh = NLMSG_NEXT(nh, status) ) {
 
-                        if (nla.nl_pid || nh->nlmsg_pid != ip_rth.local.nl_pid || nh->nlmsg_seq != ip_rth.seq) {
+                        if (nla.nl_pid || (pid && nh->nlmsg_pid != pid) || (seq && nh->nlmsg_seq != seq)) {
 
                                 dbgf_sys(DBGT_ERR, "pid/sqn mismatch: status=%d  "
                                         "nl_pid=%d ==0!?  nlmsg_pid=%d == local.nl_pid=%d!? "
                                         "nlmsg_seq=%d == ip_rth.dump=%d!?",
-                                        status,
-                                        nla.nl_pid, nh->nlmsg_pid, ip_rth.local.nl_pid,
-                                        nh->nlmsg_seq, ip_rth.seq);
+                                        status, nla.nl_pid, nh->nlmsg_pid, pid, nh->nlmsg_seq, seq);
 
-                                busy = 0;
                                 assertion(-501495, (0)); //continue;
                         }
 
@@ -790,14 +768,12 @@ IDM_T rtnl_talk(void *req, int len, uint8_t cmd, uint8_t quiet, void (*func) (st
                                 dbgf_track(DBGT_INFO, "NLMSG_DONE");
                                 more_data = NO;
                                 break;
-                                
+
                         } else if (nh->nlmsg_type == NLMSG_ERROR && ((struct nlmsgerr*) NLMSG_DATA(nh))->error) {
 
                                 dbgf(quiet ? DBGL_ALL : DBGL_SYS, quiet ? DBGT_INFO : DBGT_ERR, "%s error=%s",
                                         trackt2str(cmd), strerror(-((struct nlmsgerr*) NLMSG_DATA(nh))->error));
 
-                                busy = 0;
-                                EXITERROR(-501098, (cmd == IP_RULE_FLUSH || cmd == IP_ROUTE_FLUSH || cmd == IP_RULE_TEST));
                                 return FAILURE;
                         }
 
@@ -808,9 +784,34 @@ IDM_T rtnl_talk(void *req, int len, uint8_t cmd, uint8_t quiet, void (*func) (st
 
         } while (more_data);
 
-        busy=0;
         return SUCCESS;
 }
+
+STATIC_FUNC
+IDM_T rtnl_talk(void *req, int len, uint8_t cmd, uint8_t quiet, void (*func) (struct nlmsghdr *nh, void *data) ,void *data)
+{
+
+        // DONT USE setNet() here (because return pointer is static)!!!!!!!!!!!!!
+
+        static uint8_t busy = 0;
+        assertion(-501494, (!busy));
+        busy = 1;
+
+        errno = 0;
+        if (send(ip_rth.fd, req, len, 0) < 0) {
+                dbgf_sys(DBGT_ERR, "can't send netlink message to kernel: %s", strerror(errno));
+                busy = 0;
+                EXITERROR(-501095, (0));
+		return FAILURE;
+        }
+
+
+	IDM_T result = rtnl_rcv( ip_rth.fd, ip_rth.local.nl_pid, ip_rth.seq, cmd, quiet, func, data );
+
+	busy = 0;
+	return result;
+}
+
 
 STATIC_FUNC
 IDM_T kernel_get_if_config_post(IDM_T purge_all, uint16_t curr_sqn)
@@ -1448,7 +1449,7 @@ IDM_T kernel_tun_del(char *name)
 
         struct ifreq req;
 
-        assertion(-501293, (name && strlen(name)));
+        assertion(-501526, (name && strlen(name)));
 
 
         memset(&req, 0, sizeof (req));
@@ -1480,7 +1481,7 @@ int32_t kernel_tun_add(char *name, uint8_t proto, IPX_T *local, IPX_T *remote)
 	struct ip6_tnl_parm p;
 	int32_t idx;
 
-        assertion(-501293, (name && strlen(name)));
+        assertion(-501527, (name && strlen(name)));
 
 
         memset(&req, 0, sizeof (req));
@@ -1562,37 +1563,8 @@ IDM_T kernel_set_mtu(char *name, uint16_t mtu)
 
 
 
-STATIC_FUNC
-void kernel_get_route_list_nlhdr(struct nlmsghdr *nh, void *rtnl_get_listp )
+IDM_T kernel_get_route(uint8_t quiet, uint8_t family, uint32_t table, void (*func) (struct nlmsghdr *nh, void *data) )
 {
-        assertion(-501503, rtnl_get_listp);
-        struct list_head *rtnl_get_list = ((struct list_head *) rtnl_get_listp);
-
-        struct rtmsg *rtm = (struct rtmsg *) NLMSG_DATA(nh);
-        struct rtattr *rtap = (struct rtattr *) RTM_RTA(rtm);
-        int rtl = RTM_PAYLOAD(nh);
-
-        while (RTA_OK(rtap, rtl)) {
-
-                struct rtnl_get_node *rgn = debugMalloc(sizeof (*rgn), -300518);
-                memset(rgn, 0, sizeof (*rgn));
-                rgn->rtm_table = rtm->rtm_table;
-                rgn->rta_type = rtap->rta_type;
-                rgn->net.af = rtm->rtm_family;
-                rgn->net.mask = rtm->rtm_dst_len;
-                rgn->net.ip = (rgn->net.af == AF_INET6) ? *((IPX_T *) RTA_DATA(rtap)) : ip4ToX(*((IP4_T *) RTA_DATA(rtap)));
-
-                list_add_tail(rtnl_get_list, &rgn->list);
-
-                rtap = RTA_NEXT(rtap, rtl);
-        }
-}
-
-STATIC_FUNC
-IDM_T kernel_get_route(struct list_head *rtnl_get_list, uint8_t quiet, uint8_t family, uint32_t table)
-{
-        assertion(-501504, (rtnl_get_list));
-        assertion(-501505, (!rtnl_get_list->items && LIST_EMPTY(rtnl_get_list)));
 
         struct rtmsg_req req;
         memset(&req, 0, sizeof (req));
@@ -1610,8 +1582,7 @@ IDM_T kernel_get_route(struct list_head *rtnl_get_list, uint8_t quiet, uint8_t f
         req.nlh.nlmsg_type = RTM_GETROUTE;
         req.rtm.rtm_scope = RTN_UNICAST;
 
-        return rtnl_talk(&req, req.nlh.nlmsg_len, IP_ROUTE_GET, quiet, kernel_get_route_list_nlhdr, rtnl_get_list);
-
+        return rtnl_talk(&req, req.nlh.nlmsg_len, IP_ROUTE_GET, quiet, func, &table);
 }
 
 
@@ -2644,31 +2615,42 @@ error:
 
 
 
+void del_route_list_nlhdr(struct nlmsghdr *nh, void *tablep )
+{
+
+	uint32_t table = *((uint32_t*)tablep);
+        struct rtmsg *rtm = (struct rtmsg *) NLMSG_DATA(nh);
+        struct rtattr *rtap = (struct rtattr *) RTM_RTA(rtm);
+        int rtl = RTM_PAYLOAD(nh);
+
+        while (RTA_OK(rtap, rtl)) {
+
+		if (rtap->rta_type==RTA_DST && rtm->rtm_table == table) {
+
+			struct net_key net = {.af=rtm->rtm_family,
+			.ip=(rtm->rtm_family==AF_INET6) ? *((IPX_T *) RTA_DATA(rtap)) : ip4ToX(*((IP4_T *) RTA_DATA(rtap))) };
+
+				kernel_set_route(IP_ROUTE_FLUSH, DEL, NO, &net, table, 0, 0, NULL, NULL, 0);
+				dbgf_sys(DBGT_ERR, "removed orphan %s route=%s table=%d", family2Str(net.af), netAsStr(&net), table);
+		}
+
+                rtap = RTA_NEXT(rtap, rtl);
+        }
+}
+
+
 void ip_flush_routes(uint8_t family, int32_t table_macro)
 {
 	TRACE_FUNCTION_CALL;
 
-        LIST_SIMPEL(rtnl_get_list, struct rtnl_get_node, list, list);
-	struct rtnl_get_node * rgn;
 	uint32_t table = table_macro_to_table(table_macro);
 
 	if (table == DEF_IP_TABLE_MAIN || policy_routing != POLICY_RT_ENABLED || !ip_prio_rules_cfg)
 		return;
 
-	kernel_get_route(&rtnl_get_list, NO, family, table);
-
-	while ((rgn = list_del_head(&rtnl_get_list))) {
-
-		assertion(-501520, (rgn->net.af == family));
-
-		if (rgn->rtm_table == table && rgn->rta_type == RTA_DST) {
-			kernel_set_route(IP_ROUTE_FLUSH, DEL, NO, &rgn->net, table, 0, 0, NULL, NULL, 0);
-			dbgf_sys(DBGT_ERR, "removed orphan %s route=%s table=%d", family2Str(family), netAsStr(&rgn->net), table);
-		}
-
-		debugFree(rgn, -300519);
-	}
+	kernel_get_route(NO, family, table, del_route_list_nlhdr);
 }
+
 
 
 void ip_flush_rules(uint8_t family, int32_t table_macro)
@@ -2794,31 +2776,29 @@ int update_interface_rules(void)
 }
 
 
-struct net_key bmx6AutoEUI64Ip6(struct dev_node *dev, struct net_key *prefix)
+struct net_key bmx6AutoEUI64Ip6(ADDR_T mac, struct net_key *prefix)
 {
         struct net_key autoPrefix = ZERO_NET6_KEY;
 
-        if (dev && prefix->mask && prefix->mask <= 64 && /*dev->linklayer != TYP_DEV_LL_LO &&*/
-                dev->if_link && !is_zero(&dev->if_link->addr, sizeof (dev->if_link->addr))) {
+        if (prefix->mask && prefix->mask <= 64 && !is_zero(&mac, sizeof (ADDR_T))) {
 
                 autoPrefix = *prefix;
 
-                autoPrefix.ip.s6_addr[8 ] = dev->if_link->addr.u8[0];
-                autoPrefix.ip.s6_addr[9 ] = dev->if_link->addr.u8[1];
-                autoPrefix.ip.s6_addr[10] = dev->if_link->addr.u8[2];
+                autoPrefix.ip.s6_addr[8 ] = mac.u8[0];
+                autoPrefix.ip.s6_addr[9 ] = mac.u8[1];
+                autoPrefix.ip.s6_addr[10] = mac.u8[2];
                 autoPrefix.ip.s6_addr[11] = 0xFF;
                 autoPrefix.ip.s6_addr[12] = 0xFE;
-                autoPrefix.ip.s6_addr[13] = dev->if_link->addr.u8[3];
-                autoPrefix.ip.s6_addr[14] = dev->if_link->addr.u8[4];
-                autoPrefix.ip.s6_addr[15] = dev->if_link->addr.u8[5];
+                autoPrefix.ip.s6_addr[13] = mac.u8[3];
+                autoPrefix.ip.s6_addr[14] = mac.u8[4];
+                autoPrefix.ip.s6_addr[15] = mac.u8[5];
 
                 // toggle the U/L bit (  http://en.wikipedia.org/wiki/IPv6_address#Modified_EUI-64 )
                 autoPrefix.ip.s6_addr[8 ] |= 2;
         }
 
-        dbgf_track(DBGT_INFO, "%s returnPrefix=%s (prefix=%s dev->if_link_addr=%s)",
-                dev->label_cfg.str, netAsStr(&autoPrefix), netAsStr(prefix),
-                (dev->if_link ? memAsHexString(&dev->if_link->addr, sizeof (dev->if_link->addr)) : "--"));
+        dbgf_track(DBGT_INFO, "returnPrefix=%s prefix=%s mac=%s",
+                netAsStr(&autoPrefix), netAsStr(prefix),memAsHexString(&mac, sizeof (ADDR_T)));
 
         return autoPrefix;
 }
@@ -2868,7 +2848,7 @@ void dev_if_fix(void)
                 struct net_key autoIP6 = ZERO_NET6_KEY;
 
                 if (!global_prefix_cfg.mask && !dev->global_prefix_conf_.mask && autoconf_prefix_cfg.mask) {
-                        autoIP6 = bmx6AutoEUI64Ip6(dev, &autoconf_prefix_cfg);
+                        autoIP6 = bmx6AutoEUI64Ip6(dev->if_link->addr, &autoconf_prefix_cfg);
 			autoIP6.mask = DEF_AUTO_IP6_DEVMASK;
 			autoIP6.ip.s6_addr[6] = DEF_AUTO_IP6_BYTE6;
 			autoIP6.ip.s6_addr[7] = (uint8_t)dev->if_link->index; //different ULAs for equal MAC addresses!!
@@ -3121,8 +3101,13 @@ static void recv_ifevent_netlink_sk(int sk)
         msg.msg_iov = &iov; /* Vector of data to send/receive into.  */
         msg.msg_iovlen = 1; /* Number of elements in the vector.  */
 
+	int rcvd;
+
 	//so fare I just want to consume the pending message...
-	while( recvmsg (sk, &msg, 0) > 0 );
+	while( (rcvd=recvmsg (sk, &msg, 0)) > 0 ){
+		dbgf_track(DBGT_INFO, "rcvd %d bytes", rcvd);
+
+	}
 
         //do NOT delay checking of interfaces to not miss ifdown/up of interfaces !!
         if (kernel_get_if_config() == YES) //just call if changed!
@@ -3831,10 +3816,10 @@ static struct opt_type ip_options[]=
 			0,		"show interfaces\n"},
 
 	{ODI,0,ARG_GLOBAL_PREFIX,	0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_dev_prefix,
-			ARG_PREFIX_FORM,HLP_GLOBAL_PREFIX},
+			ARG_NETW_FORM,HLP_GLOBAL_PREFIX},
 
 	{ODI,0,ARG_LLOCAL_PREFIX,	0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_dev_prefix,
-			ARG_PREFIX_FORM,HLP_LLOCAL_PREFIX},
+			ARG_NETW_FORM,HLP_LLOCAL_PREFIX},
 
 	{ODI,0,ARG_AUTO_IP6_PREFIX,     0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,      	0,      	0,              0,DEF_AUTO_IP6_PREFIX,opt_auto_prefix,
 			ARG_VALUE_FORM,	HLP_AUTO_IP6_PREFIX},
@@ -3880,30 +3865,39 @@ void init_ip(void)
         assertion(-501395, is_zero((void*) &autoconf_prefix_cfg, sizeof (autoconf_prefix_cfg)));
 
         memset(&bmx6_rt_dict, 0, sizeof(bmx6_rt_dict));
-        set_bmx6_rt_dict(BMX6_ROUTE_SYSTEM,  'X', ARG_ROUTE_SYSTEM);
-        set_bmx6_rt_dict(BMX6_ROUTE_KERNEL,  'K', ARG_ROUTE_KERNEL);
-        set_bmx6_rt_dict(BMX6_ROUTE_CONNECT, 'C', ARG_ROUTE_CONNECT);
-        set_bmx6_rt_dict(BMX6_ROUTE_STATIC,  'S', ARG_ROUTE_STATIC);
-        set_bmx6_rt_dict(BMX6_ROUTE_RIP,     'R', ARG_ROUTE_RIP);
-        set_bmx6_rt_dict(BMX6_ROUTE_RIPNG,   'R', ARG_ROUTE_RIPNG);
-        set_bmx6_rt_dict(BMX6_ROUTE_OSPF,    'O', ARG_ROUTE_OSPF);
-        set_bmx6_rt_dict(BMX6_ROUTE_OSPF6,   'O', ARG_ROUTE_OSPF6);
-        set_bmx6_rt_dict(BMX6_ROUTE_ISIS,    'I', ARG_ROUTE_ISIS);
-        set_bmx6_rt_dict(BMX6_ROUTE_BGP,     'B', ARG_ROUTE_BGP);
-        set_bmx6_rt_dict(BMX6_ROUTE_BABEL,   'A', ARG_ROUTE_BABEL);
-        set_bmx6_rt_dict(BMX6_ROUTE_BMX6,    'x', ARG_ROUTE_BMX6);
-        set_bmx6_rt_dict(BMX6_ROUTE_HSLS,    'H', ARG_ROUTE_HSLS);
-        set_bmx6_rt_dict(BMX6_ROUTE_OLSR,    'o', ARG_ROUTE_OLSR);
-        set_bmx6_rt_dict(BMX6_ROUTE_BATMAN,  'b', ARG_ROUTE_BATMAN);
+        set_rt_dict(bmx6_rt_dict, BMX6_ROUTE_UNSPEC,  'u', ARG_ROUTE_UNSPEC,   BMX6_ROUTE_UNSPEC);
+        set_rt_dict(bmx6_rt_dict, BMX6_ROUTE_REDIRECT,'r', ARG_ROUTE_REDIRECT, BMX6_ROUTE_REDIRECT);
+        set_rt_dict(bmx6_rt_dict, BMX6_ROUTE_KERNEL,  'k', ARG_ROUTE_KERNEL,   BMX6_ROUTE_KERNEL);
+        set_rt_dict(bmx6_rt_dict, BMX6_ROUTE_BOOT,    't', ARG_ROUTE_BOOT,     BMX6_ROUTE_BOOT);
+        set_rt_dict(bmx6_rt_dict, BMX6_ROUTE_STATIC,  's', ARG_ROUTE_STATIC,   BMX6_ROUTE_STATIC);
+        set_rt_dict(bmx6_rt_dict, BMX6_ROUTE_GATED,   'g', ARG_ROUTE_GATED,    BMX6_ROUTE_GATED);
+        set_rt_dict(bmx6_rt_dict, BMX6_ROUTE_RA,      'a', ARG_ROUTE_RA,       BMX6_ROUTE_RA);
+        set_rt_dict(bmx6_rt_dict, BMX6_ROUTE_MRT,     'm', ARG_ROUTE_MRT,      BMX6_ROUTE_MRT);
+        set_rt_dict(bmx6_rt_dict, BMX6_ROUTE_ZEBRA,   'z', ARG_ROUTE_ZEBRA,    BMX6_ROUTE_ZEBRA);
+        set_rt_dict(bmx6_rt_dict, BMX6_ROUTE_BIRD,    'd', ARG_ROUTE_BIRD,     BMX6_ROUTE_BIRD);
+        set_rt_dict(bmx6_rt_dict, BMX6_ROUTE_DNROUTED,'n', ARG_ROUTE_DNROUTED, BMX6_ROUTE_DNROUTED);
+        set_rt_dict(bmx6_rt_dict, BMX6_ROUTE_XORP,    'p', ARG_ROUTE_XORP,     BMX6_ROUTE_XORP);
+        set_rt_dict(bmx6_rt_dict, BMX6_ROUTE_NTK,     'k', ARG_ROUTE_NTK,      BMX6_ROUTE_NTK);
+        set_rt_dict(bmx6_rt_dict, BMX6_ROUTE_DHCP,    'd', ARG_ROUTE_DHCP,     BMX6_ROUTE_DHCP);
+
+        set_rt_dict(bmx6_rt_dict, BMX6_ROUTE_SYSTEM,  'X', ARG_ROUTE_SYSTEM,   BMX6_ROUTE_SYSTEM);
+        set_rt_dict(bmx6_rt_dict, BMX6_ROUTE_CONNECT, 'C', ARG_ROUTE_CONNECT,  BMX6_ROUTE_CONNECT);
+        set_rt_dict(bmx6_rt_dict, BMX6_ROUTE_RIP,     'R', ARG_ROUTE_RIP,      BMX6_ROUTE_RIP);
+        set_rt_dict(bmx6_rt_dict, BMX6_ROUTE_RIPNG,   'R', ARG_ROUTE_RIPNG,    BMX6_ROUTE_RIPNG);
+        set_rt_dict(bmx6_rt_dict, BMX6_ROUTE_OSPF,    'O', ARG_ROUTE_OSPF,     BMX6_ROUTE_OSPF);
+        set_rt_dict(bmx6_rt_dict, BMX6_ROUTE_OSPF6,   'O', ARG_ROUTE_OSPF6,    BMX6_ROUTE_OSPF6);
+        set_rt_dict(bmx6_rt_dict, BMX6_ROUTE_ISIS,    'I', ARG_ROUTE_ISIS,     BMX6_ROUTE_ISIS);
+        set_rt_dict(bmx6_rt_dict, BMX6_ROUTE_BGP,     'B', ARG_ROUTE_BGP,      BMX6_ROUTE_BGP);
+        set_rt_dict(bmx6_rt_dict, BMX6_ROUTE_BABEL,   'A', ARG_ROUTE_BABEL,    BMX6_ROUTE_BABEL);
+        set_rt_dict(bmx6_rt_dict, BMX6_ROUTE_HSLS,    'H', ARG_ROUTE_HSLS,     BMX6_ROUTE_HSLS);
+        set_rt_dict(bmx6_rt_dict, BMX6_ROUTE_OLSR,    'o', ARG_ROUTE_OLSR,     BMX6_ROUTE_OLSR);
+        set_rt_dict(bmx6_rt_dict, BMX6_ROUTE_BMX6,    'x', ARG_ROUTE_BMX6,     BMX6_ROUTE_BMX6);
+        set_rt_dict(bmx6_rt_dict, BMX6_ROUTE_BATMAN,  'b', ARG_ROUTE_BATMAN,   BMX6_ROUTE_BATMAN);
 
 
 
         autoconf_prefix_cfg = ZERO_NET6_KEY;
         str2netw(DEF_AUTO_IP6_PREFIX, &autoconf_prefix_cfg.ip, NULL, &autoconf_prefix_cfg.mask, &autoconf_prefix_cfg.af, NO);
-
-        memset(&default_tun_in, 0, sizeof (default_tun_in));
-        default_tun_in.tun6Id = -1;
-
 
         if (rtnl_open(&ip_rth) != SUCCESS) {
                 dbgf_sys(DBGT_ERR, "failed opening rtnl socket");

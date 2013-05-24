@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010  Axel Neumann
+ * Copyright (c) 2012-2013  Axel Neumann
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU General Public
  * License as published by the Free Software Foundation.
@@ -26,6 +26,8 @@ http://www.nongnu.org/quagga/zhh.html
  */
 
 
+#define ARG_REDIST        "redistribute"
+#define HLP_REDIST        "arbitrary but unique name for redistributed network(s) depending on sub criterias"
 
 #define ZEBRA_VERSION2 2
 
@@ -62,16 +64,8 @@ http://www.nongnu.org/quagga/zhh.html
 
 
 
-struct zapi_route_dict {
-        uint8_t bmx2Zebra;
-        uint8_t zebra2Bmx;
-};
 
 
-#define set_zapi_rt_dict( B, Z ) do { \
-        zapi_rt_dict[ B ].bmx2Zebra = Z; \
-        zapi_rt_dict[ Z ].zebra2Bmx = B; \
-} while (0)
 
 ///////////////////////////////////////////////////////////////////////////////
 // from quagga/lib/zebra.h:
@@ -180,37 +174,7 @@ struct zapiV2_header {
 } __attribute__((packed));
 
 
-struct zroute_key {
-        struct net_key net;
-        IPX_T via;
-        uint32_t ifindex;
-        uint8_t ztype;
-} __attribute__((packed));
 
-struct zroute_node {
-        struct zroute_key k;
-
-        uint8_t flags;
-        uint8_t message;
-        int8_t cnt;
-        uint8_t old;
-        uint32_t metric;
-        uint8_t distance;
-};
-
-struct redist_out_key {
-        uint8_t bmx6_route_type;
-        FMETRIC_U8_T bandwidth;
-        struct net_key net;
-        uint8_t must_be_one; // to find_next route_type and bandwidth if net is zero
-} __attribute__((packed));
-
-struct redist_out_node {
-        struct redist_out_key k;
-        uint8_t minAggregatePrefixLen;
-        uint8_t old;
-        uint8_t new;
-};
 
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -251,70 +215,4 @@ struct zdata {
 #define ARG_ZAPI_DIR "zebraPath"
 
 
-/*
-#define ARG_EXPORT           "export"
 
-#define ARG_EXPORT_UHNA      "unicastHna"
-#define DEF_EXPORT_UHNA      0
-
-#define ARG_EXPORT_RTYPE_BMX "bmx6"
-#define DEF_EXPORT_RTYPE_BMX 1
-
-#define ARG_EXPORT_ONLY   "exportOnly"
-#define DEF_EXPORT_ONLY   0
-#define MIN_EXPORT_ONLY   0
-#define MAX_EXPORT_ONLY   1
-*/
-
-#define ARG_REDIST        "redistribute"
-
-#define ARG_QUAGGA_NET    "network"
-#define ARG_QUAGGA_BW     "bandwidth"
-
-#define ARG_QUAGGA_METRIC "metric"
-#define DEF_QUAGGA_METRIC 0
-#define MIN_QUAGGA_METRIC 0
-#define MAX_QUAGGA_METRIC INT32_MAX
-
-#define ARG_QUAGGA_DISTANCE "distance"
-#define DEF_QUAGGA_DISTANCE 0
-#define MIN_QUAGGA_DISTANCE 0
-#define MAX_QUAGGA_DISTANCE UINT8_MAX
-
-#define MIN_QUAGGA_PREFIX 0
-#define MAX_QUAGGA_PREFIX 129
-#define TYP_QUAGGA_PREFIX_NET 129 //assumes prefix from ARG_TUN_OUT_NET
-
-#define ARG_QUAGGA_PREFIX_MIN "minPrefixLen"
-#define DEF_QUAGGA_PREFIX_MIN TYP_QUAGGA_PREFIX_NET
-
-#define ARG_QUAGGA_PREFIX_MAX "maxPrefixLen"
-#define DEF_QUAGGA_PREFIX_MAX 128
-
-#define ARG_QUAGGA_AGGREGATE "aggregatePrefixLen"
-#define MIN_QUAGGA_AGGREGATE 0
-#define MAX_QUAGGA_AGGREGATE 128
-#define DEF_QUAGGA_AGGREGATE 0
-
-//#define MIN_QUAGGA_RTYPE_ENABLED 0
-//#define MAX_QUAGGA_RTYPE_ENABLED 1
-//#define DEF_QUAGGA_RTYPE_ENABLED 0
-
-
-#define ARG_QUAGGA_HYSTERESIS "hysteresis"
-#define DEF_QUAGGA_HYSTERESIS 20
-#define MIN_QUAGGA_HYSTERESIS 0
-#define MAX_QUAGGA_HYSTERESIS MIN(100000, (UMETRIC_MULTIPLY_MAX - 100))
-
-#define NETWORK_NAME_LEN 32
-
-struct redistr_opt_node {
-        char nameKey[NETWORK_NAME_LEN];
-        struct net_key net;
-        uint32_t bmx6_redist_bits;
-        uint32_t hysteresis;
-        uint8_t netPrefixMin;
-        uint8_t netPrefixMax;
-        uint8_t minAggregatePrefixLen;
-        FMETRIC_U8_T bandwidth;
-};

@@ -22,7 +22,7 @@ $(PLUGIN_FULLNAME):	$(OBJS) Makefile
 	$(CC) $(LDFLAGS) $(EXTRA_LDFLAGS) $(OBJS) -o $(PLUGIN_FULLNAME) 
 	ln -f -s $(THISDIR)/$(PLUGIN_FULLNAME) $(THISDIR)/../$(PLUGIN_FULLNAME)
 
-%.o:	%.c %.h Makefile
+%.o:	%.c %.h Makefile  ../../redist.c ../../redist.h
 	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) -c $< -o $@
 
 

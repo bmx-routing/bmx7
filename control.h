@@ -353,10 +353,9 @@ struct opt_type {
 #define ARG_NAME_FORM	"<NAME>"
 #define ARG_SHA2_FORM	"<SHA2>"
 #define ARG_PORT_FORM	"<PORT>"
-#define ARG_ADDR_FORM	"<ADDRESS>"
-#define ARG_PREFIX_FORM	"<NETADDR>/<PREFIX-LENGTH>"
-#define ARG_NETW_FORM	"<NETADDR>"
-#define ARG_MASK_FORM	"<NETMASK>"
+#define ARG_IP_FORM	"<ADDRESS>"
+#define ARG_ADDR_FORM	"<ADDRESS>/<PREFIX-LENGTH>"
+#define ARG_NETW_FORM	"<NETWORK>/<PREFIX-LENGTH>"
 	
 	char	*syntax;
 	char	*help;

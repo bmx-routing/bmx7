@@ -294,6 +294,9 @@ extern struct avl_tree dev_name_tree;
 
 //extern IDM_T dev_soft_conf_changed; // temporary enabled to trigger changed interface configuration
 
+struct nlh_req {
+	struct nlmsghdr nlh;
+};
 
 struct iplink_req {
 	struct nlmsghdr	nlh;
@@ -325,6 +328,7 @@ struct rtnl_handle {
 	int			fd;
 	struct sockaddr_nl	local;
 	__u32			seq;
+	uint8_t                 busy;
 };
 
 #define IPV6_DEFAULT_TNL_ENCAP_LIMIT 4

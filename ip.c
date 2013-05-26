@@ -119,6 +119,7 @@ const uint8_t IP6_MC_PLEN = 8;
 static int io_sock = 0;
 
 struct rtnl_handle ip_rth = { .fd = -1 };
+struct rtnl_handle ip_rth2 = { .fd = -1 };
 
 static IDM_T opt_dev_changed = YES;
 
@@ -217,7 +218,7 @@ int rtnl_open(struct rtnl_handle *rth)
                 dbgf_sys(DBGT_ERR, "Wrong address family %d\n", rth->local.nl_family);
 		return FAILURE;
 	}
-	rth->seq = time(NULL);
+	rth->seq = rand_num(UINT32_MAX);
 	return SUCCESS;
 }
 
@@ -788,27 +789,30 @@ IDM_T rtnl_rcv( int fd, uint32_t pid, uint32_t seq, uint8_t cmd, uint8_t quiet, 
 }
 
 STATIC_FUNC
-IDM_T rtnl_talk(void *req, int len, uint8_t cmd, uint8_t quiet, void (*func) (struct nlmsghdr *nh, void *data) ,void *data)
+IDM_T rtnl_talk(struct rtnl_handle *iprth, struct nlmsghdr *nlh, uint8_t cmd, uint8_t quiet, void (*func) (struct nlmsghdr *nh, void *data) ,void *data)
 {
 
         // DONT USE setNet() here (because return pointer is static)!!!!!!!!!!!!!
 
-        static uint8_t busy = 0;
-        assertion(-501494, (!busy));
-        busy = 1;
+        assertion(-501494, (!iprth->busy));
+        iprth->busy = 1;
+
+	nlh->nlmsg_pid = My_pid;
+	nlh->nlmsg_seq = ++(iprth->seq);
 
         errno = 0;
-        if (send(ip_rth.fd, req, len, 0) < 0) {
+        if (send(iprth->fd, nlh, nlh->nlmsg_len, 0) < 0) {
                 dbgf_sys(DBGT_ERR, "can't send netlink message to kernel: %s", strerror(errno));
-                busy = 0;
+                iprth->busy = 0;
                 EXITERROR(-501095, (0));
 		return FAILURE;
         }
 
 
-	IDM_T result = rtnl_rcv( ip_rth.fd, ip_rth.local.nl_pid, ip_rth.seq, cmd, quiet, func, data );
 
-	busy = 0;
+	IDM_T result = rtnl_rcv( iprth->fd, iprth->local.nl_pid, iprth->seq, cmd, quiet, func, data );
+
+	iprth->busy = 0;
 	return result;
 }
 
@@ -1192,16 +1196,14 @@ static IDM_T kernel_get_if_config(void)
 
                 memset(&req, 0, sizeof (req));
 
-                req.nlh.nlmsg_len = sizeof (req);
-                req.nlh.nlmsg_pid = My_pid;
-                req.nlh.nlmsg_seq = ++ip_rth.seq;
+		req.nlh.nlmsg_len = sizeof(req);
 
                 req.nlh.nlmsg_type = ai ? RTM_GETADDR : RTM_GETLINK;
                 req.nlh.nlmsg_flags = NLM_F_ROOT | NLM_F_MATCH | NLM_F_REQUEST;
 
                 req.rtg.rtgen_family = AF_UNSPEC;
 
-                rtnl_talk(&req, req.nlh.nlmsg_len, (ai ? IP_ADDR_GET : IP_LINK_GET), NO,
+                rtnl_talk(&ip_rth, &req.nlh, (ai ? IP_ADDR_GET : IP_LINK_GET), NO,
                         (ai ? kernel_get_if_addr_config : kernel_get_if_link_config), &index_sqn);
         }
 
@@ -1218,9 +1220,8 @@ IDM_T kernel_set_addr(IDM_T del, uint32_t if_index, uint8_t family, IPX_T *ipX, 
 
 	memset(&req, 0, sizeof(req));
 
-        req.nlh.nlmsg_len = NLMSG_LENGTH(sizeof (struct ifaddrmsg));
-        req.nlh.nlmsg_pid = My_pid;
-        req.nlh.nlmsg_seq = ++ip_rth.seq;
+	req.nlh.nlmsg_len = NLMSG_LENGTH(sizeof (struct ifaddrmsg));
+
 
         req.nlh.nlmsg_flags = NLM_F_REQUEST | NLM_F_ACK | (del ? 0 : (NLM_F_CREATE | NLM_F_EXCL));
         req.nlh.nlmsg_type = del ? RTM_DELADDR : RTM_NEWADDR;
@@ -1250,7 +1251,7 @@ IDM_T kernel_set_addr(IDM_T del, uint32_t if_index, uint8_t family, IPX_T *ipX, 
 
         dbgf_track(DBGT_INFO, "del=%d ifidx=%d ip=%s/%d deprecated=%d", del, if_index, ipXAsStr(family, ipX), prefixlen, deprecated);
 
-        return rtnl_talk(&req, req.nlh.nlmsg_len, IP_ADDRESS_SET, NO, NULL, NULL);
+        return rtnl_talk(&ip_rth, &req.nlh, IP_ADDRESS_SET, NO, NULL, NULL);
 }
 
 
@@ -1297,15 +1298,14 @@ IDM_T kernel_link_del(char *name)
 
 	memset(&req, 0, sizeof(req));
 
-	req.nlh.nlmsg_len = NLMSG_LENGTH(sizeof(struct ifinfomsg));
-	req.nlh.nlmsg_pid = My_pid;
-        req.nlh.nlmsg_seq = ++ip_rth.seq;
+	req.nlh.nlmsg_len = NLMSG_LENGTH(sizeof (struct ifinfomsg));
+
 	req.nlh.nlmsg_flags = NLM_F_REQUEST | NLM_F_ACK;
 	req.nlh.nlmsg_type = RTM_DELLINK;
 	req.ifi.ifi_family = AF_UNSPEC;
 	req.ifi.ifi_index = kernel_get_ifidx(name);
 
-	if (rtnl_talk(&req, req.nlh.nlmsg_len, IP_LINK_DEL, NO, NULL, NULL) != SUCCESS) {
+	if (rtnl_talk(&ip_rth, &req.nlh, IP_LINK_DEL, NO, NULL, NULL) != SUCCESS) {
 		dbgf_sys(DBGT_ERR, "Failed removing link=%s", name);
 		return FAILURE;
 	}
@@ -1569,9 +1569,7 @@ IDM_T kernel_get_route(uint8_t quiet, uint8_t family, uint32_t table, void (*fun
         struct rtmsg_req req;
         memset(&req, 0, sizeof (req));
 
-        req.nlh.nlmsg_len = NLMSG_LENGTH(sizeof(struct rtmsg));
-	req.nlh.nlmsg_pid = My_pid;
-        req.nlh.nlmsg_seq = ++ip_rth.seq;
+	req.nlh.nlmsg_len = NLMSG_LENGTH(sizeof(struct rtmsg));
 
         req.rtm.rtm_family = family;
         req.rtm.rtm_table = table;
@@ -1582,7 +1580,7 @@ IDM_T kernel_get_route(uint8_t quiet, uint8_t family, uint32_t table, void (*fun
         req.nlh.nlmsg_type = RTM_GETROUTE;
         req.rtm.rtm_scope = RTN_UNICAST;
 
-        return rtnl_talk(&req, req.nlh.nlmsg_len, IP_ROUTE_GET, quiet, func, &table);
+        return rtnl_talk(&ip_rth2, &req.nlh, IP_ROUTE_GET, quiet, func, &table);
 }
 
 
@@ -1598,9 +1596,7 @@ IDM_T kernel_set_route(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_
 
         memset(&req, 0, sizeof (req));
 
-        req.nlh.nlmsg_len = NLMSG_LENGTH(sizeof(struct rtmsg));
-	req.nlh.nlmsg_pid = My_pid;
-        req.nlh.nlmsg_seq = ++ip_rth.seq;
+	req.nlh.nlmsg_len = NLMSG_LENGTH(sizeof(struct rtmsg));
 
         req.rtm.rtm_family = dst->af;
         req.rtm.rtm_table = table;
@@ -1666,7 +1662,7 @@ IDM_T kernel_set_route(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_
         if (metric)
                 add_rtattr(&req.nlh, RTA_PRIORITY, (char*) & metric, sizeof (metric), 0);
 
-        return rtnl_talk(&req, req.nlh.nlmsg_len, cmd, quiet, NULL, NULL);
+        return rtnl_talk(&ip_rth, &req.nlh, cmd, quiet, NULL, NULL);
 }
 
 
@@ -3904,6 +3900,11 @@ void init_ip(void)
                 cleanup_all( -500561 );
         }
 
+	if (rtnl_open(&ip_rth2) != SUCCESS) {
+                dbgf_sys(DBGT_ERR, "failed opening rtnl2 socket");
+                cleanup_all( -501605 );
+        }
+
         errno=0;
 	if ( !io_sock  &&  (io_sock = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
 		dbgf_sys(DBGT_ERR, "can't create io socket %s:",  strerror(errno) );
@@ -3972,6 +3973,10 @@ void cleanup_ip(void)
                 ip_rth.fd = -1;
         }
 
+        if (ip_rth2.fd >= 0) {
+                close(ip_rth2.fd);
+                ip_rth2.fd = -1;
+        }
 
         if ( io_sock ) {
                 close(io_sock);

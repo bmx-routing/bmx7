@@ -2623,10 +2623,13 @@ void del_route_list_nlhdr(struct nlmsghdr *nh, void *tablep )
 
 		if (rtap->rta_type==RTA_DST && rtm->rtm_table == table) {
 
-			struct net_key net = {.af=rtm->rtm_family,
-			.ip=(rtm->rtm_family==AF_INET6) ? *((IPX_T *) RTA_DATA(rtap)) : ip4ToX(*((IP4_T *) RTA_DATA(rtap))) };
+			struct net_key net = {
+				.af=rtm->rtm_family,
+				.mask=rtm->rtm_dst_len,
+				.ip=(rtm->rtm_family==AF_INET6) ? *((IPX_T *) RTA_DATA(rtap)) : ip4ToX(*((IP4_T *) RTA_DATA(rtap)))
+			};
 
-				kernel_set_route(IP_ROUTE_FLUSH, DEL, NO, &net, table, 0, 0, NULL, NULL, 0);
+			kernel_set_route(IP_ROUTE_FLUSH, DEL, NO, &net, table, 0, 0, NULL, NULL, 0);
 				dbgf_sys(DBGT_ERR, "removed orphan %s route=%s table=%d", family2Str(net.af), netAsStr(&net), table);
 		}
 

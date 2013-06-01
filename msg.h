@@ -588,7 +588,7 @@ struct description { // 48 bytes
 	GLOBAL_ID_T globalId; // 32 bytes
 
         uint16_t revision; // 2 bytes //TODO: increase to 4 bytes
-	uint16_t capabilities;// 2 bytes
+	uint16_t capabilities;
 
         DESC_SQN_T descSqn;   // 2 bytes
 

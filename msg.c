@@ -3370,7 +3370,7 @@ IDM_T validate_description(struct description *desc)
         }
 
         if (
-                validate_param(desc->reservedTtl, MIN_TTL, MAX_TTL, ARG_TTL) ||
+                //validate_param(desc->reservedTtl, MIN_TTL, MAX_TTL, ARG_TTL) || // may be reused for other purpose (eg as capabilities)
                 validate_param(ntohs(desc->ogmSqnRange), _MIN_OGM_SQN_RANGE, _MAX_OGM_SQN_RANGE, ARG_OGM_SQN_RANGE) ||
                 validate_param(ntohs(desc->txInterval), MIN_TX_INTERVAL, MAX_TX_INTERVAL, ARG_TX_INTERVAL) ||
                 0
@@ -3539,10 +3539,10 @@ void update_my_description_adv(void)
         dsc->txInterval = htons(my_tx_interval);
 
         uint32_t rev_u32;
-        char rev_string[5];
+        char rev_string[9];
         strncpy( rev_string, GIT_REV, sizeof(rev_string));
         rev_string[sizeof(rev_string)-1] = 0;
-        sscanf(rev_string, "%X", &rev_u32);
+        sscanf(rev_string, "%4X", &rev_u32);
 
         dsc->revision = htons(rev_u32);
         dsc->descSqn = htons(++(self->descSqn));

@@ -1786,7 +1786,7 @@ void register_status_handl(uint16_t min_msg_size, IDM_T multiline, const struct 
 struct bmx_status {
         char version[(sizeof(BMX_BRANCH)-1) + (sizeof("-")-1) + (sizeof(BRANCH_VERSION)-1) + 1];
         uint16_t compat;
-        char* revision;
+        char revision[9];
         GLOBAL_ID_T *globalId;
         IPX_T primaryIp;
         struct net_key *tun6Address;
@@ -1800,7 +1800,7 @@ struct bmx_status {
 static const struct field_format bmx_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       bmx_status, version,       1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              bmx_status, compat,        1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      bmx_status, revision,      1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       bmx_status, revision,      1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, bmx_status, globalId,      1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_IPX,               bmx_status, primaryIp,     1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_NETP,              bmx_status, tun6Address,   1, FIELD_RELEVANCE_HIGH),
@@ -1818,7 +1818,7 @@ static int32_t bmx_status_creator(struct status_handl *handl, void *data)
         struct bmx_status *status = (struct bmx_status *) (handl->data = debugRealloc(handl->data, sizeof (struct bmx_status), -300365));
         sprintf(status->version, "%s-%s", BMX_BRANCH, BRANCH_VERSION);
         status->compat = COMPATIBILITY_VERSION;
-        status->revision = GIT_REV;
+	snprintf(status->revision, 8, GIT_REV);
         status->globalId = &self->global_id;
         status->primaryIp = self->primary_ip;
         status->tun4Address = tin ? &tin->tunAddr46[1] : NULL;

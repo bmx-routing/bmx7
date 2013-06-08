@@ -1,6 +1,6 @@
 
 CFLAGS +=	$(CORE_CFLAGS) -fpic -I../../
-LDFLAGS +=	-shared -ljson
+LDFLAGS +=	-shared
 #-Wl,-soname,bmxd_config 
 
 PLUGIN_NAME =   bmx6_json
@@ -19,7 +19,7 @@ all:	$(PLUGIN_FULLNAME) Makefile
 
 
 $(PLUGIN_FULLNAME):	$(OBJS) Makefile
-	$(CC) $(LDFLAGS) $(EXTRA_LDFLAGS) $(OBJS) -o $(PLUGIN_FULLNAME) 
+	$(CC) $(LDFLAGS) -ljson $(EXTRA_LDFLAGS) $(OBJS) -o $(PLUGIN_FULLNAME) || $(CC) $(LDFLAGS) -ljson-c $(EXTRA_LDFLAGS) $(OBJS) -o $(PLUGIN_FULLNAME)
 	ln -f -s $(THISDIR)/$(PLUGIN_FULLNAME) $(THISDIR)/../$(PLUGIN_FULLNAME)
 
 %.o:	%.c %.h Makefile

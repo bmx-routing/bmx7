@@ -364,8 +364,8 @@ struct tun_bit_key_nodes {
 struct tun_bit_key {
         uint32_t beIpRule;
         uint32_t beIpMetric;
+        struct net_key invRouteKey;
         UMETRIC_T beInvTunBitMetric;
-        struct net_key invNetKey;
         struct tun_bit_key_nodes keyNodes;
 } __attribute__((packed));
 
@@ -373,9 +373,11 @@ struct tun_bit_node {
 
         struct tun_bit_key tunBitKey;
 
-        uint32_t ipTable;
         //uint8_t active; //REMOVE
 	struct tun_dev_node *active_tdn;
+
+        uint32_t ipTable;
+	IDM_T possible;
 };
 
 
@@ -397,8 +399,8 @@ struct tun_search_node {
         struct net_key net;
         uint8_t netPrefixMin;
         uint8_t netPrefixMax;
-        uint8_t allowOverlappingLargerPrefixes;
-        uint8_t breakOverlappingSmallerPrefixes;
+        uint8_t allowLargerPrefixRoutesWithWorseTunMetric;
+        uint8_t breakSmallerPrefixRoutesWithBetterTunMetric;
         
         uint32_t hysteresis;
         uint32_t bonus;

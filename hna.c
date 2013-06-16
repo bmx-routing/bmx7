@@ -844,14 +844,13 @@ void tun_out_catchAll_hook(int fd)
 			struct tun_bit_node *tbn;
 			while( (tbn=avl_iterate_item(&tun_bit_tree, &an)) ) {
 
-				if (tbn->active_tdn && tbn->tunBitKey.invNetKey.af == af) {
+				if (tbn->active_tdn && tbn->tunBitKey.invRouteKey.af == af) {
 
-					uint8_t mask = 128 - tbn->tunBitKey.invNetKey.mask;
+					uint8_t mask = 128 - tbn->tunBitKey.invRouteKey.mask;
 
-					if (is_ip_net_equal(dst, &tbn->tunBitKey.invNetKey.ip, mask, af)) {
+					if (is_ip_net_equal(dst, &tbn->tunBitKey.invRouteKey.ip, mask, af)) {
 
-						struct tun_net_node *tnn = tbn->tunBitKey.keyNodes.tnn;
-						ton = tnn->tunNetKey.ton;
+						ton = tbn->tunBitKey.keyNodes.tnn->tunNetKey.ton;
 
 						if (tbn->active_tdn->tunCatch_fd) {
 
@@ -1297,8 +1296,8 @@ void configure_tun_bit(uint8_t del, struct tun_bit_node *tbn, IDM_T tdn_state)
 	struct tun_out_node *ton = tnn->tunNetKey.ton;
 	//uint8_t isv4 = (tsn->net.af==AF_INET);
 	uint8_t rtype = tnn->tunNetKey.bmx6RouteType;
-	struct net_key netKey = tbn->tunBitKey.invNetKey;
-	netKey.mask = 128 - netKey.mask;
+	struct net_key routeKey = tbn->tunBitKey.invRouteKey;
+	routeKey.mask = 128 - routeKey.mask;
         struct route_export rte, *rtep = NULL;
         if( tsn->exportDistance != TYP_EXPORT_DISTANCE_INFINITE ) {
                 memset(&rte, 0, sizeof(rte));
@@ -1311,14 +1310,14 @@ void configure_tun_bit(uint8_t del, struct tun_bit_node *tbn, IDM_T tdn_state)
 	int dbgl = DBGL_ALL;
 
 	assertion(-501490, (tsn->net.af == tnn->tunNetKey.netKey.af));
-	assertion(-501491, (tsn->net.af == tbn->tunBitKey.invNetKey.af));
+	assertion(-501491, (tsn->net.af == tbn->tunBitKey.invRouteKey.af));
 	assertion(-501492, (tdn_state==TDN_STATE_CURRENT || tdn_state==TDN_STATE_DEDICATED || tdn_state==TDN_STATE_CATCHALL));
 
         if (del && tbn->active_tdn) {
 
 		dbgl = DBGL_CHANGES;
 
-                iproute((IP_ROUTE_TUNS + rtype), DEL, NO, &netKey, tbn->ipTable, 0, tbn->active_tdn->ifIdx, NULL, NULL, ntohl(tbn->tunBitKey.beIpMetric), rtep);
+                iproute((IP_ROUTE_TUNS + rtype), DEL, NO, &routeKey, tbn->ipTable, 0, tbn->active_tdn->ifIdx, NULL, NULL, ntohl(tbn->tunBitKey.beIpMetric), rtep);
 
 		tun_dev_out_del( tbn );
 
@@ -1329,15 +1328,15 @@ void configure_tun_bit(uint8_t del, struct tun_bit_node *tbn, IDM_T tdn_state)
 		dbgl = DBGL_CHANGES;
 
 		if (tbn->active_tdn)
-			iproute((IP_ROUTE_TUNS + rtype), DEL, NO, &netKey, tbn->ipTable, 0, tbn->active_tdn->ifIdx, NULL, NULL, ntohl(tbn->tunBitKey.beIpMetric), rtep);
+			iproute((IP_ROUTE_TUNS + rtype), DEL, NO, &routeKey, tbn->ipTable, 0, tbn->active_tdn->ifIdx, NULL, NULL, ntohl(tbn->tunBitKey.beIpMetric), rtep);
 
 		tun_dev_out_add( tbn, tdn_state );
 		assertion(-501540, (tbn->active_tdn));
-		iproute((IP_ROUTE_TUNS + rtype), ADD, NO, &netKey, tbn->ipTable, 0, tbn->active_tdn->ifIdx, NULL, NULL, ntohl(tbn->tunBitKey.beIpMetric), rtep);
+		iproute((IP_ROUTE_TUNS + rtype), ADD, NO, &routeKey, tbn->ipTable, 0, tbn->active_tdn->ifIdx, NULL, NULL, ntohl(tbn->tunBitKey.beIpMetric), rtep);
         }
 
 	dbgf(dbgl, DBGT_INFO, "%s %s via orig %s asDfltTun=%d tbn_active=%s",
-	       del?"DEL":"ADD", netAsStr(&netKey), globalIdAsString(&ton->tunOutKey.on->global_id),
+	       del?"DEL":"ADD", netAsStr(&routeKey), globalIdAsString(&ton->tunOutKey.on->global_id),
 	       tdn_state, tbn->active_tdn ? tbn->active_tdn->nameKey.str : "---");
 
 }
@@ -1419,8 +1418,8 @@ void _add_tun_bit_node(struct tun_search_node *tsna, struct tun_net_node *tnna)
 				tbn->tunBitKey.beIpRule = htonl(tbkn.tsn->iprule);
                                 tbn->tunBitKey.beIpMetric = htonl(tbkn.tsn->ipmetric);
                                 tbn->tunBitKey.keyNodes = tbkn;
-                                tbn->tunBitKey.invNetKey = tsn_netKey->mask > tnn_netKey->mask ? *tsn_netKey : *tnn_netKey;
-                                tbn->tunBitKey.invNetKey.mask = 128 - tbn->tunBitKey.invNetKey.mask;
+                                tbn->tunBitKey.invRouteKey = tsn_netKey->mask > tnn_netKey->mask ? *tsn_netKey : *tnn_netKey;
+                                tbn->tunBitKey.invRouteKey.mask = 128 - tbn->tunBitKey.invRouteKey.mask;
 
 				tbn->ipTable = tbkn.tsn->iptable;
 
@@ -1567,77 +1566,116 @@ void eval_tun_bit_tree(void  *onlyIfOrderChanged)
 
 		uint32_t af = isv4 ? AF_INET : AF_INET6;
                 struct tun_bit_node *tbn_begin = NULL;
-
+		IDM_T tbn_range_allowLarger = YES;
 
                 while ((tbn_curr = avl_next_item(&tun_bit_tree, tbn_curr ? &tbn_curr->tunBitKey : NULL))) {
 
-                        if (af != tbn_curr->tunBitKey.invNetKey.af)
+                        if (af != tbn_curr->tunBitKey.invRouteKey.af)
                                 continue;
 
-			assertion(-501564, (tbn_curr->tunBitKey.keyNodes.tnn ));
-			assertion(-501565, (tbn_curr->tunBitKey.keyNodes.tnn->tunNetKey.ton ));
-			assertion(-501566, (assert_tbn_ton_tdn(isv4, tbn_curr->tunBitKey.keyNodes.tnn->tunNetKey.ton, tbn_curr)));
+			struct tun_bit_key currBKey = tbn_curr->tunBitKey;
+			struct net_key currRoute = {.af = af, .ip=currBKey.invRouteKey.ip, .mask=128-currBKey.invRouteKey.mask};
+
+			assertion(-501564, (currBKey.keyNodes.tnn ));
+			assertion(-501565, (currBKey.keyNodes.tnn->tunNetKey.ton ));
+			assertion(-501566, (assert_tbn_ton_tdn(isv4, currBKey.keyNodes.tnn->tunNetKey.ton, tbn_curr)));
 			
                         if (!tbn_begin || 
-				tbn_begin->tunBitKey.beIpRule != tbn_curr->tunBitKey.beIpRule ||
-				tbn_begin->tunBitKey.beIpMetric != tbn_curr->tunBitKey.beIpMetric)
+				tbn_begin->tunBitKey.beIpRule != currBKey.beIpRule ||
+				tbn_begin->tunBitKey.beIpMetric != currBKey.beIpMetric ||
+				tbn_begin->tunBitKey.invRouteKey.af != currBKey.invRouteKey.af) {
+
+				struct tun_bit_node *tbn_range;
+
                                 tbn_begin = tbn_curr;
+				tbn_range_allowLarger = YES;
+
+				// check if any tbn in current range has tsn->allowLarger == NO:
+
+				for (tbn_range = tbn_begin;
+					( tbn_range &&
+					  tbn_range->tunBitKey.beIpRule == tbn_begin->tunBitKey.beIpRule &&
+					  tbn_range->tunBitKey.beIpMetric == tbn_begin->tunBitKey.beIpMetric &&
+					  tbn_range->tunBitKey.invRouteKey.af == tbn_begin->tunBitKey.invRouteKey.af );
+					tbn_range = avl_next_item(&tun_bit_tree, &tbn_range->tunBitKey)) {
+
+					if (!tbn_range->tunBitKey.keyNodes.tsn->allowLargerPrefixRoutesWithWorseTunMetric)
+						tbn_range_allowLarger = NO;
+
+					tbn_range->possible = YES;
+				}
+			}
+
+			dbgf_all(DBGT_INFO, "current: pref=%d ipmetric=%d route=%s tunMtc=%s gw=%s possible=%d dev=%s",
+				ntohl(currBKey.beIpRule), ntohl(currBKey.beIpMetric), netAsStr(&currRoute),
+				umetric_to_human(UMETRIC_MAX - ntoh64(currBKey.beInvTunBitMetric)),
+				globalIdAsString(&tbn_curr->tunBitKey.keyNodes.tnn->tunNetKey.ton->tunOutKey.on->global_id),
+				tbn_curr->possible, tbn_curr->active_tdn ? tbn_curr->active_tdn->nameKey.str : "---");
+
+			if (!tbn_curr->possible)
+				continue;
 
                         struct tun_bit_node *tbn_crash;
-                        uint8_t crash_is_better = YES;
 
-                        for (tbn_crash = tbn_begin;
-				tbn_crash &&
-				tbn_crash->tunBitKey.beIpRule == tbn_begin->tunBitKey.beIpRule &&
-				tbn_crash->tunBitKey.beIpMetric == tbn_begin->tunBitKey.beIpMetric;
+                        for (tbn_crash = avl_next_item(&tun_bit_tree, &tbn_curr->tunBitKey);
+				( tbn_crash &&
+				  tbn_crash->tunBitKey.beIpRule == tbn_begin->tunBitKey.beIpRule &&
+				  tbn_crash->tunBitKey.beIpMetric == tbn_begin->tunBitKey.beIpMetric  &&
+				  tbn_crash->tunBitKey.invRouteKey.af == tbn_begin->tunBitKey.invRouteKey.af );
                                 tbn_crash = avl_next_item(&tun_bit_tree, &tbn_crash->tunBitKey)) {
 
-                                if (af != tbn_crash->tunBitKey.invNetKey.af)
-                                        continue;
+				struct tun_bit_key crashBKey = tbn_crash->tunBitKey;
+				struct net_key crashRoute = {.af = af, .ip=crashBKey.invRouteKey.ip, .mask=128-crashBKey.invRouteKey.mask};
+				IDM_T break_loop=NO;
 
-                                struct net_key currNet = tbn_curr->tunBitKey.invNetKey;
-                                currNet.mask = 128 - currNet.mask;
-                                struct net_key crashNet = tbn_crash->tunBitKey.invNetKey;
-                                crashNet.mask = 128 - crashNet.mask;
+                                assertion(-500000, (tbn_crash != tbn_curr) );
 
-                                if (tbn_crash == tbn_curr) {
+				if (currRoute.mask == crashRoute.mask &&
+					is_ip_net_equal(&currRoute.ip, &crashRoute.ip, crashRoute.mask, af)) {
 
-                                        crash_is_better = NO;
+					if (tbn_crash->active_tdn)
+						configure_tun_bit(DEL, tbn_crash, TDN_STATE_CURRENT);
 
-                                } else if (crash_is_better) {
+					tbn_crash->possible = NO;
 
-                                        if (currNet.mask >= crashNet.mask && is_ip_net_equal(&currNet.ip, &crashNet.ip, crashNet.mask, af) &&
-                                                // curr is equal or more specific:
-                                                (currNet.mask == crashNet.mask ||
-                                                !(tbn_crash->tunBitKey.keyNodes.tsn->allowOverlappingLargerPrefixes &&
-                                                  tbn_curr->tunBitKey.keyNodes.tsn->breakOverlappingSmallerPrefixes) ) ) {
+				} else if (tbn_range_allowLarger &&
+					currBKey.keyNodes.tsn->breakSmallerPrefixRoutesWithBetterTunMetric) {
 
-                                                if (tbn_curr->active_tdn)
-                                                        configure_tun_bit(DEL, tbn_curr, TDN_STATE_CURRENT);
+					break_loop=YES;
 
-                                                break;
-                                        }
+				} else if (
+					!(crashBKey.keyNodes.tsn->allowLargerPrefixRoutesWithWorseTunMetric &&
+					  currBKey.keyNodes.tsn->breakSmallerPrefixRoutesWithBetterTunMetric) &&
+					is_ip_net_equal(&currRoute.ip, &crashRoute.ip, crashRoute.mask, af) &&
+					((UMETRIC_MAX - ntoh64(crashBKey.beInvTunBitMetric)) >
+					 (UMETRIC_MAX - ntoh64(currBKey.beInvTunBitMetric)))
+					) {
 
-                                } else { // curr is better:
+					tbn_curr->possible = NO;
+					configure_tun_bit(DEL, tbn_curr, TDN_STATE_CURRENT);
+					break_loop=YES;
+				}
 
-                                        if ( currNet.mask <= crashNet.mask && is_ip_net_equal(&currNet.ip, &crashNet.ip, currNet.mask, af) &&
-                                                // crash is equal or more specific:
-                                                (currNet.mask == crashNet.mask ||
-                                                !(tbn_crash->tunBitKey.keyNodes.tsn->breakOverlappingSmallerPrefixes &&
-                                                  tbn_curr->tunBitKey.keyNodes.tsn->allowOverlappingLargerPrefixes))
-                                                ) {
 
-                                                if (tbn_crash->active_tdn)
-                                                        configure_tun_bit(DEL, tbn_crash, TDN_STATE_CURRENT);
-                                        }
-                                }
-                        }
+				dbgf_all(DBGT_INFO, " crash?: pref=%d ipmetric=%d route=%s tunMtc=%s gw=%s possible=%d dev=%s ",
+				ntohl(crashBKey.beIpRule), ntohl(crashBKey.beIpMetric), netAsStr(&crashRoute),
+				umetric_to_human(UMETRIC_MAX - ntoh64(crashBKey.beInvTunBitMetric)),
+				globalIdAsString(&tbn_crash->tunBitKey.keyNodes.tnn->tunNetKey.ton->tunOutKey.on->global_id),
+				tbn_crash->possible, tbn_crash->active_tdn ? tbn_crash->active_tdn->nameKey.str : "---");
 
-                        if (!tbn_crash || 
-				tbn_crash->tunBitKey.beIpRule != tbn_begin->tunBitKey.beIpRule ||
-				tbn_crash->tunBitKey.beIpMetric != tbn_begin->tunBitKey.beIpMetric )
-                                configure_tun_bit(ADD, tbn_curr, TDN_STATE_CURRENT);
+				if (break_loop)
+					break;
+			}
 
+			if (tbn_curr->possible) {
+				dbgf_all(DBGT_INFO, " adding: pref=%d ipmetric=%d route=%s tunMtc=%s gw=%s possible=%d dev=%s ",
+					ntohl(currBKey.beIpRule), ntohl(currBKey.beIpMetric), netAsStr(&currRoute),
+					umetric_to_human(UMETRIC_MAX - ntoh64(currBKey.beInvTunBitMetric)),
+					globalIdAsString(&tbn_curr->tunBitKey.keyNodes.tnn->tunNetKey.ton->tunOutKey.on->global_id),
+					tbn_curr->possible, tbn_curr->active_tdn ? tbn_curr->active_tdn->nameKey.str : "---");
+
+				configure_tun_bit(ADD, tbn_curr, TDN_STATE_CURRENT);
+			}
                 }
         }
 }
@@ -2417,7 +2455,7 @@ static int32_t tun_out_status_creator(struct status_handl *handl, void *data)
                         }
                         
                         if (tbn) {
-                                struct net_key tunRoute = tbn->tunBitKey.invNetKey;
+                                struct net_key tunRoute = tbn->tunBitKey.invRouteKey;
                                 tunRoute.mask = tbn ? (128 - tunRoute.mask) : 0;
                                 sprintf(status->tunRoute, netAsStr(&tunRoute));
 
@@ -2439,8 +2477,8 @@ static int32_t tun_out_status_creator(struct status_handl *handl, void *data)
                                 status->id = &(tsn->global_id);
                                 status->min = tsn->netPrefixMin == TYP_TUN_OUT_PREFIX_NET ? tsn->net.mask : tsn->netPrefixMin;
                                 status->max = tsn->netPrefixMax == TYP_TUN_OUT_PREFIX_NET ? tsn->net.mask : tsn->netPrefixMax;
-                                status->aOLP = tsn->allowOverlappingLargerPrefixes;
-                                status->bOSP = tsn->breakOverlappingSmallerPrefixes;
+                                status->aOLP = tsn->allowLargerPrefixRoutesWithWorseTunMetric;
+                                status->bOSP = tsn->breakSmallerPrefixRoutesWithBetterTunMetric;
                                 status->hyst = tsn->hysteresis;
                                 status->bonus = tsn->bonus;
 				status->minBw = tsn->minBW ? &tsn->minBW : NULL;
@@ -2584,8 +2622,8 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
 				tsn->minBW = DEF_TUN_OUT_MIN_BW;
                                 tsn->netPrefixMin = DEF_TUN_OUT_PREFIX_MIN;
                                 tsn->netPrefixMax = DEF_TUN_OUT_PREFIX_MAX;
-                                tsn->allowOverlappingLargerPrefixes = DEF_TUN_OUT_OVLP_ALLOW;
-                                tsn->breakOverlappingSmallerPrefixes = DEF_TUN_OUT_OVLP_BREAK;
+                                tsn->allowLargerPrefixRoutesWithWorseTunMetric = DEF_TUN_OUT_OVLP_ALLOW;
+                                tsn->breakSmallerPrefixRoutesWithBetterTunMetric = DEF_TUN_OUT_OVLP_BREAK;
                         } else if (tsn) {
                                 upd_tun_bit_node(DEL, tsn, NULL);
                                 assertion(-501392, !(tsn->tun_bit_tree.items));
@@ -2771,10 +2809,10 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                                         tsn->netPrefixMax = c->val ? strtol(c->val, NULL, 10) : DEF_TUN_OUT_PREFIX_MAX;
 
                                } else if (!strcmp(c->opt->name, ARG_TUN_OUT_OVLP_ALLOW)) {
-                                       tsn->allowOverlappingLargerPrefixes = c->val ? strtol(c->val, NULL, 10) : DEF_TUN_OUT_OVLP_ALLOW;
+                                       tsn->allowLargerPrefixRoutesWithWorseTunMetric = c->val ? strtol(c->val, NULL, 10) : DEF_TUN_OUT_OVLP_ALLOW;
 
                                } else if (!strcmp(c->opt->name, ARG_TUN_OUT_OVLP_BREAK)) {
-                                       tsn->breakOverlappingSmallerPrefixes = c->val ? strtol(c->val, NULL, 10) : DEF_TUN_OUT_OVLP_BREAK;
+                                       tsn->breakSmallerPrefixRoutesWithBetterTunMetric = c->val ? strtol(c->val, NULL, 10) : DEF_TUN_OUT_OVLP_BREAK;
 
                                } else if (!strcmp(c->opt->name, ARG_TUN_OUT_IPMETRIC)) {
                                        tsn->ipmetric = c->val ? strtol(c->val, NULL, 10) : DEF_TUN_OUT_IPMETRIC;

@@ -1439,15 +1439,18 @@ void update_my_link_adv(uint32_t changes)
         my_link_adv_changes += changes;
 
         // no need to increment link_adv_sqn if no packet has been emitted since last link_adv change:
-        if (!terminating && last_link_packet_sqn != my_packet_sqn) {
+        if (last_link_packet_sqn != my_packet_sqn && !terminating) {
 
-                if (!(my_link_adv_changes >= LINKADV_CHANGES_CRITICAL ||
+                if (my_link_adv_changes >= LINKADV_CHANGES_CRITICAL ||
                         (my_link_adv_changes >= LINKADV_CHANGES_NEW && ((TIME_T) (bmx_time - last_link_adv_time)) >= LINKADV_INTERVAL_NEW) ||
-                        (my_link_adv_changes >= LINKADV_CHANGES_REMOVED && ((TIME_T) (bmx_time - last_link_adv_time)) >= LINKADV_INTERVAL_REMOVED) ))
-                        return;
+                        (my_link_adv_changes >= LINKADV_CHANGES_REMOVED && ((TIME_T) (bmx_time - last_link_adv_time)) >= LINKADV_INTERVAL_REMOVED) ) {
 
-                last_link_packet_sqn = my_packet_sqn;
-                my_link_adv_sqn++;
+			last_link_packet_sqn = my_packet_sqn;
+			my_link_adv_sqn++;
+
+		} else {
+			return;
+		}
         }
 
         last_link_adv_time = bmx_time;
@@ -2483,13 +2486,15 @@ int32_t rx_msg_hello_adv(struct rx_frame_iterator *it)
 
         update_link_probe_record(pb->i.lndev, hello_sqn, 1);
 
-
+	// check if this link is currently ignored in our link_adv frames but
+	// is actually a reasonable good link which should be included so that
+	// also link_rp msgs could be send:
         if (pb->i.lndev->link_adv_msg == LINKADV_MSG_IGNORED && (
-                pb->i.lndev == pb->i.link->local->best_rp_lndev ||
-                (pb->i.lndev->timeaware_rx_probe * LINKADV_ADD_RP_4DIF >=
+                pb->i.lndev == pb->i.link->local->best_rp_lndev || // its our best link or
+                (pb->i.lndev->timeaware_rx_probe * LINKADV_ADD_RP_4DIF >= // its reasonable good compared to our best link
                 pb->i.link->local->best_rp_lndev->timeaware_rx_probe * LINKADV_ADD_RP_4MAX)
                 )) {
-
+		// then: create new link_adv frame which includes this link.
                 update_my_link_adv(LINKADV_CHANGES_NEW);
         }
 

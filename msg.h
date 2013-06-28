@@ -475,13 +475,19 @@ struct msg_dev_req { // 4 byte
 
 
 
-#define LINKADV_INTERVAL_REMOVED 10000
-#define LINKADV_INTERVAL_NEW 2000
+
+// directives indicating the importance for recalculating the link_adv msg array
 #define LINKADV_CHANGES_NONE     0
-#define LINKADV_CHANGES_REMOVED  1
-#define LINKADV_CHANGES_NEW      1000
-#define LINKADV_CHANGES_CRITICAL 1000000
-#define LINKADV_MSG_IGNORED -1
+#define LINKADV_CHANGES_REMOVED  1        // recalculate, but at most once each LINKADV_INTERVAL_REMOVED ms
+#define LINKADV_CHANGES_NEW      1000     // recalculate, but at most once each LINKADV_INTERVAL_NEW ms
+#define LINKADV_CHANGES_CRITICAL 1000000  // recalculate now!
+
+#define LINKADV_INTERVAL_REMOVED 10000
+#define LINKADV_INTERVAL_NEW     2000
+
+#define LINKADV_MSG_IGNORED -1 // used to identify links that are currently not announed via link_adv msgs
+
+// used to calculate the relevance of a link compared to the best current link:
 #define LINKADV_ADD_RP_4DIF 4
 #define LINKADV_ADD_RP_4MIN 2
 #define LINKADV_ADD_RP_4MAX 3

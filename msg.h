@@ -584,11 +584,11 @@ struct msg_dhash_adv { // 2 + X bytes
 
 
 
-struct description { // 48 bytes
-	GLOBAL_ID_T globalId; // 32 bytes
+struct description { // 68 bytes
+	GLOBAL_ID_T globalId; // 32 bytes name + 20 bytes pkid
 
         uint16_t revision; // 2 bytes //TODO: increase to 4 bytes
-	uint16_t capabilities;
+	uint16_t capabilities; // 2 bytes
 
         DESC_SQN_T descSqn;   // 2 bytes
 
@@ -615,7 +615,7 @@ struct msg_description_adv { // IPv6: >= 92 bytes
 	IID_T    transmitterIID4x; // 2 bytes
 
 	// the hashed pard:
-	struct description desc;   // 48 bytes + extension frames (>= (metric-algo:2+16 bytes + hna6: 2+(x*22) bytes  ))
+	struct description desc;   // 68 bytes + extension frames (>= (metric-algo:2+16 bytes + hna6: 2+(x*22) bytes  ))
 
 } __attribute__((packed));
 

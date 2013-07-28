@@ -417,7 +417,7 @@ struct dev_node {
 	uint8_t active;
 	uint8_t activate_again;
 	uint8_t activate_cancelled;
-	uint16_t lndevs_tmp;
+	uint8_t tmp_flag_for_to_be_send_adv;
 
 //	DEVADV_IDX_T dev_adv_idx; //TODO: Remove (use llip_key.idx instead)
 	int16_t dev_adv_msg;

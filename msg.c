@@ -770,17 +770,17 @@ void create_ogm_aggregation(void)
 
 
 static struct link_dev_node **lndev_arr = NULL;
-static uint16_t lndev_arr_items = 0;
 
 STATIC_FUNC
 void lndevs_prepare(void)
 {
         TRACE_FUNCTION_CALL;
 
+	static uint16_t lndev_arr_items = 0;
         struct avl_node *an;
         struct dev_node *dev;
 
-        if (lndev_arr_items < dev_ip_tree.items + 1) {
+        if (lndev_arr_items != dev_ip_tree.items + 1) {
 
                 if (lndev_arr)
                         debugFree(lndev_arr, -300180);
@@ -790,7 +790,7 @@ void lndevs_prepare(void)
         }
 
         for (an = NULL; (dev = avl_iterate_item(&dev_ip_tree, &an));)
-                dev->lndevs_tmp = NO;
+                dev->tmp_flag_for_to_be_send_adv = NO;
 }
 
 
@@ -820,23 +820,21 @@ struct link_dev_node **lndevs_get_unacked_ogm_neighbors(struct ogm_aggreg_node *
                 
                 IDM_T not_acked = bit_get(neigh->ogm_aggregations_not_acked, AGGREG_SQN_CACHE_RANGE, oan->sqn);
 
-                if (not_acked || oan->tx_attempt == 0) {
+                if (not_acked || 
+			oan->tx_attempt == 0/*first ogm-adv frame shall be send to all neighbors*/) {
 
-                        struct dev_node *dev_best = local->best_tp_lndev->key.dev;
+			struct link_dev_node *best_lndev = local->best_tp_lndev;
+			assertion(-500446, (best_lndev->key.dev));
+			assertion(-500447, (best_lndev->key.dev->active));
+			assertion(-500444, (d <= dev_ip_tree.items));
 
                         dbgf_all(DBGT_INFO, "  redundant=%d via dev=%s to local_id=%X dev_idx=0x%X",
-                                dev_best->lndevs_tmp, dev_best->label_cfg.str,
-                                ntohl(local->best_tp_lndev->key.link->key.local_id),
-                                local->best_tp_lndev->key.link->key.dev_idx);
+                                best_lndev->key.dev->tmp_flag_for_to_be_send_adv, best_lndev->key.dev->label_cfg.str,
+                                ntohl(best_lndev->key.link->key.local_id), best_lndev->key.link->key.dev_idx);
 
-                        if (dev_best->lndevs_tmp == NO) {
-
-                                assertion(-500446, (dev_best));
-                                assertion(-500447, (dev_best->active));
-                                assertion(-500444, (d <= dev_ip_tree.items));
-
-                                lndev_arr[d++] = local->best_tp_lndev;
-                                dev_best->lndevs_tmp = YES;
+                        if (best_lndev->key.dev->tmp_flag_for_to_be_send_adv == NO) {
+                                lndev_arr[d++] = best_lndev;
+                                best_lndev->key.dev->tmp_flag_for_to_be_send_adv = YES;
                         }
 
                         if (not_acked) {
@@ -850,8 +848,8 @@ struct link_dev_node **lndevs_get_unacked_ogm_neighbors(struct ogm_aggreg_node *
 
                                 dbg_track(DBGT_WARN, "schedule ogm_aggregation_sqn=%3d msgs=%2d dest_bytes=%d tx_attempt=%2d/%d via dev=%s to NB=%s",
                                         oan->sqn, oan->aggregated_msgs, oan->ogm_dest_bytes, (oan->tx_attempt + 1),
-                                        ogm_adv_tx_iters, local->best_tp_lndev->key.dev->label_cfg.str,
-                                        ipFAsStr(&local->best_tp_lndev->key.link->link_ip));
+                                        ogm_adv_tx_iters, best_lndev->key.dev->label_cfg.str,
+                                        ipFAsStr(&best_lndev->key.link->link_ip));
                         }
                 }
         }
@@ -878,22 +876,19 @@ struct link_dev_node **lndevs_get_best_tp(struct local_node *except_local)
 
                 if (except_local != local) {
 
-                        assertion(-500445, (local->best_tp_lndev && local->best_tp_lndev->key.dev));
+			struct link_dev_node *best_lndev = local->best_tp_lndev;
 
-                        struct dev_node *dev_best = local->best_tp_lndev->key.dev;
-
-                        assertion(-500446, (dev_best));
-                        assertion(-500447, (dev_best->active));
+                        assertion(-500445, (best_lndev));
+                        assertion(-500446, (best_lndev->key.dev));
+                        assertion(-500447, (best_lndev->key.dev->active));
 
                         dbgf_all(DBGT_INFO, "  via dev=%s to local_id=%X dev_idx=0x%X (redundant %d)",
-                                dev_best->label_cfg.str, ntohl(local->best_tp_lndev->key.link->key.local_id),
-                                local->best_tp_lndev->key.link->key.dev_idx, dev_best->lndevs_tmp);
+                                best_lndev->key.dev->label_cfg.str, ntohl(best_lndev->key.link->key.local_id),
+                                best_lndev->key.link->key.dev_idx, best_lndev->key.dev->tmp_flag_for_to_be_send_adv);
 
-                        if (dev_best->lndevs_tmp == NO) {
-
-                                lndev_arr[d++] = local->best_tp_lndev;
-
-                                dev_best->lndevs_tmp = YES;
+                        if (best_lndev->key.dev->tmp_flag_for_to_be_send_adv == NO) {
+                                lndev_arr[d++] = best_lndev;
+                                best_lndev->key.dev->tmp_flag_for_to_be_send_adv = YES;
                         }
 
                         assertion(-500444, (d <= dev_ip_tree.items));

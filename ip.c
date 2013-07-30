@@ -836,7 +836,7 @@ IDM_T kernel_get_if_config_post(IDM_T purge_all, uint16_t curr_sqn)
 
                         addr = ian->ip_addr;
 
-                        if ( purge_all || curr_sqn != ian->update_sqn) {
+                        if ( purge_all || curr_sqn != ian->update_sqn || curr_sqn != iln->update_sqn) {
 
                                 dbgf_track(DBGT_WARN, "addr index %d %s addr %s REMOVED",
                                         iln->index, ian->label.str, ipXAsStr(ian->ifa.ifa_family, &ian->ip_addr));

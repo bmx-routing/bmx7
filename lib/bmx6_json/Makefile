@@ -19,7 +19,7 @@ all:	$(PLUGIN_FULLNAME) Makefile
 
 
 $(PLUGIN_FULLNAME):	$(OBJS) Makefile
-	$(CC) $(LDFLAGS) -ljson $(EXTRA_LDFLAGS) $(OBJS) -o $(PLUGIN_FULLNAME) || $(CC) $(LDFLAGS) -ljson-c $(EXTRA_LDFLAGS) $(OBJS) -o $(PLUGIN_FULLNAME)
+	$(CC) $(LDFLAGS) -ljson-c $(EXTRA_LDFLAGS) $(OBJS) -o $(PLUGIN_FULLNAME) || $(CC) $(LDFLAGS) -ljson $(EXTRA_LDFLAGS) $(OBJS) -o $(PLUGIN_FULLNAME)
 	ln -f -s $(THISDIR)/$(PLUGIN_FULLNAME) $(THISDIR)/../$(PLUGIN_FULLNAME)
 
 %.o:	%.c %.h Makefile

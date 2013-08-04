@@ -1049,7 +1049,7 @@ IDM_T assert_tbn_ton_tdn(IDM_T isv4, struct tun_out_node *ton, struct tun_bit_no
 
 	assertion(-501557, IMPLIES(tbn, tbn->tunBitKey.keyNodes.tnn ));
 	assertion(-501558, IMPLIES(tbn, ton == tbn->tunBitKey.keyNodes.tnn->tunNetKey.ton ));
-	assertion(-501559, IMPLIES(tbn, tbn->active_tdn==tbn->tunBitKey.keyNodes.tnn->tunNetKey.ton->tdnCatchAll[isv4] || tbn->active_tdn==tbn->tunBitKey.keyNodes.tnn->tunNetKey.ton->tdnDedicated[isv4] ));
+//	assertion(-501559, IMPLIES(tbn, tbn->active_tdn==tbn->tunBitKey.keyNodes.tnn->tunNetKey.ton->tdnCatchAll[isv4] || tbn->active_tdn==tbn->tunBitKey.keyNodes.tnn->tunNetKey.ton->tdnDedicated[isv4] ));
 	return YES;
 }
 
@@ -1578,7 +1578,11 @@ void eval_tun_bit_tree(void  *onlyIfOrderChanged)
 
 			assertion(-501564, (currBKey.keyNodes.tnn ));
 			assertion(-501565, (currBKey.keyNodes.tnn->tunNetKey.ton ));
-			assertion(-501566, (assert_tbn_ton_tdn(isv4, currBKey.keyNodes.tnn->tunNetKey.ton, tbn_curr)));
+			assertion(-501574, (assert_tbn_ton_tdn(isv4, currBKey.keyNodes.tnn->tunNetKey.ton, tbn_curr)));
+			//TODO: This one would casually cause bmx6 to crash. But later 501577 seems NOT !!?
+			//assertion(-501575, IMPLIES(tbn_curr,
+			//	tbn_curr->active_tdn==tbn_curr->tunBitKey.keyNodes.tnn->tunNetKey.ton->tdnCatchAll[isv4] ||
+			//	tbn_curr->active_tdn==tbn_curr->tunBitKey.keyNodes.tnn->tunNetKey.ton->tdnDedicated[isv4] ));
 			
                         if (!tbn_begin || 
 				tbn_begin->tunBitKey.beIpRule != currBKey.beIpRule ||
@@ -1606,7 +1610,7 @@ void eval_tun_bit_tree(void  *onlyIfOrderChanged)
 				}
 			}
 
-			dbgf_all(DBGT_INFO, "current: pref=%d ipmetric=%d route=%s tunMtc=%s gw=%s possible=%d dev=%s",
+			dbgf_track(DBGT_INFO, "current: pref=%d ipmetric=%d route=%s tunMtc=%s gw=%s possible=%d dev=%s",
 				ntohl(currBKey.beIpRule), ntohl(currBKey.beIpMetric), netAsStr(&currRoute),
 				umetric_to_human(UMETRIC_MAX - ntoh64(currBKey.beInvTunBitMetric)),
 				globalIdAsString(&tbn_curr->tunBitKey.keyNodes.tnn->tunNetKey.ton->tunOutKey.on->global_id),
@@ -1628,7 +1632,7 @@ void eval_tun_bit_tree(void  *onlyIfOrderChanged)
 				struct net_key crashRoute = {.af = af, .ip=crashBKey.invRouteKey.ip, .mask=128-crashBKey.invRouteKey.mask};
 				IDM_T break_loop=NO;
 
-                                assertion(-500000, (tbn_crash != tbn_curr) );
+                                assertion(-501573, (tbn_crash != tbn_curr) );
 
 				if (currRoute.mask == crashRoute.mask &&
 					is_ip_net_equal(&currRoute.ip, &crashRoute.ip, crashRoute.mask, af)) {
@@ -1657,7 +1661,7 @@ void eval_tun_bit_tree(void  *onlyIfOrderChanged)
 				}
 
 
-				dbgf_all(DBGT_INFO, " crash?: pref=%d ipmetric=%d route=%s tunMtc=%s gw=%s possible=%d dev=%s ",
+				dbgf_track(DBGT_INFO, " crash?: pref=%d ipmetric=%d route=%s tunMtc=%s gw=%s possible=%d dev=%s ",
 				ntohl(crashBKey.beIpRule), ntohl(crashBKey.beIpMetric), netAsStr(&crashRoute),
 				umetric_to_human(UMETRIC_MAX - ntoh64(crashBKey.beInvTunBitMetric)),
 				globalIdAsString(&tbn_crash->tunBitKey.keyNodes.tnn->tunNetKey.ton->tunOutKey.on->global_id),
@@ -1668,7 +1672,7 @@ void eval_tun_bit_tree(void  *onlyIfOrderChanged)
 			}
 
 			if (tbn_curr->possible) {
-				dbgf_all(DBGT_INFO, " adding: pref=%d ipmetric=%d route=%s tunMtc=%s gw=%s possible=%d dev=%s ",
+				dbgf_track(DBGT_INFO, " adding: pref=%d ipmetric=%d route=%s tunMtc=%s gw=%s possible=%d dev=%s ",
 					ntohl(currBKey.beIpRule), ntohl(currBKey.beIpMetric), netAsStr(&currRoute),
 					umetric_to_human(UMETRIC_MAX - ntoh64(currBKey.beInvTunBitMetric)),
 					globalIdAsString(&tbn_curr->tunBitKey.keyNodes.tnn->tunNetKey.ton->tunOutKey.on->global_id),
@@ -1676,6 +1680,12 @@ void eval_tun_bit_tree(void  *onlyIfOrderChanged)
 
 				configure_tun_bit(ADD, tbn_curr, TDN_STATE_CURRENT);
 			}
+
+			assertion(-501576, (assert_tbn_ton_tdn(isv4, currBKey.keyNodes.tnn->tunNetKey.ton, tbn_curr)));
+			assertion(-501577, IMPLIES(tbn_curr,
+				tbn_curr->active_tdn==tbn_curr->tunBitKey.keyNodes.tnn->tunNetKey.ton->tdnCatchAll[isv4] ||
+				tbn_curr->active_tdn==tbn_curr->tunBitKey.keyNodes.tnn->tunNetKey.ton->tdnDedicated[isv4] ));
+
                 }
         }
 }

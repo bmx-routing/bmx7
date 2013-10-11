@@ -9,6 +9,7 @@ The following intro provides kind of tutorial to get started.
     *   [Installing in OpenWRT](#installing-in-openwrt)
 *   [Usage (hello mesh)](#usage-hello-mesh)
 *   [Concepts](#concepts)
+*   [Autoconfiguration](#address-auto-and-manual-configuration)
 *   [Unicast Host Network Announcements (UHNA)](#unicast-host-network-announcements-uhna)
 *   [Tunnel Announcements](#tunnel-announcements)
 *   [Bmx6 Plugins](#bmx6-plugins) 
@@ -307,6 +308,24 @@ This happens if two nodes are declaring themselves as the owner of a unique reso
 
 
 
+## Address auto and manual configuration ##
+
+By default bmx6 autoconfigures all configred interface by combining a default prefix (fd66:66:66::/64) with
+the EUI64 suffix (the suffix creation is currently reconsidered and may change soon).
+The same first 56 bits but extended with 0xff00 are also used to create tunnel interfaces.
+
+There are different options to controll the auto configuration.
+  1. A different auto-configuration prefix can be used using the <pre> --ipAutoPrefix </pre> 
+   option given with a /56 prefix.
+
+  2. Auto configuratin can be disabled using the <pre> --globalPrefix </pre> option. 
+   Then bmx6 checks if an ip in this range is alredy configured on the interfaces and uses it.
+   If no IP is configured in the given range then the inteface will NOT be used.
+
+
+
+
+
 
 ## Unicast Host Network Announcements (UHNA) ###
 
@@ -320,8 +339,8 @@ In bmx6, HNAs have an unicast nature (UHNAs) because each network can only be an
 This way it can be ensured that the destination of an UHNA routed packet is exactly known.
 
 In a sense the origination and propagation (by intermediate nodes) of UHNA announcements can be thought of a promise that guarantees:
-1. All packets with a destination address matching an announced UHNA network will be routed exactly to the node (with the global ID) that originated the UHNA and
-2. each node on the forwarding path towards the originator of the UHNA is supporting this promise.
+  1. All packets with a destination address matching an announced UHNA network will be routed exactly to the node (with the global ID) that originated the UHNA and
+  2. each node on the forwarding path towards the originator of the UHNA is supporting this promise.
 
 By default, Bmx6 only announces primary and non-primary interface addresses via UHNAs.
 The auto address configuration ensures that interface addresses are unique.
@@ -331,7 +350,7 @@ Using UHNAs for the announcements of networks requires a strict coordination to 
 Technically, multiple UHNAs, each wrapped into a single message, are aggregated into a UHNA frame and attached to the description of a node.
 
 If Bmx6 is configured in IPv6 mode only IPv6 UHNAs can be announced and in IPv4 mode only IPv4 UHNAs
-UHNA Configuration¶
+UHNA Configuration
 
 The announcement of UHNAs can be configured with the `--unicastHna` or `-u` parameter followed by a network specification in ip/prefixlen notation.
 By default all interface addresses are announced via UHNAs. However, this can be disabled by setting the `--dev` subparameter `/announce` or `/a` to 0.
@@ -351,6 +370,7 @@ bmx6 -c u=-fd00:ffff:ffff:ffff::/64
 Before bmx6 accepts a dynamically configured UHNA announcement it checks if this UHNA is not overlapping with an already existing UHNA announcement form another node.
 If this is the case the configuration will fail.
 To check if a chain of dynamic commands would be accepted by a bmx6 daemon without actually applying it, the `--test` command may follow the `--connect` command.
+
 
 
 
@@ -441,8 +461,8 @@ bmx6 -c tunOut=v4Default /network=0.0.0.0/0 tunOut=v6Default /network=::/0
 </pre>
 
 With the above configured tunnel selection policy, tunnels are selected in the following order:
-1. prefix-length of announced tunnels (networks that are more specific than others).
-2. the resulting tunnelMetric (combination of the advertised bandwidth, path metric in the bmx6 cloud, and locally specified prefereces like hysteresis or bonus)
+  1. prefix-length of announced tunnels (networks that are more specific than others).
+  2. the resulting tunnelMetric (combination of the advertised bandwidth, path metric in the bmx6 cloud, and locally specified prefereces like hysteresis or bonus)
 
 The disadvantage of this simple config is that other nodes can easily redirect your tunnel selections to specific networks by announcing more precise tunnel networks (larger prefix length). To prevent this, selection policy can be split into several and more precise search directives.
 

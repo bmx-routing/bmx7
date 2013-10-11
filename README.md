@@ -1,23 +1,31 @@
+# BMX6
+
 Bmx6 is a mesh routing protocol for Linux based operating systems.
 The following intro provides kind of tutorial to get started.
 
 ## Content
 
-[Installation](wiki#installation)
-[Installing in OpenWRT](wiki#installing-in-openwrt)
-[Usage (hello mesh)](wiki#usage-hello-mesh)
-[Concepts](wiki#concepts)
-[Unicast Host Network Announcements (UHNA)](wiki#unicast-host-network-announcements-uhna)  
-[Tunnel Announcements](wiki#tunnel-announcements)
-[Bmx6 Plugins](wiki#bmx6-plugins)
-[Config Plugin](wiki#config-plugin)
-[Json Plugin](wiki#json-plugin)
-[SMS Plugin](wiki#sms-plugin)
-[Table plugin](wiki#table-plugin)
-[Quagga Plugin](wiki#quagga-plugin)
+*   [Installation](#installation)
+    *   [Installing in OpenWRT](#installing-in-openwrt)
+*   [Usage (hello mesh)](#usage-hello-mesh)
+*   [Concepts](#concepts)
+*   [Unicast Host Network Announcements (UHNA)](#unicast-host-network-announcements-uhna)
+*   [Tunnel Announcements](#tunnel-announcements)
+*   [Bmx6 Plugins](#bmx6-plugins) 
+    *   [Config Plugin](#config-plugin)
+    *   [Json Plugin](#json-plugin)
+    *   [SMS Plugin](#sms-plugin) 
+    *   [Table plugin](#table-plugin)
+    *   [Quagga Plugin](#quagga-plugin)
 
 
-
+Note: This document is written using Markdown syntax. Modifications should be
+synced via README.md file in bmx6 repositories [bmx6.net][bmx6] and [github.com][github].
+Nice syntax examples are [here][syntax].
+   
+  [bmx6]: http://bmx6.net
+  [github]: https://github.com/axn/bmx6
+  [syntax]: http://daringfireball.net/projects/markdown/syntax.text
 
 
 ## Installation ##

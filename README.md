@@ -17,6 +17,9 @@ The following intro provides kind of tutorial to get started.
 [Quagga Plugin](wiki#)  
 
 
+
+
+
 ## Installation ##
 
 ### Requirements ###
@@ -25,6 +28,11 @@ The following tools are needed to obtain, compile, and install bmx6:
 * git (debian package: git-core)
 * gcc
 * make
+
+The following Linux-kernel modules are needed (depending on used bmx6 features)
+* ipv6 
+* tunnel6
+* ip6_tunnel
 
 ### Downloading
 
@@ -42,6 +50,9 @@ To only compile the main bmx6 daemon (no bmx6 plugins):
 make
 sudo make install
 </pre>
+
+
+
 
 ## Installing in OpenWRT
 
@@ -254,6 +265,9 @@ It can be seen that:
 * The old links (via eth1) are removed and a single new link via eth2 to mlc1000 has been detected
 * All routes are now going via eth2 and mlc1000's link-local IP fe80::a2cd:efff:fe10:2
 
+
+
+
 ## Concepts ##
 
 ### Global ID ###
@@ -282,6 +296,9 @@ Nodes may be blocked by other nodes.
 When a node is blocked no routing updates (OGMs) of the blocked node are propagated by the blocking node.
 The decision for blocking another node is done locally based on the detection of more than one node announcing the same unique resource.
 This happens if two nodes are declaring themselves as the owner of a unique resource. Then one of those two nodes (usually the latter) is blocked to avoid the propagation of conflicting allocations (and ambiguous forwarding state). Duplicate address usage is the most common reason for such events which happens if two nodes are using (and announcing) the same primary IPs. Another typical scenario causing such case temporary is the rebooting of a node. Once a bmx6 daemon restarts it appears as a new node (with a new random part of it's global ID) to the network but (due to a typically persistant configuration) announcing the same address as the previous process. Since the resources allocated by the previous resources are still in the database of other nodes in the mesh they will block the new process until this information expires (by default after 100 seconds).
+
+
+
 
 ## Unicast Host Network Announcements (UHNA) ###
 
@@ -328,7 +345,10 @@ If this is the case the configuration will fail.
 To check if a chain of dynamic commands would be accepted by a bmx6 daemon without actually applying it, the `--test` command may follow the `--connect` command.
 
 
-### Tunnel Announcements ##
+
+
+
+## Tunnel Announcements ##
 
 Tunnel announcements offer an alternative mechanism to propagate routes.
 Tunnel announcements are currently only implemented for Bmx6-IPv6 mode.
@@ -347,6 +367,14 @@ Technically, multiple tunnel announcements, each wrapped into a single tun4/6in6
 
 Tunnel announcements are also used for redistributing routes from other routing protocols (see Wiki) into a bmx6 zone.
 Therefore, each announcements message is decorated with a route-type field indicating the routing protocol that exported the route for being redistributed.
+
+
+### Tunnel requirements  ###
+
+The following Linux-kernel modules are needed for tunnel-based overlay networking:
+* ipv6 
+* tunnel6
+* ip6_tunnel
 
 ### Tunnel Configuration and Debugging ###
 In general, a specific tunnel configuration is described from two perspectives:

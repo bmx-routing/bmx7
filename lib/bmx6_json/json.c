@@ -715,7 +715,7 @@ int32_t opt_json_update_interval(uint8_t cmd, uint8_t _save, struct opt_type *op
                 }
 
                 if (json_update_interval){
-                        task_register(MAX(10, json_update_interval), update_json_status, NULL, -300379);
+                        task_register(XMAX(10, json_update_interval), update_json_status, NULL, -300379);
                         set_route_change_hooks(json_route_change_hook, ADD);
                 }
 

@@ -370,7 +370,7 @@ void path_metricalgo_ExpectedQuality(UMETRIC_T *path, UMETRIC_T *linkMax, UMETRI
 STATIC_FUNC
 void path_metricalgo_MultiplyBandwidth(UMETRIC_T *path, UMETRIC_T *linkMax, UMETRIC_T linkQuality)
 {
-        *path = umetric_multiply_normalized(MIN(*path, *linkMax), linkQuality);
+        *path = umetric_multiply_normalized(XMIN(*path, *linkMax), linkQuality);
 }
 
 STATIC_FUNC
@@ -396,7 +396,7 @@ void path_metricalgo_VectorBandwidth(UMETRIC_T *path, UMETRIC_T *linkMax, UMETRI
 
         UMETRIC_T linkBandwidth = umetric_multiply_normalized(*linkMax, linkQuality);
         
-        UMETRIC_T maxPrecisionScaler = MIN(*path, linkBandwidth) * U64_MAX_HALF_SQRT;
+        UMETRIC_T maxPrecisionScaler = XMIN(*path, linkBandwidth) * U64_MAX_HALF_SQRT;
 
 
         if (linkQuality > UMETRIC_MIN__NOT_ROUTABLE) {
@@ -490,7 +490,7 @@ UMETRIC_T apply_metric_algo(UMETRIC_T *linkQuality, UMETRIC_T *linkMax, const UM
         }
 
 
-        return MIN(path_out, max_out); // ensure out always decreases
+        return XMIN(path_out, max_out); // ensure out always decreases
 }
 
 
@@ -1535,8 +1535,8 @@ int32_t init_metrics( void )
 
         // is this fast-inverse-sqrt hack working on this plattform and are constants correct?:
 
-        assertion(-501082, ((MAX(UMETRIC_MAX_SQRT_SQUARE, UMETRIC_MAX) - MIN(UMETRIC_MAX_SQRT_SQUARE, UMETRIC_MAX))     < (UMETRIC_MAX    / 300000))); // validate precision
-        assertion(-501083, ((MAX(U64_MAX_HALF_SQRT_SQUARE, U64_MAX_HALF) - MIN(U64_MAX_HALF_SQRT_SQUARE, U64_MAX_HALF)) < ((U64_MAX_HALF) / 3000000))); // validate precision
+        assertion(-501082, ((XMAX(UMETRIC_MAX_SQRT_SQUARE, UMETRIC_MAX) - XMIN(UMETRIC_MAX_SQRT_SQUARE, UMETRIC_MAX))     < (UMETRIC_MAX    / 300000))); // validate precision
+        assertion(-501083, ((XMAX(U64_MAX_HALF_SQRT_SQUARE, U64_MAX_HALF) - XMIN(U64_MAX_HALF_SQRT_SQUARE, U64_MAX_HALF)) < ((U64_MAX_HALF) / 3000000))); // validate precision
 #endif
 
 #ifdef  TEST_UMETRIC_TO_FMETRIC
@@ -1555,15 +1555,15 @@ int32_t init_metrics( void )
         int32_t err_min = 10000;
         int32_t err_max = 0;
 
-        for (val = UMETRIC_MAX; val <= UMETRIC_MAX; val += MAX(1, val >> steps)) {
+        for (val = UMETRIC_MAX; val <= UMETRIC_MAX; val += XMAX(1, val >> steps)) {
 
                 c++;
 
                 UMETRIC_T usqrt = umetric_fast_sqrt(val);
                 int32_t failure_sqrt = -((int32_t) ((val *10000) / (val ? val : 1))) + ((int32_t) (((usqrt*usqrt) *10000) / (val ? val : 1)));
-                failure_sqrt = MAX((-failure_sqrt), failure_sqrt);
-                err_sqrt_min = MIN(err_sqrt_min, failure_sqrt);
-                err_sqrt_max = MAX(err_sqrt_max, failure_sqrt);
+                failure_sqrt = XMAX((-failure_sqrt), failure_sqrt);
+                err_sqrt_min = XMIN(err_sqrt_min, failure_sqrt);
+                err_sqrt_max = XMAX(err_sqrt_max, failure_sqrt);
                 err_sqrt_sum_square += (failure_sqrt * failure_sqrt);
                 err_sqrt_sum += failure_sqrt;
 

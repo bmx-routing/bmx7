@@ -16,7 +16,7 @@
  */
 
 
-#define REGISTER_TASK_TIMEOUT_MAX MIN( 100000, TIME_MAX>>2)
+#define REGISTER_TASK_TIMEOUT_MAX XMIN( 100000, TIME_MAX>>2)
 
 
 //void init_schedule( void );

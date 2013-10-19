@@ -26,7 +26,7 @@
 
 #define MIN_UDPD_SIZE 128 //(6+4+(22+8)+32)+184=72+56=128
 #define DEF_UDPD_SIZE 512 //512
-#define MAX_UDPD_SIZE (MIN( 1400, MAX_PACKET_SIZE))
+#define MAX_UDPD_SIZE (XMIN( 1400, MAX_PACKET_SIZE))
 #define ARG_UDPD_SIZE "udpDataSize"
 
 
@@ -234,7 +234,7 @@ struct frame_header_long { // 4 bytes
 
 
 
-#define SHORT_FRAME_DATA_MAX (MIN( 500, ((int)((((sizeof( ((struct frame_header_short*)NULL)->length_TLV_DATA_STEPS ))<<8)-1)*TLV_DATA_STEPS))))
+#define SHORT_FRAME_DATA_MAX (XMIN( 500, ((int)((((sizeof( ((struct frame_header_short*)NULL)->length_TLV_DATA_STEPS ))<<8)-1)*TLV_DATA_STEPS))))
 
 
 // iterator return codes:

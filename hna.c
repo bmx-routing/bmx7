@@ -521,7 +521,7 @@ struct hna_node * find_overlapping_hna( IPX_T *ipX, uint8_t prefixlen, struct or
 
                 assertion(-501353, (un->on));
 
-                if (un->on != except && is_ip_net_equal(ipX, &un->key.ip, MIN(prefixlen, un->key.mask), AF_CFG))
+                if (un->on != except && is_ip_net_equal(ipX, &un->key.ip, XMIN(prefixlen, un->key.mask), AF_CFG))
                         return un;
 
         }
@@ -1388,7 +1388,7 @@ void _add_tun_bit_node(struct tun_search_node *tsna, struct tun_net_node *tnna)
                                 tsn_netKey->mask >= tnn_netKey->mask : tbkn.tsn->netPrefixMax >= tnn_netKey->mask) &&
                                 (tbkn.tsn->netPrefixMin == TYP_TUN_OUT_PREFIX_NET ?
                                 tsn_netKey->mask <= tnn_netKey->mask : tbkn.tsn->netPrefixMin <= tnn_netKey->mask) &&
-                                is_ip_net_equal(&tsn_netKey->ip, &tnn_netKey->ip, MIN(tsn_netKey->mask, tnn_netKey->mask), tnn_netKey->af) &&
+                                is_ip_net_equal(&tsn_netKey->ip, &tnn_netKey->ip, XMIN(tsn_netKey->mask, tnn_netKey->mask), tnn_netKey->af) &&
                                 IMPLIES(strlen(tsn_gid->name), !strcmp(tsn_gid->name, tnn_gid->name)) &&
                                 IMPLIES(!is_zero(&tsn_gid->pkid, GLOBAL_ID_PKID_LEN), !memcmp(&tsn_gid->pkid, &tnn_gid->pkid, GLOBAL_ID_PKID_LEN))
                                 )) {

@@ -448,7 +448,7 @@ struct tx_task_node *tx_task_new(struct link_dev_node *dest_lndev, struct tx_tas
                         ASSERTION(-500906, (IMPLIES((!handl->is_advertisement), (ttn->task.link == test->task.link))));
 
                         ttn->frame_msgs_length = test->frame_msgs_length;
-                        ttn->tx_iterations = MAX(ttn->tx_iterations, test->tx_iterations);
+                        ttn->tx_iterations = XMAX(ttn->tx_iterations, test->tx_iterations);
 
                         // then it is already scheduled
                         return ttn;
@@ -659,7 +659,7 @@ STATIC_FUNC
 void create_ogm_aggregation(void)
 {
         TRACE_FUNCTION_CALL;
-        uint32_t target_ogms = MIN(OGMS_PER_AGGREG_MAX,
+        uint32_t target_ogms = XMIN(OGMS_PER_AGGREG_MAX,
                 ((ogm_aggreg_pending < ((OGMS_PER_AGGREG_PREF / 3)*4)) ? ogm_aggreg_pending : OGMS_PER_AGGREG_PREF));
 
         struct msg_ogm_adv* msgs =
@@ -839,7 +839,7 @@ struct link_dev_node **lndevs_get_unacked_ogm_neighbors(struct ogm_aggreg_node *
 
                         if (not_acked) {
                                 assertion(-501138, (local->link_adv_msg_for_him < OGM_DEST_ARRAY_BIT_SIZE));
-                                oan->ogm_dest_bytes = MAX(oan->ogm_dest_bytes, ((local->link_adv_msg_for_him / 8) + 1));
+                                oan->ogm_dest_bytes = XMAX(oan->ogm_dest_bytes, ((local->link_adv_msg_for_him / 8) + 1));
                                 bit_set(oan->ogm_dest_field, OGM_DEST_ARRAY_BIT_SIZE, local->link_adv_msg_for_him, 1);
                         }
 
@@ -1669,7 +1669,7 @@ int32_t tx_frame_rp_adv(struct tx_frame_iterator *it)
 
                 msg[lndev->link_adv_msg].ogm_request = lndev->key.link->local->orig_routes ? YES : NO;
 
-                msg_max = MAX(msg_max, lndev->link_adv_msg);
+                msg_max = XMAX(msg_max, lndev->link_adv_msg);
 
                 msgs++;
         }
@@ -3519,7 +3519,7 @@ void update_my_description_adv(void)
         int32_t random_range = first_packet ? rand_num(ogmSqnRange) :
 		ogmSqnRange - (ogmSqnRange / (_DEF_OGM_SQN_DIV*2)) + rand_num(ogmSqnRange / _DEF_OGM_SQN_DIV);
 
-	random_range = MAX(_MIN_OGM_SQN_RANGE, MIN(_MAX_OGM_SQN_RANGE, random_range));
+	random_range = XMAX(_MIN_OGM_SQN_RANGE, XMIN(_MAX_OGM_SQN_RANGE, random_range));
 
         self->ogmSqn_rangeSize = ((OGM_SQN_MASK)&(random_range + OGM_SQN_STEP - 1));
 

@@ -934,7 +934,7 @@ void kernel_get_if_addr_config(struct nlmsghdr *nh, void *index_sqnp)
 
         IPX_T ip_addr = ZERO_IP;
 
-        uint32_t alen = MIN(sizeof (ip_addr), RTA_PAYLOAD(rta_tb[IFA_LOCAL]));
+        uint32_t alen = XMIN(sizeof (ip_addr), RTA_PAYLOAD(rta_tb[IFA_LOCAL]));
 
         memcpy(&ip_addr, RTA_DATA(rta_tb[IFA_LOCAL]), alen);
 
@@ -1139,13 +1139,13 @@ void kernel_get_if_link_config(struct nlmsghdr *nh, void *update_sqnp)
 
         int32_t alen = (tb[IFLA_ADDRESS]) ? RTA_PAYLOAD(tb[IFLA_ADDRESS]) : 0;
         ADDR_T addr = {{0}};
-        memcpy(&addr, RTA_DATA(tb[IFLA_ADDRESS]), MIN(alen, (int)sizeof (addr)));
+        memcpy(&addr, RTA_DATA(tb[IFLA_ADDRESS]), XMIN(alen, (int)sizeof (addr)));
 
         if (!old_ilx ||
                 old_ilx->type != if_link_info->ifi_type ||
                 old_ilx->flags != if_link_info->ifi_flags ||
                 old_ilx->alen != alen /*(int)RTA_PAYLOAD(tb[IFLA_ADDRESS])*/ ||
-                memcmp(&old_ilx->addr, RTA_DATA(tb[IFLA_ADDRESS]), MIN(alen, (int)sizeof(old_ilx->addr))) ||
+                memcmp(&old_ilx->addr, RTA_DATA(tb[IFLA_ADDRESS]), XMIN(alen, (int)sizeof(old_ilx->addr))) ||
                 memcmp(&old_ilx->name, &devname, sizeof (devname))) {
 
                 dbgf_track(DBGT_INFO, "link=%s status type or flags or addr=%s CHANGED",

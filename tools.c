@@ -195,7 +195,7 @@ char* memAsCharString( const char* mem, uint32_t len)
         if (!mem)
                 return NULL;
 
-        len = MIN(strlen(mem), len);
+        len = XMIN(strlen(mem), len);
 
         if (len >= (MEMASSTR_BUFF_SIZE - 1) || validate_char_string(mem, len) == FAILURE)
                 return NULL;

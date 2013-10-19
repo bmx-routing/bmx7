@@ -388,7 +388,7 @@ typedef uint8_t  FRAME_TYPE_T;
 #define FRAME_ISSHORT_BIT_SIZE   (1)
 #define FRAME_RELEVANCE_BIT_SIZE  (1)
 #define FRAME_TYPE_BIT_SIZE    ((8*sizeof(FRAME_TYPE_T)) - FRAME_ISSHORT_BIT_SIZE - FRAME_RELEVANCE_BIT_SIZE)
-#define FRAME_TYPE_MASK        MIN( (0x1F) /*some bits reserved*/, ((1<<FRAME_TYPE_BIT_SIZE)-1))
+#define FRAME_TYPE_MASK        XMIN( (0x1F) /*some bits reserved*/, ((1<<FRAME_TYPE_BIT_SIZE)-1))
 #define FRAME_TYPE_ARRSZ       (FRAME_TYPE_MASK+1)
 
 
@@ -583,8 +583,8 @@ enum ADGSN {
 #define CRITICAL_PURGE_TIME_DRIFT 20
 
 
-#define MAX( a, b ) ( (a>b) ? (a) : (b) )
-#define MIN( a, b ) ( (a<b) ? (a) : (b) )
+#define XMAX( a, b ) ( (a>b) ? (a) : (b) )
+#define XMIN( a, b ) ( (a<b) ? (a) : (b) )
 
 
 #define U64_MAX ((uint64_t)(-1))

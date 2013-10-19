@@ -106,7 +106,7 @@ void redist_rm_overlapping(struct avl_tree *redist_out_tree)
 
                                 if (is_ip_net_equal(&ovlp->k.net.ip, &routn->k.net.ip, ovlp->k.net.mask, routn->k.net.af)) {
                                         routn->new = 0;
-                                        ovlp->minAggregatePrefixLen = MAX(ovlp->minAggregatePrefixLen, routn->minAggregatePrefixLen);
+                                        ovlp->minAggregatePrefixLen = XMAX(ovlp->minAggregatePrefixLen, routn->minAggregatePrefixLen);
                                         dbgf_track(DBGT_INFO, "disable overlapping net=%s in favor of net=%s",
                                                 netAsStr(&routn->k.net), netAsStr(&ovlp->k.net));
                                         break;
@@ -172,7 +172,7 @@ void redist_rm_aggregatable(struct avl_tree *redist_out_tree)
                                 ra->new = 1;
                                 r0->new = 0;
                                 r1->new = 0;
-                                ra->minAggregatePrefixLen = MAX(r0->minAggregatePrefixLen, r1->minAggregatePrefixLen);
+                                ra->minAggregatePrefixLen = XMAX(r0->minAggregatePrefixLen, r1->minAggregatePrefixLen);
                                 more = YES;
 
                                 dbgf_track(DBGT_INFO, "                    aggregate neighboring net0=%s net1=%s into new=%s",
@@ -244,7 +244,7 @@ IDM_T redistribute_routes(struct avl_tree *redist_out_tree, struct avl_tree *red
                                 roptn->net.mask >= rin->k.net.mask : roptn->netPrefixMax >= rin->k.net.mask) &&
                                 (roptn->netPrefixMin == TYP_REDIST_PREFIX_NET ?
                                 roptn->net.mask <= rin->k.net.mask : roptn->netPrefixMin <= rin->k.net.mask) &&
-                                is_ip_net_equal(&roptn->net.ip, &rin->k.net.ip, MIN(roptn->net.mask, rin->k.net.mask), roptn->net.af))) {
+                                is_ip_net_equal(&roptn->net.ip, &rin->k.net.ip, XMIN(roptn->net.mask, rin->k.net.mask), roptn->net.af))) {
 
                                 dbgf_all(DBGT_INFO, "skipping %s prefix", roptn->nameKey);
                                 continue;
@@ -273,7 +273,7 @@ IDM_T redistribute_routes(struct avl_tree *redist_out_tree, struct avl_tree *red
                         }
 
                         routn->new = 1;
-                        routn->minAggregatePrefixLen = MAX(routn->minAggregatePrefixLen, roptn->minAggregatePrefixLen);
+                        routn->minAggregatePrefixLen = XMAX(routn->minAggregatePrefixLen, roptn->minAggregatePrefixLen);
 
                         break;
                 }

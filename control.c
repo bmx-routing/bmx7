@@ -270,7 +270,7 @@ void close_ctrl_node(uint8_t cmd, struct ctrl_node *cn)
 			
 			if ( cn_tmp->fd > 0  &&  cn_tmp->fd != STDOUT_FILENO ) {
 				
-				cn_tmp->closing_stamp = MAX(bmx_time,1);
+				cn_tmp->closing_stamp = XMAX(bmx_time,1);
 				remove_dbgl_node( cn_tmp );
 				
 				//leaving this after remove_dbgl_node() prevents debugging via broken -d4 pipe
@@ -406,7 +406,7 @@ uint8_t check_dbg_history(int8_t dbgl, char *s, uint16_t check_len)
 	static int r=0;
 	int i, unused_i, h;	
 	
-	check_len = MIN(check_len, DBG_HIST_TEXT_SIZE);
+	check_len = XMIN(check_len, DBG_HIST_TEXT_SIZE);
 	
 	if ( !strlen(s)  ||  !dbg_mute_to  ||  !check_len )
 		return DBG_HIST_NEW;
@@ -428,7 +428,7 @@ uint8_t check_dbg_history(int8_t dbgl, char *s, uint16_t check_len)
 		
 		if ( dbgl_history[h][i].check_len == check_len  &&
 		     dbgl_history[h][i].expire == dbg_mute_to  &&
-		     !memcmp( s, dbgl_history[h][i].text, MIN(check_len, strlen(s)) ) ) {
+		     !memcmp( s, dbgl_history[h][i].text, XMIN(check_len, strlen(s)) ) ) {
 			
 			     if ( U32_LT(  bmx_time, dbgl_history[h][i].print_stamp + dbg_mute_to ) &&
 			          U32_GE( bmx_time, dbgl_history[h][i].print_stamp ) )
@@ -471,7 +471,7 @@ uint8_t check_dbg_history(int8_t dbgl, char *s, uint16_t check_len)
 	dbgl_history[h][unused_i].check_len = check_len;
 	dbgl_history[h][unused_i].print_stamp = bmx_time;
 	dbgl_history[h][unused_i].catched = 1;
-	memcpy( dbgl_history[h][unused_i].text, s, MIN( check_len, strlen(s) ) );
+	memcpy( dbgl_history[h][unused_i].text, s, XMIN( check_len, strlen(s) ) );
 	
 	return DBG_HIST_NEW;
 }
@@ -2699,7 +2699,7 @@ apply_args_error:
 	if ( patch )
 		del_opt_parent( &Patch_opt, patch );
 	
-	snprintf( argument, MIN( sizeof(argument), wordlen(s)+1 ), "%s", s );
+	snprintf( argument, XMIN( sizeof(argument), wordlen(s)+1 ), "%s", s );
 	
 	//otherwise invalid sysntax identified only by apply_stream_opts is not printed;
 	dbgf_cn( cn, DBGL_SYS, DBGT_ERR, "invalid argument: %s", argument );

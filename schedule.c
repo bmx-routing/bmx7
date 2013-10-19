@@ -65,7 +65,7 @@ static void check_selects(void)
 
                 assertion(-501099, (unix_sock > 0));
 
-                receive_max_sock = MAX(receive_max_sock, unix_sock);
+                receive_max_sock = XMAX(receive_max_sock, unix_sock);
                 FD_SET(unix_sock, &receive_wait_set);
 
                 struct ctrl_node *cn = NULL;
@@ -73,7 +73,7 @@ static void check_selects(void)
 
                         if (cn->fd > 0 && cn->fd != STDOUT_FILENO) {
 
-                                receive_max_sock = MAX(receive_max_sock, cn->fd);
+                                receive_max_sock = XMAX(receive_max_sock, cn->fd);
                                 FD_SET(cn->fd, &receive_wait_set);
                         }
                 }
@@ -84,15 +84,15 @@ static void check_selects(void)
 
                         if (dev->active && dev->linklayer != TYP_DEV_LL_LO) {
 
-                                receive_max_sock = MAX(receive_max_sock, dev->unicast_sock);
+                                receive_max_sock = XMAX(receive_max_sock, dev->unicast_sock);
                                 FD_SET(dev->unicast_sock, &receive_wait_set);
 
-                                receive_max_sock = MAX(receive_max_sock, dev->rx_mcast_sock);
+                                receive_max_sock = XMAX(receive_max_sock, dev->rx_mcast_sock);
                                 FD_SET(dev->rx_mcast_sock, &receive_wait_set);
 
                                 if (dev->rx_fullbrc_sock > 0) {
 
-                                        receive_max_sock = MAX(receive_max_sock, dev->rx_fullbrc_sock);
+                                        receive_max_sock = XMAX(receive_max_sock, dev->rx_fullbrc_sock);
                                         FD_SET(dev->rx_fullbrc_sock, &receive_wait_set);
                                 }
                         }
@@ -101,7 +101,7 @@ static void check_selects(void)
                 struct cb_fd_node *cdn = NULL;
                 while ((cdn = list_iterate(&cb_fd_list, cdn))) {
 
-                        receive_max_sock = MAX(receive_max_sock, cdn->fd);
+                        receive_max_sock = XMAX(receive_max_sock, cdn->fd);
                         FD_SET(cdn->fd, &receive_wait_set);
                 }
 

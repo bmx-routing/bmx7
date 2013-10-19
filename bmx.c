@@ -2264,7 +2264,7 @@ void bmx(void)
 		TIME_T wait = task_next( );
 
 		if ( wait )
-			wait4Event( MIN( wait, MAX_SELECT_TIMEOUT_MS ) );
+			wait4Event( XMIN( wait, MAX_SELECT_TIMEOUT_MS ) );
 
                 if (my_description_changed)
                         update_my_description_adv();

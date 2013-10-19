@@ -90,7 +90,7 @@ void iid_free(struct iid_repos *rep, IID_T iid)
                 rep->arr.ref[iid].referred_by_neigh_timestamp_sec = 0;
         }
 
-        rep->min_free = MIN(rep->min_free, iid);
+        rep->min_free = XMIN(rep->min_free, iid);
 
         if (rep->max_free == iid + 1) {
 
@@ -208,7 +208,7 @@ void _iid_set(struct iid_repos *rep, IID_T IIDpos, IID_T myIID4x, IID_NODE_T *dh
         assertion(-500535, (IIDpos >= IID_MIN_USED));
 
         rep->tot_used++;
-        rep->max_free = MAX( rep->max_free, IIDpos+1 );
+        rep->max_free = XMAX( rep->max_free, IIDpos+1 );
 
         IID_T min = rep->min_free;
 
@@ -252,7 +252,7 @@ IID_T iid_new_myIID4x(IID_NODE_T *dhn)
                 uint32_t random = rand_num(my_iid_repos.arr_size);
 
                 // Never put random function intro MAX()! It would be called twice
-                mid = MAX(IID_MIN_USED, random);
+                mid = XMAX(IID_MIN_USED, random);
 
                 while (my_iid_repos.arr.node[mid]) {
 

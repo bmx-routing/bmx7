@@ -911,9 +911,7 @@ void update_link_probe_record(struct link_dev_node *lndev, HELLO_SQN_T sqn, uint
 STATIC_FUNC
 struct router_node * router_node_create(struct local_node *local, struct orig_node *on, OGM_SQN_T ogm_sqn_max)
 {
-        struct router_node* rt = debugMalloc(sizeof (struct router_node), -300222);
-
-        memset(rt, 0, sizeof (struct router_node));
+        struct router_node* rt = debugMallocReset(sizeof (struct router_node), -300222);
 
         rt->local_key = local;
 

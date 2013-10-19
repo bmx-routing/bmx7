@@ -96,8 +96,7 @@ void _set_thread_hook(int32_t cb_type, void (*cb_handler) (void), int8_t del, st
 
         assertion(-501289, (!del));
 
-        cbn = debugMalloc(sizeof ( struct cb_node), -300027);
-        memset(cbn, 0, sizeof ( struct cb_node));
+        cbn = debugMallocReset(sizeof ( struct cb_node), -300027);
 
         cbn->cb_type = cb_type;
         cbn->cb_handler = cb_handler;
@@ -263,8 +262,7 @@ int activate_plugin(struct plugin *p, void *dlhandle, const char *dl_name)
                 return FAILURE;
         }
 
-        struct plugin_node *pn = debugMalloc( sizeof( struct plugin_node), -300028);
-        memset( pn, 0, sizeof( struct plugin_node) );
+        struct plugin_node *pn = debugMallocReset( sizeof( struct plugin_node), -300028);
 
         pn->plugin = p;
         pn->dlhandle = dlhandle;

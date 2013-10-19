@@ -29,9 +29,6 @@
 #define MAGIC_NUMBER_TRAILOR 0xB2
 
 
-#ifndef NO_DEBUG_MALLOC
-
-
 struct chunkHeader *chunkList = NULL;
 
 struct chunkHeader
@@ -336,49 +333,3 @@ void _debugFree(void *memoryParameter, int tag)
 	
 
 }
-
-#else //#ifndef NO_DEBUG_MALLOC
-
-void checkIntegrity(void)
-{
-}
-
-void checkLeak(void)
-{
-}
-
-void debugMemory( struct ctrl_node *cn )
-{
-}
-
-void *debugMalloc(uint32_t length, int32_t tag)
-{
-        void *result = malloc(length);
-
-        if (result == NULL && length)
-	{
-		dbg_sys(DBGT_ERR, "Cannot allocate %u bytes, malloc tag = %d", length, tag );
-		cleanup_all( -500072 );
-	}
-
-	return result;
-}
-
-void *debugRealloc(void *memory, uint32_t length, int32_t tag)
-{
-        void *result = realloc(memory, length);
-
-        if (result == NULL && length) {
-		dbg_sys(DBGT_ERR, "Cannot re-allocate %u bytes, malloc tag = %d", length, tag );
-		cleanup_all( -500071 );
-	}
-
-	return result;
-}
-
-void debugFree(void *memory, int32_t tag)
-{
-	free(memory);
-}
-
-#endif

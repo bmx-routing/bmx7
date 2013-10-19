@@ -726,8 +726,7 @@ void create_ogm_aggregation(void)
                 return;
         }
 
-        struct ogm_aggreg_node *oan = debugMalloc(sizeof (struct ogm_aggreg_node), -300179);
-        memset(oan, 0, sizeof (struct ogm_aggreg_node));
+        struct ogm_aggreg_node *oan = debugMallocReset(sizeof (struct ogm_aggreg_node), -300179);
 
         oan->aggregated_msgs = ogm_msg + ogm_iid_jumps;
         oan->ogm_advs = msgs;
@@ -1241,8 +1240,7 @@ void update_my_dev_adv(void)
                 return;
 
         if (dev_ip_tree.items) {
-                my_dev_adv_buff = debugMalloc(dev_ip_tree.items * sizeof (struct msg_dev_adv), -300319);
-                memset(my_dev_adv_buff, 0, dev_ip_tree.items * sizeof (struct msg_dev_adv));
+                my_dev_adv_buff = debugMallocReset(dev_ip_tree.items * sizeof (struct msg_dev_adv), -300319);
         }
 
         for (an = NULL; (dev = avl_iterate_item(&dev_name_tree, &an));)
@@ -1460,10 +1458,8 @@ void update_my_link_adv(uint32_t changes)
         if (terminating)
                 return;
 
-        if (link_dev_tree.items) {
-                my_link_adv_buff = debugMalloc(link_dev_tree.items * sizeof (struct msg_link_adv), -300343);
-                memset(my_link_adv_buff, 0, link_dev_tree.items * sizeof (struct msg_link_adv));
-        }
+        if (link_dev_tree.items)
+                my_link_adv_buff = debugMallocReset(link_dev_tree.items * sizeof (struct msg_link_adv), -300343);
 
         for (an = NULL; (lndev = avl_iterate_item(&link_dev_tree, &an));){
                 lndev->link_adv_msg = LINKADV_MSG_IGNORED;
@@ -2520,8 +2516,7 @@ void cache_desc_tlv_hashes(uint8_t op, struct orig_node *on, int8_t t_start, int
                 if (op == TLV_OP_TEST) {
 
                         if (!hn && t_data && hn_type == t) {
-                                hn = debugMalloc(sizeof (struct desc_tlv_hash_node), -300451);
-                                memset(hn, 0, sizeof (struct desc_tlv_hash_node));
+                                hn = debugMallocReset(sizeof (struct desc_tlv_hash_node), -300451);
                                 hn->tlv_type = t;
                                 avl_insert(&on->desc_tlv_hash_tree, hn, -300452);
                         }

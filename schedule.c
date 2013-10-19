@@ -127,8 +127,7 @@ void task_register(TIME_T timeout, void (* task) (void *), void *data, int32_t t
 
 	
 	//TODO: allocating and freeing tn and tn->data may be much faster when done by registerig function.. 
-	struct task_node *tn = debugMalloc( sizeof( struct task_node ), tag );
-	memset( tn, 0, sizeof(struct task_node) );
+	struct task_node *tn = debugMallocReset( sizeof( struct task_node ), tag );
 	
 	tn->expire = bmx_time + timeout;
 	tn->task = task;

@@ -175,10 +175,9 @@ void *_avl_find_item_by_field(struct avl_tree *tree, void *value, unsigned long 
 STATIC_FUNC
 struct avl_node *avl_create_node(void *node, int32_t tag)
 {
-        struct avl_node *an = debugMalloc(sizeof (struct avl_node), tag);
+        struct avl_node *an = debugMallocReset(sizeof (struct avl_node), tag);
 
-        memset( an, 0, sizeof( struct avl_node) );
-                an->item = node;
+        an->item = node;
 
         return an;
 }

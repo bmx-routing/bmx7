@@ -122,8 +122,7 @@ void check_for_changed_sms(void *unused)
                                 debugFree(sms, -300369);
                         }
 
-                        sms = debugMalloc(sizeof (struct json_sms) +len, -300370);
-                        memset(sms, 0, sizeof (struct json_sms) +len);
+                        sms = debugMallocReset(sizeof (struct json_sms) +len, -300370);
                         strcpy(sms->name, name);
                         sms->text_len = len;
                         sms->stale = 0;

@@ -136,8 +136,7 @@ void set_tunXin6_net_adv_list(uint8_t del, struct list_head *adv_list)
 
         assertion(-501441, (!del));
 
-        n = debugMalloc(sizeof ( struct tunXin6_net_adv_list_node), -300517);
-        memset(n, 0, sizeof ( struct tunXin6_net_adv_list_node));
+        n = debugMallocReset(sizeof ( struct tunXin6_net_adv_list_node), -300517);
 
         n->adv_list = adv_list;
         list_add_tail((&tunXin6_net_adv_list_list), &n->list);
@@ -1908,8 +1907,7 @@ int process_description_tlv_tun6_adv(struct rx_frame_iterator *it)
 
                         assertion(-600005, (!avl_find_item(&tun_out_tree, &key)));
 
-                        struct tun_out_node *tun = debugMalloc(sizeof (struct tun_out_node), -300426);
-                        memset(tun, 0, sizeof (struct tun_out_node));
+                        struct tun_out_node *tun = debugMallocReset(sizeof (struct tun_out_node), -300426);
                         tun->tunOutKey = key;
                         tun->localIp = adv->localIp;
                         tun->remoteIp = it->on->primary_ip;
@@ -2249,8 +2247,7 @@ int process_description_tlv_tunXin6_net_adv(struct rx_frame_iterator *it)
 
                                         if (!tnn) {
 
-                                                tnn = debugMalloc(sizeof (struct tun_net_node), -300418);
-                                                memset(tnn, 0, sizeof (struct tun_net_node));
+                                                tnn = debugMallocReset(sizeof (struct tun_net_node), -300418);
                                                 tnn->tunNetKey = tnk;
                                                 tnn->bandwidth = adv->bandwidth;
 
@@ -2422,7 +2419,6 @@ static int32_t tun_out_status_creator(struct status_handl *handl, void *data)
 
         struct tun_out_status *status = (struct tun_out_status *) (handl->data = debugRealloc(handl->data, status_size, -300428));
         memset(status, 0, status_size);
-
 
         struct avl_tree * t[] = {&tun_search_tree, &tun_bit_tree, &tun_net_tree};
         uint8_t a;
@@ -2617,8 +2613,7 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                         //unlink_tun_net(NULL, NULL, NULL);
                         
                         if (!tsn && patch->diff != DEL) {
-                                tsn = debugMalloc(sizeof (struct tun_search_node), -300400);
-                                memset(tsn, 0, sizeof (struct tun_search_node));
+                                tsn = debugMallocReset(sizeof (struct tun_search_node), -300400);
                                 AVL_INIT_TREE(tsn->tun_bit_tree, struct tun_bit_node, tunBitKey.keyNodes);
                                 strcpy(tsn->nameKey, name);
                                 avl_insert(&tun_search_tree, tsn, -300433);
@@ -2963,8 +2958,7 @@ int32_t opt_tun_in_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                                 tin = NULL;
 
                         } else if (!tin && patch->diff != DEL) {
-                                tin = debugMalloc(sizeof (struct tun_in_node), -300469);
-                                memset(tin, 0, sizeof (struct tun_in_node));
+                                tin = debugMallocReset(sizeof (struct tun_in_node), -300469);
                                 strcpy(tin->nameKey.str, name);
                                 tin->tun6Id = -1;
                                 tin->remote = ZERO_IP;

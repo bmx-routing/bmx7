@@ -200,8 +200,7 @@ void zdata_parse_route(struct zdata *zd)
                 tmp->cnt += (zd->cmd == ZEBRA_IPV4_ROUTE_ADD || zd->cmd == ZEBRA_IPV6_ROUTE_ADD) ? (+1) : (-1);
                 redist_dbg(DBGL_SYS, DBGT_INFO, __FUNCTION__, tmp, zapi_rt_dict, zebraCmd2Str[zd->cmd], "OLD");
         } else {
-                tmp = debugMalloc(sizeof (zrn), -300472);
-                memset(tmp, 0, sizeof (*tmp));
+                tmp = debugMallocReset(sizeof (zrn), -300472);
                 *tmp = zrn;
                 tmp->cnt += 1;
                 redist_dbg(DBGL_SYS, DBGT_INFO, __FUNCTION__, tmp, zapi_rt_dict, zebraCmd2Str[zd->cmd], "NEW");
@@ -467,8 +466,7 @@ void zsock_send_route(int8_t del, const struct net_key *dst, uint32_t oif_idx, I
                 4 + // uint32_t metric;
                 0;
 
-        uint8_t *d = debugMalloc(len, -300511), *p = d;
-        memset(p, 0, len);
+        uint8_t *d = debugMallocReset(len, -300511), *p = d;
 
         d = zsock_put_hdr(d, (dst->af == AF_INET ? (del ? ZEBRA_IPV4_ROUTE_DELETE : ZEBRA_IPV4_ROUTE_ADD) : (del ? ZEBRA_IPV6_ROUTE_DELETE : ZEBRA_IPV6_ROUTE_ADD)), len);
         d = zsock_put_u8(d, ZEBRA_ROUTE_BMX6); // type

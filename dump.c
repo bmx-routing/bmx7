@@ -403,9 +403,7 @@ void init_cleanup_dev_traffic_data(int32_t cb_id, void* devp)
 
                 } else if (dev->active && !(*dump_dev_plugin_data)) {
 
-                        *dump_dev_plugin_data = debugMalloc(sizeof (struct dump_data), -300306);
-                        memset(*dump_dev_plugin_data, 0, sizeof (struct dump_data));
-                        
+                        *dump_dev_plugin_data = debugMallocReset(sizeof (struct dump_data), -300306);
                 }
         }
 }

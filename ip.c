@@ -987,8 +987,7 @@ void kernel_get_if_addr_config(struct nlmsghdr *nh, void *index_sqnp)
         }
 
         if (!new_ian) {
-                new_ian = debugMalloc(sizeof (struct if_addr_node) +nh->nlmsg_len, -300522);
-                memset(new_ian, 0, sizeof (struct if_addr_node) +nh->nlmsg_len);
+                new_ian = debugMallocReset(sizeof (struct if_addr_node) +nh->nlmsg_len, -300522);
                 memcpy(new_ian->nlmsghdr, nh, nh->nlmsg_len);
                 new_ian->ip_addr = ip_addr;
                 new_ian->iln = iln;
@@ -1121,8 +1120,7 @@ void kernel_get_if_link_config(struct nlmsghdr *nh, void *update_sqnp)
         }
 
         if (!new_ilx) {
-                new_ilx = debugMalloc(sizeof (struct if_link_node) + nh->nlmsg_len, -300231);
-                memset(new_ilx, 0, sizeof (struct if_link_node));
+                new_ilx = debugMallocReset(sizeof (struct if_link_node) + nh->nlmsg_len, -300231);
                 new_ilx->index = if_link_info->ifi_index;
                 AVL_INIT_TREE(new_ilx->if_addr_tree, struct if_addr_node, ip_addr);
                 avl_insert(&if_link_tree, new_ilx, -300233);
@@ -1802,8 +1800,7 @@ IDM_T iptrack(const struct net_key *net, uint8_t cmd, uint8_t quiet, int8_t del,
 
                 } else {
 
-                        struct track_node *tn = debugMalloc(sizeof ( struct track_node), -300030);
-                        memset(tn, 0, sizeof ( struct track_node));
+                        struct track_node *tn = debugMallocReset(sizeof ( struct track_node), -300030);
                         tn->k = ts.k;
                         tn->items = 1;
                         tn->cmd = cmd;
@@ -3592,8 +3589,7 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
                                 opt_cmd2str[cmd], opt->name, family2Str(AF_CFG), patch ? patch->val : "");
 
                         uint32_t dev_size = sizeof (struct dev_node) + (sizeof (void*) * plugin_data_registries[PLUGIN_DATA_DEV]);
-                        dev = debugMalloc(dev_size, -300002);
-                        memset(dev, 0, dev_size);
+                        dev = debugMallocReset(dev_size, -300002);
 
 /*
                         if (!primary_dev_cfg)

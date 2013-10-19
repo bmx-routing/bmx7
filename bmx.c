@@ -179,8 +179,7 @@ struct dhash_node* create_dhash_node(struct description_hash *dhash, struct orig
 {
         TRACE_FUNCTION_CALL;
 
-        struct dhash_node * dhn = debugMalloc(sizeof ( struct dhash_node), -300001);
-        memset(dhn, 0, sizeof ( struct dhash_node));
+        struct dhash_node * dhn = debugMallocReset(sizeof ( struct dhash_node), -300001);
         memcpy(&dhn->dhash, dhash, HASH_SHA1_LEN);
         avl_insert(&dhash_tree, dhn, -300142);
 
@@ -345,9 +344,7 @@ void create_neigh_node(struct local_node *local, struct dhash_node * dhn)
         TRACE_FUNCTION_CALL;
         assertion(-500400, (dhn && !dhn->neigh));
 
-        struct neigh_node *neigh = debugMalloc(sizeof ( struct neigh_node), -300131);
-
-        memset(neigh, 0, sizeof ( struct neigh_node));
+        struct neigh_node *neigh = debugMallocReset(sizeof ( struct neigh_node), -300131);
 
         local->neigh = neigh;
         local->neigh->local = local;
@@ -890,8 +887,7 @@ struct link_node *get_link_node(struct packet_buff *pb)
                 }
 
                 assertion(-500944, (!avl_find_item(&link_tree, &pb->i.link_key)));
-                local = debugMalloc(sizeof(struct local_node), -300336);
-                memset(local, 0, sizeof(struct local_node));
+                local = debugMallocReset(sizeof(struct local_node), -300336);
                 AVL_INIT_TREE(local->link_tree, struct link_node, key.dev_idx);
                 local->local_id = pb->i.link_key.local_id;
                 local->link_adv_msg_for_me = LINKADV_MSG_IGNORED;
@@ -906,8 +902,7 @@ struct link_node *get_link_node(struct packet_buff *pb)
 
         if (!link) {
 
-                link = debugMalloc(sizeof (struct link_node), -300024);
-                memset(link, 0, sizeof (struct link_node));
+                link = debugMallocReset(sizeof (struct link_node), -300024);
 
                 LIST_INIT_HEAD(link->lndev_list, struct link_dev_node, list, list);
 
@@ -952,9 +947,7 @@ struct link_dev_node *get_link_dev_node(struct packet_buff *pb)
 
         if (!lndev) {
 
-                lndev = debugMalloc(sizeof ( struct link_dev_node), -300023);
-
-                memset(lndev, 0, sizeof ( struct link_dev_node));
+                lndev = debugMallocReset(sizeof ( struct link_dev_node), -300023);
 
                 lndev->key.dev = dev;
                 lndev->key.link = link;
@@ -1767,8 +1760,7 @@ void fields_dbg_table(struct ctrl_node *cn, uint16_t relevance, uint16_t data_si
 void register_status_handl(uint16_t min_msg_size, IDM_T multiline, const struct field_format* format, char *name,
                             int32_t(*creator) (struct status_handl *status_handl, void *data))
 {
-        struct status_handl *handl = debugMalloc(sizeof (struct status_handl), -300364);
-        memset(handl, 0, sizeof (handl));
+        struct status_handl *handl = debugMallocReset(sizeof (struct status_handl), -300364);
 
         handl->multiline = multiline;
         handl->min_msg_size = min_msg_size;
@@ -2182,8 +2174,7 @@ char *globalIdAsString( struct GLOBAL_ID *id ) {
 struct orig_node *init_orig_node(GLOBAL_ID_T *id)
 {
         TRACE_FUNCTION_CALL;
-        struct orig_node *on = debugMalloc(sizeof ( struct orig_node) + (sizeof (void*) * plugin_data_registries[PLUGIN_DATA_ORIG]), -300128);
-        memset(on, 0, sizeof ( struct orig_node) + (sizeof (void*) * plugin_data_registries[PLUGIN_DATA_ORIG]));
+        struct orig_node *on = debugMallocReset(sizeof ( struct orig_node) + (sizeof (void*) * plugin_data_registries[PLUGIN_DATA_ORIG]), -300128);
         on->global_id = *id;
 
         AVL_INIT_TREE(on->rt_tree, struct router_node, local_key);

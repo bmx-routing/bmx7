@@ -1416,7 +1416,7 @@ int64_t field_get_value(const struct field_format *format, uint16_t min_msg_size
                         if(host_order)
                                 return *((uint32_t*) & data[pos_bit / 8]);
                         else
-                                return ntohs(*((uint32_t*) & data[pos_bit / 8]));
+                                return ntohl(*((uint32_t*) & data[pos_bit / 8]));
                 }
 
         } else if (bits < 8) {

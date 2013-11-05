@@ -3103,7 +3103,7 @@ int32_t opt_tun_name_prefix(uint8_t cmd, uint8_t _save, struct opt_type *opt, st
 
                 sprintf(tun_name_prefix.str, patch->val); //MUST be configured before opt_tunnel_in is checked
 
-        } else if (cmd == OPT_POST && initializing) {
+        } else if (cmd == OPT_SET_POST && initializing) {
 
                 struct avl_node *an = NULL;
                 struct if_link_node *iln = NULL;

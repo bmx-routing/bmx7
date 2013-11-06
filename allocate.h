@@ -23,22 +23,39 @@
 
 #include <stdint.h>
 
+#ifdef DEBUG_MALLOC
 
 // currently used memory tags: -300000, -300001 .. -300559
 #define debugMalloc( length,tag )  _debugMalloc( (length), (tag), 0 )
 #define debugMallocReset( length,tag )  _debugMalloc( (length), (tag), 1 )
-#define debugRealloc( mem,length,tag ) _debugRealloc( (mem), (length), (tag), 0 )
-#define debugReallocReset( mem,length,tag ) _debugRealloc( (mem), (length), (tag), 1 )
+#define debugRealloc( mem,length,tag ) _debugRealloc( (mem), (length), (tag) )
 
 #define debugFree( mem,tag ) _debugFree( (mem), (tag) )
 
 void *_debugMalloc(uint32_t length, int32_t tag, uint8_t reset);
-void *_debugRealloc(void *memory, uint32_t length, int32_t tag, uint8_t reset);
+void *_debugRealloc(void *memory, uint32_t length, int32_t tag);
 void _debugFree(void *memoryParameter, int32_t tag);
 
 void checkIntegrity(void);
 void checkLeak(void);
 void debugMemory( struct ctrl_node *cn );
 
+#else
+
+#define debugMalloc( length,tag )  _malloc( (length) )
+#define debugMallocReset( length,tag )  _calloc( (length) )
+#define debugRealloc( mem,length,tag ) _realloc( (mem), (length) )
+#define debugFree( mem,tag ) _free( (mem) )
+
+#define checkIntegrity()
+#define checkLeak()
+#define debugMemory( c )
+
+void * _malloc( size_t length );
+void * _calloc( size_t length );
+void * _realloc( void *mem, size_t length );
+void _free( void *mem );
+
+#endif
 
 #endif

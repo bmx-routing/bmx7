@@ -39,11 +39,11 @@
 # CFLAGS += -DLESS_OPTIONS
 # CFLAGS += -DNO_DYN_PLUGIN
 # CFLAGS += -DNO_TRACE_FUNCTION_CALLS
-# CFLAGS += -DNO_DEBUG_MALLOC
 
 # CFLAGS += -DDEBUG_ALL
 # CFLAGS += -DTRAFFIC_DUMP
 # CFLAGS += -DDEBUG_DUMP
+# CFLAGS += -DDEBUG_MALLOC
 # CFLAGS += -DMEMORY_USAGE
 
 # experimental or advanced defines (please dont touch):
@@ -61,12 +61,12 @@
 #EXTRA_CFLAGS="-DPROFILING -pg"
 
 #for very poor embedded stuff (reducing binary size and cpu footprint):
-#EXTRA_CFLAGS="-DNO_DEBUG_TRACK -DNO_DEBUG_MALLOC -DNO_TRACE_FUNCTION_CALLS -DNO_ASSERTIONS"
+#EXTRA_CFLAGS="-DNO_DEBUG_TRACK -DNO_TRACE_FUNCTION_CALLS -DNO_ASSERTIONS"
 
 #for small embedded stuff the defaults are just fine.
 
 #for normal machines (adding features and facilitating debugging):
-#EXTRA_CFLAGS="-DDEBUG_ALL -DTRAFFIC_DUMP -DDEBUG_DUMP -DMEMORY_USAGE"
+#EXTRA_CFLAGS="-DDEBUG_ALL -DTRAFFIC_DUMP -DDEBUG_DUMP -DEBUG_MALLOC -DMEMORY_USAGE"
 
 LDFLAGS += -g3
 
@@ -83,8 +83,8 @@ SRC_FILES= "\(\.c\)\|\(\.h\)\|\(Makefile\)\|\(INSTALL\)\|\(LIESMICH\)\|\(README\
 SRC_C =  bmx.c msg.c metrics.c tools.c plugin.c list.c allocate.c avl.c iid.c hna.c control.c schedule.c ip.c cyassl/sha.c cyassl/random.c cyassl/arc4.c
 SRC_H =  bmx.h msg.h metrics.h tools.h plugin.h list.h allocate.h avl.h iid.h hna.h control.h schedule.h ip.h cyassl/sha.h cyassl/random.h cyassl/arc4.h
 
-SRC_C += $(shell echo "$(CFLAGS) $(EXTRA_CFLAGS)" | grep -qv "DTRAFFIC_DUMP" || echo dump.c )
-SRC_H += $(shell echo "$(CFLAGS) $(EXTRA_CFLAGS)" | grep -qv "DTRAFFIC_DUMP" || echo dump.h )
+SRC_C += $(shell echo "$(CFLAGS) $(EXTRA_CFLAGS)" | grep -q "DTRAFFIC_DUMP" && echo dump.c )
+SRC_H += $(shell echo "$(CFLAGS) $(EXTRA_CFLAGS)" | grep -q "DTRAFFIC_DUMP" && echo dump.h )
 
 OBJS=  $(SRC_C:.c=.o)
 

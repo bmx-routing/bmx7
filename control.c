@@ -3018,7 +3018,7 @@ static struct opt_type control_options[]=
 //			"	 2  : gateways\n"
 			"	 3  : changes\n"
 			"	 4  : verbose changes (depends on -DDEBUG_ALL)\n"
-			"	 5  : profiling (depends on -DMEMORY_USAGE and NOT -DNO_DEBUG_MALLOC)\n"
+			"	 5  : profiling (depends on -DDEBUG_MALLOC and -DMEMORY_USAGE)\n"
 //			"	 7  : services\n"
 			"	 8  : details\n"
 //			"	 9  : announced networks and interfaces\n"

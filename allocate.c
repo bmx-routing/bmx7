@@ -17,9 +17,11 @@
  *
  */
 
-
 #include <stdio.h>
 #include <stdlib.h>
+
+#ifdef DEBUG_MALLOC
+
 #include <string.h>
 #include <syslog.h>
 
@@ -117,7 +119,7 @@ void removeMemory(int32_t tag, int32_t freetag)
 
 void debugMemory(struct ctrl_node *cn)
 {
-	
+
 	struct memoryUsage *memoryWalker;
 
 	dbg_printf( cn, "\nMemory usage information:\n" );
@@ -125,13 +127,13 @@ void debugMemory(struct ctrl_node *cn)
 	for ( memoryWalker = memoryList; memoryWalker != NULL; memoryWalker = memoryWalker->next ) {
 
 		if ( memoryWalker->counter != 0 )
-			dbg_printf( cn, "   tag: %4i, num malloc: %4i, bytes per malloc: %4i, total: %6i\n", 
-			         memoryWalker->tag, memoryWalker->counter, memoryWalker->length, 
+			dbg_printf( cn, "   tag: %4i, num malloc: %4i, bytes per malloc: %4i, total: %6i\n",
+			         memoryWalker->tag, memoryWalker->counter, memoryWalker->length,
 			         memoryWalker->counter * memoryWalker->length );
 
 	}
 	dbg_printf( cn, "\n" );
-	
+
 }
 
 #endif //#ifdef MEMORY_USAGE
@@ -173,16 +175,16 @@ void checkLeak(void)
 	struct chunkHeader *walker;
 
         if (chunkList != NULL) {
-		
+
                 openlog( "bmx6", LOG_PID, LOG_DAEMON );
 
                 for (walker = chunkList; walker != NULL; walker = walker->next) {
 			syslog( LOG_ERR, "Memory leak detected, malloc tag = %d\n", walker->tag );
-		
+
 			fprintf( stderr, "Memory leak detected, malloc tag = %d \n", walker->tag );
-			
+
 		}
-		
+
 		closelog();
 	}
 
@@ -190,7 +192,7 @@ void checkLeak(void)
 
 void *_debugMalloc(uint32_t length, int32_t tag, uint8_t reset)
 {
-	
+
 	unsigned char *memory;
 	struct chunkHeader *chunkHeader;
 	MAGIC_TRAILER_T *chunkTrailer;
@@ -199,7 +201,10 @@ void *_debugMalloc(uint32_t length, int32_t tag, uint8_t reset)
         if (!length)
                 return NULL;
 
-	memory = malloc(length + sizeof(struct chunkHeader) + sizeof(MAGIC_TRAILER_T));
+	if (reset)
+		memory = calloc(1, length + sizeof(struct chunkHeader) + sizeof(MAGIC_TRAILER_T));
+	else
+		memory = malloc(length + sizeof(struct chunkHeader) + sizeof(MAGIC_TRAILER_T));
 
 	if (memory == NULL)
 	{
@@ -227,13 +232,10 @@ void *_debugMalloc(uint32_t length, int32_t tag, uint8_t reset)
 
 #endif //#ifdef MEMORY_USAGE
 
-        if (reset)
-                memset(chunk, 0, length);
-
 	return chunk;
 }
 
-void *_debugRealloc(void *memoryParameter, uint32_t length, int32_t tag, uint8_t reset)
+void *_debugRealloc(void *memoryParameter, uint32_t length, int32_t tag)
 {
 
         unsigned char *result = _debugMalloc(length, tag, 0);
@@ -267,9 +269,6 @@ void *_debugRealloc(void *memoryParameter, uint32_t length, int32_t tag, uint8_t
 		debugFree(memoryParameter, -300280);
 	}
 
-        if (reset)
-                memset( ( (uint8_t*)result + copyLength), 0, (length - copyLength));
-
 	return result;
 }
 
@@ -279,9 +278,8 @@ void _debugFree(void *memoryParameter, int tag)
 	MAGIC_TRAILER_T *chunkTrailer;
 	struct chunkHeader *walker;
 	struct chunkHeader *previous;
-
-        struct chunkHeader *chunkHeader =
-                (struct chunkHeader *) (((unsigned char *) memoryParameter) - sizeof (struct chunkHeader));
+	struct chunkHeader *chunkHeader =
+		(struct chunkHeader *) (((unsigned char *) memoryParameter) - sizeof (struct chunkHeader));
 
         if (chunkHeader->magicNumberHeader != MAGIC_NUMBER_HEADER)
 	{
@@ -330,6 +328,28 @@ void _debugFree(void *memoryParameter, int tag)
 #endif //#ifdef MEMORY_USAGE
 
 	free(chunkHeader);
-	
+
 
 }
+
+
+#else
+
+void * _malloc( size_t length ) {
+	return malloc( length );
+}
+
+void * _calloc( size_t length ) {
+	return calloc( 1, length );
+}
+
+void * _realloc( void *mem, size_t length ) {
+	return realloc( mem, length );
+}
+
+void _free( void *mem ) {
+	free( mem );
+}
+
+
+#endif

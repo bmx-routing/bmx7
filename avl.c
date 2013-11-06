@@ -37,7 +37,7 @@ struct avl_node *avl_find( struct avl_tree *tree, void *key )
 
         // Search for a dead path or a matching entry
         while ( an  &&  ( cmp = memcmp( AVL_NODE_KEY( tree, an ), key, tree->key_size) ) )
-                an = an->link[ cmp < 0 ];
+                an = an->down[ cmp < 0 ];
 
         return an;
 }
@@ -50,16 +50,22 @@ void *avl_find_item(struct avl_tree *tree, void *key)
 
 }
 
+STATIC_FUNC
 struct avl_node *avl_first(struct avl_tree *tree)
 {
+#ifdef AVL_5XLINKED
+	return tree->first;
+#else
         struct avl_node * an = tree->root;
 
-        while (an && an->link[0])
-                an = an->link[0];
+        while (an && an->down[0])
+                an = an->down[0];
 
         return an;
+#endif
 }
 
+STATIC_FUNC
 struct avl_node *avl_next(struct avl_tree *tree, void *key)
 {
         if(!key)
@@ -73,9 +79,9 @@ struct avl_node *avl_next(struct avl_tree *tree, void *key)
 
                 cmp = (memcmp(AVL_NODE_KEY(tree, an), key, tree->key_size) <= 0);
 
-                if (an->link[cmp]) {
+                if (an->down[cmp]) {
                         best = cmp ? best : an;
-                        an = an->link[cmp];
+                        an = an->down[cmp];
                 } else {
                         return cmp ? best : an;
                 }
@@ -93,14 +99,13 @@ void * avl_next_item( struct avl_tree *tree, void *key)
 
 void *avl_first_item(struct avl_tree *tree)
 {
+#ifdef AVL_5XLINKED
+	return tree->first ? tree->first->item : NULL;
+#else
         struct avl_node * an = avl_first(tree);
-/*
-        struct avl_node * an = tree->root;
 
-        while (an && an->link[0])
-                an = an->link[0];
-*/
         return an ? an->item : NULL;
+#endif
 }
 
 /*
@@ -134,13 +139,17 @@ struct avl_node *avl_iterate(struct avl_tree *tree, struct avl_node *an )
 
 void *avl_iterate_item(struct avl_tree *tree, struct avl_node **an )
 {
+#ifdef AVL_5XLINKED
+	(*an) = (*an) ? (*an)->right : tree->first;
 
-        if ( !(*an) || (*an)->link[1] ) {
+	return (*an) ? (*an)->item : NULL;
+#else
+        if ( !(*an) || (*an)->down[1] ) {
 
-                (*an) = (*an) ? (*an)->link[1] : tree->root;
+                (*an) = (*an) ? (*an)->down[1] : tree->root;
 
-                while ( (*an) && (*an)->link[0] )
-                        (*an) = (*an)->link[0];
+                while ( (*an) && (*an)->down[0] )
+                        (*an) = (*an)->down[0];
 
                 return (*an) ? (*an)->item : NULL;
         }
@@ -149,13 +158,14 @@ void *avl_iterate_item(struct avl_tree *tree, struct avl_node **an )
 
         while (((*an) = (*an)->up)) {
 
-                if ( (*an)->link[0] == prev)
+                if ( (*an)->down[0] == prev)
                         return (*an)->item;
 
                 prev = (*an);
         }
 
         return NULL;
+#endif
 }
 
 void *_avl_find_item_by_field(struct avl_tree *tree, void *value, unsigned long offset, uint32_t size)
@@ -173,13 +183,33 @@ void *_avl_find_item_by_field(struct avl_tree *tree, void *value, unsigned long 
 
 
 STATIC_FUNC
-struct avl_node *avl_create_node(void *node, int32_t tag)
+struct avl_node *avl_create_node(struct avl_tree *tree, void *node, int32_t tag, struct avl_node *up, struct avl_node *left, struct avl_node *right)
 {
         struct avl_node *an = debugMallocReset(sizeof (struct avl_node), tag);
 
         an->item = node;
+	an->up = up;
+#ifdef AVL_5XLINKED
+	an->left = left;
+	an->right = right;
 
-        return an;
+	if (left) {
+		assertion(-500000, (left->right==right));
+		left->right = an;
+	} else {
+		tree->first = an;
+	}
+
+	if (right) {
+		assertion(-500000, (right->left==left));
+		right->left = an;
+	} else {
+		tree->last = an;
+	}
+#endif
+	tree->items++;
+	
+	return an;
 }
 
 STATIC_FUNC
@@ -189,22 +219,22 @@ struct avl_node *avl_rotate_single(struct avl_node *root, int dir)
 	int rlh, rrh, slh;
 
 	/* Rotate */
-        save = root->link[!dir];
+        save = root->down[!dir];
 
-        root->link[!dir] = save->link[dir];
+        root->down[!dir] = save->down[dir];
 
-        if (root->link[!dir])
-                root->link[!dir]->up = root;
+        if (root->down[!dir])
+                root->down[!dir]->up = root;
 
-	save->link[dir] = root;
+	save->down[dir] = root;
 
         if ( root )
                 root->up = save;
 
 	/* Update balance factors */
-	rlh = avl_height(root->link[0]);
-	rrh = avl_height(root->link[1]);
-	slh = avl_height(save->link[!dir]);
+	rlh = avl_height(root->down[0]);
+	rrh = avl_height(root->down[1]);
+	slh = avl_height(save->down[!dir]);
 
 	root->balance = avl_max(rlh, rrh) + 1;
 	save->balance = avl_max(slh, root->balance) + 1;
@@ -215,10 +245,10 @@ struct avl_node *avl_rotate_single(struct avl_node *root, int dir)
 STATIC_FUNC
 struct avl_node *avl_rotate_double(struct avl_node *root, int dir)
 {
-	root->link[!dir] = avl_rotate_single(root->link[!dir], !dir);
+	root->down[!dir] = avl_rotate_single(root->down[!dir], !dir);
 
-        if (root->link[!dir])
-                root->link[!dir]->up = root;
+        if (root->down[!dir])
+                root->down[!dir]->up = root;
 
 	return avl_rotate_single(root, dir);
 }
@@ -226,46 +256,63 @@ struct avl_node *avl_rotate_double(struct avl_node *root, int dir)
 void avl_insert(struct avl_tree *tree, void *node, int32_t tag)
 {
 
+	struct avl_node *new = NULL;
+
         if (tree->root) {
 
                 struct avl_node *it = tree->root;
                 struct avl_node *up[AVL_MAX_HEIGHT];
-                int upd[AVL_MAX_HEIGHT], top = 0;
+                int upd[AVL_MAX_HEIGHT];
+		int top = 0;
+		int ngi; // node greater it
                 int done = 0;
+#ifdef AVL_5XLINKED
+		struct avl_node *left = NULL; // it less-equal node
+		struct avl_node *right = NULL; // it greater node
+#endif
 
                 // Search for an empty link, save the path
                 for (;;) {
                         // Push direction and node onto stack */
-                        upd[top] = (memcmp(AVL_NODE_KEY(tree, it), AVL_ITEM_KEY(tree, node), tree->key_size) <= 0);
+			ngi = (memcmp(AVL_NODE_KEY(tree, it), AVL_ITEM_KEY(tree, node), tree->key_size) <= 0);
+#ifdef AVL_5XLINKED
+			if (ngi)
+				left = it;
+			else
+				right = it;
+#endif
+                        upd[top] = ngi;
+                        up[top] = it;
+                        top++;
 
-                        up[top++] = it;
-
-                        if (it->link[upd[top - 1]] == NULL)
+                        if (it->down[ngi] == NULL)
                                 break;
 
-                        it = it->link[upd[top - 1]];
+                        it = it->down[ngi];
                 }
 
                 // Insert a new node at the bottom of the tree:
-                it->link[upd[top - 1]] = avl_create_node(node, tag);
-                it->link[upd[top - 1]]->up = it;
-
-                assertion(-500178, (it->link[upd[top - 1]]));
+#ifdef AVL_5XLINKED
+                new = (it->down[ngi] = avl_create_node(tree, node, tag, it, left, right));
+#else
+		new = (it->down[ngi] = avl_create_node(tree, node, tag, it, NULL, NULL));
+#endif
+                assertion(-500178, (it->down[upd[top - 1]]));
 
                 // Walk back up the search path
                 while (--top >= 0 && !done) {
 
                         int lh, rh, max;
 
-                        lh = avl_height(up[top]->link[upd[top]]);
-                        rh = avl_height(up[top]->link[!upd[top]]);
+                        lh = avl_height(up[top]->down[upd[top]]);
+                        rh = avl_height(up[top]->down[!upd[top]]);
 
                         // Terminate or rebalance as necessary:
                         if (lh - rh == 0)
                                 done = 1;
                         if (lh - rh >= 2) {
-                                struct avl_node *a = up[top]->link[upd[top]]->link[upd[top]];
-                                struct avl_node *b = up[top]->link[upd[top]]->link[!upd[top]];
+                                struct avl_node *a = up[top]->down[upd[top]]->down[upd[top]];
+                                struct avl_node *b = up[top]->down[upd[top]]->down[!upd[top]];
 
                                 if (avl_height(a) >= avl_height(b))
                                         up[top] = avl_rotate_single(up[top], !upd[top]);
@@ -274,7 +321,7 @@ void avl_insert(struct avl_tree *tree, void *node, int32_t tag)
 
                                 // Fix parent:
                                 if (top != 0) {
-                                        up[top - 1]->link[upd[top - 1]] = up[top];
+                                        up[top - 1]->down[upd[top - 1]] = up[top];
                                         up[top]->up = up[top - 1];
                                 } else {
                                         tree->root = up[0];
@@ -286,8 +333,8 @@ void avl_insert(struct avl_tree *tree, void *node, int32_t tag)
                         }
 
                         // Update balance factors:
-                        lh = avl_height(up[top]->link[upd[top]]);
-                        rh = avl_height(up[top]->link[!upd[top]]);
+                        lh = avl_height(up[top]->down[upd[top]]);
+                        rh = avl_height(up[top]->down[!upd[top]]);
                         max = avl_max(lh, rh);
 
                         up[top]->balance = max + 1;
@@ -295,11 +342,15 @@ void avl_insert(struct avl_tree *tree, void *node, int32_t tag)
 
         } else {
 
-                tree->root = avl_create_node(node, tag);
+                new = (tree->root = avl_create_node(tree, node, tag, NULL, NULL, NULL));
         }
 
-        tree->items++;
-
+	assertion(-500000, (new));
+#ifdef AVL_5XLINKED
+	assertion(-500000, ( new->left  || avl_first(tree)==new));
+	assertion(-500000, (!new->left  || avl_next(tree, AVL_ITEM_KEY(tree, new->left->item))==new));
+	assertion(-500000, (!new->right || avl_next(tree, AVL_ITEM_KEY(tree, new->item))==new->right));
+#endif
         return;
 }
 
@@ -322,14 +373,14 @@ void *avl_remove(struct avl_tree *tree, void *key, int32_t tag)
                 dbgf_all(DBGT_INFO, "tree.items=%d it->item=%p memcmp(it,key)=%d link[0]=%p link[1]=%p memcmp(link[0],key)=%d memcmp(link[1],key)=%d",
                         tree->items, it->item,
                         memcmp(AVL_NODE_KEY(tree, it), key, tree->key_size),
-                        (void*) (it->link[0]), (void*) (it->link[1]),
-                        (it->link[0] ? memcmp(AVL_NODE_KEY(tree, it->link[0]), key, tree->key_size) : -1),
-                        (it->link[1] ? memcmp(AVL_NODE_KEY(tree, it->link[1]), key, tree->key_size) : -1)
+                        (void*) (it->down[0]), (void*) (it->down[1]),
+                        (it->down[0] ? memcmp(AVL_NODE_KEY(tree, it->down[0]), key, tree->key_size) : -1),
+                        (it->down[1] ? memcmp(AVL_NODE_KEY(tree, it->down[1]), key, tree->key_size) : -1)
                         );
 
                 if (!(
                         (cmp = memcmp(AVL_NODE_KEY(tree, it), key, tree->key_size)) ||
-                        (it->link[0] && !memcmp(AVL_NODE_KEY(tree, it->link[0]), key, tree->key_size))))
+                        (it->down[0] && !memcmp(AVL_NODE_KEY(tree, it->down[0]), key, tree->key_size))))
                         break;
 
                 // Push direction and node onto stack
@@ -337,7 +388,7 @@ void *avl_remove(struct avl_tree *tree, void *key, int32_t tag)
                 up[top] = it;
                 top++;
 
-                if (!(it = it->link[(cmp < 0)]))
+                if (!(it = it->down[(cmp < 0)]))
                         return NULL;
 
         }
@@ -345,59 +396,104 @@ void *avl_remove(struct avl_tree *tree, void *key, int32_t tag)
         // remember and return the found node. It might have been another one than intended
         void *node = it->item;
 
+#ifdef AVL_5XLINKED
+	// fix left,right,first,last:
+	struct avl_node *left = it->left;
+	struct avl_node *right = it->right;
+
+	if (tree->first == it)
+		tree->first = right;
+
+	if (tree->last == it)
+		tree->last = left;
+
+	if (left)
+		left->right = right;
+
+	if (right)
+		right->left = left;
+#endif
+
         // Remove the node:
-        if (!(it->link[0] && it->link[1])) { // at least one child is NULL:
+        if (!(it->down[0] && it->down[1])) { // at least one child is NULL:
 
                 // Which child is not null?
-                int dir = !(it->link[0]);
+                int dir = !(it->down[0]);
 
                 /* Fix parent */
                 if (top) {
-                        up[top - 1]->link[upd[top - 1]] = it->link[dir];
-                        if (it->link[dir])
-                                it->link[dir]->up = up[top - 1];
+                        up[top - 1]->down[upd[top - 1]] = it->down[dir];
+                        if (it->down[dir])
+                                it->down[dir]->up = up[top - 1];
                 } else {
-                        tree->root = it->link[dir];
+                        tree->root = it->down[dir];
                         if (tree->root)
                                 tree->root->up = NULL;
                 }
+
                 debugFree(it, tag);
 
         } else { // both childs NOT NULL:
 
                 // Find the inorder successor
-                struct avl_node *heir = it->link[1];
+                struct avl_node *heir = it->down[1];
 
                 // Save the path
                 upd[top] = 1;
                 up[top] = it;
                 top++;
 
-                while (heir->link[0]) {
+                while (heir->down[0]) {
                         upd[top] = 0;
                         up[top] = heir;
                         top++;
-                        heir = heir->link[0];
+                        heir = heir->down[0];
                 }
 
                 // Swap data
                 it->item = heir->item;
 
                 // Unlink successor and fix parent
-                up[top - 1]->link[ (up[top - 1] == it) ] = heir->link[1];
+                up[top - 1]->down[ (up[top - 1] == it) ] = heir->down[1];
 
-                if ( heir->link[1])
-                        heir->link[1]->up = up[top - 1];
+                if ( heir->down[1])
+                        heir->down[1]->up = up[top - 1];
 
+#ifdef AVL_5XLINKED
+		// fix left/right caches:
+		if (left==heir)
+			left=it;
+		if (right==heir)
+			right=it;
+
+		// fix left,right,first,last:
+
+		if (tree->first == heir)
+			tree->first = it;
+
+		if (tree->last == heir)
+			tree->last = it;
+
+		it->left = heir->left;
+
+		if (heir->left)
+			heir->left->right = it;
+
+		it->right = heir->right;
+
+		if (heir->right)
+			heir->right->left = it;
+#endif
                 debugFree(heir, tag);
+
         }
 
         tree->items--;
 
         // Walk back up the search path
         while (--top >= 0) {
-                int lh = avl_height(up[top]->link[upd[top]]);
-                int rh = avl_height(up[top]->link[!upd[top]]);
+                int lh = avl_height(up[top]->down[upd[top]]);
+                int rh = avl_height(up[top]->down[!upd[top]]);
                 int max = avl_max(lh, rh);
 
                 /* Update balance factors */
@@ -411,18 +507,18 @@ void *avl_remove(struct avl_tree *tree, void *key, int32_t tag)
                 if (lh - rh == -1) // balance for upper path unchanged!
                         break;
 
-                if (!(up[top]) || !(up[top]->link[!upd[top]])) {
+                if (!(up[top]) || !(up[top]->down[!upd[top]])) {
                         dbgf_sys(DBGT_ERR, "up(top) %p  link %p   lh %d   rh %d",
-                                (void*)(up[top]), (void*)((up[top]) ? (up[top]->link[!upd[top]]) : NULL), lh, rh);
+                                (void*)(up[top]), (void*)((up[top]) ? (up[top]->down[!upd[top]]) : NULL), lh, rh);
 
                         assertion(-500187, (up[top]));
-                        assertion(-500188, (up[top]->link[!upd[top]]));
+                        assertion(-500188, (up[top]->down[!upd[top]]));
                 }
 
                 // if (lh - rh <= -2):  rebalance here and upper path
 
-                struct avl_node *a = up[top]->link[!upd[top]]->link[upd[top]];
-                struct avl_node *b = up[top]->link[!upd[top]]->link[!upd[top]];
+                struct avl_node *a = up[top]->down[!upd[top]]->down[upd[top]];
+                struct avl_node *b = up[top]->down[!upd[top]]->down[!upd[top]];
 
                 if (avl_height(a) <= avl_height(b))
                         up[top] = avl_rotate_single(up[top], upd[top]);
@@ -431,7 +527,7 @@ void *avl_remove(struct avl_tree *tree, void *key, int32_t tag)
 
                 // Fix parent:
                 if (top) {
-                        up[top - 1]->link[upd[top - 1]] = up[top];
+                        up[top - 1]->down[upd[top - 1]] = up[top];
                         up[top]->up = up[top - 1];
                 } else {
                         tree->root = up[0];
@@ -439,6 +535,15 @@ void *avl_remove(struct avl_tree *tree, void *key, int32_t tag)
                 }
         }
 
+#ifdef AVL_5XLINKED
+	assertion(-500000, (!left  ||   left->left   || avl_first(tree)==left));
+	assertion(-500000, (!left  ||  !left->left   || avl_next(tree, AVL_ITEM_KEY(tree, left->left->item))==left));
+	assertion(-500000, (!left  ||  !left->right  || avl_next(tree, AVL_ITEM_KEY(tree, left->item))==left->right));
+
+	assertion(-500000, (!right ||  right->left   || avl_first(tree)==right));
+	assertion(-500000, (!right || !right->left   || avl_next(tree, AVL_ITEM_KEY(tree, right->left->item))==right));
+	assertion(-500000, (!right || !right->right  || avl_next(tree, AVL_ITEM_KEY(tree, right->item))==right->right));
+#endif
         return node;
 
 }
@@ -446,15 +551,17 @@ void *avl_remove(struct avl_tree *tree, void *key, int32_t tag)
 
 void *avl_remove_first_item(struct avl_tree *tree, int32_t tag) {
 
-        void *item = NULL;
+        void *oitem = NULL;
+	void *ritem = NULL;
         struct avl_node *an = avl_first(tree);
 
         if (an) {
-                item = avl_remove(tree, ((uint8_t*)an->item) + tree->key_offset, tag);
-                assertion(-501400, (an->item == item));
+		oitem = an->item;
+                ritem = avl_remove(tree, ((uint8_t*)an->item) + tree->key_offset, tag);
+                assertion(-501400, (oitem == ritem));
         }
 
-        return item;
+        return ritem;
 }
 
 #ifdef AVL_DEBUG

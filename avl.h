@@ -37,7 +37,11 @@ struct avl_node {
         void *item;
         int balance;
 	struct avl_node * up;
-	struct avl_node * link[2];
+	struct avl_node * down[2];
+#ifdef AVL_5XLINKED
+	struct avl_node * left; // it less-equal node
+	struct avl_node * right; // it greater node
+#endif
 };
 
 // obtain key pointer based on avl_node pointer
@@ -48,12 +52,32 @@ struct avl_node {
 
 struct avl_tree {
 	struct avl_node *root;
+#ifdef AVL_5XLINKED
+	struct avl_node *first;
+	struct avl_node *last;
+#endif
 	uint16_t key_size;
 	uint16_t key_offset;
 	uint32_t items;
 };
 
+#ifdef AVL_5XLINKED
 
+#define AVL_INIT_TREE(tree, element_type, key_field) do { \
+                          tree.root = NULL; \
+			  tree.first = NULL; \
+			  tree.last = NULL; \
+                          tree.key_size = sizeof( (((element_type *) 0)->key_field) ); \
+                          tree.key_offset = ((unsigned long) (&((element_type *) 0)->key_field)); \
+                          tree.items = 0; \
+                      } while (0)
+
+#define AVL_TREE(tree, element_type, key_field) struct avl_tree (tree) =  { \
+                   NULL, NULL, NULL, \
+                   (sizeof( (((element_type *) 0)->key_field) )), \
+                   ((unsigned long)(&(((element_type *)0)->key_field))), \
+                   0 }
+#else
 #define AVL_INIT_TREE(tree, element_type, key_field) do { \
                           tree.root = NULL; \
                           tree.key_size = sizeof( (((element_type *) 0)->key_field) ); \
@@ -66,6 +90,7 @@ struct avl_tree {
                    (sizeof( (((element_type *) 0)->key_field) )), \
                    ((unsigned long)(&(((element_type *)0)->key_field))), \
                    0 }
+#endif
 
 #define avl_height(p) ((p) == NULL ? -1 : (p)->balance)
 #define avl_max(a,b) ((a) > (b) ? (a) : (b))
@@ -73,11 +98,8 @@ struct avl_tree {
 
 struct avl_node *avl_find( struct avl_tree *tree, void *key );
 void            *avl_find_item( struct avl_tree *tree, void *key );
-struct avl_node *avl_next( struct avl_tree *tree, void *key );
 void            *avl_next_item(struct avl_tree *tree, void *key);
-struct avl_node *avl_first(struct avl_tree *tree);
 void            *avl_first_item(struct avl_tree *tree);
-struct avl_node *avl_iterate(struct avl_tree *tree, struct avl_node *it );
 void            *avl_iterate_item(struct avl_tree *tree, struct avl_node **it );
 void           *_avl_find_item_by_field(struct avl_tree *tree, void *value, unsigned long offset, uint32_t size);
 #define          avl_find_item_by_field(tree,val,s,field) _avl_find_item_by_field( tree, val, (unsigned long)((&(((struct s*)0)->field))), sizeof(((struct s*)0)->field) )

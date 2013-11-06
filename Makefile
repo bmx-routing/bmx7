@@ -31,7 +31,7 @@
 # CFLAGS += -DTEST_LINK_ID_COLLISION_DETECTION
 # CFLAGS += -DTEST_DEBUG          # (testing syntax of __VA_ARGS__ dbg...() macros)
 # CFLAGS += -DTEST_DEBUG_MALLOC   # allocates a never freed byte which should be reported at bmx6 termination
-# CFLAGS += -DAVL_DEBUG -DAVL_TEST
+# CFLAGS += -DAVL_5XLINKED -DAVL_DEBUG -DAVL_TEST
 
 # optional defines (you may disable these features if you dont need them)
 # CFLAGS += -DNO_DEBUG_TRACK

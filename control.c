@@ -785,20 +785,6 @@ void free_init_string(void)
 	init_string = NULL;
 }
 
-#ifndef NO_DEPRECATED
-int32_t opt_deprecated(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
-{
-	
-        if (cmd == OPT_ADJUST) {
-                dbg_sys(DBGT_WARN, "option --%s%s%c%sis DEPRECATED and ignored!",
-                        opt->name, opt->short_name ? ", -" : "",
-                        opt->short_name ? opt->short_name : ' ', opt->short_name ? " " : "");
-        }
-	
-	return SUCCESS;
-}
-#endif
-
 
 
 
@@ -2424,7 +2410,7 @@ int8_t apply_stream_opts(char *s, uint8_t cmd, uint8_t load_cfg, struct ctrl_nod
                 LONG_OPT_ARG_VAL, // 7
 	};
 
-#if !defined(NO_DEBUG_ALL) || defined(TEST_DEBUG)
+#if defined(DEBUG_ALL) || defined(TEST_DEBUG)
 	char *state2str[] = {"NEXT_OPT","NEW_OPT","SHORT_OPT","LONG_OPT","LONG_OPT_VAL","LONG_OPT_WHAT","LONG_OPT_ARG","LONG_OPT_ARG_VAL"};
 #endif
 	
@@ -3035,8 +3021,8 @@ static struct opt_type control_options[]=
 //			"	 1  : routes\n"
 //			"	 2  : gateways\n"
 			"	 3  : changes\n"
-			"	 4  : verbose changes (depends on -DNO_DEBUG_ALL)\n"
-			"	 5  : profiling (depends on -DNO_DEBUG_MALLOC -DNO_MEMORY_USAGE -DPROFILE_DATA)\n"
+			"	 4  : verbose changes (depends on -DDEBUG_ALL)\n"
+			"	 5  : profiling (depends on -DMEMORY_USAGE and NOT -DNO_DEBUG_MALLOC)\n"
 //			"	 7  : services\n"
 			"	 8  : details\n"
 //			"	 9  : announced networks and interfaces\n"

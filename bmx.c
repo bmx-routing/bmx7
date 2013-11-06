@@ -2412,7 +2412,7 @@ int main(int argc, char *argv[])
                 struct plugin * hna_get_plugin(void);
                 activate_plugin((hna_get_plugin()), NULL, NULL);
 
-#ifndef NO_TRAFFIC_DUMP
+#ifdef TRAFFIC_DUMP
                 struct plugin * dump_get_plugin(void);
                 activate_plugin((dump_get_plugin()), NULL, NULL);
 #endif

@@ -144,20 +144,20 @@ struct dbg_histogram {
 #define DBG_HIST_MUTING 0x01
 #define DBG_HIST_MUTED	0x02
 
-#ifdef  NO_DEBUG_ALL
-#define dbgf_all(...);
-#define dbg_all(...);
-#else
+#ifdef  DEBUG_ALL
 #define dbgf_all( dbgt, ... ); { if ( __dbgf_all() ) { _dbgf_all( dbgt, __FUNCTION__, __VA_ARGS__ ); } }
 #define dbg_all( dbgt, ... );  { if ( __dbgf_all() ) { dbg( DBGL_ALL, dbgt, __VA_ARGS__ ); } }
+#else
+#define dbgf_all(...);
+#define dbg_all(...);
 #endif
 
-#ifdef  NO_DEBUG_DUMP
-#define dbgf_dump(...);
-#define dbg_dump(...);
-#else
+#ifdef  DEBUG_DUMP
 #define dbgf_dump( dbgt, ... ); _dbgf( DBGL_DUMP, dbgt, __FUNCTION__, __VA_ARGS__ );
 #define dbg_dump( dbgt, ... ); dbg( DBGL_DUMP, dbgt, __VA_ARGS__ );
+#else
+#define dbgf_dump(...);
+#define dbg_dump(...);
 #endif
 
 
@@ -477,11 +477,4 @@ void init_control( void );
 void cleanup_control( void );
 
 void cleanup_config( void );
-
-
-#ifdef EXPORT_UNUSED
-char *debugWordDup( char* word, int32_t tag );
-static void strchange( char *s, char i, char o );
-char* nextword( char *s );
-#endif
 

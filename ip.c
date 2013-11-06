@@ -1866,7 +1866,7 @@ IDM_T iproute(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_key *dst,
         if (iptrack(dst, cmd, quiet, del, table, prio, oif_idx, via, src, metric, rte) == NO)
                 return SUCCESS;
 
-#ifndef NO_DEBUG_ALL
+#ifdef DEBUG_ALL
         struct if_link_node *oif_iln = oif_idx ? avl_find_item(&if_link_tree, &oif_idx) : NULL;
 
         dbgf_track( DBGT_INFO, "cmd=%s %s dst=%s table=%d prio=%d oifIdx=%d oif=%s via=%s src=%s metric=%d",

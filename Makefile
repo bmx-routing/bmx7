@@ -34,16 +34,17 @@
 # CFLAGS += -DAVL_DEBUG -DAVL_TEST
 
 # optional defines (you may disable these features if you dont need them)
-# CFLAGS += -DNO_DEBUG_ALL
-# CFLAGS += -DNO_DEBUG_DUMP
 # CFLAGS += -DNO_DEBUG_TRACK
 # CFLAGS += -DNO_DEBUG_SYS
 # CFLAGS += -DLESS_OPTIONS
-# CFLAGS += -DNO_TRAFFIC_DUMP
 # CFLAGS += -DNO_DYN_PLUGIN
 # CFLAGS += -DNO_TRACE_FUNCTION_CALLS
 # CFLAGS += -DNO_DEBUG_MALLOC
-# CFLAGS += -DNO_MEMORY_USAGE
+
+# CFLAGS += -DDEBUG_ALL
+# CFLAGS += -DTRAFFIC_DUMP
+# CFLAGS += -DDEBUG_DUMP
+# CFLAGS += -DMEMORY_USAGE
 
 # experimental or advanced defines (please dont touch):
 # CFLAGS += -DNO_ASSERTIONS       # (disable syntax error checking and error-code creation!)
@@ -51,9 +52,7 @@
 # CFLAGS += -DEXIT_ON_ERROR       # (exit and return code due to unusual behavior)
 # CFLAGS += -DTEST_DEBUG
 # CFLAGS += -DWITH_UNUSED	  # (includes yet unused stuff and buggy stuff)
-# CFLAGS += -DEXPORT_UNUSED       # (export only locally used stuff)
 # CFLAGS += -DPROFILING           # (no static functions -> better profiling and cores)
-# CFLAGS += -DNO_DEPRECATED	  # (for backward compatibility)
 
 #EXTRA_CFLAGS += 
 #EXTRA_LDFLAGS +=
@@ -61,9 +60,13 @@
 #for profiling:
 #EXTRA_CFLAGS="-DPROFILING -pg"
 
-#for embedded stuff (reducing binary size and cpu footprint):
-#EXTRA_CFLAGS="-DNO_DEBUG_ALL -DNO_DEBUG_TRACK -DNO_TRAFFIC_DUMP -DNO_DEBUG_MALLOC -DNO_MEMORY_USAGE -DNO_TRACE_FUNCTION_CALLS -DNO_ASSERTIONS"
+#for very poor embedded stuff (reducing binary size and cpu footprint):
+#EXTRA_CFLAGS="-DNO_DEBUG_TRACK -DNO_DEBUG_MALLOC -DNO_TRACE_FUNCTION_CALLS -DNO_ASSERTIONS"
 
+#for small embedded stuff the defaults are just fine.
+
+#for normal machines (adding features and facilitating debugging):
+#EXTRA_CFLAGS="-DDEBUG_ALL -DTRAFFIC_DUMP -DDEBUG_DUMP -DMEMORY_USAGE"
 
 LDFLAGS += -g3
 
@@ -80,8 +83,8 @@ SRC_FILES= "\(\.c\)\|\(\.h\)\|\(Makefile\)\|\(INSTALL\)\|\(LIESMICH\)\|\(README\
 SRC_C =  bmx.c msg.c metrics.c tools.c plugin.c list.c allocate.c avl.c iid.c hna.c control.c schedule.c ip.c cyassl/sha.c cyassl/random.c cyassl/arc4.c
 SRC_H =  bmx.h msg.h metrics.h tools.h plugin.h list.h allocate.h avl.h iid.h hna.h control.h schedule.h ip.h cyassl/sha.h cyassl/random.h cyassl/arc4.h
 
-SRC_C += $(shell echo "$(CFLAGS) $(EXTRA_CFLAGS)" | grep -q "DNO_TRAFFIC_DUMP" || echo dump.c )
-SRC_H += $(shell echo "$(CFLAGS) $(EXTRA_CFLAGS)" | grep -q "DNO_TRAFFIC_DUMP" || echo dump.h )
+SRC_C += $(shell echo "$(CFLAGS) $(EXTRA_CFLAGS)" | grep -qv "DTRAFFIC_DUMP" || echo dump.c )
+SRC_H += $(shell echo "$(CFLAGS) $(EXTRA_CFLAGS)" | grep -qv "DTRAFFIC_DUMP" || echo dump.h )
 
 OBJS=  $(SRC_C:.c=.o)
 

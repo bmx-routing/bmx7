@@ -1866,7 +1866,7 @@ IDM_T iproute(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_key *dst,
 #ifdef DEBUG_ALL
         struct if_link_node *oif_iln = oif_idx ? avl_find_item(&if_link_tree, &oif_idx) : NULL;
 
-        dbgf_track( DBGT_INFO, "cmd=%s %s dst=%s table=%d prio=%d oifIdx=%d oif=%s via=%s src=%s metric=%d",
+        dbgf_all( DBGT_INFO, "cmd=%s %s dst=%s table=%d prio=%d oifIdx=%d oif=%s via=%s src=%s metric=%d",
                 trackt2str(cmd), del2str(del), netAsStr(dst),
                 table, prio, oif_idx, oif_iln ? oif_iln->name.str : "???",
                 via ? ipXAsStr(dst->af, via) : DBG_NIL, src ? ipXAsStr(dst->af, src) : DBG_NIL, metric);
@@ -2680,7 +2680,8 @@ void ip_flush_tracked( uint8_t cmd )
                         (cmd == IP_ROUTE_FLUSH && tn->k.cmd_type == IP_ROUTES) ||
                         (cmd == IP_RULE_FLUSH && tn->k.cmd_type == IP_RULES)) {
 
-                        iproute(tn->cmd, DEL, NO, &tn->k.net, tn->k.table, tn->k.prio, 0, 0, 0, tn->k.metric, NULL);
+                        struct track_key tk = tn->k;
+                        iproute(tn->cmd, DEL, NO, &tk.net, tk.table, tk.prio, 0, 0, 0, tk.metric, NULL);
 
                         an = NULL;
                 }

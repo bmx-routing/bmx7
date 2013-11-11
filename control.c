@@ -738,7 +738,8 @@ uint8_t __dbgf_all( void ) {
 
 uint8_t __dbgf_track( void ) {
 
-	if ( debug_level != DBGL_CHANGES  &&  LIST_EMPTY( &dbgl_clients[DBGL_CHANGES] ) )
+	if ( debug_level != DBGL_CHANGES  &&  LIST_EMPTY( &dbgl_clients[DBGL_CHANGES] ) &&
+	     debug_level != DBGL_ALL      &&  LIST_EMPTY( &dbgl_clients[DBGL_ALL] ) )
 		return NO;
 
 	return YES;

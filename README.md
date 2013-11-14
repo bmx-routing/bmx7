@@ -407,8 +407,9 @@ The following Linux-kernel modules are needed for tunnel-based overlay networkin
 ### Tunnel Configuration and Debugging ###
 In general, a specific tunnel configuration is described from two perspectives:
 
-    Gateway (GW) nodes or just GWs are offering GW services to networks via the advertizement of tunnel announcements and the provisioning of tunnel-end-points.
-    GW-client nodes (or just GW-clients) that are searching for GWs with tunnel endpoints and routing services to networks.
+* Gateway (GW) nodes or just GWs are offering GW services to networks via the advertizement of tunnel announcements and the provisioning of tunnel-end-points.
+
+* GW-client nodes (or just GW-clients) that are searching for GWs with tunnel endpoints and routing services to networks.
 
 A node can (and usually is) operating in both modes (as GW and as GW-client).
 But regarding a specific network each node is operating either in GW mode (thus, offering GW-services to that network) or in GW-client mode (thus, searching and using GW-services to that network)!
@@ -441,7 +442,7 @@ bmx6 -c tunDev=Default /tun4Address=10.254.10.123/32 /tun6Address=2012:1234:5678
 </pre>
 dynamically
 * configures a linux ip4/6in6 tunnel device called bmx6Default (check it with command: ip link show).
-* assignes the address 10.254.10.123 and 2012:1234:5678:123::1 to the tunnel interface and uses them for outgoing tunnel traffic.
+* assignes the address `10.254.10.123` and `2012:1234:5678:123::1` to the tunnel interface and uses them for outgoing tunnel traffic.
 * enables GW-mode for the specified networks: Makes a tunnel announcement so that other nodes can select it for tunneling packets to this node.
 
 Now other nodes can send tunneled packets to this node via the unidirectional tunnel end point offered by this node.
@@ -464,9 +465,12 @@ With the above configured tunnel selection policy, tunnels are selected in the f
   1. prefix-length of announced tunnels (networks that are more specific than others).
   2. the resulting tunnelMetric (combination of the advertised bandwidth, path metric in the bmx6 cloud, and locally specified prefereces like hysteresis or bonus)
 
-The disadvantage of this simple config is that other nodes can easily redirect your tunnel selections to specific networks by announcing more precise tunnel networks (larger prefix length). To prevent this, selection policy can be split into several and more precise search directives.
+The disadvantage of this simple config is that other nodes can easily redirect your tunnel selections 
+to specific networks by announcing more precise tunnel networks (larger prefix length). 
+To prevent this, the selection policy can be split into several and more precise search directives.
 
-Imagine the following address assignment policy for IPv4 tunnel addresses in a mesh cloud (the general idea can be straight translated to IPv6).
+Imagine the following address assignment policy for IPv4 tunnel addresses in a mesh cloud (the general 
+idea can be straight translated to IPv6).
 
 * Nodes in the mesh cloud announce their private and local address ranges with a prefix length of 24 and somewhere in the range of 10.254.0.0/16.
 
@@ -513,8 +517,8 @@ The following command dynamically configures the advertisement of the following 
 
 * An IPv4 default route 0.0.0.0/0 with a bandwidth of 32 Mbps.
 * A more specific route to 10.10.0.0/16 with a bandwidth of 10 Mbps (eg: a local v4 Network).
-* An IPv6 route to the [RFC 4291] designated 2000::/3 global unicast address space with a bandwidth of 16 Mbps.
-* A more specific route to the 2012:1234::/32 IPv6 space at 10 Mbps (eg: a local v6 Network).
+* An IPv6 route to the [RFC 4291] designated `2000::/3` global unicast address space with a bandwidth of 16 Mbps.
+* A more specific route to the `2012:1234::/32` IPv6 space at 10 Mbps (eg: a local v6 Network).
 <pre>
 bmx6 -c tunIn=def4Offer /n=0.0.0.0/0 /b=32000000  tunIn=local4 /n=10.10.0.0/16 /b=10000000  tunIn=def6Offer /n=2000::/3 /b=16000000  tunIn=local6 /n=2012:1234::/32 /b=10000000
 </pre>

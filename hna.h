@@ -165,7 +165,7 @@ extern struct avl_tree tun_in_tree;
 #define ARG_TUN_OUT_MIN_BW "minBandwidth"
 #define MIN_TUN_OUT_MIN_BW UMETRIC_FM8_MIN
 #define MAX_TUN_OUT_MIN_BW UMETRIC_MAX
-#define DEF_TUN_OUT_MIN_BW 100000
+#define DEF_TUN_OUT_MIN_BW DEF_TUN_IN_BW
 
 #define ARG_TUN_OUT_MTU "tunMtu"
 #define DEF_TUN_OUT_MTU 0

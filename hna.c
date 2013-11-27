@@ -2624,7 +2624,8 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                                 tsn->iptable = DEF_TUN_OUT_TABLE;
                                 tsn->iprule = DEF_TUN_OUT_RULE;
                                 tsn->hysteresis = DEF_TUN_OUT_HYSTERESIS;
-				tsn->minBW = DEF_TUN_OUT_MIN_BW;
+                                UMETRIC_T ull = DEF_TUN_OUT_MIN_BW;
+                                tsn->minBW = fmetric_to_umetric(fmetric_u8_to_fmu16(umetric_to_fmu8(&ull)));
                                 tsn->netPrefixMin = DEF_TUN_OUT_PREFIX_MIN;
                                 tsn->netPrefixMax = DEF_TUN_OUT_PREFIX_MAX;
                                 tsn->allowLargerPrefixRoutesWithWorseTunMetric = DEF_TUN_OUT_OVLP_ALLOW;
@@ -2736,16 +2737,17 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
 				if(c->val) {
 
 					char *endptr;
-					unsigned long long int ull = strtoull(c->val, &endptr, 10);
+					UMETRIC_T ull = strtoull(c->val, &endptr, 10);
 
 					if (ull > MAX_TUN_IN_BW || ull < MIN_TUN_IN_BW || *endptr != '\0')
 						return FAILURE;
 
 					if (cmd == OPT_APPLY && tsn)
-						tsn->minBW = ull;
+						tsn->minBW = fmetric_to_umetric(fmetric_u8_to_fmu16(umetric_to_fmu8(&ull)));
 
 				} else if (cmd == OPT_APPLY && tsn) {
-					tsn->minBW = DEF_TUN_OUT_MIN_BW;
+                                        UMETRIC_T ull = DEF_TUN_OUT_MIN_BW;
+					tsn->minBW = fmetric_to_umetric(fmetric_u8_to_fmu16(umetric_to_fmu8(&ull)));
 				}
 
 			} else if (!strcmp(c->opt->name, ARG_TUN_OUT_TRULE)) {

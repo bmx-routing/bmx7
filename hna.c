@@ -2439,8 +2439,8 @@ static int32_t tun_out_status_creator(struct status_handl *handl, void *data)
                                 status->remoteTunIp = &tun->remoteIp;
 				status->tunId = tun->tunOutKey.tun6Id;
                                 status->advType = bmx6_rt_dict[tnn->tunNetKey.bmx6RouteType].sys2Name;
-                                sprintf(status->advNet, netAsStr(&tnn->tunNetKey.netKey));
-                                sprintf(status->srcIngress, netAsStr(&tun->ingressPrefix[(tnn->tunNetKey.netKey.af==AF_INET)]));
+                                strcpy(status->advNet, netAsStr(&tnn->tunNetKey.netKey));
+                                strcpy(status->srcIngress, netAsStr(&tun->ingressPrefix[(tnn->tunNetKey.netKey.af==AF_INET)]));
                                 status->advBwVal = fmetric_to_umetric(fmetric_u8_to_fmu16(tnn->bandwidth));
                                 status->advBw = status->advBwVal ? &status->advBwVal : NULL;
                                 status->pathMtc = tun->tunOutKey.on->curr_rt_local ? &tun->tunOutKey.on->curr_rt_local->mr.umetric : NULL;
@@ -2454,13 +2454,13 @@ static int32_t tun_out_status_creator(struct status_handl *handl, void *data)
                         if (tbn) {
                                 struct net_key tunRoute = tbn->tunBitKey.invRouteKey;
                                 tunRoute.mask = tbn ? (128 - tunRoute.mask) : 0;
-                                sprintf(status->tunRoute, netAsStr(&tunRoute));
+                                strcpy(status->tunRoute, netAsStr(&tunRoute));
 
                                 status->tunName = (tbn->active_tdn ? tbn->active_tdn->nameKey.str : DBG_NIL);
 				status->tunIn = (tbn->active_tdn ? tbn->active_tdn->tunCatchKey.tin->nameKey.str : DBG_NIL);
 
                         } else {
-                                sprintf(status->tunRoute, DBG_NIL);
+                                strcpy(status->tunRoute, DBG_NIL);
                                 status->tunName = DBG_NIL;
 				status->tunIn = DBG_NIL;
                         }
@@ -2468,9 +2468,9 @@ static int32_t tun_out_status_creator(struct status_handl *handl, void *data)
 
                         if(tsn) {
                                 status->name = tsn->nameKey;
-                                sprintf(status->type, bmx6RouteBits2String(tsn->bmx6RouteBits));
-                                sprintf(status->net, netAsStr(&(tsn->net)));
-                                sprintf(status->src, tsn->srcRtNet.mask ? netAsStr(&(tsn->srcRtNet)) : DBG_NIL);
+                                strcpy(status->type, bmx6RouteBits2String(tsn->bmx6RouteBits));
+                                strcpy(status->net, netAsStr(&(tsn->net)));
+                                strcpy(status->src, tsn->srcRtNet.mask ? netAsStr(&(tsn->srcRtNet)) : DBG_NIL);
                                 status->id = &(tsn->global_id);
                                 status->min = tsn->netPrefixMin == TYP_TUN_OUT_PREFIX_NET ? tsn->net.mask : tsn->netPrefixMin;
                                 status->max = tsn->netPrefixMax == TYP_TUN_OUT_PREFIX_NET ? tsn->net.mask : tsn->netPrefixMax;
@@ -2697,7 +2697,7 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
 
                                         if (cmd == OPT_APPLY && tsn) {
                                                 memset(tsn->global_id.name, 0, sizeof (tsn->global_id.name));
-                                                sprintf(tsn->global_id.name, c->val);
+                                                strcpy(tsn->global_id.name, c->val);
                                         }
 
                                 } else if ( cmd == OPT_APPLY && tsn ) {
@@ -3088,7 +3088,7 @@ int32_t opt_tun_name_prefix(uint8_t cmd, uint8_t _save, struct opt_type *opt, st
                         validate_name_string(patch->val, strlen(patch->val) + 1, NULL))
                         return FAILURE;
 
-                sprintf(tun_name_prefix.str, patch->val); //MUST be configured before opt_tunnel_in is checked
+                strcpy(tun_name_prefix.str, patch->val); //MUST be configured before opt_tunnel_in is checked
 
         } else if (cmd == OPT_SET_POST && initializing) {
 

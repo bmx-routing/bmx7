@@ -157,10 +157,10 @@ extern struct avl_tree tun_in_tree;
 #define MIN_TUN_OUT_HYSTERESIS 0
 #define MAX_TUN_OUT_HYSTERESIS XMIN(100000, (UMETRIC_MULTIPLY_MAX - 100))
 
-#define ARG_TUN_OUT_BONUS "bonus"
-#define DEF_TUN_OUT_BONUS 0
-#define MIN_TUN_OUT_BONUS 0
-#define MAX_TUN_OUT_BONUS XMIN(INT32_MAX, (UMETRIC_MULTIPLY_MAX - MAX_TUN_OUT_HYSTERESIS))
+#define ARG_TUN_OUT_RATING "rating"
+#define DEF_TUN_OUT_RATING 100
+#define MIN_TUN_OUT_RATING 0
+#define MAX_TUN_OUT_RATING XMIN(INT32_MAX, (UMETRIC_MULTIPLY_MAX - MAX_TUN_OUT_HYSTERESIS))
 
 #define ARG_TUN_OUT_MIN_BW "minBandwidth"
 #define MIN_TUN_OUT_MIN_BW UMETRIC_FM8_MIN
@@ -403,7 +403,7 @@ struct tun_search_node {
         uint8_t breakSmallerPrefixRoutesWithBetterTunMetric;
         
         uint32_t hysteresis;
-        uint32_t bonus;
+        uint32_t rating;
 	UMETRIC_T minBW;
         uint32_t ipmetric;
         uint32_t iptable;

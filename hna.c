@@ -1509,7 +1509,7 @@ IDM_T _recalc_tun_bit_tree(void)
                 if (e2eMetric <= UMETRIC_MIN__NOT_ROUTABLE) {
                         tbk_new.beInvTunBitMetric = hton64(UMETRIC_MAX);
                 } else {
-                        UMETRIC_T tunBitMetric = ((((e2eMetric * (100 + tsn->bonus)) / 100) *
+                        UMETRIC_T tunBitMetric = ((((e2eMetric * (tsn->rating)) / 100) *
                                 (100 + (tbn_curr->active_tdn ? tsn->hysteresis : 0))) / 100);
 
                         assertion(-501379, (UMETRIC_MAX >= tunBitMetric));
@@ -2333,7 +2333,7 @@ struct tun_out_status {
         uint32_t aOLP;
         uint32_t bOSP;
         uint32_t hyst;
-        uint32_t bonus;
+        uint32_t rating;
         UMETRIC_T *minBw;
         uint32_t pref;
         uint32_t table;
@@ -2368,7 +2368,7 @@ static const struct field_format tun_out_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              tun_out_status, aOLP,        1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              tun_out_status, bOSP,        1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              tun_out_status, hyst,        1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              tun_out_status, bonus,       1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              tun_out_status, rating,      1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_UMETRIC,   tun_out_status, minBw,       1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              tun_out_status, pref,        1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              tun_out_status, table,       1, FIELD_RELEVANCE_HIGH),
@@ -2477,7 +2477,7 @@ static int32_t tun_out_status_creator(struct status_handl *handl, void *data)
                                 status->aOLP = tsn->allowLargerPrefixRoutesWithWorseTunMetric;
                                 status->bOSP = tsn->breakSmallerPrefixRoutesWithBetterTunMetric;
                                 status->hyst = tsn->hysteresis;
-                                status->bonus = tsn->bonus;
+                                status->rating = tsn->rating;
 				status->minBw = tsn->minBW ? &tsn->minBW : NULL;
 				status->table = tsn->iptable;
 				status->pref = tsn->iprule;
@@ -2617,6 +2617,7 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                                 tsn->hysteresis = DEF_TUN_OUT_HYSTERESIS;
                                 UMETRIC_T ull = DEF_TUN_OUT_MIN_BW;
                                 tsn->minBW = fmetric_to_umetric(fmetric_u8_to_fmu16(umetric_to_fmu8(&ull)));
+                                tsn->rating = DEF_TUN_OUT_RATING;
                                 tsn->netPrefixMin = DEF_TUN_OUT_PREFIX_MIN;
                                 tsn->netPrefixMax = DEF_TUN_OUT_PREFIX_MAX;
                                 tsn->allowLargerPrefixRoutesWithWorseTunMetric = DEF_TUN_OUT_OVLP_ALLOW;
@@ -2821,8 +2822,8 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                                } else if (!strcmp(c->opt->name, ARG_TUN_OUT_HYSTERESIS)) {
                                         tsn->hysteresis = c->val ? strtol(c->val, NULL, 10) : DEF_TUN_OUT_HYSTERESIS;
 
-                               } else if (!strcmp(c->opt->name, ARG_TUN_OUT_BONUS)) {
-                                       tsn->bonus = c->val ? strtol(c->val, NULL, 10) : DEF_TUN_OUT_BONUS;
+                               } else if (!strcmp(c->opt->name, ARG_TUN_OUT_RATING)) {
+                                       tsn->rating = c->val ? strtol(c->val, NULL, 10) : DEF_TUN_OUT_RATING;
 
                                } else if (!strcmp(c->opt->name, ARG_EXPORT_DISTANCE)) {
                                        tsn->exportDistance = c->val ? strtol(c->val, NULL, 10) : DEF_EXPORT_DISTANCE;
@@ -3348,8 +3349,8 @@ struct opt_type hna_options[]= {
 			ARG_SHA2_FORM,  "pkid of remote tunnel endpoint"},
 	{ODI,ARG_TUN_OUT,ARG_TUN_OUT_HYSTERESIS,0,9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,MIN_TUN_OUT_HYSTERESIS,MAX_TUN_OUT_HYSTERESIS,DEF_TUN_OUT_HYSTERESIS,0,opt_tun_search,
 			ARG_VALUE_FORM, "specify in percent how much the metric to an alternative GW must be better than to curr GW"},
-	{ODI,ARG_TUN_OUT,ARG_TUN_OUT_BONUS,0,9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,       MIN_TUN_OUT_BONUS,MAX_TUN_OUT_BONUS,DEF_TUN_OUT_BONUS,0,opt_tun_search,
-			ARG_VALUE_FORM, "specify in percent a metric bonus (preference) for GWs matching this tunOut spec when compared with other tunOut specs for same network"},
+	{ODI,ARG_TUN_OUT,ARG_TUN_OUT_RATING,0,9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,       MIN_TUN_OUT_RATING,MAX_TUN_OUT_RATING,DEF_TUN_OUT_RATING,0,opt_tun_search,
+			ARG_VALUE_FORM, "specify in percent a metric rating for GWs matching this tunOut spec when compared with other tunOut specs for same network"},
 	{ODI,ARG_TUN_OUT,ARG_TUN_OUT_MIN_BW, 0,9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,		0,	        0,              0,0,            opt_tun_search,
 			ARG_VALUE_FORM,	"min bandwidth as bits/sec beyond which GW's advertised bandwidth is ignored  default: 100000  range: [36 ... 128849018880]"},
 	{ODI,ARG_TUN_OUT,ARG_TUN_OUT_IPMETRIC,0,9,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,MIN_TUN_OUT_IPMETRIC,MAX_TUN_OUT_IPMETRIC,DEF_TUN_OUT_IPMETRIC,0,opt_tun_search,

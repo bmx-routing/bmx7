@@ -1479,12 +1479,9 @@ IDM_T _recalc_tun_bit_tree(void)
         TRACE_FUNCTION_CALL;
 
 	IDM_T changedOrder = NO;
-        static uint32_t eval_counter = 0;
         struct tun_bit_node *tbn_curr;
         struct tun_bit_key tbk_prev;
         memset(&tbk_prev, 0, sizeof (tbk_prev));
-
-        eval_counter = (eval_counter + 1) ? (eval_counter + 1) : (eval_counter + 2);
 
         while ((tbn_curr = avl_next_item(&tun_bit_tree, &tbk_prev))) {
 
@@ -1493,29 +1490,26 @@ IDM_T _recalc_tun_bit_tree(void)
                 struct tun_net_node *tnn = tbn_curr->tunBitKey.keyNodes.tnn;
                 struct tun_search_node *tsn = tbn_curr->tunBitKey.keyNodes.tsn;
 
-                if (tnn->eval_counter != eval_counter) {
 
-                        struct orig_node *on = tnn->tunNetKey.ton->tunOutKey.on;
+                struct orig_node *on = tnn->tunNetKey.ton->tunOutKey.on;
 
-                        UMETRIC_T linkMax = UMETRIC_MAX;
-                        UMETRIC_T tnnBandwidth = fmetric_to_umetric(fmetric_u8_to_fmu16(tnn->bandwidth));
-                        UMETRIC_T linkQuality = tnnBandwidth >= tsn->minBW ? UMETRIC_MAX : tnnBandwidth;
-                        UMETRIC_T pathMetric = on->curr_rt_local ? (on->curr_rt_local->mr.umetric) : 0;
+                UMETRIC_T linkMax = UMETRIC_MAX;
+                UMETRIC_T tnnBandwidth = fmetric_to_umetric(fmetric_u8_to_fmu16(tnn->bandwidth));
+                UMETRIC_T linkQuality = tnnBandwidth >= tsn->minBW ? UMETRIC_MAX : tnnBandwidth;
+                UMETRIC_T pathMetric = on->curr_rt_local ? (on->curr_rt_local->mr.umetric) : 0;
+                UMETRIC_T e2eMetric;
 
-                        if (linkQuality <= UMETRIC_MIN__NOT_ROUTABLE || pathMetric <= UMETRIC_MIN__NOT_ROUTABLE)
-                                tnn->e2eMetric = UMETRIC_MIN__NOT_ROUTABLE;
-                        else
-                                tnn->e2eMetric = apply_metric_algo(&linkQuality, &linkMax, &pathMetric, on->path_metricalgo);
+                if (linkQuality <= UMETRIC_MIN__NOT_ROUTABLE || pathMetric <= UMETRIC_MIN__NOT_ROUTABLE)
+                        e2eMetric = UMETRIC_MIN__NOT_ROUTABLE;
+                else
+                        e2eMetric = apply_metric_algo(&linkQuality, &linkMax, &pathMetric, on->path_metricalgo);
 
-                        dbgf_all(DBGT_INFO, "acceptable e2eMetric=%s,", umetric_to_human(tnn->e2eMetric));
+                dbgf_all(DBGT_INFO, "acceptable e2eMetric=%s,", umetric_to_human(e2eMetric));
 
-                        tnn->eval_counter = eval_counter;
-                }
-
-                if (tnn->e2eMetric <= UMETRIC_MIN__NOT_ROUTABLE) {
+                if (e2eMetric <= UMETRIC_MIN__NOT_ROUTABLE) {
                         tbk_new.beInvTunBitMetric = hton64(UMETRIC_MAX);
                 } else {
-                        UMETRIC_T tunBitMetric = ((((tnn->e2eMetric * (100 + tsn->bonus)) / 100) *
+                        UMETRIC_T tunBitMetric = ((((e2eMetric * (100 + tsn->bonus)) / 100) *
                                 (100 + (tbn_curr->active_tdn ? tsn->hysteresis : 0))) / 100);
 
                         assertion(-501379, (UMETRIC_MAX >= tunBitMetric));
@@ -2356,7 +2350,6 @@ struct tun_out_status {
         UMETRIC_T advBwVal;
         UMETRIC_T *advBw;
         UMETRIC_T *pathMtc;
-        UMETRIC_T *e2EMtc;
         UMETRIC_T tunMtcVal;
         UMETRIC_T *tunMtc;
         IPX_T *localTunIp;
@@ -2392,7 +2385,6 @@ static const struct field_format tun_out_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           tun_out_status, advBwVal,    1, FIELD_RELEVANCE_LOW),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_UMETRIC,   tun_out_status, advBw,       1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_UMETRIC,   tun_out_status, pathMtc,     1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_UMETRIC,   tun_out_status, e2EMtc,      1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           tun_out_status, tunMtcVal,   1, FIELD_RELEVANCE_LOW),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_UMETRIC,   tun_out_status, tunMtc,      1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_IPX6P,             tun_out_status, localTunIp,  1, FIELD_RELEVANCE_MEDI),
@@ -2452,7 +2444,6 @@ static int32_t tun_out_status_creator(struct status_handl *handl, void *data)
                                 status->advBwVal = fmetric_to_umetric(fmetric_u8_to_fmu16(tnn->bandwidth));
                                 status->advBw = status->advBwVal ? &status->advBwVal : NULL;
                                 status->pathMtc = tun->tunOutKey.on->curr_rt_local ? &tun->tunOutKey.on->curr_rt_local->mr.umetric : NULL;
-                                status->e2EMtc = tnn->e2eMetric ? &tnn->e2eMetric : NULL;
                                 status->tunMtcVal = tbn ? (UMETRIC_MAX - ntoh64(tbn->tunBitKey.beInvTunBitMetric)) : 0;
                                 status->tunMtc = status->tunMtcVal ? &status->tunMtcVal : NULL;
                         } else {

@@ -2422,49 +2422,11 @@ static int32_t tun_out_status_creator(struct status_handl *handl, void *data)
                         struct tun_net_node *tnn = (t[a] == &tun_net_tree) ? p : (tbn ? tbn->tunBitKey.keyNodes.tnn : NULL);
                         struct tun_search_node *tsn = (t[a] == &tun_search_tree) ? p : (tbn ? tbn->tunBitKey.keyNodes.tsn : NULL);
 
-                        if (tsn && !tbn && tsn->tun_bit_tree.items)
+                        if (!tbn && tsn && tsn->tun_bit_tree.items)
                                 continue;
 
-                        if (tnn && !tbn && tnn->tun_bit_tree.items)
+                        if (!tbn && tnn && tnn->tun_bit_tree.items)
                                 continue;
-
-                        if (tnn) {
-                                struct tun_out_node *tun = tnn->tunNetKey.ton;
-
-                                assertion(-501391, (tun));
-
-                                status->remoteName = tun->tunOutKey.on->global_id.name;
-                                status->remoteId = &tun->tunOutKey.on->global_id;
-                                status->localTunIp = &tun->localIp;
-                                status->remoteTunIp = &tun->remoteIp;
-				status->tunId = tun->tunOutKey.tun6Id;
-                                status->advType = bmx6_rt_dict[tnn->tunNetKey.bmx6RouteType].sys2Name;
-                                strcpy(status->advNet, netAsStr(&tnn->tunNetKey.netKey));
-                                strcpy(status->srcIngress, netAsStr(&tun->ingressPrefix[(tnn->tunNetKey.netKey.af==AF_INET)]));
-                                status->advBwVal = fmetric_to_umetric(fmetric_u8_to_fmu16(tnn->bandwidth));
-                                status->advBw = status->advBwVal ? &status->advBwVal : NULL;
-                                status->pathMtc = tun->tunOutKey.on->curr_rt_local ? &tun->tunOutKey.on->curr_rt_local->mr.umetric : NULL;
-                                status->tunMtcVal = tbn ? (UMETRIC_MAX - ntoh64(tbn->tunBitKey.beInvTunBitMetric)) : 0;
-                                status->tunMtc = status->tunMtcVal ? &status->tunMtcVal : NULL;
-                        } else {
-                                strcpy(status->advNet, DBG_NIL);
-				strcpy(status->srcIngress, DBG_NIL);
-                        }
-                        
-                        if (tbn) {
-                                struct net_key tunRoute = tbn->tunBitKey.invRouteKey;
-                                tunRoute.mask = tbn ? (128 - tunRoute.mask) : 0;
-                                strcpy(status->tunRoute, netAsStr(&tunRoute));
-
-                                status->tunName = (tbn->active_tdn ? tbn->active_tdn->nameKey.str : DBG_NIL);
-				status->tunIn = (tbn->active_tdn ? tbn->active_tdn->tunCatchKey.tin->nameKey.str : DBG_NIL);
-
-                        } else {
-                                strcpy(status->tunRoute, DBG_NIL);
-                                status->tunName = DBG_NIL;
-				status->tunIn = DBG_NIL;
-                        }
-
 
                         if(tsn) {
                                 status->name = tsn->nameKey;
@@ -2488,6 +2450,44 @@ static int32_t tun_out_status_creator(struct status_handl *handl, void *data)
                                 strcpy(status->net, DBG_NIL);
 				strcpy(status->src, DBG_NIL);
                         }
+
+                        if (tbn) {
+                                struct net_key tunRoute = tbn->tunBitKey.invRouteKey;
+                                tunRoute.mask = tbn ? (128 - tunRoute.mask) : 0;
+                                strcpy(status->tunRoute, netAsStr(&tunRoute));
+
+                                status->tunName = (tbn->active_tdn ? tbn->active_tdn->nameKey.str : DBG_NIL);
+				status->tunIn = (tbn->active_tdn ? tbn->active_tdn->tunCatchKey.tin->nameKey.str : DBG_NIL);
+                                status->tunMtcVal = UMETRIC_MAX - ntoh64(tbn->tunBitKey.beInvTunBitMetric);
+                                status->tunMtc = status->tunMtcVal ? &status->tunMtcVal : NULL;
+
+                        } else {
+                                strcpy(status->tunRoute, DBG_NIL);
+                                status->tunName = DBG_NIL;
+				status->tunIn = DBG_NIL;
+                        }
+
+                        if (tnn) {
+                                struct tun_out_node *tun = tnn->tunNetKey.ton;
+
+                                assertion(-501391, (tun));
+
+                                status->remoteName = tun->tunOutKey.on->global_id.name;
+                                status->remoteId = &tun->tunOutKey.on->global_id;
+                                status->localTunIp = &tun->localIp;
+                                status->remoteTunIp = &tun->remoteIp;
+				status->tunId = tun->tunOutKey.tun6Id;
+                                status->advType = bmx6_rt_dict[tnn->tunNetKey.bmx6RouteType].sys2Name;
+                                strcpy(status->advNet, netAsStr(&tnn->tunNetKey.netKey));
+                                strcpy(status->srcIngress, netAsStr(&tun->ingressPrefix[(tnn->tunNetKey.netKey.af==AF_INET)]));
+                                status->advBwVal = fmetric_to_umetric(fmetric_u8_to_fmu16(tnn->bandwidth));
+                                status->advBw = status->advBwVal ? &status->advBwVal : NULL;
+                                status->pathMtc = tun->tunOutKey.on->curr_rt_local ? &tun->tunOutKey.on->curr_rt_local->mr.umetric : NULL;
+                        } else {
+                                strcpy(status->advNet, DBG_NIL);
+				strcpy(status->srcIngress, DBG_NIL);
+                        }
+
                         status++;
                 }
         }

@@ -1779,6 +1779,7 @@ struct bmx_status {
         char version[(sizeof(BMX_BRANCH)-1) + (sizeof("-")-1) + (sizeof(BRANCH_VERSION)-1) + 1];
         uint16_t compat;
         char revision[9];
+        char* name;
         GLOBAL_ID_T *globalId;
         IPX_T primaryIp;
         struct net_key *tun6Address;
@@ -1792,12 +1793,13 @@ struct bmx_status {
 static const struct field_format bmx_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       bmx_status, version,       1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              bmx_status, compat,        1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       bmx_status, revision,      1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, bmx_status, globalId,      1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       bmx_status, revision,      1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      bmx_status, name,          1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, bmx_status, globalId,      1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_IPX,               bmx_status, primaryIp,     1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_NETP,              bmx_status, tun6Address,   1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_NETP,              bmx_status, tun4Address,   1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_BINARY,     bmx_status, myLocalId,     1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_BINARY,     bmx_status, myLocalId,     1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      bmx_status, uptime,        1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       bmx_status, cpu,           1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              bmx_status, nodes,         1, FIELD_RELEVANCE_HIGH),
@@ -1811,6 +1813,7 @@ static int32_t bmx_status_creator(struct status_handl *handl, void *data)
         sprintf(status->version, "%s-%s", BMX_BRANCH, BRANCH_VERSION);
         status->compat = COMPATIBILITY_VERSION;
 	snprintf(status->revision, 8, GIT_REV);
+        status->name = self->global_id.name;
         status->globalId = &self->global_id;
         status->primaryIp = self->primary_ip;
         status->tun4Address = tin ? &tin->tunAddr46[1] : NULL;
@@ -1828,6 +1831,7 @@ static int32_t bmx_status_creator(struct status_handl *handl, void *data)
 
 
 struct link_status {
+        char* name;
         GLOBAL_ID_T *globalId;
         IPX_T llocalIp;
         IFNAME_T viaDev;
@@ -1854,7 +1858,8 @@ struct link_status {
 };
 
 static const struct field_format link_status_format[] = {
-        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, link_status, globalId,         1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      link_status, name,             1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, link_status, globalId,         1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_IPX,               link_status, llocalIp,         1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       link_status, viaDev,           1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, rxRate,           1, FIELD_RELEVANCE_HIGH),
@@ -1869,7 +1874,7 @@ static const struct field_format link_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, lastHelloSqn,     1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, lastHelloAdv,     1, FIELD_RELEVANCE_MEDI),
 
-        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_BINARY,     link_status, nbLocalId,        1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_BINARY,     link_status, nbLocalId,        1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, nbIid4Me,         1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, linkAdv4Him,      1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, linkAdv4Me,       1, FIELD_RELEVANCE_MEDI),
@@ -1902,6 +1907,7 @@ static int32_t link_status_creator(struct status_handl *handl, void *data)
 
                         while ((lndev = list_iterate(&link->lndev_list, lndev))) {
 
+                                status[i].name = on->global_id.name;
                                 status[i].globalId = &on->global_id;
                                 status[i].llocalIp = link->link_ip;
                                 status[i].viaDev = lndev->key.dev->label_cfg;
@@ -1940,6 +1946,7 @@ static int32_t link_status_creator(struct status_handl *handl, void *data)
 
 
 struct orig_status {
+        char* name;
         GLOBAL_ID_T *globalId;
         uint8_t blocked;
         IPX_T primaryIp;
@@ -1956,7 +1963,8 @@ struct orig_status {
 };
 
 static const struct field_format orig_status_format[] = {
-        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, orig_status, globalId,      1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      orig_status, name,          1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, orig_status, globalId,      1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, blocked,       1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_IPX,               orig_status, primaryIp,     1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, routes,        1, FIELD_RELEVANCE_HIGH),
@@ -1982,6 +1990,7 @@ static int32_t orig_status_creator(struct status_handl *handl, void *data)
         memset(status, 0, status_size);
 
         while (data ? (on = data) : (on = avl_iterate_item(&orig_tree, &it))) {
+                status[i].name = on->global_id.name;
                 status[i].globalId = &on->global_id;
                 status[i].blocked = on->blocked;
                 status[i].primaryIp = on->primary_ip;

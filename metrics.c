@@ -272,6 +272,10 @@ FMETRIC_U8_T fmetric_to_fmu8( FMETRIC_U16_T fm ) {
         return fmu8;
 }
 
+UMETRIC_T fmetric_u8_to_umetric( FMETRIC_U8_T fmu8 ) {
+        return fmetric_to_umetric(fmetric_u8_to_fmu16(fmu8));
+}
+
 FMETRIC_U8_T umetric_to_fmu8( UMETRIC_T *um )
 {
         return fmetric_to_fmu8(umetric_to_fmetric(*um));

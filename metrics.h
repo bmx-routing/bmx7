@@ -238,6 +238,7 @@ UMETRIC_T fmetric_to_umetric(FMETRIC_U16_T fm);
 FMETRIC_U16_T umetric_to_fmetric(UMETRIC_T val);
 char *umetric_to_human(UMETRIC_T val);
 FMETRIC_U16_T fmetric_u8_to_fmu16( FMETRIC_U8_T fmu8 );
+UMETRIC_T fmetric_u8_to_umetric( FMETRIC_U8_T fmu8 );
 FMETRIC_U8_T umetric_to_fmu8( UMETRIC_T *um );
 
 IDM_T is_fmetric_valid(FMETRIC_U16_T fm);

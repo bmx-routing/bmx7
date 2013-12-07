@@ -1503,7 +1503,7 @@ char *field_dbg_value(const struct field_format *format, uint16_t min_msg_size, 
 
         } else if (field_type == FIELD_TYPE_FMETRIC8) {
 
-                val = umetric_to_human(fmetric_to_umetric(fmetric_u8_to_fmu16(*((FMETRIC_U8_T*) p))));
+                val = umetric_to_human(fmetric_u8_to_umetric(*((FMETRIC_U8_T*) p)));
 
         } else if (field_type == FIELD_TYPE_IPX6P) {
 

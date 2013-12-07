@@ -1494,7 +1494,7 @@ IDM_T _recalc_tun_bit_tree(void)
                 struct orig_node *on = tnn->tunNetKey.ton->tunOutKey.on;
 
                 UMETRIC_T linkMax = UMETRIC_MAX;
-                UMETRIC_T tnnBandwidth = fmetric_to_umetric(fmetric_u8_to_fmu16(tnn->bandwidth));
+                UMETRIC_T tnnBandwidth = fmetric_u8_to_umetric(tnn->bandwidth);
                 UMETRIC_T linkQuality = tnnBandwidth >= tsn->minBW ? UMETRIC_MAX : tnnBandwidth;
                 UMETRIC_T pathMetric = on->curr_rt_local ? (on->curr_rt_local->mr.umetric) : 0;
                 UMETRIC_T e2eMetric;
@@ -2480,7 +2480,7 @@ static int32_t tun_out_status_creator(struct status_handl *handl, void *data)
                                 status->advType = bmx6_rt_dict[tnn->tunNetKey.bmx6RouteType].sys2Name;
                                 strcpy(status->advNet, netAsStr(&tnn->tunNetKey.netKey));
                                 strcpy(status->srcIngress, netAsStr(&tun->ingressPrefix[(tnn->tunNetKey.netKey.af==AF_INET)]));
-                                status->advBwVal = fmetric_to_umetric(fmetric_u8_to_fmu16(tnn->bandwidth));
+                                status->advBwVal = fmetric_u8_to_umetric(tnn->bandwidth);
                                 status->advBw = status->advBwVal ? &status->advBwVal : NULL;
                                 status->pathMtc = tun->tunOutKey.on->curr_rt_local ? &tun->tunOutKey.on->curr_rt_local->mr.umetric : NULL;
                         } else {
@@ -2616,7 +2616,7 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                                 tsn->iprule = DEF_TUN_OUT_RULE;
                                 tsn->hysteresis = DEF_TUN_OUT_HYSTERESIS;
                                 UMETRIC_T ull = DEF_TUN_OUT_MIN_BW;
-                                tsn->minBW = fmetric_to_umetric(fmetric_u8_to_fmu16(umetric_to_fmu8(&ull)));
+                                tsn->minBW = fmetric_u8_to_umetric(umetric_to_fmu8(&ull));
                                 tsn->rating = DEF_TUN_OUT_RATING;
                                 tsn->netPrefixMin = DEF_TUN_OUT_PREFIX_MIN;
                                 tsn->netPrefixMax = DEF_TUN_OUT_PREFIX_MAX;
@@ -2735,11 +2735,11 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
 						return FAILURE;
 
 					if (cmd == OPT_APPLY && tsn)
-						tsn->minBW = fmetric_to_umetric(fmetric_u8_to_fmu16(umetric_to_fmu8(&ull)));
+						tsn->minBW = fmetric_u8_to_umetric(umetric_to_fmu8(&ull));
 
 				} else if (cmd == OPT_APPLY && tsn) {
                                         UMETRIC_T ull = DEF_TUN_OUT_MIN_BW;
-					tsn->minBW = fmetric_to_umetric(fmetric_u8_to_fmu16(umetric_to_fmu8(&ull)));
+					tsn->minBW = fmetric_u8_to_umetric(umetric_to_fmu8(&ull));
 				}
 
 			} else if (!strcmp(c->opt->name, ARG_TUN_OUT_TRULE)) {

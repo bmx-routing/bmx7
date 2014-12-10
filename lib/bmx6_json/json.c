@@ -31,13 +31,19 @@
 //#include <dirent.h>
 //#include <sys/inotify.h>
 
+#include "list.h"
+#include "control.h"
 #include "bmx.h"
+#include "crypt.h"
+#include "avl.h"
+#include "node.h"
 #include "msg.h"
 #include "plugin.h"
 #include "schedule.h"
 #include "tools.h"
 #include "json.h"
 #include "ip.h"
+#include "allocate.h"
 
 
 #define CODE_CATEGORY_NAME "json"
@@ -410,7 +416,7 @@ void json_originator_event_hook(int32_t cb_id, struct orig_node *orig)
 
                 if ((on = orig)) {
 
-                        sprintf(path_name, "%s/%s", json_orig_dir, globalIdAsString(&on->global_id));
+                        sprintf(path_name, "%s/%s", json_orig_dir, cryptShaAsString(&on->nodeId));
 
                         if ((fd = open(path_name, O_RDONLY)) > 0 && close(fd) == 0) {
                                 
@@ -428,7 +434,7 @@ void json_originator_event_hook(int32_t cb_id, struct orig_node *orig)
                 struct avl_node *it = NULL;
                 while ((on = orig ? orig : avl_iterate_item(&orig_tree, &it))) {
 
-                        sprintf(path_name, "%s/%s", json_orig_dir, globalIdAsString(&on->global_id));
+                        sprintf(path_name, "%s/%s", json_orig_dir, cryptShaAsString(&on->nodeId));
 
                         if ((fd = open(path_name, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) < 0) {
 
@@ -480,7 +486,7 @@ void json_description_event_hook(int32_t cb_id, struct orig_node *on)
         TRACE_FUNCTION_CALL;
 
         assertion(-501306, (on));
-        assertion(-501270, IMPLIES(cb_id == PLUGIN_CB_DESCRIPTION_CREATED, (on && on->desc)));
+        assertion(-501270, IMPLIES(cb_id == PLUGIN_CB_DESCRIPTION_CREATED, (on && on->dhn && on->dhn->desc_frame)));
         assertion(-501273, (cb_id == PLUGIN_CB_DESCRIPTION_DESTROY || cb_id == PLUGIN_CB_DESCRIPTION_CREATED));
         assertion(-501274, IMPLIES(initializing, cb_id == PLUGIN_CB_DESCRIPTION_CREATED));
         assertion(-501275, (json_desc_dir));
@@ -489,7 +495,7 @@ void json_description_event_hook(int32_t cb_id, struct orig_node *on)
 
         int fd;
         char path_name[MAX_PATH_SIZE];
-        sprintf(path_name, "%s/%s", json_desc_dir, globalIdAsString(&on->global_id));
+        sprintf(path_name, "%s/%s", json_desc_dir, cryptShaAsString(&on->nodeId));
 
         if (cb_id == PLUGIN_CB_DESCRIPTION_DESTROY) {
 
@@ -511,71 +517,48 @@ void json_description_event_hook(int32_t cb_id, struct orig_node *on)
                 }
 
                 json_object *jorig = json_object_new_object();
-
-                json_object *jhash = json_object_new_string(memAsHexString(((char*) &(on->dhn->dhash)), sizeof (on->dhn->dhash)));
-                
-                json_object_object_add(jorig, "descSha", jhash);
+                json_object_object_add(jorig, "descSha", json_object_new_string(cryptShaAsString(&on->dhn->dhash)));
 
                 json_object *jblocked = json_object_new_int(on->blocked);
                 json_object_object_add(jorig, "blocked", jblocked);
 
-                uint16_t tlvs_len = ntohs(on->desc->extensionLen);
-                struct msg_description_adv * desc_buff =
-                        debugMalloc(sizeof (struct msg_description_adv) +tlvs_len, -300361);
+		if (on->dhn && on->dhn->dext && on->dhn->dext->dlen) {
 
-                desc_buff->transmitterIID4x = htons(on->dhn->myIID4orig);
-                memcpy(&desc_buff->desc, on->desc, sizeof (struct description) +tlvs_len);
+			struct rx_frame_iterator it = {
+				.caller = __FUNCTION__, .onOld = on, .dhnNew = on->dhn, .op = TLV_OP_PLUGIN_MIN,
+				.db = description_tlv_db, .process_filter = FRAME_TYPE_PROCESS_ALL,
+				.frame_type = -1, .frames_in = on->dhn->dext->data, .frames_length = on->dhn->dext->dlen,
+			};
 
-                json_object *jdesc_fields = NULL;
+			json_object *jextensions = NULL;
 
-                if ((jdesc_fields = fields_dbg_json(
-                        FIELD_RELEVANCE_MEDI, NO, sizeof (struct msg_description_adv) +tlvs_len, (uint8_t*) desc_buff,
-                        packet_frame_handler[FRAME_TYPE_DESC_ADV].min_msg_size,
-                        packet_frame_handler[FRAME_TYPE_DESC_ADV].msg_format))) {
+			while (rx_frame_iterate(&it) > TLV_RX_DATA_DONE) {
 
-                        if (tlvs_len) {
+				json_object * jext_fields;
 
-                                struct rx_frame_iterator it = {
-                                        .caller = __FUNCTION__, .on = on, .cn = NULL, .op = TLV_OP_PLUGIN_MIN,
-                                        .handls = description_tlv_handl, .handl_max = BMX_DSC_TLV_MAX,
-                                        .process_filter = FRAME_TYPE_PROCESS_ALL,
-                                        .data = ((uint8_t*) on->desc), .frame_type = -1,
-                                        .frames_in = (((uint8_t*) on->desc) + sizeof (struct description)),
-                                        .frames_length = tlvs_len
-                                };
+				if ((jext_fields = fields_dbg_json(
+					FIELD_RELEVANCE_MEDI, YES, it.frame_msgs_length, it.msg,
+					it.handl->min_msg_size, it.handl->msg_format))) {
 
-                                json_object *jextensions = NULL;
+					json_object *jext = json_object_new_object();
+					json_object_object_add(jext, it.handl->name, jext_fields);
 
-                                while (rx_frame_iterate(&it) > TLV_RX_DATA_DONE) {
+					jextensions = jextensions ? jextensions : json_object_new_array();
 
-                                        json_object * jext_fields;
+					json_object_array_add(jextensions, jext);
+				}
+			}
 
-                                        if ((jext_fields = fields_dbg_json(
-                                                FIELD_RELEVANCE_MEDI, YES, it.frame_msgs_length, it.msg,
-                                                it.handl->min_msg_size, it.handl->msg_format))) {
+			if (jextensions)
+				json_object_object_add(jorig, "extensions", jextensions);
 
-                                                json_object *jext = json_object_new_object();
-                                                json_object_object_add(jext, it.handl->name, jext_fields);
-
-                                                jextensions = jextensions ? jextensions : json_object_new_array();
-
-                                                json_object_array_add(jextensions, jext);
-                                        }
-                                }
-
-                                if (jextensions)
-                                        json_object_object_add(jdesc_fields, "extensions", jextensions);
-
-                        }
-                        json_object_object_add(jorig, packet_frame_handler[FRAME_TYPE_DESC_ADV].name, jdesc_fields);
-                }
+		}
 
                 dprintf(fd, "%s\n", json_object_to_json_string(jorig));
 
                 dbgf_all(DBGT_INFO, "creating json-description=%s", path_name);
 
                 json_object_put(jorig);
-                debugFree(desc_buff, -300362);
                 close(fd);
         }
 

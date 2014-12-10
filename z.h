@@ -15,8 +15,8 @@
  * 02110-1301, USA
  */
 
-#define DEF_NIIT_PREFIX   { { { 0,0,0,0,0,0,0,0,0,0,0xFF,0xFF,0,0,0,0 } } }
-#define DEF_NIIT_4TO6_DEV "niit4to6"
-#define DEF_NIIT_6TO4_DEV "niit6to4"
+#define Z_CHUNK_SIZE 16384
 
-#define ARG_NIIT4_ADDRESS "niit4Address"
+
+int32_t z_compress( uint8_t *src, int32_t slen, uint8_t **dst, uint32_t dpos, uint8_t *darr, int32_t darr_max_size);
+int32_t z_decompress( uint8_t *src, uint32_t len, uint8_t **dst, uint32_t dst_pos);

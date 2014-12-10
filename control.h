@@ -15,6 +15,8 @@
  * 02110-1301, USA
  */
 
+typedef uint32_t TIME_T;
+typedef uint32_t TIME_SEC_T;
 
 #define MIN_UPTIME 0
 #define MAX_UPTIME 2147383 /*(((TP32/1000)/2)-100) /1000 to talk about seconds and not ms, /2 to not render scheduled events outdated, -100 to be save */
@@ -145,8 +147,8 @@ struct dbg_histogram {
 #define DBG_HIST_MUTED	0x02
 
 #ifdef  DEBUG_ALL
-#define dbgf_all( dbgt, ... ); { if ( __dbgf_all() ) { _dbgf_all( dbgt, __FUNCTION__, __VA_ARGS__ ); } }
-#define dbg_all( dbgt, ... );  { if ( __dbgf_all() ) { dbg( DBGL_ALL, dbgt, __VA_ARGS__ ); } }
+#define dbgf_all( dbgt, ... ); { if ( __dbgf(DBGL_ALL) ) { _dbgf_all( dbgt, __FUNCTION__, __VA_ARGS__ ); } }
+#define dbg_all( dbgt, ... );  { if ( __dbgf(DBGL_ALL) ) { dbg( DBGL_ALL, dbgt, __VA_ARGS__ ); } }
 #else
 #define dbgf_all(...);
 #define dbg_all(...);
@@ -165,8 +167,8 @@ struct dbg_histogram {
 #define dbgf_track(...);
 #define dbg_track(...);
 #else
-#define dbgf_track( dbgt, ... ); { if ( __dbgf_track() ) { _dbgf( DBGL_CHANGES, dbgt, __FUNCTION__, __VA_ARGS__ ); } }
-#define dbg_track( dbgt, ... );  { if ( __dbgf_track() ) { dbg( DBGL_CHANGES, dbgt, __VA_ARGS__ ); } }
+#define dbgf_track( dbgt, ... ); { if ( __dbgf(DBGL_CHANGES) ) { _dbgf( DBGL_CHANGES, dbgt, __FUNCTION__, __VA_ARGS__ ); } }
+#define dbg_track( dbgt, ... );  { if ( __dbgf(DBGL_CHANGES) ) { dbg( DBGL_CHANGES, dbgt, __VA_ARGS__ ); } }
 #endif
 
 #ifdef  NO_DEBUG_SYS
@@ -177,7 +179,7 @@ struct dbg_histogram {
 #define dbg_sys( dbgt, ... ); dbg( DBGL_SYS, dbgt, __VA_ARGS__ );
 #endif
 
-#define dbgf( dbgl, dbgt, ...)           _dbgf(         dbgl, dbgt, __FUNCTION__, __VA_ARGS__ )
+#define dbgf( dbgl, dbgt, ...); { if ( __dbgf(dbgl) ) { _dbgf(         dbgl, dbgt, __FUNCTION__, __VA_ARGS__ ); } }
 #define dbgf_cn( cn, dbgl, dbgt, ...)    _dbgf_cn( cn,  dbgl, dbgt, __FUNCTION__, __VA_ARGS__ )
 #define dbgf_mute( len, dbgl, dbgt, ...) _dbgf_mute( len, dbgl, dbgt, __FUNCTION__, __VA_ARGS__ )
 
@@ -215,6 +217,7 @@ void dbg_spaces(struct ctrl_node *cn, uint16_t spaces);
 
 uint8_t __dbgf_all( void );
 uint8_t __dbgf_track( void );
+uint8_t __dbgf( uint8_t level);
 
 void accept_ctrl_node( void );
 void handle_ctrl_node( struct ctrl_node *cn );
@@ -462,11 +465,6 @@ void register_options_array ( struct opt_type *fixed_options, int size, const ch
 
 extern int32_t Load_config;
 
-
-#ifdef ADJ_PATCHED_NETW
-int32_t get_tracked_network( struct opt_type *opt, struct opt_parent *patch, char *out, uint32_t *ip, int32_t *mask, struct ctrl_node *cn );
-int32_t adj_patched_network( struct opt_type *opt, struct opt_parent *patch, char *out, uint32_t *ip, int32_t *mask, struct ctrl_node *cn );
-#endif
 
 void apply_init_args ( int argc, char *argv[] );
 

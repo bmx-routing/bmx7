@@ -53,6 +53,11 @@ struct ifname {
 
 typedef struct ifname IFNAME_T;
 
+#define ARG_DEVSTAT_PERIOD "devStatPeriod"
+#define MIN_DEVSTAT_PERIOD 100
+#define MAX_DEVSTAT_PERIOD 100000
+#define DEF_DEVSTAT_PERIOD 5000
+#define HLP_DEVSTAT_PERIOD "interface traffic-statistics period"
 
 #define ARG_LLOCAL_PREFIX "llocalPrefix"
 #define HLP_LLOCAL_PREFIX "specify link-local prefix for interfaces"
@@ -62,16 +67,20 @@ typedef struct ifname IFNAME_T;
 
 
 #define DEF_AUTO_MASK_DISABLED   0  // DO NOT CHANGE THIS
+#define DEF_AUTO_MASK_MIN        8
+#define DEF_AUTO_MASK_MAX        64
+#define DEF_AUTO_MASK_MOD        8
 
-#define DEF_AUTO_IP6_PREFIX      "fd66:66:66::/56"
-#define DEF_AUTO_IP6_MASK        56 // DO NOT CHANGE THIS
+
+#define DEF_AUTO_IP6_PREFIX      "fd66:66:66::/64"
+#define DEF_AUTO_IP6_MASK        64 // DO NOT CHANGE THIS
 #define ARG_AUTO_IP6_PREFIX      "ipAutoPrefix"
-#define HLP_AUTO_IP6_PREFIX      "Autoconfigure IPv6 addresses (MUST be something/56 to enable or ::/0 to disable)"
+#define HLP_AUTO_IP6_PREFIX      "Autoconfigure IPv6 addresses (MUST be something/64)"
 #define DEF_AUTO_IP6_BYTE6       0x00
 #define DEF_AUTO_IP6_DEVMASK     64
 
-#define MAX_TUN_REMOTE_IPS       255 // limited by 8-bit tun6Id range and (65 - DEF_AUTO_REMOTE_MASK) bit size
-#define DEF_TUN_REMOTE_BYTE6     0xFF
+#define MAX_TUN_REMOTE_IPS       0x0F // limited by 8-bit tun6Id range and (65 - DEF_AUTO_REMOTE_MASK) bit size
+#define DEF_TUN_REMOTE_BYTE6     0xF0
 
 #define ARG_INTERFACES "interfaces"
 
@@ -79,16 +88,9 @@ typedef struct ifname IFNAME_T;
 #define ARG_DEV  		"dev"
 #define HLP_DEV                 "add or change interface device or its configuration"
 
-#define ARG_DEV_GLOBAL_PREFIX   "globalPrefix"
-#define HLP_DEV_GLOBAL_PREFIX   "specify global prefix for interface"
-
 #define ARG_DEV_LLOCAL_PREFIX   "llocalPrefix"
 #define HLP_DEV_LLOCAL_PREFIX   "specify link-local prefix for interface"
 
-
-#define ARG_DEV_ANNOUNCE        "announce"
-#define DEF_DEV_ANNOUNCE        YES
-#define HLP_DEV_ANNOUNCE        "disable/enable announcement of interface IP"
 
 #define DEV_LO "lo"
 #define DEV_UNKNOWN "unknown"
@@ -138,8 +140,6 @@ typedef struct ifname IFNAME_T;
 #define ARG_IP_PRIO_RULES "prioRules"
 #define DEF_IP_PRIO_RULES 1
 
-
-#define DEF_LO_RULE 1
 
 #define RT_PRIO_MAX    -1
 //#define RT_PRIO_HOSTS  -1
@@ -203,19 +203,19 @@ typedef struct ifname IFNAME_T;
 #define ARG_PEDANTIC_CLEANUP "pedanticCleanup"
 #define DEF_PEDANTIC_CLEANUP  NO
 
+#define DEF_TUN_OUT_PERSIST 1
+
+#define ARG_EXPORT_DISTANCE "exportDistance"
+#define TYP_EXPORT_DISTANCE_INFINITE 256
+#define MIN_EXPORT_DISTANCE 0
+#define MAX_EXPORT_DISTANCE TYP_EXPORT_DISTANCE_INFINITE
+#define DEF_EXPORT_DISTANCE TYP_EXPORT_DISTANCE_INFINITE
 
 
 
-#define B64_SIZE 64
-
-#define IP6NET_STR_LEN (INET6_ADDRSTRLEN+4)  // eg ::1/128
-#define IPXNET_STR_LEN IP6NET_STR_LEN
-
-#define IP4_MAX_PREFIXLEN 32
-#define IP6_MAX_PREFIXLEN 128
 
 
-#define IP2S_ARRAY_LEN 10
+
 
 
 //#define IPV6_MC_ALL_ROUTERS "FF02::2"
@@ -223,38 +223,16 @@ typedef struct ifname IFNAME_T;
 //#define IPV6_LINK_LOCAL_UNICAST_U32 0xFE800000
 //#define IPV6_MULTICAST_U32 0xFF000000
 
-extern const IPX_T  ZERO_IP;
-extern const MAC_T  ZERO_MAC;
-extern const ADDR_T ZERO_ADDR;
 
-extern const struct link_dev_key ZERO_LINK_KEY;
 
-#define ZERO_NET_KEY_INIT {.af = 0}
-extern const struct net_key ZERO_NET_KEY;
-
-#define ZERO_NET4_KEY_INIT {.af = AF_INET}
-extern const struct net_key ZERO_NET4_KEY;
-#define ZERO_NET6_KEY_INIT {.af = AF_INET6}
-extern const struct net_key ZERO_NET6_KEY;
 
 
 extern struct net_key autoconf_prefix_cfg;
-extern struct tun_in_node default_tun_in;
 
-#ifdef NO_ASSERTIONS
-extern uint8_t __af_cfg;
-#define AF_CFG __af_cfg
-extern struct net_key __ZERO_NETCFG_KEY;
-#define ZERO_NETCFG_KEY __ZERO_NETCFG_KEY
-#else
-uint8_t _af_cfg(const char *func);
-#define AF_CFG _af_cfg(__FUNCTION__)
-struct net_key _ZERO_NETCFG_KEY(const char *func);
-#define ZERO_NETCFG_KEY _ZERO_NETCFG_KEY(__FUNCTION__)
-#endif
+#define AF_CFG AF_INET6
+#define ZERO_NETCFG_KEY ZERO_NET6_KEY
 
 extern const IP6_T   IP6_ALLROUTERS_MC_ADDR;
-extern const IP6_T   IP6_LOOPBACK_ADDR;
 
 extern const IP6_T   IP6_LINKLOCAL_UC_PREF;
 extern const uint8_t IP6_LINKLOCAL_UC_PLEN;
@@ -265,9 +243,6 @@ extern const uint8_t IP6_MC_PLEN;
 
 extern int dev_lo_idx;
 
-extern struct dev_node *primary_dev;
-extern struct dev_node *primary_phy;
-extern IDM_T niit_enabled;
 
 
 extern int32_t ip_prio_hna_cfg;
@@ -392,6 +367,7 @@ struct if_addr_node {
 	uint16_t             changed;
 	struct ifaddrmsg     ifa;
 	IFNAME_T             label;
+        
 	struct nlmsghdr      nlmsghdr[];
 };
 
@@ -418,6 +394,15 @@ struct dev_node {
 	uint8_t activate_again;
 	uint8_t activate_cancelled;
 	uint8_t tmp_flag_for_to_be_send_adv;
+        
+        uint32_t udpOutCurrPackets;
+        uint32_t udpOutPrevPackets;
+        uint32_t udpInCurrPackets;
+        uint32_t udpInPrevPackets;
+        uint32_t udpOutCurrBytes;
+        uint32_t udpOutPrevBytes;
+        uint32_t udpInCurrBytes;
+        uint32_t udpInPrevBytes;
 
 //	DEVADV_IDX_T dev_adv_idx; //TODO: Remove (use llip_key.idx instead)
 	int16_t dev_adv_msg;
@@ -425,7 +410,7 @@ struct dev_node {
 	IFNAME_T name_phy_cfg;  //key for dev_name_tree
 	IFNAME_T label_cfg;
 
-	struct link_dev_node dummy_lndev;
+        LinkNode dummyLink;
 
 	struct dev_ip_key llip_key;
 //	IPX_T llocal_ip_key; //TODO: Remove (use llip_key.ip instead)
@@ -451,8 +436,6 @@ struct dev_node {
 	struct list_head tx_task_lists[FRAME_TYPE_ARRSZ]; // scheduled frames and messages
 	struct avl_tree tx_task_interval_tree;
 
-	int8_t announce;
-
 	int8_t linklayer_conf;
 	int8_t linklayer;
 
@@ -467,7 +450,6 @@ struct dev_node {
 //	UMETRIC_T umetric_max_configured;
 	UMETRIC_T umetric_max;
 
-        struct net_key global_prefix_conf_;
         struct net_key llocal_prefix_conf_;
 
 //	IPX_T global_prefix_conf;
@@ -634,39 +616,6 @@ struct rtnl_get_node {
 //usefult IP tools:
 
 
-char *family2Str(uint8_t family);
-
-
-char *ipXAsStr(int family, const IPX_T *addr);
-char *ipFAsStr(const IPX_T *addr);
-char *ip4AsStr( IP4_T addr );
-void  ipXToStr(int family, const IPX_T *addr, char *str);
-void ipFToStr(const IPX_T *addr, char *str);
-char *netAsStr(const struct net_key *net);
-
-
-#define ipXto4( ipx ) ((ipx).s6_addr32[3])
-IPX_T ip4ToX(IP4_T ip4);
-
-char* macAsStr(const MAC_T* mac);
-
-#define ip6AsStr( addr_ptr ) ipXAsStr( AF_INET6, addr_ptr)
-
-struct net_key * setNet(struct net_key *netp, uint8_t family, uint8_t prefixlen, IPX_T *ip);
-
-
-IDM_T is_mac_equal(const MAC_T *a, const MAC_T *b);
-
-IDM_T is_ip_equal(const IPX_T *a, const IPX_T *b);
-IDM_T is_ip_set(const IPX_T *ip);
-
-IDM_T is_ip_valid( const IPX_T *ip, const uint8_t family );
-IDM_T is_ip_local(IPX_T *ip);
-
-IDM_T ip_netmask_validate(IPX_T *ipX, uint8_t mask, uint8_t family, uint8_t force);
-
-IDM_T is_ip_net_equal(const IPX_T *netA, const IPX_T *netB, const uint8_t plen, const uint8_t family);
-
 
 
 // core:
@@ -700,8 +649,6 @@ IDM_T iproute(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_key *dst,
 void ip_flush_routes(uint8_t family, int32_t table_macro);
 void ip_flush_rules(uint8_t family, int32_t table_macro);
 
-struct net_key bmx6AutoEUI64Ip6(ADDR_T mac, struct net_key *prefix);
-
 IDM_T check_proc_sys_net(char *file, int32_t desired, int32_t *backup);
 
 void sysctl_config(struct dev_node *dev_node);
@@ -710,6 +657,7 @@ void sysctl_config(struct dev_node *dev_node);
 int8_t track_rule_and_proceed(uint32_t network, int16_t mask, uint32_t prio, int16_t rt_table, char* iif,
                                       int16_t rule_type, int8_t del, int8_t cmd);
 
+IDM_T is_ip_local(IPX_T *ip);
 
 
 void init_ip(void);

@@ -35,23 +35,11 @@
 #define ARG_IP_METRIC      "ipMetric"
 
 
-//#define DEF_NIIT_PREFIX   { { { 0,0,0,0,0,0,0,0,0,0,0xFF,0xFF,0,0,0,0 } } }
-//#define DEF_NIIT_4TO6_DEV "niit4to6"
-//#define DEF_NIIT_6TO4_DEV "niit6to4"
-
 #define TLV_OP_CUSTOM_HNA_MIN       (TLV_OP_CUSTOM_MIN + 0)
 #define TLV_OP_CUSTOM_TUN6_GET_SHA  (TLV_OP_CUSTOM_MIN + 0)
 #define TLV_OP_CUSTOM_HNA_ROUTE_ADD (TLV_OP_CUSTOM_MIN + 1)
 #define TLV_OP_CUSTOM_HNA_ROUTE_DEL (TLV_OP_CUSTOM_MIN + 2)
 #define TLV_OP_CUSTOM_HNA_MAX       (TLV_OP_CUSTOM_MIN + 2)
-
-#define TLV_OP_CUSTOM_NIIT4TO6_ADD  (TLV_OP_CUSTOM_HNA_MAX + 1)
-#define TLV_OP_CUSTOM_NIIT4TO6_DEL  (TLV_OP_CUSTOM_HNA_MAX + 2)
-#define TLV_OP_CUSTOM_NIIT6TO4_ADD  (TLV_OP_CUSTOM_HNA_MAX + 3)
-#define TLV_OP_CUSTOM_NIIT6TO4_DEL  (TLV_OP_CUSTOM_HNA_MAX + 4)
-
-extern IDM_T (*hna_configure_niit4to6) (IDM_T del, struct net_key *key);
-extern IDM_T (*hna_configure_niit6to4) (IDM_T del, struct net_key *key);
 
 //extern struct net_key tun4_address;
 //extern struct net_key tun6_address;
@@ -73,7 +61,6 @@ extern struct avl_tree tun_in_tree;
 #define MIN_TUN_OUT_TO 0
 #define MAX_TUN_OUT_TO 3600000
 #define DEF_TUN_OUT_TO 60000
-#define DEF_TUN_OUT_PERSIST 1
 
 #define TDN_STATE_CATCHALL 1
 #define TDN_STATE_DEDICATED 0
@@ -173,11 +160,6 @@ extern struct avl_tree tun_in_tree;
 #define MIN_TUN_OUT_MTU 1280
 #define MAX_TUN_OUT_MTU 65535
 
-#define ARG_EXPORT_DISTANCE "exportDistance"
-#define TYP_EXPORT_DISTANCE_INFINITE 256
-#define MIN_EXPORT_DISTANCE 0
-#define MAX_EXPORT_DISTANCE TYP_EXPORT_DISTANCE_INFINITE
-#define DEF_EXPORT_DISTANCE TYP_EXPORT_DISTANCE_INFINITE
 
 #define ARG_EXPORT_ONLY   "exportOnly"
 #define DEF_EXPORT_ONLY   0
@@ -194,27 +176,15 @@ struct hna_node {
         uint8_t flags;
 };
 
-struct description_msg_hna4 {
-	uint8_t prefixlen;
-	uint8_t flags;
-	IP4_T    ip4;
-} __attribute__((packed));
-
-#define DESCRIPTION_MSG_HNA4_FORMAT { \
-{FIELD_TYPE_UINT, -1,  8, 1, FIELD_RELEVANCE_HIGH, "prefixlen"}, \
-{FIELD_TYPE_UINT, -1,  8, 1, FIELD_RELEVANCE_LOW,  "reserved"},  \
-{FIELD_TYPE_IP4,  -1, 32, 1, FIELD_RELEVANCE_HIGH, "address" },  \
-FIELD_FORMAT_END }
-
-struct description_msg_hna6 {
+struct dsc_msg_hna6 {
 	uint8_t prefixlen;
 	uint8_t flags;
 	IP6_T    ip6;
 } __attribute__((packed));
 
 #define DESCRIPTION_MSG_HNA6_FORMAT { \
-{FIELD_TYPE_UINT, -1,   8, 1, FIELD_RELEVANCE_HIGH, "prefixlen"}, \
-{FIELD_TYPE_UINT, -1,   8, 1, FIELD_RELEVANCE_LOW,  "reserved"},  \
+{FIELD_TYPE_UINT, -1,   8, 1, FIELD_RELEVANCE_HIGH, "prefixLen"}, \
+{FIELD_TYPE_UINT, -1,   8, 1, FIELD_RELEVANCE_LOW,  "flags"},  \
 {FIELD_TYPE_IPX6, -1, 128, 1, FIELD_RELEVANCE_HIGH, "address" },  \
 FIELD_FORMAT_END }
 
@@ -222,7 +192,7 @@ FIELD_FORMAT_END }
 
 
 
-struct description_msg_tun6_adv {
+struct dsc_msg_tun6 {
         IP6_T localIp;
 } __attribute__((packed));
 
@@ -233,7 +203,7 @@ FIELD_FORMAT_END }
 
 
 
-struct description_msg_tun4in6_ingress_adv {
+struct dsc_msg_tun4in6ingress {
         uint8_t tun6Id;
 //        uint8_t srcType;
 //        uint8_t srcPrefixMin;
@@ -247,7 +217,7 @@ struct description_msg_tun4in6_ingress_adv {
 {FIELD_TYPE_IP4,      -1,  32, 1, FIELD_RELEVANCE_HIGH, "ingressPrefix" },  \
 FIELD_FORMAT_END }
 
-struct description_msg_tun6in6_ingress_adv {
+struct dsc_msg_tun6in6ingress {
         uint8_t tun6Id;
 //        uint8_t srcType;
 //        uint8_t srcPrefixMin;
@@ -270,7 +240,7 @@ FIELD_FORMAT_END }
 #define TUN_SRC_TYPE_AHCP          0x03
 #define TUN_SRC_TYPE_MAX           0x03
 
-struct description_msg_tun4in6_src_adv {
+struct dsc_msg_tun4in6src {
         uint8_t tun6Id;
         uint8_t srcType;
         uint8_t srcPrefixMin;
@@ -286,7 +256,7 @@ struct description_msg_tun4in6_src_adv {
 {FIELD_TYPE_IP4,      -1,  32, 1, FIELD_RELEVANCE_HIGH, "srcPrefix" },  \
 FIELD_FORMAT_END }
 
-struct description_msg_tun6in6_src_adv {
+struct dsc_msg_tun6in6src {
         uint8_t tun6Id;
         uint8_t srcType;
         uint8_t srcPrefixMin;
@@ -305,7 +275,7 @@ FIELD_FORMAT_END }
 
 
 
-struct description_msg_tun4in6_net_adv {
+struct dsc_msg_tun4in6net {
         uint8_t tun6Id;
         uint8_t bmx6_route_type;
         FMETRIC_U8_T bandwidth;
@@ -317,11 +287,11 @@ struct description_msg_tun4in6_net_adv {
 {FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_MEDI, "tun6Id" },  \
 {FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_HIGH, "rtype" },  \
 {FIELD_TYPE_FMETRIC8, -1,   8, 1, FIELD_RELEVANCE_HIGH, "bandwidth" },  \
-{FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_HIGH, "networklen" },  \
+{FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_HIGH, "networkLen" },  \
 {FIELD_TYPE_IP4,      -1,  32, 1, FIELD_RELEVANCE_HIGH, "network" },  \
 FIELD_FORMAT_END }
 
-struct description_msg_tun6in6_net_adv {
+struct dsc_msg_tun6in6net {
         uint8_t tun6Id;
         uint8_t bmx6_route_type;
         FMETRIC_U8_T bandwidth;
@@ -333,7 +303,7 @@ struct description_msg_tun6in6_net_adv {
 {FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_MEDI, "tun6Id" },  \
 {FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_HIGH, "rtype" },  \
 {FIELD_TYPE_FMETRIC8, -1,   8, 1, FIELD_RELEVANCE_HIGH, "bandwidth" },  \
-{FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_HIGH, "networklen" },  \
+{FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_HIGH, "networkLen" },  \
 {FIELD_TYPE_IPX6,     -1, 128, 1, FIELD_RELEVANCE_HIGH, "network" },  \
 FIELD_FORMAT_END }
 
@@ -345,6 +315,37 @@ struct tunXin6_net_adv_node {
         struct net_key net;
 	char *tunInDev;
 };
+
+/*
+// requirements:
+// - lightweight possibilty for gw to check client ID and request authenticity (no other client send it)
+//   -> include: ClientPubSHA, reqSignature
+// - lightweight possibilty for gw to check gw authenticity request (meant for this gw)
+//   -> include: GwPubSHA
+// - let client request tunnel endpoints
+// - lightweight possibilty for gw to check request against non-replication (ogm-sqn)
+//   -> include: descSqn and recent ogmSqn
+// - lightweight possibilty for gw to check request shared-key integritiy (if includes a shared key)
+//   -> include: gwPubKey encrypted shared-key, maybe also tunnel endpoints and src networks
+// optional:
+// - let client request tunneled src networks (routes via tunnel from gw to client)
+//   -> explicit routes or refHash
+struct dedicated_msg_tun6_req {
+        SHA1_T clientRoutesRefSha;
+} __attribute__((packed));
+
+struct dedicated_hdr_tun6_req {
+//  SHA1_T     clientPubSha; // from packet header
+    SHA1_T     gwPubSha;
+    IP6_T      gwTun6Ip;
+    IP6_T      clientTun6Ip;
+    DESC_SQN_T clientDescSqn;
+    OGM_SQN_T  clientOgmSqn;
+    RSA1024_T  encTunKey;
+    RSA1024_T  clientSign;
+} __attribute__((packed));
+*/
+
 
 
 
@@ -410,6 +411,7 @@ struct tun_search_node {
         uint32_t iprule;
 
         GLOBAL_ID_T global_id;
+        char   nodeName[MAX_HOSTNAME_LEN];
         struct net_key srcRtNet;
 //	IFNAME_T tunName;
 
@@ -526,3 +528,5 @@ char* bmx6RouteBits2String(uint32_t bmx6_route_bits);
 void set_tunXin6_net_adv_list(uint8_t del, struct list_head *adv_list);
 
 struct hna_node * find_overlapping_hna( IPX_T *ipX, uint8_t prefixlen, struct orig_node *except );
+
+struct plugin *hna_get_plugin( void );

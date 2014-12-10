@@ -40,28 +40,30 @@
 #include <linux/rtnetlink.h>
 
 
+#include "list.h"
+#include "control.h"
 #include "bmx.h"
-#include "ip.h"
+#include "crypt.h"
+#include "avl.h"
+#include "node.h"
+#include "metrics.h"
 #include "msg.h"
+#include "ip.h"
 #include "schedule.h"
 #include "plugin.h"
 #include "tools.h"
-#include "metrics.h"
-#include "hna.h"
+#include "iptools.h"
+#include "allocate.h"
 
 #define CODE_CATEGORY_NAME "ip"
 
 uint8_t __af_cfg = DEF_IP_FAMILY;
 struct net_key __ZERO_NETCFG_KEY = {.af = DEF_IP_FAMILY};
 
-const struct net_key ZERO_NET_KEY = ZERO_NET_KEY_INIT;
-const struct net_key ZERO_NET4_KEY = ZERO_NET4_KEY_INIT;
-const struct net_key ZERO_NET6_KEY = ZERO_NET6_KEY_INIT;
 
 
 const IFNAME_T ZERO_IFNAME = {{0}};
 
-static const char *_af_cfg_read = NULL;
 
 //TODO: remove me!!??
 int dev_lo_idx = 0;
@@ -81,25 +83,15 @@ int32_t policy_routing = POLICY_RT_UNSET;
 
 static int32_t base_port = DEF_BASE_PORT;
 
-#ifdef WITH_UNUSED
-static int32_t Lo_rule = DEF_LO_RULE;
-#endif
-
-const IPX_T  ZERO_IP = { { { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 } } };
-const MAC_T  ZERO_MAC = {{0}};
-const ADDR_T ZERO_ADDR = {{0}};
 
 //TODO: make this configurable
 static struct net_key llocal_prefix_cfg;
-static struct net_key global_prefix_cfg;
 struct net_key autoconf_prefix_cfg;
-struct tun_in_node default_tun_in;
 
 
 //#define IN6ADDR_ANY_INIT { { { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 } } }
 //#define IN6ADDR_LOOPBACK_INIT { { { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1 } } }
-
-const IP6_T IP6_LOOPBACK_ADDR = { { { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1 } } };
+//const IP6_T IP6_LOOPBACK_ADDR = { { { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1 } } };
 
 
 //const IP6_T   IP6_ALLROUTERS_MC_ADDR = {.s6_addr[0] = 0xFF, .s6_addr[1] = 0x02, .s6_addr[15] = 0x02};
@@ -123,11 +115,6 @@ struct rtnl_handle ip_rth2 = { .fd = -1 };
 
 static IDM_T opt_dev_changed = YES;
 
-struct dev_node *primary_dev = NULL;
-struct dev_node *primary_phy = NULL;
-
-
-//IDM_T niit_enabled = NO;
 
 AVL_TREE(if_link_tree, struct if_link_node, index);
 
@@ -137,8 +124,6 @@ AVL_TREE(tun_name_tree, struct ifname, str);
 
 AVL_TREE(iptrack_tree, struct track_node, k);
 
-
-static LIST_SIMPEL( throw4_list, struct throw_node, list, list );
 
 static int ifevent_sk = -1;
 
@@ -159,7 +144,6 @@ static void dev_check(void *kernel_ip_config_changed);
 static void (*ipexport) (int8_t del, const struct net_key *dst, uint32_t oif_idx, IPX_T *via, uint32_t metric, uint8_t distance) = NULL;
 
 struct sys_route_dict bmx6_rt_dict[BMX6_ROUTE_MAX];
-
 
 
 STATIC_FUNC
@@ -432,257 +416,6 @@ char *trackt2str(uint8_t cmd)
         return "TRACK_ILLEGAL";
 }
 
-char *family2Str(uint8_t family)
-{
-        static char b[B64_SIZE];
-
-        switch (family) {
-        case AF_INET:
-                return "IPv4";
-        case AF_INET6:
-                return "IPv6";
-        default:
-                sprintf( b, "%d ???", family);
-                return b;
-        }
-}
-
-
-
-
-void ipXToStr(int family, const IPX_T *addr, char *str)
-{
-        assertion(-500583, (str));
-        uint32_t *a;
-
-        if (!addr && (family == AF_INET6 || family == AF_INET)) {
-
-                strcpy(str, "---");
-                return;
-
-        } else if (family == AF_INET) {
-
-                a = (uint32_t *)&(addr->s6_addr32[3]);
-
-        } else if (family == AF_INET6) {
-                
-                a = (uint32_t *)&(addr->s6_addr32[0]);
-
-        } else {
-                strcpy(str, "ERROR");
-                return;
-        }
-
-        inet_ntop(family, a, str, family == AF_INET ? INET_ADDRSTRLEN : INET6_ADDRSTRLEN);
-	return;
-}
-
-void ipFToStr(const IPX_T *addr, char *str)
-{
-        ipXToStr(AF_CFG, addr, str);
-}
-
-IPX_T ip4ToX(IP4_T ip4)
-{
-        IPX_T ip = ZERO_IP;
-        ip.s6_addr32[3] = ip4;
-        return ip;
-}
-
-char *ipXAsStr(int family, const IPX_T *addr)
-{
-	static uint8_t c=0;
-        static char str[IP2S_ARRAY_LEN][INET6_ADDRSTRLEN];
-
-	c = (c+1) % IP2S_ARRAY_LEN;
-
-        ipXToStr(family, addr, str[c]);
-
-        return str[c];
-}
-
-char *ipFAsStr(const IPX_T *addr)
-{
-        return ipXAsStr(AF_CFG, addr);
-}
-
-char *ip4AsStr( IP4_T addr )
-{
-
-	static uint8_t c=0;
-	static char str[IP2S_ARRAY_LEN][INET_ADDRSTRLEN];
-
-	c = (c+1) % IP2S_ARRAY_LEN;
-
-	inet_ntop( AF_INET, &addr, str[c], INET_ADDRSTRLEN );
-
-	return str[c];
-}
-
-char *netAsStr(const struct net_key *net)
-{
-	static uint8_t c=0;
-        static char str[IP2S_ARRAY_LEN][IPXNET_STR_LEN];
-
-	c = (c+1) % IP2S_ARRAY_LEN;
-
-        if(net) {
-                ipXToStr(net->af, &net->ip, str[c]);
-                sprintf(&((str[c]) [ strlen(str[c])]), "/%d", net->mask);
-        } else {
-                sprintf(str[c], "---");
-        }
-
-        return str[c];
-}
-
-struct net_key * setNet(struct net_key *netp, uint8_t family, uint8_t prefixlen, IPX_T *ip)
-{
-        static struct net_key net;
-        netp = netp ? netp : &net;
-        *netp = ZERO_NET_KEY;
-        netp->af = family;
-        netp->mask = prefixlen;
-        netp->ip = ip ? *ip : ZERO_IP;
-        return netp;
-}
-
-char* macAsStr(const MAC_T* mac)
-{
-        return memAsHexString( mac, sizeof(MAC_T));
-}
-
-IDM_T is_mac_equal(const MAC_T *a, const MAC_T *b)
-{
-        return (a->u16[2] == b->u16[2] &&
-                a->u16[1] == b->u16[1] &&
-                a->u16[0] == b->u16[0]);
-
-}
-
-
-IDM_T is_ip_equal(const IPX_T *a, const IPX_T *b)
-{
-        return (a->s6_addr32[3] == b->s6_addr32[3] &&
-                a->s6_addr32[2] == b->s6_addr32[2] &&
-                a->s6_addr32[1] == b->s6_addr32[1] &&
-                a->s6_addr32[0] == b->s6_addr32[0]);
-
-}
-
-IDM_T is_ip_net_equal(const IPX_T *netA, const IPX_T *netB, const uint8_t plen, const uint8_t family)
-{
-
-        IPX_T aprefix = *netA;
-        IPX_T bprefix = *netB;
-
-        ip_netmask_validate(&aprefix, plen, family, YES /*force*/);
-        ip_netmask_validate(&bprefix, plen, family, YES /*force*/);
-
-        return is_ip_equal(&aprefix, &bprefix);
-}
-
-
-
-
-IDM_T is_ip_set(const IPX_T *ip)
-{
-        return (ip && !is_ip_equal(ip, &ZERO_IP));
-}
-
-IDM_T is_ip_valid( const IPX_T *ip, const uint8_t family )
-{
-	TRACE_FUNCTION_CALL;
-
-        if (!is_ip_set(ip))
-                return NO;
-
-        if (family != (is_zero((void*) ip, sizeof ( IPX_T) - sizeof (IP4_T)) ? AF_INET : AF_INET6))
-                return NO;
-
-        if (family == AF_INET6 ) {
-
-                if (!is_ip_equal(ip, &IP6_LOOPBACK_ADDR))
-                        return YES;
-                
-
-        } else if (family == AF_INET ) {
-
-                if (ipXto4(*ip) != INADDR_LOOPBACK && ipXto4(*ip) != INADDR_NONE)
-                        return YES;
-        }
-
-        return NO;
-}
-
-IDM_T is_ip_local(IPX_T *ip)
-{
-
-        struct if_link_node *iln;
-        struct avl_node *lan = NULL;
-
-        while ((iln = avl_iterate_item(&if_link_tree, &lan))) {
-
-                if (iln->flags & IFF_UP)
-                        continue;
-
-                struct if_addr_node *ian;
-                struct avl_node *aan = NULL;
-
-                while ((ian = avl_iterate_item(&iln->if_addr_tree, &aan))) {
-                        if (is_ip_equal(&ian->ip_addr, ip))
-                                return YES;
-                }
-        }
-        return NO;
-}
-
-IDM_T ip_netmask_validate(IPX_T *ipX, uint8_t mask, uint8_t family, uint8_t force)
-{
-	TRACE_FUNCTION_CALL;
-        uint8_t nmask = mask;
-        int i;
-        IP4_T ip32 = 0, m32 = 0;
-
-        if (nmask > (family == AF_INET ? 32 : 128))
-                goto validate_netmask_error;
-
-        if (family == AF_INET)
-                nmask += (IP6_MAX_PREFIXLEN - IP4_MAX_PREFIXLEN);
-
-        for (i = 3; i >= 0 && i >= (nmask / 32); i--) {
-
-                if (!(ip32 = ipX->s6_addr32[i]))
-                        continue;
-
-                if ( force ) {
-
-                        if (nmask <= (i * 32))
-                                ipX->s6_addr32[i] = 0;
-                        else
-                                ipX->s6_addr32[i] = (ip32 & (m32 = htonl(0xFFFFFFFF << (32 - (nmask - (i * 32))))));
-
-                } else {
-
-                        if (nmask <= (i * 32))
-                                goto validate_netmask_error;
-
-                        else if (ip32 != (ip32 & (m32 = htonl(0xFFFFFFFF << (32 - (nmask - (i * 32)))))))
-                                goto validate_netmask_error;
-                }
-        }
-
-
-        return SUCCESS;
-validate_netmask_error:
-
-        dbgf_sys(DBGT_ERR, "inconsistent network prefix %s/%d (force=%d  nmask=%d, ip32=%s m32=%s)",
-                ipXAsStr(family, ipX), mask, force, nmask, ip4AsStr(ip32), ip4AsStr(m32));
-
-        return FAILURE;
-
-}
-
 
 STATIC_FUNC
 struct dev_node * dev_get_by_name(char *name)
@@ -727,7 +460,7 @@ IDM_T rtnl_rcv( int fd, uint32_t pid, uint32_t seq, uint8_t cmd, uint8_t quiet, 
 
                         if ( (err == EINTR || err == EWOULDBLOCK || err == EAGAIN ) && max_retries-- > 0 ) {
                                 usleep(500);
-                                upd_time( NULL );
+				upd_time( NULL );
                                 more_data = YES;
                                 continue;
                         } else {
@@ -987,7 +720,7 @@ void kernel_get_if_addr_config(struct nlmsghdr *nh, void *index_sqnp)
         }
 
         if (!new_ian) {
-                new_ian = debugMallocReset(sizeof (struct if_addr_node) +nh->nlmsg_len, -300522);
+                new_ian = debugMallocReset(sizeof (struct if_addr_node) + nh->nlmsg_len, -300522);
                 memcpy(new_ian->nlmsghdr, nh, nh->nlmsg_len);
                 new_ian->ip_addr = ip_addr;
                 new_ian->iln = iln;
@@ -1063,8 +796,31 @@ void kernel_get_if_addr_config(struct nlmsghdr *nh, void *index_sqnp)
         if (old_ian && old_ian != new_ian)
                 debugFree(old_ian, -300240);
 
+	checkIntegrity();
 }
 
+
+IDM_T is_ip_local(IPX_T *ip)
+{
+
+        struct if_link_node *iln;
+        struct avl_node *lan = NULL;
+
+        while ((iln = avl_iterate_item(&if_link_tree, &lan))) {
+
+                if (iln->flags & IFF_UP)
+                        continue;
+
+                struct if_addr_node *ian;
+                struct avl_node *aan = NULL;
+
+                while ((ian = avl_iterate_item(&iln->if_addr_tree, &aan))) {
+                        if (is_ip_equal(&ian->ip_addr, ip))
+                                return YES;
+                }
+        }
+        return NO;
+}
 
 STATIC_FUNC
 void kernel_get_if_link_config(struct nlmsghdr *nh, void *update_sqnp)
@@ -1859,7 +1615,6 @@ IDM_T iproute(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_key *dst,
                 return SUCCESS;
 
 
-
         if (iptrack(dst, cmd, quiet, del, table, prio, oif_idx, via, src, metric, rte) == NO)
                 return SUCCESS;
 
@@ -1942,30 +1697,6 @@ IDM_T check_proc_sys_net(char *file, int32_t desired, int32_t *backup)
 void sysctl_restore(struct dev_node *dev)
 {
         TRACE_FUNCTION_CALL;
-
-        if (dev && AF_CFG == AF_INET) {
-
-		char filename[100];
-
-		if (dev->ip4_rp_filter_orig > -1) {
-			sprintf( filename, "ipv4/conf/%s/rp_filter", dev->name_phy_cfg.str);
-			check_proc_sys_net( filename, dev->ip4_rp_filter_orig, NULL );
-		}
-
-		dev->ip4_rp_filter_orig = -1;
-
-
-		if (dev->ip4_send_redirects_orig > -1) {
-			sprintf( filename, "ipv4/conf/%s/send_redirects", dev->name_phy_cfg.str);
-			check_proc_sys_net( filename, dev->ip4_send_redirects_orig, NULL );
-		}
-
-		dev->ip4_send_redirects_orig = -1;
-
-        } else if (dev && AF_CFG == AF_INET6) {
-
-                // nothing to restore
-        }
         
         if (!dev) {
 
@@ -2008,35 +1739,13 @@ void sysctl_config( struct dev_node *dev )
 {
         TRACE_FUNCTION_CALL;
 
-        static TIME_T ipv4_timestamp = -1;
         static TIME_T ipv6_timestamp = -1;
-        char filename[100];
 
         if (!(dev->active && dev->if_llocal_addr && dev->if_llocal_addr->iln->flags && IFF_UP))
                 return;
 
 
-        if (dev && AF_CFG == AF_INET) {
-
-		sprintf( filename, "ipv4/conf/%s/rp_filter", dev->name_phy_cfg.str);
-		check_proc_sys_net( filename, 0, &dev->ip4_rp_filter_orig );
-
-		sprintf( filename, "ipv4/conf/%s/send_redirects", dev->name_phy_cfg.str);
-		check_proc_sys_net( filename, 0, &dev->ip4_send_redirects_orig );
-
-                if (ipv4_timestamp != bmx_time) {
-
-                        check_proc_sys_net("ipv4/conf/all/rp_filter", 0, &if4_rp_filter_all_orig);
-                        check_proc_sys_net("ipv4/conf/default/rp_filter", 0, &if4_rp_filter_default_orig);
-                        check_proc_sys_net("ipv4/conf/all/send_redirects", 0, &if4_send_redirects_all_orig);
-                        check_proc_sys_net("ipv4/conf/default/send_redirects", 0, &if4_send_redirects_default_orig);
-                        check_proc_sys_net("ipv4/ip_forward", 1, &if4_forward_orig);
-
-                        ipv4_timestamp = bmx_time;
-                }
-
-        } else if (dev && AF_CFG == AF_INET6) {
-
+        if (dev) {
 
                 if (ipv6_timestamp != bmx_time) {
 
@@ -2072,8 +1781,7 @@ void dev_reconfigure_soft(struct dev_node *dev)
 
         assertion(-500611, (dev->active));
         assertion(-500612, (dev->if_llocal_addr));
-        assertion(-500613, IMPLIES(dev->announce, dev->if_global_addr));
-        assertion(-500614, IMPLIES(dev == primary_dev, dev->if_global_addr));
+        assertion(-500613, (dev->if_global_addr));
         assertion(-500615, IMPLIES(dev->linklayer == TYP_DEV_LL_LO, dev->if_global_addr));
         
         if (!initializing) {
@@ -2156,7 +1864,7 @@ void dev_deactivate( struct dev_node *dev )
         if (!is_ip_set(&dev->llip_key.ip)) {
                 dbgf_sys(DBGT_ERR, "no address given to remove in dev_ip_tree!");
         } else if (!avl_find(&dev_ip_tree, &dev->llip_key)) {
-                dbgf_sys(DBGT_ERR, "%s not in dev_ip_tree!", ipFAsStr(&dev->llip_key.ip));
+                dbgf_sys(DBGT_ERR, "%s not in dev_ip_tree!", ip6AsStr(&dev->llip_key.ip));
         } else {
                 avl_remove(&dev_ip_tree, &dev->llip_key, -300192);
                 dev->llip_key.ip = ZERO_IP;
@@ -2170,14 +1878,15 @@ void dev_deactivate( struct dev_node *dev )
 
 	if ( dev->linklayer != TYP_DEV_LL_LO ) {
 
-                purge_link_route_orig_nodes(dev, NO);
+
+		purge_linkDevs(NULL, dev, NO);
 
                 purge_tx_task_list(dev->tx_task_lists, NULL, NULL);
 
                 struct avl_node *an;
-                struct link_dev_node *lndev;
-                for (an = NULL; (lndev = avl_iterate_item(&link_dev_tree, &an));) {
-                        purge_tx_task_list(lndev->tx_task_lists, NULL, dev);
+		LinkNode *link;
+                for (an = NULL; (link = avl_iterate_item(&link_tree, &an));) {
+                        assertion(-502212, (!purge_tx_task_list(link->tx_task_lists, NULL, dev)));
                 }
 
 
@@ -2205,10 +1914,6 @@ void dev_deactivate( struct dev_node *dev )
                 dev->tx_task = NULL;
         }
 
-        if (!dev_ip_tree.items)
-                task_remove(tx_packets, NULL); //TODO: remove_task() should be reentrant save if called by task_next()!!
-
-
 
 	sysctl_restore ( dev );
 
@@ -2219,36 +1924,7 @@ void dev_deactivate( struct dev_node *dev )
         if (dev->dev_adv_msg > DEVADV_MSG_IGNORED)
                 update_my_dev_adv();
 
-        if (dev->announce)
-                my_description_changed = YES;
-
-        if (dev == primary_dev || dev == primary_phy) {
-                struct avl_node *an = NULL;
-                struct dev_node *ipdev;
-
-                if (dev == primary_dev) {
-                        primary_dev = NULL;
-                        self->primary_ip = ZERO_IP;
-                        ipFToStr(&ZERO_IP, self->primary_ip_str);
-                }
-
-                if (dev == primary_phy)
-                        primary_phy = NULL;
-
-                while ((ipdev = avl_iterate_item(&dev_ip_tree, &an))) {
-                        if (ipdev->active && ipdev->announce && ipdev->if_global_addr) {
-                                if(!primary_dev) {
-                                        primary_dev = ipdev;
-                                        self->primary_ip = ipdev->if_global_addr->ip_addr;
-                                        ipFToStr(&ipdev->if_global_addr->ip_addr, self->primary_ip_str);
-                                }
-
-                                if (!primary_phy && ipdev->linklayer != TYP_DEV_LL_LO)
-                                        primary_phy = ipdev;
-                        }
-
-                }
-        }
+	my_description_changed = YES;
 
         if (dev->autoIP6Configured.mask && !dev->activate_again) {
                 //if (dev->if_llocal_addr && dev->if_llocal_addr->iln->flags & IFF_UP)
@@ -2276,14 +1952,8 @@ struct sockaddr_storage set_sockaddr_storage(uint8_t af, IPX_T *ipx, int32_t por
         memset(&s, 0, sizeof (s));
 
 	s.sosa.ss_family = af;//AF_CFG
-
-        if (AF_CFG == AF_INET) {
-                s.soin4.sin_port = htons(port/*base_port*/);
-                s.soin4.sin_addr.s_addr = ipXto4(*ipx);
-        } else {
-                s.soin6.sin6_port = htons(port/*base_port*/);
-                s.soin6.sin6_addr = *ipx;
-        }
+	s.soin6.sin6_port = htons(port/*base_port*/);
+	s.soin6.sin6_addr = *ipx;
 
 	return s.sosa;
 }
@@ -2298,7 +1968,7 @@ IDM_T dev_init_sockets(struct dev_node *dev)
 
         int set_on = 1;
         int sock_opts;
-        int pf_domain = AF_CFG == AF_INET ? PF_INET : PF_INET6;
+        int pf_domain = PF_INET6;
 
         if ((dev->unicast_sock = socket(pf_domain, SOCK_DGRAM, 0)) < 0) {
 
@@ -2306,36 +1976,12 @@ IDM_T dev_init_sockets(struct dev_node *dev)
                 return FAILURE;
         }
 
-        dev->llocal_unicast_addr = set_sockaddr_storage(AF_CFG, &dev->if_llocal_addr->ip_addr, base_port);
+        dev->llocal_unicast_addr = set_sockaddr_storage(AF_INET6, &dev->if_llocal_addr->ip_addr, base_port);
 
-        if (AF_CFG == AF_INET) {
-                if (setsockopt(dev->unicast_sock, SOL_SOCKET, SO_BROADCAST, &set_on, sizeof (set_on)) < 0) {
-                        dbgf_sys(DBGT_ERR, "can't enable broadcasts on unicast socket: %s", strerror(errno));
-                        return FAILURE;
-                }
-        } else {
-                struct ipv6_mreq mreq6;
-
-                mreq6.ipv6mr_multiaddr = dev->if_llocal_addr->ip_mcast;
-
-                mreq6.ipv6mr_interface = dev->if_llocal_addr->iln->index;//0 corresponds to any interface
-
-/*
-                if (setsockopt(dev->unicast_sock, IPPROTO_IPV6, IPV6_MULTICAST_LOOP, &set_on, sizeof (set_on)) < 0) {
-                        dbgf_sys(DBGT_ERR, "can't set IPV6_MULTICAST_LOOP:: on unicast socket: %s", strerror(errno));
-                        return FAILURE;
-                }
-*/
-                if (setsockopt(dev->unicast_sock, IPPROTO_IPV6, IPV6_MULTICAST_HOPS, &set_on, sizeof (set_on)) < 0) {
-                        dbgf_sys(DBGT_ERR, "can't set IPV6_MULTICAST_HOPS on unicast socket: %s", strerror(errno));
-                        return FAILURE;
-                }
-
-                if (setsockopt(dev->unicast_sock, IPPROTO_IPV6, IPV6_ADD_MEMBERSHIP, &mreq6, sizeof (mreq6)) < 0) {
-                        dbgf_sys(DBGT_ERR, "can't set IPV6_ADD_MEMBERSHIP on unicast socket: %s", strerror(errno));
-                        return FAILURE;
-                }
-        }
+	if (setsockopt(dev->unicast_sock, SOL_SOCKET, SO_BROADCAST, &set_on, sizeof (set_on)) < 0) {
+		dbgf_sys(DBGT_ERR, "can't enable broadcasts on unicast socket: %s", strerror(errno));
+		return FAILURE;
+	}
 
         // bind send socket to interface name
         if (dev_bind_sock(dev->unicast_sock, &dev->name_phy_cfg) < 0)
@@ -2344,7 +1990,7 @@ IDM_T dev_init_sockets(struct dev_node *dev)
         // bind send socket to address
         if (bind(dev->unicast_sock, (struct sockaddr *) & dev->llocal_unicast_addr, sizeof (dev->llocal_unicast_addr)) < 0) {
                 dbgf_sys(DBGT_ERR, "can't bind unicast socket to IP=%s : %s (retrying later...)",
-                        ipFAsStr(&dev->if_llocal_addr->ip_addr), strerror(errno));
+                        ip6AsStr(&dev->if_llocal_addr->ip_addr), strerror(errno));
 
                 dev->activate_again = YES;
                 task_remove(dev_check, NULL);
@@ -2365,7 +2011,7 @@ IDM_T dev_init_sockets(struct dev_node *dev)
 #endif
 
 
-        dev->tx_netwbrc_addr = set_sockaddr_storage(AF_CFG, &dev->if_llocal_addr->ip_mcast, base_port);
+        dev->tx_netwbrc_addr = set_sockaddr_storage(AF_INET6, &dev->if_llocal_addr->ip_mcast, base_port);
 
 
 
@@ -2383,53 +2029,17 @@ IDM_T dev_init_sockets(struct dev_node *dev)
 
         struct sockaddr_storage rx_netwbrc_addr;
 
-        if (AF_CFG == AF_INET && ipXto4(dev->if_llocal_addr->ip_mcast) == 0xFFFFFFFF) {
-                // if the mcast address is the full-broadcast address
-                // we'll listen on the network-broadcast address :
-                IPX_T brc = ip4ToX(ipXto4(dev->if_llocal_addr->ip_addr) | htonl(~(0XFFFFFFFF << dev->if_llocal_addr->ifa.ifa_prefixlen)));
-                rx_netwbrc_addr = set_sockaddr_storage(AF_CFG, &brc, base_port);
-        } else {
-                rx_netwbrc_addr = set_sockaddr_storage(AF_CFG, &dev->if_llocal_addr->ip_mcast, base_port);
-        }
+	rx_netwbrc_addr = set_sockaddr_storage(AF_INET6, &dev->if_llocal_addr->ip_mcast, base_port);
 
 
         if (bind(dev->rx_mcast_sock, (struct sockaddr *) & rx_netwbrc_addr, sizeof (rx_netwbrc_addr)) < 0) {
                 char ip6[IP6_ADDR_LEN];
 
-                if (AF_CFG == AF_INET)
-                        inet_ntop(AF_CFG, &((struct sockaddr_in*) (&rx_netwbrc_addr))->sin_addr, ip6, sizeof (ip6));
-                else
-                        inet_ntop(AF_CFG, &((struct sockaddr_in6*) (&rx_netwbrc_addr))->sin6_addr, ip6, sizeof (ip6));
+		inet_ntop(AF_INET6, &((struct sockaddr_in6*) (&rx_netwbrc_addr))->sin6_addr, ip6, sizeof (ip6));
 
                 dbgf_sys(DBGT_ERR, "can't bind network-broadcast socket to %s: %s",
                         ip6, strerror(errno));
                 return FAILURE;
-        }
-
-        if (AF_CFG == AF_INET) {
-                // we'll always listen on the full-broadcast address
-                IPX_T brc = ip4ToX(0XFFFFFFFF);
-                struct sockaddr_storage rx_fullbrc_addr = set_sockaddr_storage(AF_CFG, &brc, base_port);
-                
-
-                // get fullbrc recv socket
-                if ((dev->rx_fullbrc_sock = socket(pf_domain, SOCK_DGRAM, 0)) < 0) {
-                        dbgf_sys(DBGT_ERR, "can't create full-broadcast socket: %s",
-                                strerror(errno));
-                        return FAILURE;
-                }
-
-                // bind recv socket to interface name
-                if (dev_bind_sock(dev->rx_fullbrc_sock, &dev->name_phy_cfg) < 0)
-                        return FAILURE;
-
-
-                // bind recv socket to address
-                if (bind(dev->rx_fullbrc_sock, (struct sockaddr *) & rx_fullbrc_addr, sizeof (rx_fullbrc_addr)) < 0) {
-                        dbgf_sys(DBGT_ERR, "can't bind full-broadcast socket: %s", strerror(errno));
-                        return FAILURE;
-                }
-
         }
 
         return SUCCESS;
@@ -2466,7 +2076,7 @@ void dev_activate( struct dev_node *dev )
         TRACE_FUNCTION_CALL;
 
         assertion(-500575, (dev && !dev->active && dev->if_llocal_addr && dev->if_llocal_addr->iln->flags & IFF_UP));
-        assertion(-500593, (AF_CFG == dev->if_llocal_addr->ifa.ifa_family));
+        assertion(-500593, (AF_INET6 == dev->if_llocal_addr->ifa.ifa_family));
         assertion(-500599, (is_ip_set(&dev->if_llocal_addr->ip_addr) && dev->if_llocal_addr->ifa.ifa_prefixlen));
 
         dbgf_sys(DBGT_WARN, "%s=%s", ARG_DEV, dev->label_cfg.str);
@@ -2482,12 +2092,10 @@ void dev_activate( struct dev_node *dev )
                         cleanup_all(-500621);
                 }
 
-                uint8_t prefixlen = ((AF_CFG == AF_INET) ? IP4_MAX_PREFIXLEN : IP6_MAX_PREFIXLEN);
-
-                if (!dev->if_global_addr || dev->if_global_addr->ifa.ifa_prefixlen != prefixlen) {
+                if (!dev->if_global_addr || dev->if_global_addr->ifa.ifa_prefixlen != IP6_MAX_PREFIXLEN) {
                         dbgf_mute(30, DBGL_SYS, DBGT_WARN,
                                 "prefix length of loopback interface is %d but SHOULD be %d and global",
-                                dev->if_global_addr->ifa.ifa_prefixlen, prefixlen);
+                                dev->if_global_addr->ifa.ifa_prefixlen, IP6_MAX_PREFIXLEN);
                 }
 
 
@@ -2528,9 +2136,6 @@ void dev_activate( struct dev_node *dev )
                 if ((dev->llip_key.idx = get_free_devidx()) == DEVADV_IDX_INVALID)
                         goto error;
 
-                if (my_local_id == LOCAL_ID_INVALID && new_local_id(dev) == LOCAL_ID_INVALID)
-                        goto error;
-
                 sysctl_config(dev);
         }
 
@@ -2542,23 +2147,12 @@ void dev_activate( struct dev_node *dev )
         avl_insert(&dev_ip_tree, dev, -300151);
 
 
-        ipFToStr(&dev->if_llocal_addr->ip_addr, dev->ip_llocal_str);
+        ip6ToStr(&dev->if_llocal_addr->ip_addr, dev->ip_llocal_str);
 
         if ( dev->if_global_addr)
-                ipFToStr(&dev->if_global_addr->ip_addr, dev->ip_global_str);
+                ip6ToStr(&dev->if_global_addr->ip_addr, dev->ip_global_str);
 
-        ipFToStr(&dev->if_llocal_addr->ip_mcast, dev->ip_brc_str);
-
-        if (!primary_dev && dev->announce && dev->if_global_addr) {
-                primary_dev = dev;
-                self->primary_ip = dev->if_global_addr->ip_addr;
-                ipFToStr(&dev->if_global_addr->ip_addr, self->primary_ip_str);
-        }
-
-        if (!primary_phy && dev->linklayer != TYP_DEV_LL_LO && dev->announce && dev->if_global_addr)
-                primary_phy = dev;
-
-
+        ip6ToStr(&dev->if_llocal_addr->ip_mcast, dev->ip_brc_str);
 
         dev->active = YES;
         dev->activate_again = NO;
@@ -2577,9 +2171,6 @@ void dev_activate( struct dev_node *dev )
 
         AVL_INIT_TREE(dev->tx_task_interval_tree, struct tx_task_node, task);
 */
-
-        if (dev_ip_tree.items == 1)
-                task_register(rand_num(bmx_time ? 0 : DEF_TX_DELAY), tx_packets, NULL, -300350);
 
 
 //        if (dev->announce)
@@ -2600,8 +2191,8 @@ void dev_activate( struct dev_node *dev )
 error:
         dbgf_sys(DBGT_ERR, "error intitializing %s=%s", ARG_DEV, dev->label_cfg.str);
 
-        ipFToStr( &ZERO_IP, dev->ip_llocal_str);
-        ipFToStr( &ZERO_IP, dev->ip_brc_str);
+        ip6ToStr( &ZERO_IP, dev->ip_llocal_str);
+        ip6ToStr( &ZERO_IP, dev->ip_brc_str);
 
         dev_deactivate(dev);
 }
@@ -2734,7 +2325,7 @@ int update_interface_rules(void)
                                 if (!dev->if_global_addr /*||  ian->ifa.ifa_family != af_cfg*/)
                                         continue;
 
-                                if (is_ip_net_equal(&ian->ip_addr, &dev->if_global_addr->ip_addr, ian->ifa.ifa_prefixlen, AF_CFG))
+                                if (is_ip_net_equal(&ian->ip_addr, &dev->if_global_addr->ip_addr, ian->ifa.ifa_prefixlen, AF_INET6))
                                         break;
 
                         }
@@ -2752,27 +2343,11 @@ int update_interface_rules(void)
 
                 }
         }
-
-#ifdef ADJ_PATCHED_NETW
-        struct list_node *throw_pos;
-	struct throw_node *throw_node;
-
-        list_for_each(throw_pos, &throw4_list) {
-
-                throw_node = list_entry(throw_pos, struct throw_node, list);
-
-                IPX_T throw6 = ip4ToX(throw_node->addr);
-
-                configure_route(&throw6, AF_INET, throw_node->netmask, 0, 0, 0, 0, RT_TABLE_HOSTS, RTN_THROW, ADD, IP_THROW_MY_NET);
-                configure_route(&throw6, AF_INET, throw_node->netmask, 0, 0, 0, 0, RT_TABLE_HNA, RTN_THROW, ADD, IP_THROW_MY_NET);
-                configure_route(&throw6, AF_INET, throw_node->netmask, 0, 0, 0, 0, RT_TABLE_TUN, RTN_THROW, ADD, IP_THROW_MY_NET);
-
-        }
-#endif
 	return SUCCESS;
 }
 
-
+#ifdef WITH_UNUSED
+STATIC_FUNC
 struct net_key bmx6AutoEUI64Ip6(ADDR_T mac, struct net_key *prefix)
 {
         struct net_key autoPrefix = ZERO_NET6_KEY;
@@ -2799,11 +2374,15 @@ struct net_key bmx6AutoEUI64Ip6(ADDR_T mac, struct net_key *prefix)
 
         return autoPrefix;
 }
+#endif
 
 STATIC_INLINE_FUNC
 void dev_if_fix(void)
 {
 	TRACE_FUNCTION_CALL;
+
+	assertion(-502042, (self && is_ip_set(&self->primary_ip)));
+
         struct if_link_node *iln = avl_first_item(&if_link_tree);
         struct avl_node *lan;
         struct dev_node *dev;
@@ -2842,24 +2421,16 @@ void dev_if_fix(void)
 
                 struct if_addr_node *ian;
                 struct avl_node *aan;
-                struct net_key autoIP6 = ZERO_NET6_KEY;
-
-                if (!global_prefix_cfg.mask && !dev->global_prefix_conf_.mask && autoconf_prefix_cfg.mask) {
-                        autoIP6 = bmx6AutoEUI64Ip6(dev->if_link->addr, &autoconf_prefix_cfg);
-			autoIP6.mask = DEF_AUTO_IP6_DEVMASK;
-			autoIP6.ip.s6_addr[6] = DEF_AUTO_IP6_BYTE6;
-			autoIP6.ip.s6_addr[7] = (uint8_t)dev->if_link->index; //different ULAs for equal MAC addresses!!
-		}
 
 
                 for (aan = NULL; (ian = avl_iterate_item(&dev->if_link->if_addr_tree, &aan));) {
 
-                        if (AF_CFG != ian->ifa.ifa_family || strcmp(dev->label_cfg.str, ian->label.str))
+                        if (AF_INET6 != ian->ifa.ifa_family || strcmp(dev->label_cfg.str, ian->label.str))
                                 continue;
 
-                        dbgf_all(DBGT_INFO, "testing %s=%s %s", ARG_DEV, ian->label.str, ipFAsStr(&ian->ip_addr));
+                        dbgf_all(DBGT_INFO, "testing %s=%s %s", ARG_DEV, ian->label.str, ip6AsStr(&ian->ip_addr));
 
-                        if (AF_CFG == AF_INET6 && is_ip_net_equal(&ian->ip_addr, &IP6_MC_PREF, IP6_MC_PLEN, AF_INET6)) {
+                        if (is_ip_net_equal(&ian->ip_addr, &IP6_MC_PREF, IP6_MC_PLEN, AF_INET6)) {
 
                                 dbgf_all(DBGT_INFO, "skipping multicast");
                                 continue;
@@ -2867,7 +2438,7 @@ void dev_if_fix(void)
 
                         IDM_T is_ip6llocal = is_ip_net_equal(&ian->ip_addr, &IP6_LINKLOCAL_UC_PREF, IP6_LINKLOCAL_UC_PLEN, AF_INET6);
 
-                        if (!dev->if_llocal_addr && (AF_CFG == AF_INET || is_ip6llocal)) {
+                        if (!dev->if_llocal_addr && is_ip6llocal) {
 
                                 if (dev->llocal_prefix_conf_.mask &&
                                         is_ip_net_equal(&dev->llocal_prefix_conf_.ip, &ian->ip_addr, dev->llocal_prefix_conf_.mask, dev->llocal_prefix_conf_.af)) {
@@ -2879,49 +2450,29 @@ void dev_if_fix(void)
 
                                         dev->if_llocal_addr = ian;
 
-                                } else if (!dev->llocal_prefix_conf_.mask && !llocal_prefix_cfg.mask &&
-                                        (AF_CFG == AF_INET || is_ip6llocal)) {
+                                } else if (!dev->llocal_prefix_conf_.mask && !llocal_prefix_cfg.mask && is_ip6llocal) {
                                         
                                         dev->if_llocal_addr = ian;
 
                                 }
                         }
 
-                        if (!dev->if_global_addr && dev->announce) {
+			if (!is_ip6llocal && DEF_AUTO_IP6_DEVMASK) {
 
-                                if ((AF_CFG == AF_INET6 && !is_ip6llocal) && autoIP6.mask) {
+				if (is_ip_equal(&self->primary_ip, &ian->ip_addr) && DEF_AUTO_IP6_DEVMASK == ian->ifa.ifa_prefixlen) {
 
-                                        if (is_ip_equal(&autoIP6.ip, &ian->ip_addr) && autoIP6.mask == ian->ifa.ifa_prefixlen) {
-
-                                                dev->if_global_addr = ian;
-                                        }
-
-                                } else if ((AF_CFG == AF_INET || !is_ip6llocal) && !autoIP6.mask) {
-
-                                        if (dev->global_prefix_conf_.mask &&
-                                                is_ip_net_equal(&dev->global_prefix_conf_.ip, &ian->ip_addr, dev->global_prefix_conf_.mask, dev->global_prefix_conf_.af)) {
-
-                                                dev->if_global_addr = ian;
-
-                                        } else if (!dev->global_prefix_conf_.mask && global_prefix_cfg.mask &&
-                                                is_ip_net_equal(&global_prefix_cfg.ip, &ian->ip_addr, global_prefix_cfg.mask, global_prefix_cfg.af)) {
-
-                                                dev->if_global_addr = ian;
-
-                                        } else if (!dev->global_prefix_conf_.mask && !global_prefix_cfg.mask) {
-
-                                                dev->if_global_addr = ian;
-                                        }
-                                }
-                        }
+					dev->if_global_addr = ian;
+				}
+			}
                 }
 
-                if (AF_CFG == AF_INET6 && autoIP6.mask && dev->announce && !dev->if_global_addr) {
+                if (DEF_AUTO_IP6_DEVMASK && !dev->if_global_addr) {
 
-			dbgf_sys(DBGT_INFO, "Autoconfiguring dev=%s idx=%d ip=%s", dev->label_cfg.str, dev->if_link->index, netAsStr(&autoIP6));
+			dbgf_sys(DBGT_INFO, "Autoconfiguring dev=%s idx=%d ip=%s", dev->label_cfg.str, dev->if_link->index, self->primary_ip_str);
 
-                        kernel_set_addr(ADD, dev->if_link->index, AF_INET6, &autoIP6.ip, autoIP6.mask, NO /*deprecated*/);
-                        dev->autoIP6Configured = autoIP6;
+                        kernel_set_addr(ADD, dev->if_link->index, AF_INET6, &self->primary_ip, DEF_AUTO_IP6_DEVMASK, NO /*deprecated*/);
+                        dev->autoIP6Configured.ip = self->primary_ip;
+			dev->autoIP6Configured.mask = DEF_AUTO_IP6_DEVMASK;
                         dev->autoIP6IfIndex = dev->if_link->index;
                 }
 
@@ -2950,17 +2501,14 @@ void dev_if_fix(void)
                         dev->if_global_addr = NULL;
 
                 } else {
-                        if (/*dev == primary_dev_cfg ||*/ dev->announce) {
+			dbgf_mute(30, DBGL_SYS, DBGT_ERR,
+				"No global IP for %s=%s ! DEACTIVATING !!!", ARG_DEV, dev->label_cfg.str);
 
-                                dbgf_mute(30, DBGL_SYS, DBGT_ERR,
-                                        "No global IP for %s=%s ! DEACTIVATING !!!", ARG_DEV, dev->label_cfg.str);
-
-                                if (dev->if_llocal_addr) {
-                                        dev->if_llocal_addr->dev = NULL;
-                                        dev->if_llocal_addr = NULL;
-                                }
-                        }
-                }
+			if (dev->if_llocal_addr) {
+				dev->if_llocal_addr->dev = NULL;
+				dev->if_llocal_addr = NULL;
+			}
+		}
         }
 }
 
@@ -2988,8 +2536,7 @@ static void dev_check(void *kernel_ip_config_changed)
 
                 if (dev->hard_conf_changed && dev->active) {
 
-                        dbgf_sys(DBGT_WARN, "detected changed but used %sprimary dev=%s ! Deactivating now...",
-                                (dev == primary_dev ? "" : "non-"), dev->label_cfg.str);
+                        dbgf_sys(DBGT_WARN, "detected changed but used dev=%s ! Deactivating now!", dev->label_cfg.str);
 
                         dev_deactivate(dev);
                 }
@@ -3020,7 +2567,7 @@ static void dev_check(void *kernel_ip_config_changed)
 				if (!wordsEqual(tmp_dev->name_phy_cfg.str, dev->name_phy_cfg.str)) {
 
 					dbgf_sys(DBGT_WARN, "%s=%s llocal=%s already used for dev=%s idx=0x%X",
-						ARG_DEV, dev->label_cfg.str, ipFAsStr(&dev->if_llocal_addr->ip_addr),
+						ARG_DEV, dev->label_cfg.str, ip6AsStr(&dev->if_llocal_addr->ip_addr),
 						tmp_dev->label_cfg.str, tmp_dev->llip_key.idx);
 				}
 				tmp_dev = NULL;
@@ -3030,13 +2577,9 @@ static void dev_check(void *kernel_ip_config_changed)
 
                                 dbgf_sys(DBGT_ERR, "%s=%s activation delayed", ARG_DEV, dev->label_cfg.str);
 
-                        } else if (dev->announce && !dev->if_global_addr) {
+                        } else if (!dev->if_global_addr) {
 
                                 dbgf_sys(DBGT_ERR, "%s=%s %s but no global addr", ARG_DEV, dev->label_cfg.str, "to-be announced");
-
-                        } else if (dev == primary_dev && !dev->if_global_addr) {
-
-                                dbgf_sys(DBGT_ERR, "%s=%s %s but no global addr", ARG_DEV, dev->label_cfg.str, "primary dev");
 
                         } else if (wordsEqual(DEV_LO, dev->name_phy_cfg.str) && !dev->if_global_addr) {
 
@@ -3190,19 +2733,6 @@ IDM_T is_policy_rt_supported(void)
 
 }
 
-uint8_t _af_cfg(const char *func)
-{
-        _af_cfg_read = func;
-        return __af_cfg;
-}
-
-struct net_key _ZERO_NETCFG_KEY(const char *func)
-{
-        struct net_key key = ZERO_NET_KEY;
-        key.af = _af_cfg(func);
-        return key;
-}
-
 
 
 STATIC_FUNC
@@ -3218,24 +2748,8 @@ int32_t opt_ip_version(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
 
                 uint8_t ip_tmp = (patch->diff == ADD) ? strtol(patch->val, NULL, 10) : 0;
 
-                if (ip_tmp != 4 && ip_tmp != 6)
+                if (ip_tmp != 6)
                         return FAILURE;
-
-                //if (__af_cfg == AF_INET && ip_tmp == 6)
-                if (__af_cfg != DEF_IP_FAMILY && __af_cfg != ((ip_tmp == 4) ? AF_INET : AF_INET6))
-                        return FAILURE;
-
-                if (_af_cfg_read && __af_cfg != ((ip_tmp == 4) ? AF_INET : AF_INET6)) {
-                        dbgf_sys(DBGT_ERR, "Non-default %s=%d configured! Prefix your args with --%s=%d",
-                                ARG_IP, ip_tmp, ARG_IP, ip_tmp);
-                        return FAILURE;
-                }
-
-
-                __af_cfg = (ip_tmp == 4) ? AF_INET : AF_INET6;
-                __ZERO_NETCFG_KEY.af = __af_cfg;
-
-                //assertion_dbg(-501282, !_af_cfg_read, "af_cfg() already read by %s!", _af_cfg_read);
 
                 struct opt_child *c = NULL;
                 while ((c = list_iterate(&patch->childs_instance_list, c))) {
@@ -3285,7 +2799,7 @@ int32_t opt_ip_version(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                 assertion(-501131, (policy_routing != POLICY_RT_UNSET));
 
                 dbgf_track(DBGT_INFO, "%s=%d %s=%d %s=%d %s=%d %s=%d %s=%d %s=%d %s=%d %s=%d",
-                        ARG_IP, (AF_CFG == AF_INET ? 4 : 6),
+                        ARG_IP, 6,
                         "policy_routing", (policy_routing == POLICY_RT_ENABLED),
                         ARG_IP_POLICY_ROUTING, ip_policy_rt_cfg,
                         ARG_IP_THROW_RULES, ip_throw_rules_cfg,
@@ -3299,20 +2813,17 @@ int32_t opt_ip_version(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
 
 		// add rule for hosts and announced interfaces and networks
 
-		ip_flush_routes(AF_INET, RT_TABLE_HNA);
-		ip_flush_rules(AF_INET, RT_TABLE_HNA);
+		//ip_flush_routes(AF_INET, RT_TABLE_HNA);
+		//ip_flush_rules(AF_INET, RT_TABLE_HNA);
 
-		iproute(IP_RULE_DEFAULT, ADD, NO, &ZERO_NET4_KEY, RT_TABLE_HNA, RT_PRIO_HNA, 0, 0, 0, 0, NULL);
+		//iproute(IP_RULE_DEFAULT, ADD, NO, &ZERO_NET4_KEY, RT_TABLE_HNA, RT_PRIO_HNA, 0, 0, 0, 0, NULL);
 		//iproute(IP_RULE_DEFAULT, ADD, NO, &ZERO_NET4_KEY, RT_TABLE_TUN, RT_PRIO_TUNS, 0, 0, 0, 0, NULL);
 
-		if (AF_CFG == AF_INET6) {
+		ip_flush_routes(AF_INET6, RT_TABLE_HNA);
+		ip_flush_rules(AF_INET6, RT_TABLE_HNA);
 
-			ip_flush_routes(AF_INET6, RT_TABLE_HNA);
-			ip_flush_rules(AF_INET6, RT_TABLE_HNA);
-
-			iproute(IP_RULE_DEFAULT, ADD, NO, &ZERO_NET6_KEY, RT_TABLE_HNA, RT_PRIO_HNA, 0, 0, 0, 0, NULL);
-			//iproute(IP_RULE_DEFAULT, ADD, NO, &ZERO_NET6_KEY, RT_TABLE_TUN, RT_PRIO_TUNS, 0, 0, 0, 0, NULL);
-		}
+		iproute(IP_RULE_DEFAULT, ADD, NO, &ZERO_NET6_KEY, RT_TABLE_HNA, RT_PRIO_HNA, 0, 0, 0, 0, NULL);
+		//iproute(IP_RULE_DEFAULT, ADD, NO, &ZERO_NET6_KEY, RT_TABLE_TUN, RT_PRIO_TUNS, 0, 0, 0, 0, NULL);
 
 
 
@@ -3320,6 +2831,32 @@ int32_t opt_ip_version(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
 
 	return SUCCESS;
 }
+
+static int32_t nextDevStatPeriod = DEF_DEVSTAT_PERIOD;
+static int32_t currDevStatPeriod = DEF_DEVSTAT_PERIOD;
+static int32_t prevDevStatPeriod = DEF_DEVSTAT_PERIOD;
+
+STATIC_FUNC
+void update_devStatistic_task(void *data)
+{
+        struct dev_node *dev;
+        struct avl_node *an = NULL;
+
+	prevDevStatPeriod = currDevStatPeriod;
+	currDevStatPeriod = nextDevStatPeriod;
+
+        while ((dev = avl_iterate_item(&dev_name_tree, &an))) {
+
+		dev->udpInPrevBytes = dev->udpInCurrBytes;
+		dev->udpInPrevPackets = dev->udpInCurrPackets;
+		dev->udpOutPrevBytes = dev->udpOutCurrBytes;
+		dev->udpOutPrevPackets = dev->udpOutCurrPackets;
+		dev->udpInCurrBytes = dev->udpInCurrPackets = dev->udpOutCurrBytes = dev->udpOutCurrPackets = 0;
+        }
+
+        task_register(currDevStatPeriod, update_devStatistic_task, NULL, -300000);
+}
+
 
 struct dev_status {
         char* devName;
@@ -3332,8 +2869,11 @@ struct dev_status {
         char globalIp[IPX_PREFIX_STR_LEN];
         char *multicastIp;
         HELLO_SQN_T helloSqn;
-        uint8_t primary;
-        uint8_t announced;
+	uint32_t outPps;
+	uint32_t outBps;
+	uint32_t inPps;
+	uint32_t inBps;
+
 };
 
 static const struct field_format dev_status_format[] = {
@@ -3347,8 +2887,10 @@ static const struct field_format dev_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,               dev_status, globalIp,    1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,              dev_status, multicastIp, 1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,                      dev_status, helloSqn,    1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,                      dev_status, primary,     1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,                      dev_status, announced,   1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,                      dev_status, outPps,      1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,                      dev_status, outBps,      1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,                      dev_status, inPps,       1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,                      dev_status, inBps,       1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_END
 };
 
@@ -3379,8 +2921,10 @@ static int32_t dev_status_creator(struct status_handl *handl, void* data)
                 sprintf(status[i].globalIp, "%s/%d", dev->ip_global_str, dev->if_global_addr ? dev->if_global_addr->ifa.ifa_prefixlen : -1);
                 status[i].multicastIp = dev->ip_brc_str;
                 status[i].helloSqn = dev->link_hello_sqn;
-                status[i].primary = (dev == primary_dev);
-                status[i].announced = dev->announce;
+		status[i].outBps = (1000 * dev->udpOutPrevBytes) / prevDevStatPeriod;
+		status[i].outPps = (1000 * dev->udpOutPrevPackets) / prevDevStatPeriod;
+		status[i].inBps = (1000 * dev->udpInPrevBytes) / prevDevStatPeriod;
+		status[i].inPps = (1000 * dev->udpInPrevPackets) / prevDevStatPeriod;
 
                 i++;
         }
@@ -3399,7 +2943,6 @@ int32_t opt_dev_prefix(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
 
         if ((cmd == OPT_ADJUST || cmd == OPT_CHECK || cmd == OPT_APPLY)) {
 
-                IDM_T is_global_prefix = !strcmp(opt->name, ARG_GLOBAL_PREFIX);
                 struct net_key prefix = ZERO_NETCFG_KEY;
 
                 if (patch->diff == ADD) {
@@ -3408,7 +2951,7 @@ int32_t opt_dev_prefix(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                                 (!is_ip_valid(&prefix.ip, prefix.af)) ||
                                 (prefix.af == AF_INET6 && (
                                 (is_ip_net_equal(&prefix.ip, &IP6_MC_PREF, IP6_MC_PLEN, AF_INET6)) ||
-                                (XOR(is_global_prefix, !is_ip_net_equal(&prefix.ip, &IP6_LINKLOCAL_UC_PREF, IP6_LINKLOCAL_UC_PLEN, AF_INET6)))
+                                (is_ip_net_equal(&prefix.ip, &IP6_LINKLOCAL_UC_PREF, IP6_LINKLOCAL_UC_PLEN, AF_INET6))
                                 ))) {
 
                                 dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "%s=%s invalid prefix %s",
@@ -3428,7 +2971,7 @@ int32_t opt_dev_prefix(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
 
                         while ((dev = avl_iterate_item(&dev_name_tree, &an))) {
 
-                                if (is_global_prefix ? !dev->global_prefix_conf_.mask : !dev->llocal_prefix_conf_.mask) {
+                                if (!dev->llocal_prefix_conf_.mask) {
 
                                         //mark all dev that are note specified more precise:
                                         dbgf_track(DBGT_INFO, "applying %s %s=%s %s",
@@ -3439,11 +2982,7 @@ int32_t opt_dev_prefix(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
                                 }
                         }
 
-                        if (is_global_prefix)
-                                global_prefix_cfg = prefix;
-                        else
-                                llocal_prefix_cfg = prefix;
-
+			llocal_prefix_cfg = prefix;
                 }
         }
 
@@ -3456,7 +2995,12 @@ int32_t opt_auto_prefix(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
 	TRACE_FUNCTION_CALL;
 
 
-        if ((cmd == OPT_ADJUST || cmd == OPT_CHECK || cmd == OPT_APPLY)) {
+        if (cmd == OPT_REGISTER) {
+
+		autoconf_prefix_cfg = ZERO_NET6_KEY;
+		str2netw(DEF_AUTO_IP6_PREFIX, &autoconf_prefix_cfg.ip, NULL, &autoconf_prefix_cfg.mask, &autoconf_prefix_cfg.af, NO);
+
+        } else if ((cmd == OPT_ADJUST || cmd == OPT_CHECK || cmd == OPT_APPLY)) {
 
                 struct net_key prefix = ZERO_NET6_KEY;
                 str2netw(DEF_AUTO_IP6_PREFIX, &prefix.ip, NULL, &prefix.mask, &prefix.af, NO);
@@ -3464,11 +3008,11 @@ int32_t opt_auto_prefix(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
                 if (patch->diff == ADD) {
 
                         if (str2netw(patch->val, &prefix.ip, cn, &prefix.mask, &prefix.af, NO) == FAILURE ||
-                                (prefix.mask != DEF_AUTO_MASK_DISABLED && !is_ip_valid(&prefix.ip, prefix.af)) ||
-                                (prefix.af != AF_INET6) ||
+                                prefix.mask < DEF_AUTO_MASK_MIN || prefix.mask > DEF_AUTO_MASK_MAX ||
+				prefix.mask % DEF_AUTO_MASK_MOD || !is_ip_valid(&prefix.ip, prefix.af) ||
+				! prefix.ip.s6_addr[prefix.mask/8] /* as long as dummy tun6 src addresses are used */||
                                 (is_ip_net_equal(&prefix.ip, &IP6_MC_PREF, IP6_MC_PLEN, AF_INET6)) ||
-                                (is_ip_net_equal(&prefix.ip, &IP6_LINKLOCAL_UC_PREF, IP6_LINKLOCAL_UC_PLEN, AF_INET6)) ||
-                                (prefix.mask != DEF_AUTO_MASK_DISABLED && prefix.mask != DEF_AUTO_IP6_MASK)
+                                (is_ip_net_equal(&prefix.ip, &IP6_LINKLOCAL_UC_PREF, IP6_LINKLOCAL_UC_PLEN, AF_INET6))
                                 ) {
 
                                 dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "%s=%s invalid prefix %s",
@@ -3481,32 +3025,22 @@ int32_t opt_auto_prefix(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
                 }
 
 
-                if (cmd == OPT_APPLY) {
+                if (cmd == OPT_APPLY)
+			autoconf_prefix_cfg = prefix;
 
-                        if (!strcmp(opt->name, ARG_AUTO_IP6_PREFIX) && !is_ip_equal(&autoconf_prefix_cfg.ip, &prefix.ip)) {
+        } else if (cmd == OPT_SET_POST && initializing ) {
 
-                                struct avl_node *an = NULL;
-                                struct dev_node *dev;
+		assertion(-502043, (self));
+		assertion(-502044, (!is_zero(&self->nodeId, sizeof(self->nodeId))));
+		self->primary_ip = autoconf_prefix_cfg.ip;
+		memcpy(&self->primary_ip.s6_addr[(autoconf_prefix_cfg.mask/8)], &self->nodeId, ((128-autoconf_prefix_cfg.mask)/8));
 
-                                while ((dev = avl_iterate_item(&dev_name_tree, &an))) {
-
-                                        if (!global_prefix_cfg.mask && !dev->global_prefix_conf_.mask) {
-
-                                                //mark all dev that are note specified more precise:
-                                                dbgf_track(DBGT_INFO, "applying %s %s=%s %s",
-                                                        dev->label_cfg.str, opt->name, patch->val, netAsStr(&prefix));
-
-                                                dev->hard_conf_changed = YES;
-                                                opt_dev_changed = YES;
-                                        }
-                                }
-
-                                autoconf_prefix_cfg = prefix;
-				my_description_changed = YES;
-
-                        }
-                }
-        }
+/*		if (is_zero(&self->global_id.pkid, sizeof(self->global_id.pkid)/2))
+			memcpy(&self->primary_ip.s6_addr[(autoconf_prefix_cfg.mask/8)], &self->global_id.pkid.u8[sizeof(self->global_id.pkid)/2],
+				XMIN((128-autoconf_prefix_cfg.mask)/8, sizeof(self->global_id.pkid)/2));
+*/
+		ip6ToStr(&self->primary_ip, self->primary_ip_str);
+	}
 
 	return SUCCESS;
 }
@@ -3586,8 +3120,8 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
 
                 if (!dev && cmd == OPT_APPLY) {
 
-                        dbgf_track(DBGT_INFO, "cmd: %s opt: %s  %s instance %s",
-                                opt_cmd2str[cmd], opt->name, family2Str(AF_CFG), patch ? patch->val : "");
+                        dbgf_track(DBGT_INFO, "cmd: %s opt:  %s instance %s",
+                                opt_cmd2str[cmd], opt->name, patch ? patch->val : "");
 
                         uint32_t dev_size = sizeof (struct dev_node) + (sizeof (void*) * plugin_data_registries[PLUGIN_DATA_DEV]);
                         dev = debugMallocReset(dev_size, -300002);
@@ -3610,24 +3144,16 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
 
                         avl_insert(&dev_name_tree, dev, -300144);
 
-/*
-                        if (dev == primary_dev_cfg)
-                                dev->announce = YES;
-                        else
-*/
-                                dev->announce = DEF_DEV_ANNOUNCE;
-
                         // some configurable interface values - initialized to unspecified:
                         dev->linklayer_conf = OPT_CHILD_UNDEFINED;
                         dev->channel_conf = OPT_CHILD_UNDEFINED;
                         dev->umetric_max_conf = (UMETRIC_T) OPT_CHILD_UNDEFINED;
                         dev->umetric_min_conf = (UMETRIC_T) OPT_CHILD_UNDEFINED;
-                        dev->global_prefix_conf_ = ZERO_NETCFG_KEY;
                         dev->llocal_prefix_conf_ = ZERO_NETCFG_KEY;
 
                         //dev->umetric_max = DEF_DEV_BITRATE_MAX;
 
-                        dev->dummy_lndev.key.dev = dev;
+                        dev->dummyLink.k.myDev = dev;
                         
                         /*
                          * specifying the outgoing src address for IPv6 seems not working
@@ -3647,9 +3173,8 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
                 struct opt_child *c = NULL;
                 while ((c = list_iterate(&patch->childs_instance_list, c))) {
 
-                        if (!strcmp(c->opt->name, ARG_DEV_GLOBAL_PREFIX) || !strcmp(c->opt->name, ARG_DEV_LLOCAL_PREFIX)) {
+                        if (!strcmp(c->opt->name, ARG_DEV_LLOCAL_PREFIX)) {
 
-                                IDM_T is_global_prefix = (!strcmp(c->opt->name, ARG_DEV_GLOBAL_PREFIX));
                                 struct net_key prefix = ZERO_NETCFG_KEY;
 
                                 if (c->val) {
@@ -3657,7 +3182,7 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
                                         if (str2netw(c->val, &prefix.ip, cn, &prefix.mask, &prefix.af, NO) == FAILURE || !is_ip_valid(&prefix.ip, prefix.af) ||
                                                 (prefix.af == AF_INET6 && (
                                                 is_ip_net_equal(&prefix.ip, &IP6_MC_PREF, IP6_MC_PLEN, AF_INET6) ||
-                                                XOR(is_global_prefix, !is_ip_net_equal(&prefix.ip, &IP6_LINKLOCAL_UC_PREF, IP6_LINKLOCAL_UC_PLEN, AF_INET6))))
+                                                is_ip_net_equal(&prefix.ip, &IP6_LINKLOCAL_UC_PREF, IP6_LINKLOCAL_UC_PLEN, AF_INET6)))
                                                 ) {
 
                                                 dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "invalid interface prefix %s", netAsStr(&prefix));
@@ -3672,19 +3197,10 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
                                         dbgf_track(DBGT_INFO, "applying %s %s=%s hard_conf_changed=%d",
                                                 dev->label_cfg.str, c->opt->name, c->val, dev->hard_conf_changed);
 
-                                        if (is_global_prefix) {
-                                                if (c->val)
-                                                        dev->global_prefix_conf_ = prefix;
-                                                else
-                                                        dev->global_prefix_conf_ = ZERO_NETCFG_KEY;
-                                                
-                                        } else {
-                                                if (c->val)
+					if (c->val)
                                                         dev->llocal_prefix_conf_ = prefix;
                                                 else
                                                         dev->llocal_prefix_conf_ = ZERO_NETCFG_KEY;
-
-                                        }
 
                                         dev->hard_conf_changed = YES;
                                 }
@@ -3739,14 +3255,6 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
                                 } else {
                                         dev->umetric_min_conf = OPT_CHILD_UNDEFINED;
                                 }
-
-
-                        } else if (!strcmp(c->opt->name, ARG_DEV_ANNOUNCE) && cmd == OPT_APPLY) {
-
-                                if (c->val)
-                                        dev->announce = strtol(c->val, NULL, 10);
-
-                                dev->hard_conf_changed = YES;
                         }
                 }
 
@@ -3791,46 +3299,27 @@ static struct opt_type ip_options[]=
 
 	{ODI,ARG_IP,ARG_IP_RULE_HNA,	 0, 3,1,A_CS1,A_ADM,A_INI,A_CFA,A_ANY,	&ip_prio_hna_cfg,	MIN_IP_RULE_HNA,MAX_IP_RULE_HNA,DEF_IP_RULE_HNA,0,opt_ip_version,
 			ARG_VALUE_FORM,	"specify iproute2 rule preference offset for hna networks"},
-/*
-	{ODI,ARG_IP,ARG_IP_RULE_TUN,	 0, 3,1,A_CS1,A_ADM,A_INI,A_CFA,A_ANY,	&ip_prio_tun_cfg,	MIN_IP_RULE_TUN,MAX_IP_RULE_TUN,DEF_IP_RULE_TUN,0,opt_ip_version,
-			ARG_VALUE_FORM,	"specify iproute2 rule preference offset for tunnel networks"},
-*/
+
 	{ODI,ARG_IP,ARG_IP_TABLE_HNA, 0, 3,1,A_CS1,A_ADM,A_INI,A_CFA,A_ANY,	&ip_table_hna_cfg,	MIN_IP_TABLE_HNA,   MAX_IP_TABLE_HNA,   DEF_IP_TABLE_HNA,0,     opt_ip_version,
 			ARG_VALUE_FORM,	"specify iproute2 table for hna networks"},
-/*
-	{ODI,ARG_IP,ARG_IP_TABLE_TUN, 0, 3,1,A_CS1,A_ADM,A_INI,A_CFA,A_ANY,	&ip_table_tun_cfg,	MIN_IP_TABLE_TUN,   MAX_IP_TABLE_TUN,   DEF_IP_TABLE_TUN,0,     opt_ip_version,
-			ARG_VALUE_FORM,	"specify iproute2 table for tunnel networks"},
-*/
 
-#ifdef WITH_UNUSED
-
-        {ODI,0,"lo_rule",		0,  4,0,A_PS1,A_ADM,A_INI,A_CFA,A_ANY,	&Lo_rule,	0, 		1,		DEF_LO_RULE,0,	0,
-			ARG_VALUE_FORM,	"disable/enable autoconfiguration of lo rule"},
-#endif
 
 	{ODI,0,ARG_INTERFACES,	        0,  9,2,A_PS0,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
 			0,		"show interfaces\n"},
+	{ODI,0,ARG_DEVSTAT_PERIOD,      0, 9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,   &nextDevStatPeriod,MIN_DEVSTAT_PERIOD,MAX_DEVSTAT_PERIOD,DEF_DEVSTAT_PERIOD,0,0,
+			ARG_VALUE_FORM,	HLP_DEVSTAT_PERIOD},
 
-	{ODI,0,ARG_GLOBAL_PREFIX,	0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_dev_prefix,
-			ARG_NETW_FORM,HLP_GLOBAL_PREFIX},
-
-	{ODI,0,ARG_LLOCAL_PREFIX,	0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_dev_prefix,
+	{ODI,0,ARG_LLOCAL_PREFIX,	0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_dev_prefix,
 			ARG_NETW_FORM,HLP_LLOCAL_PREFIX},
-
-	{ODI,0,ARG_AUTO_IP6_PREFIX,     0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,      	0,      	0,              0,DEF_AUTO_IP6_PREFIX,opt_auto_prefix,
+//order must be after ARG_HOSTNAME (which initializes self via init_self(), called from opt_hostname):
+	{ODI,0,ARG_AUTO_IP6_PREFIX,     0,  6,1,A_PS1,A_ADM,A_INI,A_CFA,A_ANY,	0,      	0,      	0,              0,DEF_AUTO_IP6_PREFIX,opt_auto_prefix,
 			ARG_VALUE_FORM,	HLP_AUTO_IP6_PREFIX},
 
 	{ODI,0,ARG_DEV,		        'i',9,2,A_PM1N,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0, 		0,		0,0, 		opt_dev,
 			"<interface-name>", HLP_DEV},
 
-	{ODI,ARG_DEV,ARG_DEV_ANNOUNCE,  'a',9,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		1,		DEF_DEV_ANNOUNCE,0,opt_dev,
-			ARG_VALUE_FORM,	HLP_DEV_ANNOUNCE},
-
 	{ODI,ARG_DEV,ARG_DEV_LL,	 'l',9,0,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		MIN_DEV_LL,	MAX_DEV_LL,     DEF_DEV_LL,0,	opt_dev,
 			ARG_VALUE_FORM,	HLP_DEV_LL},
-
-	{ODI,ARG_DEV,ARG_DEV_GLOBAL_PREFIX,0, 9,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,  0,		0,              0,              0,0,              opt_dev,
-			ARG_VALUE_FORM,	HLP_DEV_GLOBAL_PREFIX},
 
 	{ODI,ARG_DEV,ARG_DEV_LLOCAL_PREFIX,0, 9,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,  0,		0,              0,              0,0,              opt_dev,
 			ARG_VALUE_FORM,	HLP_DEV_LLOCAL_PREFIX},
@@ -3841,12 +3330,12 @@ static struct opt_type ip_options[]=
 	{ODI,ARG_DEV,ARG_DEV_BITRATE_MIN, 0, 9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,              0,              0,0,              opt_dev,
 			ARG_VALUE_FORM,	HLP_DEV_BITRATE_MIN},
 
-
+#ifndef LESS_OPTIONS
 	{ODI,0,ARG_PEDANTIC_CLEANUP,	  0, 9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&Pedantic_cleanup,0,		1,		DEF_PEDANTIC_CLEANUP,0,0,
 			ARG_VALUE_FORM,	"disable/enable pedantic cleanup of system configuration (like ip_forward,..) \n"
 			"	at program termination. Its generally safer to keep this disabled to not mess up \n"
 			"	with other routing protocols"}
-
+#endif
 };
 
 
@@ -3857,7 +3346,6 @@ void init_ip(void)
         assertion(-500894, is_zero(((char*)&ZERO_IP), sizeof (ZERO_IP)));
         assertion(-501254, is_zero((void*) &ZERO_NET_KEY, sizeof (ZERO_NET_KEY)));
         assertion(-501336, is_zero((void*) &llocal_prefix_cfg, sizeof (llocal_prefix_cfg)));
-        assertion(-501337, is_zero((void*) &global_prefix_cfg, sizeof (global_prefix_cfg)));
         assertion(-501395, is_zero((void*) &autoconf_prefix_cfg, sizeof (autoconf_prefix_cfg)));
 
         memset(&bmx6_rt_dict, 0, sizeof(bmx6_rt_dict));
@@ -3892,9 +3380,6 @@ void init_ip(void)
 
 
 
-        autoconf_prefix_cfg = ZERO_NET6_KEY;
-        str2netw(DEF_AUTO_IP6_PREFIX, &autoconf_prefix_cfg.ip, NULL, &autoconf_prefix_cfg.mask, &autoconf_prefix_cfg.af, NO);
-
         if (rtnl_open(&ip_rth) != SUCCESS) {
                 dbgf_sys(DBGT_ERR, "failed opening rtnl socket");
                 cleanup_all( -500561 );
@@ -3918,6 +3403,8 @@ void init_ip(void)
 
         register_status_handl(sizeof (struct dev_status), 1, dev_status_format, ARG_INTERFACES, dev_status_creator);
 
+	task_register(currDevStatPeriod, update_devStatistic_task, NULL, -300000);
+
         kernel_get_if_config();
 
 //        InitSha(&ip_sha);
@@ -3935,18 +3422,16 @@ void cleanup_ip(void)
 	ip_flush_tracked( IP_ROUTE_FLUSH );
 
 	// flush all routes in this bmx6 tables (there should be NOTHING!):
-	ip_flush_routes(AF_CFG, RT_TABLE_HNA);
-	if (AF_CFG == AF_INET6)
-		ip_flush_routes(AF_INET, RT_TABLE_HNA);
+	ip_flush_routes(AF_INET6, RT_TABLE_HNA);
+	//ip_flush_routes(AF_INET, RT_TABLE_HNA);
 
 	// flush default routes installed by bmx6:
 	ip_flush_tracked( IP_RULE_FLUSH );
 
 
 	// flush all rules pointing to bmx6 tables (there should be NOTHING!):
-	ip_flush_rules(AF_CFG, RT_TABLE_HNA);
-	if (AF_CFG == AF_INET6)
-		ip_flush_rules(AF_INET, RT_TABLE_HNA);
+	ip_flush_rules(AF_INET6, RT_TABLE_HNA);
+	//ip_flush_rules(AF_INET, RT_TABLE_HNA);
 
 
         kernel_get_if_config_post(YES,0);

@@ -25,8 +25,11 @@
 #include <string.h>
 #include <stdlib.h>
 
+#include "list.h"
+#include "control.h"
 #include "bmx.h"
 #include "avl.h"
+#include "allocate.h"
 
 #define CODE_CATEGORY_NAME "avl"
 
@@ -96,6 +99,15 @@ void * avl_next_item( struct avl_tree *tree, void *key)
 
         return an ? an->item : NULL;
 }
+
+
+void * avl_closest_item(struct avl_tree *tree, void *key) {
+	
+	void *item = avl_find_item(tree, key);
+
+	return item ? item : avl_next_item(tree, key);
+}
+
 
 void *avl_first_item(struct avl_tree *tree)
 {
@@ -194,14 +206,14 @@ struct avl_node *avl_create_node(struct avl_tree *tree, void *node, int32_t tag,
 	an->right = right;
 
 	if (left) {
-		assertion(-500000, (left->right==right));
+		assertion(-502001, (left->right==right));
 		left->right = an;
 	} else {
 		tree->first = an;
 	}
 
 	if (right) {
-		assertion(-500000, (right->left==left));
+		assertion(-502002, (right->left==left));
 		right->left = an;
 	} else {
 		tree->last = an;
@@ -345,11 +357,11 @@ void avl_insert(struct avl_tree *tree, void *node, int32_t tag)
                 new = (tree->root = avl_create_node(tree, node, tag, NULL, NULL, NULL));
         }
 
-	assertion(-500000, (new));
+	assertion(-502003, (new));
 #ifdef AVL_5XLINKED
-	assertion(-500000, ( new->left  || avl_first(tree)==new));
-	assertion(-500000, (!new->left  || avl_next(tree, AVL_ITEM_KEY(tree, new->left->item))==new));
-	assertion(-500000, (!new->right || avl_next(tree, AVL_ITEM_KEY(tree, new->item))==new->right));
+	assertion(-502004, ( new->left  || avl_first(tree)==new));
+	assertion(-502005, (!new->left  || avl_next(tree, AVL_ITEM_KEY(tree, new->left->item))==new));
+	assertion(-502006, (!new->right || avl_next(tree, AVL_ITEM_KEY(tree, new->item))==new->right));
 #endif
         return;
 }
@@ -536,13 +548,13 @@ void *avl_remove(struct avl_tree *tree, void *key, int32_t tag)
         }
 
 #ifdef AVL_5XLINKED
-	assertion(-500000, (!left  ||   left->left   || avl_first(tree)==left));
-	assertion(-500000, (!left  ||  !left->left   || avl_next(tree, AVL_ITEM_KEY(tree, left->left->item))==left));
-	assertion(-500000, (!left  ||  !left->right  || avl_next(tree, AVL_ITEM_KEY(tree, left->item))==left->right));
+	assertion(-502007, (!left  ||   left->left   || avl_first(tree)==left));
+	assertion(-502008, (!left  ||  !left->left   || avl_next(tree, AVL_ITEM_KEY(tree, left->left->item))==left));
+	assertion(-502009, (!left  ||  !left->right  || avl_next(tree, AVL_ITEM_KEY(tree, left->item))==left->right));
 
-	assertion(-500000, (!right ||  right->left   || avl_first(tree)==right));
-	assertion(-500000, (!right || !right->left   || avl_next(tree, AVL_ITEM_KEY(tree, right->left->item))==right));
-	assertion(-500000, (!right || !right->right  || avl_next(tree, AVL_ITEM_KEY(tree, right->item))==right->right));
+	assertion(-502010, (!right ||  right->left   || avl_first(tree)==right));
+	assertion(-502011, (!right || !right->left   || avl_next(tree, AVL_ITEM_KEY(tree, right->left->item))==right));
+	assertion(-502012, (!right || !right->right  || avl_next(tree, AVL_ITEM_KEY(tree, right->item))==right->right));
 #endif
         return node;
 

@@ -34,16 +34,23 @@
 #include <netinet/in.h>
 
 
+#include "list.h"
+#include "control.h"
 #include "bmx.h"
+#include "crypt.h"
+#include "avl.h"
+#include "node.h"
+#include "metrics.h"
 #include "msg.h"
 #include "plugin.h"
 #include "schedule.h"
 #include "tools.h"
-#include "metrics.h"
+#include "iptools.h"
 #include "ip.h"
 #include "hna.h"
-#include "redist.c"
+#include "allocate.h"
 #include "table.h"
+#include "redist.c"
 
 
 #define CODE_CATEGORY_NAME "table"
@@ -73,7 +80,7 @@ void redist_table_routes(void* laterp)
 
 	} else if ( !laterp ) {
 
-		dbgf_track(DBGT_INFO, "");
+		dbgf_track(DBGT_INFO, " ");
 		scheduled = NO;
 		task_remove(redist_table_routes, NULL);
 
@@ -120,7 +127,7 @@ void get_route_list_nlhdr(struct nlmsghdr *nh, void *unused )
 			rtm->rtm_table!=ip_table_tun_cfg ) {
 
 			struct net_key net = {.af=rtm->rtm_family, .mask=rtm->rtm_dst_len,
-			.ip=(rtm->rtm_family==AF_INET6) ? *((IPX_T *) RTA_DATA(rtap)) : ip4ToX(*((IP4_T *) RTA_DATA(rtap))) }
+			.ip=(rtm->rtm_family==AF_INET6) ? *((IPX_T *) RTA_DATA(rtap)) : ip4ToX(*((IP4_T *) RTA_DATA(rtap))) };
 
 			dbgf_sys(DBGT_INFO, "%s route=%s table=%d protocol=%s",	nh->nlmsg_type==RTM_NEWROUTE?"ADD":"DEL",
 				netAsStr(&net), rtm->rtm_table, rtredist_rt_dict[rtm->rtm_protocol].sys2Name);

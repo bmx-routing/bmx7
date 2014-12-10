@@ -19,13 +19,18 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-
-#ifdef DEBUG_MALLOC
-
 #include <string.h>
 #include <syslog.h>
 
+#include "list.h"
+#include "control.h"
 #include "bmx.h"
+#include "allocate.h"
+
+uint32_t debugMalloc_bytes = 0;
+uint32_t debugMalloc_objects = 0;
+
+#ifdef DEBUG_MALLOC
 
 #define MAGIC_NUMBER_HEADER 0xB2B2B2B2
 #define MAGIC_NUMBER_TRAILOR 0xB2
@@ -198,6 +203,9 @@ void *_debugMalloc(uint32_t length, int32_t tag, uint8_t reset)
 	MAGIC_TRAILER_T *chunkTrailer;
 	unsigned char *chunk;
 
+	debugMalloc_bytes += (length + sizeof(struct chunkHeader) + sizeof(MAGIC_TRAILER_T));
+	debugMalloc_objects += 1;
+
         if (!length)
                 return NULL;
 
@@ -321,6 +329,9 @@ void _debugFree(void *memoryParameter, int tag)
 		cleanup_all( -500082 );
 	}
 
+	debugMalloc_bytes -= (chunkHeader->length + sizeof(struct chunkHeader) + sizeof(MAGIC_TRAILER_T));
+	debugMalloc_objects -= 1;
+
 #ifdef MEMORY_USAGE
 
 	removeMemory( chunkHeader->tag, tag );
@@ -328,8 +339,6 @@ void _debugFree(void *memoryParameter, int tag)
 #endif //#ifdef MEMORY_USAGE
 
 	free(chunkHeader);
-
-
 }
 
 

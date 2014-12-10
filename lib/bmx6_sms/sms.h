@@ -21,26 +21,35 @@
 #define DEF_SMS_TX_SUBDIR "sendSms"
 
 #define ARG_SMS "syncSms"
-#define MAX_JSON_SMS_NAME_LEN 16
-#define MAX_JSON_SMS_DATA_LEN 240
+
+#define MAX_SMS_NAME_LEN 16
+#define MAX_SMS_DATA_LEN 300
+#define MAX_SMS_DATA_LEN_REF 10000
 
 #define SMS_POLLING_INTERVAL 5000
 
-struct json_sms {
-	char name[MAX_JSON_SMS_NAME_LEN];
+#define ARG_SMS_FZIP "zipSms"
+#define DEF_SMS_FZIP TYP_FZIP_DO
+
+#define ARG_SMS_FREF "refSms"
+#define DEF_SMS_FREF TYP_FREF_DO
+
+
+struct sms_node {
+	char name[MAX_SMS_NAME_LEN];
         uint16_t stale;
 	uint16_t text_len;
         char text[];
 };
 
 struct description_msg_sms {
-	char name[MAX_JSON_SMS_NAME_LEN];
+	char name[MAX_SMS_NAME_LEN];
 	uint16_t text_len;
         char text[];
 } __attribute__((packed));
 
 #define DESCRIPTION_MSG_SMS_FORMAT { \
-{FIELD_TYPE_STRING_CHAR,   -1, (8*MAX_JSON_SMS_NAME_LEN), 1, FIELD_RELEVANCE_HIGH, "name"}, \
+{FIELD_TYPE_STRING_CHAR,   -1, (8*MAX_SMS_NAME_LEN), 1, FIELD_RELEVANCE_HIGH, "name"}, \
 {FIELD_TYPE_STRING_SIZE,   -1, 16,                        0, FIELD_RELEVANCE_LOW,  "len"},  \
 {FIELD_TYPE_STRING_BINARY, -1, 0,                         1, FIELD_RELEVANCE_LOW,  "data" },  \
 FIELD_FORMAT_END }

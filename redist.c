@@ -16,16 +16,6 @@
  */
 
 
-/*
-#include "bmx.h"
-#include "msg.h"
-#include "plugin.h"
-#include "schedule.h"
-#include "tools.h"
-#include "metrics.h"
-#include "ip.h"
-#include "hna.h"
-*/
 #include "redist.h"
 
 
@@ -35,7 +25,7 @@ void redist_dbg(int8_t dbgl, int8_t dbgt, const char *func, struct redist_in_nod
                 func, misc1, misc2, zrn->old, zrn->cnt,
                 (zrn->cnt > 1 || zrn->cnt < 0) ? "INVALID" : (zrn->old != zrn->cnt) ? "CHANGED" : "UNCHANGED",
                 netAsStr(&zrn->k.net), ipXAsStr(zrn->k.net.af, &zrn->k.via),
-                zrn->k.inType < BMX6_ROUTE_MAX ? zapi_rt_dict[zrn->k.inType].sys2Name : memAsHexStringSep(&zrn->k.inType, 1, 0),
+                zrn->k.inType < BMX6_ROUTE_MAX ? zapi_rt_dict[zrn->k.inType].sys2Name : memAsHexStringSep(&zrn->k.inType, 1, 0, NULL),
                 zrn->k.table, zrn->k.ifindex, zrn->metric, zrn->distance, zrn->flags, zrn->message);
 }
 
@@ -140,7 +130,7 @@ void redist_rm_aggregatable(struct avl_tree *redist_out_tree)
 
                         dbgf_all(DBGT_INFO, "checking aggregation for net=%s rtype=%d bw=%d tunInDev=%s min=%d new=%d lastBit=%d %s",
                                 netAsStr(&r1->k.net), r1->k.bmx6_route_type, r1->k.bandwidth.val.u8, r1->k.tunInDev.str, r1->minAggregatePrefixLen,
-                                r1->new, b1, memAsHexStringSep(&r1->k.net.ip, 16, 2));
+                                r1->new, b1, memAsHexStringSep(&r1->k.net.ip, 16, 2, NULL));
 
                         if (!r1->new || !r1->k.net.mask || r1->k.net.mask <= r1->minAggregatePrefixLen || !b1)
                                 continue;
@@ -153,7 +143,7 @@ void redist_rm_aggregatable(struct avl_tree *redist_out_tree)
 
                         dbgf_all(DBGT_INFO, "                    with net=%s rtype=%d bw=%d tunInDev=%s min=%d new=%d %s",
                                 netAsStr(&s0.k.net), s0.k.bmx6_route_type, s0.k.bandwidth.val.u8, s0.k.tunInDev.str, s0.minAggregatePrefixLen,
-                                s0.new, memAsHexStringSep(&s0.k.net.ip, 16, 2));
+                                s0.new, memAsHexStringSep(&s0.k.net.ip, 16, 2, NULL));
 
                         if (r0 && r0->new && r0->k.net.mask > r0->minAggregatePrefixLen) {
 

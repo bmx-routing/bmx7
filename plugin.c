@@ -20,12 +20,17 @@
 #include <stdio.h>
 #include <dlfcn.h>
 
+#include "list.h"
+#include "control.h"
 #include "bmx.h"
-#include "msg.h"
+#include "crypt.h"
+#include "avl.h"
+#include "node.h"
 #include "ip.h"
 #include "plugin.h"
 #include "schedule.h"
 #include "tools.h"
+#include "allocate.h"
 
 #define CODE_CATEGORY_NAME "plugin"
 
@@ -118,9 +123,9 @@ void cb_route_change_hooks(uint8_t del, struct orig_node *dest)
         TRACE_FUNCTION_CALL;
 	struct list_node *list_pos;
 	struct cb_route_change_node *con, *prev_con = NULL;
-        struct local_node *local_router = dest->curr_rt_local->local_key;
+        struct neigh_node *local_router = dest->curr_rt_local->local_key;
 
-        assertion(-500674, (dest && dest->desc));
+        assertion(-500674, (dest && dest->dhn && dest->dhn->desc_frame_len));
 
         local_router->orig_routes = local_router->orig_routes + (del ? -1 : +1);
 

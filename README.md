@@ -43,6 +43,37 @@ The following Linux-kernel modules are needed (depending on used bmx6 features)
 * tunnel6
 * ip6_tunnel
 
+The polorssl crypto library is needed for cryptographic operations:
+Tested with debian and cyassl-2.8.0:
+<pre>
+wget https://polarssl.org/code/releases/polarssl-1.3.3-gpl.tgz
+tar xzvf polarssl-1.3.3-gpl.tgz 
+cd polarssl-1.3.3
+make
+make install
+</pre>
+
+
+This is obsolete:
+The cyassl embedded ssl library is needed for cryptographic operations:
+Tested with debian and cyassl-2.8.0:
+<pre>
+wget  http://www.yassl.com/cyassl-2.8.0.zip
+unzip cyassl-2.8.0.zip
+cd cyassl-2.8.0
+./configure --enable-fastmath=no --enable-ecc=yes --enable-keygen=yes
+# optionally, drop: --enable-ecc=yes --enable-keygen=yes
+# disable bmx6 private-key generation as:
+# make EXTRA_CFLAGS="-DNO_KEY_GEN" and 
+# and provide your own keys (eg. with openssl):
+# openssl genrsa -out /etc/bmx6/rsa.pem 1024
+# openssl rsa -in /etc/bmx6/rsa.pem -inform PEM -out /etc/bmx6/rsa.der -outform DER
+
+make
+sudo make install
+sudo ldconfig
+</pre>
+
 ### Downloading
 
 Latest development sources are available from bmx6 git repository:

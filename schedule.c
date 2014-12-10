@@ -19,6 +19,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
+#include <sys/time.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
@@ -26,11 +27,18 @@
 #include <linux/rtnetlink.h>
 
 
+#include "list.h"
+#include "control.h"
 #include "bmx.h"
+#include "crypt.h"
+#include "avl.h"
+#include "node.h"
+#include "metrics.h"
 #include "msg.h"
 #include "ip.h"
 #include "plugin.h"
 #include "schedule.h"
+#include "allocate.h"
 
 
 
@@ -41,6 +49,66 @@ static int32_t receive_max_sock = 0;
 static fd_set receive_wait_set;
 
 static uint16_t changed_readfds = 1;
+
+
+static struct timeval start_time_tv;
+static struct timeval curr_tv;
+
+
+void upd_time(struct timeval *precise_tv)
+{
+        static const struct timeval MAX_TV = {(((MAX_SELECT_TIMEOUT_MS + MAX_SELECT_SAFETY_MS) / 1000)), (((MAX_SELECT_TIMEOUT_MS + MAX_SELECT_SAFETY_MS) % 1000)*1000)};
+
+        struct timeval bmx_tv, diff_tv, acceptable_max_tv, acceptable_min_tv = curr_tv;
+
+        timeradd( &MAX_TV, &curr_tv, &acceptable_max_tv );
+
+	gettimeofday( &curr_tv, NULL );
+
+
+	if ( timercmp( &curr_tv, &acceptable_max_tv, > ) ) {
+
+		timersub( &curr_tv, &acceptable_max_tv, &diff_tv );
+		timeradd( &start_time_tv, &diff_tv, &start_time_tv );
+
+                dbg_sys(DBGT_WARN, "critical system time drift detected: ++ca %ld s, %ld us! Correcting reference!",
+		     diff_tv.tv_sec, diff_tv.tv_usec );
+
+                if ( diff_tv.tv_sec > CRITICAL_PURGE_TIME_DRIFT )
+                        purge_link_route_orig_nodes(NULL, NO, self);
+
+	} else 	if ( timercmp( &curr_tv, &acceptable_min_tv, < ) ) {
+
+		timersub( &acceptable_min_tv, &curr_tv, &diff_tv );
+		timersub( &start_time_tv, &diff_tv, &start_time_tv );
+
+                dbg_sys(DBGT_WARN, "critical system time drift detected: --ca %ld s, %ld us! Correcting reference!",
+		     diff_tv.tv_sec, diff_tv.tv_usec );
+
+                if ( diff_tv.tv_sec > CRITICAL_PURGE_TIME_DRIFT )
+                        purge_link_route_orig_nodes(NULL, NO, self);
+
+	}
+
+	timersub( &curr_tv, &start_time_tv, &bmx_tv );
+
+	if ( precise_tv ) {
+		precise_tv->tv_sec = bmx_tv.tv_sec;
+		precise_tv->tv_usec = bmx_tv.tv_usec;
+	}
+
+}
+
+STATIC_FUNC
+void upd_bmx_time(struct timeval *tv)
+{
+	static struct timeval tmp;
+
+	upd_time((tv = tv ? tv : &tmp));
+
+	bmx_time = ( (tv->tv_sec * 1000) + (tv->tv_usec / 1000) );
+	bmx_time_sec = tv->tv_sec;
+}
 
 
 
@@ -259,7 +327,7 @@ loop4Event:
 			
 		selected = select( receive_max_sock + 1, &tmp_wait_set, NULL, NULL, &tv );
 
-		upd_time( &(pb.i.tv_stamp) );
+		upd_bmx_time( &(pb.i.tv_stamp) );
 
                 //dbgf_track(DBGT_INFO, "select=%d", selected);
 		
@@ -288,7 +356,7 @@ loop4Event:
                         last_interrupted_syscall = bmx_time;
 
 			wait_sec_msec( 0, 1 );
-			upd_time( NULL );
+			upd_bmx_time( NULL );
 			
 			goto wait4Event_end;
 		}
@@ -344,14 +412,14 @@ loop4Event:
 				pb.i.unicast = NO;
 				
 				errno=0;
-				pb.i.total_length = recvfrom( pb.i.iif->rx_mcast_sock, pb.packet.data,
-				                             sizeof(pb.packet.data) - 1, 0,
+				pb.i.length = recvfrom( pb.i.iif->rx_mcast_sock, pb.p.data,
+				                             sizeof(pb.p.data) - 1, 0,
 				                             (struct sockaddr *)&pb.i.addr, &addr_len );
 				
-				if ( pb.i.total_length < 0  &&  ( errno == EWOULDBLOCK || errno == EAGAIN ) ) {
+				if ( pb.i.length < 0  &&  ( errno == EWOULDBLOCK || errno == EAGAIN ) ) {
 
                                         dbgf_sys(DBGT_WARN, "sock returned %d errno %d: %s",
-					    pb.i.total_length, errno, strerror(errno) );
+					    pb.i.length, errno, strerror(errno) );
 					
 					continue;
 				}
@@ -370,14 +438,14 @@ loop4Event:
 				pb.i.unicast = NO;
 				
 				errno=0;
-				pb.i.total_length = recvfrom( pb.i.iif->rx_fullbrc_sock, pb.packet.data,
-				                             sizeof(pb.packet.data) - 1, 0,
+				pb.i.length = recvfrom( pb.i.iif->rx_fullbrc_sock, pb.p.data,
+				                             sizeof(pb.p.data) - 1, 0,
 				                             (struct sockaddr *)&pb.i.addr, &addr_len );
 				
-				if ( pb.i.total_length < 0  &&  ( errno == EWOULDBLOCK || errno == EAGAIN ) ) {
+				if ( pb.i.length < 0  &&  ( errno == EWOULDBLOCK || errno == EAGAIN ) ) {
 
                                         dbgf_sys(DBGT_WARN, "sock returned %d errno %d: %s",
-					     pb.i.total_length, errno, strerror(errno) );
+					     pb.i.length, errno, strerror(errno) );
 					
 					continue;
 				}
@@ -397,7 +465,7 @@ loop4Event:
 				pb.i.unicast = YES;
 					
 				struct msghdr msghdr;
-				struct iovec iovec = {.iov_base = pb.packet.data, .iov_len = sizeof(pb.packet.data) - 1};
+				struct iovec iovec = {.iov_base = pb.p.data, .iov_len = sizeof(pb.p.data) - 1};
 				char buf[4096];
 				struct cmsghdr *cp;
 				struct timeval *tv_stamp = NULL;
@@ -412,11 +480,11 @@ loop4Event:
 				
 				errno=0;
 				
-				pb.i.total_length = recvmsg( pb.i.iif->unicast_sock, &msghdr, MSG_DONTWAIT  );
+				pb.i.length = recvmsg( pb.i.iif->unicast_sock, &msghdr, MSG_DONTWAIT  );
 				
-				if ( pb.i.total_length < 0  &&  ( errno == EWOULDBLOCK || errno == EAGAIN ) ) {
+				if ( pb.i.length < 0  &&  ( errno == EWOULDBLOCK || errno == EAGAIN ) ) {
                                         dbgf_sys(DBGT_WARN, "sock returned %d errno %d: %s",
-					    pb.i.total_length, errno, strerror(errno) );
+					    pb.i.length, errno, strerror(errno) );
 					continue;
 				}
 						
@@ -523,8 +591,12 @@ wait4Event_end:
 	return;
 }
 
+void init_schedule( void ) {
+	gettimeofday( &start_time_tv, NULL );
+        curr_tv = start_time_tv;
 
-
+	upd_bmx_time( NULL );
+}
 
 void cleanup_schedule( void ) {
 	

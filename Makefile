@@ -16,7 +16,10 @@
 
 
   GIT_REV = $(shell ( [ "$(REVISION_VERSION)" ] && echo "$(REVISION_VERSION)" ) || ( [ -d .git ] && git --no-pager log -n 1 --oneline|cut -d " " -f 1 ) ||  echo 0)
-  CFLAGS += -pedantic -Wall -W -Wno-unused-parameter -Os -g3 -std=gnu99 -DGIT_REV=\"$(GIT_REV)\"
+  CFLAGS += -pedantic -Wall -W -Wno-unused-parameter -Os -g3 -std=gnu99
+  CFLAGS += -DHAVE_CONFIG_H
+  CFLAGS += -DGIT_REV=\"$(GIT_REV)\"
+# CFLAGS += -DCRYPTLIB=POLARSSL_1_2_5 # POLARSSL_1_2_5 POLARSSL_1_2_9 POLARSSL_1_3_3 CYASSL_2_8_0
 #-DHAVE_CONFIG_H
 
 # optinal defines:
@@ -34,6 +37,10 @@
 # CFLAGS += -DAVL_5XLINKED -DAVL_DEBUG -DAVL_TEST
 
 # optional defines (you may disable these features if you dont need them)
+# CFLAGS += -DNO_KEY_GEN  # use openssl instead, like:
+                          # openssl genrsa -out /etc/bmx6/rsa.pem 1024
+                          # openssl rsa -in /etc/bmx6/rsa.pem -inform PEM -out /etc/bmx6/rsa.der -outform DER
+
 # CFLAGS += -DNO_DEBUG_TRACK
 # CFLAGS += -DNO_DEBUG_SYS
 # CFLAGS += -DLESS_OPTIONS
@@ -53,9 +60,14 @@
 # CFLAGS += -DTEST_DEBUG
 # CFLAGS += -DWITH_UNUSED	  # (includes yet unused stuff and buggy stuff)
 # CFLAGS += -DPROFILING           # (no static functions -> better profiling and cores)
+# CFLAGS += -DNO_CTAOCRYPT_DIR    # for backward compatibility with old cyassl versions
+# CFLAGS += -DCORE_LIMIT=20000    # equals ulimit -c 20000
 
-#EXTRA_CFLAGS += 
+#EXTRA_CFLAGS +=
 #EXTRA_LDFLAGS +=
+
+# add as much features and test cases as possible:
+#EXTRA_CFLAGS += -DMOST
 
 #for profiling:
 #EXTRA_CFLAGS="-DPROFILING -pg"
@@ -68,11 +80,15 @@
 #for normal machines (adding features and facilitating debugging):
 #EXTRA_CFLAGS="-DDEBUG_ALL -DTRAFFIC_DUMP -DDEBUG_DUMP -DEBUG_MALLOC -DMEMORY_USAGE"
 
+CFLAGS += $(shell echo "$(EXTRA_CFLAGS)" | grep -q "DMOST" && echo "-pg -DCORE_LIMIT=20000 -DEXTREME_PARANOIA -DEXIT_ON_ERROR -DPROFILING -DDEBUG_ALL -DTRAFFIC_DUMP -DDEBUG_DUMP -DDEBUG_MALLOC -DMEMORY_USAGE " )
+
 LDFLAGS += -g3
 
 LDFLAGS += $(shell echo "$(CFLAGS) $(EXTRA_CFLAGS)" | grep -q "DNO_DYNPLUGIN" || echo "-Wl,-export-dynamic -ldl" )
 LDFLAGS += $(shell echo "$(CFLAGS) $(EXTRA_CFLAGS)" | grep -q "DPROFILING" && echo "-pg -lc" )
 
+LDFLAGS += -lz -lm 
+LDFLAGS += $(shell echo "$(CFLAGS) $(EXTRA_CFLAGS)" | grep -q "CYASSL" && echo "-lcyassl" || echo "-lpolarssl")
 
 
 
@@ -80,8 +96,8 @@ SBINDIR =       $(INSTALL_PREFIX)/usr/sbin
 
 SRC_FILES= "\(\.c\)\|\(\.h\)\|\(Makefile\)\|\(INSTALL\)\|\(LIESMICH\)\|\(README\)\|\(THANKS\)\|\(./posix\)\|\(./linux\)\|\(./man\)\|\(./doc\)"
 
-SRC_C =  bmx.c msg.c metrics.c tools.c plugin.c list.c allocate.c avl.c iid.c hna.c control.c schedule.c ip.c cyassl/sha.c cyassl/random.c cyassl/arc4.c
-SRC_H =  bmx.h msg.h metrics.h tools.h plugin.h list.h allocate.h avl.h iid.h hna.h control.h schedule.h ip.h cyassl/sha.h cyassl/random.h cyassl/arc4.h
+SRC_C =  bmx.c node.c crypt.c sec.c msg.c z.c metrics.c iptools.c tools.c plugin.c list.c allocate.c avl.c hna.c control.c schedule.c ip.c prof.c
+SRC_H =  bmx.h node.h crypt.h sec.h msg.h z.h metrics.h iptools.h tools.h plugin.h list.h allocate.h avl.h hna.h control.h schedule.h ip.h prof.h
 
 SRC_C += $(shell echo "$(CFLAGS) $(EXTRA_CFLAGS)" | grep -q "DTRAFFIC_DUMP" && echo dump.c )
 SRC_H += $(shell echo "$(CFLAGS) $(EXTRA_CFLAGS)" | grep -q "DTRAFFIC_DUMP" && echo dump.h )
@@ -147,6 +163,8 @@ install_all: install install_libs
 
 
 help:
+	# see also http://bmx6.net/projects/bmx6/wiki
+	#
 	# further make targets:
 	# help					show this help
 	# all					compile  bmx6 core only
@@ -155,4 +173,19 @@ help:
 	# strip / strip_libs / strip_all	strip    bmx6 / plugins / all
 	# install / install_libs / install_all	install  bmx6 / plugins / all
 	# clean / clean_libs / clean_all	clean    bmx6 / libs / all
+	#
+	# minimum compile requirements are zlib and cyassl libraries:
+	#
+	# for cyassl do:
+	#   wget http://www.yassl.com/cyassl-1.6.5.zip
+	#   unzip cyassl-2.6.0.zip
+	#   cd cyassl-2.6.0
+	#   ./configure --includedir=/usr/local/include/cyassl --libdir=/usr/local/lib
+	#   make
+	#   make install
+	#
+	# for zlib on debian do:
+	#   apt-get install zlib1g-dev
+	#
+	#   
 

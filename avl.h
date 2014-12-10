@@ -99,6 +99,7 @@ struct avl_tree {
 struct avl_node *avl_find( struct avl_tree *tree, void *key );
 void            *avl_find_item( struct avl_tree *tree, void *key );
 void            *avl_next_item(struct avl_tree *tree, void *key);
+void            *avl_closest_item(struct avl_tree *tree, void *key);
 void            *avl_first_item(struct avl_tree *tree);
 void            *avl_iterate_item(struct avl_tree *tree, struct avl_node **it );
 void           *_avl_find_item_by_field(struct avl_tree *tree, void *value, unsigned long offset, uint32_t size);

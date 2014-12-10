@@ -29,13 +29,20 @@
 //#include "math.h"
 
 
+#include "list.h"
+#include "control.h"
 #include "bmx.h"
+#include "crypt.h"
+#include "avl.h"
+#include "node.h"
+#include "metrics.h"
 #include "msg.h"
 #include "ip.h"
 #include "plugin.h"
 #include "schedule.h"
 #include "tools.h"
-#include "metrics.h"
+#include "iptools.h"
+#include "allocate.h"
 
 #define CODE_CATEGORY_NAME "metric"
 
@@ -499,17 +506,17 @@ UMETRIC_T apply_metric_algo(UMETRIC_T *linkQuality, UMETRIC_T *linkMax, const UM
 
 
 STATIC_FUNC
-UMETRIC_T apply_lndev_metric_algo(struct link_dev_node *lndev, const UMETRIC_T *path, struct host_metricalgo *algo)
+UMETRIC_T apply_lndev_metric_algo(LinkNode *link, const UMETRIC_T *path, struct host_metricalgo *algo)
 {
         TRACE_FUNCTION_CALL;
 
-        assertion(-500823, (lndev->key.dev->umetric_max));
+        assertion(-500823, (link->k.myDev->umetric_max));
 
-        UMETRIC_T tq = umetric_to_the_power_of_n(lndev->timeaware_tx_probe, algo->algo_tp_exp_numerator, algo->algo_tp_exp_divisor);
-        UMETRIC_T rq = umetric_to_the_power_of_n(lndev->timeaware_rx_probe, algo->algo_rp_exp_numerator, algo->algo_rp_exp_divisor);
+        UMETRIC_T tq = umetric_to_the_power_of_n(link->timeaware_tx_probe, algo->algo_tp_exp_numerator, algo->algo_tp_exp_divisor);
+        UMETRIC_T rq = umetric_to_the_power_of_n(link->timeaware_rx_probe, algo->algo_rp_exp_numerator, algo->algo_rp_exp_divisor);
         UMETRIC_T lq = umetric_multiply_normalized(tq, rq);
 
-        return apply_metric_algo(&lq, &lndev->key.dev->umetric_max, path, algo);
+        return apply_metric_algo(&lq, &link->k.myDev->umetric_max, path, algo);
 }
 
 
@@ -524,8 +531,7 @@ void _reconfigure_metric_record_position(const char *f, struct metric_record *re
         if (sqn_bit_size)
                 rec->sqn_bit_mask = (~(SQN_MAX << sqn_bit_size));
 
-        assertion(-500738, (rec->sqn_bit_mask == U16_MAX || rec->sqn_bit_mask == U8_MAX ||
-                rec->sqn_bit_mask == HELLO_SQN_MAX));
+	assertion(-500738, (rec->sqn_bit_mask == U16_MAX || rec->sqn_bit_mask == U8_MAX || rec->sqn_bit_mask == HELLO_SQN_MAX));
 
 
         if (rec->clr && /*alg->window_size > 1 &&*/ ((rec->sqn_bit_mask)&(in - rec->clr)) > (alg->lounge_size + 1)) {
@@ -720,14 +726,14 @@ update_metric_error:
 }
 
 STATIC_FUNC
-UMETRIC_T timeaware_rx_probe(struct link_dev_node *lndev)
+UMETRIC_T timeaware_rx_probe(LinkNode *link)
 {
-        if (((TIME_T) (bmx_time - lndev->rx_probe_record.hello_time_max)) < RP_ADV_DELAY_TOLERANCE)
-                return lndev->rx_probe_record.hello_umetric;
+        if (((TIME_T) (bmx_time - link->rx_probe_record.hello_time_max)) < RP_ADV_DELAY_TOLERANCE)
+                return link->rx_probe_record.hello_umetric;
 
-        if (((TIME_T) (bmx_time - lndev->rx_probe_record.hello_time_max)) < RP_ADV_DELAY_RANGE) {
-                return (lndev->rx_probe_record.hello_umetric *
-                        ((UMETRIC_T) (RP_ADV_DELAY_RANGE - (bmx_time - lndev->rx_probe_record.hello_time_max)))) /
+        if (((TIME_T) (bmx_time - link->rx_probe_record.hello_time_max)) < RP_ADV_DELAY_RANGE) {
+                return (link->rx_probe_record.hello_umetric *
+                        ((UMETRIC_T) (RP_ADV_DELAY_RANGE - (bmx_time - link->rx_probe_record.hello_time_max)))) /
                         RP_ADV_DELAY_RANGE;
         }
 
@@ -735,14 +741,14 @@ UMETRIC_T timeaware_rx_probe(struct link_dev_node *lndev)
 }
 
 STATIC_FUNC
-UMETRIC_T timeaware_tx_probe(struct link_dev_node *lndev)
+UMETRIC_T timeaware_tx_probe(LinkNode *link)
 {
-        if (((TIME_T) (bmx_time - lndev->key.link->local->rp_adv_time)) < TP_ADV_DELAY_TOLERANCE)
-                return lndev->tx_probe_umetric;
+        if (((TIME_T) (bmx_time - link->k.linkDev->local->rp_adv_time)) < TP_ADV_DELAY_TOLERANCE)
+                return link->tx_probe_umetric;
 
-        if (((TIME_T) (bmx_time - lndev->key.link->local->rp_adv_time)) < TP_ADV_DELAY_RANGE) {
-                return (lndev->tx_probe_umetric *
-                        ((UMETRIC_T) (TP_ADV_DELAY_RANGE - (bmx_time - lndev->key.link->local->rp_adv_time)))) /
+        if (((TIME_T) (bmx_time - link->k.linkDev->local->rp_adv_time)) < TP_ADV_DELAY_RANGE) {
+                return (link->tx_probe_umetric *
+                        ((UMETRIC_T) (TP_ADV_DELAY_RANGE - (bmx_time - link->k.linkDev->local->rp_adv_time)))) /
                         TP_ADV_DELAY_RANGE;
         }
 
@@ -750,81 +756,81 @@ UMETRIC_T timeaware_tx_probe(struct link_dev_node *lndev)
 }
 
 
-void lndev_assign_best(struct local_node *only_local, struct link_dev_node *only_lndev )
+void lndev_assign_best(struct neigh_node *onlyLocal, LinkNode *onlyLink )
 {
         TRACE_FUNCTION_CALL;
 
-        assertion(-501133, (IMPLIES(only_lndev, only_local && only_local == only_lndev->key.link->local)));
-        ASSERTION(-500792, (IMPLIES(only_lndev, only_lndev->key.link == avl_find_item(&only_local->link_tree, &only_lndev->key.link->key.dev_idx))));
+        assertion(-501133, (IMPLIES(onlyLink, onlyLocal && onlyLocal == onlyLink->k.linkDev->local)));
+        ASSERTION(-500792, (IMPLIES(onlyLink, onlyLink->k.linkDev == avl_find_item(&onlyLocal->linkDev_tree, &onlyLink->k.linkDev->key.dev_idx))));
 
-        dbgf_all(DBGT_INFO, "only_local=%X only_lndev.link=%s only_lndev.dev=%s",
-                only_local ? ntohl(only_local->local_id) : 0,
-                only_lndev ? ipFAsStr(&only_lndev->key.link->link_ip) : DBG_NIL,
-                only_lndev ? only_lndev->key.dev->label_cfg.str : DBG_NIL);
+        dbgf_all(DBGT_INFO, "only_local=%s only_lndev.link=%s only_lndev.dev=%s",
+                onlyLocal ? cryptShaAsString(&onlyLocal->local_id) : 0,
+                onlyLink ? ip6AsStr(&onlyLink->k.linkDev->link_ip) : DBG_NIL,
+                onlyLink ? onlyLink->k.myDev->label_cfg.str : DBG_NIL);
 
         struct avl_node *local_an = NULL;
-        struct local_node *local;
+        struct neigh_node *local;
 
-        while ((local = only_local) || (local = avl_iterate_item(&local_tree, &local_an))) {
+        while ((local = onlyLocal) || (local = avl_iterate_item(&local_tree, &local_an))) {
 
-                assertion(-500794, (local->link_tree.items));
+                assertion(-500794, (local->linkDev_tree.items));
 
-                struct link_node *link = NULL;
+		LinkDevNode *linkDev = NULL;
                 struct avl_node *link_an = NULL;
 
-                if (local->best_rp_lndev)
-                        local->best_rp_lndev->timeaware_rx_probe = timeaware_rx_probe(local->best_rp_lndev);
+                if (local->best_rp_link)
+                        local->best_rp_link->timeaware_rx_probe = timeaware_rx_probe(local->best_rp_link);
 
-                if (local->best_tp_lndev)
-                        local->best_tp_lndev->timeaware_tx_probe = timeaware_tx_probe(local->best_tp_lndev);
+                if (local->best_tp_link)
+                        local->best_tp_link->timeaware_tx_probe = timeaware_tx_probe(local->best_tp_link);
 
 
-                dbgf_all(DBGT_INFO, "local_id=%X", ntohl(local->local_id));
+                dbgf_all(DBGT_INFO, "local_id=%s", cryptShaAsString(&local->local_id));
 
-                while ((only_lndev && (link = only_lndev->key.link)) || (link = avl_iterate_item(&local->link_tree, &link_an))) {
+                while ((onlyLink && (linkDev = onlyLink->k.linkDev)) || (linkDev = avl_iterate_item(&local->linkDev_tree, &link_an))) {
 
-                        struct link_dev_node *lndev = NULL;
-                        struct link_dev_node *prev_lndev = NULL;
+                        LinkNode *currLink = NULL;
+                        LinkNode *prevLink = NULL;
 
-                        dbgf_all(DBGT_INFO, "link=%s", ipFAsStr(&link->link_ip));
+                        dbgf_all(DBGT_INFO, "link=%s", ip6AsStr(&linkDev->link_ip));
 
-                        while ((only_lndev && (lndev = only_lndev)) || (lndev = list_iterate(&link->lndev_list, lndev))) {
+                        while ((onlyLink && (currLink = onlyLink)) || (currLink = list_iterate(&linkDev->link_list, currLink))) {
 
                                 dbgf_all(DBGT_INFO, "lndev=%s items=%d",
-                                        lndev->key.dev->label_cfg.str, link->lndev_list.items);
+                                        currLink->k.myDev->label_cfg.str, linkDev->link_list.items);
 
-                                lndev->timeaware_rx_probe = timeaware_rx_probe(lndev);
-                                lndev->timeaware_tx_probe = timeaware_tx_probe(lndev);
+                                currLink->timeaware_rx_probe = timeaware_rx_probe(currLink);
+                                currLink->timeaware_tx_probe = timeaware_tx_probe(currLink);
 
 
-                                if (!local->best_rp_lndev || local->best_rp_lndev->timeaware_rx_probe < lndev->timeaware_rx_probe)
-                                        local->best_rp_lndev = lndev;
+                                if (!local->best_rp_link || local->best_rp_link->timeaware_rx_probe < currLink->timeaware_rx_probe)
+                                        local->best_rp_link = currLink;
 
-                                if (!local->best_tp_lndev || local->best_tp_lndev->timeaware_tx_probe < lndev->timeaware_tx_probe)
-                                        local->best_tp_lndev = lndev;
+                                if (!local->best_tp_link || local->best_tp_link->timeaware_tx_probe < currLink->timeaware_tx_probe)
+                                        local->best_tp_link = currLink;
 
-                                if (only_lndev)
+                                if (onlyLink)
                                         break;
 
-                                assertion(-501134, (prev_lndev != lndev));
-                                prev_lndev = lndev;
+                                assertion(-501134, (prevLink != currLink));
+                                prevLink = currLink;
                         }
 
-                        if (only_lndev)
+                        if (onlyLink)
                                 break;
                 }
 
 
-                assertion(-500406, (local->best_rp_lndev));
-                assertion(-501086, (local->best_tp_lndev));
+                assertion(-500406, (local->best_rp_link));
+                assertion(-501086, (local->best_tp_link));
 
-                if (local->best_tp_lndev->timeaware_tx_probe == 0)
-                        local->best_tp_lndev = local->best_rp_lndev;
+                if (local->best_tp_link->timeaware_tx_probe == 0)
+                        local->best_tp_link = local->best_rp_link;
 
-                local->best_lndev = (local->best_tp_lndev == local->best_rp_lndev) ? local->best_rp_lndev : NULL;
+                local->best_link = (local->best_tp_link == local->best_rp_link) ? local->best_rp_link : NULL;
 
 
-                if(only_local)
+                if(onlyLocal)
                         break;
         }
 
@@ -832,19 +838,19 @@ void lndev_assign_best(struct local_node *only_local, struct link_dev_node *only
 
 
 
-void update_link_probe_record(struct link_dev_node *lndev, HELLO_SQN_T sqn, uint8_t probe)
+void update_link_probe_record(LinkNode *link, HELLO_SQN_T sqn, uint8_t probe)
 {
 
         TRACE_FUNCTION_CALL;
-        struct link_node *link = lndev->key.link;
-        struct lndev_probe_record *lpr = &lndev->rx_probe_record;
+	LinkDevNode *linkDev = link->k.linkDev;
+        struct lndev_probe_record *lpr = &link->rx_probe_record;
 
         ASSERTION(-501049, ((sizeof (((struct lndev_probe_record*) NULL)->hello_array)) * 8 == MAX_HELLO_SQN_WINDOW));
         assertion(-501050, (probe <= 1));
         ASSERTION(-501055, (bits_get(lpr->hello_array, MAX_HELLO_SQN_WINDOW, 0, MAX_HELLO_SQN_WINDOW - 1) == lpr->hello_sum));
 
-        if ((link->hello_time_max || link->hello_sqn_max) && link->hello_sqn_max != sqn &&
-                ((HELLO_SQN_MASK)&(link->hello_sqn_max - sqn)) < HELLO_SQN_TOLERANCE)
+        if ((linkDev->hello_time_max || linkDev->hello_sqn_max) && linkDev->hello_sqn_max != sqn &&
+                ((HELLO_SQN_MASK)&(linkDev->hello_sqn_max - sqn)) < HELLO_SQN_TOLERANCE)
                 return;
 
 
@@ -903,17 +909,17 @@ void update_link_probe_record(struct link_dev_node *lndev, HELLO_SQN_T sqn, uint
         lpr->hello_umetric = (UMETRIC_MAX / my_link_window) * lpr->hello_sum;
         lpr->hello_time_max = bmx_time;
 
-        link->hello_sqn_max = sqn;
-        link->hello_time_max = bmx_time;
+        linkDev->hello_sqn_max = sqn;
+        linkDev->hello_time_max = bmx_time;
 
-        lndev_assign_best(link->local, lndev);
+        lndev_assign_best(linkDev->local, link);
 
-        dbgf_all(DBGT_INFO, "%s metric %ju", ipFAsStr(&link->link_ip), lndev->timeaware_rx_probe);
+        dbgf_all(DBGT_INFO, "%s metric %ju", ip6AsStr(&linkDev->link_ip), link->timeaware_rx_probe);
 }
 
 
 STATIC_FUNC
-struct router_node * router_node_create(struct local_node *local, struct orig_node *on, OGM_SQN_T ogm_sqn_max)
+struct router_node * router_node_create(struct neigh_node *local, struct orig_node *on, OGM_SQN_T ogm_sqn_max)
 {
         struct router_node* rt = debugMallocReset(sizeof (struct router_node), -300222);
 
@@ -929,72 +935,73 @@ struct router_node * router_node_create(struct local_node *local, struct orig_no
 
 
 STATIC_FUNC
-UMETRIC_T lndev_best_via_router(struct local_node *local, struct orig_node *on, UMETRIC_T *ogm_metric, struct link_dev_node **path_lndev_best)
+UMETRIC_T lndev_best_via_router(struct neigh_node *local, struct orig_node *on, UMETRIC_T *ogm_metric, LinkNode **bestPathLink)
 {
 
         UMETRIC_T metric_best = 0;
         // find best path lndev for this local router:
-        if (local->best_lndev) {
+        if (local->best_link) {
 
-                metric_best = apply_lndev_metric_algo(local->best_lndev, ogm_metric, on->path_metricalgo);
-                *path_lndev_best = local->best_lndev;
+                metric_best = apply_lndev_metric_algo(local->best_link, ogm_metric, on->path_metricalgo);
+                *bestPathLink = local->best_link;
 
         } else {
 
-                struct avl_node *link_an = NULL;
-                struct link_node *link;
+                struct avl_node *linkDev_an = NULL;
+		LinkDevNode *linkDev;
 
-                while ((link = avl_iterate_item(&local->link_tree, &link_an))) {
+                while ((linkDev = avl_iterate_item(&local->linkDev_tree, &linkDev_an))) {
 
-                        struct link_dev_node *lndev_tmp = NULL;
+                        LinkNode *link = NULL;
 
-                        while ((lndev_tmp = list_iterate(&link->lndev_list, lndev_tmp))) {
+                        while ((link = list_iterate(&linkDev->link_list, link))) {
 
-                                UMETRIC_T um = apply_lndev_metric_algo(lndev_tmp, ogm_metric, on->path_metricalgo);
+                                UMETRIC_T um = apply_lndev_metric_algo(link, ogm_metric, on->path_metricalgo);
 
                                 if (metric_best <= um) {
                                         metric_best = um;
-                                        *path_lndev_best = lndev_tmp;
+                                        *bestPathLink = link;
                                 }
                         }
                 }
         }
 
-        assertion(-501088, (*path_lndev_best));
+        assertion(-501088, (*bestPathLink));
         return metric_best;
 }
 
 
-IDM_T update_path_metrics(struct packet_buff *pb, struct orig_node *on, OGM_SQN_T ogm_sqn, UMETRIC_T *ogm_metric)
+IDM_T update_path_metrics(struct packet_buff *pb, struct orig_node *on, OGM_SQN_T ogmSqn, UMETRIC_T *ogmMetric)
 {
         TRACE_FUNCTION_CALL;
         assertion(-500876, (!on->blocked));
         assertion(-500734, (on->path_metricalgo));
-        assertion(-501052, ((((OGM_SQN_MASK)&(ogm_sqn - on->ogmSqn_rangeMin)) < on->ogmSqn_rangeSize)));
+        assertion(-501052, ((((OGM_SQN_MASK)&(ogmSqn - on->ogmSqn_rangeMin)) < on->ogmSqn_rangeSize)));
+	assertion(-502150, (pb->i.verifiedLink));
 
-        OGM_SQN_T ogm_sqn_max = UXX_GET_MAX(OGM_SQN_MASK, on->ogmSqn_maxRcvd, ogm_sqn);
+        OGM_SQN_T ogm_sqn_max = UXX_GET_MAX(OGM_SQN_MASK, on->ogmSqn_maxRcvd, ogmSqn);
 
-        dbgf_all(DBGT_INFO, "global_id=%s orig_sqn %d via neigh %s", globalIdAsString(&on->global_id), ogm_sqn, pb->i.llip_str);
+        dbgf_all(DBGT_INFO, "nodeId=%s ogmSqn=%d via neigh=%s", cryptShaAsString(&on->nodeId), ogmSqn, pb->i.llip_str);
 
 
-        if (UXX_LT(OGM_SQN_MASK, ogm_sqn, (OGM_SQN_MASK & (ogm_sqn_max - on->path_metricalgo->lounge_size)))) {
-                dbgf_track(DBGT_WARN, "dropping late sqn=%d via neigh=%s from global_id=%s",
-                        ogm_sqn, pb->i.llip_str, globalIdAsString(&on->global_id));
+        if (UXX_LT(OGM_SQN_MASK, ogmSqn, (OGM_SQN_MASK & (ogm_sqn_max - on->path_metricalgo->lounge_size)))) {
+                dbgf_track(DBGT_WARN, "dropping late sqn=%d via neigh=%s from nodeId=%s",
+                        ogmSqn, pb->i.llip_str, cryptShaAsString(&on->nodeId));
                 return SUCCESS;
         }
 
-        if (UXX_LT(OGM_SQN_MASK, ogm_sqn, on->ogmSqn_next) || (ogm_sqn == on->ogmSqn_next && *ogm_metric <= on->ogmMetric_next)) {
-                dbgf_all(DBGT_WARN, "dropping already scheduled sqn=%d via neigh=%s from global_id=%s",
-                        ogm_sqn, pb->i.llip_str, globalIdAsString(&on->global_id));
+        if (UXX_LT(OGM_SQN_MASK, ogmSqn, on->ogmSqn_next) || (ogmSqn == on->ogmSqn_next && *ogmMetric <= on->ogmMetric_next)) {
+                dbgf_all(DBGT_WARN, "dropping already scheduled sqn=%d via neigh=%s from nodeId=%s",
+                        ogmSqn, pb->i.llip_str, cryptShaAsString(&on->nodeId));
                 return SUCCESS;
         }
 
-        struct local_node *local = pb->i.lndev->key.link->local;
+        struct neigh_node *local = pb->i.verifiedLink->k.linkDev->local;
         struct router_node *next_rt = NULL;
         struct router_node *prev_rt = on->curr_rt_local;
-        IDM_T is_ogm_sqn_new = UXX_GT(OGM_SQN_MASK, ogm_sqn, on->ogmSqn_maxRcvd);
-        struct link_dev_node *best_rt_lndev = NULL;
-        UMETRIC_T best_rt_metric = lndev_best_via_router(local, on, ogm_metric, &best_rt_lndev);
+        IDM_T is_ogm_sqn_new = UXX_GT(OGM_SQN_MASK, ogmSqn, on->ogmSqn_maxRcvd);
+        LinkNode *best_rt_link = NULL;
+        UMETRIC_T best_rt_metric = lndev_best_via_router(local, on, ogmMetric, &best_rt_link);
         struct router_node *rt = NULL;
 
         if (is_ogm_sqn_new || (prev_rt && prev_rt->local_key == local && prev_rt->mr.umetric > best_rt_metric)) {
@@ -1021,11 +1028,11 @@ IDM_T update_path_metrics(struct packet_buff *pb, struct orig_node *on, OGM_SQN_
         on->ogmSqn_maxRcvd = ogm_sqn_max;
 
         if (rt) {
-                if (UXX_LT(OGM_SQN_MASK, ogm_sqn, rt->ogm_sqn_last) ||
-                        (ogm_sqn == rt->ogm_sqn_last &&
-                        (*ogm_metric <= rt->ogm_umetric_last || best_rt_metric <= rt->path_metric_best))) {
-                        dbgf_track(DBGT_WARN, "dropping already rcvd sqn=%d via neigh=%s from global_id=%s",
-                                ogm_sqn, pb->i.llip_str, globalIdAsString(&on->global_id));
+                if (UXX_LT(OGM_SQN_MASK, ogmSqn, rt->ogm_sqn_last) ||
+                        (ogmSqn == rt->ogm_sqn_last &&
+                        (*ogmMetric <= rt->ogm_umetric_last || best_rt_metric <= rt->best_path_metric))) {
+                        dbgf_track(DBGT_WARN, "dropping already rcvd sqn=%d via neigh=%s from nodeId=%s",
+                                ogmSqn, pb->i.llip_str, cryptShaAsString(&on->nodeId));
                         return SUCCESS;
                 }
 
@@ -1033,19 +1040,19 @@ IDM_T update_path_metrics(struct packet_buff *pb, struct orig_node *on, OGM_SQN_
 
                 rt = router_node_create(local, on, ogm_sqn_max);
 
-                dbg_track(DBGT_INFO, "new router via_ip=%s to global_id=%s metric=%ju (curr_rt=%s metric=%ju total %d)",
-                        ipFAsStr(&best_rt_lndev->key.link->link_ip), globalIdAsString(&on->global_id), best_rt_metric,
-                        on->curr_rt_lndev ? ipFAsStr(&on->curr_rt_lndev->key.link->link_ip) : DBG_NIL,
-                        on->curr_rt_lndev ? on->curr_rt_local->mr.umetric : 0, on->rt_tree.items);
+                dbg_track(DBGT_INFO, "new router via_ip=%s to nodeId=%s metric=%ju (curr_rt=%s metric=%ju total %d)",
+                        ip6AsStr(&best_rt_link->k.linkDev->link_ip), cryptShaAsString(&on->nodeId), best_rt_metric,
+                        on->curr_rt_link ? ip6AsStr(&on->curr_rt_link->k.linkDev->link_ip) : DBG_NIL,
+                        on->curr_rt_link ? on->curr_rt_local->mr.umetric : 0, on->rt_tree.items);
 
         }
 
         if (rt) {
-                update_metric_record(on, rt, ogm_sqn, &best_rt_metric);
-                rt->ogm_sqn_last = ogm_sqn;
-                rt->ogm_umetric_last = *ogm_metric;
-                rt->path_metric_best = best_rt_metric;
-                rt->path_lndev_best = best_rt_lndev;
+                update_metric_record(on, rt, ogmSqn, &best_rt_metric);
+                rt->ogm_sqn_last = ogmSqn;
+                rt->ogm_umetric_last = *ogmMetric;
+                rt->best_path_metric = best_rt_metric;
+                rt->best_path_link = best_rt_link;
 
                 if (!next_rt || next_rt->mr.umetric < rt->mr.umetric)
                         next_rt = rt;
@@ -1069,23 +1076,23 @@ IDM_T update_path_metrics(struct packet_buff *pb, struct orig_node *on, OGM_SQN_
 
                         assertion(-501139, ((((OGM_SQN_MASK) & (on->ogmSqn_next - on->ogmSqn_rangeMin)) < on->ogmSqn_rangeSize)));
 
-                        if (next_rt != on->curr_rt_local || on->curr_rt_local->path_lndev_best != on->curr_rt_lndev ) {
+                        if (next_rt != on->curr_rt_local || on->curr_rt_local->best_path_link != on->curr_rt_link ) {
 
-                                dbg_track(DBGT_INFO, "changed route to global_id=%s ip=%s via_ip=%s via_dev=%s metric=%s   (prev %s %s metric=%s sqn_max=%d sqn_in=%d)",
-                                        globalIdAsString(&on->global_id), on->primary_ip_str,
-                                        ipFAsStr(&next_rt->path_lndev_best->key.link->link_ip),
-                                        next_rt->path_lndev_best->key.dev->label_cfg.str,
+                                dbg_track(DBGT_INFO, "changed route to nodeId=%s ip=%s via_ip=%s via_dev=%s metric=%s   (prev %s %s metric=%s sqn_max=%d sqn_in=%d)",
+                                        cryptShaAsString(&on->nodeId), on->primary_ip_str,
+                                        ip6AsStr(&next_rt->best_path_link->k.linkDev->link_ip),
+                                        next_rt->best_path_link->k.myDev->label_cfg.str,
                                         umetric_to_human(next_rt->mr.umetric),
-                                        ipFAsStr(on->curr_rt_lndev ? &on->curr_rt_lndev->key.link->link_ip : &ZERO_IP),
-                                        on->curr_rt_lndev ? on->curr_rt_lndev->key.dev->label_cfg.str : DBG_NIL,
+                                        ip6AsStr(on->curr_rt_link ? &on->curr_rt_link->k.linkDev->link_ip : &ZERO_IP),
+                                        on->curr_rt_link ? on->curr_rt_link->k.myDev->label_cfg.str : DBG_NIL,
                                         umetric_to_human(on->curr_rt_local ? on->curr_rt_local->mr.umetric : 0),
-                                        ogm_sqn_max, ogm_sqn);
+                                        ogm_sqn_max, ogmSqn);
 
                                 if (on->curr_rt_local)
                                         cb_route_change_hooks(DEL, on);
 
                                 on->curr_rt_local = next_rt;
-                                on->curr_rt_lndev = next_rt->path_lndev_best;
+                                on->curr_rt_link = next_rt->best_path_link;
 
                                 cb_route_change_hooks(ADD, on);
                         }
@@ -1096,7 +1103,7 @@ IDM_T update_path_metrics(struct packet_buff *pb, struct orig_node *on, OGM_SQN_
                                 cb_route_change_hooks(DEL, on);
 
                         on->curr_rt_local = NULL;
-                        on->curr_rt_lndev = NULL;
+                        on->curr_rt_link = NULL;
                 }
         }
 
@@ -1243,6 +1250,7 @@ int create_description_tlv_metricalgo(struct tx_frame_iterator *it)
 }
 
 
+STATIC_FUNC
 void metricalgo_remove(struct orig_node *on)
 {
 	if (on->path_metricalgo) {
@@ -1256,6 +1264,7 @@ void metricalgo_remove(struct orig_node *on)
 	}
 }
 
+STATIC_FUNC
 void metricalgo_assign(struct orig_node *on, struct host_metricalgo *host_algo)
 {
 
@@ -1283,13 +1292,32 @@ void metricalgo_assign(struct orig_node *on, struct host_metricalgo *host_algo)
 
 
 STATIC_FUNC
+void metrics_description_event_hook(int32_t cb_id, struct orig_node *on)
+{
+        TRACE_FUNCTION_CALL;
+
+        assertion(-501306, (on));
+        assertion(-501270, IMPLIES(cb_id == PLUGIN_CB_DESCRIPTION_CREATED, (on && on->dhn && on->dhn->desc_frame)));
+        assertion(-501273, (cb_id == PLUGIN_CB_DESCRIPTION_DESTROY || cb_id == PLUGIN_CB_DESCRIPTION_CREATED));
+        assertion(-501274, IMPLIES(initializing, cb_id == PLUGIN_CB_DESCRIPTION_CREATED));
+
+	if (cb_id==PLUGIN_CB_DESCRIPTION_CREATED) {
+
+		if (!on->path_metricalgo)
+			metricalgo_assign(on, NULL);
+
+	} else {
+
+		metricalgo_remove(on);
+	}
+}
+
+STATIC_FUNC
 int process_description_tlv_metricalgo(struct rx_frame_iterator *it )
 {
         TRACE_FUNCTION_CALL;
         assertion(-500683, (it->frame_type == BMX_DSC_TLV_METRIC));
-        assertion(-500684, (it->on));
 
-        struct orig_node *on = it->on;
         uint8_t op = it->op;
 
         struct description_tlv_metricalgo *tlv_algo = (struct description_tlv_metricalgo *) (it->frame_data);
@@ -1300,15 +1328,15 @@ int process_description_tlv_metricalgo(struct rx_frame_iterator *it )
         if (op == TLV_OP_NEW || op == TLV_OP_TEST) {
 
                 if (metricalgo_tlv_to_host(tlv_algo, &host_algo, it->frame_msgs_length) == FAILURE)
-                        return FAILURE;
+                        return TLV_RX_DATA_FAILURE;
         }
 
         if (op == TLV_OP_DEL)
-		metricalgo_remove(on);
+		metricalgo_remove(it->onOld);
 
 
         if (op == TLV_OP_NEW)
-		metricalgo_assign(on, &host_algo);
+		metricalgo_assign(it->onOld, &host_algo);
 
         return it->frame_msgs_length;
 }
@@ -1327,12 +1355,12 @@ int32_t opt_link_metric(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
 
         if (cmd == OPT_APPLY && !strcmp(opt->name, ARG_HELLO_SQN_WINDOW)) {
 
-                struct link_dev_node *lndev;
+                LinkNode *link;
                 struct avl_node *an;
 
-                for (an = NULL; (lndev = avl_iterate_item(&link_dev_tree, &an));) {
+                for (an = NULL; (link = avl_iterate_item(&link_tree, &an));) {
 
-                        struct lndev_probe_record *lpr = &lndev->rx_probe_record;
+                        struct lndev_probe_record *lpr = &link->rx_probe_record;
 
                         if (my_link_window < my_link_window_prev) {
 
@@ -1515,6 +1543,9 @@ struct opt_type metrics_options[]=
 STATIC_FUNC
 int32_t init_metrics( void )
 {
+	assertion(-500996, (sizeof (FMETRIC_U16_T) == 2));
+        assertion(-500997, (sizeof (FMETRIC_U8_T) == 1));
+
         UMETRIC_MAX_SQRT = umetric_fast_sqrt(UMETRIC_MAX);
         U64_MAX_HALF_SQRT = umetric_fast_sqrt(U64_MAX_HALF);
 
@@ -1600,13 +1631,12 @@ int32_t init_metrics( void )
         struct frame_handl metric_handl;
         memset( &metric_handl, 0, sizeof(metric_handl));
         metric_handl.fixed_msg_size = 0;
-        metric_handl.is_relevant = 1;
         metric_handl.min_msg_size = sizeof (struct mandatory_tlv_metricalgo);
-        metric_handl.name = "METRIC_EXTENSION";
+        metric_handl.name = "DSC_METRIC";
         metric_handl.tx_frame_handler = create_description_tlv_metricalgo;
         metric_handl.rx_frame_handler = process_description_tlv_metricalgo;
         metric_handl.msg_format = metric_format;
-        register_frame_handler(description_tlv_handl, BMX_DSC_TLV_METRIC, &metric_handl);
+        register_frame_handler(description_tlv_db, BMX_DSC_TLV_METRIC, &metric_handl);
 
         
         register_path_metricalgo(BIT_METRIC_ALGO_MP, path_metricalgo_MultiplyQuality);
@@ -1642,6 +1672,8 @@ struct plugin *metrics_get_plugin( void ) {
 
 	metrics_plugin.plugin_name = CODE_CATEGORY_NAME;
 	metrics_plugin.plugin_size = sizeof ( struct plugin );
+        metrics_plugin.cb_plugin_handler[PLUGIN_CB_DESCRIPTION_CREATED] = (void (*) (int32_t, void*)) metrics_description_event_hook;
+        metrics_plugin.cb_plugin_handler[PLUGIN_CB_DESCRIPTION_DESTROY] = (void (*) (int32_t, void*)) metrics_description_event_hook;
         metrics_plugin.cb_init = init_metrics;
 	metrics_plugin.cb_cleanup = cleanup_metrics;
 

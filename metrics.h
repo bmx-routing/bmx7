@@ -16,6 +16,14 @@
  */
 
 
+
+/*
+ * from metrics.h
+ */
+
+
+
+
 #define MIN_DESC_METRICALGO           0
 #define MAX_DESC_METRICALGO           1
 #define DEF_DESC_METRICALGO           1
@@ -205,10 +213,10 @@ struct description_tlv_metricalgo {
 {FIELD_TYPE_UINT, -1, 16,  0, FIELD_RELEVANCE_LOW,  "reserved"},  \
 {FIELD_TYPE_UINT, -1, 16,  0, FIELD_RELEVANCE_HIGH, ARG_PATH_METRIC_ALGO },  \
 {FIELD_TYPE_HEX,  -1, 16,  0, FIELD_RELEVANCE_HIGH, "flags" },   \
-{FIELD_TYPE_UINT, -1,  2,  1, FIELD_RELEVANCE_HIGH, ARG_PATH_TP_EXP_DIVISOR },   \
-{FIELD_TYPE_UINT, -1,  2,  1, FIELD_RELEVANCE_HIGH, ARG_PATH_TP_EXP_NUMERATOR },   \
-{FIELD_TYPE_UINT, -1,  2,  1, FIELD_RELEVANCE_HIGH, ARG_PATH_RP_EXP_DIVISOR },   \
 {FIELD_TYPE_UINT, -1,  2,  1, FIELD_RELEVANCE_HIGH, ARG_PATH_RP_EXP_NUMERATOR },   \
+{FIELD_TYPE_UINT, -1,  2,  1, FIELD_RELEVANCE_HIGH, ARG_PATH_RP_EXP_DIVISOR },   \
+{FIELD_TYPE_UINT, -1,  2,  1, FIELD_RELEVANCE_HIGH, ARG_PATH_TP_EXP_NUMERATOR },   \
+{FIELD_TYPE_UINT, -1,  2,  1, FIELD_RELEVANCE_HIGH, ARG_PATH_TP_EXP_DIVISOR },   \
 {FIELD_TYPE_UINT, -1,  8,  1, FIELD_RELEVANCE_LOW,  "reserved2"},  \
 {FIELD_TYPE_UINT, -1,  8,  1, FIELD_RELEVANCE_HIGH, ARG_PATH_WINDOW},  \
 {FIELD_TYPE_UINT, -1,  8,  1, FIELD_RELEVANCE_HIGH, ARG_PATH_LOUNGE},  \
@@ -250,11 +258,9 @@ IDM_T fmetric_cmp(FMETRIC_U16_T a, unsigned char cmp, FMETRIC_U16_T b);
 //void apply_metric_algo(UMETRIC_T *out, struct link_dev_node *link, const UMETRIC_T *path, struct host_metricalgo *algo);
 
 UMETRIC_T apply_metric_algo(UMETRIC_T *tr, UMETRIC_T *umetric_max, const UMETRIC_T *path, struct host_metricalgo *algo);
-void lndev_assign_best(struct local_node *local, struct link_dev_node *lndev );
-void update_link_probe_record(struct link_dev_node *lndev, HELLO_SQN_T sqn, uint8_t probe);
 
-void metricalgo_remove(struct orig_node *on);
-void metricalgo_assign(struct orig_node *on, struct host_metricalgo *host_algo);
+void lndev_assign_best(struct neigh_node *onlyLocal, LinkNode *onlyLink );
+void update_link_probe_record(LinkNode *link, HELLO_SQN_T sqn, uint8_t probe);
 
 IDM_T update_path_metrics(struct packet_buff *pb, struct orig_node *on, OGM_SQN_T in_sqn, UMETRIC_T *in_umetric);
 

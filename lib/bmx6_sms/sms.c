@@ -37,6 +37,8 @@
 #include "avl.h"
 #include "node.h"
 #include "msg.h"
+#include "content.h"
+#include "desc.h"
 #include "plugin.h"
 #include "schedule.h"
 #include "tools.h"
@@ -71,7 +73,7 @@ void check_for_changed_sms(void *unused)
         struct sms_node * sms = NULL;
         struct avl_node *an = NULL;
 
-	int32_t max_sms_data_len = (use_referencing(&description_tlv_db->handls[BMX_DSC_TLV_SMS])) ? MAX_SMS_DATA_LEN_REF : MAX_SMS_DATA_LEN;
+	int32_t max_sms_data_len = (use_refLevel(&description_tlv_db->handls[BMX_DSC_TLV_SMS])) ? MAX_SMS_DATA_LEN_REF : MAX_SMS_DATA_LEN;
 
         char name[MAX_SMS_NAME_LEN];
         char data[max_sms_data_len + 1];
@@ -214,7 +216,7 @@ int create_description_sms(struct tx_frame_iterator *it)
         struct sms_node *sms;
 
         uint8_t *data = tx_iterator_cache_msg_ptr(it);
-        int32_t max_size = tx_iterator_cache_data_space_pref(it);
+        int32_t max_size = tx_iterator_cache_data_space_pref(it, 0, 100);
         int pos = 0;
 
         while ((sms = avl_iterate_item(&sms_tree, &an))) {
@@ -245,34 +247,31 @@ int create_description_sms(struct tx_frame_iterator *it)
 STATIC_FUNC
 int process_description_sms(struct rx_frame_iterator *it)
 {
-        struct orig_node *on = it->onOld;
-        uint8_t op = it->op;
-
         int pos = 0;
         int mlen;
 
-        if (op == TLV_OP_NEW || op == TLV_OP_DEL)
-                rm_dir_content(smsRx_dir, cryptShaAsString(&on->nodeId));
+        if (it->op == TLV_OP_NEW || it->op == TLV_OP_DEL)
+                rm_dir_content(smsRx_dir, cryptShaAsString(&it->on->k.nodeId));
 
         do {
 
-                if (pos + (int)sizeof ( struct description_msg_sms) > it->frame_msgs_length)
+                if (pos + (int)sizeof ( struct description_msg_sms) > it->f_msgs_len)
                         return TLV_RX_DATA_FAILURE;
 
-                struct description_msg_sms *sms = (struct description_msg_sms *) (it->frame_data + pos);
+                struct description_msg_sms *sms = (struct description_msg_sms *) (it->f_data + pos);
                 mlen = sizeof ( struct description_msg_sms) +ntohs(sms->text_len);
 
-                if (pos + mlen > it->frame_msgs_length)
+                if (pos + mlen > it->f_msgs_len)
                         return TLV_RX_DATA_FAILURE;
 
                 if (validate_name_string(sms->name, sizeof (sms->name), NULL) != SUCCESS)
                         return TLV_RX_DATA_FAILURE;
 
-                if (op == TLV_OP_NEW) {
+                if (it->op == TLV_OP_NEW) {
 
                         int fd;
                         char path_name[MAX_PATH_SIZE];
-                        sprintf(path_name, "%s/%s:%s", smsRx_dir, cryptShaAsString(&on->nodeId), sms->name);
+                        sprintf(path_name, "%s/%s:%s", smsRx_dir, cryptShaAsString(&it->on->k.nodeId), sms->name);
 
                         if ((fd = open(path_name, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) < 0) {
 
@@ -289,9 +288,9 @@ int process_description_sms(struct rx_frame_iterator *it)
                         }
                 }
 
-        } while ((pos = pos + mlen) < it->frame_msgs_length);
+        } while ((pos = pos + mlen) < it->f_msgs_len);
 
-        if (pos != it->frame_msgs_length)
+        if (pos != it->f_msgs_len)
                 return TLV_RX_DATA_FAILURE;
 
         return pos;

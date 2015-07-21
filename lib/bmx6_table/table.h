@@ -15,6 +15,13 @@
  * 02110-1301, USA
  */
 
+#define ARG_REDIST_DELAY  "redistTableDelay"
+#define HLP_REDIST_DELAY  "delay processing (and announcement) of changed table routes in ms to aggregate shortly following changes"
+#define MIN_REDIST_DELAY  100
+#define MAX_REDIST_DELAY  3600000
+#define DEF_REDIST_DELAY  2200
+
+
 #define ARG_REDIST        "redistTable"
 #define HLP_REDIST        "arbitrary but unique name for redistributed table network(s) depending on sub criterias"
 

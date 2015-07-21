@@ -29,7 +29,7 @@ extern uint32_t debugMalloc_objects;
 
 #ifdef DEBUG_MALLOC
 
-// currently used memory tags: -300000, -300001 .. -300664
+// currently used memory tags: -300000, -300001 .. -300768
 #define debugMalloc( length,tag )  _debugMalloc( (length), (tag), 0 )
 #define debugMallocReset( length,tag )  _debugMalloc( (length), (tag), 1 )
 #define debugRealloc( mem,length,tag ) _debugRealloc( (mem), (length), (tag) )

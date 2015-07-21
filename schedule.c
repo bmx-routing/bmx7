@@ -39,6 +39,7 @@
 #include "plugin.h"
 #include "schedule.h"
 #include "allocate.h"
+#include "key.h"
 
 
 
@@ -65,29 +66,21 @@ void upd_time(struct timeval *precise_tv)
 
 	gettimeofday( &curr_tv, NULL );
 
+	IDM_T larger;
+	if ( (larger=timercmp( &curr_tv, &acceptable_max_tv, > )) || timercmp( &curr_tv, &acceptable_min_tv, < ) ) {
 
-	if ( timercmp( &curr_tv, &acceptable_max_tv, > ) ) {
+		if (larger)
+			timersub( &curr_tv, &acceptable_max_tv, &diff_tv );
+		else
+			timersub( &acceptable_min_tv, &curr_tv, &diff_tv );
 
-		timersub( &curr_tv, &acceptable_max_tv, &diff_tv );
 		timeradd( &start_time_tv, &diff_tv, &start_time_tv );
 
-                dbg_sys(DBGT_WARN, "critical system time drift detected: ++ca %ld s, %ld us! Correcting reference!",
-		     diff_tv.tv_sec, diff_tv.tv_usec );
+                dbg_sys(DBGT_WARN, "critical system time drift detected: %s approx %ld s, %ld us! Correcting reference!",
+		     larger ? "++" : "--", diff_tv.tv_sec, diff_tv.tv_usec );
 
                 if ( diff_tv.tv_sec > CRITICAL_PURGE_TIME_DRIFT )
-                        purge_link_route_orig_nodes(NULL, NO, self);
-
-	} else 	if ( timercmp( &curr_tv, &acceptable_min_tv, < ) ) {
-
-		timersub( &acceptable_min_tv, &curr_tv, &diff_tv );
-		timersub( &start_time_tv, &diff_tv, &start_time_tv );
-
-                dbg_sys(DBGT_WARN, "critical system time drift detected: --ca %ld s, %ld us! Correcting reference!",
-		     diff_tv.tv_sec, diff_tv.tv_usec );
-
-                if ( diff_tv.tv_sec > CRITICAL_PURGE_TIME_DRIFT )
-                        purge_link_route_orig_nodes(NULL, NO, self);
-
+                        keyNodes_cleanup(KCPromoted, myKey);
 	}
 
 	timersub( &curr_tv, &start_time_tv, &bmx_tv );
@@ -104,10 +97,20 @@ void upd_bmx_time(struct timeval *tv)
 {
 	static struct timeval tmp;
 
-	upd_time((tv = tv ? tv : &tmp));
+	while (1) {
+		upd_time((tv = tv ? tv : &tmp));
 
-	bmx_time = ( (tv->tv_sec * 1000) + (tv->tv_usec / 1000) );
-	bmx_time_sec = tv->tv_sec;
+		bmx_time = ( (tv->tv_sec * 1000) + (tv->tv_usec / 1000) );
+		bmx_time_sec = tv->tv_sec;
+
+		if (bmx_time)
+			break;
+		else //Never return zero bmx_time. To Simplifying timeout processing.
+			usleep(100);
+	}
+
+
+	keyNode_fixTimeouts();
 }
 
 
@@ -301,8 +304,6 @@ void wait4Event(TIME_T timeout)
 {
         TRACE_FUNCTION_CALL;
 	static struct packet_buff pb;
-	
-	TIME_T last_get_time_result = 0;
 
         static uint32_t addr_len = sizeof (pb.i.addr);
 
@@ -335,15 +336,6 @@ loop4Event:
 		//which should be removed before debugging
 		//dbgf_all( DBGT_INFO, "timeout %d", timeout );
 		
-		if ( bmx_time < last_get_time_result ) {
-				
-			last_get_time_result = bmx_time;
-			dbg_sys(DBGT_WARN, "detected Timeoverlap..." );
-			
-			goto wait4Event_end;
-		}
-	
-		last_get_time_result = bmx_time;
 					
 		if ( selected < 0 ) {
                         static TIME_T last_interrupted_syscall = 0;
@@ -378,28 +370,9 @@ loop4Event:
 				
 			goto loop4Event;
 		}
-		
-/*
-		// check for changed interface status...
-		if ( FD_ISSET( ifevent_sk, &tmp_wait_set ) ) {
 
-                        dbgf_track(DBGT_INFO, "detected changed interface status! Going to check interfaces!");
-			
-			recv_ifevent_netlink_sk( );
+		keyNodes_block_and_sync(0, YES);
 
-                        dev_check2();
-			
-
-			//do NOT delay checking of interfaces to not miss ifdown/up of interfaces !!
-                        if (kernel_if_config() ) //just call if changed!
-                                dev_check(YES);
-
-			
-			goto wait4Event_end;
-		}
-		
-*/
-		
 		// check for received packets...
                 struct avl_node *it = NULL;
                 while ((pb.i.iif = avl_iterate_item(&dev_ip_tree, &it))) {
@@ -414,7 +387,7 @@ loop4Event:
 				errno=0;
 				pb.i.length = recvfrom( pb.i.iif->rx_mcast_sock, pb.p.data,
 				                             sizeof(pb.p.data) - 1, 0,
-				                             (struct sockaddr *)&pb.i.addr, &addr_len );
+				                             (struct sockaddr *)&pb.i.addr, (socklen_t*)&addr_len );
 				
 				if ( pb.i.length < 0  &&  ( errno == EWOULDBLOCK || errno == EAGAIN ) ) {
 
@@ -440,7 +413,7 @@ loop4Event:
 				errno=0;
 				pb.i.length = recvfrom( pb.i.iif->rx_fullbrc_sock, pb.p.data,
 				                             sizeof(pb.p.data) - 1, 0,
-				                             (struct sockaddr *)&pb.i.addr, &addr_len );
+				                             (struct sockaddr *)&pb.i.addr, (socklen_t*)&addr_len );
 				
 				if ( pb.i.length < 0  &&  ( errno == EWOULDBLOCK || errno == EAGAIN ) ) {
 
@@ -503,7 +476,7 @@ loop4Event:
 				if ( tv_stamp == NULL )
 					ioctl( pb.i.iif->unicast_sock, SIOCGSTAMP, &(pb.i.tv_stamp) );
 				else
-					timercpy( tv_stamp, &(pb.i.tv_stamp) );
+					timercpy( &(pb.i.tv_stamp), tv_stamp );
 				
 				rx_packet( &pb );
 				
@@ -585,10 +558,27 @@ loop4ActiveClients:
 	}
 	
 wait4Event_end:
-	
+
+	keyNodes_block_and_sync(0, YES);
+
 	dbgf_all( DBGT_INFO, "end of function");
 	
 	return;
+}
+
+IDM_T doNowOrLater(TIME_T *nextScheduled, TIME_T interval, IDM_T now)
+{
+
+	if (((TIME_T) (*nextScheduled - (bmx_time + 1))) >= ((TIME_T) interval) || now) {
+
+		*nextScheduled = interval +
+			((((TIME_T) ((*nextScheduled + interval) - (bmx_time + 1))) >= ((TIME_T) interval)) ?
+			bmx_time : *nextScheduled);
+
+		return YES;
+	} else {
+		return NO;
+	}
 }
 
 void init_schedule( void ) {

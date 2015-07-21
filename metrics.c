@@ -36,6 +36,7 @@
 #include "avl.h"
 #include "node.h"
 #include "metrics.h"
+#include "ogm.h"
 #include "msg.h"
 #include "ip.h"
 #include "plugin.h"
@@ -46,6 +47,7 @@
 
 #define CODE_CATEGORY_NAME "metric"
 
+
 static int32_t descMetricalgo = DEF_DESC_METRICALGO;
 
 static int32_t my_path_algo = DEF_METRIC_ALGO;
@@ -54,23 +56,18 @@ static int32_t my_path_rp_exp_divisor = DEF_PATH_RP_EXP_DIVISOR;
 static int32_t my_path_tp_exp_numerator = DEF_PATH_TP_EXP_NUMERATOR;
 static int32_t my_path_tp_exp_divisor = DEF_PATH_TP_EXP_DIVISOR;
 
+static int32_t my_path_lq_tx_r255 = DEF_PATH_LQ_TX_R255;
+static int32_t my_path_lq_ty_r255 = DEF_PATH_LQ_TY_R255;
+static int32_t my_path_lq_t1_r255 = DEF_PATH_LQ_T1_R255;
+
 static int32_t my_path_metric_flags = DEF_PATH_METRIC_FLAGS;
 static int32_t my_path_umetric_min = DEF_PATH_UMETRIC_MIN;
-static int32_t my_path_window = DEF_PATH_WINDOW;
-static int32_t my_path_lounge = DEF_PATH_LOUNGE;
-static int32_t my_path_regression = DEF_PATH_REGRESSION_SLOW;
-static int32_t my_path_hystere = DEF_PATH_HYST;
-static int32_t my_hop_penalty = DEF_HOP_PENALTY;
-static int32_t my_late_penalty = DEF_LATE_PENAL;
+static int32_t my_ogm_metric_hyst = DEF_OGM_METRIC_HYST;
+static int32_t my_ogm_sqn_best_hyst = DEF_OGM_SQN_BEST_HYST;
+static int32_t my_ogm_sqn_late_hyst = DEF_OGM_SQN_LATE_HYST;
+static int32_t my_hop_penalty = DEF_OGM_HOP_PENALTY;
 
 static int32_t new_rt_dismissal_div100 = DEF_NEW_RT_DISMISSAL;
-
-static int32_t my_link_window = DEF_HELLO_SQN_WINDOW;
-
-//int32_t link_ignore_min = DEF_LINK_IGNORE_MIN;
-
-//int32_t link_ignore_max = DEF_LINK_IGNORE_MAX;
-
 
 
 //TODO: evaluate my_fmetric_exp_offset based on max configured dev_metric_max:
@@ -87,10 +84,6 @@ static UMETRIC_T U64_MAX_HALF_SQRT;
 #define U64_MAX_HALF             (U64_MAX>>1)
 #define UMETRIC_MAX_SQRT_SQUARE  (UMETRIC_MAX_SQRT * UMETRIC_MAX_SQRT)
 #define U64_MAX_HALF_SQRT_SQUARE (U64_MAX_HALF_SQRT * U64_MAX_HALF_SQRT)
-
-
-//TODO: remove:
-UMETRIC_T UMETRIC_NBDISCOVERY_MIN = (UMETRIC_MAX/10);
 
 
 
@@ -231,8 +224,6 @@ char *umetric_to_human(UMETRIC_T val) {
                 return "noROUTE";
         } else if (val <= UMETRIC_ROUTABLE) {
                 return "ROUTE  ";
-        } else if (val > UMETRIC_MAX) {
-                return "INFINTE";
         } else {
                 p = ((p + 1) % UMETRIC_TO_HUMAN_ARRAYS);
 
@@ -410,7 +401,7 @@ void path_metricalgo_VectorBandwidth(UMETRIC_T *path, UMETRIC_T *linkMax, UMETRI
         UMETRIC_T maxPrecisionScaler = XMIN(*path, linkBandwidth) * U64_MAX_HALF_SQRT;
 
 
-        if (linkQuality > UMETRIC_MIN__NOT_ROUTABLE) {
+        if (linkBandwidth > UMETRIC_MIN__NOT_ROUTABLE) {
 
 
                 inverseSquaredPathBandwidth = ((maxPrecisionScaler / *path) * (maxPrecisionScaler / *path));
@@ -487,8 +478,8 @@ UMETRIC_T apply_metric_algo(UMETRIC_T *linkQuality, UMETRIC_T *linkMax, const UM
                 }
         }
 
-        if (algo->hop_penalty)
-                path_out = (path_out * ((UMETRIC_T) (MAX_HOP_PENALTY - algo->hop_penalty))) >> MAX_HOP_PENALTY_PRECISION_EXP;
+        if (algo->ogm_hop_penalty)
+                path_out = (path_out * ((UMETRIC_T) (MAX_OGM_HOP_PENALTY - algo->ogm_hop_penalty))) >> MAX_OGM_HOP_PENALTY_PRECISION_EXP;
 
         if (path_out <= UMETRIC_MIN__NOT_ROUTABLE)
                 return UMETRIC_MIN__NOT_ROUTABLE;
@@ -504,8 +495,32 @@ UMETRIC_T apply_metric_algo(UMETRIC_T *linkQuality, UMETRIC_T *linkMax, const UM
         return XMIN(path_out, max_out); // ensure out always decreases
 }
 
+UMETRIC_T apply_lq_threshold_curve(UMETRIC_T lm, struct host_metricalgo *algo)
+{
+	/*
+	UMETRIC_T tx = (algo->lq_tx_point_r255 * UMETRIC_MAX) / 255;
+	UMETRIC_T ty = (algo->lq_ty_point_r255 * UMETRIC_MAX) / 255;
+	UMETRIC_T t1 = (algo->lq_t1_point_r255 * UMETRIC_MAX) / 255;
+	 */
+	uint32_t max = 255;
+	uint32_t lq = ((lm * ((UMETRIC_T)max))/UMETRIC_MAX);
+	uint32_t tx = algo->lq_tx_point_r255;
+	uint32_t ty = algo->lq_ty_point_r255;
+	uint32_t t1 = algo->lq_t1_point_r255;
+	
+	if (lq >= t1) {
+		lq = max;
+	} else if (lq >= tx && lq < t1) {
+//		lq = ty + (((lq-tx)/(t1-tx))*(max-ty));
+		lq = ty + (((lq-tx)*(max-ty))/(t1-tx));
+	} else {
+//		lq = ((lq/tx)*(ty));
+		lq = ((lq*ty)/tx);
+	}
+	
+	return ((((UMETRIC_T)lq) * UMETRIC_MAX)/((UMETRIC_T)max));
+}
 
-STATIC_FUNC
 UMETRIC_T apply_lndev_metric_algo(LinkNode *link, const UMETRIC_T *path, struct host_metricalgo *algo)
 {
         TRACE_FUNCTION_CALL;
@@ -514,604 +529,11 @@ UMETRIC_T apply_lndev_metric_algo(LinkNode *link, const UMETRIC_T *path, struct 
 
         UMETRIC_T tq = umetric_to_the_power_of_n(link->timeaware_tx_probe, algo->algo_tp_exp_numerator, algo->algo_tp_exp_divisor);
         UMETRIC_T rq = umetric_to_the_power_of_n(link->timeaware_rx_probe, algo->algo_rp_exp_numerator, algo->algo_rp_exp_divisor);
-        UMETRIC_T lq = umetric_multiply_normalized(tq, rq);
+
+	UMETRIC_T lq = apply_lq_threshold_curve(umetric_multiply_normalized(tq, rq), algo);
 
         return apply_metric_algo(&lq, &link->k.myDev->umetric_max, path, algo);
 }
-
-
-
-STATIC_FUNC
-void _reconfigure_metric_record_position(const char *f, struct metric_record *rec, struct host_metricalgo *alg,
-        SQN_T min, SQN_T in, uint8_t sqn_bit_size, uint8_t reset)
-{
-        TRACE_FUNCTION_CALL;
-        assertion(-500737, (XOR(sqn_bit_size, rec->sqn_bit_mask)));
-
-        if (sqn_bit_size)
-                rec->sqn_bit_mask = (~(SQN_MAX << sqn_bit_size));
-
-	assertion(-500738, (rec->sqn_bit_mask == U16_MAX || rec->sqn_bit_mask == U8_MAX || rec->sqn_bit_mask == HELLO_SQN_MAX));
-
-
-        if (rec->clr && /*alg->window_size > 1 &&*/ ((rec->sqn_bit_mask)&(in - rec->clr)) > (alg->lounge_size + 1)) {
-                dbgf_track(DBGT_WARN, "reset_metric=%d sqn_bit_size=%d sqn_bit_mask=0x%X umetric=%ju clr=%d to ((in=%d) - (lounge=%d))=%d",
-                        reset, sqn_bit_size, rec->sqn_bit_mask, rec->umetric, rec->clr, in, alg->lounge_size, ((rec->sqn_bit_mask)& (in - alg->lounge_size)));
-        }
-
-        rec->clr = MAX_UXX(rec->sqn_bit_mask, min, ((rec->sqn_bit_mask)&(in - alg->lounge_size)));
-
-        rec->set = ((rec->sqn_bit_mask)&(rec->clr - 1));
-
-        if (reset) {
-                rec->umetric = 0;
-        }
-
-        dbgf_all(DBGT_WARN, "%s reset_metric=%d sqn_bit_size=%d sqn_bit_mask=0x%X min=%d in=%d lounge_size=%d umetric=%ju clr=%d",
-                f, reset, sqn_bit_size, rec->sqn_bit_mask, min, in, alg->lounge_size, rec->umetric, rec->clr);
-
-}
-
-#define reconfigure_metric_record_position(rec, alg, min, in, sqn_bit_size, reset) \
-  _reconfigure_metric_record_position(__FUNCTION__, rec, alg, min, in, sqn_bit_size, reset)
-
-STATIC_FUNC
-IDM_T update_metric_record(struct orig_node *on, struct router_node *rt, SQN_T in, const UMETRIC_T *probe)
-{
-        TRACE_FUNCTION_CALL;
-        char *scenario = NULL;
-        
-        struct metric_record *rec = &rt->mr;
-        struct host_metricalgo *alg = on->path_metricalgo;
-        SQN_T range = on->ogmSqn_rangeSize;
-        SQN_T min = on->ogmSqn_rangeMin;
-
-        SQN_T i, purge = 0;
-        SQN_T dbg_clr;
-        SQN_T dbg_set;
-        dbg_clr = rec->clr; // avoid unused warning
-        dbg_set = rec->set; // avoid unused warning
-
-        ASSERTION(-500739, (!((~(rec->sqn_bit_mask))&(min))));
-        ASSERTION(-500740, (!((~(rec->sqn_bit_mask))&(in))));
-        ASSERTION(-500741, (!((~(rec->sqn_bit_mask))&(rec->clr))));
-        ASSERTION(-500742, (!((~(rec->sqn_bit_mask))&(rec->set))));
-
-        assertion(-500743, (range <= MAX_SQN_RANGE));
-        assertion(-500908, (is_umetric_valid(&rec->umetric)));
-        assertion(-500174, (IMPLIES(probe, (*probe <= UMETRIC_MAX))));
-
-
-        if (((rec->sqn_bit_mask)&(rec->clr - min)) >= range) {
-
-                if (rec->clr) {
-                        dbgf_track(DBGT_ERR, "sqn_bit_mask=0x%X clr=%d out of range, in=%d valid_min=%d defined_range=%d",
-                                rec->sqn_bit_mask, rec->clr, in, min, range);
-                }
-
-                reconfigure_metric_record_position(rec, alg, min, in, 0, YES/*reset_metric*/);
-        }
-
-        if (probe && !is_umetric_valid(probe)) {
-
-                scenario = "probe contains illegal value";
-                goto update_metric_error;
-
-        } else if (((rec->sqn_bit_mask)&(in - min)) >= range) {
-
-                scenario = "in out of defined_range (sector J)";
-                goto update_metric_error;
-
-        } else if (((rec->sqn_bit_mask)&(rec->clr - min)) >= range) {
-
-                scenario = "clr out of defined_range (sector J)";
-                goto update_metric_error;
-
-        } else if (((rec->sqn_bit_mask)&(rec->clr - rec->set)) > 1) {
-
-                scenario = "set invalid (compared to clr)";
-                goto update_metric_error;
-        }
-
-
-        if (UXX_LE(rec->sqn_bit_mask, in, (rec->clr - alg->window_size))) {
-
-                scenario = "in within valid past (sector I|H)";
-                goto update_metric_success;
-
-        } else if (in == rec->set) {
-
-//                assertion(-501071, (in == rec->clr));
-                if ( probe ) {
-
-                        if ((*probe == 0 || *probe > rec->umetric))
-                                rec->umetric = *probe;
-                }
-
-        } else if (UXX_LE(rec->sqn_bit_mask, in, rec->set)) {
-
-                scenario = "in within (closed) window, in < set (sector F|G)";
-                goto update_metric_success;
-
-        } else if (probe) {
-
-                dbgf_all(DBGT_INFO,"in=%d min=%d range=%d clr=%d", in, min, range, rec->clr);
-                assertion(-500708, (UXX_LE(rec->sqn_bit_mask, in, min + range)));
-                assertion(-500721, (UXX_GE(rec->sqn_bit_mask, in, rec->clr)));
-
-                purge = ((rec->sqn_bit_mask)&(in - rec->clr));
-
-                if (purge > 2) {
-                        // scenario = "resetting and updating: probe!=NULL, in within lounge or valid future (sector E|D|C|B|A)";
-                }
-
-                if (alg->regression == 1 /*|| alg->flags & TYP_METRIC_FLAG_STRAIGHT*/) {
-
-                        rec->umetric = *probe;
-
-                } else {
-
-                        if (purge < alg->window_size) {
-
-                                for (i = 0; i < purge; i++)
-                                        rec->umetric -= (rec->umetric / alg->regression);
-                        } else {
-                                reconfigure_metric_record_position(rec, alg, min, in, 0, YES/*reset_metric*/);
-                        }
-
-                        if ((rec->umetric += (*probe / alg->regression)) > *probe) {
-                                dbgf_track(DBGT_WARN, "resulting path metric=%ju > probe=%ju", rec->umetric, *probe);
-                                rec->umetric = *probe;
-                        }
-                }
-
-                rec->clr = rec->set = in;
-
-
-        } else if (UXX_LE(rec->sqn_bit_mask, in, rec->clr + alg->lounge_size)) {
-
-                //scenario = "ignoring: probe==NULL, in within lounge (sector E,D,C)";
-
-        } else {
-
-                assertion(-500709, (UXX_LE(rec->sqn_bit_mask, in, min + range)));
-//[20609  1347921] ERROR metric_record_init: reset_metric=0 sqn_bit_size=0 sqn_bit_mask=0xFF clr=186 to ((in=188) - (lounge=1))=187
-
-                purge = ((rec->sqn_bit_mask)&((in - alg->lounge_size) - rec->clr));
-
-                if (purge > 2)
-                        scenario = "purging: probe==NULL, in within valid future (sector B|A)";
-
-                assertion(-500710, (purge > 0));
-
-                if (purge >= alg->window_size) {
-
-                        reconfigure_metric_record_position(rec, alg, min, in, 0, YES/*reset_metric*/);
-
-                } else {
-
-                        for (i = 0; i < purge; i++)
-                                rec->umetric -= (rec->umetric / alg->regression);
-
-                        reconfigure_metric_record_position(rec, alg, min, in, 0, NO/*reset_metric*/);
-                }
-        }
-
-        assertion(-500711, (is_umetric_valid(&rec->umetric)));
-
-        goto update_metric_success;
-
-
-
-        IDM_T ret = FAILURE;
-
-update_metric_success:
-        ret = SUCCESS;
-
-update_metric_error:
-
-        if (scenario) {
-                dbgf_track(ret == FAILURE ? DBGT_ERR : DBGT_WARN,
-                        "[%s] sqn_bit_mask=0x%X in=%d clr=%d>%d set=%d>%d valid_min=%d range=%d lounge=%d window=%d purge=%d probe=%ju ",
-                        scenario, rec->sqn_bit_mask, in, dbg_clr, rec->clr, dbg_set, rec->set, min, range, alg->lounge_size, alg->window_size, purge, probe ? *probe : 0);
-        }
-
-
-        EXITERROR(-500712, (ret != FAILURE));
-
-        if (on && on->curr_rt_local == rt && rec->umetric < on->path_metricalgo->umetric_min)
-                set_ogmSqn_toBeSend_and_aggregated(on, on->ogmMetric_next, on->ogmSqn_send, on->ogmSqn_send);
-
-        return ret;
-}
-
-STATIC_FUNC
-UMETRIC_T timeaware_rx_probe(LinkNode *link)
-{
-        if (((TIME_T) (bmx_time - link->rx_probe_record.hello_time_max)) < RP_ADV_DELAY_TOLERANCE)
-                return link->rx_probe_record.hello_umetric;
-
-        if (((TIME_T) (bmx_time - link->rx_probe_record.hello_time_max)) < RP_ADV_DELAY_RANGE) {
-                return (link->rx_probe_record.hello_umetric *
-                        ((UMETRIC_T) (RP_ADV_DELAY_RANGE - (bmx_time - link->rx_probe_record.hello_time_max)))) /
-                        RP_ADV_DELAY_RANGE;
-        }
-
-        return 0;
-}
-
-STATIC_FUNC
-UMETRIC_T timeaware_tx_probe(LinkNode *link)
-{
-        if (((TIME_T) (bmx_time - link->k.linkDev->local->rp_adv_time)) < TP_ADV_DELAY_TOLERANCE)
-                return link->tx_probe_umetric;
-
-        if (((TIME_T) (bmx_time - link->k.linkDev->local->rp_adv_time)) < TP_ADV_DELAY_RANGE) {
-                return (link->tx_probe_umetric *
-                        ((UMETRIC_T) (TP_ADV_DELAY_RANGE - (bmx_time - link->k.linkDev->local->rp_adv_time)))) /
-                        TP_ADV_DELAY_RANGE;
-        }
-
-        return 0;
-}
-
-
-void lndev_assign_best(struct neigh_node *onlyLocal, LinkNode *onlyLink )
-{
-        TRACE_FUNCTION_CALL;
-
-        assertion(-501133, (IMPLIES(onlyLink, onlyLocal && onlyLocal == onlyLink->k.linkDev->local)));
-        ASSERTION(-500792, (IMPLIES(onlyLink, onlyLink->k.linkDev == avl_find_item(&onlyLocal->linkDev_tree, &onlyLink->k.linkDev->key.dev_idx))));
-
-        dbgf_all(DBGT_INFO, "only_local=%s only_lndev.link=%s only_lndev.dev=%s",
-                onlyLocal ? cryptShaAsString(&onlyLocal->local_id) : 0,
-                onlyLink ? ip6AsStr(&onlyLink->k.linkDev->link_ip) : DBG_NIL,
-                onlyLink ? onlyLink->k.myDev->label_cfg.str : DBG_NIL);
-
-        struct avl_node *local_an = NULL;
-        struct neigh_node *local;
-
-        while ((local = onlyLocal) || (local = avl_iterate_item(&local_tree, &local_an))) {
-
-                assertion(-500794, (local->linkDev_tree.items));
-
-		LinkDevNode *linkDev = NULL;
-                struct avl_node *link_an = NULL;
-
-                if (local->best_rp_link)
-                        local->best_rp_link->timeaware_rx_probe = timeaware_rx_probe(local->best_rp_link);
-
-                if (local->best_tp_link)
-                        local->best_tp_link->timeaware_tx_probe = timeaware_tx_probe(local->best_tp_link);
-
-
-                dbgf_all(DBGT_INFO, "local_id=%s", cryptShaAsString(&local->local_id));
-
-                while ((onlyLink && (linkDev = onlyLink->k.linkDev)) || (linkDev = avl_iterate_item(&local->linkDev_tree, &link_an))) {
-
-                        LinkNode *currLink = NULL;
-                        LinkNode *prevLink = NULL;
-
-                        dbgf_all(DBGT_INFO, "link=%s", ip6AsStr(&linkDev->link_ip));
-
-                        while ((onlyLink && (currLink = onlyLink)) || (currLink = list_iterate(&linkDev->link_list, currLink))) {
-
-                                dbgf_all(DBGT_INFO, "lndev=%s items=%d",
-                                        currLink->k.myDev->label_cfg.str, linkDev->link_list.items);
-
-                                currLink->timeaware_rx_probe = timeaware_rx_probe(currLink);
-                                currLink->timeaware_tx_probe = timeaware_tx_probe(currLink);
-
-
-                                if (!local->best_rp_link || local->best_rp_link->timeaware_rx_probe < currLink->timeaware_rx_probe)
-                                        local->best_rp_link = currLink;
-
-                                if (!local->best_tp_link || local->best_tp_link->timeaware_tx_probe < currLink->timeaware_tx_probe)
-                                        local->best_tp_link = currLink;
-
-                                if (onlyLink)
-                                        break;
-
-                                assertion(-501134, (prevLink != currLink));
-                                prevLink = currLink;
-                        }
-
-                        if (onlyLink)
-                                break;
-                }
-
-
-                assertion(-500406, (local->best_rp_link));
-                assertion(-501086, (local->best_tp_link));
-
-                if (local->best_tp_link->timeaware_tx_probe == 0)
-                        local->best_tp_link = local->best_rp_link;
-
-                local->best_link = (local->best_tp_link == local->best_rp_link) ? local->best_rp_link : NULL;
-
-
-                if(onlyLocal)
-                        break;
-        }
-
-}
-
-
-
-void update_link_probe_record(LinkNode *link, HELLO_SQN_T sqn, uint8_t probe)
-{
-
-        TRACE_FUNCTION_CALL;
-	LinkDevNode *linkDev = link->k.linkDev;
-        struct lndev_probe_record *lpr = &link->rx_probe_record;
-
-        ASSERTION(-501049, ((sizeof (((struct lndev_probe_record*) NULL)->hello_array)) * 8 == MAX_HELLO_SQN_WINDOW));
-        assertion(-501050, (probe <= 1));
-        ASSERTION(-501055, (bits_get(lpr->hello_array, MAX_HELLO_SQN_WINDOW, 0, MAX_HELLO_SQN_WINDOW - 1) == lpr->hello_sum));
-
-        if ((linkDev->hello_time_max || linkDev->hello_sqn_max) && linkDev->hello_sqn_max != sqn &&
-                ((HELLO_SQN_MASK)&(linkDev->hello_sqn_max - sqn)) < HELLO_SQN_TOLERANCE)
-                return;
-
-
-        if (((HELLO_SQN_MASK)&(sqn - lpr->hello_sqn_max)) >= my_link_window) {
-
-                memset(lpr->hello_array, 0, MAX_HELLO_SQN_WINDOW/8);
-
-                ASSERTION(-500159, is_zero(lpr->hello_array, MAX_HELLO_SQN_WINDOW / 8));
-
-                if (probe)
-                        bit_set(lpr->hello_array, MAX_HELLO_SQN_WINDOW, sqn, 1);
-
-                lpr->hello_sum = probe;
-                dbgf_all(DBGT_INFO, "probe=%d probe_sum=%d %d",
-                        probe, lpr->hello_sum, bits_get(lpr->hello_array, MAX_HELLO_SQN_WINDOW, 0, MAX_HELLO_SQN_WINDOW - 1));
-                
-                ASSERTION(-501058, (bits_get(lpr->hello_array, MAX_HELLO_SQN_WINDOW, 0, MAX_HELLO_SQN_WINDOW - 1) == lpr->hello_sum));
-
-        } else {
-                if (sqn != lpr->hello_sqn_max) {
-                        HELLO_SQN_T prev_sqn_min = (HELLO_SQN_MASK)&(lpr->hello_sqn_max + 1 - ((HELLO_SQN_T) my_link_window));
-                        HELLO_SQN_T new_sqn_min_minus_one = (HELLO_SQN_MASK)&(sqn - ((HELLO_SQN_T) my_link_window));
-
-                        dbgf_all(DBGT_INFO, "prev_min=%5d prev_max=%d new_min=%5d sqn=%5d sum=%3d bits=%3d %s",
-                                prev_sqn_min,lpr->hello_sqn_max, new_sqn_min_minus_one+1, sqn, lpr->hello_sum,
-                                bits_get(lpr->hello_array, MAX_HELLO_SQN_WINDOW, 0, MAX_HELLO_SQN_WINDOW - 1),
-                                bits_print(lpr->hello_array, MAX_HELLO_SQN_WINDOW, 0, MAX_HELLO_SQN_WINDOW - 1));
-
-                        lpr->hello_sum -= bits_get(lpr->hello_array, MAX_HELLO_SQN_WINDOW, prev_sqn_min, new_sqn_min_minus_one);
-
-                        dbgf_all(DBGT_INFO, "prev_min=%5d prev_max=%d new_min=%5d sqn=%5d sum=%3d bits=%3d %s",
-                                prev_sqn_min,lpr->hello_sqn_max, new_sqn_min_minus_one+1, sqn, lpr->hello_sum,
-                                bits_get(lpr->hello_array, MAX_HELLO_SQN_WINDOW, 0, MAX_HELLO_SQN_WINDOW - 1),
-                                bits_print(lpr->hello_array, MAX_HELLO_SQN_WINDOW, 0, MAX_HELLO_SQN_WINDOW - 1));
-                        
-                        bits_clear(lpr->hello_array, MAX_HELLO_SQN_WINDOW, prev_sqn_min, new_sqn_min_minus_one, HELLO_SQN_MASK);
-
-                        dbgf_all(DBGT_INFO, "prev_min=%5d prev_max=%d new_min=%5d sqn=%5d sum=%3d bits=%3d %s\n",
-                                prev_sqn_min,lpr->hello_sqn_max, new_sqn_min_minus_one+1, sqn, lpr->hello_sum,
-                                bits_get(lpr->hello_array, MAX_HELLO_SQN_WINDOW, 0, MAX_HELLO_SQN_WINDOW - 1),
-                                bits_print(lpr->hello_array, MAX_HELLO_SQN_WINDOW, 0, MAX_HELLO_SQN_WINDOW - 1));
-
-                }
-
-                ASSERTION(-501057, (bits_get(lpr->hello_array, MAX_HELLO_SQN_WINDOW, 0, MAX_HELLO_SQN_WINDOW - 1) == lpr->hello_sum));
-
-                if (!bit_get(lpr->hello_array, MAX_HELLO_SQN_WINDOW, sqn) && probe) {
-                        bit_set(lpr->hello_array, MAX_HELLO_SQN_WINDOW, sqn, 1);
-                        lpr->hello_sum++;
-                }
-                
-                ASSERTION(-501056, (bits_get(lpr->hello_array, MAX_HELLO_SQN_WINDOW, 0, MAX_HELLO_SQN_WINDOW - 1) == lpr->hello_sum));
-        }
-
-        lpr->hello_sqn_max = sqn;
-        lpr->hello_umetric = (UMETRIC_MAX / my_link_window) * lpr->hello_sum;
-        lpr->hello_time_max = bmx_time;
-
-        linkDev->hello_sqn_max = sqn;
-        linkDev->hello_time_max = bmx_time;
-
-        lndev_assign_best(linkDev->local, link);
-
-        dbgf_all(DBGT_INFO, "%s metric %ju", ip6AsStr(&linkDev->link_ip), link->timeaware_rx_probe);
-}
-
-
-STATIC_FUNC
-struct router_node * router_node_create(struct neigh_node *local, struct orig_node *on, OGM_SQN_T ogm_sqn_max)
-{
-        struct router_node* rt = debugMallocReset(sizeof (struct router_node), -300222);
-
-        rt->local_key = local;
-
-        reconfigure_metric_record_position(&rt->mr, on->path_metricalgo, on->ogmSqn_rangeMin, ogm_sqn_max, OGM_SQN_BIT_SIZE, YES/*reset_metric*/);
-
-        avl_insert(&on->rt_tree, rt, -300223);
-
-        return rt;
-}
-
-
-
-STATIC_FUNC
-UMETRIC_T lndev_best_via_router(struct neigh_node *local, struct orig_node *on, UMETRIC_T *ogm_metric, LinkNode **bestPathLink)
-{
-
-        UMETRIC_T metric_best = 0;
-        // find best path lndev for this local router:
-        if (local->best_link) {
-
-                metric_best = apply_lndev_metric_algo(local->best_link, ogm_metric, on->path_metricalgo);
-                *bestPathLink = local->best_link;
-
-        } else {
-
-                struct avl_node *linkDev_an = NULL;
-		LinkDevNode *linkDev;
-
-                while ((linkDev = avl_iterate_item(&local->linkDev_tree, &linkDev_an))) {
-
-                        LinkNode *link = NULL;
-
-                        while ((link = list_iterate(&linkDev->link_list, link))) {
-
-                                UMETRIC_T um = apply_lndev_metric_algo(link, ogm_metric, on->path_metricalgo);
-
-                                if (metric_best <= um) {
-                                        metric_best = um;
-                                        *bestPathLink = link;
-                                }
-                        }
-                }
-        }
-
-        assertion(-501088, (*bestPathLink));
-        return metric_best;
-}
-
-
-IDM_T update_path_metrics(struct packet_buff *pb, struct orig_node *on, OGM_SQN_T ogmSqn, UMETRIC_T *ogmMetric)
-{
-        TRACE_FUNCTION_CALL;
-        assertion(-500876, (!on->blocked));
-        assertion(-500734, (on->path_metricalgo));
-        assertion(-501052, ((((OGM_SQN_MASK)&(ogmSqn - on->ogmSqn_rangeMin)) < on->ogmSqn_rangeSize)));
-	assertion(-502150, (pb->i.verifiedLink));
-
-        OGM_SQN_T ogm_sqn_max = UXX_GET_MAX(OGM_SQN_MASK, on->ogmSqn_maxRcvd, ogmSqn);
-
-        dbgf_all(DBGT_INFO, "nodeId=%s ogmSqn=%d via neigh=%s", cryptShaAsString(&on->nodeId), ogmSqn, pb->i.llip_str);
-
-
-        if (UXX_LT(OGM_SQN_MASK, ogmSqn, (OGM_SQN_MASK & (ogm_sqn_max - on->path_metricalgo->lounge_size)))) {
-                dbgf_track(DBGT_WARN, "dropping late sqn=%d via neigh=%s from nodeId=%s",
-                        ogmSqn, pb->i.llip_str, cryptShaAsString(&on->nodeId));
-                return SUCCESS;
-        }
-
-        if (UXX_LT(OGM_SQN_MASK, ogmSqn, on->ogmSqn_next) || (ogmSqn == on->ogmSqn_next && *ogmMetric <= on->ogmMetric_next)) {
-                dbgf_all(DBGT_WARN, "dropping already scheduled sqn=%d via neigh=%s from nodeId=%s",
-                        ogmSqn, pb->i.llip_str, cryptShaAsString(&on->nodeId));
-                return SUCCESS;
-        }
-
-        struct neigh_node *local = pb->i.verifiedLink->k.linkDev->local;
-        struct router_node *next_rt = NULL;
-        struct router_node *prev_rt = on->curr_rt_local;
-        IDM_T is_ogm_sqn_new = UXX_GT(OGM_SQN_MASK, ogmSqn, on->ogmSqn_maxRcvd);
-        LinkNode *best_rt_link = NULL;
-        UMETRIC_T best_rt_metric = lndev_best_via_router(local, on, ogmMetric, &best_rt_link);
-        struct router_node *rt = NULL;
-
-        if (is_ogm_sqn_new || (prev_rt && prev_rt->local_key == local && prev_rt->mr.umetric > best_rt_metric)) {
-
-                struct router_node *rt_tmp;
-                struct avl_node *rt_an;
-
-                for (rt_an = NULL; (rt_tmp = avl_iterate_item(&on->rt_tree, &rt_an));) {
-
-                        if (is_ogm_sqn_new)
-                                update_metric_record(on, rt_tmp, ogm_sqn_max, NULL);
-
-                        if (rt_tmp->local_key == local)
-                                rt = rt_tmp;
-
-                        if (!next_rt || next_rt->mr.umetric < rt_tmp->mr.umetric)
-                                next_rt = rt_tmp;
-                }
-
-        } else {
-                rt = avl_find_item(&on->rt_tree, &local);
-        }
-
-        on->ogmSqn_maxRcvd = ogm_sqn_max;
-
-        if (rt) {
-                if (UXX_LT(OGM_SQN_MASK, ogmSqn, rt->ogm_sqn_last) ||
-                        (ogmSqn == rt->ogm_sqn_last &&
-                        (*ogmMetric <= rt->ogm_umetric_last || best_rt_metric <= rt->best_path_metric))) {
-                        dbgf_track(DBGT_WARN, "dropping already rcvd sqn=%d via neigh=%s from nodeId=%s",
-                                ogmSqn, pb->i.llip_str, cryptShaAsString(&on->nodeId));
-                        return SUCCESS;
-                }
-
-        } else if (!on->curr_rt_local || (((on->curr_rt_local->mr.umetric * new_rt_dismissal_div100) / 100) <= best_rt_metric)) {
-
-                rt = router_node_create(local, on, ogm_sqn_max);
-
-                dbg_track(DBGT_INFO, "new router via_ip=%s to nodeId=%s metric=%ju (curr_rt=%s metric=%ju total %d)",
-                        ip6AsStr(&best_rt_link->k.linkDev->link_ip), cryptShaAsString(&on->nodeId), best_rt_metric,
-                        on->curr_rt_link ? ip6AsStr(&on->curr_rt_link->k.linkDev->link_ip) : DBG_NIL,
-                        on->curr_rt_link ? on->curr_rt_local->mr.umetric : 0, on->rt_tree.items);
-
-        }
-
-        if (rt) {
-                update_metric_record(on, rt, ogmSqn, &best_rt_metric);
-                rt->ogm_sqn_last = ogmSqn;
-                rt->ogm_umetric_last = *ogmMetric;
-                rt->best_path_metric = best_rt_metric;
-                rt->best_path_link = best_rt_link;
-
-                if (!next_rt || next_rt->mr.umetric < rt->mr.umetric)
-                        next_rt = rt;
-        }
-
-        if (!next_rt || (on->curr_rt_local && next_rt->mr.umetric <= on->curr_rt_local->mr.umetric))
-                next_rt = on->curr_rt_local;
-
-        assertion(-501136, (next_rt));
-
-        if ((((OGM_SQN_MASK) & (next_rt->mr.set - on->ogmSqn_rangeMin)) < on->ogmSqn_rangeSize) && //after description update all mr.set are invalid
-                (UXX_GT(OGM_SQN_MASK, next_rt->mr.set, on->ogmSqn_next) ||
-                (next_rt->mr.set == on->ogmSqn_next && next_rt->mr.umetric > on->ogmMetric_next))) {
-
-                if (next_rt->mr.umetric >= on->path_metricalgo->umetric_min) {
-
-                        if (next_rt->mr.set == on->ogmSqn_next)
-                                set_ogmSqn_toBeSend_and_aggregated(on, 0, ((OGM_SQN_T) (on->ogmSqn_next - 1)), ((OGM_SQN_T) (on->ogmSqn_next - 1)));
-
-                        set_ogmSqn_toBeSend_and_aggregated(on, next_rt->mr.umetric, next_rt->mr.set, on->ogmSqn_send);
-
-                        assertion(-501139, ((((OGM_SQN_MASK) & (on->ogmSqn_next - on->ogmSqn_rangeMin)) < on->ogmSqn_rangeSize)));
-
-                        if (next_rt != on->curr_rt_local || on->curr_rt_local->best_path_link != on->curr_rt_link ) {
-
-                                dbg_track(DBGT_INFO, "changed route to nodeId=%s ip=%s via_ip=%s via_dev=%s metric=%s   (prev %s %s metric=%s sqn_max=%d sqn_in=%d)",
-                                        cryptShaAsString(&on->nodeId), on->primary_ip_str,
-                                        ip6AsStr(&next_rt->best_path_link->k.linkDev->link_ip),
-                                        next_rt->best_path_link->k.myDev->label_cfg.str,
-                                        umetric_to_human(next_rt->mr.umetric),
-                                        ip6AsStr(on->curr_rt_link ? &on->curr_rt_link->k.linkDev->link_ip : &ZERO_IP),
-                                        on->curr_rt_link ? on->curr_rt_link->k.myDev->label_cfg.str : DBG_NIL,
-                                        umetric_to_human(on->curr_rt_local ? on->curr_rt_local->mr.umetric : 0),
-                                        ogm_sqn_max, ogmSqn);
-
-                                if (on->curr_rt_local)
-                                        cb_route_change_hooks(DEL, on);
-
-                                on->curr_rt_local = next_rt;
-                                on->curr_rt_link = next_rt->best_path_link;
-
-                                cb_route_change_hooks(ADD, on);
-                        }
-
-                } else {
-
-                        if (on->curr_rt_local)
-                                cb_route_change_hooks(DEL, on);
-
-                        on->curr_rt_local = NULL;
-                        on->curr_rt_link = NULL;
-                }
-        }
-
-        return SUCCESS;
-}
-
-
-
 
 
 
@@ -1132,13 +554,14 @@ IDM_T validate_metricalgo(struct host_metricalgo *ma, struct ctrl_node *cn)
                 validate_param((ma->algo_tp_exp_numerator), MIN_PATH_XP_EXP_NUMERATOR, MAX_PATH_XP_EXP_NUMERATOR, ARG_PATH_TP_EXP_NUMERATOR) ||
                 validate_param((ma->algo_tp_exp_divisor), MIN_PATH_XP_EXP_DIVISOR, MAX_PATH_XP_EXP_DIVISOR, ARG_PATH_TP_EXP_DIVISOR) ||
                 validate_param((ma->flags),      MIN_METRIC_FLAGS, MAX_METRIC_FLAGS, ARG_PATH_METRIC_FLAGS) ||
-                validate_param((ma->window_size), MIN_PATH_WINDOW, MAX_PATH_WINDOW, ARG_PATH_WINDOW) ||
-                validate_param((ma->lounge_size), MIN_PATH_LOUNGE, MAX_PATH_LOUNGE, ARG_PATH_LOUNGE) ||
-                validate_param((ma->regression), MIN_PATH_REGRESSION_SLOW, MAX_PATH_REGRESSION_SLOW, ARG_PATH_REGRESSION_SLOW) ||
-                validate_param((ma->hystere), MIN_PATH_HYST, MAX_PATH_HYST, ARG_PATH_HYST) ||
-                validate_param((ma->hop_penalty), MIN_HOP_PENALTY, MAX_HOP_PENALTY, ARG_HOP_PENALTY) ||
-                validate_param((ma->late_penalty), MIN_LATE_PENAL, MAX_LATE_PENAL, ARG_LATE_PENAL) ||
-
+                validate_param((ma->ogm_metric_hystere), MIN_OGM_METRIC_HYST, MAX_OGM_METRIC_HYST, ARG_OGM_METRIC_HYST) ||
+                validate_param((ma->ogm_sqn_best_hystere), MIN_OGM_SQN_BEST_HYST, MAX_OGM_SQN_BEST_HYST, ARG_OGM_SQN_BEST_HYST) ||
+                validate_param((ma->ogm_sqn_late_hystere), MIN_OGM_SQN_LATE_HYST, MAX_OGM_SQN_LATE_HYST, ARG_OGM_SQN_LATE_HYST) ||
+                validate_param((ma->ogm_hop_penalty), MIN_OGM_HOP_PENALTY, MAX_OGM_HOP_PENALTY, ARG_OGM_HOP_PENALTY) ||
+		validate_param((ma->lq_tx_point_r255), MIN_PATH_LQ_TX_R255, MAX_PATH_LQ_TX_R255, ARG_PATH_LQ_TX_R255) ||
+		validate_param((ma->lq_ty_point_r255), MIN_PATH_LQ_TY_R255, MAX_PATH_LQ_TY_R255, ARG_PATH_LQ_TY_R255) ||
+		validate_param((ma->lq_t1_point_r255), MIN_PATH_LQ_T1_R255, MAX_PATH_LQ_T1_R255, ARG_PATH_LQ_T1_R255) ||
+		ma->lq_t1_point_r255 <= ma->lq_tx_point_r255 ||
                 !is_umetric_valid(&ma->umetric_min) || !is_fmetric_valid(ma->fmetric_u16_min) ||
                 ma->umetric_min != fmetric_to_umetric(ma->fmetric_u16_min) || ma->umetric_min < UMETRIC_MIN__NOT_ROUTABLE ||
 
@@ -1171,12 +594,13 @@ IDM_T metricalgo_tlv_to_host(struct description_tlv_metricalgo *tlv_algo, struct
         host_algo->algo_rp_exp_divisor = tlv_algo->m.rp_exp_divisor;
         host_algo->algo_tp_exp_numerator = tlv_algo->m.tp_exp_numerator;
         host_algo->algo_tp_exp_divisor = tlv_algo->m.tp_exp_divisor;
-        host_algo->window_size = tlv_algo->m.path_window_size;
-        host_algo->lounge_size = tlv_algo->m.path_lounge_size;
-        host_algo->regression = tlv_algo->m.regression;
-        host_algo->hystere = tlv_algo->m.hystere;
-	host_algo->hop_penalty = tlv_algo->m.hop_penalty;
-	host_algo->late_penalty = tlv_algo->m.late_penalty;
+	host_algo->lq_tx_point_r255 = tlv_algo->m.lq_tx_point_r255;
+	host_algo->lq_ty_point_r255 = tlv_algo->m.lq_ty_point_r255;
+	host_algo->lq_t1_point_r255 = tlv_algo->m.lq_t1_point_r255;
+        host_algo->ogm_sqn_best_hystere = tlv_algo->m.ogm_sqn_best_hystere;
+        host_algo->ogm_sqn_late_hystere = ntohs(tlv_algo->m.ogm_sqn_late_hystere);
+        host_algo->ogm_metric_hystere = ntohs(tlv_algo->m.ogm_metric_hystere);
+	host_algo->ogm_hop_penalty = tlv_algo->m.hop_penalty;
 
         if (validate_metricalgo(host_algo, NULL) == FAILURE)
                 return FAILURE;
@@ -1213,19 +637,13 @@ int create_description_tlv_metricalgo(struct tx_frame_iterator *it)
         tlv_algo.m.rp_exp_divisor = my_path_rp_exp_divisor;
         tlv_algo.m.tp_exp_numerator = my_path_tp_exp_numerator;
         tlv_algo.m.tp_exp_divisor = my_path_tp_exp_divisor;
-        tlv_algo.m.path_window_size = my_path_window;
-        tlv_algo.m.path_lounge_size = my_path_lounge;
-        tlv_algo.m.regression = my_path_regression;
-        tlv_algo.m.hystere = my_path_hystere;
+	tlv_algo.m.lq_tx_point_r255 = my_path_lq_tx_r255;
+	tlv_algo.m.lq_ty_point_r255 = my_path_lq_ty_r255;
+	tlv_algo.m.lq_t1_point_r255 = my_path_lq_t1_r255;
+        tlv_algo.m.ogm_metric_hystere = htons(my_ogm_metric_hyst);
+        tlv_algo.m.ogm_sqn_best_hystere = my_ogm_sqn_best_hyst;
+        tlv_algo.m.ogm_sqn_late_hystere = htons(my_ogm_sqn_late_hyst);
         tlv_algo.m.hop_penalty = my_hop_penalty;
-        tlv_algo.m.late_penalty = my_late_penalty;
-
-/*
-        if (self->path_metricalgo)
-                debugFree(self->path_metricalgo, -300282);
-
-        self->path_metricalgo = debugMalloc(sizeof ( struct host_metricalgo), -300283);
-*/
 
         memset(&my_hostmetricalgo, 0, sizeof (struct host_metricalgo));
 
@@ -1237,7 +655,7 @@ int create_description_tlv_metricalgo(struct tx_frame_iterator *it)
 		return TLV_TX_DATA_IGNORED;
 
 
-        if (tx_iterator_cache_data_space_pref(it) < ((int) sizeof (struct description_tlv_metricalgo))) {
+        if (tx_iterator_cache_data_space_pref(it, 0, 0) < ((int) sizeof (struct description_tlv_metricalgo))) {
 
                 dbgf_sys(DBGT_ERR, "unable to announce metric due to limiting --%s", ARG_UDPD_SIZE);
                 return TLV_TX_DATA_FAILURE;
@@ -1253,14 +671,11 @@ int create_description_tlv_metricalgo(struct tx_frame_iterator *it)
 STATIC_FUNC
 void metricalgo_remove(struct orig_node *on)
 {
+	remove_ogm(on);
+
 	if (on->path_metricalgo) {
 		debugFree(on->path_metricalgo, -300285);
 		on->path_metricalgo = NULL;
-	}
-
-	if (on->metricSqnMaxArr) {
-		debugFree(on->metricSqnMaxArr, -300307);
-		on->metricSqnMaxArr = NULL;
 	}
 }
 
@@ -1271,7 +686,6 @@ void metricalgo_assign(struct orig_node *on, struct host_metricalgo *host_algo)
 	metricalgo_remove(on);
 
 	assertion(-500684, (!on->path_metricalgo));
-	assertion(-501522, (!on->metricSqnMaxArr));
 
 	if (!host_algo)
 		host_algo = &my_hostmetricalgo;
@@ -1279,15 +693,7 @@ void metricalgo_assign(struct orig_node *on, struct host_metricalgo *host_algo)
 	on->path_metricalgo = debugMalloc(sizeof (struct host_metricalgo), -300286);
 	memcpy(on->path_metricalgo, host_algo, sizeof (struct host_metricalgo));
 
-	on->metricSqnMaxArr = debugMalloc(((on->path_metricalgo->lounge_size + 1) * sizeof (UMETRIC_T)), -300308);
-	memset(on->metricSqnMaxArr, 0, ((on->path_metricalgo->lounge_size + 1) * sizeof (UMETRIC_T)));
-
-	// migrate current router_nodes->mr.clr position to new sqn_range:
-	struct router_node *rn;
-	struct avl_node *an = NULL;
-
-	while ((rn = avl_iterate_item(&on->rt_tree, &an)))
-		reconfigure_metric_record_position(&rn->mr, on->path_metricalgo, on->ogmSqn_rangeMin, on->ogmSqn_rangeMin, 0, NO);
+	on->ogmSqn = 0;
 }
 
 
@@ -1297,7 +703,7 @@ void metrics_description_event_hook(int32_t cb_id, struct orig_node *on)
         TRACE_FUNCTION_CALL;
 
         assertion(-501306, (on));
-        assertion(-501270, IMPLIES(cb_id == PLUGIN_CB_DESCRIPTION_CREATED, (on && on->dhn && on->dhn->desc_frame)));
+        assertion(-501270, IMPLIES(cb_id == PLUGIN_CB_DESCRIPTION_CREATED, (on)));
         assertion(-501273, (cb_id == PLUGIN_CB_DESCRIPTION_DESTROY || cb_id == PLUGIN_CB_DESCRIPTION_CREATED));
         assertion(-501274, IMPLIES(initializing, cb_id == PLUGIN_CB_DESCRIPTION_CREATED));
 
@@ -1305,6 +711,10 @@ void metrics_description_event_hook(int32_t cb_id, struct orig_node *on)
 
 		if (!on->path_metricalgo)
 			metricalgo_assign(on, NULL);
+
+		struct reference_node *ref = NULL;
+		while ((ref = avl_next_item(&on->descContent->dhn->neighRefs_tree, ref ? &ref->neigh : NULL)))
+			process_ogm_metric(ref);
 
 	} else {
 
@@ -1316,76 +726,32 @@ STATIC_FUNC
 int process_description_tlv_metricalgo(struct rx_frame_iterator *it )
 {
         TRACE_FUNCTION_CALL;
-        assertion(-500683, (it->frame_type == BMX_DSC_TLV_METRIC));
+        assertion(-500683, (it->f_type == BMX_DSC_TLV_METRIC));
 
         uint8_t op = it->op;
 
-        struct description_tlv_metricalgo *tlv_algo = (struct description_tlv_metricalgo *) (it->frame_data);
+        struct description_tlv_metricalgo *tlv_algo = (struct description_tlv_metricalgo *) (it->f_data);
         struct host_metricalgo host_algo;
 
         dbgf_all( DBGT_INFO, "%s ", tlv_op_str(op));
 
         if (op == TLV_OP_NEW || op == TLV_OP_TEST) {
 
-                if (metricalgo_tlv_to_host(tlv_algo, &host_algo, it->frame_msgs_length) == FAILURE)
+                if (metricalgo_tlv_to_host(tlv_algo, &host_algo, it->f_msgs_len) == FAILURE)
                         return TLV_RX_DATA_FAILURE;
         }
 
         if (op == TLV_OP_DEL)
-		metricalgo_remove(it->onOld);
-
+		metricalgo_remove(it->on);
 
         if (op == TLV_OP_NEW)
-		metricalgo_assign(it->onOld, &host_algo);
+		metricalgo_assign(it->on, &host_algo);
 
-        return it->frame_msgs_length;
+        return it->f_msgs_len;
 }
 
 
 
-
-
-
-
-STATIC_FUNC
-int32_t opt_link_metric(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
-{
-        TRACE_FUNCTION_CALL;
-        static int32_t my_link_window_prev = DEF_HELLO_SQN_WINDOW;
-
-        if (cmd == OPT_APPLY && !strcmp(opt->name, ARG_HELLO_SQN_WINDOW)) {
-
-                LinkNode *link;
-                struct avl_node *an;
-
-                for (an = NULL; (link = avl_iterate_item(&link_tree, &an));) {
-
-                        struct lndev_probe_record *lpr = &link->rx_probe_record;
-
-                        if (my_link_window < my_link_window_prev) {
-
-                                HELLO_SQN_T prev_sqn_min = (HELLO_SQN_MASK)&(lpr->hello_sqn_max + 1 - my_link_window_prev);
-                                HELLO_SQN_T new_sqn_min_minus_one = (HELLO_SQN_MASK)&(lpr->hello_sqn_max - my_link_window);
-
-                                lpr->hello_sum -= bits_get(lpr->hello_array, MAX_HELLO_SQN_WINDOW, prev_sqn_min, new_sqn_min_minus_one);
-                                bits_clear(lpr->hello_array, MAX_HELLO_SQN_WINDOW, prev_sqn_min, new_sqn_min_minus_one, HELLO_SQN_MASK);
-                        }
-
-                        assertion(-501053, (bits_get(lpr->hello_array, MAX_HELLO_SQN_WINDOW, 0, MAX_HELLO_SQN_WINDOW - 1) == lpr->hello_sum));
-                        assertion(-501061, (lpr->hello_sum <= ((uint32_t)my_link_window)));
-
-                        lpr->hello_umetric = (UMETRIC_MAX / my_link_window) * lpr->hello_sum;
-                }
-
-
-                lndev_assign_best(NULL, NULL);
-                cb_plugin_hooks(PLUGIN_CB_LINKS_EVENT, NULL);
-
-                my_link_window_prev = my_link_window;
-        }
-
-        return SUCCESS;
-}
 
 
 
@@ -1402,12 +768,6 @@ int32_t opt_path_metricalgo(uint8_t cmd, uint8_t _save, struct opt_type *opt, st
                 // only options with a non-zero MIN value and those with illegal compinations must be tested
                 // other illegal option configurations will be cached by their MIN_... MAX_.. control.c architecture
 
-                test_algo.window_size = (cmd == OPT_REGISTER || strcmp(opt->name, ARG_PATH_WINDOW)) ?
-                        my_path_window : strtol(patch->val, NULL, 10);
-
-                test_algo.regression = (cmd == OPT_REGISTER || strcmp(opt->name, ARG_PATH_REGRESSION_SLOW)) ?
-                        my_path_regression : strtol(patch->val, NULL, 10);
-
                 test_algo.umetric_min = (cmd == OPT_REGISTER || strcmp(opt->name, ARG_PATH_UMETRIC_MIN)) ?
                         my_path_umetric_min : strtol(patch->val, NULL, 10);
 
@@ -1417,18 +777,32 @@ int32_t opt_path_metricalgo(uint8_t cmd, uint8_t _save, struct opt_type *opt, st
                 if (cmd == OPT_REGISTER || strcmp(opt->name, ARG_PATH_METRIC_ALGO)) {
 
                         test_algo.algo_type = my_path_algo;
+			test_algo.ogm_hop_penalty = my_hop_penalty;
+			test_algo.ogm_metric_hystere = my_ogm_metric_hyst;
+			test_algo.ogm_sqn_best_hystere = my_ogm_sqn_best_hyst;
+			test_algo.ogm_sqn_late_hystere = my_ogm_sqn_late_hyst;
                         test_algo.algo_rp_exp_numerator = my_path_rp_exp_numerator;
                         test_algo.algo_rp_exp_divisor = my_path_rp_exp_divisor;
                         test_algo.algo_tp_exp_numerator = my_path_tp_exp_numerator;
                         test_algo.algo_tp_exp_divisor = my_path_tp_exp_divisor;
+			test_algo.lq_tx_point_r255 = my_path_lq_tx_r255;
+			test_algo.lq_ty_point_r255 = my_path_lq_ty_r255;
+			test_algo.lq_t1_point_r255 = my_path_lq_t1_r255;
 
                 } else {
 
                         test_algo.algo_type = DEF_METRIC_ALGO;
+			test_algo.ogm_hop_penalty = DEF_OGM_HOP_PENALTY;
+			test_algo.ogm_metric_hystere = DEF_OGM_METRIC_HYST;
+			test_algo.ogm_sqn_best_hystere = DEF_OGM_SQN_BEST_HYST;
+			test_algo.ogm_sqn_late_hystere = DEF_OGM_SQN_LATE_HYST;
                         test_algo.algo_rp_exp_numerator = DEF_PATH_RP_EXP_NUMERATOR;
                         test_algo.algo_rp_exp_divisor = DEF_PATH_RP_EXP_DIVISOR;
                         test_algo.algo_tp_exp_numerator = DEF_PATH_TP_EXP_NUMERATOR;
                         test_algo.algo_tp_exp_divisor = DEF_PATH_TP_EXP_DIVISOR;
+			test_algo.lq_tx_point_r255 = DEF_PATH_LQ_TX_R255;
+			test_algo.lq_ty_point_r255 = DEF_PATH_LQ_TY_R255;
+			test_algo.lq_t1_point_r255 = DEF_PATH_LQ_T1_R255;
 
                         if (patch->diff != DEL) {
 
@@ -1442,6 +816,18 @@ int32_t opt_path_metricalgo(uint8_t cmd, uint8_t _save, struct opt_type *opt, st
 
                                         int32_t val = strtol(c->val, NULL, 10);
 
+                                        if (!strcmp(c->opt->name, ARG_OGM_HOP_PENALTY))
+                                                test_algo.ogm_hop_penalty = val;
+
+                                        if (!strcmp(c->opt->name, ARG_OGM_METRIC_HYST))
+                                                test_algo.ogm_metric_hystere = val;
+
+                                        if (!strcmp(c->opt->name, ARG_OGM_SQN_BEST_HYST))
+                                                test_algo.ogm_sqn_best_hystere = val;
+
+                                        if (!strcmp(c->opt->name, ARG_OGM_SQN_LATE_HYST))
+                                                test_algo.ogm_sqn_late_hystere = val;
+
                                         if (!strcmp(c->opt->name, ARG_PATH_RP_EXP_NUMERATOR))
                                                 test_algo.algo_rp_exp_numerator = val;
 
@@ -1453,6 +839,15 @@ int32_t opt_path_metricalgo(uint8_t cmd, uint8_t _save, struct opt_type *opt, st
 
                                         if (!strcmp(c->opt->name, ARG_PATH_TP_EXP_DIVISOR))
                                                 test_algo.algo_tp_exp_divisor = val;
+
+                                        if (!strcmp(c->opt->name, ARG_PATH_LQ_TX_R255))
+                                                test_algo.lq_tx_point_r255 = val;
+
+                                        if (!strcmp(c->opt->name, ARG_PATH_LQ_TY_R255))
+                                                test_algo.lq_ty_point_r255 = val;
+
+                                        if (!strcmp(c->opt->name, ARG_PATH_LQ_T1_R255))
+                                                test_algo.lq_t1_point_r255 = val;
                                 }
                         }
                 }
@@ -1461,15 +856,20 @@ int32_t opt_path_metricalgo(uint8_t cmd, uint8_t _save, struct opt_type *opt, st
                         return FAILURE;
 
                 if (cmd == OPT_APPLY) {
-                        my_path_window = test_algo.window_size;
-                        my_path_regression = test_algo.regression;
                         my_path_umetric_min = test_algo.umetric_min;
 
                         my_path_algo = test_algo.algo_type;
+			my_hop_penalty = test_algo.ogm_hop_penalty;
+			my_ogm_metric_hyst = test_algo.ogm_metric_hystere;
+			my_ogm_sqn_best_hyst = test_algo.ogm_sqn_best_hystere;
+			my_ogm_sqn_late_hyst = test_algo.ogm_sqn_late_hystere;
                         my_path_rp_exp_numerator = test_algo.algo_rp_exp_numerator;
                         my_path_rp_exp_divisor = test_algo.algo_rp_exp_divisor;
                         my_path_tp_exp_numerator = test_algo.algo_tp_exp_numerator;
                         my_path_tp_exp_divisor = test_algo.algo_tp_exp_divisor;
+			my_path_lq_tx_r255 = test_algo.lq_tx_point_r255;
+			my_path_lq_ty_r255 = test_algo.lq_ty_point_r255;
+			my_path_lq_t1_r255 = test_algo.lq_t1_point_r255;
 
                         my_description_changed = YES;
                 }
@@ -1485,17 +885,32 @@ struct opt_type metrics_options[]=
 {
 //       ord parent long_name             shrt Attributes                            *ival              min                 max                default              *func,*syntax,*help
 
-#ifdef WITH_UNUSED
-	{ODI, 0, ARG_PATH_HYST,   	   0,  5,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&my_path_hystere,MIN_PATH_HYST,	MAX_PATH_HYST,	DEF_PATH_HYST,0, opt_path_metricalgo,
-			ARG_VALUE_FORM,	"use hysteresis to delay route switching to alternative next-hop neighbors with better path metric"}
+#ifndef LESS_OPTIONS
+	{ODI, 0, ARG_OGM_METRIC_HYST,     0,   9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,    &my_ogm_metric_hyst,MIN_OGM_METRIC_HYST, MAX_OGM_METRIC_HYST,DEF_OGM_METRIC_HYST,0, opt_path_metricalgo,
+			ARG_VALUE_FORM,	"use metric hysteresis in % to delay route switching to alternative next-hop neighbors with better path metric"}
         ,
-        // there SHOULD! be a minimal lateness_penalty >= 1 ! Otherwise a shorter path with equal path-cost than a longer path will never dominate
-	{ODI, 0, ARG_LATE_PENAL,  	   0,  5,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&my_late_penalty,MIN_LATE_PENAL,MAX_LATE_PENAL, DEF_LATE_PENAL,0, opt_path_metricalgo,
-			ARG_VALUE_FORM,	"penalize non-first rcvd OGMs "}
+	{ODI, 0, ARG_OGM_SQN_BEST_HYST,0,9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,    &my_ogm_sqn_best_hyst,MIN_OGM_SQN_BEST_HYST,MAX_OGM_SQN_BEST_HYST,DEF_OGM_SQN_BEST_HYST,0, opt_path_metricalgo,
+		ARG_VALUE_FORM,	"overcome metric hysteresis to force route switching after successive reception of x new OGM-SQNs with with better path metric"}
+        ,
+	{ODI, 0, ARG_OGM_SQN_LATE_HYST,0,9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,    &my_ogm_sqn_late_hyst,MIN_OGM_SQN_LATE_HYST,MAX_OGM_SQN_LATE_HYST,DEF_OGM_SQN_LATE_HYST,0, opt_path_metricalgo,
+		ARG_VALUE_FORM,	"delay route switching in ms to next-hop neighbor due its fast OGM-SQN delivery"}
+        ,
+	{ODI, 0, ARG_OGM_HOP_PENALTY,	   0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&my_hop_penalty, MIN_OGM_HOP_PENALTY, MAX_OGM_HOP_PENALTY, DEF_OGM_HOP_PENALTY,0, opt_path_metricalgo,
+			ARG_VALUE_FORM,	"penalize non-first rcvd OGMs in 1/255 (each hop will substract metric*(VALUE/255) from current path-metric)"}
+        ,
+        {ODI, 0, ARG_NEW_RT_DISMISSAL,     0, 9,1, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &new_rt_dismissal_div100, MIN_NEW_RT_DISMISSAL, MAX_NEW_RT_DISMISSAL, DEF_NEW_RT_DISMISSAL,0, 0,
+			ARG_VALUE_FORM,	HLP_NEW_RT_DISMISSAL}
+	,
+	{ODI, 0, ARG_PATH_LQ_TX_R255,   0, 9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,    &my_path_lq_tx_r255, MIN_PATH_LQ_TX_R255, MAX_PATH_LQ_TX_R255,DEF_PATH_LQ_TX_R255,0, opt_path_metricalgo,
+			ARG_VALUE_FORM,	"specify X threshold point for transforming path lq values 255==100%"}
+        ,
+	{ODI, 0, ARG_PATH_LQ_TY_R255,   0, 9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,    &my_path_lq_ty_r255, MIN_PATH_LQ_TY_R255, MAX_PATH_LQ_TY_R255,DEF_PATH_LQ_TY_R255,0, opt_path_metricalgo,
+			ARG_VALUE_FORM,	"specify Y threshold point for transforming path lq values 255==100%"}
+        ,
+	{ODI, 0, ARG_PATH_LQ_T1_R255,   0, 9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,    &my_path_lq_t1_r255, MIN_PATH_LQ_T1_R255, MAX_PATH_LQ_T1_R255,DEF_PATH_LQ_T1_R255,0, opt_path_metricalgo,
+			ARG_VALUE_FORM,	"specify 100% threshold point for transforming path lq values 255==100%"}
         ,
 
-#endif
-#ifndef LESS_OPTIONS
         {ODI, 0, ARG_PATH_METRIC_ALGO, CHR_PATH_METRIC_ALGO,  9,1, A_PS1N, A_ADM, A_DYI, A_CFA, A_ANY, &my_path_algo,MIN_METRIC_ALGO,    MAX_METRIC_ALGO,    DEF_METRIC_ALGO,0,    opt_path_metricalgo,
                 ARG_VALUE_FORM, HELP_PATH_METRIC_ALGO}
         ,
@@ -1514,40 +929,17 @@ struct opt_type metrics_options[]=
         {ODI, 0, ARG_PATH_UMETRIC_MIN, 0,  9,1, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &my_path_umetric_min,MIN_PATH_UMETRIC_MIN,MAX_PATH_UMETRIC_MIN,DEF_PATH_UMETRIC_MIN,0,    opt_path_metricalgo,
                 ARG_VALUE_FORM, " "}
         ,
-        {ODI, 0, ARG_PATH_WINDOW, 0, 9,1, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &my_path_window, MIN_PATH_WINDOW, MAX_PATH_WINDOW, DEF_PATH_WINDOW,0, opt_path_metricalgo,
-			ARG_VALUE_FORM,	"set path window size (PWS) for end2end path-quality calculation (path metric)"}
-        ,
         {ODI, 0, ARG_DESC_METRICALGO,0, 9,2, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &descMetricalgo, MIN_DESC_METRICALGO, MAX_DESC_METRICALGO, DEF_DESC_METRICALGO,0, opt_path_metricalgo,
 			ARG_VALUE_FORM,	"enable/disable inclusion of metric algo in node description (other nodes will use their default algo)"}
         ,
 #endif
-	{ODI, 0, ARG_PATH_LOUNGE,          0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&my_path_lounge, MIN_PATH_LOUNGE,MAX_PATH_LOUNGE,DEF_PATH_LOUNGE,0, opt_path_metricalgo,
-			ARG_VALUE_FORM, "set default PLS buffer size to artificially delay my OGM processing for ordered path-quality calulation"}
-        ,
-	{ODI, 0, ARG_PATH_REGRESSION_SLOW, 0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&my_path_regression,MIN_PATH_REGRESSION_SLOW,MAX_PATH_REGRESSION_SLOW,DEF_PATH_REGRESSION_SLOW,0,opt_path_metricalgo,
-			ARG_VALUE_FORM,	"set (slow) path regression "}
-        ,
-	{ODI, 0, ARG_HOP_PENALTY,	   0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&my_hop_penalty, MIN_HOP_PENALTY, MAX_HOP_PENALTY, DEF_HOP_PENALTY,0, opt_path_metricalgo,
-			ARG_VALUE_FORM,	"penalize non-first rcvd OGMs in 1/255 (each hop will substract metric*(VALUE/255) from current path-metric)"}
-        ,
-        {ODI,0,ARG_HELLO_SQN_WINDOW,       0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&my_link_window,	MIN_HELLO_SQN_WINDOW, 	MAX_HELLO_SQN_WINDOW,DEF_HELLO_SQN_WINDOW,0,    opt_link_metric,
-			ARG_VALUE_FORM,	"set link window size (LWS) for link-quality calculation (link metric)"}
-        ,
-        {ODI, 0, ARG_NEW_RT_DISMISSAL,     0, 9,1, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &new_rt_dismissal_div100, MIN_NEW_RT_DISMISSAL, MAX_NEW_RT_DISMISSAL, DEF_NEW_RT_DISMISSAL,0, 0,
-			ARG_VALUE_FORM,	HLP_NEW_RT_DISMISSAL}
 
 };
 
 
 
 STATIC_FUNC
-int32_t init_metrics( void )
-{
-	assertion(-500996, (sizeof (FMETRIC_U16_T) == 2));
-        assertion(-500997, (sizeof (FMETRIC_U8_T) == 1));
-
-        UMETRIC_MAX_SQRT = umetric_fast_sqrt(UMETRIC_MAX);
-        U64_MAX_HALF_SQRT = umetric_fast_sqrt(U64_MAX_HALF);
+void init_metrics_assertions( void ) {
 
 #ifndef NO_ASSERTIONS
         dbgf_all(DBGT_INFO, "um_fm8_min=%ju um_max=%ju um_mask=%ju um_shift_max=%zu um_multiply_max=%ju um_max_sqrt=%ju u32_max=%u u64_max=%ju u64_max_half_sqrt=%ju ",
@@ -1578,7 +970,7 @@ int32_t init_metrics( void )
         uint32_t c=0;
         uint16_t steps = 8;
 
-        
+
         uint32_t err_sqrt_sum_square = 0;
         uint32_t err_sqrt_sum = 0;
         int32_t err_sqrt_min = 10000;
@@ -1625,6 +1017,17 @@ int32_t init_metrics( void )
         dbgf_all(DBGT_INFO, "add=%d counts=%d steps=%d err_square=%d err=%d err_min=%d err_max=%d",
                 UMETRIC_TO_FMETRIC_INPUT_FIX, c, steps, err_sum_square / c, err_sum / c, err_min, err_max);
 #endif
+}
+
+STATIC_FUNC
+int32_t init_metrics( void )
+{
+	assertion(-500996, (sizeof (FMETRIC_U16_T) == 2));
+        assertion(-500997, (sizeof (FMETRIC_U8_T) == 1));
+
+        UMETRIC_MAX_SQRT = umetric_fast_sqrt(UMETRIC_MAX);
+        U64_MAX_HALF_SQRT = umetric_fast_sqrt(U64_MAX_HALF);
+
 
         static const struct field_format metric_format[] = DESCRIPTION_MSG_METRICALGO_FORMAT;
 
@@ -1647,7 +1050,7 @@ int32_t init_metrics( void )
 
         register_options_array(metrics_options, sizeof (metrics_options), CODE_CATEGORY_NAME);
 
-        return SUCCESS;
+	return SUCCESS;
 }
 
 STATIC_FUNC

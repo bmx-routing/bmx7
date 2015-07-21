@@ -67,17 +67,17 @@ float fast_inverse_sqrt(float x);
 
 uint32_t rand_num(const uint32_t limit);
 
-void byte_clear(uint8_t *array, uint16_t array_size, uint16_t begin, uint16_t range);
+void byte_clear(uint8_t *array, uint32_t array_size, uint32_t begin, uint32_t end);
 uint8_t bits_count(uint32_t v);
-uint8_t bit_get(const uint8_t *array, const uint16_t array_bit_size, uint16_t bit);
+uint8_t bit_get(const uint8_t *array, const uint32_t array_bit_size, uint32_t bit);
 
-void bit_set(uint8_t *array, uint16_t array_bit_size, uint16_t bit, IDM_T value);
+void bit_set(uint8_t *array, uint32_t array_bit_size, uint32_t bit, IDM_T value);
 
-uint16_t bits_get(uint8_t *array, uint16_t array_bit_size, uint16_t begin_bit, uint16_t end_bit);
+uint32_t bits_get(uint8_t *array, uint32_t array_bit_size, uint32_t beg_bit, uint32_t end_bit, uint32_t range_mask);
 
- void bits_clear(uint8_t *array, uint16_t array_bit_size, uint16_t beg_bit, uint16_t end_bit, uint16_t range_mask);
+void bits_clear(uint8_t *array, uint32_t array_bit_size, uint32_t beg_bit, uint32_t end_bit, uint32_t range_mask);
 
-char* bits_print(uint8_t *array, uint16_t array_bit_size, uint16_t begin_bit, uint16_t end_bit);
+char* bits_print(uint8_t *array, uint32_t array_bit_size, uint32_t beg_bit, uint32_t end_bit, uint32_t range_mask);
 
 
 uint8_t is_zero(void *data, int len);
@@ -91,6 +91,7 @@ int32_t check_file(char *path, uint8_t regular, uint8_t read, uint8_t write, uin
 int32_t check_dir( char *path, uint8_t create, uint8_t write );
 int32_t rm_dir_content(char* dir_name, char* prefix);
 
+uint8_t *find_array_data(uint8_t *arr, uint32_t arrLen, uint8_t *element, uint32_t elemLen);
 
 void init_tools(void);
 

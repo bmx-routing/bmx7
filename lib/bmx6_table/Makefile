@@ -5,8 +5,8 @@ LDFLAGS +=	-shared
 
 PLUGIN_NAME =   bmx6_table
 
-SRC_C = table.c
-SRC_H = table.h
+SRC_C = table.c ../../redist.c
+SRC_H = table.h ../../redist.h
 OBJS= $(SRC_C:.c=.o)
 
 PLUGIN_FULLNAME = $(PLUGIN_NAME).so

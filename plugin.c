@@ -123,11 +123,10 @@ void cb_route_change_hooks(uint8_t del, struct orig_node *dest)
         TRACE_FUNCTION_CALL;
 	struct list_node *list_pos;
 	struct cb_route_change_node *con, *prev_con = NULL;
-        struct neigh_node *local_router = dest->curr_rt_local->local_key;
+        struct neigh_node *local_router = dest->curr_rt_link->k.linkDev->key.local;
 
-        assertion(-500674, (dest && dest->dhn && dest->dhn->desc_frame_len));
-
-        local_router->orig_routes = local_router->orig_routes + (del ? -1 : +1);
+        local_router->orig_routes += (del ? -1 : +1);
+	dest->curr_rt_link->orig_routes += (del ? -1 : +1);
 
         assertion(-501320, (local_router->orig_routes >= 0 && local_router->orig_routes < (int) orig_tree.items));
 

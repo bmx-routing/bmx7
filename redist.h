@@ -86,7 +86,11 @@
 
 #define NETWORK_NAME_LEN 32
 
-#define HLP_ROUTE_TYPE "redistribute route type (mandatory to enable at least one type)"
+#define ARG_ROUTE_ALL         "all"
+#define ARG_ROUTE_SYS         "sys"
+
+#define HLP_ROUTE_TYPE "redistribute bmx route type (mandatory to enable at least one type)"
+#define HLP_ROUTE_SYS "filter redistributed routes based on system id (ignored if unset, recommends: /all=1)"
 
 
 
@@ -122,16 +126,19 @@ struct redist_in_node {
         int8_t cnt;
         uint8_t old;
         uint32_t metric;
-        uint8_t distance;
+	uint8_t distance;
+	struct redistr_opt_node *roptn;
 };
 
 struct redistr_opt_node {
         char nameKey[NETWORK_NAME_LEN];
         struct net_key net;
-        uint32_t bmx6_redist_bits;
+	uint64_t bmx6_redist_bits;
         uint32_t hysteresis;
 	uint32_t table;
-        uint8_t netPrefixMin;
+	uint8_t bmx6_redist_all;
+	uint8_t bmx6_redist_sys;
+	uint8_t netPrefixMin;
         uint8_t netPrefixMax;
         uint8_t minAggregatePrefixLen;
         FMETRIC_U8_T bandwidth;
@@ -143,3 +150,4 @@ void update_tunXin6_net_adv_list(struct avl_tree *redist_out_tree, struct list_h
 IDM_T redistribute_routes(struct avl_tree *redist_out_tree, struct avl_tree *zroute_tree, struct avl_tree *redist_opt_tree, struct sys_route_dict *zapi_rt_dict);
 
 int32_t opt_redist(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn, struct avl_tree *redist_opt_tree, uint8_t *changed);
+struct redistr_opt_node *matching_redist_opt(struct redist_in_node *rin, struct avl_tree *redist_opt_tree, struct sys_route_dict *rt_dict);

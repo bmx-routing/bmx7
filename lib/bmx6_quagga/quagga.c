@@ -48,9 +48,10 @@
 #include "iptools.h"
 #include "ip.h"
 #include "hna.h"
+#include "redist.h"
 #include "allocate.h"
 #include "quagga.h"
-#include "redist.c"
+
 
 
 #define CODE_CATEGORY_NAME "quagga"
@@ -94,11 +95,11 @@ static AVL_TREE(redist_out_tree, struct redist_out_node, k);
 
 //static AVL_TREE(export_opt_tree, struct export_opt_node, nameKey);
 
-static LIST_SIMPEL(tunXin6_net_adv_list, struct tunXin6_net_adv_node, list, list);
+static LIST_SIMPEL(quagga_net_adv_list, struct tunXin6_net_adv_node, list, list);
 
 static struct zebra_cfg zcfg;
 
-static struct sys_route_dict zapi_rt_dict[BMX6_ROUTE_MAX];
+static struct sys_route_dict zapi_rt_dict[BMX6_ROUTE_MAX_SUPP+1];
 
 
 STATIC_FUNC void zsock_write(void* zpacket);
@@ -205,12 +206,12 @@ void zdata_parse_route(struct zdata *zd)
 
         if (tmp) {
                 tmp->cnt += (zd->cmd == ZEBRA_IPV4_ROUTE_ADD || zd->cmd == ZEBRA_IPV6_ROUTE_ADD) ? (+1) : (-1);
-                redist_dbg(DBGL_SYS, DBGT_INFO, __FUNCTION__, tmp, zapi_rt_dict, zebraCmd2Str[zd->cmd], "OLD");
+                redist_dbg(DBGL_CHANGES, DBGT_INFO, __FUNCTION__, tmp, zapi_rt_dict, zebraCmd2Str[zd->cmd], "OLD");
         } else {
                 tmp = debugMallocReset(sizeof (zrn), -300472);
                 *tmp = zrn;
                 tmp->cnt += 1;
-                redist_dbg(DBGL_SYS, DBGT_INFO, __FUNCTION__, tmp, zapi_rt_dict, zebraCmd2Str[zd->cmd], "NEW");
+                redist_dbg(DBGL_CHANGES, DBGT_INFO, __FUNCTION__, tmp, zapi_rt_dict, zebraCmd2Str[zd->cmd], "NEW");
                 assertion(-501406, (zd->cmd == ZEBRA_IPV4_ROUTE_ADD || zd->cmd == ZEBRA_IPV6_ROUTE_ADD));
                 avl_insert(&zroute_tree, tmp, -300473);
         }
@@ -276,7 +277,7 @@ void zdata_parse(void)
 
                 if (changed_routes) {
                         if ( redistribute_routes(&redist_out_tree, &zroute_tree, &redist_opt_tree, zapi_rt_dict) )
-				update_tunXin6_net_adv_list(&redist_out_tree, &tunXin6_net_adv_list);
+				update_tunXin6_net_adv_list(&redist_out_tree, &quagga_net_adv_list);
 		}
         }
 }
@@ -435,7 +436,7 @@ void zsock_send_redist_request(void)
         assertion(-501413, (zcfg.socket > 0));
 
         int route_type;
-        for (route_type = 0; route_type < BMX6_ROUTE_MAX; route_type++) {
+        for (route_type = 0; route_type <= BMX6_ROUTE_MAX_KNOWN; route_type++) {
 
                 uint8_t new = bit_get((uint8_t*) & zcfg.bmx6_redist_bits_new, (sizeof (zcfg.bmx6_redist_bits_new) * 8), route_type);
                 uint8_t old = bit_get((uint8_t*) & zcfg.bmx6_redist_bits_old, (sizeof (zcfg.bmx6_redist_bits_old) * 8), route_type);
@@ -562,8 +563,8 @@ void zsock_disconnect(void)
                 my_description_changed = YES;
         }
 
-        while (tunXin6_net_adv_list.items) {
-                struct tunXin6_net_adv_node *tn = list_del_head(&tunXin6_net_adv_list);
+        while (quagga_net_adv_list.items) {
+                struct tunXin6_net_adv_node *tn = list_del_head(&quagga_net_adv_list);
                 debugFree(tn, -300515);
         }
 
@@ -815,7 +816,7 @@ int32_t opt_redistribute(uint8_t cmd, uint8_t _save, struct opt_type *opt, struc
 
                         zsock_send_redist_request();
 			if ( redistribute_routes(&redist_out_tree, &zroute_tree, &redist_opt_tree, zapi_rt_dict) )
-				update_tunXin6_net_adv_list(&redist_out_tree, &tunXin6_net_adv_list);
+				update_tunXin6_net_adv_list(&redist_out_tree, &quagga_net_adv_list);
                 }
 
                 changed = NO;
@@ -879,7 +880,7 @@ static void quagga_cleanup( void )
         if (zcfg.socket)
                 zsock_disconnect();
 
-        set_tunXin6_net_adv_list(DEL, &tunXin6_net_adv_list);
+        set_tunXin6_net_adv_list(DEL, &quagga_net_adv_list);
 
 }
 
@@ -888,7 +889,7 @@ static void quagga_cleanup( void )
 static int32_t quagga_init( void )
 {
 
-        assertion(-501424, (ZEBRA_ROUTE_MAX <= BMX6_ROUTE_MAX));
+        assertion(-501424, (ZEBRA_ROUTE_MAX <= BMX6_ROUTE_MAX_KNOWN));
 	memset(&zapi_rt_dict, 0, sizeof(zapi_rt_dict));
 
 	set_rt_dict(zapi_rt_dict, ZEBRA_ROUTE_SYSTEM,  'X', ARG_ROUTE_SYSTEM, BMX6_ROUTE_SYSTEM);
@@ -913,7 +914,7 @@ static int32_t quagga_init( void )
 
         register_options_array(quagga_options, sizeof ( quagga_options), CODE_CATEGORY_NAME);
 
-        set_tunXin6_net_adv_list(ADD, &tunXin6_net_adv_list);
+        set_tunXin6_net_adv_list(ADD, &quagga_net_adv_list);
 
 
 	return SUCCESS;

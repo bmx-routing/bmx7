@@ -191,8 +191,8 @@ struct zebra_cfg {
         char *zread_buff;
         uint16_t zread_buff_len;
         uint16_t zread_len;
-        uint32_t bmx6_redist_bits_new;
-        uint32_t bmx6_redist_bits_old;
+	uint64_t bmx6_redist_bits_new;
+	uint64_t bmx6_redist_bits_old;
 
         //...
 };

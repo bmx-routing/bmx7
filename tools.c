@@ -272,7 +272,7 @@ void init_set_bits_table256(void)
 
 // clears byte range between and including begin and end
 // accept overlap of begin and end
-void byte_clear(uint8_t *array, uint16_t array_size, uint16_t begin, uint16_t end)
+void byte_clear(uint8_t *array, uint32_t array_size, uint32_t begin, uint32_t end)
 {
 
         assertion(-500436, (array_size % 2 == 0));
@@ -300,21 +300,21 @@ uint8_t bits_count(uint32_t v)
 	return c;
 }
 
-uint8_t bit_get(const uint8_t *array, const uint16_t array_bit_size, uint16_t bit)
+uint8_t bit_get(const uint8_t *array, const uint32_t array_bit_size, uint32_t bit)
 {
         bit = bit % array_bit_size;
 
-        uint16_t byte_pos = bit / 8;
+        uint32_t byte_pos = bit / 8;
         uint8_t bit_pos = bit % 8;
 
         return (array[byte_pos] & (0x01 << (7 - bit_pos))) ? 1 : 0;
 }
 
-void bit_set(uint8_t *array, uint16_t array_bit_size, uint16_t bit, IDM_T value)
+void bit_set(uint8_t *array, uint32_t array_bit_size, uint32_t bit, IDM_T value)
 {
         bit = bit % array_bit_size;
 
-        uint16_t byte_pos = bit / 8;
+        uint32_t byte_pos = bit / 8;
         uint8_t bit_pos = bit % 8;
 
         if (value)
@@ -326,22 +326,23 @@ void bit_set(uint8_t *array, uint16_t array_bit_size, uint16_t bit, IDM_T value)
 }
 
 
-uint16_t bits_get(uint8_t *array, uint16_t array_bit_size, uint16_t begin_bit, uint16_t end_bit)
+uint32_t bits_get(uint8_t *array, uint32_t array_bit_size, uint32_t beg_bit, uint32_t end_bit, uint32_t range_mask)
 {
-        assertion(-501058, ((uint16_t) (end_bit - begin_bit)) < array_bit_size);
+        assertion(-502491, (array_bit_size % 8 == 0));
+        assertion(-502492, ((range_mask & (end_bit - beg_bit)) < array_bit_size));
 
-        uint16_t begin_byte = (begin_bit % array_bit_size) / 8;
-        uint16_t end_byte = (end_bit % array_bit_size) / 8;
-        uint16_t array_byte_size = array_bit_size / 8;
+        uint32_t begin_byte = (beg_bit % array_bit_size) / 8;
+        uint32_t end_byte = (end_bit % array_bit_size) / 8;
+        uint32_t array_byte_size = array_bit_size / 8;
 
-        uint16_t counted = 0;
-        uint16_t pos = begin_byte;
+        uint32_t counted = 0;
+        uint32_t pos = begin_byte;
 
         do {
                 uint8_t val = array[pos];
 
                 if (pos == begin_byte)
-                        val = val & (0xFF >> (begin_bit % 8));
+                        val = val & (0xFF >> (beg_bit % 8));
 
                 if (pos == end_byte)
                         val = val & (0xFF << (7-(end_bit % 8)));
@@ -357,19 +358,19 @@ uint16_t bits_get(uint8_t *array, uint16_t array_bit_size, uint16_t begin_bit, u
 
 
 // clears bit range between and including begin and end
- void bits_clear(uint8_t *array, uint16_t array_bit_size, uint16_t beg_bit, uint16_t end_bit, uint16_t range_mask)
+ void bits_clear(uint8_t *array, uint32_t array_bit_size, uint32_t beg_bit, uint32_t end_bit, uint32_t range_mask)
 {
         assertion(-500435, (array_bit_size % 8 == 0));
         assertion(-501060, ((range_mask & (end_bit - beg_bit)) < array_bit_size));
 
-        uint16_t array_byte_size = array_bit_size / 8;
+        uint32_t array_byte_size = array_bit_size / 8;
 
 
         beg_bit = beg_bit % array_bit_size;
         end_bit = end_bit % array_bit_size;
 
-        uint16_t beg_byte = beg_bit/8;
-        uint16_t end_byte = end_bit/8;
+        uint32_t beg_byte = beg_bit/8;
+        uint32_t end_byte = end_bit/8;
 
 
         if (beg_byte == end_byte  ?  (beg_bit % 8) > (end_bit % 8)  :  (beg_byte + 1) % array_byte_size != end_byte)
@@ -393,15 +394,18 @@ uint16_t bits_get(uint8_t *array, uint16_t array_bit_size, uint16_t begin_bit, u
         }
 }
 
-char* bits_print(uint8_t *array, uint16_t array_bit_size, uint16_t begin_bit, uint16_t end_bit)
+char* bits_print(uint8_t *array, uint32_t array_bit_size, uint32_t beg_bit, uint32_t end_bit, uint32_t range_mask)
 {
+        assertion(-502493, (array_bit_size % 8 == 0));
+        assertion(-502494, ((range_mask & (end_bit - beg_bit)) < array_bit_size));
+
 #define BITS_PRINT_MAX 256
-        assertion(-501059, ((uint16_t) (end_bit - begin_bit)) < array_bit_size);
+        assertion(-501059, ((uint32_t) (end_bit - beg_bit)) < array_bit_size);
 
         uint16_t c = 0;
         static char output[BITS_PRINT_MAX + 4];
 
-        uint16_t pos = (begin_bit % array_bit_size);
+        uint32_t pos = (beg_bit % array_bit_size);
 
         do {
                 sprintf(&output[c], "%s", bit_get(array, array_bit_size, pos) ? "1" : "0");
@@ -422,9 +426,9 @@ char* bits_print(uint8_t *array, uint16_t array_bit_size, uint16_t begin_bit, ui
 
 
 
-uint8_t is_zero(void *data, int len)
+uint8_t is_zero(void *data, int32_t len)
 {
-        int i;
+        int32_t i;
         char *d = data;
         for (i = 0; i < len && !d[i]; i++);
 
@@ -577,6 +581,22 @@ void wordCopy( char *out, char *in ) {
 		cleanup_all( -500017 );
 
 	}
+}
+
+uint8_t *find_array_data(uint8_t *arr, uint32_t arrLen, uint8_t *element, uint32_t elemLen) {
+
+	uint32_t p;
+
+	if (!arr || !arrLen || !element || !elemLen)
+		return NULL;
+
+	for(p=0; p < arrLen; p+=elemLen ) {
+
+		if ( !memcmp(&arr[p], element, elemLen) )
+			return &arr[p];
+	}
+
+	return NULL;
 }
 
 

@@ -37,11 +37,13 @@
 #include "crypt.h"
 #include "avl.h"
 #include "node.h"
+#include "link.h"
 #include "ip.h"
 #include "plugin.h"
 #include "schedule.h"
 #include "tools.h"
 #include "allocate.h"
+#include "hna.h"
 
 #define CODE_CATEGORY_NAME "control"
 
@@ -2630,6 +2632,8 @@ int32_t opt_show_parameter(uint8_t cmd, uint8_t _save, struct opt_type *opt, str
 
                 struct opt_type *opt = NULL;
 
+		dbg_printf(cn, "PARAMETERS:\n");
+
                 while ((opt = list_iterate(&opt_list, opt))) {
                         struct opt_parent *p = NULL;
 
@@ -2638,13 +2642,18 @@ int32_t opt_show_parameter(uint8_t cmd, uint8_t _save, struct opt_type *opt, str
                                 struct opt_child *c = NULL;
 
                                 assertion(-501231, (opt->name && opt->cfg_t != A_ARG));
-                                
-                                dbg_printf(cn, " %-22s %-20s %s%s\n", opt->name, p->val,
+
+				char pdef[14];
+				sprintf(pdef, "%d", opt->idef);
+
+                                dbg_printf(cn, " %-22s %-20s (%s) %s%s\n", opt->name, p->val, (opt->sdef ? opt->sdef : pdef),
                                         (p->ref ? "resolved from " : ""), (p->ref ? p->ref : ""));
 
                                 while ((c = list_iterate(&p->childs_instance_list, c))) {
-                                        dbg_printf(cn, "    %s%-18s %-20s %s%s\n",
-                                                LONG_OPT_ARG_DELIMITER_STR, c->opt->name, c->val,
+					char cdef[14];
+					sprintf(cdef, "%d", c->opt->idef);
+                                        dbg_printf(cn, "    %s%-18s %-20s (%s) %s%s\n",
+                                                LONG_OPT_ARG_DELIMITER_STR, c->opt->name, c->val, (c->opt->sdef ? c->opt->sdef : cdef), 
                                                 (c->ref ? "resolved from " : ""), (c->ref ? c->ref : ""));
                                 }
                         }
@@ -2694,6 +2703,7 @@ int32_t opt_debug(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_p
                         check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_SHOW), ARG_STATUS, cn);
                         check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_SHOW), ARG_INTERFACES, cn);
                         check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_SHOW), ARG_LINKS, cn);
+                        check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_SHOW), ARG_CREDITS, cn);
                         check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_SHOW), ARG_ORIGINATORS, cn);
 
                 } else if ( ival == DBGL_PROFILE ) {
@@ -2739,7 +2749,7 @@ int32_t opt_help(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
 	           prog_name, ARG_RESET_CHAR , ARG_RESET_CHAR);
 	dbg_printf(cn, "  e.g. %s %s=eth1 %s=wlan0 d=3\n", prog_name, ARG_DEV, ARG_DEV);
         dbg_printf(cn, "  e.g. %s -c %s=%s %s=%s %s=%s %s=%s\n",
-                prog_name, ARG_SHOW, ARG_STATUS,  ARG_SHOW, ARG_INTERFACES,  ARG_SHOW, ARG_LINKS, ARG_SHOW, ARG_ORIGINATORS);
+                prog_name, ARG_SHOW, ARG_STATUS,  ARG_SHOW, ARG_INTERFACES,  ARG_SHOW, ARG_LINKS, ARG_SHOW, ARG_ORIGINATORS, ARG_CREDITS);
         dbg_printf(cn, "  e.g. %s -c %s=%cwlan0 %s=%s \n", prog_name, ARG_DEV, ARG_RESET_CHAR, ARG_SHOW, ARG_INTERFACES );
 	dbg_printf(cn, "\n");
 

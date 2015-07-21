@@ -1,6 +1,6 @@
 
-CFLAGS +=	$(CORE_CFLAGS) -fpic -I../../
-LDFLAGS +=	-shared -luci
+CFLAGS +=	$(CORE_CFLAGS) -fpic -I../../ -I/usr/local/include/uci/
+LDFLAGS +=	-luci
 #-Wl,-soname,bmx6_config
 
 PLUGIN_NAME =   bmx6_config
@@ -19,7 +19,7 @@ all:	$(PLUGIN_FULLNAME) Makefile
 
 
 $(PLUGIN_FULLNAME):	$(OBJS) Makefile
-	$(CC) $(LDFLAGS) $(EXTRA_LDFLAGS) $(OBJS) -o $(PLUGIN_FULLNAME)
+	$(CC) -shared $(OBJS) $(LDFLAGS) $(EXTRA_LDFLAGS) -o $(PLUGIN_FULLNAME)
 	ln -f -s $(THISDIR)/$(PLUGIN_FULLNAME) $(THISDIR)/../$(PLUGIN_FULLNAME)
 
 %.o:	%.c %.h Makefile

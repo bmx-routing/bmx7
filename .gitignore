@@ -1,0 +1,5 @@
+*.o
+*.so
+bmx6
+core
+gmon.out

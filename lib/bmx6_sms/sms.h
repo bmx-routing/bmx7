@@ -32,7 +32,7 @@
 #define DEF_SMS_FZIP TYP_FZIP_DO
 
 #define ARG_SMS_FREF "refSms"
-#define DEF_SMS_FREF TYP_FREF_DO
+#define DEF_SMS_FREF TYP_FREF_DO1
 
 
 struct sms_node {

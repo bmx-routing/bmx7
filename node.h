@@ -23,43 +23,18 @@
 #include <netinet/in.h>
 #include <linux/if.h>
 #include <linux/rtnetlink.h>
+#include <netinet/ip.h>
+#include <netinet/ip6.h>
+#include <netinet/udp.h>
+
+
 
 /*
  * from iid.h:
  */
 typedef uint16_t IID_T;
-typedef struct neigh_node IID_NEIGH_T;
-typedef struct dhash_node IID_NODE_T;
 
 
-#define IID_REPOS_SIZE_BLOCK 32
-
-#define IID_REPOS_SIZE_MAX  ((IID_T)(-1))
-#define IID_REPOS_SIZE_WARN 1024
-
-#define IID_RSVD_UNUSED 0
-#define IID_RSVD_MAX    0
-#define IID_MIN_USED    1
-
-#define IID_SPREAD_FK   1  /*default=2 , 1 means no spreading    #define IID_REPOS_USAGE_WARNING 10 */
-
-
-struct iid_ref {
-	IID_T myIID4x;
-	uint16_t referred_by_neigh_timestamp_sec;
-};
-
-struct iid_repos {
-	IID_T arr_size; // the number of allocated array fields
-	IID_T min_free; // the first unused array field from the beginning of the array (might be outside of allocated space)
-	IID_T max_free; // the first unused array field after the last used field in the array (might be outside of allocated space)
-	IID_T tot_used; // the total number of used fields in the array
-	union {
-		uint8_t *u8;
-		IID_NODE_T **node;
-		struct iid_ref *ref;
-	} arr;
-};
 
 
 
@@ -113,6 +88,7 @@ typedef uint64_t UMETRIC_T;
 struct float_u16 {
 
 	union {
+
 		struct {
 #if __BYTE_ORDER == __LITTLE_ENDIAN
 			uint8_t mantissa_fm16;
@@ -128,15 +104,14 @@ struct float_u16 {
 		uint8_t u8[2];
 
 		uint16_t u16;
-	}val;
+	} val;
 };
 
 
 typedef struct float_u16 FMETRIC_U16_T;
 
-
-
 struct float_u8 {
+
 	union {
 
 		struct {
@@ -158,9 +133,7 @@ typedef struct float_u8 FMETRIC_U8_T;
 
 typedef uint16_t ALGO_T;
 
-
 struct host_metricalgo {
-
 	FMETRIC_U16_T fmetric_u16_min;
 
 	UMETRIC_T umetric_min;
@@ -171,41 +144,38 @@ struct host_metricalgo {
 	uint8_t algo_tp_exp_numerator;
 	uint8_t algo_tp_exp_divisor;
 
+	uint8_t lq_tx_point_r255;
+	uint8_t lq_ty_point_r255;
+	uint8_t lq_t1_point_r255;
 
-	uint8_t window_size;                // MUST be given as multiple of sqn_steps
-        uint8_t lounge_size;                // MUST be given as multiple of sqn_steps e.g. 6
-        uint8_t regression;             // e.g. 16
-//        uint8_t fast_regression;             // e.g. 2
-//        uint8_t fast_regression_impact;             // e.g. 8
-	uint8_t hystere;
-	uint8_t hop_penalty;
-	uint8_t late_penalty;
+	uint8_t ogm_hop_penalty;
+	uint8_t ogm_sqn_best_hystere;
+	uint16_t ogm_sqn_late_hystere;
+	uint16_t ogm_metric_hystere;
 };
 
 struct lndev_probe_record {
 	HELLO_SQN_T hello_sqn_max; // SQN which has been applied (if equals wa_pos) then wa_unscaled MUST NOT be set again!
 
-	uint8_t hello_array[MAX_HELLO_SQN_WINDOW/8];
+	uint8_t hello_array[MAX_HELLO_SQN_WINDOW / 8];
 	uint32_t hello_sum;
 	UMETRIC_T hello_umetric;
 	TIME_T hello_time_max;
 };
 
-
 struct metric_record {
 	SQN_T sqn_bit_mask;
 
-        SQN_T clr; // SQN upto which waightedAverageVal has been purged
+	SQN_T clr; // SQN upto which waightedAverageVal has been purged
 	SQN_T set; // SQN which has been applied (if equals wa_pos) then wa_unscaled MUST NOT be set again!
 
-//	UMETRIC_T umetric;
-//	UMETRIC_T umetric_fast;
+	//	UMETRIC_T umetric;
+	//	UMETRIC_T umetric_fast;
 	UMETRIC_T umetric;
-//	UMETRIC_T umetric_prev;
+	//	UMETRIC_T umetric_prev;
 };
 
 #define ZERO_METRIC_RECORD {0, 0, 0, 0,0,0}
-
 
 
 
@@ -220,42 +190,41 @@ typedef CRYPTSHA1_T DHASH_T;
 typedef CRYPTSHA1_T RHASH_T;
 
 
-#define DEF_LINK_PURGE_TO  100000
-#define MIN_LINK_PURGE_TO  (MAX_TX_INTERVAL*2)
-#define MAX_LINK_PURGE_TO  864000000 /*10 days*/
-#define ARG_LINK_PURGE_TO  "linkPurgeTimeout"
-
-#define MIN_OGM_PURGE_TO  (MAX_OGM_INTERVAL + MAX_TX_INTERVAL)
-#define MAX_OGM_PURGE_TO  864000000 /*10 days*/
-#define DEF_OGM_PURGE_TO  100000
-#define ARG_OGM_PURGE_TO  "purgeTimeout"
-
 
 typedef CRYPTSHA1_T GLOBAL_ID_T;
 
 typedef CRYPTSHA1_T LOCAL_ID_T;
 
+typedef uint16_t DEVIDX_T;
+#define DEVIDX_INVALID 0
+#define DEVIDX_MIN 1
+#define DEVIDX_BITS 10
+#define DEVIDX_MASK ((1<<DEVIDX_BITS)-1)
+#define DEVIDX_MAX DEVIDX_MASK
+
 typedef struct {
-	DEVADV_IDX_T dev_idx;
-	LOCAL_ID_T local_id;
+	LOCAL_IP_T llip;
+	DEVIDX_T devIdx;
+} __attribute__((packed)) DevKey;
+
+typedef struct {
+	LOCAL_IP_T llocal_ip;
+	DEVIDX_T devIdx;
+	struct neigh_node *local; // set immediately
 } __attribute__((packed)) LinkDevKey;
 
+
 typedef struct {
-
 	LinkDevKey key;
-
-	IPX_T link_ip;
+	uint8_t purge;
 
 	TIME_T pkt_time_max;
 	TIME_T hello_time_max;
 
 	HELLO_SQN_T hello_sqn_max;
 
-	struct neigh_node *local; // set immediately
-
-	struct list_head link_list; // list with one link_node_dev element per link
+	struct avl_tree link_tree;
 } LinkDevNode;
-
 
 typedef struct {
 	LinkDevNode *linkDev;
@@ -270,176 +239,134 @@ typedef struct {
 	UMETRIC_T timeaware_tx_probe;
 	struct lndev_probe_record rx_probe_record;
 	UMETRIC_T timeaware_rx_probe;
+	int32_t orig_routes;
 
-	struct list_head tx_task_lists[FRAME_TYPE_ARRSZ]; // scheduled frames and messages
-	int16_t myLinkId;
-	TIME_T pkt_time_max;
+
+	TIME_T rp_time_max;
 } LinkNode;
 
-
 struct neigh_node {
-
 	LOCAL_ID_T local_id;
 	struct avl_tree linkDev_tree;
 	LinkNode *best_rp_link;
 	LinkNode *best_tp_link;
-	LinkNode *best_link;
 
 	TIME_T packet_time;
-	LINKADV_SQN_T packet_link_sqn_ref; //indicating the maximum existing link_adv_sqn
+	BURST_SQN_T burstSqn;
 
-	// the latest received link_adv:
-	LINKADV_SQN_T link_adv_sqn;
-	TIME_T link_adv_time;
-	uint16_t link_adv_msgs;
-	int16_t neighLinkId;
-	int16_t myLinkId;
-        OGM_DEST_T internalNeighId;
-        
-	struct msg_link_adv *link_adv;
-	DEVADV_SQN_T link_adv_dev_sqn_ref;
+	INT_NEIGH_ID_T internalNeighId;
 
-	// the latest received dev_adv:
-	DEVADV_SQN_T dev_adv_sqn;
-	uint16_t dev_adv_msgs;
-	struct msg_dev_adv *dev_adv;
-
-	// the latest received rp_adv:
-	TIME_T rp_adv_time;
-	IDM_T rp_ogm_request_rcvd;
 	int32_t orig_routes;
-        
-        
-        struct orig_node *on;
-        // the old neigh_node:
-	struct dhash_node *dhn; //TODO remove and use on;
-        CRYPTKEY_T *pktKey;
 
-	IID_T neighIID4me;
+	struct orig_node *on;
+	CRYPTKEY_T *pktKey;
 
-	struct iid_repos neighIID4x_repos;
 
-        TIME_T ogm_new_aggregation_rcvd;
-	AGGREG_SQN_T ogm_aggregation_cleard_max;
-	uint8_t ogm_aggregations_not_acked[AGGREG_ARRAY_BYTE_SIZE];
-	uint8_t ogm_aggregations_rcvd[AGGREG_ARRAY_BYTE_SIZE];
-        
+	struct avl_tree refsByDhash_tree;
+	struct avl_tree refsByKhash_tree;
+
+	TIME_T ogm_aggreg_time;
+	AGGREG_SQN_T ogm_aggreg_max;
+	AGGREG_SQN_T ogm_aggreg_size;
+	uint8_t ogm_aggreg_sqns[(AGGREG_SQN_CACHE_RANGE / 8)];
 };
 
+struct content_usage_node {
 
+	struct {
+		uint32_t expanded_type;
+		struct content_node *content;
+		struct desc_content *descContent;
+	} __attribute__((packed)) k;
 
-
-struct router_node {
-
-//	struct link_dev_key key_2BRemoved;
-
-	struct neigh_node *local_key;
-
-	struct metric_record mr;
-	OGM_SQN_T ogm_sqn_last;
-	UMETRIC_T ogm_umetric_last;
-
-	UMETRIC_T best_path_metric; //TODO removed
-	LinkNode *best_path_link;
-};
-
-
-
-
-
-
-
-struct dext_tree_key {
-    struct desc_extension *dext;
-} __attribute__((packed));
-
-struct dext_tree_node {
-    struct dext_tree_key dext_key;
-    uint8_t rf_types[(BMX_DSC_TLV_ARRSZ/8) + (BMX_DSC_TLV_ARRSZ%8)];
+	uint8_t maxUsedLevel;
+	uint8_t maxAllowedLevel;
+	uint16_t dup;
 };
 
 #define MAX_DESC_LEN (INT32_MAX-1)
 #define MAX_REF_NESTING 2
 
-struct ref_node {
-        SHA1_T rhash;
-        //struct frame_header_long *frame_hdr;
+struct content_node {
+	SHA1_T chash;
+	struct key_node *key;
 	uint8_t *f_body;
 	uint32_t f_body_len;
 	uint8_t nested;
-	uint8_t compression;
+	uint8_t gzip;
 	uint8_t reserved;
-        uint32_t last_usage;
-        uint32_t usage_counter;
-	struct avl_tree dext_tree;
+
+	struct avl_tree usage_tree;
 };
 
+struct desc_tlv_body {
 
-
-struct refnl_node {
-    	struct list_node list;
-	struct ref_node *refn;
+	union {
+		struct content_usage_node *cun;
+		uint8_t *desc_tlv_body;
+	} u;
+	uint16_t desc_tlv_body_len;
 };
 
-struct dext_type_data {
-    uint32_t len;
-    uint32_t pos;
-};
+struct desc_content {
+	IDM_T cntr;
+	struct key_node *key;
+	struct orig_node *orig;
+	uint8_t *desc_frame;
+	uint16_t desc_frame_len;
+	int32_t ref_content_len;
+	DESC_SQN_T descSqn;
 
-struct desc_extension {
-	struct list_head refnl_list;
 	struct dhash_node *dhn;
-        uint8_t max_nesting;
-        uint8_t *data;
-        uint32_t dlen;
-        struct dext_type_data dtd[BMX_DSC_TLV_ARRSZ];
+	struct avl_tree contentRefs_tree;
+	uint32_t unresolvedContentCounter;
+	uint8_t max_nesting;
+	struct desc_tlv_body final[BMX_DSC_TLV_ARRSZ];
 };
 
-void *dext_dptr( struct desc_extension *dext, uint8_t type);
+struct dhash_node {
+	DHASH_T dhash;
+
+	TIME_T referred_by_me_timestamp; // last time this node was referred
+	TIME_T referred_by_others_timestamp;
+
+	struct desc_content *descContent;
+	uint8_t rejected;
+	struct avl_tree neighRefs_tree;
+};
 
 
 struct orig_node {
 	// filled in by validate_new_link_desc0():
 
-	GLOBAL_ID_T nodeId;
+	struct {
+		char hostname[MAX_HOSTNAME_LEN];
 
-	struct dhash_node *dhn;
+		GLOBAL_ID_T nodeId;
+	} __attribute__((packed)) k;
 
+	//	struct dhash_node *dhn; //TODO: remove
+	//	int32_t currKeySupportsPerOrig;
+	struct desc_content *descContent;
+	struct key_node *key;
+	struct neigh_node *neigh;
 	TIME_T updated_timestamp; // last time this on's desc was succesfully updated
-
-	OGM_SQN_T ogmSqn_rangeMin;
-	OGM_SQN_T ogmSqn_rangeSize;
-
-
 
 	// filled in by process_desc0_tlvs()->
 	IPX_T primary_ip;
-	char primary_ip_str[IPX_STR_LEN];
-	uint8_t blocked; // blocked description
-        uint8_t added;   // added description
-
+	//	uint8_t blocked; // blocked description
+	//	uint8_t added; // added description
 
 	struct host_metricalgo *path_metricalgo;
-        
-        char *hostname;
-        
-        uint32_t *trustedNeighsBitArray;
 
-	// calculated by update_path_metric()
+	uint32_t *trustedNeighsBitArray;
 
-	OGM_SQN_T ogmSqn_maxRcvd;
+	IDM_T ogmAggregActive;
+	AGGREG_SQN_T ogmAggregSqn;
 
-	OGM_SQN_T ogmSqn_next;
-	UMETRIC_T ogmMetric_next;
-
-	OGM_SQN_T ogmSqn_send;
-//	UMETRIC_T ogmMetric_send;
-
-	UMETRIC_T *metricSqnMaxArr;          // TODO: remove
-
-	struct avl_tree rt_tree;
-
-	struct router_node *curr_rt_local;   // the currently used local neighbor for routing
+	TIME_T ogmSqnTime;
+	OGM_SQN_T ogmSqn;
+	UMETRIC_T ogmMetric;
 	LinkNode *curr_rt_link; // the configured route in the kernel!
 
 	//size of plugin data is defined during intialization and depends on registered PLUGIN_DATA_ORIG hooks
@@ -447,42 +374,81 @@ struct orig_node {
 
 };
 
-
-
-struct dhash_node {
-
-	DHASH_T dhash;
-
-	TIME_T referred_by_me_timestamp; // last time this dhn was referred
-
-        struct neigh_node *local; //TODO: remove and use on!
-	IID_T myIID4orig;
-
-
-	struct orig_node *on;
-
-	uint8_t *desc_frame;
-        uint16_t desc_frame_len;
-	struct desc_extension *dext;
-        
-        struct deprecated_globalId_node *deprecated_globalId;
+struct reference_node {
+	struct dhash_node *dhn;
+	struct neigh_node *neigh;
+	struct key_node *claimedKey;
+	TIME_T mentionedRefTime;
+	DESC_SQN_T claimedDescSqn;
+	OGM_SQN_T ogmSqnMax;
+	TIME_T ogmSqnTime;
+	TIME_T ogmBestSinceSqn;
+	AGGREG_SQN_T aggSqn;
+	FMETRIC_U16_T ogmMetricMax;
+	uint8_t scheduled_ogm_processing;
+	uint8_t shown;
 };
 
-struct deprecated_globalId_node {
-    GLOBAL_ID_T globalId;
-    struct avl_tree deprecated_dhash_tree;
+struct key_credits {
+	uint8_t nQualifying;
+	uint8_t friend;
+	uint8_t pktId;
+	uint8_t pktSign;
+	struct orig_node *recom;
+	struct reference_node *ref;
 };
 
+struct key_node {
+	GLOBAL_ID_T kHash;
+	struct KeyState *bookedState;
+	struct KeyState *decreasedEffectiveState;
+	struct content_node *content;
+	uint8_t dirFriend; //[0,1,2=supportHisDirSupKeys]
+	TIME_T pktIdTime;
+	TIME_T pktSignTime;
+	TIME_T nQTime;
+	TIME_T TAPTime;
+	struct avl_tree neighRefs_tree;
+	struct orig_node *currOrig;
+	struct desc_content *nextDesc;
+	struct avl_tree recommendations_tree; //ofMyDirect2SupportedKeys
+};
 
+struct schedDecreasedEffectiveState_node {
+	struct key_node *kn;
+};
 
-struct packet_header
-{
-	uint8_t    comp_version;
-	uint8_t    reserved;
-        
-} __attribute__((packed,__may_alias__));
+struct KeyState {
 
+	struct {
+		int16_t numSet;
+		int16_t numSec;
+		uint16_t flags;
+		uint8_t c;
+		uint8_t r;
+		struct KeyState *up;
+		struct KeyState *down;
+		struct KeyState *left;
+		struct KeyState *right;
+	} i;
+	char *setName;
+	char *rowName;
+	char *secName;
+	int16_t prefBase;
+	int16_t(* prefGet) (struct key_node *kn);
+	int16_t maxSet;
+	void (*setInAction) (GLOBAL_ID_T *kHash, struct key_node **kn, struct KeyState *next);
+	void (*setOutAction) (struct key_node **kn, struct KeyState *next);
+	int8_t(* colMaintain) (struct key_node *kn);
+	int8_t(* colCond) (uint8_t asRow, struct key_node *kn);
+	int8_t(* rowCond) (struct key_node *kn, struct key_credits *kc);
+};
 
+struct packet_header {
+	uint8_t comp_version;
+	uint8_t reserved;
+	CRYPTSHA1_T keyHash;
+} __attribute__((packed, __may_alias__));
 
 struct packet_buff {
 
@@ -500,13 +466,9 @@ struct packet_buff {
 		//filled in by rx_packet():
 		IPX_T llip;
 		char llip_str[INET6_ADDRSTRLEN];
-                
-                struct dhash_node *verifiedLinkDhn;
-                LinkNode *verifiedLink;
-//              LinkDevNode *linkDev;
-//		IID_T transmittersIID;
-//		uint32_t rx_counter;
-                
+
+		struct key_node *claimedKey;
+		LinkNode *verifiedLink;
 	} i;
 
 	union {
@@ -517,66 +479,40 @@ struct packet_buff {
 };
 
 
+extern struct packet_buff *curr_rx_packet;
+
+extern struct key_node *myKey;
 
 
-extern struct orig_node *self;
-
-extern struct iid_repos my_iid_repos;
 
 
-//extern struct avl_tree dhash_tree;
-extern struct avl_tree deprecated_dhash_tree;
-extern struct avl_tree deprecated_globalId_tree;
 extern struct avl_tree local_tree;
 extern struct avl_tree link_dev_tree;
 extern struct avl_tree link_tree;
 extern struct avl_tree orig_tree;
+extern struct avl_tree key_tree;
+extern struct avl_tree dhash_tree;
+
+extern uint32_t content_tree_unresolveds;
 
 
 /***********************************************************
  Data Infrastructure
  ************************************************************/
 
-void iid_purge_repos( struct iid_repos *rep );
-void iid_free(struct iid_repos *rep, IID_T iid);
-void iid_free_neighIID4x_by_myIID4x( struct iid_repos *rep, IID_T myIID4x);
-IDM_T iid_set_neighIID4x(struct iid_repos *neigh_rep, IID_T neighIID4x, IID_T myIID4x);
-IID_T iid_new_myIID4x( IID_NODE_T *dhn );
-IID_NODE_T* iid_get_node_by_neighIID4x(IID_NEIGH_T *nn, IID_T neighIID4x, IDM_T verbose);
-IID_NODE_T* iid_get_node_by_myIID4x( IID_T myIID4x );
+void refNode_destroy(struct reference_node *ref, IDM_T reAssessState);
+struct reference_node *refNode_update(struct neigh_node *neigh, AGGREG_SQN_T aggSqn, DHASH_T *descHash, struct CRYPTSHA1_T *claimedKey, DESC_SQN_T claimedSqn);
 
+struct dhash_node* dhash_node_create(DHASH_T *dhash, struct neigh_node *neigh);
+void dhash_node_reject(struct dhash_node *dhn);
+void dhash_clean_data(struct dhash_node *dhn);
 
-LinkNode *getLinkNode(struct dev_node *dev, IPX_T *llip, LINKADV_SQN_T link_sqn, struct dhash_node *verifiedLinkDhn, DEVADV_IDX_T dev_idx);
+int purge_orig_router(struct orig_node *onlyOrig, struct neigh_node *onlyNeigh, LinkNode *onlyLink, IDM_T onlyUseless);
+void neigh_destroy(struct neigh_node *local);
+struct neigh_node *neigh_create(struct orig_node *on);
 
-void badlist_neighbor_if_verified(struct packet_buff *pb);
-
-IDM_T badlist_neighbor(struct packet_buff *pb, DHASH_T *dhash);
-
-
-void purge_deprecated_globalId_tree( GLOBAL_ID_T *globalId );
-//void purge_deprecated_dhash_tree( struct dhash_node *onlyDhn, IDM_T onlyExpired );
-void deprecate_dhash_iid( struct dhash_node *dhn, DHASH_T *dhash, GLOBAL_ID_T *globalId );
-void purge_orig_router(struct orig_node *onlyOrig, struct neigh_node *onlyNeigh, LinkNode *onlyLink, IDM_T only_useless);
-void purge_link_route_orig_nodes(struct dev_node *only_dev, IDM_T only_expired, struct orig_node *except_on);
-void block_orig_node(IDM_T block, struct orig_node *on);
-void free_orig_node(struct orig_node *on);
-struct orig_node *init_orig_node(GLOBAL_ID_T *id);
+void destroy_orig_node(struct orig_node *on);
 void init_self(void);
 
-SHA1_T *nodeIdFromDescAdv( uint8_t *desc_adv );
-char *nodeIdAsStringFromDescAdv( uint8_t *desc_adv );
-
-void purge_local_node(struct neigh_node *local);
-void purge_linkDevs(LinkDevKey *onlyLinkDev, struct dev_node *only_dev, IDM_T only_expired);
-
-struct dhash_node *get_dhash_tree_node(DHASH_T *dhash);
-void update_orig_dhash(struct orig_node *on, struct dhash_node *dhn);
-struct dhash_node* create_dext_dhash(uint8_t *desc_frame, uint32_t desc_frame_len, struct desc_extension* dext, DHASH_T *dhash);
-
-LOCAL_ID_T new_local_id(struct dev_node *dev);
 
 
-void node_tasks(void);
-
-void cleanup_node(void);
-void init_node(void);

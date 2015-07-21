@@ -647,7 +647,7 @@ CRYPTKEY_T *cryptKeyFromDer( char *keyPath ) {
 		(rsa_copy(rsa, pk_rsa(pk))) ||
 		(rsa_check_privkey(rsa))
 		) {
-		dbgf_sys(DBGT_ERR, "failed opening private key=%s err=%d", keyPath, ret);
+		dbgf_sys(DBGT_ERR, "failed opening private key=%s err=-%X", keyPath, -ret);
 		pk_free(&pk);
 		cryptKeyFree(&ckey);
 		return NULL;
@@ -708,13 +708,13 @@ int cryptKeyMakeDer( int32_t keyBitSize, char *path ) {
 		(ret = rsa_check_privkey(pk_rsa(pk))))
 		goto_error(finish, "Failed making rsa key! ret=%d");
 
-	if ((derSz = pk_write_key_der(&pk, derBuf, sizeof(derBuf))) < 0)
+	if ((derSz = pk_write_key_der(&pk, derBuf, sizeof(derBuf))) <= 0)
 		goto_error(finish, "Failed translating rsa key to der! derSz=%d");
 #else
 # error "Please fix CRYPTLIB"
 #endif
 
-	unsigned char *derStart = derBuf + sizeof(derBuf) - derSz - 1;
+	unsigned char *derStart = derBuf + sizeof(derBuf) - derSz;
 
 
 	if (!(keyFile = fopen(path, "wb")) || ((int)fwrite(derStart, 1, derSz, keyFile)) != derSz )

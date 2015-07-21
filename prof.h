@@ -46,8 +46,17 @@ struct prof_ctx {
 
 void prof_free( struct prof_ctx *p);
 
-void prof_start( struct prof_ctx *p);
-void prof_stop( struct prof_ctx *p);
+void prof_start_(struct prof_ctx *p);
+void prof_stop_(struct prof_ctx *p);
+
+#define prof_start( thisFunc, parentFunc ) \
+	extern int main(int argc, char *argv[]); \
+	static struct prof_ctx prof_ctx_ = {.k = { .func = (void(*)(void))thisFunc}, .name = __FUNCTION__, .parent_func = (void (*) (void))parentFunc}; \
+	prof_start_(&prof_ctx_)
+
+#define prof_stop() prof_stop_( &prof_ctx_ )
+
+
 
 
 void init_prof( void );

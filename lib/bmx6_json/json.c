@@ -37,6 +37,7 @@
 #include "crypt.h"
 #include "avl.h"
 #include "node.h"
+#include "link.h"
 #include "msg.h"
 #include "plugin.h"
 #include "schedule.h"
@@ -416,7 +417,7 @@ void json_originator_event_hook(int32_t cb_id, struct orig_node *orig)
 
                 if ((on = orig)) {
 
-                        sprintf(path_name, "%s/%s", json_orig_dir, cryptShaAsString(&on->nodeId));
+                        sprintf(path_name, "%s/%s", json_orig_dir, cryptShaAsString(&on->k.nodeId));
 
                         if ((fd = open(path_name, O_RDONLY)) > 0 && close(fd) == 0) {
                                 
@@ -434,7 +435,7 @@ void json_originator_event_hook(int32_t cb_id, struct orig_node *orig)
                 struct avl_node *it = NULL;
                 while ((on = orig ? orig : avl_iterate_item(&orig_tree, &it))) {
 
-                        sprintf(path_name, "%s/%s", json_orig_dir, cryptShaAsString(&on->nodeId));
+                        sprintf(path_name, "%s/%s", json_orig_dir, cryptShaAsString(&on->k.nodeId));
 
                         if ((fd = open(path_name, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) < 0) {
 
@@ -450,7 +451,7 @@ void json_originator_event_hook(int32_t cb_id, struct orig_node *orig)
                                 char status_name[sizeof (((struct status_handl *) NULL)->status_name)] = ARG_ORIGINATORS;
 
                                 if ((handl = avl_find_item(&status_tree, status_name)) &&
-                                        (data_len = ((*(handl->frame_creator))(handl, on)))) {
+                                        (data_len = ((*(handl->frame_creator))(handl, on->key)))) {
 
                                         json_object *jdesc_fields = NULL;
 
@@ -486,7 +487,6 @@ void json_description_event_hook(int32_t cb_id, struct orig_node *on)
         TRACE_FUNCTION_CALL;
 
         assertion(-501306, (on));
-        assertion(-501270, IMPLIES(cb_id == PLUGIN_CB_DESCRIPTION_CREATED, (on && on->dhn && on->dhn->desc_frame)));
         assertion(-501273, (cb_id == PLUGIN_CB_DESCRIPTION_DESTROY || cb_id == PLUGIN_CB_DESCRIPTION_CREATED));
         assertion(-501274, IMPLIES(initializing, cb_id == PLUGIN_CB_DESCRIPTION_CREATED));
         assertion(-501275, (json_desc_dir));
@@ -495,7 +495,7 @@ void json_description_event_hook(int32_t cb_id, struct orig_node *on)
 
         int fd;
         char path_name[MAX_PATH_SIZE];
-        sprintf(path_name, "%s/%s", json_desc_dir, cryptShaAsString(&on->nodeId));
+        sprintf(path_name, "%s/%s", json_desc_dir, cryptShaAsString(&on->k.nodeId));
 
         if (cb_id == PLUGIN_CB_DESCRIPTION_DESTROY) {
 
@@ -517,17 +517,18 @@ void json_description_event_hook(int32_t cb_id, struct orig_node *on)
                 }
 
                 json_object *jorig = json_object_new_object();
-                json_object_object_add(jorig, "descSha", json_object_new_string(cryptShaAsString(&on->dhn->dhash)));
+                json_object_object_add(jorig, "descSha", json_object_new_string(cryptShaAsString(&on->descContent->dhn->dhash)));
 
+/*
                 json_object *jblocked = json_object_new_int(on->blocked);
                 json_object_object_add(jorig, "blocked", jblocked);
 
-		if (on->dhn && on->dhn->dext && on->dhn->dext->dlen) {
+		if (on->dhn && on->dhn->contents && on->dhn->contents->__dlen) {
 
 			struct rx_frame_iterator it = {
 				.caller = __FUNCTION__, .onOld = on, .dhnNew = on->dhn, .op = TLV_OP_PLUGIN_MIN,
 				.db = description_tlv_db, .process_filter = FRAME_TYPE_PROCESS_ALL,
-				.frame_type = -1, .frames_in = on->dhn->dext->data, .frames_length = on->dhn->dext->dlen,
+				.f_type = -1, .frames_in = on->dhn->contents->__data, .frames_length = on->dhn->contents->__dlen,
 			};
 
 			json_object *jextensions = NULL;
@@ -537,11 +538,11 @@ void json_description_event_hook(int32_t cb_id, struct orig_node *on)
 				json_object * jext_fields;
 
 				if ((jext_fields = fields_dbg_json(
-					FIELD_RELEVANCE_MEDI, YES, it.frame_msgs_length, it.msg,
-					it.handl->min_msg_size, it.handl->msg_format))) {
+					FIELD_RELEVANCE_MEDI, YES, it.f_mlen, it.f_msg,
+					it.f_handl->min_msg_size, it.f_handl->msg_format))) {
 
 					json_object *jext = json_object_new_object();
-					json_object_object_add(jext, it.handl->name, jext_fields);
+					json_object_object_add(jext, it.f_handl->name, jext_fields);
 
 					jextensions = jextensions ? jextensions : json_object_new_array();
 
@@ -553,7 +554,7 @@ void json_description_event_hook(int32_t cb_id, struct orig_node *on)
 				json_object_object_add(jorig, "extensions", jextensions);
 
 		}
-
+*/
                 dprintf(fd, "%s\n", json_object_to_json_string(jorig));
 
                 dbgf_all(DBGT_INFO, "creating json-description=%s", path_name);

@@ -22,8 +22,6 @@
  */
 
 
-
-
 #define MIN_DESC_METRICALGO           0
 #define MAX_DESC_METRICALGO           1
 #define DEF_DESC_METRICALGO           1
@@ -76,64 +74,46 @@
 #define ARG_PATH_TP_EXP_DIVISOR       "txExpDivisor"
 #define CHR_PATH_TP_EXP_DIVISOR       't'
 
-#define MAX_PATH_WINDOW 250      /* 250 TBD: should not be larger until ogm->ws and neigh_node.packet_count (and related variables) is only 8 bit */
-#define MIN_PATH_WINDOW 1
-#define DEF_PATH_WINDOW 5        /* NBRF: NeighBor Ranking sequence Frame) sliding packet range of received orginator messages in squence numbers (should be a multiple of our word size) */
-#define ARG_PATH_WINDOW "pathWindow"
-//extern int32_t my_path_window; // my path window size used to quantify the end to end path quality between me and other nodes
+#define MIN_PATH_LQ_TX_R255  0
+#define MAX_PATH_LQ_TX_R255  254
+#define DEF_PATH_LQ_TX_R255  ((255*2)/3)
+#define ARG_PATH_LQ_TX_R255  "pathLqXThreshold"
 
-#define MIN_PATH_LOUNGE 0
-#define MAX_PATH_LOUNGE 10
-#define DEF_PATH_LOUNGE 1
-#define ARG_PATH_LOUNGE "pathLounge"
-//extern int32_t my_path_lounge;
+#define MIN_PATH_LQ_TY_R255  0
+#define MAX_PATH_LQ_TY_R255  254
+#define DEF_PATH_LQ_TY_R255  ((255*1)/3)
+#define ARG_PATH_LQ_TY_R255  "pathLqYThreshold"
 
-
-#define DEF_PATH_REGRESSION_SLOW 1
-#define MIN_PATH_REGRESSION_SLOW 1
-#define MAX_PATH_REGRESSION_SLOW 255
-#define ARG_PATH_REGRESSION_SLOW "pathRegression"
+#define MIN_PATH_LQ_T1_R255  1
+#define MAX_PATH_LQ_T1_R255  255
+#define DEF_PATH_LQ_T1_R255  ((255*9)/10)
+#define ARG_PATH_LQ_T1_R255  "pathLq1Threshold"
 
 
 
-//#define RP_LINK_LOUNGE 0  /* may also be rtq_link_lounge */
-
-/*
-// this deactivates OGM-Acks on the link:
-#define MIN_LINK_IGNORE_MIN  0
-#define MAX_LINK_IGNORE_MIN  100
-#define DEF_LINK_IGNORE_MIN  50
-#define ARG_LINK_IGNORE_MIN "link_ignore_min"
-//extern int32_t link_ignore_min;
-
-// this activates OGM-Acks on the link:
-#define MIN_LINK_IGNORE_MAX  0
-#define MAX_LINK_IGNORE_MAX  255
-#define DEF_LINK_IGNORE_MAX  100
-#define ARG_LINK_IGNORE_MAX "link_ignore_max"
-//extern int32_t link_ignore_max;
-*/
-
-
-#define MIN_PATH_HYST	0
-#define MAX_PATH_HYST	255
-#define DEF_PATH_HYST	0
-#define ARG_PATH_HYST   "pathHysteresis"
+#define MIN_OGM_METRIC_HYST 0
+#define MAX_OGM_METRIC_HYST 64000
+#define DEF_OGM_METRIC_HYST 10
+#define ARG_OGM_METRIC_HYST "pathMetricHysteresis"
 //extern int32_t my_path_hystere;
 
+#define MIN_OGM_SQN_LATE_HYST 0
+#define MAX_OGM_SQN_LATE_HYST 64000
+#define DEF_OGM_SQN_LATE_HYST 2500
+#define ARG_OGM_SQN_LATE_HYST "pathLateHysteresis"
 
-#define MIN_LATE_PENAL 0
-#define MAX_LATE_PENAL 100
-#define DEF_LATE_PENAL 1
-#define ARG_LATE_PENAL "latenessPenalty"
-//extern int32_t my_late_penalty;
+#define MIN_OGM_SQN_BEST_HYST 0
+#define MAX_OGM_SQN_BEST_HYST 255
+#define DEF_OGM_SQN_BEST_HYST 5
+#define ARG_OGM_SQN_BEST_HYST "pathSqnBestHysteresis"
 
 
-#define DEF_HOP_PENALTY 0 //(U8_MAX/20) <=>  5% penalty on metric per hop
-#define MIN_HOP_PENALTY 0 // smaller values than 4 do not show effect
-#define MAX_HOP_PENALTY U8_MAX
-#define ARG_HOP_PENALTY "hopPenalty"
-#define MAX_HOP_PENALTY_PRECISION_EXP 8
+
+#define DEF_OGM_HOP_PENALTY 0 //(U8_MAX/20) <=>  5% penalty on metric per hop
+#define MIN_OGM_HOP_PENALTY 0 // smaller values than 4 do not show effect
+#define MAX_OGM_HOP_PENALTY U8_MAX
+#define ARG_OGM_HOP_PENALTY "pathHopPenalty"
+#define MAX_OGM_HOP_PENALTY_PRECISION_EXP 8
 //extern int32_t my_hop_penalty;
 
 
@@ -162,9 +142,6 @@
 #define DEF_PATH_METRIC_FLAGS     (0x0)
 #define ARG_PATH_METRIC_FLAGS     "pathMetricFlags"
 
-#define DEF_LINK_METRIC_FLAGS     (0x0)
-#define ARG_LINK_METRIC_FLAGS     "linkMetricFlags"
-
 
 
 
@@ -189,16 +166,17 @@ struct mandatory_tlv_metricalgo { // 16 bytes
 	unsigned int tp_exp_numerator : 2;
 	unsigned int tp_exp_divisor : 2;
 #else
-# error "Please fix <bits/endian.h>"
+#error "Please fix <bits/endian.h>"
 #endif
 
-        uint8_t reserved2;                  // 1 byte
-	uint8_t path_window_size;           // 1 byte
-	uint8_t path_lounge_size;           // 1 byte
-	uint8_t regression;                 // 1 byte
-	uint8_t hystere;                    // 1 byte
-	uint8_t hop_penalty;                // 1 byte
-	uint8_t late_penalty;               // 1 byte
+	uint8_t lq_tx_point_r255;
+	uint8_t lq_ty_point_r255;
+	uint8_t lq_t1_point_r255;
+
+	uint8_t hop_penalty; // 1 byte
+	uint8_t ogm_sqn_best_hystere;
+	uint16_t ogm_sqn_late_hystere;
+	uint16_t ogm_metric_hystere; // 2 byte
 
 } __attribute__((packed));
 
@@ -217,13 +195,13 @@ struct description_tlv_metricalgo {
 {FIELD_TYPE_UINT, -1,  2,  1, FIELD_RELEVANCE_HIGH, ARG_PATH_RP_EXP_DIVISOR },   \
 {FIELD_TYPE_UINT, -1,  2,  1, FIELD_RELEVANCE_HIGH, ARG_PATH_TP_EXP_NUMERATOR },   \
 {FIELD_TYPE_UINT, -1,  2,  1, FIELD_RELEVANCE_HIGH, ARG_PATH_TP_EXP_DIVISOR },   \
-{FIELD_TYPE_UINT, -1,  8,  1, FIELD_RELEVANCE_LOW,  "reserved2"},  \
-{FIELD_TYPE_UINT, -1,  8,  1, FIELD_RELEVANCE_HIGH, ARG_PATH_WINDOW},  \
-{FIELD_TYPE_UINT, -1,  8,  1, FIELD_RELEVANCE_HIGH, ARG_PATH_LOUNGE},  \
-{FIELD_TYPE_UINT, -1,  8,  1, FIELD_RELEVANCE_HIGH, ARG_PATH_REGRESSION_SLOW},  \
-{FIELD_TYPE_UINT, -1,  8,  1, FIELD_RELEVANCE_LOW , ARG_PATH_HYST},  \
-{FIELD_TYPE_UINT, -1,  8,  1, FIELD_RELEVANCE_HIGH, ARG_HOP_PENALTY},  \
-{FIELD_TYPE_UINT, -1,  8,  1, FIELD_RELEVANCE_LOW , ARG_LATE_PENAL},  \
+{FIELD_TYPE_UINT, -1,  8,  1, FIELD_RELEVANCE_HIGH, ARG_PATH_LQ_TX_R255},  \
+{FIELD_TYPE_UINT, -1,  8,  1, FIELD_RELEVANCE_HIGH, ARG_PATH_LQ_TY_R255},  \
+{FIELD_TYPE_UINT, -1,  8,  1, FIELD_RELEVANCE_HIGH, ARG_PATH_LQ_T1_R255},  \
+{FIELD_TYPE_UINT, -1,  8,  1, FIELD_RELEVANCE_HIGH, ARG_OGM_HOP_PENALTY},  \
+{FIELD_TYPE_UINT, -1,  8,  1, FIELD_RELEVANCE_HIGH, ARG_OGM_SQN_BEST_HYST},  \
+{FIELD_TYPE_UINT, -1, 16,  1, FIELD_RELEVANCE_HIGH, ARG_OGM_SQN_LATE_HYST},  \
+{FIELD_TYPE_UINT, -1, 16,  1, FIELD_RELEVANCE_HIGH, ARG_OGM_METRIC_HYST},  \
 FIELD_FORMAT_END }
 
 
@@ -231,7 +209,6 @@ extern struct host_metricalgo link_rp_metric_algo;
 
 
 extern UMETRIC_T UMETRIC_NBDISCOVERY_MIN;
-extern UMETRIC_T TX_UMETRIC_OGM_ACK_MIN;
 
 
 
@@ -258,9 +235,8 @@ IDM_T fmetric_cmp(FMETRIC_U16_T a, unsigned char cmp, FMETRIC_U16_T b);
 //void apply_metric_algo(UMETRIC_T *out, struct link_dev_node *link, const UMETRIC_T *path, struct host_metricalgo *algo);
 
 UMETRIC_T apply_metric_algo(UMETRIC_T *tr, UMETRIC_T *umetric_max, const UMETRIC_T *path, struct host_metricalgo *algo);
+UMETRIC_T apply_lndev_metric_algo(LinkNode *link, const UMETRIC_T *path, struct host_metricalgo *algo);
 
-void lndev_assign_best(struct neigh_node *onlyLocal, LinkNode *onlyLink );
-void update_link_probe_record(LinkNode *link, HELLO_SQN_T sqn, uint8_t probe);
 
 IDM_T update_path_metrics(struct packet_buff *pb, struct orig_node *on, OGM_SQN_T in_sqn, UMETRIC_T *in_umetric);
 

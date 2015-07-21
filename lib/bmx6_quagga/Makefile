@@ -5,8 +5,8 @@ LDFLAGS +=	-shared
 
 PLUGIN_NAME =   bmx6_quagga
 
-SRC_C = quagga.c
-SRC_H = quagga.h
+SRC_C = quagga.c ../../redist.c
+SRC_H = quagga.h ../../redist.h
 OBJS= $(SRC_C:.c=.o)
 
 PLUGIN_FULLNAME = $(PLUGIN_NAME).so

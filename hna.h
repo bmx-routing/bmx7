@@ -59,7 +59,7 @@ extern struct avl_tree tun_in_tree;
 
 #define ARG_TUN_OUT_TIMEOUT "tunOutTimeout"
 #define MIN_TUN_OUT_TO 0
-#define MAX_TUN_OUT_TO 3600000
+#define MAX_TUN_OUT_TO REGISTER_TASK_TIMEOUT_MAX
 #define DEF_TUN_OUT_TO 60000
 
 #define TDN_STATE_CATCHALL 1
@@ -109,7 +109,7 @@ extern struct avl_tree tun_in_tree;
 #define MAX_TUN_OUT_IPMETRIC INT32_MAX
 #define MIN_TUN_OUT_IPMETRIC 0
 
-#define ARG_TUN_OUT_HOSTNAME "gwName"
+#define ARG_TUN_OUT_GWNAME "gwName"
 #define ARG_TUN_OUT_PKID     "gwId"
 
 #define ARG_TUN_OUT_TRULE "tableRule"
@@ -394,7 +394,7 @@ struct tun_search_node {
 
 //        struct tun_search_key tunSearchKey;
         char nameKey[NETWORK_NAME_LEN];
-	uint32_t bmx6RouteBits;
+	uint64_t bmx6RouteBits;
 	uint16_t exportDistance;
 	uint8_t exportOnly;
         struct net_key net;
@@ -411,7 +411,7 @@ struct tun_search_node {
         uint32_t iprule;
 
         GLOBAL_ID_T global_id;
-        char   nodeName[MAX_HOSTNAME_LEN];
+        char   gwName[MAX_HOSTNAME_LEN];
         struct net_key srcRtNet;
 //	IFNAME_T tunName;
 
@@ -496,7 +496,11 @@ struct tun_dev_node {
         int32_t ifIdx;
 	uint16_t curr_mtu; // DEF_TUN_OUT_MTU == orig_mtu
 	uint16_t orig_mtu;
-        struct avl_tree tun_bit_tree[2];
+
+	struct user_net_device_stats stats;
+	IDM_T stats_captured;
+
+	struct avl_tree tun_bit_tree[2];
 };
 
 struct tun_in_node {
@@ -523,7 +527,7 @@ struct tun_in_node {
 	struct avl_tree tun_dev_tree;
 };
 
-char* bmx6RouteBits2String(uint32_t bmx6_route_bits);
+char* bmx6RouteBits2String(uint64_t bmx6_route_bits);
 
 void set_tunXin6_net_adv_list(uint8_t del, struct list_head *adv_list);
 

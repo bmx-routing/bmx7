@@ -16,6 +16,37 @@
  */
 
 
+#define _GNU_SOURCE
+#include <stdio.h>
+#include <stdarg.h>
+#include <syslog.h>
+#include <stdlib.h>
+#include <errno.h>
+#include <string.h>
+#include <sys/un.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <paths.h>
+#include <netinet/in.h>
+
+#include "list.h"
+#include "control.h"
+#include "bmx.h"
+#include "crypt.h"
+#include "avl.h"
+#include "node.h"
+#include "metrics.h"
+#include "msg.h"
+#include "ip.h"
+#include "hna.h"
+#include "schedule.h"
+#include "plugin.h"
+#include "tools.h"
+#include "iptools.h"
+#include "allocate.h"
 #include "redist.h"
 
 
@@ -23,9 +54,9 @@ void redist_dbg(int8_t dbgl, int8_t dbgt, const char *func, struct redist_in_nod
 {
         dbgf(dbgl, dbgt, "%s %s %s old=%d cnt=%d %s route=%s via=%s type=%s table=%d ifidx=%d metric=%d distance=%d flags=%X message=%X",
                 func, misc1, misc2, zrn->old, zrn->cnt,
-                (zrn->cnt > 1 || zrn->cnt < 0) ? "INVALID" : (zrn->old != zrn->cnt) ? "CHANGED" : "UNCHANGED",
+                (zrn->cnt < 0) ? "INVALID" : (zrn->old != (!!zrn->cnt)) ? "CHANGED" : "UNCHANGED",
                 netAsStr(&zrn->k.net), ipXAsStr(zrn->k.net.af, &zrn->k.via),
-                zrn->k.inType < BMX6_ROUTE_MAX ? zapi_rt_dict[zrn->k.inType].sys2Name : memAsHexStringSep(&zrn->k.inType, 1, 0, NULL),
+                zrn->k.inType < BMX6_ROUTE_MAX_KNOWN ? zapi_rt_dict[zrn->k.inType].sys2Name : memAsHexStringSep(&zrn->k.inType, 1, 0, NULL),
                 zrn->k.table, zrn->k.ifindex, zrn->metric, zrn->distance, zrn->flags, zrn->message);
 }
 
@@ -97,7 +128,7 @@ void redist_rm_overlapping(struct avl_tree *redist_out_tree)
                                 if (is_ip_net_equal(&ovlp->k.net.ip, &routn->k.net.ip, ovlp->k.net.mask, routn->k.net.af)) {
                                         routn->new = 0;
                                         ovlp->minAggregatePrefixLen = XMAX(ovlp->minAggregatePrefixLen, routn->minAggregatePrefixLen);
-                                        dbgf_track(DBGT_INFO, "disable overlapping net=%s in favor of net=%s",
+                                        dbgf_all(DBGT_INFO, "disable overlapping net=%s in favor of net=%s",
                                                 netAsStr(&routn->k.net), netAsStr(&ovlp->k.net));
                                         break;
                                 }
@@ -174,7 +205,66 @@ void redist_rm_aggregatable(struct avl_tree *redist_out_tree)
         }
 }
 
+struct redistr_opt_node *matching_redist_opt(struct redist_in_node *rin, struct avl_tree *redist_opt_tree, struct sys_route_dict *rt_dict)
+{
+        struct redistr_opt_node *roptn;
+        struct avl_node *ropti;
 
+
+	for (ropti = NULL; (roptn = avl_iterate_item(redist_opt_tree, &ropti));) {
+
+		if (roptn->net.af && roptn->net.af != rin->k.net.af) {
+			dbgf_all(DBGT_INFO, "skipping %s AF", roptn->nameKey);
+			continue;
+		}
+
+		if (roptn->table != rin->k.table) {
+			dbgf_all(DBGT_INFO, "skipping %s table", roptn->nameKey);
+			continue;
+		}
+
+		if (roptn->bandwidth.val.u8 == 0) {
+			dbgf_all(DBGT_INFO, "skipping %s bandwidth", roptn->nameKey);
+			continue;
+		}
+
+		if (rin->k.inType > BMX6_ROUTE_MAX_SUPP) {
+			dbgf_all(DBGT_INFO, "skipping unsupported routeType=%d", rin->k.inType);
+			continue;
+		}
+
+		if (/*roptn->bmx6_redist_bits &&*/
+			!roptn->bmx6_redist_all &&
+			!bit_get(((uint8_t*) & roptn->bmx6_redist_bits),
+			sizeof (roptn->bmx6_redist_bits)*8, rt_dict[rin->k.inType].sys2bmx)) {
+
+			dbgf_all(DBGT_INFO, "skipping %s redist bits", roptn->nameKey);
+			continue;
+		}
+
+		if (roptn->bmx6_redist_sys && roptn->bmx6_redist_sys != rin->k.inType) {
+			dbgf_all(DBGT_INFO, "skipping %s redist sys=%d != %d", roptn->nameKey, roptn->bmx6_redist_sys, rin->k.inType);
+			continue;
+		}
+
+		if ((roptn->net.mask != MIN_REDIST_PREFIX ||
+			roptn->netPrefixMin != DEF_REDIST_PREFIX_MIN ||
+			roptn->netPrefixMax != DEF_REDIST_PREFIX_MAX)
+			&& !(
+			(roptn->netPrefixMax == TYP_REDIST_PREFIX_NET ?
+                                roptn->net.mask >= rin->k.net.mask : roptn->netPrefixMax >= rin->k.net.mask) &&
+			(roptn->netPrefixMin == TYP_REDIST_PREFIX_NET ?
+                                roptn->net.mask <= rin->k.net.mask : roptn->netPrefixMin <= rin->k.net.mask) &&
+			is_ip_net_equal(&roptn->net.ip, &rin->k.net.ip, XMIN(roptn->net.mask, rin->k.net.mask), roptn->net.af))) {
+
+			dbgf_all(DBGT_INFO, "skipping %s prefix", roptn->nameKey);
+			continue;
+		}
+
+		return roptn;
+	}
+	return NULL;
+}
 
 IDM_T redistribute_routes(struct avl_tree *redist_out_tree, struct avl_tree *redist_in_tree, struct avl_tree *redist_opt_tree, struct sys_route_dict *rt_dict)
 {
@@ -187,12 +277,11 @@ IDM_T redistribute_routes(struct avl_tree *redist_out_tree, struct avl_tree *red
         struct avl_node *rii;
 
         struct redistr_opt_node *roptn;
-        struct avl_node *ropti;
 
         struct redist_out_node *routn;
         struct avl_node *routi;
 
-        struct redist_out_node routf;
+	struct redist_out_node routf;
 
         for (routi = NULL; (routn = avl_iterate_item(redist_out_tree, &routi));) {
                 routn->new = 0;
@@ -201,54 +290,19 @@ IDM_T redistribute_routes(struct avl_tree *redist_out_tree, struct avl_tree *red
 
         for (rii = NULL; (rin = avl_iterate_item(redist_in_tree, &rii));) {
 
-                for (ropti = NULL; (roptn = avl_iterate_item(redist_opt_tree, &ropti));) {
+		ASSERTION(-502479, IMPLIES(rin->roptn, rin->roptn == matching_redist_opt(rin, redist_opt_tree, rt_dict)));
 
-                        if (roptn->net.af && roptn->net.af != rin->k.net.af) {
-                                dbgf_all(DBGT_INFO, "skipping %s AF", roptn->nameKey);
-                                continue;
-                        }
+		if ((roptn = rin->roptn ? rin->roptn : matching_redist_opt(rin, redist_opt_tree, rt_dict))) {
 
-			if (roptn->table != rin->k.table) {
-                                dbgf_all(DBGT_INFO, "skipping %s table", roptn->nameKey);
-                                continue;
-                        }
+			memset(&routf, 0, sizeof (routf));
 
-                        if (roptn->bandwidth.val.u8 == 0) {
-                                dbgf_all(DBGT_INFO, "skipping %s bandwidth", roptn->nameKey);
-                                continue;
-                        }
-
-                        if (/*roptn->bmx6_redist_bits &&*/
-                                !bit_get(((uint8_t*) & roptn->bmx6_redist_bits),
-                                sizeof (roptn->bmx6_redist_bits)*8, rt_dict[rin->k.inType].sys2bmx)) {
-
-                                dbgf_all(DBGT_INFO, "skipping %s redist bits", roptn->nameKey);
-                                continue;
-                        }
-
-                        if ((roptn->net.mask != MIN_REDIST_PREFIX ||
-                                roptn->netPrefixMin != DEF_REDIST_PREFIX_MIN ||
-                                roptn->netPrefixMax != DEF_REDIST_PREFIX_MAX)
-                                && !(
-                                (roptn->netPrefixMax == TYP_REDIST_PREFIX_NET ?
-                                roptn->net.mask >= rin->k.net.mask : roptn->netPrefixMax >= rin->k.net.mask) &&
-                                (roptn->netPrefixMin == TYP_REDIST_PREFIX_NET ?
-                                roptn->net.mask <= rin->k.net.mask : roptn->netPrefixMin <= rin->k.net.mask) &&
-                                is_ip_net_equal(&roptn->net.ip, &rin->k.net.ip, XMIN(roptn->net.mask, rin->k.net.mask), roptn->net.af))) {
-
-                                dbgf_all(DBGT_INFO, "skipping %s prefix", roptn->nameKey);
-                                continue;
-                        }
-
-                        memset(&routf, 0, sizeof (routf));
-
-                        routf.k.bmx6_route_type = rt_dict[rin->k.inType].sys2bmx;
-                        routf.k.net = roptn->net.mask >= rin->k.net.mask ? roptn->net : rin->k.net;
-                        routf.k.bandwidth = roptn->bandwidth;
+			routf.k.bmx6_route_type = rt_dict[rin->k.inType].sys2bmx;
+			routf.k.net = roptn->net.mask >= rin->k.net.mask ? roptn->net : rin->k.net;
+			routf.k.bandwidth = roptn->bandwidth;
 			if ( roptn->tunInDev )
 				strcpy(routf.k.tunInDev.str, roptn->tunInDev);
-                        routf.k.must_be_one = 1; // to let alv_next_item find the first one
-                        routf.minAggregatePrefixLen = roptn->minAggregatePrefixLen;
+			routf.k.must_be_one = 1; // to let alv_next_item find the first one
+			routf.minAggregatePrefixLen = roptn->minAggregatePrefixLen;
 
                         if (!(routn = avl_find_item(redist_out_tree, &routf.k))) {
                                 *(routn = debugMalloc(sizeof (routf), -300505)) = routf;
@@ -264,8 +318,6 @@ IDM_T redistribute_routes(struct avl_tree *redist_out_tree, struct avl_tree *red
 
                         routn->new = 1;
                         routn->minAggregatePrefixLen = XMAX(routn->minAggregatePrefixLen, roptn->minAggregatePrefixLen);
-
-                        break;
                 }
         }
 
@@ -429,9 +481,17 @@ int32_t opt_redist(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_
                                 } else if (!strcmp(c->opt->name, ARG_REDIST_HYSTERESIS)) {
                                         ron->hysteresis = c->val ? strtol(c->val, NULL, 10) : DEF_REDIST_HYSTERESIS;
 
+                                } else if (!strcmp(c->opt->name, ARG_ROUTE_ALL)) {
+
+                                        ron->bmx6_redist_all = (c->val && strtol(c->val, NULL, 10) == 1 ) ? 1 : 0;
+
+                                } else if (!strcmp(c->opt->name, ARG_ROUTE_SYS)) {
+
+                                        ron->bmx6_redist_sys = c->val ? strtol(c->val, NULL, 10) : 0;
+
                                 } else {
                                         uint8_t t;
-                                        for (t = 0; t < BMX6_ROUTE_MAX; t++) {
+                                        for (t = 0; t <= BMX6_ROUTE_MAX_KNOWN; t++) {
                                                 if (bmx6_rt_dict[t].sys2Name && !strcmp(c->opt->name, bmx6_rt_dict[t].sys2Name)) {
                                                         bit_set((uint8_t*) &ron->bmx6_redist_bits,
                                                                 sizeof (ron->bmx6_redist_bits) * 8,

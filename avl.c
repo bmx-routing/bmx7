@@ -267,6 +267,7 @@ struct avl_node *avl_rotate_double(struct avl_node *root, int dir)
 
 void avl_insert(struct avl_tree *tree, void *node, int32_t tag)
 {
+	ASSERTION(-502234, !avl_find_item(tree, AVL_ITEM_KEY(tree, node)));
 
 	struct avl_node *new = NULL;
 
@@ -363,6 +364,7 @@ void avl_insert(struct avl_tree *tree, void *node, int32_t tag)
 	assertion(-502005, (!new->left  || avl_next(tree, AVL_ITEM_KEY(tree, new->left->item))==new));
 	assertion(-502006, (!new->right || avl_next(tree, AVL_ITEM_KEY(tree, new->item))==new->right));
 #endif
+	ASSERTION(-502236, avl_find_item(tree, AVL_ITEM_KEY(tree, node)));
         return;
 }
 
@@ -381,7 +383,7 @@ void *avl_remove(struct avl_tree *tree, void *key, int32_t tag)
                 return NULL;
 
         while (1) {
-
+/*
                 dbgf_all(DBGT_INFO, "tree.items=%d it->item=%p memcmp(it,key)=%d link[0]=%p link[1]=%p memcmp(link[0],key)=%d memcmp(link[1],key)=%d",
                         tree->items, it->item,
                         memcmp(AVL_NODE_KEY(tree, it), key, tree->key_size),
@@ -389,7 +391,7 @@ void *avl_remove(struct avl_tree *tree, void *key, int32_t tag)
                         (it->down[0] ? memcmp(AVL_NODE_KEY(tree, it->down[0]), key, tree->key_size) : -1),
                         (it->down[1] ? memcmp(AVL_NODE_KEY(tree, it->down[1]), key, tree->key_size) : -1)
                         );
-
+*/
                 if (!(
                         (cmp = memcmp(AVL_NODE_KEY(tree, it), key, tree->key_size)) ||
                         (it->down[0] && !memcmp(AVL_NODE_KEY(tree, it->down[0]), key, tree->key_size))))

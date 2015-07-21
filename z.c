@@ -98,14 +98,14 @@ int32_t z_compress( uint8_t *src, int32_t slen, uint8_t **dst, uint32_t dpos, ui
 
 //decompress:
 /*
- * on success and when finished, returns new compressed size and adds to (*dst) + dpos
- * Therefore src and *dst can point to same memory area.
- * on failure returns -1 and (*dst) is untouched
- * if dst == NULL then dst is untouched
+ * on success and when finished, returns new decompressed size and adds to (*dstA) + dpos
+ * Therefore src and *dstA can point to same memory area.
+ * on failure returns -1 and (*dstA) is untouched
+ * if dstA == NULL then dstA is untouched
  */
-int32_t z_decompress( uint8_t *src, uint32_t slen, uint8_t **dst, uint32_t dpos) {
+int32_t z_decompress( uint8_t *src, uint32_t slen, uint8_t *dstB, uint32_t dstBlen)
+{
 
-	uint8_t *tmp = NULL;
 	int32_t tlen = 0;
 	int z_ret;
 
@@ -117,33 +117,22 @@ int32_t z_decompress( uint8_t *src, uint32_t slen, uint8_t **dst, uint32_t dpos)
 	strm.avail_in = slen;
 	strm.next_in = (Bytef*)src;
 
-	do {
-		tmp = debugRealloc(tmp, tlen + Z_CHUNK_SIZE, -300576);
+	strm.avail_out = dstBlen;
+	strm.next_out = dstB;
 
-		strm.avail_out = Z_CHUNK_SIZE;
-		strm.next_out = tmp;
+	if ((((z_ret = inflate(&strm, Z_NO_FLUSH)) != Z_OK) && z_ret != Z_STREAM_END && strm.avail_out == 0)) {
+//	if (err==Z_STREAM_ERROR || err==Z_NEED_DICT || err==Z_DATA_ERROR || err==Z_MEM_ERROR) {
+		dbgf_sys(DBGT_ERR, "slen=%d tlen=%d avaoi_out=%d z_ret=%d error: %s ???", slen, tlen, strm.avail_out, z_ret, strerror(errno));
+		tlen = FAILURE;
 
-		if (tlen >= (INT32_MAX - Z_CHUNK_SIZE) || (((z_ret=inflate(&strm, Z_NO_FLUSH)) != Z_OK) && z_ret != Z_STREAM_END)) {
-//		if (err==Z_STREAM_ERROR || err==Z_NEED_DICT || err==Z_DATA_ERROR || err==Z_MEM_ERROR) {
-			dbgf_sys(DBGT_ERR, "slen=%d tlen=%d z_ret=%d error: %s ???", slen, tlen, z_ret, strerror(errno));
-			tlen = FAILURE;
-			break;
-		}
+	} else {
 
-		tlen += (Z_CHUNK_SIZE - strm.avail_out);
-
-        } while (strm.avail_out == 0);
+		tlen += (dstBlen - strm.avail_out);
+	}
 
 	// clean up and return:
 	(void)inflateEnd(&strm);
 
-	if (dst && tmp && tlen > 0) {
-		*dst = debugRealloc(*dst, dpos + tlen, -300577);
-		memcpy( (*dst) + dpos, tmp, tlen);
-	}
-
-	if(tmp)
-		debugFree(tmp, -300578);
 
 	dbgf(tlen>0?DBGL_CHANGES:DBGL_SYS, tlen>0?DBGT_INFO:DBGT_ERR, "slen=%d tlen=%d", slen, tlen);
 

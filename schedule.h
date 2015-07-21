@@ -25,24 +25,6 @@ struct task_node {
 	void *data; //NULL or pointer to data to be given to function. Data will be freed after functio is called.
 };
 
-#define TX_TASK_MAX_DATA_LEN 20
-
-struct tx_task_content {
-	struct dev_node *dev; // the outgoing interface to be used for transmitting
-	LinkDevNode *linkDev;
-	uint8_t data[TX_TASK_MAX_DATA_LEN];
-	uint16_t type;
-} __attribute__((packed));
-
-struct tx_task_node {
-	struct list_node list;
-
-	struct tx_task_content task;
-	uint16_t frame_msgs_length;
-	int16_t  tx_iterations;
-	TIME_T considered_ts;
-	TIME_T send_ts;
-};
 
 void upd_time( struct timeval *precise_tv );
 
@@ -54,3 +36,4 @@ IDM_T task_remove(void (* task) (void *), void *data);
 TIME_T task_next( void );
 void wait4Event( TIME_T timeout );
 
+IDM_T doNowOrLater(TIME_T *nextScheduled, TIME_T interval, IDM_T now);

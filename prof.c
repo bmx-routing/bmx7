@@ -37,6 +37,8 @@
 #include "prof.h"
 #include "schedule.h"
 
+#define CODE_CATEGORY_NAME "profiling"
+
 static AVL_TREE(prof_tree, struct prof_ctx, k);
 
 void prof_init( struct prof_ctx *sp)
@@ -89,13 +91,13 @@ int prof_check(struct prof_ctx *p, int childs)
 		!p || (p->active_prof && !!p->active_childs == childs && prof_check(p->parent, 1) == SUCCESS))
 		return SUCCESS;
 
-	dbgf_sys(DBGT_ERR, "func=%p name=%s parent_func=%p neigh=%p orig=%p parent_active_childs=%d childs=%d",
-		p->k.func, p->name, p->parent_func, (void*)p->k.neigh, (void*)p->k.orig, p->active_childs, childs);
+	dbgf_sys(DBGT_ERR, "func=%d name=%s parent_func=%d neigh=%p orig=%p parent_active_childs=%d childs=%d",
+		!!p->k.func, p->name, !!p->parent_func, (void*)p->k.neigh, (void*)p->k.orig, p->active_childs, childs);
 
 	return FAILURE;
 }
 
-void prof_start( struct prof_ctx *p)
+void prof_start_( struct prof_ctx *p)
 {
 	assertion(-502122, (!p->active_prof));
 	assertion(-502123, (!p->clockBeforePStart));
@@ -113,7 +115,9 @@ void prof_start( struct prof_ctx *p)
 	ASSERTION(-502125, (prof_check(p, 0) == SUCCESS));
 }
 
-void prof_stop( struct prof_ctx *p)
+
+
+void prof_stop_( struct prof_ctx *p)
 {
 	assertion(-502126, (p->active_prof));
 	ASSERTION(-502127, (prof_check(p, 0) == SUCCESS));
@@ -158,7 +162,7 @@ void prof_update_all( void *unused) {
 		dbgf_all(DBGT_INFO, "updating %s active=%d", pn->name, active);
 
 		if (active)
-			prof_stop(pn);
+			prof_stop_(pn);
 
 		pn->clockPrevPeriod = pn->clockRunningPeriod;
 		pn->clockPrevTotal += pn->clockRunningPeriod;
@@ -166,7 +170,7 @@ void prof_update_all( void *unused) {
 		pn->clockRunningPeriod = 0;
 
 		if (active)
-			prof_start(pn);
+			prof_start_(pn);
 	}
 
 	prof_check_disabled = NO;
@@ -208,8 +212,8 @@ struct prof_status *prof_status_iterate(struct prof_ctx *pn, struct prof_status 
 {
 	dbgf_all(DBGT_INFO, "dbg pn=%s status=%p", pn->name, (void*)status);
 
-	status->neighId = pn->k.neigh ? &pn->k.neigh->dhn->on->nodeId : NULL;
-	status->origId = &pn->k.orig ? &pn->k.orig->nodeId : NULL;
+	status->neighId = pn->k.neigh ? &pn->k.neigh->local_id: NULL;
+	status->origId = pn->k.orig ? &pn->k.orig->k.nodeId : NULL;
 	status->parent = pn->parent ? pn->parent->name : NULL;
 	status->name = pn->name;
 	sprintf(status->sysCurrCpu, DBG_NIL);
@@ -286,11 +290,20 @@ int32_t prof_status_creator(struct status_handl *handl, void *data)
         return status_size;
 }
 
+#define ARG_CPU_PROFILING "cpu"
+
+static struct opt_type prof_options[]=
+{
+//        ord parent long_name          shrt Attributes				*ival		min		max		default		*func,*syntax,*help
+	{ODI,0,ARG_CPU_PROFILING,        0,  9,1,A_PS0N,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
+			0,		"show cpu usage of relevant functions\n"}
+};
 
 
 void init_prof( void )
 {
-	register_status_handl(sizeof (struct prof_status), 1, prof_status_format, "cpu", prof_status_creator);
+	register_status_handl(sizeof (struct prof_status), 1, prof_status_format, ARG_CPU_PROFILING, prof_status_creator);
+	register_options_array(prof_options, sizeof( prof_options), CODE_CATEGORY_NAME);
 
 	task_register(5000, prof_update_all, NULL, -300649);
 

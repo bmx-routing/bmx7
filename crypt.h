@@ -28,13 +28,14 @@
 #define POLARSSL_1_2_5 1125
 #define POLARSSL_1_2_9 1129
 #define POLARSSL_1_3_3 1133
+#define POLARSSL_1_3_4 1134
 #define POLARSSL_MAX   1999
 #define CYASSL_MIN     2000
 #define CYASSL_2_8_0   2280
 #define CYASSL_MAX     2999
 
 #ifndef CRYPTLIB
-#define CRYPTLIB POLARSSL_1_2_5
+#define CRYPTLIB POLARSSL_1_3_4
 #endif
 
 #define CRYPT_DER_BUF_SZ 16000

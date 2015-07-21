@@ -17,6 +17,8 @@
  * 02110-1301, USA
  */
 
+#include <sys/time.h>
+#include <time.h>
 
 #include <stdint.h>
 #include <sys/types.h>
@@ -32,6 +34,18 @@ typedef int8_t IDM_T; // smallest int which size does NOT matter
  * TODO: partly move this to system.h
  * dont touch this for compatibility reasons:
  */
+
+/* Android has these under a different name since the NDK target android-8:
+ *
+ * glibc defines dprintf(int, const char*, ...), which is poorly named
+ * and likely to conflict with locally defined debugging printfs
+ * fdprintf is a better name, and some programs that use fdprintf use a
+ * #define fdprintf dprintf for compatibility
+ */
+#ifdef __ANDROID__
+#define dprintf fdprintf
+#define vdprintf vfdprintf
+#endif
 
 #define BMX_BRANCH "BMX6"
 #define BRANCH_VERSION "0.1-alpha" //put exactly one distinct word inside the string like "0.3-pre-alpha" or "0.3-rc1" or "0.3"
@@ -54,12 +68,12 @@ typedef int8_t IDM_T; // smallest int which size does NOT matter
 #define ARG_COMPATIBILITY "compatibility"
 extern int32_t my_compatibility;
 
-#define MIN_PETTINESS 0
-#define MAX_PETTINESS 1
-#define DEF_PETTINESS 0
-#define ARG_PETTINESS "pettiness"
+#define MIN_CONFORMANCE_TOLERANCE 0
+#define MAX_CONFORMANCE_TOLERANCE 1
+#define DEF_CONFORMANCE_TOLERANCE 0
+#define ARG_CONFORMANCE_TOLERANCE "conformanceTolerance"
 
-extern int32_t my_pettiness;
+extern int32_t my_conformance_tolerance;
 extern uint32_t my_runtimeKey;
 
 #define MAX_HOSTNAME_LEN 32
@@ -86,17 +100,8 @@ extern uint32_t rev_u32;
 #define IPX_STR_LEN INET6_ADDRSTRLEN
 #define IPX_PREFIX_STR_LEN (INET6_ADDRSTRLEN + 4)
 
-typedef uint16_t DEVADV_SQN_T;
-#define DEVADV_SQN_DISABLED 0 // dev-adv are not provided by this node!
-#define DEVADV_SQN_DAD_RANGE 256
-#define DEVADV_SQN_MAX ((DEVADV_SQN_T)-1)
 
-typedef uint8_t DEVADV_IDX_T;
-//#define DEVADV_IDX_BIT_SIZE (8*sizeof(DEVADV_IDX_T))
-#define DEVADV_IDX_INVALID 0
-#define DEVADV_IDX_ALL 0
-#define DEVADV_IDX_MIN 1
-#define DEVADV_IDX_MAX ((DEVADV_IDX_T)-1)
+typedef struct in6_addr LOCAL_IP_T;
 
 typedef uint32_t IP4_T;
 
@@ -108,11 +113,6 @@ struct net_key {
         uint8_t af;   //family
 	uint8_t mask; //prefixlen
 	IPX_T ip;     //address
-} __attribute__((packed));
-
-struct dev_ip_key {
-	IPX_T ip; // copy of dev->if_llocal_addr->ip_addr
-	DEVADV_IDX_T idx;
 } __attribute__((packed));
 
 
@@ -153,10 +153,10 @@ extern const struct net_key ZERO_NET6_KEY;
 
 
 
-
-
-
 #define ARG_HOSTNAME "hostname"
+
+
+
 
 
 
@@ -165,22 +165,6 @@ extern const struct net_key ZERO_NET6_KEY;
 #define MY_DESC_CAPABILITIES_CV16 0x0200 //capability flag for compatibility with CV16 txInterval field
 #define MY_DESC_CAPABILITIES (MY_DESC_CAPABILITIES_CV16 | 0)
 extern uint16_t my_desc_capabilities;
-
-#define MIN_TX_INTERVAL 35
-#define MAX_TX_INTERVAL 10000  // < U16_MAX due to metricalgo->ogm_interval field
-#define DEF_TX_INTERVAL 500
-#define ARG_TX_INTERVAL "txInterval"
-extern int32_t my_tx_interval;
-
-#define DEF_TX_DELAY ((2*my_tx_interval) + rand_num(my_tx_interval))
-
-#define ARG_OGM_INTERVAL "ogmInterval"
-#define DEF_OGM_INTERVAL 5000
-#define MIN_OGM_INTERVAL 200
-#define MAX_OGM_INTERVAL 60000 // 60000 = 1 minutes
-extern int32_t my_ogm_interval;
-
-
 
 #define DEF_DAD_TO 20000//(MAX_OGM_INTERVAL + MAX_TX_INTERVAL)
 #define MIN_DAD_TO 100
@@ -206,6 +190,9 @@ typedef uint16_t SQN_T;
 #define SQN_MAX ((SQN_T)-1)
 #define MAX_SQN_RANGE 8192 // the maxumim of all .._SQN_RANGE ranges, should never be more than SQN_MAX/4
 
+typedef uint32_t PKT_SQN_T;
+#define PKT_SQN_MAX ((PKT_SQN_T)-1)
+
 
 // OGMs:
 typedef uint16_t OGM_SQN_T;
@@ -217,37 +204,23 @@ typedef uint16_t OGM_SQN_T;
 #define OGM_IIDOFFST_MASK ((1<<OGM_IIDOFFST_BIT_SIZE)-1)
 
 
-
-
-
-
 // aggregations of OGMs:
-typedef uint8_t AGGREG_SQN_T;
-#define AGGREG_SQN_BIT_SIZE (8)
+typedef uint16_t AGGREG_SQN_T;
+#define AGGREG_SQN_BIT_SIZE (16)
 #define AGGREG_SQN_MASK     ((1<<AGGREG_SQN_BIT_SIZE)-1)
 #define AGGREG_SQN_MAX      AGGREG_SQN_MASK
 
-#define AGGREG_SQN_CACHE_RANGE 64
-#define AGGREG_SQN_CACHE_WARN  (AGGREG_SQN_CACHE_RANGE/2)
-#define AGGREG_ARRAY_BYTE_SIZE (AGGREG_SQN_CACHE_RANGE/8)
-
-typedef uint8_t OGM_DEST_T;
-#define OGM_DEST_BIT_SIZE (8)
-#define OGM_DEST_MASK     ((1<<OGM_DEST_BIT_SIZE)-1)
-#define OGM_DEST_MAX      OGM_DEST_MASK
-
-#define OGM_DEST_ARRAY_BIT_SIZE (1<<OGM_DEST_BIT_SIZE)
-
-#define LOCALS_MAX (1<<OGM_DEST_BIT_SIZE) // because each local needs a bit to be indicated in the ogm.dest_field
+#define AGGREG_SQN_CACHE_MASK  0xFF
+#define AGGREG_SQN_CACHE_RANGE (AGGREG_SQN_CACHE_MASK+1) //32
 
 
-typedef uint32_t PKT_SQN_T;
-#define PKT_SQN_MAX ((PKT_SQN_T)-1)
 
 
-typedef uint16_t LINKADV_SQN_T;
-#define LINKADV_SQN_DAD_RANGE 256
-#define LINKADV_SQN_MAX ((LINKADV_SQN_T)-1)
+typedef uint16_t INT_NEIGH_ID_T;
+#define INT_NEIGH_ID_BIT_SIZE (12)
+
+#define LOCALS_MAX (1<<INT_NEIGH_ID_BIT_SIZE) // because each local needs a bit to be indicated in the ogm.dest_field
+
 
 
 
@@ -272,15 +245,15 @@ typedef uint16_t HELLO_SQN_T;
 
 
 
-
+typedef uint32_t BURST_SQN_T;
 
 
 // descriptions 
 typedef uint32_t DESC_SQN_T;
+#define DESC_SQN_SAVE_INTERVAL 100
+#define DESC_SQN_REBOOT_ADDS 10
 
 
-#define ARG_DSQN_PATH "descSqnPath"
-#define DEF_DSQN_PATH "/etc/bmx6/descSqn"
 
 
 
@@ -299,8 +272,7 @@ typedef uint32_t DESC_SQN_T;
 
 
 
-#define MAX_UDPD_SIZE 1400
-
+#define MAX_UDPD_SIZE (1280 /*min IPv6 MTU*/ - sizeof(struct ip6_hdr) - sizeof(struct udphdr))
 
 
 
@@ -337,11 +309,10 @@ typedef uint32_t DESC_SQN_T;
 #define ARG_SHOW "show"
 #define ARG_ORIGINATORS "originators"
 #define ARG_STATUS "status"
-#define ARG_LINKS "links"
+#define ARG_CREDITS "credits"
+#define ARG_DESCREFS "references"
 
-
-
-#define MAX_DBG_STR_SIZE 1500
+#define MAX_DBG_STR_SIZE 2000
 #define OUT_SEQNO_OFFSET 1
 
 enum NoYes {
@@ -375,6 +346,9 @@ enum ADGSN {
 #define XMAX( a, b ) ( (a>b) ? (a) : (b) )
 #define XMIN( a, b ) ( (a<b) ? (a) : (b) )
 
+#define XOR2( a, b )       ( (a) ? (a) : (b) )
+#define XOR3( a, b, c )    ( (a) ? (a) : ( (b) ? (b) : (c) ) )
+#define XOR4( a, b, c, d ) ( (a) ? (a) : ( (b) ? (b) : ( (c) ? (c) : (d) ) ) )
 
 #define U64_MAX ((uint64_t)(-1))
 #define U32_MAX ((uint32_t)(-1))
@@ -525,12 +499,12 @@ extern struct avl_tree status_tree;
 
 int16_t field_format_get_items(const struct field_format *format);
 
-int64_t field_get_value(const struct field_format *format, uint16_t min_msg_size, uint8_t *data, uint32_t pos_bit, uint32_t bits);
+int64_t field_get_value(const struct field_format *format, uint32_t min_msg_size, uint8_t *data, uint32_t pos_bit, uint32_t bits);
 
-char *field_dbg_value(const struct field_format *format, uint16_t min_msg_size, uint8_t *data, uint32_t pos_bit, uint32_t bits);
+char *field_dbg_value(const struct field_format *format, uint32_t min_msg_size, uint8_t *data, uint32_t pos_bit, uint32_t bits);
 
-uint32_t fields_dbg_lines(struct ctrl_node *cn, uint16_t relevance, uint16_t data_size, uint8_t *data,
-                    uint16_t min_msg_size,  const struct field_format *format);
+uint32_t fields_dbg_lines(struct ctrl_node *cn, uint16_t relevance, uint32_t data_size, uint8_t *data,
+	uint32_t min_msg_size, const struct field_format *format);
 
 
 uint32_t field_iterate(struct field_iterator *it);
@@ -564,6 +538,7 @@ enum {
 
 
 #define goto_error( where, what ) do { goto_error_code=what; goto where; }while(0)
+#define goto_error_return( where, what, ret ) do { goto_error_code=what; goto_error_ret=ret; goto where; }while(0)
 
 #ifdef NO_ASSERTIONS
 #define paranoia( ... )
@@ -578,7 +553,7 @@ enum {
 /*
  * ASSERTION / PARANOIA ERROR CODES:
  * Negative numbers are used as SIGSEV error codes !
- * Currently used numbers are: -500000 -500001 ... -502230
+ * Currently used numbers are: -500000 -500001 ... -502500
  */
 
 //#define paranoia( code , problem ) do { if ( (problem) ) { cleanup_all( code ); } }while(0)
@@ -605,6 +580,11 @@ enum {
 #define EXITERROR( code , condition )
 #endif
 
+#define TEST_FUNCTION(X) ( ((void(*)(void*))&(X)) != NULL )
+#define TEST_VALUE(X) (((uint32_t)X) != 1234543210)
+#define TEST_STRUCT(X) (sizeof(X) > 0)
+#define TEST_VARIABLE(X) ((void*)&X != NULL )
+
 #endif//NO_ASSERTIONS
 
 
@@ -627,21 +607,9 @@ enum {
 
 #define FUNCTION_CALL_BUFFER_SIZE 64
 
-//extern char* function_call_buffer_name_array[FUNCTION_CALL_BUFFER_SIZE];
-//extern TIME_T function_call_buffer_time_array[FUNCTION_CALL_BUFFER_SIZE];
-//extern uint8_t function_call_buffer_pos;
-
 void trace_function_call(const char *);
 
 #define TRACE_FUNCTION_CALL trace_function_call ( __FUNCTION__ )
-
-extern uint32_t test_magic_number;
-
-//#define TEST_FUNCTION(X) ( ((void(*)(void*))&trace_function_call) != ((void(*)(void*))&(X)) )
-#define TEST_FUNCTION(X) ( ((void(*)(void*))&(X)) != NULL )
-#define TEST_VALUE(X) (((uint32_t)X) != test_magic_number)
-#define TEST_STRUCT(X) (sizeof(X) > 0)
-#define TEST_VARIABLE(X) ((void*)&X != NULL )
 
 #else
 
@@ -656,7 +624,7 @@ void cleanup_all( int32_t status );
 
 char *get_human_uptime( uint32_t reference );
 
-DESC_SQN_T getDescriptionSqn( char* newPath, uint8_t ass );
+DESC_SQN_T newDescriptionSqn( char* newPath, uint8_t ass );
 
 
 /***********************************************************
@@ -668,5 +636,4 @@ DESC_SQN_T getDescriptionSqn( char* newPath, uint8_t ass );
 IDM_T validate_param(int32_t probe, int32_t min, int32_t max, char *name);
 
 int32_t opt_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn);
-int32_t opt_update_description(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn);
-int32_t opt_purge_originators(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn);
+int32_t opt_flush_all(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn);

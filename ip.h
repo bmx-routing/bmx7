@@ -42,9 +42,9 @@
 
 
 
+#define RTNL_RCV_MAX 66560 // 266240 // 133120 // less causes lost messages !!??
 
-
-
+extern uint32_t udpRxBytesMean, udpRxPacketsMean, udpTxBytesMean, udpTxPacketsMean;
 
 
 struct ifname {
@@ -53,11 +53,16 @@ struct ifname {
 
 typedef struct ifname IFNAME_T;
 
-#define ARG_DEVSTAT_PERIOD "devStatPeriod"
-#define MIN_DEVSTAT_PERIOD 100
-#define MAX_DEVSTAT_PERIOD 100000
-#define DEF_DEVSTAT_PERIOD 5000
-#define HLP_DEVSTAT_PERIOD "interface traffic-statistics period"
+#define ARG_DEVSTAT_REGRESSION "devStatRegression"
+#define MIN_DEVSTAT_REGRESSION 1
+#define MAX_DEVSTAT_REGRESSION 100
+#define DEF_DEVSTAT_REGRESSION 10
+#define HLP_DEVSTAT_REGRESSION "arithmetic-mean regression for interface traffic-statistics"
+
+extern int32_t devStatRegression;
+
+#define DEF_DEVSTAT_PERIOD 1000
+#define DEVSTAT_PRECISION 10000
 
 #define ARG_LLOCAL_PREFIX "llocalPrefix"
 #define HLP_LLOCAL_PREFIX "specify link-local prefix for interfaces"
@@ -163,11 +168,11 @@ typedef struct ifname IFNAME_T;
 #define MAX_IP_RULE_TUN U16_MAX //64000
 #define DEF_IP_RULE_TUN 32766
 
-#define RT_TABLE_MAX   -1
-//#define RT_TABLE_HOSTS -1
-#define RT_TABLE_HNA  -1
-#define RT_TABLE_TUN  -2
-#define RT_TABLE_MIN   -2
+#define BMX_TABLE_MAX   -1
+//#define BMX_TABLE_HOSTS -1
+#define BMX_TABLE_HNA  -1
+#define BMX_TABLE_TUN  -2
+#define BMX_TABLE_MIN   -2
 
 //#define ARG_IP_TABLE_HOST "tableHosts"
 //#define DEF_IP_TABLE_HOST 60 //avoid conflicts with bmxd and others
@@ -199,9 +204,11 @@ typedef struct ifname IFNAME_T;
 #define MAX_BASE_PORT 60000
 
 
-
-#define ARG_PEDANTIC_CLEANUP "pedanticCleanup"
-#define DEF_PEDANTIC_CLEANUP  NO
+#define SYSCTL_IP6_FORWARD 1
+#define SYSCTL_IP4_RP_FILTER 2
+#define SYSCTL_IP4_FORWARD 1
+#define SYSCTL_IP4_SEND_REDIRECT 0
+#define SYSCTL_IP4_ACCEPT_LOCAL 1
 
 #define DEF_TUN_OUT_PERSIST 1
 
@@ -228,6 +235,7 @@ typedef struct ifname IFNAME_T;
 
 
 extern struct net_key autoconf_prefix_cfg;
+extern IPX_T my_primary_ip;
 
 #define AF_CFG AF_INET6
 #define ZERO_NETCFG_KEY ZERO_NET6_KEY
@@ -268,6 +276,39 @@ extern struct avl_tree dev_name_tree;
 //extern int32_t throw_rules;
 
 //extern IDM_T dev_soft_conf_changed; // temporary enabled to trigger changed interface configuration
+
+#define IFCONFIG_PATH_PROCNET_DEV		"/proc/net/dev"
+
+struct user_net_device_stats {
+	unsigned long long rx_packets; /* total packets received       */
+	unsigned long long tx_packets; /* total packets transmitted    */
+	//	unsigned long long rx_bytes; /* total bytes received         */
+	//	unsigned long long tx_bytes; /* total bytes transmitted      */
+	//	unsigned long rx_errors; /* bad packets received         */
+	//	unsigned long tx_errors; /* packet transmit problems     */
+	//	unsigned long rx_dropped; /* no space in linux buffers    */
+	//	unsigned long tx_dropped; /* no space available in linux  */
+	//	unsigned long rx_multicast; /* multicast packets received   */
+	//	unsigned long rx_compressed;
+	//	unsigned long tx_compressed;
+	//	unsigned long collisions;
+
+	/* detailed rx_errors: */
+	//	unsigned long rx_length_errors;
+	//	unsigned long rx_over_errors; /* receiver ring buff overflow  */
+	//	unsigned long rx_crc_errors; /* recved pkt with crc error    */
+	//	unsigned long rx_frame_errors; /* recv'd frame alignment error */
+	//	unsigned long rx_fifo_errors; /* recv'r fifo overrun          */
+	//	unsigned long rx_missed_errors; /* receiver missed packet     */
+	/* detailed tx_errors */
+	//	unsigned long tx_aborted_errors;
+	//	unsigned long tx_carrier_errors;
+	//	unsigned long tx_fifo_errors;
+	//	unsigned long tx_heartbeat_errors;
+	//	unsigned long tx_window_errors;
+};
+
+
 
 struct nlh_req {
 	struct nlmsghdr nlh;
@@ -373,19 +414,13 @@ struct if_addr_node {
 
 
 
-struct tx_link_node {
-	struct list_head tx_tasks_list[FRAME_TYPE_ARRSZ]; // scheduled frames and messages
-};
-
-
-
 struct dev_node {
 
 	struct if_link_node *if_link;
 	struct if_addr_node *if_llocal_addr;  // non-zero but might be global for ipv4 or loopback interfaces
 	struct if_addr_node *if_global_addr;  // might be zero for non-primary interfaces
-	void (* tx_task) (void *);
-
+	int32_t tx_task_items;
+	
 	int8_t hard_conf_changed;
 	int8_t soft_conf_changed;
         struct net_key autoIP6Configured;
@@ -393,36 +428,28 @@ struct dev_node {
 	uint8_t active;
 	uint8_t activate_again;
 	uint8_t activate_cancelled;
-	uint8_t tmp_flag_for_to_be_send_adv;
-        
-        uint32_t udpOutCurrPackets;
-        uint32_t udpOutPrevPackets;
-        uint32_t udpInCurrPackets;
-        uint32_t udpInPrevPackets;
-        uint32_t udpOutCurrBytes;
-        uint32_t udpOutPrevBytes;
-        uint32_t udpInCurrBytes;
-        uint32_t udpInPrevBytes;
 
-//	DEVADV_IDX_T dev_adv_idx; //TODO: Remove (use llip_key.idx instead)
-	int16_t dev_adv_msg;
+	uint32_t udpTxPacketsCurr;
+	uint32_t udpTxPacketsMean;
+	uint32_t udpRxPacketsCurr;
+	uint32_t udpRxPacketsMean;
+	uint32_t udpTxBytesCurr;
+	uint32_t udpTxBytesMean;
+	uint32_t udpRxBytesCurr;
+	uint32_t udpRxBytesMean;
+
 
 	IFNAME_T name_phy_cfg;  //key for dev_name_tree
 	IFNAME_T label_cfg;
 
         LinkNode dummyLink;
 
-	struct dev_ip_key llip_key;
-//	IPX_T llocal_ip_key; //TODO: Remove (use llip_key.ip instead)
+	DevKey llipKey;
 	MAC_T mac;
 
 
 	char ip_llocal_str[IPX_STR_LEN];
 	char ip_global_str[IPX_STR_LEN];
-	char ip_brc_str[IPX_STR_LEN];
-
-	int32_t ip4_rp_filter_orig;
-	int32_t ip4_send_redirects_orig;
 
 	struct sockaddr_storage llocal_unicast_addr;
 	struct sockaddr_storage tx_netwbrc_addr;
@@ -432,9 +459,6 @@ struct dev_node {
 	int32_t rx_fullbrc_sock;
 
 	HELLO_SQN_T link_hello_sqn;
-
-	struct list_head tx_task_lists[FRAME_TYPE_ARRSZ]; // scheduled frames and messages
-	struct avl_tree tx_task_interval_tree;
 
 	int8_t linklayer_conf;
 	int8_t linklayer;
@@ -492,7 +516,9 @@ struct dev_node {
 #define BMX6_ROUTE_OLSR       28
 #define BMX6_ROUTE_BMX6       29
 #define BMX6_ROUTE_BATMAN     30
-#define BMX6_ROUTE_MAX        31
+#define BMX6_ROUTE_MAX_KNOWN  30
+#define BMX6_ROUTE_MAX_SUPP   63
+
 
 #define ARG_ROUTE_UNSPEC      "unspecified"
 #define ARG_ROUTE_REDIRECT    "redirect"
@@ -535,14 +561,14 @@ struct sys_route_dict {
 };
 
 #define set_rt_dict( S, T, C, N, B ) do { \
-        S[ T ].sys2Name = N; \
         S[ T ].sys2Char = C; \
+        S[ T ].sys2Name = N; \
 	S[ T ].sys2bmx  = B; \
 	S[ B ].bmx2sys  = T; \
 } while (0)
 
 
-extern struct sys_route_dict bmx6_rt_dict[BMX6_ROUTE_MAX];
+extern struct sys_route_dict bmx6_rt_dict[];
 
 
 //iproute() commands:
@@ -572,7 +598,7 @@ extern struct sys_route_dict bmx6_rt_dict[BMX6_ROUTE_MAX];
 #define IP_ROUTE_HOST      36
 #define IP_ROUTE_HNA       37
 #define IP_ROUTE_TUNS      38
-#define	IP_ROUTE_MAX       (IP_ROUTE_TUNS + BMX6_ROUTE_MAX)
+#define	IP_ROUTE_MAX       (IP_ROUTE_TUNS + BMX6_ROUTE_MAX_SUPP)
 
 
 
@@ -620,7 +646,7 @@ struct rtnl_get_node {
 
 // core:
 
-IDM_T rtnl_rcv( int fd, uint32_t pid, uint32_t seq, uint8_t cmd, uint8_t quiet, void (*func) (struct nlmsghdr *nh, void *data) ,void *data);
+int rtnl_rcv(int fd, uint32_t pid, uint32_t seq, uint8_t cmd, uint8_t quiet, void (*func) (struct nlmsghdr *nh, void *data), void *data);
 
 uint32_t get_if_index(IFNAME_T *name);
 IDM_T kernel_set_flags(char *name, int fd, int get_req, int set_req, uint16_t up_flags, uint16_t down_flags);
@@ -640,6 +666,9 @@ int32_t kernel_get_ifidx( char *name );
 IDM_T kernel_set_mtu(char *name, uint16_t mtu);
 IDM_T kernel_get_route(uint8_t quiet, uint8_t family, uint32_t table, void (*func) (struct nlmsghdr *nh, void *data) );
 
+// from net-tools: ifconfig.c and lib/interface.c
+IDM_T kernel_get_ifstats(struct user_net_device_stats *stats, char *target);
+
 struct sockaddr_storage set_sockaddr_storage(uint8_t af, IPX_T *ipx, int32_t port);
 void set_ipexport( void (*func) (int8_t del, const struct net_key *dst, uint32_t oif_idx, IPX_T *via, uint32_t metric, uint8_t distance) );
 
@@ -649,7 +678,7 @@ IDM_T iproute(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_key *dst,
 void ip_flush_routes(uint8_t family, int32_t table_macro);
 void ip_flush_rules(uint8_t family, int32_t table_macro);
 
-IDM_T check_proc_sys_net(char *file, int32_t desired, int32_t *backup);
+IDM_T check_proc_sys_net(char *file, int32_t desired);
 
 void sysctl_config(struct dev_node *dev_node);
 

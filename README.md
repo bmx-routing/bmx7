@@ -12,10 +12,10 @@ The following intro provides kind of tutorial to get started.
 *   [Autoconfiguration](#address-auto-and-manual-configuration)
 *   [Unicast Host Network Announcements (UHNA)](#unicast-host-network-announcements-uhna)
 *   [Tunnel Announcements](#tunnel-announcements)
-*   [Bmx6 Plugins](#bmx6-plugins) 
+*   [Bmx6 Plugins](#bmx6-plugins)
     *   [Config Plugin](#config-plugin)
     *   [Json Plugin](#json-plugin)
-    *   [SMS Plugin](#sms-plugin) 
+    *   [SMS Plugin](#sms-plugin)
     *   [Table plugin](#table-plugin)
     *   [Quagga Plugin](#quagga-plugin)
 
@@ -23,7 +23,7 @@ The following intro provides kind of tutorial to get started.
 Note: This document is written using Markdown syntax. Modifications should be
 synced via README.md file in bmx6 repositories [bmx6.net][bmx6] and [github.com][github].
 Nice syntax examples are [here][syntax].
-   
+
   [bmx6]: http://bmx6.net
   [github]: https://github.com/axn/bmx6
   [syntax]: http://daringfireball.net/projects/markdown/syntax.text
@@ -39,18 +39,19 @@ The following tools are needed to obtain, compile, and install bmx6:
 * make
 
 The following Linux-kernel modules are needed (depending on used bmx6 features)
-* ipv6 
+* ipv6
 * tunnel6
 * ip6_tunnel
 
 The polorssl crypto library is needed for cryptographic operations:
-Tested with debian and cyassl-2.8.0:
+Tested with debian and polarssl-1.3.3:
 <pre>
 wget https://polarssl.org/code/releases/polarssl-1.3.3-gpl.tgz
 tar xzvf polarssl-1.3.3-gpl.tgz 
 cd polarssl-1.3.3
 make
-make install
+sudo make install
+# compile bmx6 with: make EXTRA_CFLAGS="-DCRYPTLIB=POLARSSL1_3_3"
 </pre>
 
 
@@ -156,13 +157,13 @@ Status, network, and statistic information are accessible with dedicated paramet
 
 <pre>
 root@mlc1001:~# bmx6 -c status
-version        compatibility codeVersion globalId                     primaryIp                       myLocalId uptime     cpu nodes 
+version        compatibility codeVersion globalId                     primaryIp                       myLocalId uptime     cpu nodes
 BMX6-0.1-alpha 16            9           mlc1001.7A7422752001EC4AC4C8 fd66:66:66:0:a2cd:efff:fe10:101 24100101  0:00:40:37 0.1 4
 </pre>
 
 So apart from version, compatibility number, and code, the status reveals the daemon's [Global ID](wiki#global-id) and [Local ID](wiki#local-id), its primary (self-configured) IPv6 address, the time since when it is running (40 minutes), its current cpu consumption (0.1%) and the total number of 4 learned nodes in the network (including itself).
 
-These desired types can be combined. Also the above given example shows kind of shortcut. 
+These desired types can be combined. Also the above given example shows kind of shortcut.
 The long argument would be:
 `bmx6 connect show=status`. A more informative case using the long form would be:
 
@@ -180,10 +181,10 @@ mlc1000.0AE58311046412F248CD fe80::a2cd:efff:fe10:1   eth1   100    100    1    
 mlc1002.91DCF042934B5913BB00 fe80::a2cd:efff:fe10:201 eth1   100    100    1          2      1         BB100201
 originators:
 globalId                     blocked primaryIp                       routes viaIp                    viaDev metric lastDesc lastRef
-mlc1000.0AE58311046412F248CD 0       fd66:66:66:0:a2cd:efff:fe10:1   1      fe80::a2cd:efff:fe10:1   eth1   999M   3193     3 
+mlc1000.0AE58311046412F248CD 0       fd66:66:66:0:a2cd:efff:fe10:1   1      fe80::a2cd:efff:fe10:1   eth1   999M   3193     3
 mlc1001.7A7422752001EC4AC4C8 0       fd66:66:66:0:a2cd:efff:fe10:101 0      ::                       ---    128G   3197     0
-mlc1002.91DCF042934B5913BB00 0       fd66:66:66:0:a2cd:efff:fe10:201 1      fe80::a2cd:efff:fe10:201 eth1   999M   3196     3 
-mlc1003.09E796BC491D386248C3 0       fd66:66:66:0:a2cd:efff:fe10:301 1      fe80::a2cd:efff:fe10:201 eth1   576M   22       3 
+mlc1002.91DCF042934B5913BB00 0       fd66:66:66:0:a2cd:efff:fe10:201 1      fe80::a2cd:efff:fe10:201 eth1   999M   3196     3
+mlc1003.09E796BC491D386248C3 0       fd66:66:66:0:a2cd:efff:fe10:301 1      fe80::a2cd:efff:fe10:201 eth1   576M   22       3
 </pre>
 
 Only if relevant information for a requested type is available it will be shown.
@@ -282,19 +283,19 @@ Checking new status of interfaces, links, and originator:
 <pre>
 root@mlc1001:~# bmx6 -cd8
 status:
-version        compatibility codeVersion globalId                     primaryIp                       myLocalId uptime     cpu nodes 
-BMX6-0.1-alpha 16            9           mlc1001.7A7422752001EC4AC4C8 fd66:66:66:0:a2cd:efff:fe10:102 06100101  0:02:26:00 0.1 4 
+version        compatibility codeVersion globalId                     primaryIp                       myLocalId uptime     cpu nodes
+BMX6-0.1-alpha 16            9           mlc1001.7A7422752001EC4AC4C8 fd66:66:66:0:a2cd:efff:fe10:102 06100101  0:02:26:00 0.1 4
 interfaces:
-devName state type     rateMin rateMax llocalIp                    globalIp                           multicastIp primary 
-eth2    UP    ethernet 100M    100M    fe80::a2cd:efff:fe10:102/64 fd66:66:66:0:a2cd:efff:fe10:102/64 ff02::2     1       
+devName state type     rateMin rateMax llocalIp                    globalIp                           multicastIp primary
+eth2    UP    ethernet 100M    100M    fe80::a2cd:efff:fe10:102/64 fd66:66:66:0:a2cd:efff:fe10:102/64 ff02::2     1
 links:
-globalId                     llocalIp               viaDev rxRate txRate bestTxLink routes wantsOgms nbLocalId 
-mlc1000.0AE58311046412F248CD fe80::a2cd:efff:fe10:2 eth2   89     88     1          3      1         9B100001  
+globalId                     llocalIp               viaDev rxRate txRate bestTxLink routes wantsOgms nbLocalId
+mlc1000.0AE58311046412F248CD fe80::a2cd:efff:fe10:2 eth2   89     88     1          3      1         9B100001
 originators:
-globalId                     blocked primaryIp                       routes viaIp                  viaDev metric lastDesc lastRef 
-mlc1000.0AE58311046412F248CD 0       fd66:66:66:0:a2cd:efff:fe10:1   1      fe80::a2cd:efff:fe10:2 eth2   81757K 18       0      
-mlc1001.7A7422752001EC4AC4C8 0       fd66:66:66:0:a2cd:efff:fe10:102 0      ::                     ---    128G   80       0      
-mlc1002.91DCF042934B5913BB00 0       fd66:66:66:0:a2cd:efff:fe10:201 1      fe80::a2cd:efff:fe10:2 eth2   83620K 14       4      
+globalId                     blocked primaryIp                       routes viaIp                  viaDev metric lastDesc lastRef
+mlc1000.0AE58311046412F248CD 0       fd66:66:66:0:a2cd:efff:fe10:1   1      fe80::a2cd:efff:fe10:2 eth2   81757K 18       0
+mlc1001.7A7422752001EC4AC4C8 0       fd66:66:66:0:a2cd:efff:fe10:102 0      ::                     ---    128G   80       0
+mlc1002.91DCF042934B5913BB00 0       fd66:66:66:0:a2cd:efff:fe10:201 1      fe80::a2cd:efff:fe10:2 eth2   83620K 14       4
 mlc1003.09E796BC491D386248C3 0       fd66:66:66:0:a2cd:efff:fe10:301 1      fe80::a2cd:efff:fe10:2 eth2   81488K 9        0
 </pre>
 
@@ -346,10 +347,10 @@ the EUI64 suffix (the suffix creation is currently reconsidered and may change s
 The same first 56 bits but extended with 0xff00 are also used to create tunnel interfaces.
 
 There are different options to controll the auto configuration.
-  1. A different auto-configuration prefix can be used using the <pre> --ipAutoPrefix </pre> 
+  1. A different auto-configuration prefix can be used using the <pre> --ipAutoPrefix </pre>
    option given with a /56 prefix.
 
-  2. Auto configuratin can be disabled using the <pre> --globalPrefix </pre> option. 
+  2. Auto configuratin can be disabled using the <pre> --globalPrefix </pre> option.
    Then bmx6 checks if an ip in this range is alredy configured on the interfaces and uses it.
    If no IP is configured in the given range then the inteface will NOT be used.
 
@@ -431,7 +432,7 @@ Therefore, each announcements message is decorated with a route-type field indic
 ### Tunnel requirements  ###
 
 The following Linux-kernel modules are needed for tunnel-based overlay networking:
-* ipv6 
+* ipv6
 * tunnel6
 * ip6_tunnel
 
@@ -496,11 +497,11 @@ With the above configured tunnel selection policy, tunnels are selected in the f
   1. prefix-length of announced tunnels (networks that are more specific than others).
   2. the resulting tunnelMetric (combination of the advertised bandwidth, path metric in the bmx6 cloud, and locally specified prefereces like hysteresis or bonus)
 
-The disadvantage of this simple config is that other nodes can easily redirect your tunnel selections 
-to specific networks by announcing more precise tunnel networks (larger prefix length). 
+The disadvantage of this simple config is that other nodes can easily redirect your tunnel selections
+to specific networks by announcing more precise tunnel networks (larger prefix length).
 To prevent this, the selection policy can be split into several and more precise search directives.
 
-Imagine the following address assignment policy for IPv4 tunnel addresses in a mesh cloud (the general 
+Imagine the following address assignment policy for IPv4 tunnel addresses in a mesh cloud (the general
 idea can be straight translated to IPv6).
 
 * Nodes in the mesh cloud announce their private and local address ranges with a prefix length of 24 and somewhere in the range of 10.254.0.0/16.
@@ -531,13 +532,13 @@ idea can be straight translated to IPv6).
 * The default route announcements from two well known GWs (with hostname pepe and paula) should be strictly preferred over unknown GWs.
 * So, if available, move them to new table (with lower priority than main and higher priority than used for the backup tunnel rule configured above)
 <pre>
-    bmx6 -c tunOut=v4DefaultPepe  /network=0.0.0.0/0 /maxPrefixLen=0 /name=pepe  /hysteresis=30 /tableRule=40000/140
-    bmx6 -c tunOut=v4DefaultPaula /network=0.0.0.0/0 /maxPrefixLen=0 /name=paula /hysteresis=30 /tableRule=40000/140
+    bmx6 -c tunOut=v4DefaultPepe  /network=0.0.0.0/0 /maxPrefixLen=0 /gwName=pepe  /hysteresis=30 /tableRule=40000/140
+    bmx6 -c tunOut=v4DefaultPaula /network=0.0.0.0/0 /maxPrefixLen=0 /gwName=paula /hysteresis=30 /tableRule=40000/140
 </pre>
 
 * Finally, GW Paula turned out to be more stable. Therefore I want to prefer GW Paula over Pepe:
 <pre>
-    bmx6 -c tunOut=v4DefaultPaula /network=0.0.0.0/0 /maxPrefixLen=0 /name=paula /hysteresis=30 /bonus=100
+    bmx6 -c tunOut=v4DefaultPaula /network=0.0.0.0/0 /maxPrefixLen=0 /gwName=paula /hysteresis=30 /bonus=100
 </pre>
 
 #### Gateway Nodes ####
@@ -576,7 +577,7 @@ These requirements are described in the corresponding plugin section.
 #### Requirements ####
 
 uci libs are needed for the bmx6-config plugin.
-To install it do:
+To install try (old version):
 <pre>
 wget http://downloads.openwrt.org/sources/uci-0.7.5.tar.gz
 tar xzvf uci-0.7.5.tar.gz
@@ -584,13 +585,15 @@ cd uci-0.7.5
 make
 sudo make install
 </pre>
+or check: http://www.wakoond.hu/2013/06/using-uci-on-ubuntu.html
+
 
 Depending on your system there happens to be an error during compilation.
 Then edit cli.c and change line 465 to: char *argv[MAX_ARGS+2];
 
 #### Compile and Install ####
 <pre>
-make -C lib/bmx6_uci_config/ 
+make -C lib/bmx6_uci_config/
 sudo make -C lib/bmx6_uci_config/ install
 </pre>
 
@@ -621,7 +624,7 @@ cd json-c..
 
 To compile and install only the bmx6 json plugins:
 <pre>
-make -C lib/bmx6_json/ 
+make -C lib/bmx6_json/
 sudo make -C lib/bmx6_json/ install
 </pre>
 
@@ -720,7 +723,7 @@ the file lib/bmx6_quagga/patches/README in the bmx6 sources.
 
 To compile and install the bmx6 part of the quagga plugin simply do:
 <pre>
-make -C lib/bmx6_quagga/ 
+make -C lib/bmx6_quagga/
 sudo make -C lib/bmx6_quagga/ install
 </pre>
 

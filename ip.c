@@ -24,6 +24,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <ctype.h>
 #include <sys/socket.h>
 #include <string.h>
 #include <errno.h>
@@ -47,6 +48,7 @@
 #include "avl.h"
 #include "node.h"
 #include "metrics.h"
+#include "link.h"
 #include "msg.h"
 #include "ip.h"
 #include "schedule.h"
@@ -88,6 +90,8 @@ static int32_t base_port = DEF_BASE_PORT;
 static struct net_key llocal_prefix_cfg;
 struct net_key autoconf_prefix_cfg;
 
+IPX_T my_primary_ip = { { { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 } } };
+
 
 //#define IN6ADDR_ANY_INIT { { { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 } } }
 //#define IN6ADDR_LOOPBACK_INIT { { { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1 } } }
@@ -118,7 +122,7 @@ static IDM_T opt_dev_changed = YES;
 
 AVL_TREE(if_link_tree, struct if_link_node, index);
 
-AVL_TREE(dev_ip_tree, struct dev_node, llip_key);
+AVL_TREE(dev_ip_tree, struct dev_node, llipKey);
 AVL_TREE(dev_name_tree, struct dev_node, name_phy_cfg);
 AVL_TREE(tun_name_tree, struct ifname, str);
 
@@ -127,23 +131,16 @@ AVL_TREE(iptrack_tree, struct track_node, k);
 
 static int ifevent_sk = -1;
 
+int32_t devStatRegression = DEF_DEVSTAT_REGRESSION;
+uint32_t udpRxBytesMean, udpRxPacketsMean, udpTxBytesMean, udpTxPacketsMean;
 
 //static Sha ip_sha;
 
 
-
-static int32_t Pedantic_cleanup = DEF_PEDANTIC_CLEANUP;
-static int32_t if6_forward_orig = -1;
-static int32_t if4_forward_orig = -1;
-static int32_t if4_rp_filter_all_orig = -1;
-static int32_t if4_rp_filter_default_orig = -1;
-static int32_t if4_send_redirects_all_orig = -1;
-static int32_t if4_send_redirects_default_orig = -1;
-
 static void dev_check(void *kernel_ip_config_changed);
 static void (*ipexport) (int8_t del, const struct net_key *dst, uint32_t oif_idx, IPX_T *via, uint32_t metric, uint8_t distance) = NULL;
 
-struct sys_route_dict bmx6_rt_dict[BMX6_ROUTE_MAX];
+struct sys_route_dict bmx6_rt_dict[BMX6_ROUTE_MAX_SUPP+1];
 
 
 STATIC_FUNC
@@ -307,7 +304,7 @@ uint32_t prio_macro_to_prio(int32_t prio_macro)
 STATIC_FUNC
 uint32_t table_macro_to_table(int32_t table_macro)
 {
-        assertion(-501101, (IMPLIES(table_macro<0, (table_macro >= RT_TABLE_MIN && table_macro <= RT_TABLE_MAX))));
+        assertion(-501101, (IMPLIES(table_macro<0, (table_macro >= BMX_TABLE_MIN && table_macro <= BMX_TABLE_MAX))));
 
         if (policy_routing == POLICY_RT_DISABLED)
                 return 0;
@@ -315,10 +312,10 @@ uint32_t table_macro_to_table(int32_t table_macro)
 	else if (table_macro>=0)
 		return table_macro;
 
-	else if ( table_macro == RT_TABLE_HNA )
+	else if ( table_macro == BMX_TABLE_HNA )
 		return ip_table_hna_cfg;
 
-	else if ( table_macro == RT_TABLE_TUN )
+	else if ( table_macro == BMX_TABLE_TUN )
 		return ip_table_tun_cfg;
 
 	return 0;
@@ -409,7 +406,7 @@ char *trackt2str(uint8_t cmd)
 
 	else if ( cmd > IP_ROUTE_TUNS && cmd < IP_ROUTE_MAX ) {
 
-                return bmx6_rt_dict[ (cmd - IP_ROUTE_TUNS) ].sys2Name;
+                return bmx6_rt_dict[ (cmd - IP_ROUTE_TUNS) ].sys2Name ? bmx6_rt_dict[ (cmd - IP_ROUTE_TUNS) ].sys2Name : "unknown";
 
 	} 
 
@@ -427,15 +424,17 @@ struct dev_node * dev_get_by_name(char *name)
         return avl_find_item(&dev_name_tree, &key);
 }
 
-IDM_T rtnl_rcv( int fd, uint32_t pid, uint32_t seq, uint8_t cmd, uint8_t quiet, void (*func) (struct nlmsghdr *nh, void *data) ,void *data)
+int rtnl_rcv( int fd, uint32_t pid, uint32_t seq, uint8_t cmd, uint8_t quiet, void (*func) (struct nlmsghdr *nh, void *data) ,void *data)
 {
         int max_retries = 10;
         uint8_t more_data;
+	int iteration = 0;
 
         //TODO: see ip/libnetlink.c rtnl_talk() for HOWTO
         do {
-                char buf[4096]; // less causes lost messages !!??
+                char buf[RTNL_RCV_MAX];
                 memset(buf, 0, sizeof(buf));
+		iteration++;
 
                 struct iovec iov = {.iov_base = buf, .iov_len = sizeof (buf)};
                 struct sockaddr_nl nla = {.nl_family = AF_NETLINK }; //{.nl_family = AF_NETLINK}; //TODO: not sure here, maybe only for cmd==IP_ADDR_GET and IP_LINK_GET
@@ -448,15 +447,12 @@ IDM_T rtnl_rcv( int fd, uint32_t pid, uint32_t seq, uint8_t cmd, uint8_t quiet, 
 		int status = recvmsg( fd, &msg, 0 );
                 int err = errno;
 
-                if (err) {
-                        dbgf(DBGL_CHANGES, DBGT_INFO, "rcvd %s status=%d err=%d %s",
-                                trackt2str(cmd), status, err, strerror(err));
-                }
+		dbgf((err || status <= 0) ? DBGL_SYS : DBGL_CHANGES, (err || status <= 0) ? DBGT_WARN : DBGT_INFO,
+			"rcvd cmd=%s fd=%d iteration=%d retries=%d status=%d err=%d %s",
+			trackt2str(cmd), fd, iteration, max_retries, status, err, strerror(err));
 
 
 		if ( status < 0 ) {
-
-                        dbgf_sys(DBGT_ERR, "%s", strerror(err));
 
                         if ( (err == EINTR || err == EWOULDBLOCK || err == EAGAIN ) && max_retries-- > 0 ) {
                                 usleep(500);
@@ -465,14 +461,16 @@ IDM_T rtnl_rcv( int fd, uint32_t pid, uint32_t seq, uint8_t cmd, uint8_t quiet, 
                                 continue;
                         } else {
                                 dbgf_sys(DBGT_ERR, "giving up!");
-                                EXITERROR(-501096, (0));
-                                return FAILURE;
+				return -501096;
+//				EXITERROR(-501096, (0));
+//				return FAILURE;
                         }
 
 		} else if (status == 0) {
                         dbgf_sys(DBGT_ERR, "netlink EOF");
-                        EXITERROR(-501097, (0));
-                        return FAILURE;
+			return -501097;
+//			EXITERROR(-501097, (0));
+//			return FAILURE;
                 }
 
                 if (msg.msg_flags & MSG_TRUNC) {
@@ -494,7 +492,7 @@ IDM_T rtnl_rcv( int fd, uint32_t pid, uint32_t seq, uint8_t cmd, uint8_t quiet, 
                         }
 
                         if (nh->nlmsg_flags & NLM_F_MULTI) {
-                                dbgf_all( DBGT_INFO, "NLM_F_MULTI");
+                                //dbgf_all( DBGT_INFO, "NLM_F_MULTI");
                                 more_data = YES;
                         }
 
@@ -543,7 +541,9 @@ IDM_T rtnl_talk(struct rtnl_handle *iprth, struct nlmsghdr *nlh, uint8_t cmd, ui
 
 
 
-	IDM_T result = rtnl_rcv( iprth->fd, iprth->local.nl_pid, iprth->seq, cmd, quiet, func, data );
+	int result = rtnl_rcv( iprth->fd, iprth->local.nl_pid, iprth->seq, cmd, quiet, func, data );
+
+	ASSERTION(result, (result >= FAILURE));
 
 	iprth->busy = 0;
 	return result;
@@ -1118,7 +1118,7 @@ void kernel_dev_tun_del( char *name, int32_t fd ) {
 }
 
 
-int32_t kernel_dev_tun_add( char *name, int32_t *fdp, IDM_T accept_local_ipv4 )
+int32_t kernel_dev_tun_add( char *name, int32_t *fdp, IDM_T isIp4Tun )
 {
 	int32_t sock_opts;
 	int32_t ifidx;
@@ -1161,11 +1161,17 @@ int32_t kernel_dev_tun_add( char *name, int32_t *fdp, IDM_T accept_local_ipv4 )
 	if ((ifidx = kernel_get_ifidx( name )) == FAILURE)
 		goto kernel_dev_tun_add_error;
 
-	if (accept_local_ipv4) {
+
+	if (isIp4Tun) {
+
 		char filename[100];
-		int32_t dummy;
+
 		sprintf(filename,"ipv4/conf/%s/accept_local", name);
-		if (check_proc_sys_net(filename, 1, &dummy)==FAILURE)
+		if (check_proc_sys_net(filename, SYSCTL_IP4_ACCEPT_LOCAL)==FAILURE)
+			goto kernel_dev_tun_add_error;
+
+		sprintf(filename,"ipv4/conf/%s/rp_filter", name);
+		if (check_proc_sys_net(filename, SYSCTL_IP4_RP_FILTER)==FAILURE)
 			goto kernel_dev_tun_add_error;
 	}
 
@@ -1234,6 +1240,7 @@ int32_t kernel_tun_add(char *name, uint8_t proto, IPX_T *local, IPX_T *remote)
         struct ifreq req;
 	struct ip6_tnl_parm p;
 	int32_t idx;
+	char filename[100];
 
         assertion(-501527, (name && strlen(name)));
 
@@ -1257,16 +1264,28 @@ int32_t kernel_tun_add(char *name, uint8_t proto, IPX_T *local, IPX_T *remote)
         if ((ioctl(io_sock, SIOCADDTUNNEL, &req))) {
                 dbgf_sys(DBGT_ERR, "Failed adding tunnel dev=%s %s", name, strerror(errno));
                 return FAILURE;
-        }
-
-	if ( kernel_set_flags( name, 0, SIOCGIFFLAGS, SIOCSIFFLAGS, IFF_UP, 0 ) != SUCCESS ||
-		(idx = kernel_get_ifidx( name )) <= 0) {
-		IDM_T result = kernel_tun_del(name);
-		assertion(-501502, (result==SUCCESS));
-		return FAILURE;
 	}
 
+	if (kernel_set_flags(name, 0, SIOCGIFFLAGS, SIOCSIFFLAGS, IFF_UP, 0) != SUCCESS || (idx = kernel_get_ifidx(name)) <= 0)
+		goto kernel_tun_add_error;
+
+
+	sprintf(filename,"ipv4/conf/%s/accept_local", name);
+	if (check_proc_sys_net(filename, SYSCTL_IP4_ACCEPT_LOCAL)==FAILURE)
+		goto kernel_tun_add_error;
+
+	sprintf(filename,"ipv4/conf/%s/rp_filter", name);
+	if (check_proc_sys_net(filename, SYSCTL_IP4_RP_FILTER)==FAILURE)
+		goto kernel_tun_add_error;
+
 	return idx;
+
+kernel_tun_add_error: {
+
+	int result = kernel_tun_del(name);
+	assertion(-501502, (result==SUCCESS));
+	return FAILURE;
+}
 }
 
 
@@ -1314,7 +1333,162 @@ IDM_T kernel_set_mtu(char *name, uint16_t mtu)
 	return SUCCESS;
 }
 
+STATIC_FUNC
+char *proc_get_name(char *name, char *p)
+{
+	while (isspace(*p))
+		p++;
+	while (*p) {
+		if (isspace(*p))
+			break;
+		if (*p == ':') { /* could be an alias */
+			char *dot = p, *dotname = name;
+			*name++ = *p++;
+			while (isdigit(*p))
+				*name++ = *p++;
+			if (*p != ':') { /* it wasn't, backup */
+				p = dot;
+				name = dotname;
+			}
+			if (*p == '\0')
+				return NULL;
+			p++;
+			break;
+		}
+		*name++ = *p++;
+	}
+	*name++ = '\0';
+	return p;
+}
 
+STATIC_FUNC
+int proc_netdev_version(char *buf)
+{
+	if (strstr(buf, "compressed"))
+		return 3;
+	if (strstr(buf, "bytes"))
+		return 2;
+	return 1;
+}
+
+STATIC_FUNC
+int proc_get_dev_fields(char *bp, struct user_net_device_stats *stats, int procnetdev_vsn)
+{
+	unsigned long long ullTrash;
+	unsigned long ulTrash;
+
+	switch (procnetdev_vsn) {
+
+	case 3:
+		sscanf(bp,
+			"%llu %llu %lu %lu %lu %lu %lu %lu %llu %llu %lu %lu %lu %lu %lu %lu",
+			&ullTrash,//&stats->rx_bytes,
+			&stats->rx_packets,
+			&ulTrash,//&stats->rx_errors,
+			&ulTrash,//&stats->rx_dropped,
+			&ulTrash,//&stats->rx_fifo_errors,
+			&ulTrash,//&stats->rx_frame_errors,
+			&ulTrash,//&stats->rx_compressed,
+			&ulTrash,//&stats->rx_multicast,
+
+			&ullTrash,//&stats->tx_bytes,
+			&stats->tx_packets,
+			&ulTrash,//&stats->tx_errors,
+			&ulTrash,//&stats->tx_dropped,
+			&ulTrash,//&stats->tx_fifo_errors,
+			&ulTrash,//&stats->collisions,
+			&ulTrash,//&stats->tx_carrier_errors,
+			&ulTrash//&stats->tx_compressed
+			);
+		break;
+	case 2:
+		sscanf(bp, "%llu %llu %lu %lu %lu %lu %llu %llu %lu %lu %lu %lu %lu",
+			&ullTrash,//&stats->rx_bytes,
+			&stats->rx_packets,
+			&ulTrash,//&stats->rx_errors,
+			&ulTrash,//&stats->rx_dropped,
+			&ulTrash,//&stats->rx_fifo_errors,
+			&ulTrash,//&stats->rx_frame_errors,
+
+			&ullTrash,//&stats->tx_bytes,
+			&stats->tx_packets,
+			&ulTrash,//&stats->tx_errors,
+			&ulTrash,//&stats->tx_dropped,
+			&ulTrash,//&stats->tx_fifo_errors,
+			&ulTrash,//&stats->collisions,
+			&ulTrash//&stats->tx_carrier_errors
+			);
+		//stats->rx_multicast = 0;
+		break;
+	case 1:
+		sscanf(bp, "%llu %lu %lu %lu %lu %llu %lu %lu %lu %lu %lu",
+			&stats->rx_packets,
+			&ulTrash,//&stats->rx_errors,
+			&ulTrash,//&stats->rx_dropped,
+			&ulTrash,//&stats->rx_fifo_errors,
+			&ulTrash,//&stats->rx_frame_errors,
+
+			&stats->tx_packets,
+			&ulTrash,//&stats->tx_errors,
+			&ulTrash,//&stats->tx_dropped,
+			&ulTrash,//&stats->tx_fifo_errors,
+			&ulTrash,//&stats->collisions,
+			&ulTrash//&stats->tx_carrier_errors
+			);
+		//stats->rx_bytes = 0;
+		//stats->tx_bytes = 0;
+		//stats->rx_multicast = 0;
+		break;
+	}
+	return 0;
+}
+
+IDM_T kernel_get_ifstats(struct user_net_device_stats *stats, char *target)
+{
+	assertion(-502334, (stats && target));
+
+	FILE *fh;
+	char buf[512];
+	int ret = FAILURE;
+	char *start;
+	struct user_net_device_stats prev = *stats;
+
+	if (!(fh = fopen(IFCONFIG_PATH_PROCNET_DEV, "r"))) {
+		dbgf_sys(DBGT_ERR, "Warning: cannot open %s (%s). Limited output", IFCONFIG_PATH_PROCNET_DEV, strerror(errno));
+		return FAILURE;
+	}
+
+	start = fgets(buf, sizeof buf, fh); /* eat line */
+	start = fgets(buf, sizeof buf, fh);
+
+	int procnetdev_vsn = proc_netdev_version(buf);
+
+	while (fgets(buf, sizeof buf, fh)) {
+		char name[IFNAMSIZ];
+
+		start = proc_get_name(name, buf);
+
+		if (!strcmp(target, name)) {
+			proc_get_dev_fields(start, stats, procnetdev_vsn);
+			dbgf_all(DBGT_INFO, "stats: rx=%llu tx=%llu  buf: %s", stats->rx_packets, stats->tx_packets, start);
+			ret = SUCCESS;
+			break;
+		}
+	}
+
+	if (ferror(fh)) {
+		perror(IFCONFIG_PATH_PROCNET_DEV);
+		ret = FAILURE;
+	}
+
+	fclose(fh);
+
+	dbgf((ret == SUCCESS ? DBGL_ALL : DBGL_CHANGES), (ret == SUCCESS ? DBGT_INFO : DBGT_ERR),
+		"%s %s prev: rx=%llu tx=%llu  curr: rx=%llu tx=%llu", (ret==SUCCESS ? "Succeeded": "Failed"), target,
+		prev.rx_packets, prev.tx_packets, stats->rx_packets, stats->tx_packets);
+
+	return ret;
+}
 
 
 IDM_T kernel_get_route(uint8_t quiet, uint8_t family, uint32_t table, void (*func) (struct nlmsghdr *nh, void *data) )
@@ -1641,7 +1815,7 @@ IDM_T iproute(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_key *dst,
 
 
 
-IDM_T check_proc_sys_net(char *file, int32_t desired, int32_t *backup)
+IDM_T check_proc_sys_net(char *file, int32_t desired)
 {
 	TRACE_FUNCTION_CALL;
         FILE *f;
@@ -1662,22 +1836,6 @@ IDM_T check_proc_sys_net(char *file, int32_t desired, int32_t *backup)
 
 	fclose(f);
 
-	if ( backup )
-		*backup = state;
-
-	// other routing protocols are probably not able to handle this therefore
-	// it is probably better to leave the routing configuration operational as it is!
-	if ( !backup  &&  !Pedantic_cleanup   &&  state != desired ) {
-
-		dbgf_mute( 50, DBGL_SYS, DBGT_INFO,
-		          "NOT restoring %s to NOT mess up other routing protocols. "
-		          "Use --%s=1 to enforce proper cleanup",
-		          file, ARG_PEDANTIC_CLEANUP );
-
-		return FAILURE;
-	}
-
-
 	if ( state != desired ) {
 
 		dbgf_sys(DBGT_INFO, "changing %s from %d to %d", filename, state, desired );
@@ -1688,72 +1846,46 @@ IDM_T check_proc_sys_net(char *file, int32_t desired, int32_t *backup)
 			return FAILURE;
 		}
 
-		fprintf(f, "%d", desired?1:0 );
+		fprintf(f, "%d", desired );
 		fclose(f);
 	}
 	return SUCCESS;
 }
 
-void sysctl_restore(struct dev_node *dev)
-{
-        TRACE_FUNCTION_CALL;
-        
-        if (!dev) {
-
-		if( if4_rp_filter_all_orig != -1 )
-			check_proc_sys_net( "ipv4/conf/all/rp_filter", if4_rp_filter_all_orig, NULL );
-
-		if4_rp_filter_all_orig = -1;
-
-		if( if4_rp_filter_default_orig != -1 )
-			check_proc_sys_net( "ipv4/conf/default/rp_filter", if4_rp_filter_default_orig,  NULL );
-
-		if4_rp_filter_default_orig = -1;
-
-		if( if4_send_redirects_all_orig != -1 )
-			check_proc_sys_net( "ipv4/conf/all/send_redirects", if4_send_redirects_all_orig, NULL );
-
-		if4_send_redirects_all_orig = -1;
-
-		if( if4_send_redirects_default_orig != -1 )
-			check_proc_sys_net( "ipv4/conf/default/send_redirects", if4_send_redirects_default_orig, NULL );
-
-		if4_send_redirects_default_orig = -1;
-
-		if( if4_forward_orig != -1 )
-			check_proc_sys_net( "ipv4/ip_forward", if4_forward_orig, NULL );
-
-		if4_forward_orig = -1;
-
-
-                if (if6_forward_orig != -1)
-                        check_proc_sys_net("ipv6/conf/all/forwarding", if6_forward_orig, NULL);
-
-                if6_forward_orig = -1;
-
-	}
-}
 
 // TODO: check for further traps: http://lwn.net/Articles/45386/
 void sysctl_config( struct dev_node *dev )
 {
         TRACE_FUNCTION_CALL;
 
-        static TIME_T ipv6_timestamp = -1;
+        static TIME_T checkstamp = -1;
+        char filename[100];
 
         if (!(dev->active && dev->if_llocal_addr && dev->if_llocal_addr->iln->flags && IFF_UP))
                 return;
 
 
-        if (dev) {
+	if (checkstamp != bmx_time) {
 
-                if (ipv6_timestamp != bmx_time) {
+		check_proc_sys_net("ipv6/conf/all/forwarding", SYSCTL_IP6_FORWARD);
 
-                        check_proc_sys_net("ipv6/conf/all/forwarding", 1, &if6_forward_orig);
+		check_proc_sys_net("ipv4/ip_forward", SYSCTL_IP4_FORWARD);
 
-                        ipv6_timestamp = bmx_time;
-                }
-        }
+		check_proc_sys_net("ipv4/conf/all/rp_filter", SYSCTL_IP4_RP_FILTER);
+		check_proc_sys_net("ipv4/conf/default/rp_filter", SYSCTL_IP4_RP_FILTER);
+		check_proc_sys_net("ipv4/conf/all/send_redirects", SYSCTL_IP4_SEND_REDIRECT);
+		check_proc_sys_net("ipv4/conf/default/send_redirects", SYSCTL_IP4_SEND_REDIRECT);
+
+		checkstamp = bmx_time;
+	}
+
+
+	if (dev) {
+		sprintf(filename, "ipv4/conf/%s/rp_filter", dev->name_phy_cfg.str);
+		check_proc_sys_net(filename, SYSCTL_IP4_RP_FILTER);
+		sprintf(filename, "ipv4/conf/%s/send_redirects", dev->name_phy_cfg.str); 
+		check_proc_sys_net(filename, SYSCTL_IP4_SEND_REDIRECT);
+	}
 }
 
 
@@ -1844,9 +1976,7 @@ void dev_reconfigure_soft(struct dev_node *dev)
                 dev->label_cfg.str, macAsStr(&dev->mac),
                 dev->ip_llocal_str, dev->if_llocal_addr->ifa.ifa_prefixlen,
                 dev->ip_global_str, dev->if_global_addr ? dev->if_global_addr->ifa.ifa_prefixlen : 0,
-                dev->ip_brc_str);
-
-        update_my_dev_adv();
+                ip6AsStr(&dev->if_llocal_addr->ip_mcast));
 
 	dev->soft_conf_changed = NO;
 
@@ -1861,15 +1991,18 @@ void dev_deactivate( struct dev_node *dev )
         dbgf_sys(DBGT_WARN, "deactivating %s=%s llocal=%s global=%s",
                 ARG_DEV, dev->label_cfg.str, dev->ip_llocal_str, dev->ip_global_str);
 
-        if (!is_ip_set(&dev->llip_key.ip)) {
-                dbgf_sys(DBGT_ERR, "no address given to remove in dev_ip_tree!");
-        } else if (!avl_find(&dev_ip_tree, &dev->llip_key)) {
-                dbgf_sys(DBGT_ERR, "%s not in dev_ip_tree!", ip6AsStr(&dev->llip_key.ip));
+        if (!is_ip_set(&dev->llipKey.llip) || !dev->llipKey.devIdx) {
+                dbgf_sys(DBGT_ERR, "no address or idx given to remove in dev_ip_tree!");
+		assertion(-502335, (!is_ip_set(&dev->llipKey.llip) && !dev->llipKey.devIdx));
+        } else if (!avl_find(&dev_ip_tree, &dev->llipKey)) {
+                dbgf_sys(DBGT_ERR, "llip=%s devIdx=%d not in dev_ip_tree!", ip6AsStr(&dev->llipKey.llip), dev->llipKey.devIdx);
         } else {
-                avl_remove(&dev_ip_tree, &dev->llip_key, -300192);
-                dev->llip_key.ip = ZERO_IP;
+                avl_remove(&dev_ip_tree, &dev->llipKey, -300192);
         }
 
+	dev->llipKey.llip = ZERO_IP;
+	dev->llipKey.devIdx = DEVIDX_INVALID;
+        ip6ToStr( &ZERO_IP, dev->ip_llocal_str);
 
         if (dev->active) {
                 dev->active = NO;
@@ -1879,15 +2012,8 @@ void dev_deactivate( struct dev_node *dev )
 	if ( dev->linklayer != TYP_DEV_LL_LO ) {
 
 
-		purge_linkDevs(NULL, dev, NO);
 
-                purge_tx_task_list(dev->tx_task_lists, NULL, NULL);
-
-                struct avl_node *an;
-		LinkNode *link;
-                for (an = NULL; (link = avl_iterate_item(&link_tree, &an));) {
-                        assertion(-502212, (!purge_tx_task_list(link->tx_task_lists, NULL, dev)));
-                }
+		purge_tx_task_tree(NULL, dev, NULL, YES);
 
 
 		if (dev->unicast_sock) {
@@ -1905,24 +2031,15 @@ void dev_deactivate( struct dev_node *dev )
                         dev->rx_fullbrc_sock = 0;
                 }
 
-                dev->llip_key.idx = DEVADV_IDX_INVALID;
+		purge_linkDevs(NULL, dev, YES);
+
         }
 
 
-        if (dev->tx_task) {
-                task_remove(dev->tx_task, dev);
-                dev->tx_task = NULL;
-        }
-
-
-	sysctl_restore ( dev );
 
 	change_selects();
 
 	dbgf_all( DBGT_WARN, "Interface %s deactivated", dev->label_cfg.str );
-
-        if (dev->dev_adv_msg > DEVADV_MSG_IGNORED)
-                update_my_dev_adv();
 
 	my_description_changed = YES;
 
@@ -2046,29 +2163,22 @@ IDM_T dev_init_sockets(struct dev_node *dev)
 }
 
 STATIC_FUNC
-DEVADV_IDX_T get_free_devidx(void)
+DEVIDX_T get_free_devidx(void)
 {
-        static uint16_t idx = DEVADV_IDX_MIN;
-        uint16_t tries = DEVADV_IDX_MAX - DEVADV_IDX_MIN;
+	DEVIDX_T idx;
 
-        struct avl_node *an;
-        struct dev_node *dev;
+	for (idx = DEVIDX_MIN; idx <= DEVIDX_MAX; idx++) {
 
-        while ((--tries)) {
+		struct avl_node *an = NULL;
+		struct dev_node *dev;
 
-                idx = ((idx + 1) > DEVADV_IDX_MAX ? DEVADV_IDX_MIN : (idx + 1));
+		while (((dev = avl_iterate_item(&dev_ip_tree, &an))) && (dev->llipKey.devIdx != idx));
 
-                for (an = NULL; ((dev = avl_iterate_item(&dev_ip_tree, &an)));) {
-                        if (dev->llip_key.idx == idx)
-                                break;
-                }
-
-                if (dev == NULL)
-                        return idx;
-        }
-        return DEVADV_IDX_INVALID;
+		if (dev == NULL)
+			return idx;
+	}
+	return DEVIDX_INVALID;
 }
-
 
 STATIC_FUNC
 void dev_activate( struct dev_node *dev )
@@ -2122,9 +2232,12 @@ void dev_activate( struct dev_node *dev )
                         if (dot_ptr)
                                 *dot_ptr = '.';
                 }
-        }
+	}
 
+	DevKey devIpKey = {.devIdx = get_free_devidx(), .llip = dev->if_llocal_addr->ip_addr};
 
+	if (devIpKey.devIdx == DEVIDX_INVALID)
+		goto error;
 
         if (dev->linklayer != TYP_DEV_LL_LO) {
 
@@ -2133,17 +2246,14 @@ void dev_activate( struct dev_node *dev )
                 if (dev_init_sockets(dev) == FAILURE)
                         goto error;
 
-                if ((dev->llip_key.idx = get_free_devidx()) == DEVADV_IDX_INVALID)
-                        goto error;
-
                 sysctl_config(dev);
         }
 
         // from here on, nothing should fail anymore !!:
 
 
-        dev->llip_key.ip = dev->if_llocal_addr->ip_addr;
-        assertion(-500592, (!avl_find(&dev_ip_tree, &dev->llip_key)));
+        dev->llipKey = devIpKey;
+        assertion(-500592, (!avl_find(&dev_ip_tree, &dev->llipKey)));
         avl_insert(&dev_ip_tree, dev, -300151);
 
 
@@ -2152,29 +2262,14 @@ void dev_activate( struct dev_node *dev )
         if ( dev->if_global_addr)
                 ip6ToStr(&dev->if_global_addr->ip_addr, dev->ip_global_str);
 
-        ip6ToStr(&dev->if_llocal_addr->ip_mcast, dev->ip_brc_str);
-
         dev->active = YES;
         dev->activate_again = NO;
-
-//        assertion(-500595, (primary_dev_cfg));
 
         if (!(dev->link_hello_sqn )) {
                 dev->link_hello_sqn = ((HELLO_SQN_MASK) & rand_num(HELLO_SQN_MAX));
         }
 
-/*
-        int i;
-        for (i = 0; i < FRAME_TYPE_ARRSZ; i++) {
-                LIST_INIT_HEAD(dev->tx_task_lists[i], struct tx_task_node, list, list);
-        }
-
-        AVL_INIT_TREE(dev->tx_task_interval_tree, struct tx_task_node, task);
-*/
-
-
-//        if (dev->announce)
-                my_description_changed = YES;
+	my_description_changed = YES;
 
 
         dev->soft_conf_changed = YES;
@@ -2190,9 +2285,6 @@ void dev_activate( struct dev_node *dev )
 
 error:
         dbgf_sys(DBGT_ERR, "error intitializing %s=%s", ARG_DEV, dev->label_cfg.str);
-
-        ip6ToStr( &ZERO_IP, dev->ip_llocal_str);
-        ip6ToStr( &ZERO_IP, dev->ip_brc_str);
 
         dev_deactivate(dev);
 }
@@ -2284,6 +2376,8 @@ void ip_flush_tracked( uint8_t cmd )
 STATIC_FUNC
 int update_interface_rules(void)
 {
+	IDM_T TODO_instead_of_throwing_my_nets_only_announced_nets_are_hna_allowed_or_discarded;
+
 	TRACE_FUNCTION_CALL;
         assertion(-501130, (policy_routing != POLICY_RT_UNSET));
 
@@ -2338,7 +2432,7 @@ int update_interface_rules(void)
                         ip_netmask_validate(&throw.ip, throw.mask, throw.af, YES);
 
 			//TODO: Fix (set oif_idx=0) as soon as this becomes mainline: http://permalink.gmane.org/gmane.linux.network/242277
-                        iproute(IP_THROW_MY_NET, ADD, NO, &throw, RT_TABLE_HNA, 0, (throw.af == AF_INET6 ? iln->index : 0), 0, 0, 0, NULL);
+                        iproute(IP_THROW_MY_NET, ADD, NO, &throw, BMX_TABLE_HNA, 0, (throw.af == AF_INET6 ? iln->index : 0), 0, 0, 0, NULL);
                         //iproute(IP_THROW_MY_NET, ADD, NO, &throw, RT_TABLE_TUN, 0, (throw.af == AF_INET6 ? iln->index : 0), 0, 0, 0, NULL);
 
                 }
@@ -2381,7 +2475,7 @@ void dev_if_fix(void)
 {
 	TRACE_FUNCTION_CALL;
 
-	assertion(-502042, (self && is_ip_set(&self->primary_ip)));
+	assertion(-502042, (myKey && is_ip_set(&my_primary_ip)));
 
         struct if_link_node *iln = avl_first_item(&if_link_tree);
         struct avl_node *lan;
@@ -2459,7 +2553,7 @@ void dev_if_fix(void)
 
 			if (!is_ip6llocal && DEF_AUTO_IP6_DEVMASK) {
 
-				if (is_ip_equal(&self->primary_ip, &ian->ip_addr) && DEF_AUTO_IP6_DEVMASK == ian->ifa.ifa_prefixlen) {
+				if (is_ip_equal(&my_primary_ip, &ian->ip_addr) && DEF_AUTO_IP6_DEVMASK == ian->ifa.ifa_prefixlen) {
 
 					dev->if_global_addr = ian;
 				}
@@ -2468,10 +2562,10 @@ void dev_if_fix(void)
 
                 if (DEF_AUTO_IP6_DEVMASK && !dev->if_global_addr) {
 
-			dbgf_sys(DBGT_INFO, "Autoconfiguring dev=%s idx=%d ip=%s", dev->label_cfg.str, dev->if_link->index, self->primary_ip_str);
+			dbgf_sys(DBGT_INFO, "Autoconfiguring dev=%s idx=%d ip=%s", dev->label_cfg.str, dev->if_link->index, ip6AsStr(&my_primary_ip));
 
-                        kernel_set_addr(ADD, dev->if_link->index, AF_INET6, &self->primary_ip, DEF_AUTO_IP6_DEVMASK, NO /*deprecated*/);
-                        dev->autoIP6Configured.ip = self->primary_ip;
+                        kernel_set_addr(ADD, dev->if_link->index, AF_INET6, &my_primary_ip, DEF_AUTO_IP6_DEVMASK, NO /*deprecated*/);
+                        dev->autoIP6Configured.ip = my_primary_ip;
 			dev->autoIP6Configured.mask = DEF_AUTO_IP6_DEVMASK;
                         dev->autoIP6IfIndex = dev->if_link->index;
                 }
@@ -2556,21 +2650,12 @@ static void dev_check(void *kernel_ip_config_changed)
 
                 if (iff_up && !dev->active && (dev->hard_conf_changed || dev->activate_again)) {
 
-			struct dev_ip_key devip_key = { .ip = dev->if_llocal_addr->ip_addr, .idx=0 };
-                        struct dev_node *tmp_dev = avl_find_item(&dev_ip_tree, &devip_key);
-
-                        while ((tmp_dev || (tmp_dev = avl_next_item(&dev_ip_tree, &devip_key)))
-				&& is_ip_equal(&tmp_dev->llip_key.ip, &dev->if_llocal_addr->ip_addr)) {
-
-				devip_key = tmp_dev->llip_key;
-
-				if (!wordsEqual(tmp_dev->name_phy_cfg.str, dev->name_phy_cfg.str)) {
-
-					dbgf_sys(DBGT_WARN, "%s=%s llocal=%s already used for dev=%s idx=0x%X",
-						ARG_DEV, dev->label_cfg.str, ip6AsStr(&dev->if_llocal_addr->ip_addr),
-						tmp_dev->label_cfg.str, tmp_dev->llip_key.idx);
-				}
-				tmp_dev = NULL;
+                        struct dev_node *tmpDev;
+			DevKey devIpKey = {.llip = dev->if_llocal_addr->ip_addr, .devIdx = 0};
+			if ((tmpDev = avl_closest_item(&dev_ip_tree, &devIpKey)) && is_ip_equal(&tmpDev->llipKey.llip, &dev->if_llocal_addr->ip_addr)) {
+				dbgf_sys(DBGT_WARN, "%s=%s llocal=%s already used for dev=%s",
+					ARG_DEV, dev->label_cfg.str, ip6AsStr(&dev->if_llocal_addr->ip_addr),
+					tmpDev->label_cfg.str);
 			}
 
 			if (dev->activate_cancelled) {
@@ -2584,10 +2669,6 @@ static void dev_check(void *kernel_ip_config_changed)
                         } else if (wordsEqual(DEV_LO, dev->name_phy_cfg.str) && !dev->if_global_addr) {
 
                                 dbgf_sys(DBGT_ERR, "%s=%s %s but no global addr", ARG_DEV, dev->label_cfg.str, "loopback");
-
-                        } else if (dev_ip_tree.items == DEVADV_IDX_MAX) {
-
-                                dbgf_sys(DBGT_ERR, "too much active interfaces");
 
                         } else  {
 
@@ -2707,7 +2788,7 @@ IDM_T is_policy_rt_supported(void)
         static uint8_t tested_family = 0;
         struct net_key net = ZERO_NETCFG_KEY;
 	uint32_t prio = prio_macro_to_prio(RT_PRIO_HNA);
-        uint32_t table = table_macro_to_table(RT_TABLE_HNA);
+        uint32_t table = table_macro_to_table(BMX_TABLE_HNA);
 
         if (net.af == tested_family) {
                 assertion(-501132, (tested_policy_rt != POLICY_RT_UNSET));
@@ -2813,17 +2894,17 @@ int32_t opt_ip_version(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
 
 		// add rule for hosts and announced interfaces and networks
 
-		//ip_flush_routes(AF_INET, RT_TABLE_HNA);
-		//ip_flush_rules(AF_INET, RT_TABLE_HNA);
+		//ip_flush_routes(AF_INET, BMX_TABLE_HNA);
+		//ip_flush_rules(AF_INET, BMX_TABLE_HNA);
 
-		//iproute(IP_RULE_DEFAULT, ADD, NO, &ZERO_NET4_KEY, RT_TABLE_HNA, RT_PRIO_HNA, 0, 0, 0, 0, NULL);
-		//iproute(IP_RULE_DEFAULT, ADD, NO, &ZERO_NET4_KEY, RT_TABLE_TUN, RT_PRIO_TUNS, 0, 0, 0, 0, NULL);
+		//iproute(IP_RULE_DEFAULT, ADD, NO, &ZERO_NET4_KEY, BMX_TABLE_HNA, RT_PRIO_HNA, 0, 0, 0, 0, NULL);
+		//iproute(IP_RULE_DEFAULT, ADD, NO, &ZERO_NET4_KEY, BMX_TABLE_TUN, RT_PRIO_TUNS, 0, 0, 0, 0, NULL);
 
-		ip_flush_routes(AF_INET6, RT_TABLE_HNA);
-		ip_flush_rules(AF_INET6, RT_TABLE_HNA);
+		ip_flush_routes(AF_INET6, BMX_TABLE_HNA);
+		ip_flush_rules(AF_INET6, BMX_TABLE_HNA);
 
-		iproute(IP_RULE_DEFAULT, ADD, NO, &ZERO_NET6_KEY, RT_TABLE_HNA, RT_PRIO_HNA, 0, 0, 0, 0, NULL);
-		//iproute(IP_RULE_DEFAULT, ADD, NO, &ZERO_NET6_KEY, RT_TABLE_TUN, RT_PRIO_TUNS, 0, 0, 0, 0, NULL);
+		iproute(IP_RULE_DEFAULT, ADD, NO, &ZERO_NET6_KEY, BMX_TABLE_HNA, RT_PRIO_HNA, 0, 0, 0, 0, NULL);
+		//iproute(IP_RULE_DEFAULT, ADD, NO, &ZERO_NET6_KEY, BMX_TABLE_TUN, RT_PRIO_TUNS, 0, 0, 0, 0, NULL);
 
 
 
@@ -2832,9 +2913,6 @@ int32_t opt_ip_version(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
 	return SUCCESS;
 }
 
-static int32_t nextDevStatPeriod = DEF_DEVSTAT_PERIOD;
-static int32_t currDevStatPeriod = DEF_DEVSTAT_PERIOD;
-static int32_t prevDevStatPeriod = DEF_DEVSTAT_PERIOD;
 
 STATIC_FUNC
 void update_devStatistic_task(void *data)
@@ -2842,55 +2920,50 @@ void update_devStatistic_task(void *data)
         struct dev_node *dev;
         struct avl_node *an = NULL;
 
-	prevDevStatPeriod = currDevStatPeriod;
-	currDevStatPeriod = nextDevStatPeriod;
+	udpRxBytesMean = udpRxPacketsMean = udpTxBytesMean = udpTxPacketsMean = 0;
 
         while ((dev = avl_iterate_item(&dev_name_tree, &an))) {
 
-		dev->udpInPrevBytes = dev->udpInCurrBytes;
-		dev->udpInPrevPackets = dev->udpInCurrPackets;
-		dev->udpOutPrevBytes = dev->udpOutCurrBytes;
-		dev->udpOutPrevPackets = dev->udpOutCurrPackets;
-		dev->udpInCurrBytes = dev->udpInCurrPackets = dev->udpOutCurrBytes = dev->udpOutCurrPackets = 0;
+		udpRxBytesMean += (dev->udpRxBytesMean = ((dev->udpRxBytesMean * (devStatRegression - 1)) + ((dev->udpRxBytesCurr * DEVSTAT_PRECISION))) / devStatRegression);
+		udpRxPacketsMean += (dev->udpRxPacketsMean = ((dev->udpRxPacketsMean * (devStatRegression - 1)) + ((dev->udpRxPacketsCurr * DEVSTAT_PRECISION))) / devStatRegression);
+		udpTxBytesMean += (dev->udpTxBytesMean = ((dev->udpTxBytesMean * (devStatRegression - 1)) + ((dev->udpTxBytesCurr * DEVSTAT_PRECISION))) / devStatRegression);
+		udpTxPacketsMean += (dev->udpTxPacketsMean = ((dev->udpTxPacketsMean * (devStatRegression - 1)) + ((dev->udpTxPacketsCurr * DEVSTAT_PRECISION))) / devStatRegression);
+
+		dev->udpRxBytesCurr = dev->udpRxPacketsCurr = dev->udpTxBytesCurr = dev->udpTxPacketsCurr = 0;
         }
 
-        task_register(currDevStatPeriod, update_devStatistic_task, NULL, -300000);
+        task_register(DEF_DEVSTAT_PERIOD, update_devStatistic_task, NULL, -300700);
 }
 
 
 struct dev_status {
-        char* devName;
-        DEVADV_IDX_T devIdx;
+        char *dev;
         char *state;
         char *type;
         UMETRIC_T rateMin;
         UMETRIC_T rateMax;
-        char llocalIp[IPX_PREFIX_STR_LEN];
+	uint16_t idx;
+        char localIp[IPX_PREFIX_STR_LEN];
         char globalIp[IPX_PREFIX_STR_LEN];
-        char *multicastIp;
+	char multicastIp[IPX_STR_LEN];
         HELLO_SQN_T helloSqn;
-	uint32_t outPps;
-	uint32_t outBps;
-	uint32_t inPps;
-	uint32_t inBps;
-
+	char rxBpP[12];
+	char txBpP[12];
 };
 
 static const struct field_format dev_status_format[] = {
-        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,              dev_status, devName,     1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,                      dev_status, devIdx,      1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,              dev_status, dev,         1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,              dev_status, state,       1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,              dev_status, type,        1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,                   dev_status, rateMin,     1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,                   dev_status, rateMax,     1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,               dev_status, llocalIp,    1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,               dev_status, globalIp,    1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,              dev_status, multicastIp, 1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,                      dev_status, helloSqn,    1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,                      dev_status, outPps,      1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,                      dev_status, outBps,      1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,                      dev_status, inPps,       1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,                      dev_status, inBps,       1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,                      dev_status, idx,         1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,               dev_status, localIp,     1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,               dev_status, globalIp,    1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,               dev_status, multicastIp, 1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,                      dev_status, helloSqn,    1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,               dev_status, rxBpP,       1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,               dev_status, txBpP,       1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_END
 };
 
@@ -2908,8 +2981,7 @@ static int32_t dev_status_creator(struct status_handl *handl, void* data)
                 IDM_T iff_up = dev->if_llocal_addr && (dev->if_llocal_addr->iln->flags & IFF_UP);
 
 
-                status[i].devName = dev->label_cfg.str;
-                status[i].devIdx = dev->llip_key.idx;
+                status[i].dev = dev->label_cfg.str;
                 status[i].state = iff_up ? "UP":"DOWN";
                 status[i].type = !dev->active ? "INACTIVE" :
                         (dev->linklayer == TYP_DEV_LL_LO ? "loopback" :
@@ -2917,14 +2989,13 @@ static int32_t dev_status_creator(struct status_handl *handl, void* data)
                         (dev->linklayer == TYP_DEV_LL_WIFI ? "wireless" : "???")));
                 status[i].rateMin = dev->umetric_min;
                 status[i].rateMax = dev->umetric_max;
-                sprintf(status[i].llocalIp, "%s/%d", dev->ip_llocal_str, dev->if_llocal_addr ? dev->if_llocal_addr->ifa.ifa_prefixlen : -1);
+		status[i].idx = dev->llipKey.devIdx;
+                sprintf(status[i].localIp, "%s/%d", dev->ip_llocal_str, dev->if_llocal_addr ? dev->if_llocal_addr->ifa.ifa_prefixlen : -1);
                 sprintf(status[i].globalIp, "%s/%d", dev->ip_global_str, dev->if_global_addr ? dev->if_global_addr->ifa.ifa_prefixlen : -1);
-                status[i].multicastIp = dev->ip_brc_str;
+		ip6ToStr(dev->if_llocal_addr ? &dev->if_llocal_addr->ip_mcast : NULL, status[i].multicastIp);
                 status[i].helloSqn = dev->link_hello_sqn;
-		status[i].outBps = (1000 * dev->udpOutPrevBytes) / prevDevStatPeriod;
-		status[i].outPps = (1000 * dev->udpOutPrevPackets) / prevDevStatPeriod;
-		status[i].inBps = (1000 * dev->udpInPrevBytes) / prevDevStatPeriod;
-		status[i].inPps = (1000 * dev->udpInPrevPackets) / prevDevStatPeriod;
+		sprintf(status[i].rxBpP,  "%d/%.1f", (dev->udpRxBytesMean / DEVSTAT_PRECISION), (((float)dev->udpRxPacketsMean) / DEVSTAT_PRECISION));
+		sprintf(status[i].txBpP, "%d/%.1f", (dev->udpTxBytesMean / DEVSTAT_PRECISION), (((float)dev->udpTxPacketsMean) / DEVSTAT_PRECISION));
 
                 i++;
         }
@@ -3030,16 +3101,14 @@ int32_t opt_auto_prefix(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
 
         } else if (cmd == OPT_SET_POST && initializing ) {
 
-		assertion(-502043, (self));
-		assertion(-502044, (!is_zero(&self->nodeId, sizeof(self->nodeId))));
-		self->primary_ip = autoconf_prefix_cfg.ip;
-		memcpy(&self->primary_ip.s6_addr[(autoconf_prefix_cfg.mask/8)], &self->nodeId, ((128-autoconf_prefix_cfg.mask)/8));
+		assertion(-502043, (myKey));
+		my_primary_ip = autoconf_prefix_cfg.ip;
+		memcpy(&my_primary_ip.s6_addr[(autoconf_prefix_cfg.mask/8)], &myKey->kHash, ((128-autoconf_prefix_cfg.mask)/8));
 
 /*		if (is_zero(&self->global_id.pkid, sizeof(self->global_id.pkid)/2))
 			memcpy(&self->primary_ip.s6_addr[(autoconf_prefix_cfg.mask/8)], &self->global_id.pkid.u8[sizeof(self->global_id.pkid)/2],
 				XMIN((128-autoconf_prefix_cfg.mask)/8, sizeof(self->global_id.pkid)/2));
 */
-		ip6ToStr(&self->primary_ip, self->primary_ip_str);
 	}
 
 	return SUCCESS;
@@ -3126,21 +3195,8 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
                         uint32_t dev_size = sizeof (struct dev_node) + (sizeof (void*) * plugin_data_registries[PLUGIN_DATA_DEV]);
                         dev = debugMallocReset(dev_size, -300002);
 
-/*
-                        if (!primary_dev_cfg)
-                                primary_dev_cfg = dev;
-*/
-
                         strcpy(dev->label_cfg.str, patch->val);
                         strcpy(dev->name_phy_cfg.str, phy_name);
-
-                        int i;
-                        for (i = 0; i < FRAME_TYPE_ARRSZ; i++) {
-                                LIST_INIT_HEAD(dev->tx_task_lists[i], struct tx_task_node, list, list);
-                        }
-
-                        AVL_INIT_TREE(dev->tx_task_interval_tree, struct tx_task_node, task);
-
 
                         avl_insert(&dev_name_tree, dev, -300144);
 
@@ -3286,7 +3342,7 @@ static struct opt_type ip_options[]=
 {
 //        ord parent long_name          shrt, order, relevance, Attributes...	*ival		min		max		default		*func,*syntax,*help
 	{ODI,0,ARG_IP,	                'I',3,2, A_PS1N,A_ADM,A_INI,A_CFA,A_ANY,	NULL,    0,0,0,/*MIN_IP_VERSION, MAX_IP_VERSION,*/ DEF_IP_VERSION,  opt_ip_version,
-			ARG_VALUE_FORM,	"select ip protocol Version 4 or 6"},
+			ARG_VALUE_FORM,	"IP protocol Version. Must be 6!"},
 
 	{ODI,ARG_IP,ARG_IP_POLICY_ROUTING,0,3,1,A_CS1,A_ADM,A_INI,A_CFA,A_ANY,	&ip_policy_rt_cfg,0, 		1,		DEF_IP_POLICY_ROUTING,0,opt_ip_version,
 			ARG_VALUE_FORM,	"disable policy routing (throw and priority rules)"},
@@ -3306,8 +3362,8 @@ static struct opt_type ip_options[]=
 
 	{ODI,0,ARG_INTERFACES,	        0,  9,2,A_PS0,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
 			0,		"show interfaces\n"},
-	{ODI,0,ARG_DEVSTAT_PERIOD,      0, 9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,   &nextDevStatPeriod,MIN_DEVSTAT_PERIOD,MAX_DEVSTAT_PERIOD,DEF_DEVSTAT_PERIOD,0,0,
-			ARG_VALUE_FORM,	HLP_DEVSTAT_PERIOD},
+	{ODI,0,ARG_DEVSTAT_REGRESSION,      0, 9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,   &devStatRegression,MIN_DEVSTAT_REGRESSION,MAX_DEVSTAT_REGRESSION,DEF_DEVSTAT_REGRESSION,0,0,
+			ARG_VALUE_FORM,	HLP_DEVSTAT_REGRESSION},
 
 	{ODI,0,ARG_LLOCAL_PREFIX,	0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_dev_prefix,
 			ARG_NETW_FORM,HLP_LLOCAL_PREFIX},
@@ -3330,12 +3386,8 @@ static struct opt_type ip_options[]=
 	{ODI,ARG_DEV,ARG_DEV_BITRATE_MIN, 0, 9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,              0,              0,0,              opt_dev,
 			ARG_VALUE_FORM,	HLP_DEV_BITRATE_MIN},
 
-#ifndef LESS_OPTIONS
-	{ODI,0,ARG_PEDANTIC_CLEANUP,	  0, 9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&Pedantic_cleanup,0,		1,		DEF_PEDANTIC_CLEANUP,0,0,
-			ARG_VALUE_FORM,	"disable/enable pedantic cleanup of system configuration (like ip_forward,..) \n"
-			"	at program termination. Its generally safer to keep this disabled to not mess up \n"
-			"	with other routing protocols"}
-#endif
+
+
 };
 
 
@@ -3403,7 +3455,7 @@ void init_ip(void)
 
         register_status_handl(sizeof (struct dev_status), 1, dev_status_format, ARG_INTERFACES, dev_status_creator);
 
-	task_register(currDevStatPeriod, update_devStatistic_task, NULL, -300000);
+	task_register(DEF_DEVSTAT_PERIOD, update_devStatistic_task, NULL, -300701);
 
         kernel_get_if_config();
 
@@ -3422,22 +3474,20 @@ void cleanup_ip(void)
 	ip_flush_tracked( IP_ROUTE_FLUSH );
 
 	// flush all routes in this bmx6 tables (there should be NOTHING!):
-	ip_flush_routes(AF_INET6, RT_TABLE_HNA);
-	//ip_flush_routes(AF_INET, RT_TABLE_HNA);
+	ip_flush_routes(AF_INET6, BMX_TABLE_HNA);
+	//ip_flush_routes(AF_INET, BMX_TABLE_HNA);
 
 	// flush default routes installed by bmx6:
 	ip_flush_tracked( IP_RULE_FLUSH );
 
 
 	// flush all rules pointing to bmx6 tables (there should be NOTHING!):
-	ip_flush_rules(AF_INET6, RT_TABLE_HNA);
-	//ip_flush_rules(AF_INET, RT_TABLE_HNA);
+	ip_flush_rules(AF_INET6, BMX_TABLE_HNA);
+	//ip_flush_rules(AF_INET, BMX_TABLE_HNA);
 
 
         kernel_get_if_config_post(YES,0);
 
-
-        sysctl_restore(NULL);
 
 
         while (dev_name_tree.items) {

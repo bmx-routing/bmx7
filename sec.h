@@ -40,15 +40,15 @@
 #define ARG_DESC_SIGN "descSignLen"
 #define MIN_DESC_SIGN 512
 #define MAX_DESC_SIGN 4096
-#define DEF_DESC_SIGN 3072
+#define DEF_DESC_SIGN 2048
 #define HLP_DESC_SIGN "sign own descriptions with given RSA key length"
 
 
-#define ARG_DESC_VERIFY "descVerificationLen"
-#define MIN_DESC_VERIFY 512
-#define MAX_DESC_VERIFY 4096
-#define DEF_DESC_VERIFY 4096
-#define HLP_DESC_VERIFY "verify description signatures up-to given RSA key length"
+#define ARG_DESC_VERIFY_MAX "descVerificationLenMax"
+#define MIN_DESC_VERIFY_MAX 512
+#define MAX_DESC_VERIFY_MAX 4096
+#define DEF_DESC_VERIFY_MAX 4096
+#define HLP_DESC_VERIFY_MAX "verify description signatures up-to given RSA key length"
 
 #define ARG_PACKET_SIGN "packetSignLen"
 #define MIN_PACKET_SIGN 0
@@ -62,7 +62,7 @@ extern int32_t packetSigning;
 // assuming 70 days to crack RSA512 keys (2009!) with a single dual-core machine,
 // means can be cracked in
 // ~6000 secs with ~1000 machines, or
-// ~600 secs with ~10000 machines, or 
+// ~600 secs with ~10000 machines, or
 // ~60 secs with ~100000 machines
 // However, this would be for RSA512 but RSA896 is used by default!!:
 #define MIN_PACKET_SIGN_LT (60)    // one minute, needs ~100000 machines to crack RSA512 before end of life
@@ -72,12 +72,17 @@ extern int32_t packetSigning;
 
 
 
-#define ARG_PACKET_VERIFY "packetVerification"
-#define MIN_PACKET_VERIFY 0
-#define MAX_PACKET_VERIFY 4096
-#define DEF_PACKET_VERIFY 1024
-#define HLP_PACKET_VERIFY "verify incoming packet signature up-to given RSA key length"
+#define ARG_PACKET_VERIFY_MAX "packetVerificationLenMax"
+#define MIN_PACKET_VERIFY_MAX 0
+#define MAX_PACKET_VERIFY_MAX 4096
+#define DEF_PACKET_VERIFY_MAX 2048
+#define HLP_PACKET_VERIFY_MAX "verify incoming packet signature up-to given RSA key length"
 
+#define ARG_PACKET_VERIFY_MIN "packetVerificationLenMax"
+#define MIN_PACKET_VERIFY_MIN 0
+#define MAX_PACKET_VERIFY_MIN 4096
+#define DEF_PACKET_VERIFY_MIN 0
+#define HLP_PACKET_VERIFY_MIN "require incoming packet signature of at least given RSA key length"
 
 extern CRYPTKEY_T *my_PubKey;
 extern CRYPTKEY_T *my_PktKey;
@@ -89,8 +94,8 @@ extern CRYPTKEY_T *my_PktKey;
 FIELD_FORMAT_END }
 
 struct dsc_msg_pubkey {
-        uint8_t type;
-        uint8_t key[];
+	uint8_t type;
+	uint8_t key[];
 } __attribute__((packed));
 
 
@@ -100,30 +105,8 @@ struct dsc_msg_pubkey {
 FIELD_FORMAT_END }
 
 struct dsc_msg_signature {
-        uint8_t type;
-        uint8_t signature[];
-} __attribute__((packed));
-
-#define FRAME_MSG_SIGNATURE_FORMAT { \
-{FIELD_TYPE_STRING_BINARY, -1, 8*sizeof(CRYPTSHA1_T),               1, FIELD_RELEVANCE_HIGH,  "dhash"},  \
-{FIELD_TYPE_UINT,          -1, 8*sizeof(uint8_t),                   1, FIELD_RELEVANCE_HIGH,  "type"}, \
-{FIELD_TYPE_STRING_BINARY, -1, 0,                                   1, FIELD_RELEVANCE_HIGH,  "signature" }, \
-FIELD_FORMAT_END }
-
-struct frame_msg_signature {
-    CRYPTSHA1_T dhash;
-    uint8_t type;
-    uint8_t signature[];
-} __attribute__((packed));
-
-#define DESCRIPTION_MSG_SHA_FORMAT { \
-{FIELD_TYPE_UINT,          -1, 32,                        0, FIELD_RELEVANCE_HIGH,  "dataLen"}, \
-{FIELD_TYPE_STRING_BINARY, -1, 8*sizeof(SHA1_T),          1, FIELD_RELEVANCE_HIGH,  "dataSha"}, \
-FIELD_FORMAT_END }
-
-struct dsc_msg_sha {
-        uint32_t dataLen;
-        CRYPTSHA1_T dataSha;
+	uint8_t type;
+	uint8_t signature[];
 } __attribute__((packed));
 
 
@@ -134,20 +117,29 @@ struct dsc_msg_sha {
 FIELD_FORMAT_END }
 
 struct dsc_msg_trust {
-    CRYPTSHA1_T globalId;
-    uint16_t reserved;
+	CRYPTSHA1_T globalId;
+	uint16_t reserved;
 } __attribute__((packed));
 
-void free_internalNeighId(OGM_DEST_T ini);
-OGM_DEST_T allocate_internalNeighId(struct neigh_node *nn);
+struct dsc_msg_version {
+	uint8_t comp_version;
+	uint8_t capabilities;
 
+	DESC_SQN_T descSqn;
+	uint32_t codeRevision;
+
+} __attribute__((packed));
+
+GLOBAL_ID_T *get_desc_id(uint8_t *desc_adv, uint32_t desc_len, struct dsc_msg_signature **signpp, struct dsc_msg_version **verspp);
+
+struct content_node *test_description_signature(uint8_t *desc, uint32_t desc_len);
+
+IDM_T setted_pubkey(struct desc_content *dc, uint8_t type, GLOBAL_ID_T *globalId);
+IDM_T supportedKnownKey(CRYPTSHA1_T *pkhash);
+INT_NEIGH_ID_T allocate_internalNeighId(struct neigh_node *nn);
+void free_internalNeighId(INT_NEIGH_ID_T ini);
 uint32_t *init_neighTrust(struct orig_node *on);
 IDM_T verify_neighTrust(struct orig_node *on, struct neigh_node *neigh);
 
-IDM_T supported_pubkey( CRYPTSHA1_T *pkhash );
-IDM_T setted_pubkey(struct dhash_node *dhn, uint8_t type, GLOBAL_ID_T *globalId);
-
-int process_signature(int32_t sig_msg_length, struct dsc_msg_signature *sig_msg, uint8_t *desc_frame, int32_t desc_frame_len, struct dsc_msg_pubkey *pkey_msg);
-
-void init_sec( void );
-void cleanup_sec( void );
+void init_sec(void);
+void cleanup_sec(void);

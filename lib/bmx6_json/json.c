@@ -537,7 +537,7 @@ void json_description_event_hook(int32_t cb_id, struct orig_node *on)
 
 				json_object * jext_fields;
 
-				if ((jext_fields = fields_dbg_json(
+				if (it.handl && it.handl->min_msg_size && (jext_fields = fields_dbg_json(
 					FIELD_RELEVANCE_MEDI, YES, it.f_mlen, it.f_msg,
 					it.f_handl->min_msg_size, it.f_handl->msg_format))) {
 

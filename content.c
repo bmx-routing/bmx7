@@ -850,8 +850,8 @@ struct desc_content* descContent_create(uint8_t *dsc, uint32_t dlen, struct key_
 	dc->key = key;
 
 	if (descContent_resolve(dc, YES) != SUCCESS) {
-		ASSERTION(-502271, (NO));
 		dbgf_track(DBGT_ERR, "Failed resolving descContent");
+		EXITERROR(-502271, (NO));
 		descContent_destroy(dc);
 		dhash_node_reject(dhn);
 		return NULL;

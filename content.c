@@ -689,6 +689,8 @@ int8_t descContent_resolve(struct desc_content *dc, IDM_T init_not_finalize)
 	assertion(-502256, IMPLIES(init_not_finalize, !dc->contentRefs_tree.items));
 	assertion(-502257, (++dc->cntr <= 2));
 
+	char *goto_error_code = NULL;
+
 	int32_t result;
         struct rx_frame_iterator it = {
 		.caller = __FUNCTION__, .op = TLV_OP_CUSTOM_MIN, .db = description_tlv_db, .process_filter = FRAME_TYPE_PROCESS_NONE,
@@ -703,39 +705,39 @@ int8_t descContent_resolve(struct desc_content *dc, IDM_T init_not_finalize)
 		struct dsc_hdr_chash *cHdrPtr = (it.f_type == BMX_DSC_TLV_CONTENT_HASH ? (struct dsc_hdr_chash *)it.f_data : NULL);
 		struct dsc_hdr_chash chHdrVar = {.u = {.u32 = (cHdrPtr ? ntohl(cHdrPtr->u.u32) : 0)}};
 
-		dbgf_track(DBGT_INFO, "f_type=%d=%s f_dlen=%d f_msgs_len=%d fixedMsgs=%d (%s gzip=%d maxNesting=%d targetLen=%d) ",
+		dbgf_track(DBGT_INFO, "f_type=%d=%s f_dlen=%d f_msgs_len=%d fixedMsgs=%d (%d=%s gzip=%d maxNesting=%d expanded_len=%d, expanded_chash=%s)",
 			it.f_type, it.f_handl->name, it.f_dlen, it.f_msgs_len, it.f_msgs_fixed,
-			(cHdrPtr ? it.db->handls[chHdrVar.u.i.expanded_type].name : NULL),
-			chHdrVar.u.i.gzip, chHdrVar.u.i.maxNesting, chHdrVar.u.i.expanded_length);
+			chHdrVar.u.i.expanded_type, (cHdrPtr ? it.db->handls[chHdrVar.u.i.expanded_type].name : NULL),
+			chHdrVar.u.i.gzip, chHdrVar.u.i.maxNesting, chHdrVar.u.i.expanded_length, cryptShaAsShortStr(cHdrPtr ? &cHdrPtr->expanded_chash : NULL));
 
 		if (init_not_finalize) {
 
 			if (cHdrPtr) {
 
 				if (!IMPLIES(it.f_msgs_len == 0, chHdrVar.u.i.maxNesting == 1))
-					return FAILURE;
+					goto_error(finish, "A");
 
 				if (!IMPLIES(chHdrVar.u.i.maxNesting == 0, it.f_msgs_len > 0))
-					return FAILURE;
+					goto_error(finish, "B");
 
 				if (!(chHdrVar.u.i.maxNesting <= vrt_frame_max_nesting))
-					return FAILURE;
+					goto_error(finish, "C");
 
 				if (chHdrVar.u.i.expanded_length > vrt_frame_data_size_in)
-					return FAILURE;
+					goto_error(finish, "D");
 
 				if ((dc->ref_content_len += chHdrVar.u.i.expanded_length) > desc_vbodies_size_in)
-					return FAILURE;
+					goto_error(finish, "E");
 
 				if (it.f_msgs_len == 0) {
 
 					if (!contentUse_add(dc, content_add_hash(&cHdrPtr->expanded_chash), BMX_DSC_TLV_CONTENT_HASH, 1, chHdrVar.u.i.maxNesting, chHdrVar.u.i.expanded_type))
-						return FAILURE;
+						goto_error(finish, "F");
 
 				} else if (chHdrVar.u.i.maxNesting) {
 
 					if (contentUse_add_nested(dc, (SHA1_T*) & cHdrPtr[1], it.f_msgs_len, 1, chHdrVar.u.i.maxNesting, chHdrVar.u.i.expanded_type)!=SUCCESS)
-						return FAILURE;
+						goto_error(finish, "G");
 				}
 			}
 
@@ -748,31 +750,31 @@ int8_t descContent_resolve(struct desc_content *dc, IDM_T init_not_finalize)
 				if (it.f_msgs_len == 0) {
 
 					if (chHdrVar.u.i.gzip)
-						return FAILURE; //not possible as unique-existing expanded_chash can not match compressed and uncompressed (resolved) data !!
+						goto_error(finish, "H"); //not possible as unique-existing expanded_chash can not match compressed and uncompressed (resolved) data !!
 
 					struct content_node *cn = content_get(&cHdrPtr->expanded_chash);
 					assertion(-502258, (cn && cn->f_body));
 					if (cn->gzip || cn->nested || cn->f_body_len != chHdrVar.u.i.expanded_length)
-						return FAILURE; //not possible as unique-existing expanded_chash can not match nested and resolved data !!
+						goto_error(finish, "I"); //not possible as unique-existing expanded_chash can not match nested and resolved data !!
 
 					if (!contentUse_add(dc, cn, chHdrVar.u.i.expanded_type, 0, 0, chHdrVar.u.i.expanded_type))
-						return FAILURE;
+						goto_error(finish, "J");
 
 				} else if (!chHdrVar.u.i.maxNesting) {
 
 					if (content_attach_data(data, &dlen, (uint8_t*) & cHdrPtr[1], it.f_msgs_len, chHdrVar.u.i.gzip, chHdrVar.u.i.expanded_length, &cHdrPtr->expanded_chash) != SUCCESS)
-						return FAILURE;
+						goto_error(finish, "K");
 
 					if (!contentUse_add(dc, content_add_body(data, dlen, 0, 0, YES), chHdrVar.u.i.expanded_type, 0, 0, chHdrVar.u.i.expanded_type))
-						return FAILURE;
+						goto_error(finish, "L");
 
 				} else {
 
 					if (content_attach_references(data, &dlen, (SHA1_T*) & cHdrPtr[1], it.f_msgs_len, chHdrVar.u.i.gzip, chHdrVar.u.i.expanded_length, &cHdrPtr->expanded_chash) != SUCCESS)
-						return FAILURE;
+						goto_error(finish, "M");
 
 					if (!contentUse_add(dc, content_add_body(data, dlen, 0, 0, YES), chHdrVar.u.i.expanded_type, 0, 0, chHdrVar.u.i.expanded_type))
-						return FAILURE;
+						goto_error(finish, "N");
 				}
 
 			} else {
@@ -783,7 +785,7 @@ int8_t descContent_resolve(struct desc_content *dc, IDM_T init_not_finalize)
 	}
 
 	if (result != TLV_RX_DATA_DONE)
-		return FAILURE;
+		goto_error(finish, "O");
 
 	assertion(-502313, IMPLIES(!init_not_finalize, !dc->unresolvedContentCounter));
 	if (!dc->unresolvedContentCounter) {
@@ -799,6 +801,11 @@ int8_t descContent_resolve(struct desc_content *dc, IDM_T init_not_finalize)
 
 	dbgf_all(DBGT_INFO, "done");
 	return SUCCESS;
+
+finish: {
+	dbgf_track(DBGT_WARN, "FAILURE %s", goto_error_code);
+	return FAILURE;
+}
 }
 
 

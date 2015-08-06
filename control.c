@@ -562,11 +562,11 @@ void debug_output(uint32_t check_len, struct ctrl_node *cn, int8_t dbgl, int8_t 
 		
 		if ( level == DBGL_ALL )
 			dbgl_all_msg_num++;
-		
+/*// enable to mute in DBLG_CHANGES...
 		if ( level == DBGL_CHANGES  &&  check_len  && 
 		     (mute_dbgl_changes = check_dbg_history( DBGL_CHANGES, s, check_len )) == DBG_HIST_MUTED )
 			continue;
-		
+*/
 		if ( level == DBGL_SYS  &&  mute_dbgl_sys == DBG_HIST_MUTED )
 			continue;
 		

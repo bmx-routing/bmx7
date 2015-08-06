@@ -279,10 +279,13 @@ struct content_node * content_add_body( uint8_t *body, uint32_t body_len, uint8_
 	struct content_usage_node *cun;
 	struct content_usage_node cit = {.maxUsedLevel = 0};
 	struct desc_content *dc;
-	struct avl_node *an = NULL; ;
+	struct avl_node *an = NULL;
+	static int recursion = 0;
 
-	dbgf_track(DBGT_INFO, "unresolveds=%d cHash=%s gzip=%d maxNested=%d force=%d",
-		content_tree_unresolveds, cryptShaAsShortStr(chash), gzip, nested, force);
+	recursion++;
+
+	dbgf_track(DBGT_INFO, "recursion=%d unresolveds=%d cHash=%s gzip=%d maxNested=%d force=%d",
+		recursion, content_tree_unresolveds, cryptShaAsShortStr(chash), gzip, nested, force);
 
 	if (cn && !cn->f_body && (force || cn->usage_tree.items || cn->key)) {
 
@@ -307,13 +310,23 @@ struct content_node * content_add_body( uint8_t *body, uint32_t body_len, uint8_
 
 			if (dc->unresolvedContentCounter) {
 
-				if (
-					(cun->maxUsedLevel + nested > cun->maxAllowedLevel) ||
-					((nested && contentUse_add_nested(dc, (SHA1_T *) cun->k.content->f_body, cun->k.content->f_body_len, cun->maxUsedLevel + 1, cun->maxAllowedLevel, cun->k.expanded_type) != SUCCESS)) ||
-					(!(--dc->unresolvedContentCounter) && descContent_resolve(dc, NO) != SUCCESS) ) {
-					dbgf_sys(DBGT_ERR, "FAILED!");
-					dhash_node_reject(dc->dhn);
+				if (cun->maxUsedLevel + nested > cun->maxAllowedLevel) {
+
+					dbgf_sys(DBGT_ERR, "FAILED A: max=%d nested=%d allowed=%d", cun->maxUsedLevel, nested, cun->maxAllowedLevel);
+
+				} else if ((nested && contentUse_add_nested(dc, (SHA1_T *) cun->k.content->f_body, cun->k.content->f_body_len, cun->maxUsedLevel + 1, cun->maxAllowedLevel, cun->k.expanded_type) != SUCCESS)) {
+
+					dbgf_sys(DBGT_ERR, "FAILED B: nested=%d", nested);
+
+				} else if (!(--dc->unresolvedContentCounter) && descContent_resolve(dc, NO) != SUCCESS) {
+
+					dbgf_sys(DBGT_ERR, "FAILED C: dc->unresolved=%d", dc->unresolvedContentCounter);
+
+				} else {
+					continue;
 				}
+
+				dhash_node_reject(dc->dhn);
 			}
 		}
 
@@ -329,6 +342,8 @@ struct content_node * content_add_body( uint8_t *body, uint32_t body_len, uint8_
 	assertion(-502244, IMPLIES(cn, cn->gzip == gzip));
 	assertion(-502245, IMPLIES(cn, cn->nested == nested));
 
+	dbgf_track(DBGT_INFO, "recursion=%d finished", recursion);
+	recursion--;
 	return cn;
 }
 

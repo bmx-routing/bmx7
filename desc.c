@@ -308,7 +308,7 @@ void update_my_description(void)
 
 	keyNode_updCredits(NULL, myKey, NULL);
 
-
+	assertion(-500000, (myKey->currOrig));
 	assertion(-502320, (myKey->currOrig->descContent == dcNew));
 
         my_description_changed = NO;
@@ -493,7 +493,7 @@ int32_t process_dsc_tlv_names(struct rx_frame_iterator *it)
 	if (validate_name_string(name, msg->len+1, NULL) == FAILURE)
 		return TLV_RX_DATA_FAILURE;
 
-	if (IMPLIES(!my_conformance_tolerance, it->f_dlen != (int)(sizeof(struct description_msg_name) + msg->len)))
+	if (my_conformance_tolerance == 0 && it->f_dlen != (int) (sizeof(struct description_msg_name) +msg->len))
 		return TLV_RX_DATA_FAILURE;
 
 	if ((it->op==TLV_OP_NEW || it->op == TLV_OP_DEL)) {

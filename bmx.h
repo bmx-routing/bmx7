@@ -572,7 +572,7 @@ enum {
 #define EXITERROR( code , condition )                                                                                  \
   do {                                                                                                                 \
       if ( !(condition) ) {                                                                                            \
-         dbgf(DBGL_SYS, DBGT_ERR, "This is paranoid! Disable EXIT_ON_ERROR to not exit due to minor or others' misbehavior");              \
+        dbgf(DBGL_SYS, DBGT_ERR, "This is paranoid! Disable EXIT_ON_ERROR to not exit due to others' misbehavior !!"); \
            cleanup_all( code );                                                                                        \
       }                                                                                                                \
   }while(0)

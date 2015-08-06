@@ -165,7 +165,7 @@ void check_for_changed_sms(void *unused)
 
 
 STATIC_FUNC
-void inotify_event_hook(int fd)
+void inotify_sms_event_hook(int fd)
 {
         TRACE_FUNCTION_CALL;
 
@@ -364,7 +364,7 @@ int32_t opt_sms(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
 
                 } else {
 
-                        set_fd_hook(inotify_fd, inotify_event_hook, ADD);
+                        set_fd_hook(inotify_fd, inotify_sms_event_hook, ADD);
                 }
         }
 
@@ -422,7 +422,7 @@ static void sms_cleanup( void )
                         inotify_wd = -1;
                 }
 
-                set_fd_hook(inotify_fd, inotify_event_hook, DEL);
+                set_fd_hook(inotify_fd, inotify_sms_event_hook, DEL);
 
                 close(inotify_fd);
                 inotify_fd = -1;

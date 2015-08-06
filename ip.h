@@ -46,6 +46,31 @@
 
 extern uint32_t udpRxBytesMean, udpRxPacketsMean, udpTxBytesMean, udpTxPacketsMean;
 
+enum {
+	FRA_UNSPEC,
+	FRA_DST, /* destination address */
+	FRA_SRC, /* source address */
+	FRA_IIFNAME, /* interface name */
+#define FRA_IFNAME	FRA_IIFNAME
+	FRA_GOTO, /* target to jump to (FR_ACT_GOTO) */
+	FRA_UNUSED2,
+	FRA_PRIORITY, /* priority/preference */
+	FRA_UNUSED3,
+	FRA_UNUSED4,
+	FRA_UNUSED5,
+	FRA_FWMARK, /* mark */
+	FRA_FLOW, /* flow/class id */
+	FRA_UNUSED6,
+	FRA_UNUSED7,
+	FRA_UNUSED8,
+	FRA_TABLE, /* Extended table id */
+	FRA_FWMASK, /* mask for netfilter mark */
+	FRA_OIFNAME,
+	__FRA_MAX
+};
+
+#define FRA_MAX (__FRA_MAX - 1)
+
 
 struct ifname {
 	char str[IFNAMSIZ];
@@ -623,6 +648,7 @@ struct track_node {
         struct track_key k;
         uint32_t items;
 	int8_t cmd;
+	uint32_t tmp;
 	struct route_export rt_exp;
 	uint32_t oif_idx;
 	IPX_T via;
@@ -647,6 +673,9 @@ struct rtnl_get_node {
 // core:
 
 int rtnl_rcv(int fd, uint32_t pid, uint32_t seq, uint8_t cmd, uint8_t quiet, void (*func) (struct nlmsghdr *nh, void *data), void *data);
+uint32_t nl_mgrp(uint32_t group);
+int register_netlink_event_hook(uint32_t nlgroups, int buffsize, void (*cb_fd_handler) (int32_t fd));
+int unregister_netlink_event_hook(int rtevent_sk, void (*cb_fd_handler) (int32_t fd));
 
 uint32_t get_if_index(IFNAME_T *name);
 IDM_T kernel_set_flags(char *name, int fd, int get_req, int set_req, uint16_t up_flags, uint16_t down_flags);
@@ -664,7 +693,7 @@ int32_t kernel_dev_tun_add( char *name, int32_t *fdp, IDM_T accept_local_ipv4 );
 uint32_t kernel_get_mtu(char *name);
 int32_t kernel_get_ifidx( char *name );
 IDM_T kernel_set_mtu(char *name, uint16_t mtu);
-IDM_T kernel_get_route(uint8_t quiet, uint8_t family, uint32_t table, void (*func) (struct nlmsghdr *nh, void *data) );
+IDM_T kernel_get_route(uint8_t quiet, uint8_t family, uint16_t type, uint32_t table, void (*func) (struct nlmsghdr *nh, void *data));
 
 // from net-tools: ifconfig.c and lib/interface.c
 IDM_T kernel_get_ifstats(struct user_net_device_stats *stats, char *target);

@@ -68,6 +68,7 @@ static struct sys_route_dict rtredist_rt_dict[BMX6_ROUTE_MAX_SUPP+1];
 int32_t rtredist_delay = DEF_REDIST_DELAY;
 
 
+
 STATIC_FUNC
 void redist_table_routes(IDM_T forceChanged)
 {
@@ -190,82 +191,17 @@ static void recv_rtevent_netlink_sk(int sk)
 		sync_redist_routes(NO, YES);
 }
 
-STATIC_FUNC
-int open_rtevent_netlink_sk(void)
-{
-	int rtevent_sk = 0;
-	struct sockaddr_nl sa;
-	int32_t unix_opts;
-	memset (&sa, 0, sizeof(sa));
-	sa.nl_family = AF_NETLINK;
-	sa.nl_groups |= RTMGRP_IPV4_ROUTE; //| RTMGRP_IPV4_IFADDR | RTMGRP_IPV4_MROUTE | RTMGRP_IPV4_RULE;
-        sa.nl_groups |= RTMGRP_IPV6_ROUTE; //| RTMGRP_IPV6_IFADDR | RTMGRP_IPV6_MROUTE | RTMGRP_IPV6_IFINFO | RTMGRP_IPV6_PREFIX;
-//	sa.nl_groups |= RTMGRP_LINK; // (this can result in select storms with buggy wlan devices
-
-
-	if ( ( rtevent_sk = socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE) ) < 0 ) {
-		dbgf_sys(DBGT_ERR, "can't create af_netlink socket for reacting on if route events: %s",
-		     strerror(errno) );
-		rtevent_sk = 0;
-		return -1;
-	}
-
-
-	unix_opts = fcntl( rtevent_sk, F_GETFL, 0 );
-	fcntl( rtevent_sk, F_SETFL, unix_opts | O_NONBLOCK );
-
-	if ( ( bind( rtevent_sk, (struct sockaddr*)&sa, sizeof(sa) ) ) < 0 ) {
-		dbgf_sys(DBGT_ERR, "can't bind af_netlink socket for reacting on if up/down events: %s",
-		     strerror(errno) );
-		rtevent_sk = 0;
-		return -1;
-        }
-
-	int oldBuff=0;
-	socklen_t oldSize = sizeof(oldBuff);
-	int buffsize = 66560; // 532480; // 266240; // 133120 // 66560 // RTNL_RCV_MAX //seems all too small for 2K+ routes and heavy CPU load
-	int newBuff=0;
-	socklen_t newSize = sizeof(newBuff);
-
-	if (
-	     getsockopt(rtevent_sk, SOL_SOCKET, SO_RCVBUF, &oldBuff, &oldSize) < 0 ||
-	     setsockopt(rtevent_sk, SOL_SOCKET, SO_RCVBUFFORCE, &buffsize, sizeof(buffsize)) < 0 ||
-	     getsockopt(rtevent_sk, SOL_SOCKET, SO_RCVBUF, &newBuff, &newSize) < 0 ||
-	     newBuff < RTNL_RCV_MAX) {
-
-                dbgf_sys(DBGT_WARN, "can't setsockopts buffsize from=%d to=%d now=%d %s", oldBuff, buffsize, newBuff, strerror(errno));
-		rtevent_sk = 0;
-		return -1;
-	}
-
-	dbgf_sys(DBGT_ERR, "setsockopts buffsize from=%d to=%d now=%d", oldBuff, buffsize, newBuff);
-
-
-	set_fd_hook( rtevent_sk, recv_rtevent_netlink_sk, ADD);
-
-	return rtevent_sk;
-}
-
-STATIC_FUNC
-int close_rtevent_netlink_sk(int rtevent_sk)
-{
-
-	set_fd_hook(rtevent_sk, recv_rtevent_netlink_sk, DEL);
-
-	if ( rtevent_sk > 0 )
-		close( rtevent_sk );
-
-	return 0;
-}
 
 STATIC_FUNC
 int32_t sync_redist_routes(IDM_T cleanup, IDM_T resync)
 {
 	static int rtevent_sk = 0;
+	const uint32_t nlgroups = nl_mgrp(RTNLGRP_IPV4_ROUTE) | nl_mgrp(RTNLGRP_IPV6_ROUTE);
+	const int buffsize = 266240; // 133120 // 66560 // RTNL_RCV_MAX //seems all too small for 2K+ routes and heavy CPU load
 
 	if (cleanup) {
 
-		rtevent_sk = close_rtevent_netlink_sk(rtevent_sk);
+		rtevent_sk = unregister_netlink_event_hook(rtevent_sk, recv_rtevent_netlink_sk);
 
 		set_tunXin6_net_adv_list(DEL, &table_net_adv_list);
 
@@ -284,26 +220,26 @@ int32_t sync_redist_routes(IDM_T cleanup, IDM_T resync)
 
 		dbgf_sys(DBGT_ERR, "rt-events out of sync. Trying to resync...");
 
-		rtevent_sk = close_rtevent_netlink_sk(rtevent_sk);
+		rtevent_sk = unregister_netlink_event_hook(rtevent_sk, recv_rtevent_netlink_sk);
 
 		while (redist_in_tree.items)
 			debugFree(avl_remove_first_item(&redist_in_tree, -300487), -300488);
 
-		rtevent_sk = open_rtevent_netlink_sk();
+		rtevent_sk = register_netlink_event_hook(nlgroups, buffsize, recv_rtevent_netlink_sk);
 
-		kernel_get_route(NO, AF_INET, 0, get_route_list_nlhdr);
-		kernel_get_route(NO, AF_INET6, 0, get_route_list_nlhdr);
+		kernel_get_route(NO, AF_INET, RTM_GETROUTE, 0, get_route_list_nlhdr);
+		kernel_get_route(NO, AF_INET6, RTM_GETROUTE, 0, get_route_list_nlhdr);
 
 		redist_table_routes(YES);
 
 	} else {
 
-		kernel_get_route(NO, AF_INET, 0, get_route_list_nlhdr);
-		kernel_get_route(NO, AF_INET6, 0, get_route_list_nlhdr);
+		kernel_get_route(NO, AF_INET, RTM_GETROUTE, 0, get_route_list_nlhdr);
+		kernel_get_route(NO, AF_INET6, RTM_GETROUTE, 0, get_route_list_nlhdr);
 
 		set_tunXin6_net_adv_list(ADD, &table_net_adv_list);
 
-		rtevent_sk = open_rtevent_netlink_sk();
+		rtevent_sk = register_netlink_event_hook(nlgroups, buffsize, recv_rtevent_netlink_sk);
 	}
 
 

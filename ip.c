@@ -1491,24 +1491,21 @@ IDM_T kernel_get_ifstats(struct user_net_device_stats *stats, char *target)
 }
 
 
-IDM_T kernel_get_route(uint8_t quiet, uint8_t family, uint32_t table, void (*func) (struct nlmsghdr *nh, void *data) )
+IDM_T kernel_get_route(uint8_t quiet, uint8_t family, uint16_t type, uint32_t table, void (*func) (struct nlmsghdr *nh, void *data))
 {
-
-        struct rtmsg_req req;
-        memset(&req, 0, sizeof (req));
+	struct rtmsg_req req;
+	memset(&req, 0, sizeof(req));
 
 	req.nlh.nlmsg_len = NLMSG_LENGTH(sizeof(struct rtmsg));
 
-        req.rtm.rtm_family = family;
-        req.rtm.rtm_table = table;
+	req.rtm.rtm_family = family;
+	req.rtm.rtm_table = table;
+//	req.nlh.nlmsg_flags = NLM_F_REQUEST | NLM_F_ACK;
+	req.nlh.nlmsg_flags = NLM_F_REQUEST | NLM_F_DUMP;
+	req.nlh.nlmsg_type = type;
+	req.rtm.rtm_scope = RTN_UNICAST;
 
-        req.nlh.nlmsg_flags = NLM_F_REQUEST | NLM_F_ACK;
-
-        req.nlh.nlmsg_flags = NLM_F_REQUEST | NLM_F_DUMP;
-        req.nlh.nlmsg_type = RTM_GETROUTE;
-        req.rtm.rtm_scope = RTN_UNICAST;
-
-        return rtnl_talk(&ip_rth2, &req.nlh, IP_ROUTE_GET, quiet, func, &table);
+	return rtnl_talk(&ip_rth2, &req.nlh, IP_ROUTE_GET, quiet, func, &table);
 }
 
 
@@ -2327,7 +2324,7 @@ void ip_flush_routes(uint8_t family, int32_t table_macro)
 	if (table == DEF_IP_TABLE_MAIN || policy_routing != POLICY_RT_ENABLED || !ip_prio_rules_cfg)
 		return;
 
-	kernel_get_route(NO, family, table, del_route_list_nlhdr);
+	kernel_get_route(NO, family, RTM_GETROUTE, table, del_route_list_nlhdr);
 }
 
 
@@ -2781,6 +2778,76 @@ static void close_ifevent_netlink_sk(void)
 	ifevent_sk = 0;
 }
 
+uint32_t nl_mgrp(uint32_t group)
+{
+	assertion(-500000, (group <= 31));
+	return group ? (1 << (group - 1)) : 0;
+}
+
+int register_netlink_event_hook(uint32_t nlgroups, int buffsize, void (*cb_fd_handler) (int32_t fd))
+{
+	int rtevent_sk = 0;
+	struct sockaddr_nl sa;
+	int32_t unix_opts;
+	memset(&sa, 0, sizeof(sa));
+	sa.nl_family = AF_NETLINK;
+	sa.nl_groups = nlgroups;
+
+
+	if ((rtevent_sk = socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE)) < 0) {
+		dbgf_sys(DBGT_ERR, "can't create af_netlink socket: %s", strerror(errno));
+		rtevent_sk = 0;
+		return -1;
+	}
+
+
+	unix_opts = fcntl(rtevent_sk, F_GETFL, 0);
+	fcntl(rtevent_sk, F_SETFL, unix_opts | O_NONBLOCK);
+
+	if ((bind(rtevent_sk, (struct sockaddr*) &sa, sizeof(sa))) < 0) {
+		dbgf_sys(DBGT_ERR, "can't bind af_netlink socket: %s", strerror(errno));
+		close(rtevent_sk);
+		rtevent_sk = 0;
+		return -1;
+	}
+
+	int oldBuff = 0;
+	socklen_t oldSize = sizeof(oldBuff);
+	int newBuff = 0;
+	socklen_t newSize = sizeof(newBuff);
+
+	if (
+		getsockopt(rtevent_sk, SOL_SOCKET, SO_RCVBUF, &oldBuff, &oldSize) < 0 ||
+		setsockopt(rtevent_sk, SOL_SOCKET, SO_RCVBUFFORCE, &buffsize, sizeof(buffsize)) < 0 ||
+		getsockopt(rtevent_sk, SOL_SOCKET, SO_RCVBUF, &newBuff, &newSize) < 0 ||
+		newBuff < RTNL_RCV_MAX) {
+
+		dbgf_sys(DBGT_WARN, "can't setsockopts buffsize from=%d to=%d now=%d %s", oldBuff, buffsize, newBuff, strerror(errno));
+		close(rtevent_sk);
+		rtevent_sk = 0;
+		return -1;
+	}
+
+	dbgf_sys(DBGT_ERR, "setsockopts buffsize from=%d to=%d now=%d", oldBuff, buffsize, newBuff);
+
+
+	set_fd_hook(rtevent_sk, cb_fd_handler, ADD);
+
+	return rtevent_sk;
+}
+
+int unregister_netlink_event_hook(int rtevent_sk, void (*cb_fd_handler) (int32_t fd))
+{
+	if (cb_fd_handler)
+		set_fd_hook(rtevent_sk, cb_fd_handler, DEL);
+
+	if (rtevent_sk > 0)
+		close(rtevent_sk);
+
+	return 0;
+}
+
+
 STATIC_FUNC
 IDM_T is_policy_rt_supported(void)
 {
@@ -2816,11 +2883,99 @@ IDM_T is_policy_rt_supported(void)
 
 
 
+static void get_rule_list_nlhdr(struct nlmsghdr *nh, void *unused )
+{
+	dbgf_all(DBGT_INFO, "");
+
+	struct avl_node *an;
+	struct track_node *tn;
+
+        struct rtmsg *r = (struct rtmsg *) NLMSG_DATA(nh);
+        struct rtattr *rtap = (struct rtattr *) RTM_RTA(r);
+        int rtl = RTM_PAYLOAD(nh);
+	struct rtattr * tb[FRA_MAX+1];
+
+	memset(tb, 0, sizeof(struct rtattr *) * (FRA_MAX + 1));
+	while (RTA_OK(rtap, rtl)) {
+
+		dbgf_all(DBGT_INFO, "rta_type=%d, rta_len=%d", rtap->rta_type, rtap->rta_len);
+
+		if (rtap->rta_type <= FRA_MAX)
+			tb[rtap->rta_type] = rtap;
+
+		rtap = RTA_NEXT(rtap, rtl);
+	}
+
+	uint32_t rta_prio = 0;
+	if (tb[FRA_PRIORITY])
+		rta_prio = *(unsigned*) RTA_DATA(tb[FRA_PRIORITY]);
+
+	uint32_t table = r->rtm_table;
+	if (tb[RTA_TABLE])
+		table = *(__u32*) RTA_DATA(tb[RTA_TABLE]);
+
+	dbgf_track(DBGT_INFO, "nlmsg_type=%d family=%d flags=%d table=%d protocol=%d src_len=%d dst_len=%d tos=%d "
+		"prio=%d src=%d dst=%d, fwmark=%d mwmask=%d iif=%d oif=%d table=%d",
+		nh->nlmsg_type, r->rtm_family, r->rtm_flags, table, r->rtm_protocol, r->rtm_src_len, r->rtm_dst_len, r->rtm_tos,
+		rta_prio, !!tb[FRA_SRC], !!tb[FRA_DST], !!tb[FRA_FWMARK], !!tb[FRA_FWMASK], !!tb[FRA_IFNAME], !!tb[FRA_OIFNAME], !!tb[FRA_TABLE]);
+
+	assertion_dbg(-500000, (!rtl), "!!!Deficit %d, rta_len=%d\n", rtl, rtap->rta_len);
+
+
+	for (an = NULL; (tn = avl_iterate_item(&iptrack_tree, &an));) {
+		if (tn->cmd == IP_RULE_DEFAULT && tn->k.cmd_type == IP_RULES &&
+			tn->k.net.af == r->rtm_family && tn->k.table == table && tn->k.prio == rta_prio &&
+			//all the following is not yet used by bmx6 so must be zero or set by somebody else:
+			!r->rtm_flags && !r->rtm_protocol && !r->rtm_src_len && !r->rtm_dst_len && !r->rtm_tos &&
+			!tb[FRA_SRC] && !tb[FRA_DST] && !tb[FRA_FWMARK] && !tb[FRA_FWMASK] && !tb[FRA_IFNAME] && !tb[FRA_OIFNAME]) {
+			
+			tn->tmp++;;
+			dbgf_track(DBGT_INFO, "found %d/%d", tn->tmp, tn->items);
+		}
+	}
+}
+
+static void recv_ruleEvent_netlink_sk(int sk)
+{
+        TRACE_FUNCTION_CALL;
+
+        dbgf_track(DBGT_INFO, "detected changed rules! Going to check...");
+
+	if (rtnl_rcv(sk, 0, 0, IP_ROUTE_GET, NO, NULL, NULL) != SUCCESS) {
+		dbgf_sys(DBGT_ERR, "FAILED");
+	}
+
+	struct avl_node *an;
+	struct track_node *tn;
+
+	for (an = NULL; (tn = avl_iterate_item(&iptrack_tree, &an));)
+		tn->tmp = 0;
+
+	kernel_get_route(NO, AF_INET, RTM_GETRULE, 0, get_rule_list_nlhdr);
+	kernel_get_route(NO, AF_INET6, RTM_GETRULE, 0, get_rule_list_nlhdr);
+
+	for (an = NULL; (tn = avl_iterate_item(&iptrack_tree, &an));) {
+
+		if (tn->cmd == IP_RULE_DEFAULT && tn->k.cmd_type == IP_RULES) {
+
+			dbgf(tn->tmp < tn->items ? DBGL_SYS : DBGL_ALL, (tn->tmp < tn->items) ? DBGT_WARN : DBGT_INFO,
+				"%s lost rule family=%d pref=%d to table=%d should=%d is=%d",
+				tn->tmp < tn->items ? "FIXING" : "KEEPING", tn->k.net.af, tn->k.prio, tn->k.table, tn->items, tn->tmp);
+
+			if (tn->tmp < tn->items) {
+				kernel_set_route(tn->cmd, ADD, NO, &tn->k.net, tn->k.table, tn->k.prio, 0, NULL, NULL, tn->k.metric);
+				return;
+			}
+		}
+	}
+}
+
+
 STATIC_FUNC
 int32_t opt_ip_version(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
 {
 	TRACE_FUNCTION_CALL;
-
+	static int nl_rule_event_sk = 0;
 
         if (cmd == OPT_CHECK) {
 
@@ -2894,21 +3049,24 @@ int32_t opt_ip_version(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
 
 		// add rule for hosts and announced interfaces and networks
 
-		//ip_flush_routes(AF_INET, BMX_TABLE_HNA);
-		//ip_flush_rules(AF_INET, BMX_TABLE_HNA);
+		ip_flush_routes(AF_INET, BMX_TABLE_HNA);
+		ip_flush_rules(AF_INET, BMX_TABLE_HNA);
 
-		//iproute(IP_RULE_DEFAULT, ADD, NO, &ZERO_NET4_KEY, BMX_TABLE_HNA, RT_PRIO_HNA, 0, 0, 0, 0, NULL);
-		//iproute(IP_RULE_DEFAULT, ADD, NO, &ZERO_NET4_KEY, BMX_TABLE_TUN, RT_PRIO_TUNS, 0, 0, 0, 0, NULL);
+		if (policy_routing == POLICY_RT_ENABLED) {
+			nl_rule_event_sk = register_netlink_event_hook(nl_mgrp(RTNLGRP_IPV4_RULE) | nl_mgrp(RTNLGRP_IPV6_RULE), (RTNL_RCV_MAX/2), recv_ruleEvent_netlink_sk);
+			assertion(-500000, (nl_rule_event_sk > 0));
+		}
 
-		ip_flush_routes(AF_INET6, BMX_TABLE_HNA);
-		ip_flush_rules(AF_INET6, BMX_TABLE_HNA);
 
+//		iproute(IP_RULE_DEFAULT, ADD, NO, &ZERO_NET4_KEY, BMX_TABLE_HNA, RT_PRIO_HNA, 0, 0, 0, 0, NULL);
+//		iproute(IP_RULE_DEFAULT, ADD, NO, &ZERO_NET4_KEY, BMX_TABLE_TUN, RT_PRIO_TUNS, 0, 0, 0, 0, NULL);
 		iproute(IP_RULE_DEFAULT, ADD, NO, &ZERO_NET6_KEY, BMX_TABLE_HNA, RT_PRIO_HNA, 0, 0, 0, 0, NULL);
-		//iproute(IP_RULE_DEFAULT, ADD, NO, &ZERO_NET6_KEY, BMX_TABLE_TUN, RT_PRIO_TUNS, 0, 0, 0, 0, NULL);
+//		iproute(IP_RULE_DEFAULT, ADD, NO, &ZERO_NET6_KEY, BMX_TABLE_TUN, RT_PRIO_TUNS, 0, 0, 0, 0, NULL);
 
+	} else if (cmd == OPT_UNREGISTER && nl_rule_event_sk > 0) {
 
-
-        }
+		unregister_netlink_event_hook(nl_rule_event_sk, recv_ruleEvent_netlink_sk);
+	}
 
 	return SUCCESS;
 }

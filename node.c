@@ -306,6 +306,8 @@ STATIC_FUNC
 void free_dhash_(struct dhash_node *dhn)
 {
 	// only/exactly destroyed if neither references nor key
+	dbgf_track(DBGT_INFO, "dhash=%s rejected=%d", cryptShaAsShortStr(&dhn->dhash), dhn->rejected);
+
 	assertion(-502466, (!dhn->neighRefs_tree.items));
 	assertion(-502467, (!dhn->descContent));
 

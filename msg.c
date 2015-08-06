@@ -981,9 +981,9 @@ void schedule_tx_task(uint8_t f_type, CRYPTSHA1_T *groupId, struct neigh_node *n
 
 
 	dbgf((dbg_frame_types & (1<<f_type) ? DBGL_CHANGES : DBGL_ALL), DBGT_INFO,
-		 "type=%s groupId=%s neigh=%s dev=%s msgs_len=%d data=%s",
+		 "type=%s groupId=%s neigh=%s dev=%s msgs_len=%d data=%s len=%d",
 		 handl->name, cryptShaAsString(groupId), neigh ? cryptShaAsShortStr(&neigh->local_id) : NULL,
-		 dev ? dev->label_cfg.str : NULL, f_msgs_len, memAsHexString(keyData, keyLen));
+		 dev ? dev->label_cfg.str : NULL, f_msgs_len, memAsHexString(keyData, keyLen), keyLen);
 
 	if (dev->tx_task_items >= MAX_TX_TS_TREE_SIZE) {
 		dbg_mute(20, DBGL_SYS, DBGT_WARN, "%s reached MAX_TX_TS_TREE_SIZE", dev ? dev->label_cfg.str : "all");

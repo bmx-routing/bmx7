@@ -70,7 +70,7 @@ extern int32_t my_compatibility;
 
 #define MIN_CONFORMANCE_TOLERANCE 0
 #define MAX_CONFORMANCE_TOLERANCE 1
-#define DEF_CONFORMANCE_TOLERANCE 0
+#define DEF_CONFORMANCE_TOLERANCE 1
 #define ARG_CONFORMANCE_TOLERANCE "conformanceTolerance"
 
 extern int32_t my_conformance_tolerance;

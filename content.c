@@ -851,6 +851,7 @@ struct desc_content* descContent_create(uint8_t *dsc, uint32_t dlen, struct key_
 
 	if (descContent_resolve(dc, YES) != SUCCESS) {
 		dbgf_track(DBGT_ERR, "Failed resolving descContent");
+		IDM_T TODO_ifFailingDueToLowConformanceToleranceAndUnknownSmsTlvTypeThisLoopsOnReRequestingTheDesc;
 		EXITERROR(-502271, (NO));
 		descContent_destroy(dc);
 		dhash_node_reject(dhn);

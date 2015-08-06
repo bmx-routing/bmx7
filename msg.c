@@ -295,6 +295,10 @@ int32_t rx_frame_iterate(struct rx_frame_iterator *it)
 	int32_t result = TLV_RX_DATA_FAILURE;
 	struct dsc_hdr_chash chHdr = {.u.u32 = 0};
 
+	it->f_handl = NULL;
+	it->f_msgs_len = 0;
+	it->f_msgs_fixed = 0;
+	it->f_msg = 0;
 
         dbgf_all(DBGT_INFO, "%s - db=%s f_type_prev=%d f_pos=%d f_len=%d",
 	        it->caller, it->db->name, f_type_prev, it->_f_pos_next, it->frames_length);
@@ -346,11 +350,6 @@ int32_t rx_frame_iterate(struct rx_frame_iterator *it)
 		if (it->f_type_expanded == BMX_DSC_TLV_CONTENT_HASH)
 			goto_error(rx_frame_iterate_error, "chash hdr expanded type");
 
-                if (it->f_type_expanded > it->db->handl_max || !(it->db->handls[it->f_type_expanded].rx_frame_handler || it->db->handls[it->f_type_expanded].rx_msg_handler)) {
-                        dbgf_mute(50, DBGL_SYS, DBGT_WARN, "%s - unknown type=%d ! check for updates", it->caller, it->f_type);
-                        return my_conformance_tolerance ? TLV_RX_DATA_PROCESSED : TLV_RX_DATA_REJECTED;
-                }
-
 
 	} else if (!it->frames_in && it->dcNew) {
 
@@ -382,8 +381,12 @@ int32_t rx_frame_iterate(struct rx_frame_iterator *it)
 	}
 
 
+	if (it->f_type > it->db->handl_max || !(it->db->handls[it->f_type].rx_frame_handler || it->db->handls[it->f_type].rx_msg_handler)) {
 
-	{
+		dbgf_mute(50, DBGL_SYS, DBGT_WARN, "%s - unknown type=%d->%d ! check for updates", it->caller, it->f_type, it->f_type_expanded);
+		return my_conformance_tolerance ? TLV_RX_DATA_PROCESSED : TLV_RX_DATA_REJECTED;
+
+	} else {
 		it->f_handl = &it->db->handls[it->f_type];
 		it->f_msgs_len = it->f_dlen - it->f_handl->data_header_size;
 		it->f_msgs_fixed = (it->f_handl->fixed_msg_size && it->f_handl->min_msg_size) ? (it->f_msgs_len / it->f_handl->min_msg_size) : 0;

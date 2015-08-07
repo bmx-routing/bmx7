@@ -290,7 +290,6 @@ int32_t prof_status_creator(struct status_handl *handl, void *data)
         return status_size;
 }
 
-#define ARG_CPU_PROFILING "cpu"
 
 static struct opt_type prof_options[]=
 {

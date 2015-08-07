@@ -14,6 +14,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
  * 02110-1301, USA
  */
+#define ARG_CPU_PROFILING "cpu"
 
 struct prof_ctx_key {
     struct neigh_node *neigh;

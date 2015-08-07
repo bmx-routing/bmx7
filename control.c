@@ -38,12 +38,17 @@
 #include "avl.h"
 #include "node.h"
 #include "link.h"
+#include "msg.h"
+#include "desc.h"
+#include "content.h"
 #include "ip.h"
 #include "plugin.h"
 #include "schedule.h"
 #include "tools.h"
 #include "allocate.h"
 #include "hna.h"
+#include "dump.h"
+#include "prof.h"
 
 #define CODE_CATEGORY_NAME "control"
 
@@ -2697,19 +2702,54 @@ int32_t opt_debug(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_p
 			remove_dbgl_node( cn );
 			add_dbgl_node( cn, ival );
 			return SUCCESS;
-			
-		} else if ( ival == DBGL_DETAILS ) {
 
-                        check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_SHOW), ARG_STATUS, cn);
-                        check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_SHOW), ARG_INTERFACES, cn);
-                        check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_SHOW), ARG_LINKS, cn);
-                        check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_SHOW), ARG_CREDITS, cn);
-                        check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_SHOW), ARG_ORIGINATORS, cn);
+		} else if (ival == DBGL_SILCT) {
 
-                } else if ( ival == DBGL_PROFILE ) {
-			
+			check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_SHOW), ARG_STATUS, cn);
+			check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_SHOW), ARG_CREDITS, cn);
+			check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_SHOW), ARG_INTERFACES, cn);
+			check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_DUMP), ARG_DUMP_DEV, cn);
+			check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_SHOW), ARG_LINKS, cn);
+
+		} else if (ival == DBGL_SILCO) {
+
+			check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_SHOW), ARG_STATUS, cn);
+			check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_SHOW), ARG_CREDITS, cn);
+			check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_SHOW), ARG_INTERFACES, cn);
+			check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_SHOW), ARG_LINKS, cn);
+			check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_SHOW), ARG_ORIGINATORS, cn);
+
+		} else if (ival == DBGL_DETAILS) {
+
+			check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_SHOW), ARG_STATUS, cn);
+			check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_SHOW), ARG_INTERFACES, cn);
+			check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_SHOW), ARG_LINKS, cn);
+			check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_SHOW), ARG_ORIGINATORS, cn);
+			check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_SHOW), ARG_TUNS, cn);
+
+		} else if (ival == DBGL_ALLDETAILS) {
+
+			check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_SHOW), ARG_STATUS, cn);
+			check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_SHOW), ARG_CREDITS, cn);
+			check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_SHOW), ARG_CPU_PROFILING, cn);
+			check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_SHOW), ARG_INTERFACES, cn);
+#ifdef TRAFFIC_DUMP
+			check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_DUMP), ARG_DUMP_DEV, cn);
+#endif
 #if defined MEMORY_USAGE
-			debugMemory( cn );
+			debugMemory(cn);
+#endif
+			check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_SHOW), ARG_LINKS, cn);
+			check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_SHOW), ARG_ORIGINATORS, cn);
+			check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_SHOW), ARG_TUNS, cn);
+			check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_SHOW), ARG_DESCREFS, cn);
+			check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_SHOW), ARG_CONTENTS, cn);
+			check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_DESCRIPTIONS), NULL, cn);
+
+		} else if (ival == DBGL_PROFILE) {
+
+#if defined MEMORY_USAGE
+			debugMemory(cn);
 #endif
 		}
 		close_ctrl_node( CTRL_CLOSE_SUCCESS, cn );

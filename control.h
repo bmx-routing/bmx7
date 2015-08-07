@@ -35,9 +35,10 @@ typedef uint32_t TIME_SEC_T;
 #define DBGL_CHANGES	3
 #define DBGL_ALL	4
 #define DBGL_PROFILE	5
-//#define DBGL_UNUSED	6
-//#define DBGL_SERVICES	7
+#define DBGL_SILCT	6
+#define DBGL_SILCO	7
 #define DBGL_DETAILS	8
+#define DBGL_ALLDETAILS 9
 //#define DBGL_HNAS	9
 //#define DBGL_LINKS	10
 #define DBGL_TEST	11

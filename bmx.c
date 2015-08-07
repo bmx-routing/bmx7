@@ -731,30 +731,28 @@ void register_status_handl(uint16_t min_msg_size, IDM_T multiline, const struct 
         avl_insert(&status_tree, (void*) handl, -300357);
 }
 
-
-
 struct bmx_status {
-        GLOBAL_ID_T *shortId;
-        GLOBAL_ID_T *globalId;
-        char* name;
+	GLOBAL_ID_T *shortId;
+	GLOBAL_ID_T *globalId;
+	char* name;
 	char *descKey;
 	char *pktKey;
 	DHASH_T *shortDhash;
 	DHASH_T *dhash;
-        char version[(sizeof(BMX_BRANCH)-1) + (sizeof("-")-1) + (sizeof(BRANCH_VERSION)-1) + 1];
-        uint16_t compat;
-        char revision[9];
-        IPX_T primaryIp;
-        struct net_key *tun6Address;
-        struct net_key *tun4Address;
+	char version[(sizeof(BMX_BRANCH) - 1) + (sizeof("-") - 1) + (sizeof(BRANCH_VERSION) - 1) + 1];
+	uint16_t compat;
+	char revision[9];
+	IPX_T primaryIp;
+	struct net_key *tun6Address;
+	struct net_key *tun4Address;
 	OGM_SQN_T ogmSqn;
-        char *uptime;
-        char cpu[6];
+	char *uptime;
+	char cpu[6];
 	char mem[22];
 	char rxBpP[12];
 	char txBpP[12];
 	char txQ[12];
-        uint32_t neighs;
+	uint32_t nbs;
 	char nodes[24];
 	char contents[16];
 };
@@ -780,7 +778,7 @@ static const struct field_format bmx_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       bmx_status, txQ,           1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       bmx_status, rxBpP,         1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       bmx_status, txBpP,         1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              bmx_status, neighs,        1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              bmx_status, nbs,           1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       bmx_status, nodes,         1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       bmx_status, contents,      1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_END
@@ -789,43 +787,37 @@ static const struct field_format bmx_status_format[] = {
 static int32_t bmx_status_creator(struct status_handl *handl, void *data)
 {
 	struct tun_in_node *tin = avl_first_item(&tun_in_tree);
-        struct bmx_status *status = (struct bmx_status *) (handl->data = debugRealloc(handl->data, sizeof (struct bmx_status), -300365));
+	struct bmx_status *status = (struct bmx_status *) (handl->data = debugRealloc(handl->data, sizeof(struct bmx_status), -300365));
 	struct dsc_msg_pubkey *pkm;
-        status->globalId = &myKey->kHash;
-        status->shortId = &myKey->kHash;
-        status->name = my_Hostname;
+	status->globalId = &myKey->kHash;
+	status->shortId = &myKey->kHash;
+	status->name = my_Hostname;
 	status->shortDhash = &myKey->currOrig->descContent->dhn->dhash;
 	status->dhash = &myKey->currOrig->descContent->dhn->dhash;
 	status->descKey = (pkm = contents_data(myKey->currOrig->descContent, BMX_DSC_TLV_DSC_PUBKEY)) ? cryptKeyTypeAsString(pkm->type) : DBG_NIL;
 	status->pktKey = (pkm = contents_data(myKey->currOrig->descContent, BMX_DSC_TLV_PKT_PUBKEY)) ? cryptKeyTypeAsString(pkm->type) : DBG_NIL;
-        snprintf(status->version, sizeof(status->version), "%s-%s", BMX_BRANCH, BRANCH_VERSION);
-        status->compat = my_compatibility;
+	snprintf(status->version, sizeof(status->version), "%s-%s", BMX_BRANCH, BRANCH_VERSION);
+	status->compat = my_compatibility;
 	snprintf(status->revision, 8, "%s", GIT_REV);
-        status->primaryIp = my_primary_ip;
-        status->tun4Address = tin ? &tin->tunAddr46[1] : NULL;
-        status->tun6Address = tin ? &tin->tunAddr46[0] : NULL;
+	status->primaryIp = my_primary_ip;
+	status->tun4Address = tin ? &tin->tunAddr46[1] : NULL;
+	status->tun6Address = tin ? &tin->tunAddr46[0] : NULL;
 	status->ogmSqn = myKey->currOrig->ogmSqn;
-        status->uptime = get_human_uptime(0);
-        snprintf(status->cpu, sizeof(status->cpu), "%d.%1d", s_curr_avg_cpu_load / 10, s_curr_avg_cpu_load % 10);
-        snprintf(status->mem, sizeof(status->mem), "%dK/%d", debugMalloc_bytes/1000, debugMalloc_objects);
-	snprintf(status->rxBpP, sizeof(status->rxBpP), "%d/%.1f", (udpRxBytesMean / DEVSTAT_PRECISION), (((float)udpRxPacketsMean) / DEVSTAT_PRECISION));
-	snprintf(status->txBpP, sizeof(status->txBpP), "%d/%.1f", (udpTxBytesMean / DEVSTAT_PRECISION), (((float)udpTxPacketsMean) / DEVSTAT_PRECISION));
-	snprintf(status->txQ, sizeof(status->txQ),"%d/%d", txBucket/BUCKET_COIN_SCALE, txBucketSize);
-        status->neighs = local_tree.items;
+	status->uptime = get_human_uptime(0);
+	snprintf(status->cpu, sizeof(status->cpu), "%d.%1d", s_curr_avg_cpu_load / 10, s_curr_avg_cpu_load % 10);
+	snprintf(status->mem, sizeof(status->mem), "%dK/%d", debugMalloc_bytes / 1000, debugMalloc_objects);
+	snprintf(status->rxBpP, sizeof(status->rxBpP), "%d/%.1f", (udpRxBytesMean / DEVSTAT_PRECISION), (((float) udpRxPacketsMean) / DEVSTAT_PRECISION));
+	snprintf(status->txBpP, sizeof(status->txBpP), "%d/%.1f", (udpTxBytesMean / DEVSTAT_PRECISION), (((float) udpTxPacketsMean) / DEVSTAT_PRECISION));
+	snprintf(status->txQ, sizeof(status->txQ), "%d/%d", txBucket / BUCKET_COIN_SCALE, txBucketSize);
+	status->nbs = local_tree.items;
 	snprintf(status->nodes, sizeof(status->nodes), "%d/%d/%d", orig_tree.items, key_tree.items, dhash_tree.items);
-        snprintf(status->contents, sizeof(status->contents), "%d/%d", (content_tree.items - content_tree_unresolveds), content_tree.items);
-        return sizeof (struct bmx_status);
+	snprintf(status->contents, sizeof(status->contents), "%d/%d", (content_tree.items - content_tree_unresolveds), content_tree.items);
+	return sizeof(struct bmx_status);
 }
 
-
-
-
-
-
-
 struct orig_status {
-        GLOBAL_ID_T *shortId;
-        GLOBAL_ID_T *globalId;
+	GLOBAL_ID_T *shortId;
+	GLOBAL_ID_T *globalId;
 	char *state;
 	uint16_t pref;
 	TIME_T brcTo;
@@ -834,30 +826,30 @@ struct orig_status {
 	TIME_T nQTo;
 	uint16_t friend;
 	uint16_t recom;
-        char S[2]; // supported by me
+	char S[2]; // supported by me
 	char s[2]; // me supported by him
 	char T[2]; // trusted by me;
 	char t[2]; // me trusted by him
 	char *descKey;
-        DESC_SQN_T descSqn;
-        uint32_t rootSize;
-        uint32_t virtSize;
+	DESC_SQN_T descSqn;
+	uint32_t rootSize;
+	uint32_t virtSize;
 	char contents[12]; //contentRefs
 	char *pktKey;
-        char* name;
-        IPX_T primaryIp;
-        char *dev;
-        uint32_t neighIdx;
-        IPX_T neighLocalIp;
-        char* neighName;
-        UMETRIC_T metric;
-        OGM_SQN_T ogmSqn;
-        uint32_t lastDesc;
+	char* name;
+	IPX_T primaryIp;
+	char *dev;
+	uint32_t nbIdx;
+	IPX_T nbLocalIp;
+	char* nbName;
+	UMETRIC_T metric;
+	OGM_SQN_T ogmSqn;
+	uint32_t lastDesc;
 	CRYPTSHA1_T *shortDHash;
 	CRYPTSHA1_T *dHash;
 	uint16_t rej;
-        uint16_t lastRef;
-	char neighs[12]; //neighRefs
+	uint16_t lastRef;
+	char nbs[12]; //neighRefs
 };
 
 static const struct field_format orig_status_format[] = {
@@ -883,10 +875,10 @@ static const struct field_format orig_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      orig_status, pktKey,        1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      orig_status, name,          1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_IPX,               orig_status, primaryIp,     1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      orig_status, dev,        1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, neighIdx,      1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_IPX,               orig_status, neighLocalIp,  1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      orig_status, neighName,      1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      orig_status, dev,           1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, nbIdx,         1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_IPX,               orig_status, nbLocalIp,     1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      orig_status, nbName,        1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           orig_status, metric,        1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, ogmSqn,        1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, lastDesc,      1, FIELD_RELEVANCE_HIGH),
@@ -894,7 +886,7 @@ static const struct field_format orig_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, orig_status, dHash,         1, FIELD_RELEVANCE_LOW),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, rej,           1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, lastRef,       1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       orig_status, neighs,        1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       orig_status, nbs,           1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_END
 };
 
@@ -907,9 +899,9 @@ uint8_t *key_status_page(uint8_t *sOut, uint32_t i, struct orig_node *on, struct
 	assertion(-502239, IMPLIES(kn, !kn->currOrig && !kn->nextDesc));
 	assertion(-502240, IMPLIES(dc, !dc->orig));
 
-	IDM_T S,s,T,t;
+	IDM_T S, s, T, t;
 	struct dsc_msg_pubkey *pkm;
-	struct orig_status *os = &(((struct orig_status*)(sOut = debugRealloc(sOut, ((i+1)* sizeof (struct orig_status)), -300366)))[i]);
+	struct orig_status *os = &(((struct orig_status*) (sOut = debugRealloc(sOut, ((i + 1) * sizeof(struct orig_status)), -300366)))[i]);
 	memset(os, 0, sizeof(struct orig_status));
 
 	dc = on ? on->descContent : dc;
@@ -927,8 +919,8 @@ uint8_t *key_status_page(uint8_t *sOut, uint32_t i, struct orig_node *on, struct
 		os->nQTo = kn->nQTime ? (((TIME_T) (neigh_qualifying_to - (bmx_time - kn->nQTime))) / 1000) : 0;
 		os->friend = kn->dirFriend;
 		os->recom = kn->recommendations_tree.items;
-		os->S[0] = (S=supportedKnownKey(&kn->kHash)) == -1 ? 'A' : (S+'0');
-		os->T[0] = (T=setted_pubkey(myKey->currOrig->descContent, BMX_DSC_TLV_TRUSTS, &kn->kHash)) == -1 ? 'A' : (T + '0');
+		os->S[0] = (S = supportedKnownKey(&kn->kHash)) == -1 ? 'A' : (S + '0');
+		os->T[0] = (T = setted_pubkey(myKey->currOrig->descContent, BMX_DSC_TLV_TRUSTS, &kn->kHash)) == -1 ? 'A' : (T + '0');
 		os->descKey = (kn->content && (kn->content->f_body_len >= sizeof(struct dsc_msg_pubkey))) ?
 			cryptKeyTypeAsString(((struct dsc_msg_pubkey*) kn->content->f_body)->type) : DBG_NIL;
 	} else {
@@ -937,8 +929,8 @@ uint8_t *key_status_page(uint8_t *sOut, uint32_t i, struct orig_node *on, struct
 	}
 
 	if (dc) {
-		os->s[0] = (s=setted_pubkey(dc, BMX_DSC_TLV_SUPPORTS, &myKey->kHash)) == -1 ? 'A' : (s + '0');
-		os->t[0] = (t=setted_pubkey(dc, BMX_DSC_TLV_TRUSTS, &myKey->kHash)) == -1 ? 'A' : (t + '0');
+		os->s[0] = (s = setted_pubkey(dc, BMX_DSC_TLV_SUPPORTS, &myKey->kHash)) == -1 ? 'A' : (s + '0');
+		os->t[0] = (t = setted_pubkey(dc, BMX_DSC_TLV_TRUSTS, &myKey->kHash)) == -1 ? 'A' : (t + '0');
 		os->descSqn = dc->descSqn;
 		os->rootSize = dc->desc_frame_len;
 		os->virtSize = dc->ref_content_len;
@@ -946,7 +938,7 @@ uint8_t *key_status_page(uint8_t *sOut, uint32_t i, struct orig_node *on, struct
 	} else {
 		os->s[0] = '-';
 		os->t[0] = '-';
-		snprintf(os->contents, sizeof(os->contents),"---");
+		snprintf(os->contents, sizeof(os->contents), "---");
 	}
 
 	if (on) {
@@ -954,9 +946,9 @@ uint8_t *key_status_page(uint8_t *sOut, uint32_t i, struct orig_node *on, struct
 		os->name = on->k.hostname;
 		os->primaryIp = on->primary_ip;
 		os->dev = on->curr_rt_link && on->curr_rt_link->k.myDev ? on->curr_rt_link->k.myDev->name_phy_cfg.str : DBG_NIL;
-		os->neighIdx = (on->curr_rt_link ? on->curr_rt_link->k.linkDev->key.devIdx : 0);
-		os->neighLocalIp = (on->curr_rt_link ? on->curr_rt_link->k.linkDev->key.llocal_ip : ZERO_IP);
-		os->neighName = (on->curr_rt_link ? on->curr_rt_link->k.linkDev->key.local->on->k.hostname : DBG_NIL);
+		os->nbIdx = (on->curr_rt_link ? on->curr_rt_link->k.linkDev->key.devIdx : 0);
+		os->nbLocalIp = (on->curr_rt_link ? on->curr_rt_link->k.linkDev->key.llocal_ip : ZERO_IP);
+		os->nbName = (on->curr_rt_link ? on->curr_rt_link->k.linkDev->key.local->on->k.hostname : DBG_NIL);
 		os->metric = on->ogmMetric;
 		os->ogmSqn = on->ogmSqn;
 		os->lastDesc = (bmx_time - on->updated_timestamp) / 1000;
@@ -964,12 +956,12 @@ uint8_t *key_status_page(uint8_t *sOut, uint32_t i, struct orig_node *on, struct
 
 	if (dhn) {
 		os->dHash = &dhn->dhash;
-		os->shortDHash= &dhn->dhash;
+		os->shortDHash = &dhn->dhash;
 		os->lastRef = (bmx_time - dhn->referred_by_others_timestamp) / 1000;
 		os->rej = dhn->rejected;
 	}
 
-	snprintf(os->neighs, sizeof(os->neighs), "%d/%d", (kn ? kn->neighRefs_tree.items : 0), (dhn ? dhn->neighRefs_tree.items : 0));
+	snprintf(os->nbs, sizeof(os->nbs), "%d/%d", (kn ? kn->neighRefs_tree.items : 0), (dhn ? dhn->neighRefs_tree.items : 0));
 
 	return sOut;
 }
@@ -1006,11 +998,8 @@ static int32_t orig_status_creator(struct status_handl *handl, void *data)
 				handl->data = key_status_page(handl->data, i++, NULL, NULL, NULL, dhn);
 		}
 	}
-        return ((i)* sizeof (struct orig_status));
+	return((i) * sizeof(struct orig_status));
 }
-
-
-
 
 struct ref_status {
 	GLOBAL_ID_T *shortId;
@@ -1026,9 +1015,9 @@ struct ref_status {
 	CRYPTSHA1_T *dHash;
 	uint16_t rej;
 	uint16_t lastRef;
-	char neighs[12]; //neighRefs
-	GLOBAL_ID_T *neighId;
-	char* neighName;
+	char nbs[12]; //neighRefs
+	GLOBAL_ID_T *nbId;
+	char* nbName;
 	uint32_t rootLen;
 	uint32_t virtLen;
 	uint32_t unresolveds;
@@ -1049,15 +1038,14 @@ static const struct field_format ref_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, ref_status, dHash,         1, FIELD_RELEVANCE_LOW),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              ref_status, rej,           1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              ref_status, lastRef,       1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       ref_status, neighs,        1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_SHORT_ID,  ref_status, neighId,       1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      ref_status, neighName,     1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       ref_status, nbs,           1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_SHORT_ID,  ref_status, nbId,          1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      ref_status, nbName,        1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              ref_status, rootLen,       1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              ref_status, virtLen,       1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              ref_status, unresolveds,   1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_END
 };
-
 
 STATIC_FUNC
 uint8_t *ref_status_page(uint8_t *sOut, uint32_t i, struct reference_node *ref, uint8_t shownSqn)
@@ -1071,13 +1059,13 @@ uint8_t *ref_status_page(uint8_t *sOut, uint32_t i, struct reference_node *ref, 
 	assertion(-502497, IMPLIES(dc && dc->key && ref->claimedKey, dc->key == ref->claimedKey)); //checked during refNode_update()
 	assertion(-502498, IMPLIES(dc, ref->claimedDescSqn = dc->descSqn)); //checked during refNode_update()
 
-	struct ref_status *rs = &(((struct ref_status*)(sOut = debugRealloc(sOut, ((i+1)* sizeof (struct ref_status)), -300366)))[i]);
+	struct ref_status *rs = &(((struct ref_status*) (sOut = debugRealloc(sOut, ((i + 1) * sizeof(struct ref_status)), -300366)))[i]);
 	memset(rs, 0, sizeof(struct ref_status));
 
 	ref->shown = shownSqn;
 
 	snprintf(rs->contents, sizeof(rs->contents), "---");
-	snprintf(rs->neighs, sizeof(rs->neighs), "---");
+	snprintf(rs->nbs, sizeof(rs->nbs), "---");
 
 	if (kn) {
 		rs->shortId = &kn->kHash;
@@ -1091,10 +1079,10 @@ uint8_t *ref_status_page(uint8_t *sOut, uint32_t i, struct reference_node *ref, 
 		rs->dHash = &dhn->dhash;
 		rs->shortDHash = &dhn->dhash;
 		rs->descSqn = ref->claimedDescSqn;
-		rs->rej =  dhn->rejected;
+		rs->rej = dhn->rejected;
 		rs->lastRef = ((bmx_time - dhn->referred_by_others_timestamp) / 1000);
-		rs->neighName = ref->neigh->on->k.hostname;
-		rs->neighId = &ref->neigh->on->k.nodeId;
+		rs->nbName = ref->neigh->on->k.hostname;
+		rs->nbId = &ref->neigh->on->k.nodeId;
 	}
 
 	if (dc) {
@@ -1104,7 +1092,7 @@ uint8_t *ref_status_page(uint8_t *sOut, uint32_t i, struct reference_node *ref, 
 		rs->unresolveds = dc->unresolvedContentCounter;
 	}
 
-	snprintf(rs->neighs, sizeof(rs->neighs), "%d/%d", (kn ? kn->neighRefs_tree.items : 0), dhn->neighRefs_tree.items);
+	snprintf(rs->nbs, sizeof(rs->nbs), "%d/%d", (kn ? kn->neighRefs_tree.items : 0), dhn->neighRefs_tree.items);
 
 	if (on) {
 		rs->name = on->k.hostname;
@@ -1126,7 +1114,7 @@ static int32_t ref_status_creator(struct status_handl *handl, void *data)
 	struct dhash_node *dhn;
 	static uint8_t shownSqn = 0;
 
-	shownSqn = ((uint8_t)(shownSqn+1)) ? (shownSqn+1) : (shownSqn+2);
+	shownSqn = ((uint8_t) (shownSqn + 1)) ? (shownSqn + 1) : (shownSqn + 2);
 
 	AVL_TREE(orig_name_tree, struct orig_node, k);
 
@@ -1196,7 +1184,7 @@ static int32_t ref_status_creator(struct status_handl *handl, void *data)
 
 	assertion(-500000, (allRefs == i));
 
-        return ((i)* sizeof (struct ref_status));
+	return((i) * sizeof(struct ref_status));
 }
 
 

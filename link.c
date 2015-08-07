@@ -696,35 +696,33 @@ int32_t rx_msg_hello_reply(struct rx_frame_iterator *it)
 	return TLV_RX_DATA_PROCESSED;
 }
 
-
-
 struct link_status {
-        GLOBAL_ID_T *shortId;
-        GLOBAL_ID_T *globalId;
-        char* name;
-        IPX_T neighLocalIp;
-	uint16_t neighIdx;
-        IPX_T localIp;
-        IFNAME_T dev;
+	GLOBAL_ID_T *shortId;
+	GLOBAL_ID_T *globalId;
+	char* name;
+	IPX_T nbLocalIp;
+	uint16_t nbIdx;
+	IPX_T localIp;
+	IFNAME_T dev;
 	uint16_t idx;
-        uint8_t rxRate;
-        uint8_t bestRxLink;
-        uint8_t txRate;
-        uint8_t bestTxLink;
-        uint8_t routes;
+	uint8_t rxRate;
+	uint8_t bestRxLink;
+	uint8_t txRate;
+	uint8_t bestTxLink;
+	uint8_t routes;
 	AGGREG_SQN_T aggSqnSize;
 	AGGREG_SQN_T aggSqnMax;
 	uint8_t aggSqnRcvd;
-        HELLO_SQN_T lastHelloSqn;
-        TIME_T lastHelloAdv;
+	HELLO_SQN_T lastHelloSqn;
+	TIME_T lastHelloAdv;
 };
 
 static const struct field_format link_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_SHORT_ID,  link_status, shortId,          1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, link_status, globalId,         1, FIELD_RELEVANCE_LOW),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      link_status, name,             1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_IPX,               link_status, neighLocalIp,     1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, neighIdx,         1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_IPX,               link_status, nbLocalIp,        1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, nbIdx,            1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_IPX,               link_status, localIp,          1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       link_status, dev,              1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, idx,              1, FIELD_RELEVANCE_HIGH),
@@ -743,50 +741,50 @@ static const struct field_format link_status_format[] = {
 
 static int32_t link_status_creator(struct status_handl *handl, void *data)
 {
-        struct avl_node *linkDev_it, *local_it;
+	struct avl_node *linkDev_it, *local_it;
 	LinkDevNode *linkDev;
-        struct neigh_node *local;
-        uint32_t max_size = link_tree.items * sizeof (struct link_status);
-        uint32_t i = 0;
+	struct neigh_node *local;
+	uint32_t max_size = link_tree.items * sizeof(struct link_status);
+	uint32_t i = 0;
 
-        struct link_status *status = ((struct link_status*) (handl->data = debugRealloc(handl->data, max_size, -300358)));
-        memset(status, 0, max_size);
+	struct link_status *status = ((struct link_status*) (handl->data = debugRealloc(handl->data, max_size, -300358)));
+	memset(status, 0, max_size);
 
-        for (local_it = NULL; (local = avl_iterate_item(&local_tree, &local_it));) {
+	for (local_it = NULL; (local = avl_iterate_item(&local_tree, &local_it));) {
 
-                struct orig_node *on = local->on;
+		struct orig_node *on = local->on;
 		assertion(-502210, (on));
-                for (linkDev_it = NULL; (linkDev = avl_iterate_item(&local->linkDev_tree, &linkDev_it));) {
+		for (linkDev_it = NULL; (linkDev = avl_iterate_item(&local->linkDev_tree, &linkDev_it));) {
 
 			LinkNode *link = NULL;
 			while ((link = avl_next_item(&linkDev->link_tree, (link ? &link->k : NULL)))) {
 
-                                status[i].globalId = &on->k.nodeId;
-                                status[i].shortId = &on->k.nodeId;
-                                status[i].name = on->k.hostname;
-                                status[i].neighLocalIp = linkDev->key.llocal_ip;
-				status[i].neighIdx = linkDev->key.devIdx;
-                                status[i].dev = link->k.myDev->label_cfg;
+				status[i].globalId = &on->k.nodeId;
+				status[i].shortId = &on->k.nodeId;
+				status[i].name = on->k.hostname;
+				status[i].nbLocalIp = linkDev->key.llocal_ip;
+				status[i].nbIdx = linkDev->key.devIdx;
+				status[i].dev = link->k.myDev->label_cfg;
 				status[i].idx = link->k.myDev->llipKey.devIdx;
-                                status[i].localIp = link->k.myDev->llipKey.llip;
-                                status[i].rxRate = ((link->timeaware_rx_probe * 100) / UMETRIC_MAX);
-                                status[i].bestRxLink = (link == local->best_rp_link);
-                                status[i].txRate = ((link->timeaware_tx_probe * 100) / UMETRIC_MAX);
-                                status[i].bestTxLink = (link == local->best_tp_link);
-                                status[i].routes = link->orig_routes;
+				status[i].localIp = link->k.myDev->llipKey.llip;
+				status[i].rxRate = ((link->timeaware_rx_probe * 100) / UMETRIC_MAX);
+				status[i].bestRxLink = (link == local->best_rp_link);
+				status[i].txRate = ((link->timeaware_tx_probe * 100) / UMETRIC_MAX);
+				status[i].bestTxLink = (link == local->best_tp_link);
+				status[i].routes = link->orig_routes;
 				status[i].aggSqnSize = local->ogm_aggreg_size;
 				status[i].aggSqnMax = local->ogm_aggreg_max;
 				status[i].aggSqnRcvd = bit_get(local->ogm_aggreg_sqns, AGGREG_SQN_CACHE_RANGE, local->ogm_aggreg_max);
-                                status[i].lastHelloSqn = linkDev->hello_sqn_max;
-                                status[i].lastHelloAdv = ((TIME_T) (bmx_time - linkDev->hello_time_max)) / 1000;
+				status[i].lastHelloSqn = linkDev->hello_sqn_max;
+				status[i].lastHelloAdv = ((TIME_T) (bmx_time - linkDev->hello_time_max)) / 1000;
 
-                                i++;
-                                assertion(-501225, (max_size >= i * sizeof (struct link_status)));
-                        }
-                }
-        }
+				i++;
+				assertion(-501225, (max_size >= i * sizeof(struct link_status)));
+			}
+		}
+	}
 
-        return i * sizeof (struct link_status);
+	return i * sizeof(struct link_status);
 }
 
 

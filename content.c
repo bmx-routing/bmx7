@@ -77,7 +77,7 @@ struct content_status {
 	CRYPTSHA1_T *dHash;
 	uint16_t rej;
 	uint16_t lastRef;
-	char neighs[12]; //neighRefs
+	char nbs[12]; //neighRefs
 	CRYPTSHA1_T *shortCHash;
 	CRYPTSHA1_T *cHash;
 	char *typeName;
@@ -107,7 +107,7 @@ static const struct field_format content_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, content_status, dHash,         1, FIELD_RELEVANCE_LOW),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              content_status, rej,           1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              content_status, lastRef,       1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       content_status, neighs,        1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       content_status, nbs,           1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_SHORT_ID,  content_status, shortCHash,    1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, content_status, cHash,         1, FIELD_RELEVANCE_LOW),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      content_status, typeName,      1, FIELD_RELEVANCE_HIGH),
@@ -133,11 +133,11 @@ uint8_t *content_status_page(uint8_t *sOut, uint32_t i, struct content_usage_nod
 	struct key_node *kn = dc ? dc->key : cn->key;
 	struct orig_node *on = kn ? kn->currOrig : NULL;
 
-	struct content_status *cs = &(((struct content_status*)(sOut = debugRealloc(sOut, ((i+1)* sizeof (struct content_status)), -300366)))[i]);
+	struct content_status *cs = &(((struct content_status*) (sOut = debugRealloc(sOut, ((i + 1) * sizeof(struct content_status)), -300366)))[i]);
 	memset(cs, 0, sizeof(struct content_status));
 
 	snprintf(cs->contents, sizeof(cs->contents), "---");
-	snprintf(cs->neighs, sizeof(cs->neighs), "---");
+	snprintf(cs->nbs, sizeof(cs->nbs), "---");
 	snprintf(cs->data, sizeof(cs->data), "---");
 
 	if (kn) {
@@ -148,15 +148,15 @@ uint8_t *content_status_page(uint8_t *sOut, uint32_t i, struct content_usage_nod
 
 	if (dc) {
 		cs->dHash = &dc->dhn->dhash;
-		cs->shortDHash= &dc->dhn->dhash;
+		cs->shortDHash = &dc->dhn->dhash;
 		cs->descSqn = dc->descSqn;
-		cs->rej =  dc->dhn->rejected;
+		cs->rej = dc->dhn->rejected;
 		cs->lastRef = ((bmx_time - dc->dhn->referred_by_others_timestamp) / 1000);
 		snprintf(cs->contents, sizeof(cs->contents), "%d/%d", (dc->contentRefs_tree.items - dc->unresolvedContentCounter), dc->contentRefs_tree.items);
 	}
 
 	if (kn || dc) {
-		snprintf(cs->neighs, sizeof(cs->neighs), "%d/%d", (kn ? kn->neighRefs_tree.items : 0), (dc ? dc->dhn->neighRefs_tree.items : 0));
+		snprintf(cs->nbs, sizeof(cs->nbs), "%d/%d", (kn ? kn->neighRefs_tree.items : 0), (dc ? dc->dhn->neighRefs_tree.items : 0));
 	}
 
 	if (on) {
@@ -172,7 +172,7 @@ uint8_t *content_status_page(uint8_t *sOut, uint32_t i, struct content_usage_nod
 		cs->nested = cn->nested;
 		cs->usages = cn->usage_tree.items;
 		if (cn->f_body)
-			snprintf(cs->data, sizeof(cs->data), "%s%s",memAsHexString(cn->f_body, XMIN(cn->f_body_len, ((sizeof(cs->data)-4)/2))), (cn->f_body_len > ((sizeof(cs->data)-4)/2))?"...":"");
+			snprintf(cs->data, sizeof(cs->data), "%s%s", memAsHexString(cn->f_body, XMIN(cn->f_body_len, ((sizeof(cs->data) - 4) / 2))), (cn->f_body_len > ((sizeof(cs->data) - 4) / 2)) ? "..." : "");
 	}
 
 	if (cun) {
@@ -226,7 +226,7 @@ static int32_t content_status_creator(struct status_handl *handl, void *data)
 			handl->data = content_status_page(handl->data, i++, NULL, cn);
 	}
 
-        return ((i)* sizeof (struct content_status));
+	return((i) * sizeof(struct content_status));
 }
 
 

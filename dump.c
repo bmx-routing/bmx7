@@ -324,17 +324,17 @@ int32_t opt_traffic_statistics(uint8_t cmd, uint8_t _save, struct opt_type *opt,
                 struct dev_node *dev;
                 struct avl_node *an = NULL;
 
-                dbg_printf(cn, "TRAFFIC: iteration=%d as [Bytes/sec], averaged over %.1f secs and as weighted averages\n",
+                dbg_printf(cn, "TRAFFIC (iteration=%d as [B/s], averaged over %.1fs and weighted averages):\n",
                         dump_iteration, (float)curr_dump_period / 1000);
 
-                dbg_printf(cn, "%-30s all ( %% )     in ( %% )    out ( %% )  |   all ( %% )     in ( %% )    out ( %% )\n", "dev");
+                dbg_printf(cn, "dev %18s type    all (_%%_)     in (_%%_)    out (_%%_)  |   all (_%%_)     in (_%%_)    out (_%%_)\n", "");
 
-                if (!strcmp(patch->val, ARG_DUMP_ALL) || !strcmp(patch->val, ARG_DUMP_SUMMARY))
+                if (patch->val && (!strcmp(patch->val, ARG_DUMP_ALL) || !strcmp(patch->val, ARG_DUMP_SUMMARY)))
                         dbg_traffic_statistics(&dump_all, cn, ARG_DUMP_ALL);
 
                 while ((dev = avl_iterate_item(&dev_name_tree, &an))) {
 
-                        if (!strcmp(patch->val, ARG_DUMP_ALL) || !strcmp(patch->val, dev->label_cfg.str)) {
+                        if (!patch->val || !strcmp(patch->val, ARG_DUMP_ALL) || !strcmp(patch->val, ARG_DUMP_DEV) || !strcmp(patch->val, dev->label_cfg.str)) {
 
 				struct dump_data **dump_dev_plugin_data = (struct dump_data **)
 				(get_plugin_data(dev, PLUGIN_DATA_DEV, data_dev_plugin_registry));
@@ -343,12 +343,7 @@ int32_t opt_traffic_statistics(uint8_t cmd, uint8_t _save, struct opt_type *opt,
 					dbg_traffic_statistics(*dump_dev_plugin_data, cn, dev->label_cfg.str);
 			}
                 }
-
-                dbg_printf(cn, "\n");
-
-
         }
-
         return SUCCESS;
 }
 
@@ -363,7 +358,6 @@ struct opt_type dump_options[]=
         ,
 	{ODI, 0, ARG_DUMP,     	           0,  9,2, A_PS1, A_USR, A_DYN, A_ARG, A_ANY, 0,                 0,                  0,                 0,0,                  opt_traffic_statistics,
 			"<DEV>",		"show traffic statistics for given device name, summary, or all\n"}
-
 };
 STATIC_FUNC
 void init_cleanup_dev_traffic_data(int32_t cb_id, void* devp)

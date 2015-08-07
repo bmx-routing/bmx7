@@ -33,7 +33,7 @@
 
 #define ARG_DUMP  "traffic"
 #define ARG_DUMP_ALL     "all"
-#define ARG_DUMP_DEV     "dev"
+#define ARG_DUMP_DEV     "devs"
 #define ARG_DUMP_SUMMARY "summary"
 
 

@@ -832,8 +832,7 @@ struct orig_status {
 	char t[2]; // me trusted by him
 	char *descKey;
 	DESC_SQN_T descSqn;
-	uint32_t rootSize;
-	uint32_t virtSize;
+	char descSize[20];
 	char contents[12]; //contentRefs
 	char *pktKey;
 	char* name;
@@ -869,8 +868,7 @@ static const struct field_format orig_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       orig_status, t,             1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      orig_status, descKey,       1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, descSqn,       1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, rootSize,      1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, virtSize,      1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       orig_status, descSize,      1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       orig_status, contents,      1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      orig_status, pktKey,        1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      orig_status, name,          1, FIELD_RELEVANCE_HIGH),
@@ -932,8 +930,7 @@ uint8_t *key_status_page(uint8_t *sOut, uint32_t i, struct orig_node *on, struct
 		os->s[0] = (s = setted_pubkey(dc, BMX_DSC_TLV_SUPPORTS, &myKey->kHash)) == -1 ? 'A' : (s + '0');
 		os->t[0] = (t = setted_pubkey(dc, BMX_DSC_TLV_TRUSTS, &myKey->kHash)) == -1 ? 'A' : (t + '0');
 		os->descSqn = dc->descSqn;
-		os->rootSize = dc->desc_frame_len;
-		os->virtSize = dc->ref_content_len;
+		snprintf(os->descSize, sizeof(os->descSize), "%d+%d", dc->desc_frame_len, dc->ref_content_len);
 		snprintf(os->contents, sizeof(os->contents), "%d/%d", (dc->contentRefs_tree.items - dc->unresolvedContentCounter), dc->contentRefs_tree.items);
 	} else {
 		os->s[0] = '-';

@@ -218,7 +218,7 @@ int32_t sync_redist_routes(IDM_T cleanup, IDM_T resync)
 
 	} else if (resync) {
 
-		dbgf_sys(DBGT_ERR, "rt-events out of sync. Trying to resync...");
+		dbgf_sys(DBGT_WARN, "rt-events out of sync. Trying to resync...");
 
 		rtevent_sk = unregister_netlink_event_hook(rtevent_sk, recv_rtevent_netlink_sk);
 

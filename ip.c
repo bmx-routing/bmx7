@@ -2822,13 +2822,13 @@ int register_netlink_event_hook(uint32_t nlgroups, int buffsize, void (*cb_fd_ha
 		getsockopt(rtevent_sk, SOL_SOCKET, SO_RCVBUF, &newBuff, &newSize) < 0 ||
 		newBuff < RTNL_RCV_MAX) {
 
-		dbgf_sys(DBGT_WARN, "can't setsockopts buffsize from=%d to=%d now=%d %s", oldBuff, buffsize, newBuff, strerror(errno));
+		dbgf_sys(DBGT_ERR, "can't setsockopts buffsize from=%d to=%d now=%d %s", oldBuff, buffsize, newBuff, strerror(errno));
 		close(rtevent_sk);
 		rtevent_sk = 0;
 		return -1;
 	}
 
-	dbgf_sys(DBGT_ERR, "setsockopts buffsize from=%d to=%d now=%d", oldBuff, buffsize, newBuff);
+	dbgf_track(DBGT_INFO, "setsockopts buffsize from=%d to=%d now=%d", oldBuff, buffsize, newBuff);
 
 
 	set_fd_hook(rtevent_sk, cb_fd_handler, ADD);

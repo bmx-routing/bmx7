@@ -124,9 +124,11 @@ void prof_stop_( struct prof_ctx *p)
 
 	TIME_T clockAfter = clock();
 	TIME_T clockPeriod = (clockAfter - p->clockBeforePStart);
-	assertion(-502128, (clockPeriod < ((~((TIME_T)0))>>1)) ); //this wraps around some time..
+	IDM_T TODO_Fix_this_for_critical_system_time_drifts;
+//	assertion(-502128, (clockPeriod < ((~((TIME_T)0))>>1)) ); //this wraps around some time..
 
-	p->clockRunningPeriod += clockPeriod;
+	if (clockPeriod < ((~((TIME_T)0))>>1))
+		p->clockRunningPeriod += clockPeriod;
 
 	p->clockBeforePStart = 0;
 	p->active_prof = 0;

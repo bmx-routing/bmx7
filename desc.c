@@ -301,10 +301,11 @@ void update_my_description(void)
 	assertion(-502318, (dcNew->contentRefs_tree.items && !dcNew->unresolvedContentCounter));
 	assertion(-502319, IMPLIES(myKey->currOrig, myKey->currOrig->descContent->dhn));
 
-	dbgf_sys(DBGT_INFO, "nodeId=%s dhashOld=%s dhashNew=%s",
+	dbgf_sys(DBGT_INFO, "nodeId=%s dhashOld=%s dhashNew=%s descSqn=%d",
 		cryptShaAsString(&myKey->kHash),
 		cryptShaAsString(myKey->currOrig ? &myKey->currOrig->descContent->dhn->dhash : NULL),
-		cryptShaAsString(&dcNew->dhn->dhash));
+		cryptShaAsString(&dcNew->dhn->dhash),
+		dcNew->descSqn);
 
 	keyNode_updCredits(NULL, myKey, NULL);
 

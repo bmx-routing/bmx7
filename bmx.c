@@ -1357,11 +1357,11 @@ DESC_SQN_T newDescriptionSqn( char* newPath, uint8_t exitIfFailure )
 
 	} else if ((++currSqn)%DESC_SQN_SAVE_INTERVAL) {
 
-		dbgf_sys(DBGT_INFO, "Not Updating existing %s=%s descSqn=%d", ARG_DSQN_PATH, path, currSqn );
+		dbgf_track(DBGT_INFO, "Not Updating existing %s=%s", ARG_DSQN_PATH, path);
 
 	} else if ((file = fopen(path, "w")) && ((ret = fprintf(file, "%u", currSqn)) > 0)) {
 
-		dbgf_sys(DBGT_INFO, "Updating existing %s=%s descSqn=%d", ARG_DSQN_PATH, path, currSqn );
+		dbgf_track(DBGT_INFO, "Updating existing %s=%s", ARG_DSQN_PATH, path);
 
 	} else {
 		goto_error(finish, "old file can not be updated!");
@@ -1379,7 +1379,7 @@ finish: {
 		return 0;
 	}
 
-	dbgf_track(DBGT_INFO, "new descSqn=%d", currSqn);
+	dbgf_track(DBGT_INFO, "New descSqn=%d", currSqn);
 	return htonl(currSqn);
 }
 }

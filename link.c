@@ -701,6 +701,7 @@ struct link_status {
 	GLOBAL_ID_T *globalId;
 	char* name;
 	IPX_T nbLocalIp;
+	char nbMac[40];
 	uint16_t nbIdx;
 	IPX_T localIp;
 	IFNAME_T dev;
@@ -722,6 +723,7 @@ static const struct field_format link_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, link_status, globalId,         1, FIELD_RELEVANCE_LOW),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      link_status, name,             1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_IPX,               link_status, nbLocalIp,        1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       link_status, nbMac,            1, FIELD_RELEVANCE_LOW),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, nbIdx,            1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_IPX,               link_status, localIp,          1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       link_status, dev,              1, FIELD_RELEVANCE_HIGH),
@@ -738,6 +740,25 @@ static const struct field_format link_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, lastHelloAdv,     1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_END
 };
+
+MAC_T *ip6Eui64ToMac(IPX_T *ll, MAC_T *mp)
+{
+	static MAC_T mac;
+
+	mac.u8[0] = ll->__in6_u.__u6_addr8[8]^(0x1 << 1);
+	mac.u8[0] = ll->__in6_u.__u6_addr8[9];
+	mac.u8[0] = ll->__in6_u.__u6_addr8[10];
+	mac.u8[0] = ll->__in6_u.__u6_addr8[13];
+	mac.u8[0] = ll->__in6_u.__u6_addr8[14];
+	mac.u8[0] = ll->__in6_u.__u6_addr8[15];
+
+	if (!mp)
+		return &mac;
+
+	*mp = mac;
+	return mp;
+}
+
 
 static int32_t link_status_creator(struct status_handl *handl, void *data)
 {
@@ -763,6 +784,7 @@ static int32_t link_status_creator(struct status_handl *handl, void *data)
 				status[i].shortId = &on->k.nodeId;
 				status[i].name = on->k.hostname;
 				status[i].nbLocalIp = linkDev->key.llocal_ip;
+				strcpy(status[i].nbMac, memAsHexStringSep(ip6Eui64ToMac(&linkDev->key.llocal_ip, NULL), 6, 1, ":"));
 				status[i].nbIdx = linkDev->key.devIdx;
 				status[i].dev = link->k.myDev->label_cfg;
 				status[i].idx = link->k.myDev->llipKey.devIdx;

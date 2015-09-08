@@ -88,6 +88,7 @@ IFNAME_T tun_name_prefix = {{DEF_TUN_NAME_PREFIX}};
 
 static int32_t tun_out_mtu = DEF_TUN_OUT_MTU;
 static int32_t tun_dedicated_to = DEF_TUN_OUT_TO;
+static int32_t tun_proactive_routes = DEF_TUN_PROACTIVE_ROUTES;
 
 
 STATIC_FUNC
@@ -818,7 +819,10 @@ void tun_out_catchAll_hook(int fd)
 
 						if (tbn->active_tdn->tunCatch_fd) {
 
-							tun_out_state_set(ton, TDN_STATE_DEDICATED);
+							if (tun_proactive_routes)
+								tun_out_state_set(ton, TDN_STATE_DEDICATED);
+							else
+								configure_tun_bit(ADD, tbn, TDN_STATE_DEDICATED);
 
 						} else {
 							dbgf_track(DBGT_WARN,"tunnel dev=%s to nodeId=%s already dedicated!",
@@ -3240,6 +3244,9 @@ struct opt_type hna_options[]= {
 			ARG_NAME_FORM, "specify first letters of local tunnel-interface names"},
 
 
+        {ODI,0,ARG_TUN_PROACTIVE_ROUTES,0,9,1, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &tun_proactive_routes,MIN_TUN_PROACTIVE_ROUTES,MAX_TUN_PROACTIVE_ROUTES,DEF_TUN_PROACTIVE_ROUTES,0,   0,
+			ARG_VALUE_FORM,	HLP_TUN_PROACTIVE_ROUTES}
+        ,
 	{ODI,0,ARG_TUN_OUT_TIMEOUT,     0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,              MIN_TUN_OUT_TO,MAX_TUN_OUT_TO,DEF_TUN_OUT_TO,0, opt_tun_state_dedicated_to,
 			ARG_VALUE_FORM, "timeout for reactive (dedicated) outgoing tunnels"},
 

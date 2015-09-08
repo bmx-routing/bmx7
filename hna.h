@@ -62,6 +62,13 @@ extern struct avl_tree tun_in_tree;
 #define MAX_TUN_OUT_TO REGISTER_TASK_TIMEOUT_MAX
 #define DEF_TUN_OUT_TO 60000
 
+#define MIN_TUN_PROACTIVE_ROUTES 0
+#define MAX_TUN_PROACTIVE_ROUTES 1
+#define DEF_TUN_PROACTIVE_ROUTES 1
+#define ARG_TUN_PROACTIVE_ROUTES "proactiveTunRoutes"
+#define HLP_TUN_PROACTIVE_ROUTES "proactively configure all tunnel routes via dedicated tunnels"
+
+
 #define TDN_STATE_CATCHALL 1
 #define TDN_STATE_DEDICATED 0
 #define TDN_STATE_CURRENT -1

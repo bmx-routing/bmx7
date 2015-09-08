@@ -56,6 +56,7 @@
 #define CODE_CATEGORY_NAME "table"
 
 
+static AVL_TREE(redist_filter_tree, struct redist_in_node, k);
 static AVL_TREE(redist_in_tree, struct redist_in_node, k);
 static AVL_TREE(redist_opt_tree, struct redistr_opt_node, nameKey);
 static AVL_TREE(redist_out_tree, struct redist_out_node, k);
@@ -66,6 +67,7 @@ static struct sys_route_dict rtredist_rt_dict[BMX6_ROUTE_MAX_SUPP+1];
 
 
 int32_t rtredist_delay = DEF_REDIST_DELAY;
+int32_t rtfilter_delay = DEF_FILTER_DELAY;
 
 
 
@@ -104,21 +106,116 @@ void redist_table_routes(IDM_T forceChanged)
 
 
 STATIC_FUNC
-void schedule_table_routes(void* laterp)
+void schedule_table_routes(void* nowPtr)
 {
 	static IDM_T scheduled = NO;
 
-	if ( laterp && !scheduled) {
-		scheduled = YES;
-		task_register(rtredist_delay, schedule_table_routes, NULL, -300550);
 
-	} else if ( !laterp ) {
+	dbgf_track(DBGT_INFO, "%s", nowPtr ? "NOW" : "later");
 
-		dbgf_track(DBGT_INFO, " ");
+	if (nowPtr) {
+
 		scheduled = NO;
-		task_remove(schedule_table_routes, NULL);
+		task_remove(schedule_table_routes, (void*)YES);
 
 		redist_table_routes(NO);
+
+	} else if (!scheduled) {
+
+		scheduled = YES;
+		task_register(rtredist_delay, schedule_table_routes, (void*)YES, -300550);
+	}
+}
+
+STATIC_FUNC
+void filter_temporary_route_changes(void *newP)
+{
+	static IDM_T scheduled = NO;
+	struct redist_in_node *rfn;
+
+	TIME_T next_check = rtfilter_delay;
+
+	dbgf_track(DBGT_INFO, "%s", newP ? "new" : "check...");
+
+	if (newP == NULL) {
+
+		assertion(-500000, (scheduled));
+		assertion(-500000, (redist_filter_tree.items));
+
+		scheduled = NO;
+		struct redist_in_node tmp = {.k={.ifindex=0}};
+
+		for (rfn = NULL; (rfn = avl_next_item(&redist_filter_tree, &tmp.k));) {
+
+			tmp.k = rfn->k;
+
+			TIME_T passed = (bmx_time - rfn->stamp);
+
+			if (passed >= ((TIME_T)(rtfilter_delay - (MIN_REDIST_DELAY/2)))) {
+
+				struct redist_in_node *rin;
+
+				if ((rin = avl_find_item(&redist_in_tree, &rfn->k))) {
+					ASSERTION(-502301, (rin->roptn && rin->roptn == matching_redist_opt(rfn, &redist_opt_tree, rtredist_rt_dict)));
+
+					rin->cnt += rfn->cnt;
+					schedule_table_routes((void*) NO);
+
+				} else {
+
+					ASSERTION(-500000, (rfn->roptn && rfn->roptn == matching_redist_opt(rfn, &redist_opt_tree, rtredist_rt_dict)));
+					assertion(-502302, (rfn->cnt >= 1));
+
+					rin = debugMalloc(sizeof(*rfn), -300552);
+					*rin = *rfn;
+					avl_insert(&redist_in_tree, rin, -300553);
+					schedule_table_routes((void*) NO);
+				}
+
+				avl_remove(&redist_filter_tree, &rfn->k, -300000);
+				debugFree(rfn, -300000);
+
+			} else {
+				next_check = XMIN(next_check, (rtfilter_delay - passed));
+			}
+		}
+		
+	} else if (newP == (void*) 1 /* purge*/) {
+
+		while (redist_filter_tree.items)
+			debugFree(avl_remove_first_item(&redist_filter_tree, -300000), -3000000);
+		
+	} else if (newP) {
+
+		struct redist_in_node *new = newP;
+
+		if ((rfn = avl_find_item(&redist_filter_tree, &new->k))) {
+
+			if (!(rfn->cnt += new->cnt)) {
+				avl_remove(&redist_filter_tree, &rfn->k, -300000);
+				debugFree(rfn, -300000);
+				dbgf_track(DBGT_INFO, "filtering temporary change");
+			}
+
+		} else {
+			rfn = debugMalloc(sizeof(*new), -300552);
+			*rfn = *new;
+			avl_insert(&redist_filter_tree, rfn, -300553);
+			rfn->stamp = bmx_time;
+		}
+
+	}
+
+	if (redist_filter_tree.items) {
+		if (!scheduled) {
+			scheduled = YES;
+			task_register(next_check, filter_temporary_route_changes, NULL, -300000);
+		}
+	} else {
+		if (scheduled) {
+			scheduled = NO;
+			task_remove(filter_temporary_route_changes, NULL);
+		}
 	}
 }
 
@@ -139,26 +236,14 @@ void get_route_list_nlhdr(struct nlmsghdr *nh, void *unused )
 			dbgf_track(DBGT_INFO, "%s route=%s table=%d protocol=%s",	nh->nlmsg_type==RTM_NEWROUTE?"ADD":"DEL",
 				netAsStr(&net), rtm->rtm_table, memAsHexStringSep(&rtm->rtm_protocol, 1, 0, NULL));
 
-			struct redist_in_node new = {.k = {.table = rtm->rtm_table, .inType = rtm->rtm_protocol, .net = net}};
-			struct redist_in_node *rin = avl_find_item(&redist_in_tree, &new.k);
+			struct redist_in_node new = {
+				.k = {.table = rtm->rtm_table, .inType = rtm->rtm_protocol, .net = net},
+				.cnt = ((nh->nlmsg_type == RTM_NEWROUTE)?1:-1)
+			};
 
-			if (rin) {
+			if ((new.roptn = matching_redist_opt(&new, &redist_opt_tree, rtredist_rt_dict))) {
 
-				ASSERTION(-502301, (rin->roptn && rin->roptn == matching_redist_opt(&new, &redist_opt_tree, rtredist_rt_dict)));
-				assertion(-501527, IMPLIES(nh->nlmsg_type==RTM_DELROUTE, (rin->cnt>0)));
-
-				rin->cnt += (nh->nlmsg_type==RTM_NEWROUTE ? 1 : -1);
-				schedule_table_routes((void*)1);
-
-			} else if ((new.roptn = matching_redist_opt(&new, &redist_opt_tree, rtredist_rt_dict))) {
-
-				assertion(-502302, (nh->nlmsg_type == RTM_NEWROUTE));
-
-				rin = debugMalloc(sizeof(new), -300552);
-				*rin = new;
-				rin->cnt = 1;
-				avl_insert(&redist_in_tree, rin, -300553);
-				schedule_table_routes((void*)1);
+				filter_temporary_route_changes(&new);
 			}
 		}
                 rtap = RTA_NEXT(rtap, rtl);
@@ -205,6 +290,9 @@ int32_t sync_redist_routes(IDM_T cleanup, IDM_T resync)
 
 		set_tunXin6_net_adv_list(DEL, &table_net_adv_list);
 
+		filter_temporary_route_changes((void*)1/*purge*/);
+
+
 		while (redist_in_tree.items)
 			debugFree(avl_remove_first_item(&redist_in_tree, -300487), -300488);
 
@@ -221,6 +309,8 @@ int32_t sync_redist_routes(IDM_T cleanup, IDM_T resync)
 		dbgf_sys(DBGT_WARN, "rt-events out of sync. Trying to resync...");
 
 		rtevent_sk = unregister_netlink_event_hook(rtevent_sk, recv_rtevent_netlink_sk);
+
+		filter_temporary_route_changes((void*)1/*purge*/);
 
 		while (redist_in_tree.items)
 			debugFree(avl_remove_first_item(&redist_in_tree, -300487), -300488);
@@ -293,6 +383,9 @@ int32_t opt_redistribute(uint8_t cmd, uint8_t _save, struct opt_type *opt, struc
 static struct opt_type rtredist_options[]= {
 //        ord parent long_name          shrt Attributes				*ival		min		max		default		*func,*syntax,*help
 
+        {ODI,0,ARG_FILTER_DELAY,          0,9,1, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &rtfilter_delay,MIN_REDIST_DELAY,MAX_REDIST_DELAY,DEF_FILTER_DELAY,0,   0,
+			ARG_VALUE_FORM,	HLP_FILTER_DELAY}
+        ,
         {ODI,0,ARG_REDIST_DELAY,          0,9,1, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &rtredist_delay,MIN_REDIST_DELAY,MAX_REDIST_DELAY,DEF_REDIST_DELAY,0,   0,
 			ARG_VALUE_FORM,	HLP_REDIST_DELAY}
         ,

@@ -15,11 +15,15 @@
  * 02110-1301, USA
  */
 
-#define ARG_REDIST_DELAY  "redistTableDelay"
-#define HLP_REDIST_DELAY  "delay processing (and announcement) of changed table routes in ms to aggregate shortly following changes"
+#define ARG_REDIST_DELAY  "redistTableOutDelay"
+#define HLP_REDIST_DELAY  "delay announcement of changed table routes in ms to aggregate shortly following changes"
 #define MIN_REDIST_DELAY  100
 #define MAX_REDIST_DELAY  3600000
-#define DEF_REDIST_DELAY  2200
+#define DEF_REDIST_DELAY  2000
+
+#define ARG_FILTER_DELAY  "redistTableInDelay"
+#define DEF_FILTER_DELAY  1000
+#define HLP_FILTER_DELAY  "delay processing of changed table routes in ms to filter shortly following changes"
 
 
 #define ARG_REDIST        "redistTable"

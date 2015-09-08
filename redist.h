@@ -127,6 +127,7 @@ struct redist_in_node {
         uint8_t old;
         uint32_t metric;
 	uint8_t distance;
+	TIME_T stamp;
 	struct redistr_opt_node *roptn;
 };
 

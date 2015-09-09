@@ -48,6 +48,7 @@
 #include "desc.h"
 #include "ip.h"
 #include "plugin.h"
+#include "prof.h"
 #include "hna.h"
 #include "tools.h"
 #include "iptools.h"
@@ -1448,6 +1449,8 @@ IDM_T _recalc_tun_bit_tree(void)
 {
         TRACE_FUNCTION_CALL;
 
+	prof_start(_recalc_tun_bit_tree, main);
+
 	IDM_T changedOrder = NO;
         struct tun_bit_node *tbn_curr;
         struct tun_bit_key tbk_prev;
@@ -1500,6 +1503,7 @@ IDM_T _recalc_tun_bit_tree(void)
                         tbk_prev = tbk_new;
                 }
         }
+	prof_stop();
 	return changedOrder;
 }
 
@@ -1520,6 +1524,8 @@ void eval_tun_bit_tree(void  *onlyIfOrderChanged)
 
 	if (onlyIfOrderChanged && !changedOrder)
 		return;
+
+	prof_start(eval_tun_bit_tree, main);
 
 	dbgf_track(DBGT_INFO, "changedOrder=%d", changedOrder);
 
@@ -1649,6 +1655,7 @@ void eval_tun_bit_tree(void  *onlyIfOrderChanged)
 
                 }
         }
+	prof_stop();
 }
 
 

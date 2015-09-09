@@ -44,6 +44,7 @@
 #include "hna.h"
 #include "schedule.h"
 #include "plugin.h"
+#include "prof.h"
 #include "tools.h"
 #include "iptools.h"
 #include "allocate.h"
@@ -91,6 +92,7 @@ void update_tunXin6_net_adv_list(struct avl_tree *redist_out_tree, struct list_h
 STATIC_FUNC
 void redist_rm_overlapping(struct avl_tree *redist_out_tree)
 {
+	prof_start(redist_rm_overlapping, redistribute_routes);
 
         dbgf_track(DBGT_INFO, " ");
 
@@ -135,11 +137,15 @@ void redist_rm_overlapping(struct avl_tree *redist_out_tree)
                         }
                 }
         }
+
+	prof_stop();
 }
 
 STATIC_FUNC
 void redist_rm_aggregatable(struct avl_tree *redist_out_tree)
 {
+	prof_start(redist_rm_aggregatable, redistribute_routes);
+
         struct redist_out_node *r1;
         struct avl_node *an = NULL;
 
@@ -203,6 +209,8 @@ void redist_rm_aggregatable(struct avl_tree *redist_out_tree)
 
                 }
         }
+
+	prof_stop();
 }
 
 struct redistr_opt_node *matching_redist_opt(struct redist_in_node *rin, struct avl_tree *redist_opt_tree, struct sys_route_dict *rt_dict)
@@ -268,6 +276,8 @@ struct redistr_opt_node *matching_redist_opt(struct redist_in_node *rin, struct 
 
 IDM_T redistribute_routes(struct avl_tree *redist_out_tree, struct avl_tree *redist_in_tree, struct avl_tree *redist_opt_tree, struct sys_route_dict *rt_dict)
 {
+
+	prof_start(redistribute_routes, main);
 
         dbgf_track(DBGT_INFO, " ");
 	IDM_T redist_changed = NO;
@@ -349,6 +359,7 @@ IDM_T redistribute_routes(struct avl_tree *redist_out_tree, struct avl_tree *red
                 routn->old = 1;
         }
 
+	prof_stop();
 	return redist_changed;
 }
 

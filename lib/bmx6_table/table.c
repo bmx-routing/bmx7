@@ -51,6 +51,7 @@
 #include "redist.h"
 #include "allocate.h"
 #include "table.h"
+#include "prof.h"
 
 
 #define CODE_CATEGORY_NAME "table"
@@ -79,6 +80,8 @@ void redist_table_routes(IDM_T forceChanged)
 	struct avl_node *an=NULL;
 	memset(&rii, 0, sizeof (rii));
 
+	prof_start(redist_table_routes, main);
+
 	while ((rin = avl_next_item(&redist_in_tree, &rii.k))) {
 		rii = *rin;
 
@@ -102,6 +105,8 @@ void redist_table_routes(IDM_T forceChanged)
 	dbgf(forceChanged ? DBGL_SYS : DBGL_CHANGES, DBGT_INFO, " %sCHANGED out.items=%d in.items=%d opt.items=%d net_advs=%d",
 		forceChanged ? "" : "UN",
 		redist_out_tree.items, redist_in_tree.items, redist_opt_tree.items, table_net_adv_list.items);
+
+	prof_stop();
 }
 
 

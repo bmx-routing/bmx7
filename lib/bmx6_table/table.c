@@ -276,13 +276,57 @@ static void recv_rtevent_netlink_sk(int sk)
 		sync_redist_routes(NO, YES);
 }
 
+STATIC_FUNC
+int32_t resync_routes(int32_t rtevent_sk)
+{
+	const uint32_t nlgroups = nl_mgrp(RTNLGRP_IPV4_ROUTE) | nl_mgrp(RTNLGRP_IPV6_ROUTE);
+	const int buffsize = 266240; // 133120 // 66560 // RTNL_RCV_MAX //seems all too small for 2K+ routes and heavy CPU load
 
+	fd_set sockset;
+	int cnt = 1;
+
+	while (1) {
+		dbgf_sys(DBGT_WARN, "rt-events out of sync. Trying to resync (round=%d) ...", cnt);
+
+		if (rtevent_sk)
+			rtevent_sk = unregister_netlink_event_hook(rtevent_sk, recv_rtevent_netlink_sk);
+
+		filter_temporary_route_changes((void*)1/*purge*/);
+
+		while (redist_in_tree.items)
+			debugFree(avl_remove_first_item(&redist_in_tree, -300487), -300488);
+
+
+
+		wait_sec_msec(0, 500);
+		dbgf_track(DBGT_WARN, "now");
+
+		rtevent_sk = register_netlink_event_hook(nlgroups, buffsize, recv_rtevent_netlink_sk);
+		assertion(-502504, (rtevent_sk > 0));
+
+		kernel_get_route(NO, AF_INET, RTM_GETROUTE, 0, get_route_list_nlhdr);
+		kernel_get_route(NO, AF_INET6, RTM_GETROUTE, 0, get_route_list_nlhdr);
+
+		FD_ZERO(&sockset);
+		FD_SET(rtevent_sk, &sockset);
+		struct timeval to = {0, 0};
+
+		if (!select(rtevent_sk + 1, &sockset, NULL, NULL, &to))
+			break;
+
+		cnt++;
+
+		assertion(-502505, (cnt<100));
+	}
+
+	dbgf_track(DBGT_WARN, "success");
+	return rtevent_sk;
+
+}
 STATIC_FUNC
 int32_t sync_redist_routes(IDM_T cleanup, IDM_T resync)
 {
 	static int rtevent_sk = 0;
-	const uint32_t nlgroups = nl_mgrp(RTNLGRP_IPV4_ROUTE) | nl_mgrp(RTNLGRP_IPV6_ROUTE);
-	const int buffsize = 266240; // 133120 // 66560 // RTNL_RCV_MAX //seems all too small for 2K+ routes and heavy CPU load
 
 	if (cleanup) {
 
@@ -306,30 +350,15 @@ int32_t sync_redist_routes(IDM_T cleanup, IDM_T resync)
 
 	} else if (resync) {
 
-		dbgf_sys(DBGT_WARN, "rt-events out of sync. Trying to resync...");
-
-		rtevent_sk = unregister_netlink_event_hook(rtevent_sk, recv_rtevent_netlink_sk);
-
-		filter_temporary_route_changes((void*)1/*purge*/);
-
-		while (redist_in_tree.items)
-			debugFree(avl_remove_first_item(&redist_in_tree, -300487), -300488);
-
-		rtevent_sk = register_netlink_event_hook(nlgroups, buffsize, recv_rtevent_netlink_sk);
-
-		kernel_get_route(NO, AF_INET, RTM_GETROUTE, 0, get_route_list_nlhdr);
-		kernel_get_route(NO, AF_INET6, RTM_GETROUTE, 0, get_route_list_nlhdr);
+		rtevent_sk = resync_routes(rtevent_sk);
 
 		redist_table_routes(YES);
 
 	} else {
 
-		kernel_get_route(NO, AF_INET, RTM_GETROUTE, 0, get_route_list_nlhdr);
-		kernel_get_route(NO, AF_INET6, RTM_GETROUTE, 0, get_route_list_nlhdr);
-
 		set_tunXin6_net_adv_list(ADD, &table_net_adv_list);
 
-		rtevent_sk = register_netlink_event_hook(nlgroups, buffsize, recv_rtevent_netlink_sk);
+		rtevent_sk = resync_routes(rtevent_sk);
 	}
 
 

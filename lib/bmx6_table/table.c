@@ -132,15 +132,19 @@ void filter_temporary_route_changes(void *newP)
 {
 	static IDM_T scheduled = NO;
 	struct redist_in_node *rfn;
+	struct redist_in_node *new = newP;
 
 	TIME_T next_check = rtfilter_delay;
 
-	dbgf_track(DBGT_INFO, "%s", newP ? "new" : "check...");
+	dbgf_track(DBGT_INFO, "%s cnt=%d net=%s",
+		newP == ((void*) 1) ? "purge" : (newP ? "new" : "check..."),
+		(newP > ((void*) 1)) ? new->cnt : 0,
+		(newP > ((void*) 1)) ? netAsStr(&new->k.net) : NULL);
 
 	if (newP == NULL) {
 
-		assertion(-500000, (scheduled));
-		assertion(-500000, (redist_filter_tree.items));
+		assertion(-502501, (scheduled));
+		assertion(-502502, (redist_filter_tree.items));
 
 		scheduled = NO;
 		struct redist_in_node tmp = {.k={.ifindex=0}};
@@ -153,9 +157,12 @@ void filter_temporary_route_changes(void *newP)
 
 			if (passed >= ((TIME_T)(rtfilter_delay - (MIN_REDIST_DELAY/2)))) {
 
-				struct redist_in_node *rin;
+				struct redist_in_node *rin = avl_find_item(&redist_in_tree, &rfn->k);
 
-				if ((rin = avl_find_item(&redist_in_tree, &rfn->k))) {
+				dbgf_track(DBGT_INFO, "due net=%s rfn-cnt=%d rin-cnt=%d", netAsStr(&rfn->k.net), rfn->cnt, rin ? rin->cnt : -111111);
+
+				if (rin) {
+
 					ASSERTION(-502301, (rin->roptn && rin->roptn == matching_redist_opt(rfn, &redist_opt_tree, rtredist_rt_dict)));
 
 					rin->cnt += rfn->cnt;
@@ -163,8 +170,8 @@ void filter_temporary_route_changes(void *newP)
 
 				} else {
 
-					ASSERTION(-500000, (rfn->roptn && rfn->roptn == matching_redist_opt(rfn, &redist_opt_tree, rtredist_rt_dict)));
-					assertion(-502302, (rfn->cnt >= 1));
+					ASSERTION(-502503, (rfn->roptn && rfn->roptn == matching_redist_opt(rfn, &redist_opt_tree, rtredist_rt_dict)));
+					assertion_dbg(-502302, (rfn->cnt >= 1), "net=%s cnt=%d", netAsStr(&rfn->k.net), rfn->cnt);
 
 					rin = debugMalloc(sizeof(*rfn), -300552);
 					*rin = *rfn;
@@ -172,8 +179,7 @@ void filter_temporary_route_changes(void *newP)
 					schedule_table_routes((void*) NO);
 				}
 
-				avl_remove(&redist_filter_tree, &rfn->k, -300000);
-				debugFree(rfn, -300000);
+				debugFree(avl_remove(&redist_filter_tree, &rfn->k, -300000), -300000);
 
 			} else {
 				next_check = XMIN(next_check, (rtfilter_delay - passed));
@@ -185,15 +191,14 @@ void filter_temporary_route_changes(void *newP)
 		while (redist_filter_tree.items)
 			debugFree(avl_remove_first_item(&redist_filter_tree, -300000), -3000000);
 		
-	} else if (newP) {
-
-		struct redist_in_node *new = newP;
+	} else if (new) {
 
 		if ((rfn = avl_find_item(&redist_filter_tree, &new->k))) {
 
-			if (!(rfn->cnt += new->cnt)) {
-				avl_remove(&redist_filter_tree, &rfn->k, -300000);
-				debugFree(rfn, -300000);
+			rfn->cnt += new->cnt;
+
+			if (rfn->cnt == 0) {
+				debugFree(avl_remove(&redist_filter_tree, &rfn->k, -300000), -300000);
 				dbgf_track(DBGT_INFO, "filtering temporary change");
 			}
 
@@ -241,10 +246,9 @@ void get_route_list_nlhdr(struct nlmsghdr *nh, void *unused )
 				.cnt = ((nh->nlmsg_type == RTM_NEWROUTE)?1:-1)
 			};
 
-			if ((new.roptn = matching_redist_opt(&new, &redist_opt_tree, rtredist_rt_dict))) {
-
+			if ((new.roptn = matching_redist_opt(&new, &redist_opt_tree, rtredist_rt_dict)))
 				filter_temporary_route_changes(&new);
-			}
+
 		}
                 rtap = RTA_NEXT(rtap, rtl);
         }
@@ -299,7 +303,7 @@ int32_t resync_routes(int32_t rtevent_sk)
 
 
 		wait_sec_msec(0, 500);
-		dbgf_track(DBGT_WARN, "now");
+		dbgf_sys(DBGT_WARN, "now");
 
 		rtevent_sk = register_netlink_event_hook(nlgroups, buffsize, recv_rtevent_netlink_sk);
 		assertion(-502504, (rtevent_sk > 0));
@@ -319,7 +323,7 @@ int32_t resync_routes(int32_t rtevent_sk)
 		assertion(-502505, (cnt<100));
 	}
 
-	dbgf_track(DBGT_WARN, "success");
+	dbgf_sys(DBGT_WARN, "success");
 	return rtevent_sk;
 
 }

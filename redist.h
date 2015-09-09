@@ -119,14 +119,14 @@ struct redist_in_key {
 } __attribute__((packed));
 
 struct redist_in_node {
-        struct redist_in_key k;
+	struct redist_in_key k;
 
-        uint8_t flags;
-        uint8_t message;
-        int8_t cnt;
-        uint8_t old;
-        uint32_t metric;
+	int16_t cnt;
+	uint8_t flags;
+	uint8_t message;
+	uint8_t old;
 	uint8_t distance;
+	uint32_t metric;
 	TIME_T stamp;
 	struct redistr_opt_node *roptn;
 };

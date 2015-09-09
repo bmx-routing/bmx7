@@ -230,13 +230,13 @@ struct prof_status *prof_status_iterate(struct prof_ctx *pn, struct prof_status 
 		((((uint64_t) 100)*1000 * 1000000) / ((uint64_t) CLOCKS_PER_SEC))) /
 		durationPrevPeriod;
 
-	sprintf(status->sysCurrCpu, "%.4f", ((float) loadPrevPeriod) / 1000);
+	sprintf(status->sysCurrCpu, "%7.4f", ((float) loadPrevPeriod) / 1000);
 
 	uint32_t loadPrevTotal = (((uint64_t) pn->clockPrevTotal)*
 		((((uint64_t) 100)*1000 * 1000000) / ((uint64_t) CLOCKS_PER_SEC))) /
 		timeAfterPrevPeriod;
 
-	sprintf(status->sysAvgCpu, "%.4f", ((float) loadPrevTotal) / 1000);
+	sprintf(status->sysAvgCpu, "%7.4f", ((float) loadPrevTotal) / 1000);
 
 	if (!pn->parent)
 		goto prof_status_iterate_childs;
@@ -246,7 +246,7 @@ struct prof_status *prof_status_iterate(struct prof_ctx *pn, struct prof_status 
 		durationPrevPeriod;
 
 	if (loadParentPrevPeriod)
-		sprintf(status->relCurrCpu, "%.4f", ((((float) loadPrevPeriod)*100) / ((float) loadParentPrevPeriod)));
+		sprintf(status->relCurrCpu, "%7.4f", ((((float) loadPrevPeriod)*100) / ((float) loadParentPrevPeriod)));
 	else if (!loadParentPrevPeriod && loadPrevPeriod)
 		sprintf(status->relCurrCpu, "ERR");
 
@@ -255,7 +255,7 @@ struct prof_status *prof_status_iterate(struct prof_ctx *pn, struct prof_status 
 		timeAfterPrevPeriod;
 
 	if (loadParentPrevTotal)
-		sprintf(status->relAvgCpu, "%.4f", ((((float) loadPrevTotal)*100) / ((float) loadParentPrevTotal)));
+		sprintf(status->relAvgCpu, "%7.4f", ((((float) loadPrevTotal)*100) / ((float) loadParentPrevTotal)));
 	else if (!loadParentPrevTotal && loadPrevTotal)
 		sprintf(status->relAvgCpu, "ERR");
 

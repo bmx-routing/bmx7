@@ -179,7 +179,7 @@ int create_packet_signature(struct tx_frame_iterator *it)
 
 
 		struct frame_msg_signature *msg = (struct frame_msg_signature *) &(hdr[1]);
-		assertion(-500000, ((uint8_t*)msg == tx_iterator_cache_msg_ptr(it)));
+		assertion(-502517, ((uint8_t*)msg == tx_iterator_cache_msg_ptr(it)));
 
 		msg->type = my_PktKey ? my_PktKey->rawKeyType : 0;
 

@@ -309,7 +309,7 @@ void update_my_description(void)
 
 	keyNode_updCredits(NULL, myKey, NULL);
 
-	assertion(-500000, (myKey->currOrig));
+	assertion(-502512, (myKey->currOrig));
 	assertion(-502320, (myKey->currOrig->descContent == dcNew));
 
         my_description_changed = NO;

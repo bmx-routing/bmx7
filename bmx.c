@@ -1179,7 +1179,7 @@ static int32_t ref_status_creator(struct status_handl *handl, void *data)
 		"all=%d shown=%d != (%d = (named=%d + desc=%d + claimed=%d)) dDropped=%d sDropped=%d",
 		allRefs, i, (namedRefs + descRefs + claimedRefs), namedRefs, descRefs, claimedRefs, droppedDRefs, droppedSRefs);
 
-	assertion(-500000, (allRefs == i));
+	assertion(-502510, (allRefs == i));
 
 	return((i) * sizeof(struct ref_status));
 }

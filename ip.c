@@ -2780,7 +2780,7 @@ static void close_ifevent_netlink_sk(void)
 
 uint32_t nl_mgrp(uint32_t group)
 {
-	assertion(-500000, (group <= 31));
+	assertion(-502513, (group <= 31));
 	return group ? (1 << (group - 1)) : 0;
 }
 
@@ -2919,7 +2919,7 @@ static void get_rule_list_nlhdr(struct nlmsghdr *nh, void *unused )
 		nh->nlmsg_type, r->rtm_family, r->rtm_flags, table, r->rtm_protocol, r->rtm_src_len, r->rtm_dst_len, r->rtm_tos,
 		rta_prio, !!tb[FRA_SRC], !!tb[FRA_DST], !!tb[FRA_FWMARK], !!tb[FRA_FWMASK], !!tb[FRA_IFNAME], !!tb[FRA_OIFNAME], !!tb[FRA_TABLE]);
 
-	assertion_dbg(-500000, (!rtl), "!!!Deficit %d, rta_len=%d\n", rtl, rtap->rta_len);
+	assertion_dbg(-502515, (!rtl), "!!!Deficit %d, rta_len=%d\n", rtl, rtap->rta_len);
 
 
 	for (an = NULL; (tn = avl_iterate_item(&iptrack_tree, &an));) {
@@ -3054,7 +3054,7 @@ int32_t opt_ip_version(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
 
 		if (policy_routing == POLICY_RT_ENABLED) {
 			nl_rule_event_sk = register_netlink_event_hook(nl_mgrp(RTNLGRP_IPV4_RULE) | nl_mgrp(RTNLGRP_IPV6_RULE), (RTNL_RCV_MAX/2), recv_ruleEvent_netlink_sk);
-			assertion(-500000, (nl_rule_event_sk > 0));
+			assertion(-502516, (nl_rule_event_sk > 0));
 		}
 
 

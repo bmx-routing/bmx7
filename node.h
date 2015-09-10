@@ -258,7 +258,7 @@ struct neigh_node {
 	int32_t orig_routes;
 
 	struct orig_node *on;
-	CRYPTKEY_T *pktKey;
+	CRYPTKEY_T *linkKey;
 
 
 	struct avl_tree refsByDhash_tree;

@@ -77,7 +77,7 @@ extern int32_t txBucketSize;
 #define FRM_SIGN_VERS_SIZE_MIN (sizeof(struct tlv_hdr) + sizeof(struct frame_msg_signature) + \
                                 sizeof(struct tlv_hdr) + sizeof(struct msg_ogm_aggreg_sqn_adv))
 
-#define FRM_SIGN_VERS_SIZE_MAX (FRM_SIGN_VERS_SIZE_MIN + (MAX_PACKET_SIGN/8))
+#define FRM_SIGN_VERS_SIZE_MAX (FRM_SIGN_VERS_SIZE_MIN + (MAX_LINK_SIGN_LEN/8))
 
 #define SIGNED_FRAMES_SIZE_PREF (PKT_FRAMES_SIZE_PREF - FRM_SIGN_VERS_SIZE_MAX)
 #define SIGNED_FRAMES_SIZE_MAX (PKT_FRAMES_SIZE_MAX - FRM_SIGN_VERS_SIZE_MAX)
@@ -237,10 +237,10 @@ struct tlv_hdr tlvSetBigEndian(int16_t type, int16_t length);
 
 
 #define BMX_DSC_TLV_CONTENT_HASH    0x00
-#define BMX_DSC_TLV_DSC_PUBKEY      0x01
+#define BMX_DSC_TLV_NODE_PUBKEY     0x01
 #define BMX_DSC_TLV_DSC_SIGNATURE   0x02
 #define BMX_DSC_TLV_VERSION         0x03
-#define BMX_DSC_TLV_PKT_PUBKEY      0x05
+#define BMX_DSC_TLV_LINK_PUBKEY     0x05
 
 #define BMX_DSC_TLV_NAMES           0x07
 

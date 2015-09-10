@@ -735,8 +735,8 @@ struct bmx_status {
 	GLOBAL_ID_T *shortId;
 	GLOBAL_ID_T *globalId;
 	char* name;
-	char *descKey;
-	char *pktKey;
+	char *nodeKey;
+	char *linkKey;
 	DHASH_T *shortDhash;
 	DHASH_T *dhash;
 	char version[(sizeof(BMX_BRANCH) - 1) + (sizeof("-") - 1) + (sizeof(BRANCH_VERSION) - 1) + 1];
@@ -761,8 +761,8 @@ static const struct field_format bmx_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_SHORT_ID,  bmx_status, shortId,       1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, bmx_status, globalId,      1, FIELD_RELEVANCE_LOW),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      bmx_status, name,          1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      bmx_status, descKey,       1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      bmx_status, pktKey,        1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      bmx_status, nodeKey,       1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      bmx_status, linkKey,       1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_SHORT_ID,  bmx_status, shortDhash,    1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, bmx_status, dhash,         1, FIELD_RELEVANCE_LOW),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       bmx_status, version,       1, FIELD_RELEVANCE_HIGH),
@@ -794,8 +794,8 @@ static int32_t bmx_status_creator(struct status_handl *handl, void *data)
 	status->name = my_Hostname;
 	status->shortDhash = &myKey->currOrig->descContent->dhn->dhash;
 	status->dhash = &myKey->currOrig->descContent->dhn->dhash;
-	status->descKey = (pkm = contents_data(myKey->currOrig->descContent, BMX_DSC_TLV_DSC_PUBKEY)) ? cryptKeyTypeAsString(pkm->type) : DBG_NIL;
-	status->pktKey = (pkm = contents_data(myKey->currOrig->descContent, BMX_DSC_TLV_PKT_PUBKEY)) ? cryptKeyTypeAsString(pkm->type) : DBG_NIL;
+	status->nodeKey = (pkm = contents_data(myKey->currOrig->descContent, BMX_DSC_TLV_NODE_PUBKEY)) ? cryptKeyTypeAsString(pkm->type) : DBG_NIL;
+	status->linkKey = (pkm = contents_data(myKey->currOrig->descContent, BMX_DSC_TLV_LINK_PUBKEY)) ? cryptKeyTypeAsString(pkm->type) : DBG_NIL;
 	snprintf(status->version, sizeof(status->version), "%s-%s", BMX_BRANCH, BRANCH_VERSION);
 	status->compat = my_compatibility;
 	snprintf(status->revision, 8, "%s", GIT_REV);
@@ -818,6 +818,7 @@ static int32_t bmx_status_creator(struct status_handl *handl, void *data)
 struct orig_status {
 	GLOBAL_ID_T *shortId;
 	GLOBAL_ID_T *globalId;
+	char* name;
 	char *state;
 	uint16_t pref;
 	TIME_T brcTo;
@@ -830,12 +831,11 @@ struct orig_status {
 	char s[2]; // me supported by him
 	char T[2]; // trusted by me;
 	char t[2]; // me trusted by him
-	char *descKey;
+	char *nodeKey;
 	DESC_SQN_T descSqn;
 	char descSize[20];
 	char contents[12]; //contentRefs
-	char *pktKey;
-	char* name;
+	char *linkKey;
 	IPX_T primaryIp;
 	char *dev;
 	uint32_t nbIdx;
@@ -854,6 +854,7 @@ struct orig_status {
 static const struct field_format orig_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_SHORT_ID,  orig_status, shortId,       1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, orig_status, globalId,      1, FIELD_RELEVANCE_LOW),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      orig_status, name,          1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      orig_status, state,         1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, pref,          1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, brcTo,         1, FIELD_RELEVANCE_MEDI),
@@ -866,12 +867,11 @@ static const struct field_format orig_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       orig_status, s,             1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       orig_status, T,             1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       orig_status, t,             1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      orig_status, descKey,       1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      orig_status, nodeKey,       1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, descSqn,       1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       orig_status, descSize,      1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       orig_status, contents,      1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      orig_status, pktKey,        1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      orig_status, name,          1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      orig_status, linkKey,       1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_IPX,               orig_status, primaryIp,     1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      orig_status, dev,           1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, nbIdx,         1, FIELD_RELEVANCE_HIGH),
@@ -919,7 +919,7 @@ uint8_t *key_status_page(uint8_t *sOut, uint32_t i, struct orig_node *on, struct
 		os->recom = kn->recommendations_tree.items;
 		os->S[0] = (S = supportedKnownKey(&kn->kHash)) == -1 ? 'A' : (S + '0');
 		os->T[0] = (T = setted_pubkey(myKey->currOrig->descContent, BMX_DSC_TLV_TRUSTS, &kn->kHash)) == -1 ? 'A' : (T + '0');
-		os->descKey = (kn->content && (kn->content->f_body_len >= sizeof(struct dsc_msg_pubkey))) ?
+		os->nodeKey = (kn->content && (kn->content->f_body_len >= sizeof(struct dsc_msg_pubkey))) ?
 			cryptKeyTypeAsString(((struct dsc_msg_pubkey*) kn->content->f_body)->type) : DBG_NIL;
 	} else {
 		os->S[0] = '-';
@@ -939,7 +939,7 @@ uint8_t *key_status_page(uint8_t *sOut, uint32_t i, struct orig_node *on, struct
 	}
 
 	if (on) {
-		os->pktKey = (pkm = contents_data(dc, BMX_DSC_TLV_PKT_PUBKEY)) ? cryptKeyTypeAsString(pkm->type) : DBG_NIL;
+		os->linkKey = (pkm = contents_data(dc, BMX_DSC_TLV_LINK_PUBKEY)) ? cryptKeyTypeAsString(pkm->type) : DBG_NIL;
 		os->name = on->k.hostname;
 		os->primaryIp = on->primary_ip;
 		os->dev = on->curr_rt_link && on->curr_rt_link->k.myDev ? on->curr_rt_link->k.myDev->name_phy_cfg.str : DBG_NIL;

@@ -1046,7 +1046,7 @@ void init_content( void )
 
 
         static const struct field_format msg_content_hash_format[] = DSC_MSG_CHASH_FORMAT;
-        handl.name = "CONTENT_HASH";
+        handl.name = "DSC_CONTENT_HASH";
         handl.data_header_size = sizeof( struct dsc_hdr_chash);
         handl.min_msg_size = sizeof (struct dsc_msg_chash);
         handl.fixed_msg_size = 0;

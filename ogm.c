@@ -567,7 +567,7 @@ int32_t init_ogm( void )
         struct frame_handl handl;
         memset(&handl, 0, sizeof ( handl));
 
-	handl.name = "AGGREG_SQN_ADV";
+	handl.name = "OGMS_SQNS_ADV";
 	handl.min_msg_size = sizeof(struct msg_ogm_aggreg_sqn_adv);
 	handl.fixed_msg_size = 1;
 
@@ -578,7 +578,7 @@ int32_t init_ogm( void )
 	handl.rx_frame_handler = rx_frame_ogm_aggreg_sqn;
 	register_frame_handler(packet_frame_db, FRAME_TYPE_OGM_AGG_SQN_ADV, &handl);
 
-	handl.name = "OGM_AGGREG_REQ";
+	handl.name = "OGMS_REQ";
 	handl.data_header_size = sizeof(struct hdr_ogm_aggreg_req);
 	handl.min_msg_size = sizeof(struct msg_ogm_aggreg_req);
 	handl.fixed_msg_size = 1;
@@ -587,7 +587,7 @@ int32_t init_ogm( void )
 	handl.rx_msg_handler = rx_msg_ogm_aggreg_request;
 	register_frame_handler(packet_frame_db, FRAME_TYPE_OGM_REQ, &handl);
 
-	handl.name = "OGM_DHASH_ADV";
+	handl.name = "OGMS_DHASH_ADV";
 	handl.data_header_size = sizeof(struct hdr_ogm_adv);
 	handl.min_msg_size = sizeof(struct msg_ogm_dhash_adv);
 	handl.fixed_msg_size = 1;

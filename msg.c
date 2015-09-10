@@ -924,8 +924,8 @@ void tx_packets( void *unused ) {
 			assertion(-502442, (it.frame_type < FRAME_TYPE_SIGNATURE_ADV || it.frame_type > FRAME_TYPE_OGM_AGG_SQN_ADV));
 			assertion(-502443, (!it.frame_cache_msgs_size));
 			assertion(-500430, (it.frames_out_pos)); // single message larger than MAX_UDPD_SIZE
-			assertion_dbg(-502444, IMPLIES(it.frame_type > FRAME_TYPE_OGM_AGG_SQN_ADV, it.frames_out_pos > (int) (FRM_SIGN_VERS_SIZE_MIN + my_PktKey->rawKeyLen)),
-				"%d %d %d %d", it.frame_type, it.frames_out_pos, (FRM_SIGN_VERS_SIZE_MIN + my_PktKey->rawKeyLen));
+			assertion_dbg(-502444, IMPLIES(it.frame_type > FRAME_TYPE_OGM_AGG_SQN_ADV, it.frames_out_pos > (int) (FRM_SIGN_VERS_SIZE_MIN + my_LinkKey->rawKeyLen)),
+				"%d %d %d %d", it.frame_type, it.frames_out_pos, (FRM_SIGN_VERS_SIZE_MIN + my_LinkKey->rawKeyLen));
 		}
 
 		if ((result == TLV_TX_DATA_FULL || !nextTask || memcmp(&it.ttn->key.f.p, &nextTask->key.f.p, sizeof(nextTask->key.f.p))) && it.frames_out_pos) {
@@ -936,7 +936,7 @@ void tx_packets( void *unused ) {
 				pb.p.hdr.comp_version = my_compatibility;
 				pb.p.hdr.keyHash = myKey->kHash;
 
-				if (it.prev_out_type > FRAME_TYPE_OGM_AGG_SQN_ADV && my_PktKey && my_PktKey->rawKeyLen)
+				if (it.prev_out_type > FRAME_TYPE_OGM_AGG_SQN_ADV && my_LinkKey && my_LinkKey->rawKeyLen)
 					it.db->handls[FRAME_TYPE_SIGNATURE_ADV].tx_frame_handler(&it);
 
 				assertion(-502446, (it.frames_out_pos <= it.frames_out_max));

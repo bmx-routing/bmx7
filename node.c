@@ -265,8 +265,8 @@ void neigh_destroy(struct neigh_node *local)
 	local->on->neigh = NULL;
 	local->on = NULL;
 
-	if (local->pktKey)
-		cryptKeyFree(&local->pktKey);
+	if (local->linkKey)
+		cryptKeyFree(&local->linkKey);
 
 	free_internalNeighId(local->internalNeighId);
 
@@ -286,10 +286,10 @@ struct neigh_node *neigh_create(struct orig_node *on)
 
 	nn->internalNeighId = allocate_internalNeighId(nn);
 
-	struct dsc_msg_pubkey *pkey_msg = contents_data(on->descContent, BMX_DSC_TLV_PKT_PUBKEY);
+	struct dsc_msg_pubkey *pkey_msg = contents_data(on->descContent, BMX_DSC_TLV_LINK_PUBKEY);
 
 	if (pkey_msg)
-		nn->pktKey = cryptPubKeyFromRaw(pkey_msg->key, cryptKeyLenByType(pkey_msg->type));
+		nn->linkKey = cryptPubKeyFromRaw(pkey_msg->key, cryptKeyLenByType(pkey_msg->type));
 
 	nn->on = on;
 	return nn;
@@ -401,15 +401,15 @@ void destroy_orig_node(struct orig_node *on)
 
 void init_self(void)
 {
-	assertion(-502094, (my_PubKey));
+	assertion(-502094, (my_NodeKey));
 	assertion(-502477, (!myKey));
 
 	struct key_credits friend_kc = {.friend=1};
-	struct dsc_msg_pubkey *msg = debugMallocReset(sizeof(struct dsc_msg_pubkey) +my_PubKey->rawKeyLen, -300631);
-	msg->type = my_PubKey->rawKeyType;
-	memcpy(msg->key, my_PubKey->rawKey, my_PubKey->rawKeyLen);
+	struct dsc_msg_pubkey *msg = debugMallocReset(sizeof(struct dsc_msg_pubkey) +my_NodeKey->rawKeyLen, -300631);
+	msg->type = my_NodeKey->rawKeyType;
+	memcpy(msg->key, my_NodeKey->rawKey, my_NodeKey->rawKeyLen);
 
-	struct content_node *cn = content_add_body((uint8_t*)msg, sizeof(struct dsc_msg_pubkey) +my_PubKey->rawKeyLen, 0, 0, YES);
+	struct content_node *cn = content_add_body((uint8_t*)msg, sizeof(struct dsc_msg_pubkey) +my_NodeKey->rawKeyLen, 0, 0, YES);
 
 	myKey = keyNode_updCredits(&cn->chash, NULL, &friend_kc);
 

@@ -55,17 +55,17 @@
 #define CODE_CATEGORY_NAME "sec"
 
 
-static int32_t descVerificationMax = DEF_DESC_VERIFY_MAX;
+static int32_t nodeSignMax = DEF_NODE_SIGN_MAX;
 
-static int32_t packetVerificationMax = DEF_PACKET_VERIFY_MAX;
-static int32_t packetVerificationMin = DEF_PACKET_VERIFY_MIN;
+static int32_t linkSignMax = DEF_LINK_SIGN_MAX;
+static int32_t linkSignMin = DEF_LINK_SIGN_MIN;
 
 
-int32_t packetSignLifetime = DEF_PACKET_SIGN_LT;
-int32_t packetSigning = DEF_PACKET_SIGN;
+int32_t linkSignLifetime = DEF_LINK_SIGN_LT;
+int32_t linkSignLen = DEF_LINK_SIGN_LEN;
 
-CRYPTKEY_T *my_PubKey = NULL;
-CRYPTKEY_T *my_PktKey = NULL;
+CRYPTKEY_T *my_NodeKey = NULL;
+CRYPTKEY_T *my_LinkKey = NULL;
 
 static char *trustedNodesDir = NULL;
 static int trusted_ifd = -1;
@@ -111,7 +111,7 @@ GLOBAL_ID_T *get_desc_id(uint8_t *desc_adv, uint32_t desc_len, struct dsc_msg_si
 			struct dsc_hdr_chash chashHdr = *((struct dsc_hdr_chash*) (desc_adv + sizeof(struct tlv_hdr)));
 			chashHdr.u.u32 = ntohl(chashHdr.u.u32);
 
-			if (chashHdr.u.i.gzip || chashHdr.u.i.maxNesting != 1 || chashHdr.u.i.expanded_type != BMX_DSC_TLV_DSC_PUBKEY)
+			if (chashHdr.u.i.gzip || chashHdr.u.i.maxNesting != 1 || chashHdr.u.i.expanded_type != BMX_DSC_TLV_NODE_PUBKEY)
 				return NULL;
 
 			id = &(((struct dsc_hdr_chash*) (desc_adv + p + sizeof(struct tlv_hdr)))->expanded_chash);
@@ -181,13 +181,13 @@ int create_packet_signature(struct tx_frame_iterator *it)
 		struct frame_msg_signature *msg = (struct frame_msg_signature *) &(hdr[1]);
 		assertion(-502517, ((uint8_t*)msg == tx_iterator_cache_msg_ptr(it)));
 
-		msg->type = my_PktKey ? my_PktKey->rawKeyType : 0;
+		msg->type = my_LinkKey ? my_LinkKey->rawKeyType : 0;
 
 		if (msg->type) {
 			//during later signature calculation msg is not hold in iterator cache anymore:
 			hdr = (struct frame_hdr_signature*) (it->frames_out_ptr + it->frames_out_pos + sizeof(struct tlv_hdr));
-			dataOffset = it->frames_out_pos + sizeof(struct tlv_hdr) + sizeof(struct frame_hdr_signature) + sizeof(struct frame_msg_signature) + my_PktKey->rawKeyLen;
-			return sizeof(struct frame_msg_signature) + my_PktKey->rawKeyLen;
+			dataOffset = it->frames_out_pos + sizeof(struct tlv_hdr) + sizeof(struct frame_hdr_signature) + sizeof(struct frame_msg_signature) + my_LinkKey->rawKeyLen;
+			return sizeof(struct frame_msg_signature) + my_LinkKey->rawKeyLen;
 		} else {
 			hdr = NULL;
 			dataOffset = 0;
@@ -197,7 +197,7 @@ int create_packet_signature(struct tx_frame_iterator *it)
 	} else {
 		assertion(-502099, (it->frame_type > FRAME_TYPE_SIGNATURE_ADV));
 		assertion(-502100, (hdr && dataOffset));
-		assertion(-502197, (my_PktKey && my_PktKey->rawKeyLen && my_PktKey->rawKeyType));
+		assertion(-502197, (my_LinkKey && my_LinkKey->rawKeyLen && my_LinkKey->rawKeyType));
 		assertion(-502101, (it->frames_out_pos > dataOffset));
 
 		extern void tx_packets(void *devp);
@@ -213,10 +213,10 @@ int create_packet_signature(struct tx_frame_iterator *it)
 		cryptShaUpdate(data, dataLen);
 		cryptShaFinal(&packetSha);
 
-		cryptSign(&packetSha, msg->signature, my_PktKey->rawKeyLen, my_PktKey);
+		cryptSign(&packetSha, msg->signature, my_LinkKey->rawKeyLen, my_LinkKey);
 
 		dbgf_all(DBGT_INFO, "fixed RSA%d type=%d signature=%s of dataSha=%s over dataLen=%d data=%s (dataOffset=%d)",
-			(my_PktKey->rawKeyLen * 8), msg->type, memAsHexString(msg->signature, my_PktKey->rawKeyLen),
+			(my_LinkKey->rawKeyLen * 8), msg->type, memAsHexString(msg->signature, my_LinkKey->rawKeyLen),
 			cryptShaAsString(&packetSha), dataLen, memAsHexString(data, dataLen), dataOffset);
 
 		hdr = NULL;
@@ -258,7 +258,7 @@ int process_packet_signature(struct rx_frame_iterator *it)
 	if ( dataLen <= (int)sizeof(struct tlv_hdr))
 		goto_error_return( finish, "Invalid length of signed data!", TLV_RX_DATA_FAILURE);
 
-	if ( sign_len > (packetVerificationMax/8) || sign_len < (packetVerificationMin/8) )
+	if ( sign_len > (linkSignMax/8) || sign_len < (linkSignMin/8) )
 		goto_error_return( finish, "Unsupported signature-key length!", TLV_RX_DATA_PROCESSED);
 
 	if (!claimedKey || claimedKey->bookedState->i.c < KCTracked)
@@ -295,9 +295,9 @@ int process_packet_signature(struct rx_frame_iterator *it)
 
 	if (dc->orig && dc->orig->neigh) {
 //		assertion(-502481, (dc->orig->neigh->pktKey));
-		pkey = dc->orig->neigh->pktKey;
+		pkey = dc->orig->neigh->linkKey;
 
-	} else if ((pkey_msg = contents_data(dc, BMX_DSC_TLV_PKT_PUBKEY))) {
+	} else if ((pkey_msg = contents_data(dc, BMX_DSC_TLV_LINK_PUBKEY))) {
 
 		if (!(pkey = pkeyTmp = cryptPubKeyFromRaw(pkey_msg->key, cryptKeyLenByType(pkey_msg->type))))
 			goto_error_return( finish, "Failed key retrieval from description!", TLV_RX_DATA_FAILURE);
@@ -379,86 +379,86 @@ finish:{
 
 
 STATIC_FUNC
-int create_dsc_tlv_pubkey(struct tx_frame_iterator *it)
+int create_dsc_tlv_nodeKey(struct tx_frame_iterator *it)
 {
         TRACE_FUNCTION_CALL;
 
-	assertion(-502097, (my_PubKey));
+	assertion(-502097, (my_NodeKey));
 
 	struct dsc_msg_pubkey *msg = ((struct dsc_msg_pubkey*) tx_iterator_cache_msg_ptr(it));
 
-	if ((int) (sizeof(struct dsc_msg_pubkey) +my_PubKey->rawKeyLen) > tx_iterator_cache_data_space_pref(it, 0, 0))
+	if ((int) (sizeof(struct dsc_msg_pubkey) +my_NodeKey->rawKeyLen) > tx_iterator_cache_data_space_pref(it, 0, 0))
 		return TLV_TX_DATA_FULL;
 
-	msg->type = my_PubKey->rawKeyType;
+	msg->type = my_NodeKey->rawKeyType;
 
-	memcpy(msg->key, my_PubKey->rawKey, my_PubKey->rawKeyLen);
-	dbgf_track(DBGT_INFO, "added description rsa description pubkey len=%d", my_PubKey->rawKeyLen);
+	memcpy(msg->key, my_NodeKey->rawKey, my_NodeKey->rawKeyLen);
+	dbgf_track(DBGT_INFO, "added description rsa description pubkey len=%d", my_NodeKey->rawKeyLen);
 
-	return(sizeof(struct dsc_msg_pubkey) +my_PubKey->rawKeyLen);
+	return(sizeof(struct dsc_msg_pubkey) +my_NodeKey->rawKeyLen);
 }
 
-void update_dsc_tlv_pktkey(void*unused)
+void update_dsc_tlv_linkKey(void*unused)
 {
 	my_description_changed = YES;
 }
 
 STATIC_FUNC
-int create_dsc_tlv_pktkey(struct tx_frame_iterator *it)
+int create_dsc_tlv_linkKey(struct tx_frame_iterator *it)
 {
 	TRACE_FUNCTION_CALL;
 
-	if (!packetSigning) {
+	if (!linkSignLen) {
 
-		assertion(-502203, (!my_PktKey));
+		assertion(-502203, (!my_LinkKey));
 
 		return TLV_TX_DATA_DONE;
 	}
 
-	if ((int) (sizeof(struct dsc_msg_pubkey) + (packetSigning / 8)) > tx_iterator_cache_data_space_pref(it, 0, 0))
+	if ((int) (sizeof(struct dsc_msg_pubkey) + (linkSignLen / 8)) > tx_iterator_cache_data_space_pref(it, 0, 0))
 		return TLV_TX_DATA_FULL;
 
-	prof_start(create_dsc_tlv_pktkey, update_my_description);
+	prof_start(create_dsc_tlv_linkKey, update_my_description);
 
 	struct dsc_msg_pubkey *msg = ((struct dsc_msg_pubkey*) tx_iterator_cache_msg_ptr(it));
 
-	uint8_t first = my_PktKey ? NO : YES;
+	uint8_t first = my_LinkKey ? NO : YES;
 
-	if (my_PktKey && packetSignLifetime) {
+	if (my_LinkKey && linkSignLifetime) {
 
-		assertion(-502204, (my_PktKey->endOfLife));
+		assertion(-502204, (my_LinkKey->endOfLife));
 
 		// renew pktKey if approaching last quarter of pktKey lifetime:
-		if (((TIME_SEC_T) ((5 * (my_PktKey->endOfLife - (bmx_time_sec + 1))) / 4)) >= MAX_PACKET_SIGN_LT) {
-			task_remove(update_dsc_tlv_pktkey, NULL);
-			cryptKeyFree(&my_PktKey);
+		if (((TIME_SEC_T) ((5 * (my_LinkKey->endOfLife - (bmx_time_sec + 1))) / 4)) >= MAX_LINK_SIGN_LT) {
+			task_remove(update_dsc_tlv_linkKey, NULL);
+			cryptKeyFree(&my_LinkKey);
 		}
 	}
 
-	if (!my_PktKey) {
+	if (!my_LinkKey) {
 
 		// set end-of-life for first packetKey to smaller random value >= 1:
-		int32_t thisSignLifetime = first && packetSignLifetime ? (1 + ((int32_t) rand_num(packetSignLifetime - 1))) : packetSignLifetime;
+		int32_t thisSignLifetime = first && linkSignLifetime ? (1 + ((int32_t) rand_num(linkSignLifetime - 1))) : linkSignLifetime;
 
-		my_PktKey = cryptKeyMake(packetSigning);
+		my_LinkKey = cryptKeyMake(linkSignLen);
 
-		my_PktKey->endOfLife = (thisSignLifetime ? bmx_time_sec + thisSignLifetime : 0);
+		my_LinkKey->endOfLife = (thisSignLifetime ? bmx_time_sec + thisSignLifetime : 0);
 
 		if (thisSignLifetime)
-			task_register(thisSignLifetime * 1000, update_dsc_tlv_pktkey, NULL, -300655);
+			task_register(thisSignLifetime * 1000, update_dsc_tlv_linkKey, NULL, -300655);
 	}
-	assertion(-502097, (my_PktKey));
+	assertion(-502097, (my_LinkKey));
 
 
-	msg->type = my_PktKey->rawKeyType;
+	msg->type = my_LinkKey->rawKeyType;
 
-	memcpy(msg->key, my_PktKey->rawKey, my_PktKey->rawKeyLen);
+	memcpy(msg->key, my_LinkKey->rawKey, my_LinkKey->rawKeyLen);
 
-	dbgf_track(DBGT_INFO, "added description rsa packet pubkey len=%d", my_PktKey->rawKeyLen);
+	dbgf_track(DBGT_INFO, "added description rsa packet pubkey len=%d", my_LinkKey->rawKeyLen);
 
 	prof_stop();
 
-	return(sizeof(struct dsc_msg_pubkey) +my_PktKey->rawKeyLen);
+	return(sizeof(struct dsc_msg_pubkey) +my_LinkKey->rawKeyLen);
 }
 
 
@@ -484,18 +484,18 @@ int process_dsc_tlv_pubKey(struct rx_frame_iterator *it)
 		if (cryptPubKeyCheck(pkey) != SUCCESS)
 			goto_error(finish, "3");
 
-	} else if (it->op == TLV_OP_DEL && it->f_type == BMX_DSC_TLV_PKT_PUBKEY && it->on->neigh) {
+	} else if (it->op == TLV_OP_DEL && it->f_type == BMX_DSC_TLV_LINK_PUBKEY && it->on->neigh) {
 
-		if (it->on->neigh->pktKey)
-			cryptKeyFree(&it->on->neigh->pktKey);
+		if (it->on->neigh->linkKey)
+			cryptKeyFree(&it->on->neigh->linkKey);
 
-	} else if (it->op == TLV_OP_NEW && it->f_type == BMX_DSC_TLV_PKT_PUBKEY && it->on->neigh) {
+	} else if (it->op == TLV_OP_NEW && it->f_type == BMX_DSC_TLV_LINK_PUBKEY && it->on->neigh) {
 
-		if (it->on->neigh->pktKey)
-			cryptKeyFree(&it->on->neigh->pktKey);
+		if (it->on->neigh->linkKey)
+			cryptKeyFree(&it->on->neigh->linkKey);
 
-		it->on->neigh->pktKey = cryptPubKeyFromRaw(msg->key, cryptKeyLenByType(msg->type));
-		assertion(-502206, (it->on->neigh->pktKey && cryptPubKeyCheck(it->on->neigh->pktKey) == SUCCESS));
+		it->on->neigh->linkKey = cryptPubKeyFromRaw(msg->key, cryptKeyLenByType(msg->type));
+		assertion(-502206, (it->on->neigh->linkKey && cryptPubKeyCheck(it->on->neigh->linkKey) == SUCCESS));
 	}
 
 finish: {
@@ -530,9 +530,9 @@ int create_dsc_tlv_signature(struct tx_frame_iterator *it)
 
 		desc_msg = (struct dsc_msg_signature*) (it->frames_out_ptr + it->frames_out_pos + sizeof(struct tlv_hdr));
 
-		dataOffset = it->frames_out_pos + sizeof(struct tlv_hdr) + sizeof(struct dsc_msg_signature) + my_PubKey->rawKeyLen;
+		dataOffset = it->frames_out_pos + sizeof(struct tlv_hdr) + sizeof(struct dsc_msg_signature) + my_NodeKey->rawKeyLen;
 
-		return sizeof(struct dsc_msg_signature) + my_PubKey->rawKeyLen;
+		return sizeof(struct dsc_msg_signature) + my_NodeKey->rawKeyLen;
 
 	} else {
 		assertion(-502230, (it->frame_type == BMX_DSC_TLV_SIGNATURE_DUMMY));
@@ -544,9 +544,9 @@ int create_dsc_tlv_signature(struct tx_frame_iterator *it)
 
 		CRYPTSHA1_T dataSha;
 		cryptShaAtomic(data, dataLen, &dataSha);
-		size_t keySpace = my_PubKey->rawKeyLen;
+		size_t keySpace = my_NodeKey->rawKeyLen;
 
-		desc_msg->type = my_PubKey->rawKeyType;
+		desc_msg->type = my_NodeKey->rawKeyType;
 		cryptSign(&dataSha, desc_msg->signature, keySpace, NULL);
 
 		dbgf_track(DBGT_INFO, "fixed RSA%zd type=%d signature=%s of dataSha=%s over dataLen=%d data=%s (dataOffset=%d desc_frames_len=%d)",
@@ -597,7 +597,7 @@ struct content_node *test_description_signature(uint8_t *desc, uint32_t desc_len
 		goto_error(finish, "Non-matching description length");
 
 
-	if ((signLen = cryptKeyLenByType(signMsg->type)) > (descVerificationMax / 8)) {
+	if ((signLen = cryptKeyLenByType(signMsg->type)) > (nodeSignMax / 8)) {
 		goto_error( finish, "Unsupported signature length");
 	}
 
@@ -655,7 +655,7 @@ int32_t rsa_load( char *tmp_path ) {
 
 	dbgf_sys(DBGT_INFO, "testing %s=%s", ARG_KEY_PATH, tmp_path);
 
-	if (!(my_PubKey = cryptKeyFromDer( tmp_path ))) {
+	if (!(my_NodeKey = cryptKeyFromDer( tmp_path ))) {
 		return FAILURE;
 	}
 
@@ -669,7 +669,7 @@ int32_t rsa_load( char *tmp_path ) {
 
 	memset(plain, 0, sizeof(plain));
 
-	if (cryptEncrypt(in, inLen, enc, &encLen, my_PubKey) != SUCCESS) {
+	if (cryptEncrypt(in, inLen, enc, &encLen, my_NodeKey) != SUCCESS) {
 		dbgf_sys(DBGT_ERR, "Failed Encrypt inLen=%zd outLen=%zd inData=%s outData=%s",
 			inLen, encLen, memAsHexString((char*)in, inLen), memAsHexString((char*)enc, encLen));
 		return FAILURE;
@@ -685,13 +685,13 @@ int32_t rsa_load( char *tmp_path ) {
 
 	cryptShaAtomic(in, inLen, &inSha);
 
-	if (cryptSign(&inSha, enc, my_PubKey->rawKeyLen, NULL) != SUCCESS) {
+	if (cryptSign(&inSha, enc, my_NodeKey->rawKeyLen, NULL) != SUCCESS) {
 		dbgf_sys(DBGT_ERR, "Failed Sign inLen=%zd outLen=%zd inData=%s outData=%s",
-			inLen, encLen, memAsHexString((char*)in, inLen), memAsHexString((char*)enc, my_PubKey->rawKeyLen));
+			inLen, encLen, memAsHexString((char*)in, inLen), memAsHexString((char*)enc, my_NodeKey->rawKeyLen));
 		return FAILURE;
 	}
 
-	if (cryptVerify(enc, my_PubKey->rawKeyLen, &inSha, my_PubKey) != SUCCESS) {
+	if (cryptVerify(enc, my_NodeKey->rawKeyLen, &inSha, my_NodeKey) != SUCCESS) {
 		dbgf_sys(DBGT_ERR, "Failed Verify inSha=%s", cryptShaAsString(&inSha));
 		return FAILURE;
 	}
@@ -741,7 +741,7 @@ int32_t opt_key_path(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct op
 		}
 #endif
 		if (rsa_load( tmp_path ) == SUCCESS ) {
-			dbgf_sys(DBGT_INFO, "Successfully initialized %d bit RSA key=%s !", (my_PubKey->rawKeyLen * 8), tmp_path);
+			dbgf_sys(DBGT_INFO, "Successfully initialized %d bit RSA key=%s !", (my_NodeKey->rawKeyLen * 8), tmp_path);
 		} else {
 			dbgf_sys(DBGT_ERR, "key=%s invalid!", tmp_path);
 			return FAILURE;
@@ -757,14 +757,14 @@ int32_t opt_key_path(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct op
 	return SUCCESS;
 }
 
-int32_t opt_packetSigning(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
+int32_t opt_linkSigning(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
 {
         TRACE_FUNCTION_CALL;
 
 	if ( cmd == OPT_CHECK || cmd == OPT_APPLY) {
 		int32_t val = strtol(patch->val, NULL, 10);
 
-		if (!strcmp(opt->name, ARG_PACKET_SIGN)) {
+		if (!strcmp(opt->name, ARG_LINK_SIGN_LEN)) {
 
 			if (val!=0 && ((val%8) || cryptKeyTypeByLen(val/8) == FAILURE))
 				return FAILURE;
@@ -772,24 +772,24 @@ int32_t opt_packetSigning(uint8_t cmd, uint8_t _save, struct opt_type *opt, stru
 			if ( cmd == OPT_APPLY )
 				my_description_changed = YES;
 
-			task_remove(update_dsc_tlv_pktkey, NULL);
-			cryptKeyFree(&my_PktKey);
+			task_remove(update_dsc_tlv_linkKey, NULL);
+			cryptKeyFree(&my_LinkKey);
 
 
 
-		} else if (!strcmp(opt->name, ARG_PACKET_SIGN_LT)) {
+		} else if (!strcmp(opt->name, ARG_LINK_SIGN_LT)) {
 
-			if (val!=0 && (val<MIN_PACKET_SIGN_LT || val > (int32_t)MAX_PACKET_SIGN_LT))
+			if (val!=0 && (val<MIN_LINK_SIGN_LT || val > (int32_t)MAX_LINK_SIGN_LT))
 				return FAILURE;
 
 			if ( cmd == OPT_APPLY ){
 
 				if (!val) {
-					if (my_PktKey)
-						my_PktKey->endOfLife = 0;
+					if (my_LinkKey)
+						my_LinkKey->endOfLife = 0;
 				} else {
-					task_remove(update_dsc_tlv_pktkey, NULL);
-					cryptKeyFree(&my_PktKey);
+					task_remove(update_dsc_tlv_linkKey, NULL);
+					cryptKeyFree(&my_LinkKey);
 					my_description_changed = YES;
 				}
 			}
@@ -1306,12 +1306,12 @@ struct opt_type sec_options[]=
 //order must be before ARG_HOSTNAME (which initializes self via init_self):
 	{ODI,0,ARG_KEY_PATH,		0,  4,1,A_PS1,A_ADM,A_INI,A_CFA,A_ANY,	0,		0,		0,		0,DEF_KEY_PATH,	opt_key_path,
 			ARG_DIR_FORM,	"set path to rsa der-encoded private key file (used as permanent public ID"},
-	{ODI,0,ARG_DESC_VERIFY_MAX,         0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &descVerificationMax,MIN_DESC_VERIFY_MAX,MAX_DESC_VERIFY_MAX,DEF_DESC_VERIFY_MAX,0, opt_flush_all,
-			ARG_VALUE_FORM, HLP_DESC_VERIFY_MAX},
-	{ODI,0,ARG_PACKET_SIGN,         0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &packetSigning,  MIN_PACKET_SIGN,MAX_PACKET_SIGN,DEF_PACKET_SIGN,0, opt_packetSigning,
-			ARG_VALUE_FORM, HLP_PACKET_VERIFY_MAX},
-	{ODI,0,ARG_PACKET_SIGN_LT,      0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &packetSignLifetime,0,MAX_PACKET_SIGN_LT,DEF_PACKET_SIGN_LT,0, opt_packetSigning,
-			ARG_VALUE_FORM, HLP_PACKET_VERIFY_MAX},
+	{ODI,0,ARG_NODE_SIGN_MAX,         0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &nodeSignMax,MIN_NODE_SIGN_MAX,MAX_NODE_SIGN_MAX,DEF_NODE_SIGN_MAX,0, opt_flush_all,
+			ARG_VALUE_FORM, HLP_NODE_SIGN_MAX},
+	{ODI,0,ARG_LINK_SIGN_LEN,         0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &linkSignLen,  MIN_LINK_SIGN_LEN,MAX_LINK_SIGN_LEN,DEF_LINK_SIGN_LEN,0, opt_linkSigning,
+			ARG_VALUE_FORM, HLP_LINK_SIGN_LEN},
+	{ODI,0,ARG_LINK_SIGN_LT,      0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &linkSignLifetime,0,MAX_LINK_SIGN_LT,DEF_LINK_SIGN_LT,0, opt_linkSigning,
+			ARG_VALUE_FORM, HLP_LINK_SIGN_LT},
 	{ODI,0,ARG_TRUSTED_NODES_DIR,   0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,DEF_TRUSTED_NODES_DIR, opt_trusted_node_dir,
 			ARG_DIR_FORM,"directory with global-id hashes of this node's trusted other nodes"},
 	{ODI,0,ARG_SUPPORTED_NODES_DIR, 0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,DEF_SUPPORTED_NODES_DIR, opt_supported_node_dir,
@@ -1328,7 +1328,7 @@ void init_sec( void )
         memset(&handl, 0, sizeof ( handl));
 
 	static const struct field_format frame_signature_format[] = FRAME_MSG_SIGNATURE_FORMAT;
-        handl.name = "TX_SIGN_ADV";
+        handl.name = "LINK_SIGNATURE_ADV";
 	handl.positionMandatory = 1;
 	handl.rx_processUnVerifiedLink = 1;
 	handl.data_header_size = sizeof(struct frame_hdr_signature);
@@ -1342,16 +1342,16 @@ void init_sec( void )
 
 
 	static const struct field_format pubkey_format[] = DESCRIPTION_MSG_PUBKEY_FORMAT;
-        handl.name = "DSC_PUBKEY";
+        handl.name = "DSC_NODE_KEY";
 	handl.alwaysMandatory = 1;
         handl.min_msg_size = sizeof(struct dsc_msg_pubkey);
         handl.fixed_msg_size = 0;
 	handl.dextReferencing = (int32_t*)&fref_always_l1;
 	handl.dextCompression = (int32_t*)&never_fzip;
-        handl.tx_frame_handler = create_dsc_tlv_pubkey;
+        handl.tx_frame_handler = create_dsc_tlv_nodeKey;
         handl.rx_frame_handler = process_dsc_tlv_pubKey;
 	handl.msg_format = pubkey_format;
-        register_frame_handler(description_tlv_db, BMX_DSC_TLV_DSC_PUBKEY, &handl);
+        register_frame_handler(description_tlv_db, BMX_DSC_TLV_NODE_PUBKEY, &handl);
 
 	static const struct field_format dsc_signature_format[] = DESCRIPTION_MSG_SIGNATURE_FORMAT;
         handl.name = "DSC_SIGNATURE";
@@ -1371,16 +1371,16 @@ void init_sec( void )
         handl.rx_frame_handler = process_dsc_tlv_signature;
         register_frame_handler(description_tlv_db, BMX_DSC_TLV_SIGNATURE_DUMMY, &handl);
 
-	handl.name = "DSC_PKT_PUBKEY";
+	handl.name = "DSC_LINK_KEY";
 	handl.alwaysMandatory = 0;
 	handl.min_msg_size = sizeof(struct dsc_msg_pubkey);
 	handl.fixed_msg_size = 0;
 	handl.dextReferencing = (int32_t*) &fref_always_l1;
 	handl.dextCompression = (int32_t*) &never_fzip;
-	handl.tx_frame_handler = create_dsc_tlv_pktkey;
+	handl.tx_frame_handler = create_dsc_tlv_linkKey;
 	handl.rx_frame_handler = process_dsc_tlv_pubKey;
 	handl.msg_format = pubkey_format;
-	register_frame_handler(description_tlv_db, BMX_DSC_TLV_PKT_PUBKEY, &handl);
+	register_frame_handler(description_tlv_db, BMX_DSC_TLV_LINK_PUBKEY, &handl);
 
 
 
@@ -1411,11 +1411,11 @@ void init_sec( void )
 
 void cleanup_sec( void )
 {
-        cryptKeyFree(&my_PubKey);
+        cryptKeyFree(&my_NodeKey);
 
-	if (my_PktKey) {
-		task_remove(update_dsc_tlv_pktkey, NULL);
-		cryptKeyFree(&my_PktKey);
+	if (my_LinkKey) {
+		task_remove(update_dsc_tlv_linkKey, NULL);
+		cryptKeyFree(&my_LinkKey);
 	}
 
 	cleanup_trusted_nodes();

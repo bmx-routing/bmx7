@@ -37,20 +37,20 @@
 #define ARG_KEY_PATH "keyPath"
 #define DEF_KEY_PATH "/etc/bmx6/rsa.der"
 
-#define ARG_DESC_SIGN "descSignLen"
+#define ARG_DESC_SIGN "nodeSignatureLen"
 #define MIN_DESC_SIGN 512
 #define MAX_DESC_SIGN 4096
 #define DEF_DESC_SIGN 2048
 #define HLP_DESC_SIGN "sign own descriptions with given RSA key length"
 
 
-#define ARG_NODE_SIGN_MAX "descVerificationLenMax"
+#define ARG_NODE_SIGN_MAX "nodeSignatureLenMax"
 #define MIN_NODE_SIGN_MAX 512
 #define MAX_NODE_SIGN_MAX 4096
 #define DEF_NODE_SIGN_MAX 4096
 #define HLP_NODE_SIGN_MAX "verify description signatures up-to given RSA key length"
 
-#define ARG_LINK_SIGN_LEN "packetSignLen"
+#define ARG_LINK_SIGN_LEN "linkSignatureLen"
 #define MIN_LINK_SIGN_LEN 0
 #define MAX_LINK_SIGN_LEN 2048
 #define DEF_LINK_SIGN_LEN 896
@@ -68,16 +68,16 @@ extern int32_t linkSignLen;
 #define MIN_LINK_SIGN_LT (60)    // one minute, needs ~100000 machines to crack RSA512 before end of life
 #define DEF_LINK_SIGN_LT (6000)   // 100 minutes, needs ~1000 machines (in 2013) to crack RSA512 before end of life
 #define MAX_LINK_SIGN_LT (REGISTER_TASK_TIMEOUT_MAX/1000)
-#define ARG_LINK_SIGN_LT "linkSignLifetime"
+#define ARG_LINK_SIGN_LT "linkSignatureLifetime"
 #define HLP_LINK_SIGN_LT "Lifetime of outgoing link keys and signatures in seconds"
 
-#define ARG_LINK_SIGN_MAX "linkSignLenMax"
+#define ARG_LINK_SIGN_MAX "linkSignatureLenMax"
 #define MIN_LINK_SIGN_MAX 0
 #define MAX_LINK_SIGN_MAX 4096
 #define DEF_LINK_SIGN_MAX 2048
 #define HLP_LINK_SIGN_MAX "verify incoming link (packet) signature up-to given RSA key length"
 
-#define ARG_LINK_SIGN_MIN "linkSignLenMin"
+#define ARG_LINK_SIGN_MIN "linkSignatureLenMin"
 #define MIN_LINK_SIGN_MIN 0
 #define MAX_LINK_SIGN_MIN 4096
 #define DEF_LINK_SIGN_MIN 0

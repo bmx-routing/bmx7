@@ -1001,12 +1001,12 @@ static int32_t orig_status_creator(struct status_handl *handl, void *data)
 struct ref_status {
 	GLOBAL_ID_T *shortId;
 	GLOBAL_ID_T *globalId;
+	char* name;
 	char *state;
 	uint8_t claim;
 	uint8_t desc;
 	DESC_SQN_T descSqn;
 	char contents[12]; //contentRefs
-	char* name;
 	uint16_t lastDesc;
 	CRYPTSHA1_T *shortDHash;
 	CRYPTSHA1_T *dHash;
@@ -1024,12 +1024,12 @@ struct ref_status {
 static const struct field_format ref_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_SHORT_ID,  ref_status, shortId,       1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, ref_status, globalId,      1, FIELD_RELEVANCE_LOW),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      ref_status, name,          1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      ref_status, state,         1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              ref_status, claim,         1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              ref_status, desc,          1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              ref_status, descSqn,       1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       ref_status, contents,      1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      ref_status, name,          1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              ref_status, lastDesc,      1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_SHORT_ID,  ref_status, shortDHash,    1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, ref_status, dHash,         1, FIELD_RELEVANCE_LOW),

@@ -68,10 +68,10 @@ struct content_node * content_get(SHA1_T *chash)
 struct content_status {
 	GLOBAL_ID_T *shortId;
 	GLOBAL_ID_T *globalId;
+	char* name;
 	char *state;
 	DESC_SQN_T descSqn;
 	char contents[12]; //contentRefs
-	char* name;
 	uint16_t lastDesc;
 	CRYPTSHA1_T *shortDHash;
 	CRYPTSHA1_T *dHash;
@@ -98,10 +98,10 @@ struct content_status {
 static const struct field_format content_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_SHORT_ID,  content_status, shortId,       1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, content_status, globalId,      1, FIELD_RELEVANCE_LOW),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      content_status, name,          1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      content_status, state,         1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              content_status, descSqn,       1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       content_status, contents,      1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      content_status, name,          1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              content_status, lastDesc,      1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_SHORT_ID,  content_status, shortDHash,    1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, content_status, dHash,         1, FIELD_RELEVANCE_LOW),

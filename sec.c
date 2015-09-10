@@ -1328,7 +1328,7 @@ void init_sec( void )
         memset(&handl, 0, sizeof ( handl));
 
 	static const struct field_format frame_signature_format[] = FRAME_MSG_SIGNATURE_FORMAT;
-        handl.name = "LINK_SIGNATURE_ADV";
+        handl.name = "SIGNATURE_ADV";
 	handl.positionMandatory = 1;
 	handl.rx_processUnVerifiedLink = 1;
 	handl.data_header_size = sizeof(struct frame_hdr_signature);

@@ -2427,7 +2427,7 @@ static int32_t tun_out_status_creator(struct status_handl *handl, void *data)
 				status->tunOut = tsn->nameKey;
 				status->id = &tsn->global_id;
 				status->longId = &tsn->global_id;
-				status->gwName = tsn->gwName;
+				status->gwName = strlen(tsn->gwName) ? tsn->gwName : DBG_NIL;
 				strcpy(status->type, bmx6RouteBits2String(tsn->bmx6RouteBits));
 				strcpy(status->net, netAsStr(&(tsn->net)));
 				strcpy(status->src, tsn->srcRtNet.mask ? netAsStr(&(tsn->srcRtNet)) : DBG_NIL);

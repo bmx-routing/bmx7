@@ -73,8 +73,9 @@ int32_t rtfilter_delay = DEF_FILTER_DELAY;
 
 
 STATIC_FUNC
-void redist_table_routes(IDM_T forceChanged)
+void redist_table_routes(void)
 {
+	IDM_T forceChanged = NO;
 	struct redist_in_node *rin;
 	struct redist_in_node rii;
 	struct avl_node *an=NULL;
@@ -94,7 +95,7 @@ void redist_table_routes(IDM_T forceChanged)
 			debugFree( avl_remove(&redist_in_tree, &rin->k, -300551), -300554);
 	}
 
-	if ( forceChanged) {
+	if (forceChanged || (redist_in_tree.items == 0 && redist_out_tree.items)) {
 		if ( redistribute_routes(&redist_out_tree, &redist_in_tree, &redist_opt_tree, rtredist_rt_dict) )
 			update_tunXin6_net_adv_list(&redist_out_tree, &table_net_adv_list);
 	}
@@ -113,24 +114,28 @@ void redist_table_routes(IDM_T forceChanged)
 STATIC_FUNC
 void schedule_table_routes(void* nowPtr)
 {
-	static IDM_T scheduled = NO;
-
+	static IDM_T scheduled_table_routes = NO;
 
 	dbgf_track(DBGT_INFO, "%s", nowPtr ? "NOW" : "later");
 
 	if (nowPtr) {
 
-		scheduled = NO;
+		scheduled_table_routes = NO;
 		task_remove(schedule_table_routes, (void*)YES);
 
-		redist_table_routes(NO);
+		redist_table_routes();
 
-	} else if (!scheduled) {
+	} else if (!scheduled_table_routes) {
 
-		scheduled = YES;
+		scheduled_table_routes = YES;
 		task_register(rtredist_delay, schedule_table_routes, (void*)YES, -300550);
 	}
 }
+
+#define FILTER_TMP_RT_CHANGES_CHECK ((void*)0)
+#define FILTER_TMP_RT_CHANGES_PURGE ((void*)1)
+#define FILTER_TMP_RT_CHANGES_NOW ((void*)2)
+#define FILTER_TMP_RT_CHANGES_MAX ((void*)2)
 
 STATIC_FUNC
 void filter_temporary_route_changes(void *newP)
@@ -142,16 +147,48 @@ void filter_temporary_route_changes(void *newP)
 	TIME_T next_check = rtfilter_delay;
 
 	dbgf_track(DBGT_INFO, "%s cnt=%d net=%s",
-		newP == ((void*) 1) ? "purge" : (newP ? "new" : "check..."),
-		(newP > ((void*) 1)) ? new->cnt : 0,
-		(newP > ((void*) 1)) ? netAsStr(&new->k.net) : NULL);
+		newP == FILTER_TMP_RT_CHANGES_PURGE ? "purge" :
+			(newP == FILTER_TMP_RT_CHANGES_NOW ? "now" :
+				(newP == FILTER_TMP_RT_CHANGES_CHECK ? "check" : "new")),
+		(newP > FILTER_TMP_RT_CHANGES_MAX) ? new->cnt : 0,
+		(newP > FILTER_TMP_RT_CHANGES_MAX) ? netAsStr(&new->k.net) : NULL);
 
-	if (newP == NULL) {
+
+	if (newP == FILTER_TMP_RT_CHANGES_NOW) {
+
+		while ((rfn = avl_remove_first_item(&redist_filter_tree, -300000))) {
+
+			struct redist_in_node *rin = avl_find_item(&redist_in_tree, &rfn->k);
+
+			dbgf_track(DBGT_INFO, "now net=%s rfn-cnt=%d rin-cnt=%d", netAsStr(&rfn->k.net), rfn->cnt, rin ? rin->cnt : -111111);
+
+			if (rin) {
+
+				ASSERTION(-502301, (rin->roptn && rin->roptn == matching_redist_opt(rfn, &redist_opt_tree, rtredist_rt_dict)));
+
+				rin->cnt += rfn->cnt;
+
+			} else {
+
+				ASSERTION(-502503, (rfn->roptn && rfn->roptn == matching_redist_opt(rfn, &redist_opt_tree, rtredist_rt_dict)));
+				assertion_dbg(-502302, (rfn->cnt >= 1), "net=%s cnt=%d", netAsStr(&rfn->k.net), rfn->cnt);
+
+				rin = debugMalloc(sizeof(*rfn), -300552);
+				*rin = *rfn;
+				avl_insert(&redist_in_tree, rin, -300553);
+			}
+
+			debugFree(rfn, -300000);
+		}
+
+		schedule_table_routes((void*)YES);
+
+	} else if (newP == FILTER_TMP_RT_CHANGES_CHECK) {
 
 		assertion(-502501, (scheduled));
 		assertion(-502502, (redist_filter_tree.items));
-
 		scheduled = NO;
+
 		struct redist_in_node tmp = {.k={.ifindex=0}};
 
 		for (rfn = NULL; (rfn = avl_next_item(&redist_filter_tree, &tmp.k));) {
@@ -171,7 +208,6 @@ void filter_temporary_route_changes(void *newP)
 					ASSERTION(-502301, (rin->roptn && rin->roptn == matching_redist_opt(rfn, &redist_opt_tree, rtredist_rt_dict)));
 
 					rin->cnt += rfn->cnt;
-					schedule_table_routes((void*) NO);
 
 				} else {
 
@@ -181,9 +217,9 @@ void filter_temporary_route_changes(void *newP)
 					rin = debugMalloc(sizeof(*rfn), -300552);
 					*rin = *rfn;
 					avl_insert(&redist_in_tree, rin, -300553);
-					schedule_table_routes((void*) NO);
 				}
 
+				schedule_table_routes((void*) NO);
 				debugFree(avl_remove(&redist_filter_tree, &rfn->k, -300000), -300000);
 
 			} else {
@@ -191,12 +227,12 @@ void filter_temporary_route_changes(void *newP)
 			}
 		}
 		
-	} else if (newP == (void*) 1 /* purge*/) {
+	} else if (newP == FILTER_TMP_RT_CHANGES_PURGE) {
 
 		while (redist_filter_tree.items)
 			debugFree(avl_remove_first_item(&redist_filter_tree, -300000), -3000000);
 		
-	} else if (new) {
+	} else if (newP > FILTER_TMP_RT_CHANGES_MAX) {
 
 		if ((rfn = avl_find_item(&redist_filter_tree, &new->k))) {
 
@@ -219,12 +255,12 @@ void filter_temporary_route_changes(void *newP)
 	if (redist_filter_tree.items) {
 		if (!scheduled) {
 			scheduled = YES;
-			task_register(next_check, filter_temporary_route_changes, NULL, -300000);
+			task_register(next_check, filter_temporary_route_changes, FILTER_TMP_RT_CHANGES_CHECK, -300000);
 		}
 	} else {
 		if (scheduled) {
 			scheduled = NO;
-			task_remove(filter_temporary_route_changes, NULL);
+			task_remove(filter_temporary_route_changes, FILTER_TMP_RT_CHANGES_CHECK);
 		}
 	}
 }
@@ -265,20 +301,9 @@ int32_t sync_redist_routes(IDM_T cleanup, IDM_T resync);
 static void recv_rtevent_netlink_sk(int sk)
 {
         TRACE_FUNCTION_CALL;
-//	char buf[4096]; //test this with a very small value !!
-//	struct sockaddr_nl sa;
-//	struct iovec iov = {.iov_base = buf, .iov_len = sizeof(buf)};
-//	assertion(-501528, (sk==rtevent_sk));
 
         dbgf_all(DBGT_INFO, "detected changed routes! Going to check...");
-/*
-        struct msghdr msg; // = {(void *) & sa, sizeof (sa), &iov, 1, NULL, 0, 0};
-        memset( &msg, 0, sizeof( struct msghdr));
-        msg.msg_name = (void *)&sa;
-        msg.msg_namelen = sizeof(sa); // Length of address data.
-        msg.msg_iov = &iov; // Vector of data to send/receive into.
-        msg.msg_iovlen = 1; // Number of elements in the vector.
-*/
+
 	int result = rtnl_rcv( sk, 0, 0, IP_ROUTE_GET, NO, get_route_list_nlhdr, NULL );
 
 	if (result != SUCCESS)
@@ -300,7 +325,7 @@ int32_t resync_routes(int32_t rtevent_sk)
 		if (rtevent_sk)
 			rtevent_sk = unregister_netlink_event_hook(rtevent_sk, recv_rtevent_netlink_sk);
 
-		filter_temporary_route_changes((void*)1/*purge*/);
+		filter_temporary_route_changes(FILTER_TMP_RT_CHANGES_PURGE);
 
 		while (redist_in_tree.items)
 			debugFree(avl_remove_first_item(&redist_in_tree, -300487), -300488);
@@ -343,7 +368,7 @@ int32_t sync_redist_routes(IDM_T cleanup, IDM_T resync)
 
 		set_tunXin6_net_adv_list(DEL, &table_net_adv_list);
 
-		filter_temporary_route_changes((void*)1/*purge*/);
+		filter_temporary_route_changes(FILTER_TMP_RT_CHANGES_PURGE);
 
 
 		while (redist_in_tree.items)
@@ -361,7 +386,7 @@ int32_t sync_redist_routes(IDM_T cleanup, IDM_T resync)
 
 		rtevent_sk = resync_routes(rtevent_sk);
 
-		redist_table_routes(YES);
+		filter_temporary_route_changes(FILTER_TMP_RT_CHANGES_NOW);
 
 	} else {
 

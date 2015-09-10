@@ -36,6 +36,7 @@
 #include "avl.h"
 #include "node.h"
 #include "key.h"
+#include "sec.h"
 #include "metrics.h"
 #include "ogm.h"
 #include "link.h"
@@ -700,6 +701,8 @@ struct link_status {
 	GLOBAL_ID_T *shortId;
 	GLOBAL_ID_T *globalId;
 	char* name;
+	char* descKey;
+	char* pktKey;
 	IPX_T nbLocalIp;
 	char nbMac[40];
 	uint16_t nbIdx;
@@ -722,6 +725,8 @@ static const struct field_format link_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_SHORT_ID,  link_status, shortId,          1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, link_status, globalId,         1, FIELD_RELEVANCE_LOW),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      link_status, name,             1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      link_status, descKey,          1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      link_status, pktKey,           1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_IPX,               link_status, nbLocalIp,        1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       link_status, nbMac,            1, FIELD_RELEVANCE_LOW),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, nbIdx,            1, FIELD_RELEVANCE_HIGH),
@@ -779,10 +784,13 @@ static int32_t link_status_creator(struct status_handl *handl, void *data)
 
 			LinkNode *link = NULL;
 			while ((link = avl_next_item(&linkDev->link_tree, (link ? &link->k : NULL)))) {
+				struct dsc_msg_pubkey *pkm;
 
 				status[i].globalId = &on->k.nodeId;
 				status[i].shortId = &on->k.nodeId;
 				status[i].name = on->k.hostname;
+				status[i].descKey = cryptKeyTypeAsString(((struct dsc_msg_pubkey*) on->key->content->f_body)->type);
+				status[i].pktKey = (pkm = contents_data(on->descContent, BMX_DSC_TLV_PKT_PUBKEY)) ? cryptKeyTypeAsString(pkm->type) : DBG_NIL;
 				status[i].nbLocalIp = linkDev->key.llocal_ip;
 				strcpy(status[i].nbMac, memAsHexStringSep(ip6Eui64ToMac(&linkDev->key.llocal_ip, NULL), 6, 1, ":"));
 				status[i].nbIdx = linkDev->key.devIdx;

@@ -153,7 +153,7 @@ void set_tunXin6_net_adv_list(uint8_t del, struct list_head *adv_list)
 
 
 STATIC_FUNC
-IDM_T configure_route(IDM_T del, struct orig_node *on, struct net_key *key)
+void configure_route(IDM_T del, struct orig_node *on, struct net_key *key)
 {
 
         assertion(-501331, (key->af == AF_CFG));
@@ -161,7 +161,7 @@ IDM_T configure_route(IDM_T del, struct orig_node *on, struct net_key *key)
         // update network routes:
         if (del) {
 
-                return iproute(IP_ROUTE_HNA, DEL, NO, key, BMX_TABLE_HNA, 0, 0, NULL, NULL, DEF_IP_METRIC, NULL);
+		iproute(IP_ROUTE_HNA, DEL, NO, key, BMX_TABLE_HNA, 0, 0, NULL, NULL, DEF_IP_METRIC, NULL);
 
         } else {
 
@@ -171,7 +171,7 @@ IDM_T configure_route(IDM_T del, struct orig_node *on, struct net_key *key)
                 ASSERTION(-500239, (avl_find(&link_tree, &(link->k))));
                 assertion(-500579, (link->k.myDev->if_llocal_addr));
 
-                return iproute(IP_ROUTE_HNA, ADD, NO, key, BMX_TABLE_HNA, 0,
+		iproute(IP_ROUTE_HNA, ADD, NO, key, BMX_TABLE_HNA, 0,
                         link->k.myDev->if_llocal_addr->ifa.ifa_index, &(link->k.linkDev->key.llocal_ip),
                         (key->af == AF_INET ? (&(my_primary_ip)) : NULL), DEF_IP_METRIC, NULL);
 
@@ -1756,9 +1756,9 @@ IDM_T terminate_tun_out(struct orig_node *on, struct tun_out_node *tona, struct 
                         debugFree(ton, -300425);
                 }
 
-                checkIntegrity();
+		CHECK_INTEGRITY();
 
-                if (tona)
+		if (tona)
                         break;
         }
 

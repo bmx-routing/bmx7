@@ -796,7 +796,7 @@ void kernel_get_if_addr_config(struct nlmsghdr *nh, void *index_sqnp)
         if (old_ian && old_ian != new_ian)
                 debugFree(old_ian, -300240);
 
-	checkIntegrity();
+	CHECK_INTEGRITY();
 }
 
 

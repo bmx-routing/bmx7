@@ -663,36 +663,45 @@ struct key_node *keyNode_getLeast(struct KeyState *inSet, struct KeyState *outSe
 
 
 STATIC_FUNC
-struct KeyState *keyNode_getMinMaxState(struct key_node *kn) {
-	uint8_t r, c;
+struct KeyState *keyNode_getMinMaxState(struct key_node *kn)
+{
+	uint8_t r , c = 0;
 	struct KeyState *deservedState = NULL;
+	struct KeyState *testState = NULL;
+	int8_t rc = 0, cc=0, cm=0;
 
 	dbgf_all(DBGT_INFO, "id=%s", cryptShaAsShortStr(&kn->kHash));
 	dbgf_all(DBGT_INFO, "bookedSec=%s schedSec=%s", kn->bookedState->secName, kn->decreasedEffectiveState ? kn->decreasedEffectiveState->secName : NULL);
 
 	for (r = kn->bookedState->i.r; r < KRSize; r++) {
 
-		dbgf_all(DBGT_INFO, "testing sec=%-10s from sec=%s", keyMatrix[0][r].secName, kn->bookedState->secName);
+		testState = &keyMatrix[0][r];
 
-		if ((*(keyMatrix[0][r].rowCond))(kn, &zeroKeyCredit)) {
+		if ((rc=(*(keyMatrix[0][r].rowCond))(kn, &zeroKeyCredit))) {
 
 			for (c = 0; c <= kn->bookedState->i.c; c++) {
 
-				dbgf_all(DBGT_INFO, "testing set=%-10s from sec=%s", keyMatrix[c][0].setName, kn->bookedState->secName);
+				testState = &(keyMatrix[c][r]);
 
-				if ((*(keyMatrix[c][0].colCond))(r, kn) &&
-					(*(keyMatrix[c][0].colMaintain))(kn)) {
+				if ((cc=(*(keyMatrix[c][0].colCond))(r, kn)) &&
+					(cm=(*(keyMatrix[c][0].colMaintain))(kn))) {
 
-					deservedState = &(keyMatrix[c][r]);
+					deservedState = testState;
 
 				} else {
+
 					break;
 				}
 			}
 			break;
 		}
 	}
-	dbgf_all(DBGT_INFO, "returning deservedState=%s", deservedState ? deservedState->setName : NULL);
+
+	dbgf((c <= kn->bookedState->i.c ? DBGL_SYS : DBGL_ALL), DBGT_INFO,
+		"Failed testing id=%s sec=%s from bookedSec=%s schedSec=%s rc=%d cc=%d cm=%d",
+		cryptShaAsShortStr(&kn->kHash), testState->secName, kn->bookedState->secName,
+		kn->decreasedEffectiveState ? kn->decreasedEffectiveState->secName : NULL, rc, cc, cm);
+
 	return deservedState;
 }
 
@@ -1048,14 +1057,14 @@ void keyNode_fixTimeouts()
 }
 
 STATIC_FUNC
-uint32_t keyNodes_setDecreasedStates()
+uint32_t keyNodes_setDecreasedStates_(const char *f)
 {
 	uint32_t changes = 0;
 	struct key_node *kn = NULL;
 
 	while ((kn = avl_remove_first_item(&schedDecreasedEffectiveState_tree, -300714))) {
 
-		dbgf_all(DBGT_INFO, "id=%s bookedSec=%s schedSec=%s", cryptShaAsShortStr(&kn->kHash), kn->bookedState->secName,
+		dbgf_sys(DBGT_INFO, "f=%s id=%s bookedSec=%s schedSec=%s", f, cryptShaAsShortStr(&kn->kHash), kn->bookedState->secName,
 			kn->decreasedEffectiveState ? kn->decreasedEffectiveState->secName : NULL);
 
 		assertion(-502415, (kn->decreasedEffectiveState != kn->bookedState));
@@ -1080,14 +1089,16 @@ uint32_t keyNodes_fixLimits()
 			for (r = KRSize-1; r >= 0; r--) {
 				struct KeyState *ks = &(keyMatrix[c][r]);
 
-				dbgf_all(DBGT_INFO, "c=%d r=%d set=%s %d/%d sec=%s %d",
-					c, r, ks->setName, ks->i.numSet, ks->maxSet, ks->secName, ks->i.numSec);
-
 				while (ks->i.numSet > ks->maxSet) {
+
 					//keyNode_reduceSet(ks);
 					struct key_node *least = keyNode_getLeast(ks, NULL);
 					assertion(-502417, (least));
 					struct KeyState *newState = (least->bookedState->i.c) ? &(keyMatrix[least->bookedState->i.c - 1][least->bookedState->i.r]) : NULL;
+
+					dbgf_sys(DBGT_INFO, "c=%d r=%d set=%s %d/%d sec=%s %d, least=%s old=%s new=%s",
+						c, r, ks->setName, ks->i.numSet, ks->maxSet, ks->secName, ks->i.numSec,
+						cryptShaAsShortStr(&least->kHash), least->bookedState->secName, newState->secName);
 
 					keyNode_setState(&least->kHash, least, newState);
 					changes++;
@@ -1122,7 +1133,7 @@ uint32_t keyNodes_block_and_sync_(const char *f, uint32_t id, IDM_T force)
 
 		if (force || keyNodes_next_block_id == KEYNODES_BLOCKING_ID) {
 			uint32_t changes = 0;
-			changes += keyNodes_setDecreasedStates();
+			changes += keyNodes_setDecreasedStates_(f);
 			changes += keyNodes_fixLimits();
 			return YES + changes;
 		}

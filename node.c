@@ -288,9 +288,8 @@ struct neigh_node *neigh_create(struct orig_node *on)
 
 	struct dsc_msg_pubkey *pkey_msg = contents_data(on->descContent, BMX_DSC_TLV_PKT_PUBKEY);
 
-	nn->pktKey = cryptPubKeyFromRaw(pkey_msg->key, cryptKeyLenByType(pkey_msg->type));
-
-	nn->packet_time = bmx_time;
+	if (pkey_msg)
+		nn->pktKey = cryptPubKeyFromRaw(pkey_msg->key, cryptKeyLenByType(pkey_msg->type));
 
 	nn->on = on;
 	return nn;

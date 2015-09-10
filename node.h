@@ -251,7 +251,6 @@ struct neigh_node {
 	LinkNode *best_rp_link;
 	LinkNode *best_tp_link;
 
-	TIME_T packet_time;
 	BURST_SQN_T burstSqn;
 
 	INT_NEIGH_ID_T internalNeighId;

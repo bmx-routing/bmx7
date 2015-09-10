@@ -108,9 +108,6 @@ void upd_bmx_time(struct timeval *tv)
 		else //Never return zero bmx_time. To Simplifying timeout processing.
 			usleep(100);
 	}
-
-
-	keyNode_fixTimeouts();
 }
 
 
@@ -313,7 +310,8 @@ void wait4Event(TIME_T timeout)
 	int selected;
 	fd_set tmp_wait_set;
 		
-	
+	keyNode_fixTimeouts();
+
 loop4Event:
 	
 	while ( U32_GT(return_time, bmx_time) ) {

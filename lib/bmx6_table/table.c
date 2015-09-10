@@ -62,7 +62,7 @@ static AVL_TREE(redist_in_tree, struct redist_in_node, k);
 static AVL_TREE(redist_opt_tree, struct redistr_opt_node, nameKey);
 static AVL_TREE(redist_out_tree, struct redist_out_node, k);
 
-static LIST_SIMPEL(table_net_adv_list, struct tunXin6_net_adv_node, list, list);
+struct tunXin6_net_adv_node * table_net_adv_list = NULL;
 
 static struct sys_route_dict rtredist_rt_dict[BMX6_ROUTE_MAX_SUPP+1];
 
@@ -83,6 +83,19 @@ void redist_table_routes(void)
 
 	prof_start(redist_table_routes, main);
 
+	for (an = NULL; (rin = avl_iterate_item(&redist_in_tree, &an));) {
+
+		ASSERTION(-502300, matching_redist_opt(rin, &redist_opt_tree, rtredist_rt_dict));
+
+		if (!forceChanged && rin->old != (!!rin->cnt))
+			forceChanged = YES;
+
+		if (rin->cnt <= 0) {
+			an = an->left;
+			debugFree( avl_remove(&redist_in_tree, &rin->k, -300551), -300554);
+		}
+	}
+/*
 	while ((rin = avl_next_item(&redist_in_tree, &rii.k))) {
 		rii = *rin;
 
@@ -94,18 +107,18 @@ void redist_table_routes(void)
 		if (rin->cnt <= 0)
 			debugFree( avl_remove(&redist_in_tree, &rin->k, -300551), -300554);
 	}
-
+*/
 	if (forceChanged || (redist_in_tree.items == 0 && redist_out_tree.items)) {
 		if ( redistribute_routes(&redist_out_tree, &redist_in_tree, &redist_opt_tree, rtredist_rt_dict) )
 			update_tunXin6_net_adv_list(&redist_out_tree, &table_net_adv_list);
 	}
 
-	while ((rin=avl_iterate_item(&redist_in_tree, &an)))
+	for(an=NULL; ((rin=avl_iterate_item(&redist_in_tree, &an)));)
 		rin->old = 1;
 
-	dbgf(forceChanged ? DBGL_SYS : DBGL_CHANGES, DBGT_INFO, " %sCHANGED out.items=%d in.items=%d opt.items=%d net_advs=%d",
+	dbgf(forceChanged ? DBGL_SYS : DBGL_CHANGES, DBGT_INFO, " %sCHANGED out.items=%d in.items=%d opt.items=%d",
 		forceChanged ? "" : "UN",
-		redist_out_tree.items, redist_in_tree.items, redist_opt_tree.items, table_net_adv_list.items);
+		redist_out_tree.items, redist_in_tree.items, redist_opt_tree.items);
 
 	prof_stop();
 }
@@ -379,8 +392,10 @@ int32_t sync_redist_routes(IDM_T cleanup, IDM_T resync)
 			my_description_changed = YES;
 		}
 
-		while (table_net_adv_list.items)
-			debugFree(list_del_head(&table_net_adv_list), -300515);
+		if (table_net_adv_list) {
+			debugFree(table_net_adv_list, -300515);
+			table_net_adv_list = NULL;
+		}
 
 	} else if (resync) {
 

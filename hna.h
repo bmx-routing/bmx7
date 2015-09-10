@@ -314,12 +314,15 @@ struct dsc_msg_tun6in6net {
 {FIELD_TYPE_IPX6,     -1, 128, 1, FIELD_RELEVANCE_HIGH, "network" },  \
 FIELD_FORMAT_END }
 
-
 struct tunXin6_net_adv_node {
-	struct list_node list;
-        uint8_t bmx6_route_type;
-        FMETRIC_U8_T bandwidth;
-        struct net_key net;
+	uint8_t af; //family
+	uint8_t more;
+	struct dsc_msg_tun6in6net adv;
+
+//	struct list_node list;
+	//	uint8_t bmx6_route_type;
+	//	FMETRIC_U8_T bandwidth;
+	//	struct net_key net;
 	char *tunInDev;
 };
 
@@ -358,7 +361,7 @@ struct dedicated_hdr_tun6_req {
 
 struct tunXin6_net_adv_list_node {
 	struct list_node list;
-        struct list_head *adv_list; //LIST_SIMPEL()
+	struct tunXin6_net_adv_node **adv_list;
 };
 
 
@@ -536,7 +539,7 @@ struct tun_in_node {
 
 char* bmx6RouteBits2String(uint64_t bmx6_route_bits);
 
-void set_tunXin6_net_adv_list(uint8_t del, struct list_head *adv_list);
+void set_tunXin6_net_adv_list(uint8_t del, struct tunXin6_net_adv_node **adv_list);
 
 struct hna_node * find_overlapping_hna( IPX_T *ipX, uint8_t prefixlen, struct orig_node *except );
 

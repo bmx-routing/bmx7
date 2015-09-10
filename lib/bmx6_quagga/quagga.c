@@ -95,7 +95,7 @@ static AVL_TREE(redist_out_tree, struct redist_out_node, k);
 
 //static AVL_TREE(export_opt_tree, struct export_opt_node, nameKey);
 
-static LIST_SIMPEL(quagga_net_adv_list, struct tunXin6_net_adv_node, list, list);
+struct tunXin6_net_adv_node *quagga_net_adv_list = NULL;
 
 static struct zebra_cfg zcfg;
 
@@ -563,9 +563,9 @@ void zsock_disconnect(void)
                 my_description_changed = YES;
         }
 
-        while (quagga_net_adv_list.items) {
-                struct tunXin6_net_adv_node *tn = list_del_head(&quagga_net_adv_list);
-                debugFree(tn, -300515);
+        if (quagga_net_adv_list) {
+                debugFree(quagga_net_adv_list, -300515);
+		quagga_net_adv_list = NULL;
         }
 
         set_ipexport( NULL );

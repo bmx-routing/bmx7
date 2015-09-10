@@ -115,7 +115,7 @@ char* bmx6RouteBits2String(uint64_t bmx6_route_bits)
 	return r;
 }
 
-void set_tunXin6_net_adv_list(uint8_t del, struct list_head *adv_list)
+void set_tunXin6_net_adv_list(uint8_t del, struct tunXin6_net_adv_node **adv_list)
 {
         struct list_node *list_pos, *tmp_pos, *prev_pos = (struct list_node *)&tunXin6_net_adv_list_list;
 	struct tunXin6_net_adv_list_node *n;
@@ -2138,23 +2138,16 @@ int create_dsc_tlv_tunXin6net(struct tx_frame_iterator *it)
         while ((taln = list_iterate(&tunXin6_net_adv_list_list, taln))) {
 
                 struct tunXin6_net_adv_node *tan = NULL;
-                while ((tan = list_iterate(taln->adv_list, tan))) {
+		for(tan = *taln->adv_list; tan; tan++) {
 
-                        if (tan->net.af != af)
-                                continue;
+			if (tan->af == af) {
+				m = create_description_tlv_tunXin6_net_adv_msg(it, &tan->adv, m, tan->tunInDev);
+				should++;
+			}
 
-                        adv.network = tan->net.ip;
-                        adv.networkLen = tan->net.mask;
-                        adv.bandwidth = tan->bandwidth;
-                        adv.bmx6_route_type = tan->bmx6_route_type;
-
-                        m = create_description_tlv_tunXin6_net_adv_msg(it, &adv, m, tan->tunInDev);
-			should++;
+			if (!tan->more)
+				break;
                 }
-		dbgf_track(DBGT_INFO, "%s=%s dst=%s/%d type=%d tun6Id=%d bw=%d",
-			"PLUGINS", "???", ipXAsStr(af, &adv.network), adv.networkLen,
-			adv.bmx6_route_type, adv.tun6Id, adv.bandwidth.val.u8);
-
 	}
 
 	dbgf((should != m ? DBGL_SYS : DBGL_CHANGES), (should != m ? DBGT_WARN : DBGT_INFO), "created %d of %d %s advs %s",

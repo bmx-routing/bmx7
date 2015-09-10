@@ -62,7 +62,7 @@ void redist_dbg(int8_t dbgl, int8_t dbgt, const char *func, struct redist_in_nod
 }
 
 
-void update_tunXin6_net_adv_list(struct avl_tree *redist_out_tree, struct list_head *tunXin6_net_adv_list )
+void update_tunXin6_net_adv_list(struct avl_tree *redist_out_tree, struct tunXin6_net_adv_node **tunXin6_net_adv_list )
 {
 
 	prof_start(update_tunXin6_net_adv_list, main);
@@ -70,21 +70,18 @@ void update_tunXin6_net_adv_list(struct avl_tree *redist_out_tree, struct list_h
 
 	struct avl_node *ran = NULL;
 	struct redist_out_node *routn;
+	struct tunXin6_net_adv_node *p = (*tunXin6_net_adv_list = debugRealloc(*tunXin6_net_adv_list, redist_out_tree->items * sizeof(struct tunXin6_net_adv_node), -300000));
 
 
-	while (tunXin6_net_adv_list->items) {
-		struct tunXin6_net_adv_node *tn = list_del_head(tunXin6_net_adv_list);
-		debugFree(tn, -300509);
-	}
-
-	while ((routn = avl_iterate_item(redist_out_tree, &ran))) {
-		struct tunXin6_net_adv_node *tn = debugMalloc(sizeof (struct tunXin6_net_adv_node), -300510);
-		memset(tn, 0, sizeof (*tn));
-		tn->bandwidth = routn->k.bandwidth;
-		tn->bmx6_route_type = routn->k.bmx6_route_type;
-		tn->net = routn->k.net;
-		tn->tunInDev = strlen(routn->k.tunInDev.str) ? routn->k.tunInDev.str : NULL;
-		list_add_tail(tunXin6_net_adv_list, &tn->list);
+	for (;(routn = avl_iterate_item(redist_out_tree, &ran)); p++) {
+		memset(p, 0, sizeof (*p));
+		p->more = (ran->right ? YES : NO);
+		p->af = routn->k.net.af;
+		p->adv.bandwidth = routn->k.bandwidth;
+		p->adv.bmx6_route_type = routn->k.bmx6_route_type;
+		p->adv.network = routn->k.net.ip;
+		p->adv.networkLen = routn->k.net.mask;
+		p->tunInDev = strlen(routn->k.tunInDev.str) ? routn->k.tunInDev.str : NULL;
 	}
 
 	my_description_changed = YES;

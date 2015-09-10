@@ -147,7 +147,7 @@ struct redistr_opt_node {
 };
 
 void redist_dbg(int8_t dbgl, int8_t dbgt, const char *func, struct redist_in_node *zrn, struct sys_route_dict *zapi_rt_dict, char* misc1, char* misc2);
-void update_tunXin6_net_adv_list(struct avl_tree *redist_out_tree, struct list_head *tunXin6_net_adv_list );
+void update_tunXin6_net_adv_list(struct avl_tree *redist_out_tree, struct tunXin6_net_adv_node **tunXin6_net_adv_list);
 IDM_T redistribute_routes(struct avl_tree *redist_out_tree, struct avl_tree *zroute_tree, struct avl_tree *redist_opt_tree, struct sys_route_dict *zapi_rt_dict);
 
 int32_t opt_redist(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn, struct avl_tree *redist_opt_tree, uint8_t *changed);

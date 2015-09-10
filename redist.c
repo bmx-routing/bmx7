@@ -65,6 +65,7 @@ void redist_dbg(int8_t dbgl, int8_t dbgt, const char *func, struct redist_in_nod
 void update_tunXin6_net_adv_list(struct avl_tree *redist_out_tree, struct list_head *tunXin6_net_adv_list )
 {
 
+	prof_start(update_tunXin6_net_adv_list, main);
 	dbgf_track(DBGT_INFO, "redist changed");
 
 	struct avl_node *ran = NULL;
@@ -87,6 +88,7 @@ void update_tunXin6_net_adv_list(struct avl_tree *redist_out_tree, struct list_h
 	}
 
 	my_description_changed = YES;
+	prof_stop();
 }
 
 STATIC_FUNC

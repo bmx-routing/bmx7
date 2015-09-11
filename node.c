@@ -240,9 +240,13 @@ int purge_orig_router(struct orig_node *onlyOrig, struct neigh_node *onlyNeigh, 
 
 void neigh_destroy(struct neigh_node *local)
 {
-	dbgf_track(DBGT_INFO, "purging local_id=%s", cryptShaAsString(&local->local_id));
-
 	LinkDevNode *linkDev;
+
+	dbgf_sys(DBGT_INFO, "purging local_id=%s curr_rx_packet=%d verified_link=%d",
+		cryptShaAsString(&local->local_id), !!curr_rx_packet, curr_rx_packet ? !!curr_rx_packet->i.verifiedLink : 0);
+
+	if (curr_rx_packet && curr_rx_packet->i.claimedKey == local->on->key)
+		curr_rx_packet->i.verifiedLink = NULL;
 
 	while ((linkDev = avl_first_item(&local->linkDev_tree)))
 		purge_linkDevs(&linkDev->key, NULL, NO);

@@ -762,9 +762,11 @@ int32_t opt_linkSigning(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
         TRACE_FUNCTION_CALL;
 
 	if ( cmd == OPT_CHECK || cmd == OPT_APPLY) {
-		int32_t val = strtol(patch->val, NULL, 10);
+
 
 		if (!strcmp(opt->name, ARG_LINK_SIGN_LEN)) {
+
+			int32_t val = (patch->diff == ADD) ? strtol(patch->val, NULL, 10) : DEF_LINK_SIGN_LEN;
 
 			if (val!=0 && ((val%8) || cryptKeyTypeByLen(val/8) == FAILURE))
 				return FAILURE;
@@ -778,6 +780,8 @@ int32_t opt_linkSigning(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
 
 
 		} else if (!strcmp(opt->name, ARG_LINK_SIGN_LT)) {
+
+			int32_t val = (patch->diff == ADD) ? strtol(patch->val, NULL, 10) : DEF_LINK_SIGN_LT;
 
 			if (val!=0 && (val<MIN_LINK_SIGN_LT || val > (int32_t)MAX_LINK_SIGN_LT))
 				return FAILURE;

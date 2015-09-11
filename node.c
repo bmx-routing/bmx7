@@ -90,7 +90,7 @@ void refNode_destroy(struct reference_node *ref, IDM_T reAssessState)
 			dhash_clean_data(ref->dhn);
 	}
 
-	if (reAssessState && ref->claimedKey) {
+	if (reAssessState && ref->claimedKey && ref->claimedKey != ref->neigh->on->key) {
 		keyNode_delCredits(NULL, ref->claimedKey, NULL);
 	}
 

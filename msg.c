@@ -1063,6 +1063,8 @@ void rx_packet( struct packet_buff *pb )
 	prof_start( rx_packet, main);
 	char *goto_error_code = NULL;
 
+	uint32_t blockId = keyNodes_block_and_sync(0, NO);
+
 	pb->i.claimedKey = NULL;
 	pb->i.verifiedLink = NULL;
 	pb->i.llip = (*((struct sockaddr_in6*) &(pb->i.addr))).sin6_addr;
@@ -1128,6 +1130,9 @@ process_packet_error:
 
 finish:
 	curr_rx_packet = NULL;
+
+	keyNodes_block_and_sync(blockId, NO);
+
 	prof_stop();
 	return;
 }

@@ -85,6 +85,7 @@ int32_t policy_routing = POLICY_RT_UNSET;
 
 static int32_t base_port = DEF_BASE_PORT;
 
+int32_t netlinkBuffSize = DEF_NETLINK_BUFFSZ;
 
 //TODO: make this configurable
 static struct net_key llocal_prefix_cfg;
@@ -2820,12 +2821,9 @@ int register_netlink_event_hook(uint32_t nlgroups, int buffsize, void (*cb_fd_ha
 		getsockopt(rtevent_sk, SOL_SOCKET, SO_RCVBUF, &oldBuff, &oldSize) < 0 ||
 		setsockopt(rtevent_sk, SOL_SOCKET, SO_RCVBUFFORCE, &buffsize, sizeof(buffsize)) < 0 ||
 		getsockopt(rtevent_sk, SOL_SOCKET, SO_RCVBUF, &newBuff, &newSize) < 0 ||
-		newBuff < RTNL_RCV_MAX) {
+		newBuff != buffsize) {
 
-		dbgf_sys(DBGT_ERR, "can't setsockopts buffsize from=%d to=%d now=%d %s", oldBuff, buffsize, newBuff, strerror(errno));
-		close(rtevent_sk);
-		rtevent_sk = 0;
-		return -1;
+		dbgf_sys(DBGT_WARN, "can't setsockopts buffsize from=%d to=%d now=%d %s", oldBuff, buffsize, newBuff, strerror(errno));
 	}
 
 	dbgf_track(DBGT_INFO, "setsockopts buffsize from=%d to=%d now=%d", oldBuff, buffsize, newBuff);
@@ -3053,7 +3051,7 @@ int32_t opt_ip_version(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
 		ip_flush_rules(AF_INET, BMX_TABLE_HNA);
 
 		if (policy_routing == POLICY_RT_ENABLED) {
-			nl_rule_event_sk = register_netlink_event_hook(nl_mgrp(RTNLGRP_IPV4_RULE) | nl_mgrp(RTNLGRP_IPV6_RULE), (RTNL_RCV_MAX/2), recv_ruleEvent_netlink_sk);
+			nl_rule_event_sk = register_netlink_event_hook(nl_mgrp(RTNLGRP_IPV4_RULE) | nl_mgrp(RTNLGRP_IPV6_RULE), (netlinkBuffSize/2), recv_ruleEvent_netlink_sk);
 			assertion(-502516, (nl_rule_event_sk > 0));
 		}
 
@@ -3517,6 +3515,8 @@ static struct opt_type ip_options[]=
 	{ODI,ARG_IP,ARG_IP_TABLE_HNA, 0, 3,1,A_CS1,A_ADM,A_INI,A_CFA,A_ANY,	&ip_table_hna_cfg,	MIN_IP_TABLE_HNA,   MAX_IP_TABLE_HNA,   DEF_IP_TABLE_HNA,0,     opt_ip_version,
 			ARG_VALUE_FORM,	"specify iproute2 table for hna networks"},
 
+        {ODI,0,ARG_NETLINK_BUFFSZ,         0,  9,1, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &netlinkBuffSize, MIN_NETLINK_BUFFSZ, MAX_NETLINK_BUFFSZ, DEF_NETLINK_BUFFSZ,0, NULL,
+			ARG_VALUE_FORM,	"set rtnl receive buffer size for netlink socket communication (increase if rtnl_rcv out of buffer logs)"},
 
 	{ODI,0,ARG_INTERFACES,	        0,  9,2,A_PS0,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
 			0,		"show interfaces\n"},

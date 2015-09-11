@@ -40,9 +40,15 @@
 #define RTMGRP_IPV6_IFINFO	0x800
 #define RTMGRP_IPV6_PREFIX	0x20000
 
+#define RTNL_RCV_MAX 16640
 
+#define ARG_NETLINK_BUFFSZ "netlinkBuffSize"
+#define MIN_NETLINK_BUFFSZ (66560/8)
+#define MAX_NETLINK_BUFFSZ (16*266240)
+#define DEF_NETLINK_BUFFSZ (4*266240) // 266240 // 133120 // less causes lost messages !!?? otherwise too small for 2K+ routes and heavy CPU load
 
-#define RTNL_RCV_MAX 66560 // 266240 // 133120 // less causes lost messages !!??
+extern int32_t netlinkBuffSize;
+
 
 extern uint32_t udpRxBytesMean, udpRxPacketsMean, udpTxBytesMean, udpTxPacketsMean;
 

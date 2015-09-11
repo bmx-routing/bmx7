@@ -327,7 +327,6 @@ STATIC_FUNC
 int32_t resync_routes(int32_t rtevent_sk)
 {
 	const uint32_t nlgroups = nl_mgrp(RTNLGRP_IPV4_ROUTE) | nl_mgrp(RTNLGRP_IPV6_ROUTE);
-	const int buffsize = 266240; // 133120 // 66560 // RTNL_RCV_MAX //seems all too small for 2K+ routes and heavy CPU load
 
 	fd_set sockset;
 	int cnt = 1;
@@ -348,7 +347,7 @@ int32_t resync_routes(int32_t rtevent_sk)
 		wait_sec_msec(0, 500);
 		dbgf_sys(DBGT_WARN, "now");
 
-		rtevent_sk = register_netlink_event_hook(nlgroups, buffsize, recv_rtevent_netlink_sk);
+		rtevent_sk = register_netlink_event_hook(nlgroups, netlinkBuffSize, recv_rtevent_netlink_sk);
 		assertion(-502504, (rtevent_sk > 0));
 
 		kernel_get_route(NO, AF_INET, RTM_GETROUTE, 0, get_route_list_nlhdr);

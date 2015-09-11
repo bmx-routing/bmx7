@@ -129,9 +129,9 @@
 #define DEF_PATH_UMETRIC_MIN MIN_PATH_UMETRIC_MIN
 
 #define RP_ADV_DELAY_TOLERANCE 3000
-#define RP_ADV_DELAY_RANGE     20000
+#define RP_ADV_DELAY_RANGE     ((uint32_t)link_purge_to)
 #define TP_ADV_DELAY_TOLERANCE 3000
-#define TP_ADV_DELAY_RANGE     20000
+#define TP_ADV_DELAY_RANGE     ((uint32_t)link_purge_to)
 
 
 //#define TYP_METRIC_FLAG_STRAIGHT (0x1<<0)

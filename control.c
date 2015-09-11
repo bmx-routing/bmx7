@@ -561,12 +561,12 @@ void debug_output(uint32_t check_len, struct ctrl_node *cn, int8_t dbgl, int8_t 
 		}
 	}
 
+	dbgl_all_msg_num++;
+
 	for ( j = 0; j < i; j++ ) {
 	
 		int level = dbgl_out[j];
 		
-		if ( level == DBGL_ALL )
-			dbgl_all_msg_num++;
 /*// enable to mute in DBLG_CHANGES...
 		if ( level == DBGL_CHANGES  &&  check_len  && 
 		     (mute_dbgl_changes = check_dbg_history( DBGL_CHANGES, s, check_len )) == DBG_HIST_MUTED )
@@ -587,11 +587,8 @@ void debug_output(uint32_t check_len, struct ctrl_node *cn, int8_t dbgl, int8_t 
 			     level == DBGL_TEST ||
 			     level == DBGL_DUMP ||
 			     level == DBGL_PROFILE ||  
-			     level == DBGL_SYS )
-				dbg_printf( dn->cn, "[%d %8u] ", My_pid, bmx_time );
-			
-			
-			if ( level == DBGL_ALL )
+			     level == DBGL_SYS ||
+			     level == DBGL_ALL )
 				dbg_printf( dn->cn, "[%d %8u %5u] ", My_pid, bmx_time, dbgl_all_msg_num );
 
 

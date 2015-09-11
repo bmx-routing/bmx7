@@ -60,7 +60,8 @@ void keyNode_schedLowerWeight(struct key_node *kn, int8_t weight);
 
 struct key_node *keyNode_updCredits(GLOBAL_ID_T *kHash, struct key_node *kn, struct key_credits *kc);
 
-void keyNode_delCredits(GLOBAL_ID_T *kHash, struct key_node *kn, struct key_credits *kc);
+#define keyNode_delCredits( a, b, c ) keyNode_delCredits_(__FUNCTION__, (a), (b), (c) )
+void keyNode_delCredits_(const char *f, GLOBAL_ID_T *kHash, struct key_node *kn, struct key_credits *kc);
 #define KEYNODES_BLOCKING_ID 10
 
 #define keyNodes_block_and_sync( a, b ) keyNodes_block_and_sync_( __FUNCTION__, (a), (b) )

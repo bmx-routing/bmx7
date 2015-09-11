@@ -242,8 +242,10 @@ void neigh_destroy(struct neigh_node *local)
 {
 	LinkDevNode *linkDev;
 
-	dbgf_sys(DBGT_INFO, "purging local_id=%s curr_rx_packet=%d verified_link=%d",
-		cryptShaAsString(&local->local_id), !!curr_rx_packet, curr_rx_packet ? !!curr_rx_packet->i.verifiedLink : 0);
+	dbgf_sys(DBGT_INFO, "purging local_id=%s curr_rx_packet=%d thisNeighsPacket=%d verified_link=%d",
+		cryptShaAsString(&local->local_id), !!curr_rx_packet,
+		(curr_rx_packet && curr_rx_packet->i.claimedKey == local->on->key),
+		(curr_rx_packet && curr_rx_packet->i.verifiedLink));
 
 	if (curr_rx_packet && curr_rx_packet->i.claimedKey == local->on->key)
 		curr_rx_packet->i.verifiedLink = NULL;

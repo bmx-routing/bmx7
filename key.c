@@ -519,8 +519,8 @@ struct key_node * keyNode_setState(GLOBAL_ID_T *kHash, struct key_node *kn, stru
 	int8_t nc = new ? new->i.c : 0;
 	int8_t nr = new ? new->i.r : 0;
 
-	dbgf_all(DBGT_INFO, "nodeId=%s old=%s or=%d oc=%d new=%s nr=%d nc=%d",
-		cryptShaAsString(kHash), old ? old->setName : NULL, or, oc, new ? new->setName : NULL, nr, nc);
+	dbgf_sys(DBGT_INFO, "nodeId=%s old=%s or=%d oc=%d new=%s nr=%d nc=%d",
+		cryptShaAsShortStr(kHash), old ? old->secName : NULL, or, oc, new ? new->secName : NULL, nr, nc);
 
 	if (old != new) {
 		int8_t c, r;
@@ -698,9 +698,10 @@ struct KeyState *keyNode_getMinMaxState(struct key_node *kn)
 	}
 
 	dbgf((c <= kn->bookedState->i.c ? DBGL_SYS : DBGL_ALL), DBGT_INFO,
-		"Failed testing id=%s sec=%s from bookedSec=%s schedSec=%s rc=%d cc=%d cm=%d",
+		"Failed testing id=%s sec=%s from bookedSec=%s schedSec=%s rc=%d cc=%d cm=%d deservedState=%s",
 		cryptShaAsShortStr(&kn->kHash), testState->secName, kn->bookedState->secName,
-		kn->decreasedEffectiveState ? kn->decreasedEffectiveState->secName : NULL, rc, cc, cm);
+		kn->decreasedEffectiveState ? kn->decreasedEffectiveState->secName : NULL, rc, cc, cm,
+		deservedState ? deservedState->secName : NULL);
 
 	return deservedState;
 }
@@ -787,7 +788,7 @@ IDM_T keyNode_getNQualifyingCredits(GLOBAL_ID_T *kHash, struct key_node *kn)
 }
 
 
-void keyNode_delCredits(GLOBAL_ID_T *kHash, struct key_node *kn, struct key_credits *kc)
+void keyNode_delCredits_(const char* f, GLOBAL_ID_T *kHash, struct key_node *kn, struct key_credits *kc)
 {
 	uint32_t blockId = keyNodes_block_and_sync(0, NO);
 
@@ -804,6 +805,13 @@ void keyNode_delCredits(GLOBAL_ID_T *kHash, struct key_node *kn, struct key_cred
 		assertion(-502395, IMPLIES(kc->pktId, (kn->pktIdTime)));
 		assertion(-502396, IMPLIES(kc->pktSign, (kn->pktSignTime)));
 		assertion(-502397, IMPLIES(kc->nQualifying, (kn->nQTime)));
+
+		if (kc->friend || kc->recom || kc->pktId || kc->pktSign || kc->nQualifying) {
+			dbgf_sys(DBGT_INFO, "%s now=%d id=%s bookedState=%s friend=%d/%d recom=%d/%d pktId=%d/%d pktSing=%d/%d nQ=%d/%d",
+				f, bmx_time, cryptShaAsShortStr(&kn->kHash), kn->bookedState->secName,
+				kc->friend, kn->dirFriend, kc->recom, kn->recommendations_tree.items,
+				kc->pktId, kn->pktIdTime, kc->pktSign, kn->pktSignTime, kc->nQualifying, kn->nQTime);
+		}
 
 		if (kc->friend) {
 			if (kn->currOrig) {

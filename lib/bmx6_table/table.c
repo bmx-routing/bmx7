@@ -286,8 +286,7 @@ void get_route_list_nlhdr(struct nlmsghdr *nh, void *unused )
 
         while (RTA_OK(rtap, rtl)) {
 
-		if ( rtap->rta_type==RTA_DST && (nh->nlmsg_type==RTM_NEWROUTE || nh->nlmsg_type==RTM_DELROUTE) &&
-			rtm->rtm_table!=ip_table_tun_cfg ) {
+		if ( rtap->rta_type==RTA_DST && (nh->nlmsg_type==RTM_NEWROUTE || nh->nlmsg_type==RTM_DELROUTE) ) {
 
 			struct net_key net = {.af=rtm->rtm_family, .mask=rtm->rtm_dst_len,
 			.ip=(rtm->rtm_family==AF_INET6) ? *((IPX_T *) RTA_DATA(rtap)) : ip4ToX(*((IP4_T *) RTA_DATA(rtap))) };

@@ -99,7 +99,6 @@ struct tunXin6_net_adv_node *quagga_net_adv_list = NULL;
 
 static struct zebra_cfg zcfg;
 
-static struct sys_route_dict zapi_rt_dict[BMX6_ROUTE_MAX_SUPP+1];
 
 
 STATIC_FUNC void zsock_write(void* zpacket);
@@ -170,7 +169,7 @@ void zdata_parse_route(struct zdata *zd)
 
         zrn.k.net.af = (zd->cmd == ZEBRA_IPV4_ROUTE_ADD || zd->cmd == ZEBRA_IPV4_ROUTE_DELETE) ? AF_INET : AF_INET6;
 
-        zrn.k.inType = zdata_get_u8(zd, &ofs);
+        zrn.k.proto_type = zdata_get_u8(zd, &ofs);
         zrn.flags = zdata_get_u8(zd, &ofs);
         zrn.message = zdata_get_u8(zd, &ofs);
         zrn.k.net.mask = zdata_get_u8(zd, &ofs);
@@ -206,12 +205,12 @@ void zdata_parse_route(struct zdata *zd)
 
         if (tmp) {
                 tmp->cnt += (zd->cmd == ZEBRA_IPV4_ROUTE_ADD || zd->cmd == ZEBRA_IPV6_ROUTE_ADD) ? (+1) : (-1);
-                redist_dbg(DBGL_CHANGES, DBGT_INFO, __FUNCTION__, tmp, zapi_rt_dict, zebraCmd2Str[zd->cmd], "OLD");
+                redist_dbg(DBGL_CHANGES, DBGT_INFO, __FUNCTION__, tmp, zebraCmd2Str[zd->cmd], "OLD");
         } else {
                 tmp = debugMallocReset(sizeof (zrn), -300472);
                 *tmp = zrn;
                 tmp->cnt += 1;
-                redist_dbg(DBGL_CHANGES, DBGT_INFO, __FUNCTION__, tmp, zapi_rt_dict, zebraCmd2Str[zd->cmd], "NEW");
+                redist_dbg(DBGL_CHANGES, DBGT_INFO, __FUNCTION__, tmp, zebraCmd2Str[zd->cmd], "NEW");
                 assertion(-501406, (zd->cmd == ZEBRA_IPV4_ROUTE_ADD || zd->cmd == ZEBRA_IPV6_ROUTE_ADD));
                 avl_insert(&zroute_tree, tmp, -300473);
         }
@@ -276,7 +275,7 @@ void zdata_parse(void)
                 }
 
                 if (changed_routes) {
-                        if ( redistribute_routes(&redist_out_tree, &zroute_tree, &redist_opt_tree, zapi_rt_dict) )
+                        if ( redistribute_routes(&redist_out_tree, &zroute_tree, &redist_opt_tree) )
 				update_tunXin6_net_adv_list(&redist_out_tree, &quagga_net_adv_list);
 		}
         }
@@ -424,7 +423,7 @@ void zsock_send_cmd_typeU8(uint16_t cmd, uint8_t type)
         d = zsock_put_hdr(d, cmd, len);
         d = zsock_put_u8(d, type);
 
-        dbgf_track(DBGT_INFO, "cmd=%s type=%s len=%d", zebraCmd2Str[cmd], zapi_rt_dict[type].sys2Name, len);
+        dbgf_track(DBGT_INFO, "cmd=%s type=%d len=%d", zebraCmd2Str[cmd], type, len);
 
         zsock_write(p);
 }
@@ -436,18 +435,19 @@ void zsock_send_redist_request(void)
         assertion(-501413, (zcfg.socket > 0));
 
         int route_type;
-        for (route_type = 0; route_type <= BMX6_ROUTE_MAX_KNOWN; route_type++) {
+        for (route_type = 0; route_type < MAX_TUN_PROTO_SEARCH; route_type++) {
 
                 uint8_t new = bit_get((uint8_t*) & zcfg.bmx6_redist_bits_new, (sizeof (zcfg.bmx6_redist_bits_new) * 8), route_type);
                 uint8_t old = bit_get((uint8_t*) & zcfg.bmx6_redist_bits_old, (sizeof (zcfg.bmx6_redist_bits_old) * 8), route_type);
 
                 if (new && !old)
-                        zsock_send_cmd_typeU8(ZEBRA_REDISTRIBUTE_ADD, zapi_rt_dict[route_type].bmx2sys);
+                        zsock_send_cmd_typeU8(ZEBRA_REDISTRIBUTE_ADD, route_type);
                 else if (!new && old)
-                        zsock_send_cmd_typeU8(ZEBRA_REDISTRIBUTE_DELETE, zapi_rt_dict[route_type].bmx2sys);
+                        zsock_send_cmd_typeU8(ZEBRA_REDISTRIBUTE_DELETE, route_type);
 
         }
-        zcfg.bmx6_redist_bits_old = zcfg.bmx6_redist_bits_new;
+
+        memcpy(zcfg.bmx6_redist_bits_old, zcfg.bmx6_redist_bits_new, sizeof(zcfg.bmx6_redist_bits_old));
 }
 
 
@@ -637,7 +637,7 @@ void zsock_connect(void *nothing)
         set_fd_hook( zcfg.socket, zsock_fd_handler, ADD);
 
         zsock_send_cmd_typeU8(ZEBRA_HELLO, ZEBRA_ROUTE_BMX6);
-        zcfg.bmx6_redist_bits_old = 0;
+        memset(zcfg.bmx6_redist_bits_old,0, sizeof(zcfg.bmx6_redist_bits_old));
         zsock_send_redist_request();
 
         set_ipexport( zsock_send_route );
@@ -804,10 +804,10 @@ int32_t opt_redistribute(uint8_t cmd, uint8_t _save, struct opt_type *opt, struc
 
                 struct avl_node *an = NULL;
 
-                zcfg.bmx6_redist_bits_new = 0;
+                memset(zcfg.bmx6_redist_bits_new, 0, sizeof(zcfg.bmx6_redist_bits_new));
                 
                 while ((rdn = avl_iterate_item(&redist_opt_tree, &an)))
-                        zcfg.bmx6_redist_bits_new |= rdn->bmx6_redist_bits;
+                        bit_set(zcfg.bmx6_redist_bits_new, sizeof(zcfg.bmx6_redist_bits_new)*8, rdn->searchProto, 1);
 
                 if (initializing) {
                         task_register(0, zsock_connect, NULL, -300500);
@@ -815,7 +815,7 @@ int32_t opt_redistribute(uint8_t cmd, uint8_t _save, struct opt_type *opt, struc
                 } else if (changed) {
 
                         zsock_send_redist_request();
-			if ( redistribute_routes(&redist_out_tree, &zroute_tree, &redist_opt_tree, zapi_rt_dict) )
+			if ( redistribute_routes(&redist_out_tree, &zroute_tree, &redist_opt_tree) )
 				update_tunXin6_net_adv_list(&redist_out_tree, &quagga_net_adv_list);
                 }
 
@@ -845,32 +845,10 @@ static struct opt_type quagga_options[]= {
 			ARG_VALUE_FORM, HLP_REDIST_AGGREGATE},
 	{ODI,ARG_REDIST,ARG_REDIST_BW,  'b',9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,		0,	        0,              0,0,            opt_redistribute,
 			ARG_VALUE_FORM,	HLP_REDIST_BW},
-	{ODI,ARG_REDIST,ARG_ROUTE_SYSTEM, 0,9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,   0,              0,              1,              0,0,            opt_redistribute,
-			ARG_VALUE_FORM, HLP_ROUTE_TYPE},
-	{ODI,ARG_REDIST,ARG_ROUTE_KERNEL, 0,9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,   0,              0,              1,              0,0,            opt_redistribute,
-			ARG_VALUE_FORM, HLP_ROUTE_TYPE},
-	{ODI,ARG_REDIST,ARG_ROUTE_CONNECT,0,9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,   0,              0,              1,              0,0,            opt_redistribute,
-			ARG_VALUE_FORM, HLP_ROUTE_TYPE},
-	{ODI,ARG_REDIST,ARG_ROUTE_RIP,    0,9,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,   0,              0,              1,              0,0,            opt_redistribute,
-			ARG_VALUE_FORM, HLP_ROUTE_TYPE},
-	{ODI,ARG_REDIST,ARG_ROUTE_RIPNG,  0,9,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,   0,              0,              1,              0,0,            opt_redistribute,
-			ARG_VALUE_FORM, HLP_ROUTE_TYPE},
-	{ODI,ARG_REDIST,ARG_ROUTE_OSPF,   0,9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,   0,              0,              1,              0,0,            opt_redistribute,
-			ARG_VALUE_FORM, HLP_ROUTE_TYPE},
-	{ODI,ARG_REDIST,ARG_ROUTE_OSPF6,  0,9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,   0,              0,              1,              0,0,            opt_redistribute,
-			ARG_VALUE_FORM, HLP_ROUTE_TYPE},
-	{ODI,ARG_REDIST,ARG_ROUTE_ISIS,   0,9,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,   0,              0,              1,              0,0,            opt_redistribute,
-			ARG_VALUE_FORM, HLP_ROUTE_TYPE},
-	{ODI,ARG_REDIST,ARG_ROUTE_BGP,    0,9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,   0,              0,              1,              0,0,            opt_redistribute,
-			ARG_VALUE_FORM, HLP_ROUTE_TYPE},
-	{ODI,ARG_REDIST,ARG_ROUTE_BABEL,  0,9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,   0,              0,              1,              0,0,            opt_redistribute,
-			ARG_VALUE_FORM, HLP_ROUTE_TYPE},
-	{ODI,ARG_REDIST,ARG_ROUTE_HSLS,   0,9,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,   0,              0,              1,              0,0,            opt_redistribute,
-			ARG_VALUE_FORM, HLP_ROUTE_TYPE},
-	{ODI,ARG_REDIST,ARG_ROUTE_OLSR,   0,9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,   0,              0,              1,              0,0,            opt_redistribute,
-			ARG_VALUE_FORM, HLP_ROUTE_TYPE},
-	{ODI,ARG_REDIST,ARG_ROUTE_BATMAN, 0,9,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,   0,              0,              1,              0,0,            opt_redistribute,
-			ARG_VALUE_FORM, HLP_ROUTE_TYPE},
+	{ODI,ARG_REDIST,ARG_TUN_PROTO_SEARCH, 0,9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0, MIN_TUN_PROTO_SEARCH,MAX_TUN_PROTO_SEARCH,DEF_TUN_PROTO_SEARCH,0,opt_redistribute,
+			ARG_VALUE_FORM, HLP_TUN_PROTO_SEARCH},
+	{ODI,ARG_REDIST,ARG_TUN_PROTO_ADV, 0,9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0, MIN_TUN_PROTO_ADV,MAX_TUN_PROTO_ADV,DEF_TUN_PROTO_ADV,0,      opt_redistribute,
+			ARG_VALUE_FORM, HLP_TUN_PROTO_ADV},
 	
 };
 
@@ -889,25 +867,7 @@ static void quagga_cleanup( void )
 static int32_t quagga_init( void )
 {
 
-        assertion(-501424, (ZEBRA_ROUTE_MAX <= BMX6_ROUTE_MAX_KNOWN));
-	memset(&zapi_rt_dict, 0, sizeof(zapi_rt_dict));
-
-	set_rt_dict(zapi_rt_dict, ZEBRA_ROUTE_SYSTEM,  'X', ARG_ROUTE_SYSTEM, BMX6_ROUTE_SYSTEM);
-        set_rt_dict(zapi_rt_dict, ZEBRA_ROUTE_KERNEL,  'K', ARG_ROUTE_KERNEL, BMX6_ROUTE_KERNEL);
-        set_rt_dict(zapi_rt_dict, ZEBRA_ROUTE_CONNECT, 'C', ARG_ROUTE_CONNECT, BMX6_ROUTE_CONNECT);
-        set_rt_dict(zapi_rt_dict, ZEBRA_ROUTE_STATIC,  'S', ARG_ROUTE_STATIC, BMX6_ROUTE_STATIC);
-        set_rt_dict(zapi_rt_dict, ZEBRA_ROUTE_RIP,     'R', ARG_ROUTE_RIP, BMX6_ROUTE_RIP);
-        set_rt_dict(zapi_rt_dict, ZEBRA_ROUTE_RIPNG,   'R', ARG_ROUTE_RIPNG, BMX6_ROUTE_RIPNG);
-        set_rt_dict(zapi_rt_dict, ZEBRA_ROUTE_OSPF,    'O', ARG_ROUTE_OSPF, BMX6_ROUTE_OSPF);
-        set_rt_dict(zapi_rt_dict, ZEBRA_ROUTE_OSPF6,   'O', ARG_ROUTE_OSPF6, BMX6_ROUTE_OSPF6);
-        set_rt_dict(zapi_rt_dict, ZEBRA_ROUTE_ISIS,    'I', ARG_ROUTE_ISIS, BMX6_ROUTE_ISIS);
-        set_rt_dict(zapi_rt_dict, ZEBRA_ROUTE_BGP,     'B', ARG_ROUTE_BGP, BMX6_ROUTE_BGP);
-        set_rt_dict(zapi_rt_dict, ZEBRA_ROUTE_BABEL,   'A', ARG_ROUTE_BABEL, BMX6_ROUTE_BABEL);
-        set_rt_dict(zapi_rt_dict, ZEBRA_ROUTE_BMX6,    'x', ARG_ROUTE_BMX6, BMX6_ROUTE_BMX6);
-        set_rt_dict(zapi_rt_dict, ZEBRA_ROUTE_HSLS,    'H', ARG_ROUTE_HSLS, BMX6_ROUTE_HSLS);
-        set_rt_dict(zapi_rt_dict, ZEBRA_ROUTE_OLSR,    'o', ARG_ROUTE_OLSR, BMX6_ROUTE_OLSR);
-        set_rt_dict(zapi_rt_dict, ZEBRA_ROUTE_BATMAN,  'b', ARG_ROUTE_BATMAN, BMX6_ROUTE_BATMAN);
-
+        assertion(-501424, (ZEBRA_ROUTE_MAX < TYP_TUN_PROTO_ALL));
 
         memset(&zcfg, 0, sizeof (zcfg));
         strcpy(zcfg.unix_path, ZEBRA_SERV_PATH);

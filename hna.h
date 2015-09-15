@@ -284,7 +284,7 @@ FIELD_FORMAT_END }
 
 struct dsc_msg_tun4in6net {
         uint8_t tun6Id;
-        uint8_t bmx6_route_type;
+	uint8_t proto_type;
         FMETRIC_U8_T bandwidth;
         uint8_t networkLen;
         IP4_T network;
@@ -300,7 +300,7 @@ FIELD_FORMAT_END }
 
 struct dsc_msg_tun6in6net {
         uint8_t tun6Id;
-        uint8_t bmx6_route_type;
+	uint8_t proto_type;
         FMETRIC_U8_T bandwidth;
         uint8_t networkLen;
         IP6_T network;
@@ -405,6 +405,8 @@ struct tun_search_node {
 //        struct tun_search_key tunSearchKey;
         char nameKey[NETWORK_NAME_LEN];
 	uint64_t bmx6RouteBits;
+	int16_t routeSearchProto;
+	int16_t routeSetProto;
 	uint16_t exportDistance;
 	uint8_t exportOnly;
         struct net_key net;
@@ -439,7 +441,8 @@ struct tun_search_node {
 };
 
 struct tun_net_key {
-        uint8_t bmx6RouteType;
+	uint8_t bmx6RouteType;
+	uint8_t bmx6RouteType__REMOVE;
         struct net_key netKey;
         struct tun_out_node *ton;
 } __attribute__((packed));
@@ -528,7 +531,8 @@ struct tun_in_node {
         struct net_key ingressPrefix46[2];
 
         uint8_t srcType46[2];
-        uint8_t srcPrefixMin46[2];
+	uint8_t srcPrefixMin46[2];
+	uint8_t advProto;
 
         //the status:
         int16_t tun6Id;
@@ -537,7 +541,6 @@ struct tun_in_node {
 	struct avl_tree tun_dev_tree;
 };
 
-char* bmx6RouteBits2String(uint64_t bmx6_route_bits);
 
 void set_tunXin6_net_adv_list(uint8_t del, struct tunXin6_net_adv_node **adv_list);
 

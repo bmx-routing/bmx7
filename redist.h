@@ -86,18 +86,13 @@
 
 #define NETWORK_NAME_LEN 32
 
-#define ARG_ROUTE_ALL         "all"
-#define ARG_ROUTE_SYS         "sys"
-
-#define HLP_ROUTE_TYPE "redistribute bmx route type (mandatory to enable at least one type)"
-#define HLP_ROUTE_SYS "filter redistributed routes based on system id (ignored if unset, recommends: /all=1)"
 
 
 
 
 struct redist_out_key {
         IFNAME_T tunInDev;
-        uint8_t bmx6_route_type;
+	uint8_t proto_type;
         FMETRIC_U8_T bandwidth;
         struct net_key net;
         uint8_t must_be_one; // to find_next route_type and bandwidth if net is zero
@@ -115,7 +110,7 @@ struct redist_in_key {
         IPX_T via;
 	uint32_t table;
         uint32_t ifindex;
-        uint8_t inType;
+        uint8_t proto_type;
 } __attribute__((packed));
 
 struct redist_in_node {
@@ -134,11 +129,10 @@ struct redist_in_node {
 struct redistr_opt_node {
         char nameKey[NETWORK_NAME_LEN];
         struct net_key net;
-	uint64_t bmx6_redist_bits;
         uint32_t hysteresis;
 	uint32_t table;
-	uint8_t bmx6_redist_all;
-	uint8_t bmx6_redist_sys;
+	uint16_t searchProto;
+	uint16_t advProto;
 	uint8_t netPrefixMin;
         uint8_t netPrefixMax;
         uint8_t minAggregatePrefixLen;
@@ -146,9 +140,9 @@ struct redistr_opt_node {
 	char *tunInDev;
 };
 
-void redist_dbg(int8_t dbgl, int8_t dbgt, const char *func, struct redist_in_node *zrn, struct sys_route_dict *zapi_rt_dict, char* misc1, char* misc2);
+void redist_dbg(int8_t dbgl, int8_t dbgt, const char *func, struct redist_in_node *zrn, char* misc1, char* misc2);
 void update_tunXin6_net_adv_list(struct avl_tree *redist_out_tree, struct tunXin6_net_adv_node **tunXin6_net_adv_list);
-IDM_T redistribute_routes(struct avl_tree *redist_out_tree, struct avl_tree *zroute_tree, struct avl_tree *redist_opt_tree, struct sys_route_dict *zapi_rt_dict);
+IDM_T redistribute_routes(struct avl_tree *redist_out_tree, struct avl_tree *zroute_tree, struct avl_tree *redist_opt_tree);
 
 int32_t opt_redist(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn, struct avl_tree *redist_opt_tree, uint8_t *changed);
-struct redistr_opt_node *matching_redist_opt(struct redist_in_node *rin, struct avl_tree *redist_opt_tree, struct sys_route_dict *rt_dict);
+struct redistr_opt_node *matching_redist_opt(struct redist_in_node *rin, struct avl_tree *redist_opt_tree);

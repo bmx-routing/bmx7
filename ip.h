@@ -517,89 +517,25 @@ struct dev_node {
 	void *plugin_data[];
 };
 
-/* BMX6 route types. */
-#define BMX6_ROUTE_UNSPEC     0
-#define BMX6_ROUTE_REDIRECT   1
-#define BMX6_ROUTE_KERNEL     2
-#define BMX6_ROUTE_BOOT	      3
-#define BMX6_ROUTE_STATIC     4
+#define TYP_TUN_PROTO_ALL 256
 
-#define BMX6_ROUTE_GATED      8	/* Apparently, GateD */
-#define BMX6_ROUTE_RA	      9	/* RDISC/ND router advertisements */
-#define BMX6_ROUTE_MRT	      10	/* Merit MRT */
-#define BMX6_ROUTE_ZEBRA      11	/* Zebra */
-#define BMX6_ROUTE_BIRD	      12	/* BIRD */
-#define BMX6_ROUTE_DNROUTED   13	/* DECnet routing daemon */
-#define BMX6_ROUTE_XORP	      14	/* XORP */
-#define BMX6_ROUTE_NTK	      15	/* Netsukuku */
-#define BMX6_ROUTE_DHCP	      16      /* DHCP client */
+#define ARG_TUN_PROTO_SEARCH "proto"
+#define MIN_TUN_PROTO_SEARCH 0 // unspecified
+#define MAX_TUN_PROTO_SEARCH TYP_TUN_PROTO_ALL
+#define DEF_TUN_PROTO_SEARCH TYP_TUN_PROTO_ALL
+#define HLP_TUN_PROTO_SEARCH "filter for routes of given iproute2 protocol type (255 matches all protocols)"
 
-#define BMX6_ROUTE_SYSTEM     18
-#define BMX6_ROUTE_CONNECT    19
-#define BMX6_ROUTE_RIP        20
-#define BMX6_ROUTE_RIPNG      21
-#define BMX6_ROUTE_OSPF       22
-#define BMX6_ROUTE_OSPF6      23
-#define BMX6_ROUTE_ISIS       24
-#define BMX6_ROUTE_BGP        25
-#define BMX6_ROUTE_BABEL      26
-#define BMX6_ROUTE_HSLS       27
-#define BMX6_ROUTE_OLSR       28
-#define BMX6_ROUTE_BMX6       29
-#define BMX6_ROUTE_BATMAN     30
-#define BMX6_ROUTE_MAX_KNOWN  30
-#define BMX6_ROUTE_MAX_SUPP   63
+#define ARG_TUN_PROTO_SET "setProto"
+#define MIN_TUN_PROTO_SET 0 // unspecified
+#define MAX_TUN_PROTO_SET (TYP_TUN_PROTO_ALL-1)
+#define DEF_TUN_PROTO_SET 0
+#define HLP_TUN_PROTO_SET "set iproute2 protocol type for configured tunnel routes"
 
-
-#define ARG_ROUTE_UNSPEC      "unspecified"
-#define ARG_ROUTE_REDIRECT    "redirect"
-#define ARG_ROUTE_KERNEL      "kernel"
-#define ARG_ROUTE_BOOT	      "boot"
-#define ARG_ROUTE_STATIC      "static"
-
-#define ARG_ROUTE_GATED       "gated"
-#define ARG_ROUTE_RA	      "ra"
-#define ARG_ROUTE_MRT	      "mrt"
-#define ARG_ROUTE_ZEBRA       "zebra"
-#define ARG_ROUTE_BIRD	      "bird"
-#define ARG_ROUTE_DNROUTED    "decnet"
-#define ARG_ROUTE_XORP	      "xorp"
-#define ARG_ROUTE_NTK	      "netsukuku"
-#define ARG_ROUTE_DHCP	      "dhcp"
-
-#define ARG_ROUTE_SYSTEM      "system"
-#define ARG_ROUTE_CONNECT     "connect"
-#define ARG_ROUTE_RIP         "rip"
-#define ARG_ROUTE_RIPNG       "ripng"
-#define ARG_ROUTE_OSPF        "ospf"
-#define ARG_ROUTE_OSPF6       "ospf6"
-#define ARG_ROUTE_ISIS        "isis"
-#define ARG_ROUTE_BGP         "bgp"
-#define ARG_ROUTE_BABEL       "babel"
-#define ARG_ROUTE_HSLS        "hsls"
-#define ARG_ROUTE_OLSR        "olsr"
-#define ARG_ROUTE_BMX6        "bmx6"
-#define ARG_ROUTE_BATMAN      "batman"
-
-#define HLP_TUN_OUT_TYPE "match only enabled type(s)"
-
-struct sys_route_dict {
-        char* sys2Name;
-	char  sys2Char;
-	uint8_t sys2bmx;
-	uint8_t bmx2sys;
-
-};
-
-#define set_rt_dict( S, T, C, N, B ) do { \
-        S[ T ].sys2Char = C; \
-        S[ T ].sys2Name = N; \
-	S[ T ].sys2bmx  = B; \
-	S[ B ].bmx2sys  = T; \
-} while (0)
-
-
-extern struct sys_route_dict bmx6_rt_dict[];
+#define ARG_TUN_PROTO_ADV "advProto"
+#define MIN_TUN_PROTO_ADV 0 // unspecified
+#define MAX_TUN_PROTO_ADV (TYP_TUN_PROTO_ALL-1)
+#define DEF_TUN_PROTO_ADV 0
+#define HLP_TUN_PROTO_ADV "advertise tunnel routes as given protocol type"
 
 
 //iproute() commands:
@@ -629,7 +565,7 @@ extern struct sys_route_dict bmx6_rt_dict[];
 #define IP_ROUTE_HOST      36
 #define IP_ROUTE_HNA       37
 #define IP_ROUTE_TUNS      38
-#define	IP_ROUTE_MAX       (IP_ROUTE_TUNS + BMX6_ROUTE_MAX_SUPP)
+#define	IP_ROUTE_MAX       (IP_ROUTE_TUNS + TYP_TUN_PROTO_ALL)
 
 
 
@@ -647,13 +583,13 @@ struct track_key {
 	uint32_t prio;
 	uint32_t table;
 	uint32_t metric;
-	uint8_t cmd_type;
+	uint16_t cmd_type;
 } __attribute__((packed));
 
 struct track_node {
         struct track_key k;
         uint32_t items;
-	int8_t cmd;
+	int16_t cmd;
 	uint32_t tmp;
 	struct route_export rt_exp;
 	uint32_t oif_idx;
@@ -678,7 +614,7 @@ struct rtnl_get_node {
 
 // core:
 
-int rtnl_rcv(int fd, uint32_t pid, uint32_t seq, uint8_t cmd, uint8_t quiet, void (*func) (struct nlmsghdr *nh, void *data), void *data);
+int rtnl_rcv(int fd, uint32_t pid, uint32_t seq, uint16_t cmd, uint8_t quiet, void (*func) (struct nlmsghdr *nh, void *data), void *data);
 uint32_t nl_mgrp(uint32_t group);
 int register_netlink_event_hook(uint32_t nlgroups, int buffsize, void (*cb_fd_handler) (int32_t fd));
 int unregister_netlink_event_hook(int rtevent_sk, void (*cb_fd_handler) (int32_t fd));
@@ -707,7 +643,7 @@ IDM_T kernel_get_ifstats(struct user_net_device_stats *stats, char *target);
 struct sockaddr_storage set_sockaddr_storage(uint8_t af, IPX_T *ipx, int32_t port);
 void set_ipexport( void (*func) (int8_t del, const struct net_key *dst, uint32_t oif_idx, IPX_T *via, uint32_t metric, uint8_t distance) );
 
-IDM_T iproute(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_key *dst, int32_t table_macro, int32_t prio_macro,
+IDM_T iproute(uint16_t cmd, int8_t del, uint8_t quiet, const struct net_key *dst, int32_t table_macro, int32_t prio_macro,
         int oif_idx, IPX_T *via, IPX_T *src, uint32_t metric, struct route_export *rte);
 
 void ip_flush_routes(uint8_t family, int32_t table_macro);

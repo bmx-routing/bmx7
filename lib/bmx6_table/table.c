@@ -64,8 +64,6 @@ static AVL_TREE(redist_out_tree, struct redist_out_node, k);
 
 struct tunXin6_net_adv_node * table_net_adv_list = NULL;
 
-static struct sys_route_dict rtredist_rt_dict[BMX6_ROUTE_MAX_SUPP+1];
-
 
 int32_t rtredist_delay = DEF_REDIST_DELAY;
 int32_t rtfilter_delay = DEF_FILTER_DELAY;
@@ -85,7 +83,7 @@ void redist_table_routes(void)
 
 	for (an = NULL; (rin = avl_iterate_item(&redist_in_tree, &an));) {
 
-		ASSERTION(-502300, matching_redist_opt(rin, &redist_opt_tree, rtredist_rt_dict));
+		ASSERTION(-502300, matching_redist_opt(rin, &redist_opt_tree));
 
 		if (!forceChanged && rin->old != (!!rin->cnt))
 			forceChanged = YES;
@@ -109,7 +107,7 @@ void redist_table_routes(void)
 	}
 */
 	if (forceChanged || (redist_in_tree.items == 0 && redist_out_tree.items)) {
-		if ( redistribute_routes(&redist_out_tree, &redist_in_tree, &redist_opt_tree, rtredist_rt_dict) )
+		if ( redistribute_routes(&redist_out_tree, &redist_in_tree, &redist_opt_tree) )
 			update_tunXin6_net_adv_list(&redist_out_tree, &table_net_adv_list);
 	}
 
@@ -177,13 +175,13 @@ void filter_temporary_route_changes(void *newP)
 
 			if (rin) {
 
-				ASSERTION(-502301, (rin->roptn && rin->roptn == matching_redist_opt(rfn, &redist_opt_tree, rtredist_rt_dict)));
+				ASSERTION(-502301, (rin->roptn && rin->roptn == matching_redist_opt(rfn, &redist_opt_tree)));
 
 				rin->cnt += rfn->cnt;
 
 			} else {
 
-				ASSERTION(-502503, (rfn->roptn && rfn->roptn == matching_redist_opt(rfn, &redist_opt_tree, rtredist_rt_dict)));
+				ASSERTION(-502503, (rfn->roptn && rfn->roptn == matching_redist_opt(rfn, &redist_opt_tree)));
 				assertion_dbg(-502302, (rfn->cnt >= 1), "net=%s cnt=%d", netAsStr(&rfn->k.net), rfn->cnt);
 
 				rin = debugMalloc(sizeof(*rfn), -300552);
@@ -218,13 +216,13 @@ void filter_temporary_route_changes(void *newP)
 
 				if (rin) {
 
-					ASSERTION(-502301, (rin->roptn && rin->roptn == matching_redist_opt(rfn, &redist_opt_tree, rtredist_rt_dict)));
+					ASSERTION(-502301, (rin->roptn && rin->roptn == matching_redist_opt(rfn, &redist_opt_tree)));
 
 					rin->cnt += rfn->cnt;
 
 				} else {
 
-					ASSERTION(-502503, (rfn->roptn && rfn->roptn == matching_redist_opt(rfn, &redist_opt_tree, rtredist_rt_dict)));
+					ASSERTION(-502503, (rfn->roptn && rfn->roptn == matching_redist_opt(rfn, &redist_opt_tree)));
 					assertion_dbg(-502302, (rfn->cnt >= 1), "net=%s cnt=%d", netAsStr(&rfn->k.net), rfn->cnt);
 
 					rin = debugMalloc(sizeof(*rfn), -300552);
@@ -295,11 +293,11 @@ void get_route_list_nlhdr(struct nlmsghdr *nh, void *unused )
 				netAsStr(&net), rtm->rtm_table, memAsHexStringSep(&rtm->rtm_protocol, 1, 0, NULL));
 
 			struct redist_in_node new = {
-				.k = {.table = rtm->rtm_table, .inType = rtm->rtm_protocol, .net = net},
+				.k = {.table = rtm->rtm_table, .proto_type = rtm->rtm_protocol, .net = net},
 				.cnt = ((nh->nlmsg_type == RTM_NEWROUTE)?1:-1)
 			};
 
-			if ((new.roptn = matching_redist_opt(&new, &redist_opt_tree, rtredist_rt_dict)))
+			if ((new.roptn = matching_redist_opt(&new, &redist_opt_tree)))
 				filter_temporary_route_changes(&new);
 
 		}
@@ -481,16 +479,10 @@ static struct opt_type rtredist_options[]= {
 			ARG_VALUE_FORM, HLP_REDIST_AGGREGATE},
 	{ODI,ARG_REDIST,ARG_REDIST_BW,   'b',9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,  0,		 0,	         0,              0,0,            opt_redistribute,
 			ARG_VALUE_FORM,	HLP_REDIST_BW},
-	{ODI,ARG_REDIST,ARG_ROUTE_SYS,    0,9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,   0,              0,              BMX6_ROUTE_MAX_SUPP,0,0,        opt_redistribute,
-			ARG_VALUE_FORM, HLP_ROUTE_SYS},
-	{ODI,ARG_REDIST,ARG_ROUTE_ALL,    0,9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,   0,              0,              1,              0,0,            opt_redistribute,
-			ARG_VALUE_FORM, HLP_ROUTE_TYPE},
-	{ODI,ARG_REDIST,ARG_ROUTE_KERNEL, 0,9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,   0,              0,              1,              0,0,            opt_redistribute,
-			ARG_VALUE_FORM, HLP_ROUTE_TYPE},
-	{ODI,ARG_REDIST,ARG_ROUTE_BOOT,   0,9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,   0,              0,              1,              0,0,            opt_redistribute,
-			ARG_VALUE_FORM, HLP_ROUTE_TYPE},
-	{ODI,ARG_REDIST,ARG_ROUTE_STATIC, 0,9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,   0,              0,              1,              0,0,            opt_redistribute,
-			ARG_VALUE_FORM, HLP_ROUTE_TYPE},
+	{ODI,ARG_REDIST,ARG_TUN_PROTO_SEARCH,0,9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0, MIN_TUN_PROTO_SEARCH,MAX_TUN_PROTO_SEARCH,DEF_TUN_PROTO_SEARCH,0,opt_redistribute,
+			ARG_VALUE_FORM, HLP_TUN_PROTO_SEARCH},
+	{ODI,ARG_REDIST,ARG_TUN_PROTO_ADV, 0,9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0, MIN_TUN_PROTO_ADV,MAX_TUN_PROTO_ADV,DEF_TUN_PROTO_ADV,0,      opt_redistribute,
+			ARG_VALUE_FORM, HLP_TUN_PROTO_ADV},
 
 };
 
@@ -503,22 +495,6 @@ static void rtredist_cleanup( void )
 
 static int32_t rtredist_init( void )
 {
-
-	memset(&rtredist_rt_dict, 0, sizeof(rtredist_rt_dict));
-        set_rt_dict(rtredist_rt_dict, RTPROT_UNSPEC,  'u', ARG_ROUTE_UNSPEC,   BMX6_ROUTE_UNSPEC);
-        set_rt_dict(rtredist_rt_dict, RTPROT_REDIRECT,'r', ARG_ROUTE_REDIRECT, BMX6_ROUTE_REDIRECT);
-        set_rt_dict(rtredist_rt_dict, RTPROT_KERNEL,  'K', ARG_ROUTE_KERNEL,   BMX6_ROUTE_KERNEL);
-        set_rt_dict(rtredist_rt_dict, RTPROT_BOOT,    't', ARG_ROUTE_BOOT,     BMX6_ROUTE_BOOT);
-        set_rt_dict(rtredist_rt_dict, RTPROT_STATIC,  'S', ARG_ROUTE_STATIC,   BMX6_ROUTE_STATIC);
-        set_rt_dict(rtredist_rt_dict, RTPROT_GATED,   'g', ARG_ROUTE_GATED,    BMX6_ROUTE_GATED);
-        set_rt_dict(rtredist_rt_dict, RTPROT_RA,      'a', ARG_ROUTE_RA,       BMX6_ROUTE_RA);
-        set_rt_dict(rtredist_rt_dict, RTPROT_MRT,     'm', ARG_ROUTE_MRT,      BMX6_ROUTE_MRT);
-        set_rt_dict(rtredist_rt_dict, RTPROT_ZEBRA,   'z', ARG_ROUTE_ZEBRA,    BMX6_ROUTE_ZEBRA);
-        set_rt_dict(rtredist_rt_dict, RTPROT_BIRD,    'd', ARG_ROUTE_BIRD,     BMX6_ROUTE_BIRD);
-        set_rt_dict(rtredist_rt_dict, RTPROT_DNROUTED,'n', ARG_ROUTE_DNROUTED, BMX6_ROUTE_DNROUTED);
-        set_rt_dict(rtredist_rt_dict, RTPROT_XORP,    'p', ARG_ROUTE_XORP,     BMX6_ROUTE_XORP);
-        set_rt_dict(rtredist_rt_dict, RTPROT_NTK,     'k', ARG_ROUTE_NTK,      BMX6_ROUTE_NTK);
-        set_rt_dict(rtredist_rt_dict, RTPROT_DHCP,    'd', ARG_ROUTE_DHCP,     BMX6_ROUTE_DHCP);
 
         register_options_array(rtredist_options, sizeof ( rtredist_options), CODE_CATEGORY_NAME);
 

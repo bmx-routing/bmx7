@@ -51,14 +51,13 @@
 #include "redist.h"
 
 
-void redist_dbg(int8_t dbgl, int8_t dbgt, const char *func, struct redist_in_node *zrn, struct sys_route_dict *zapi_rt_dict, char* misc1, char* misc2)
+void redist_dbg(int8_t dbgl, int8_t dbgt, const char *func, struct redist_in_node *zrn, char* misc1, char* misc2)
 {
-        dbgf(dbgl, dbgt, "%s %s %s old=%d cnt=%d %s route=%s via=%s type=%s table=%d ifidx=%d metric=%d distance=%d flags=%X message=%X",
+        dbgf(dbgl, dbgt, "%s %s %s old=%d cnt=%d %s route=%s via=%s proto=%d table=%d ifidx=%d metric=%d distance=%d flags=%X message=%X",
                 func, misc1, misc2, zrn->old, zrn->cnt,
                 (zrn->cnt < 0) ? "INVALID" : (zrn->old != (!!zrn->cnt)) ? "CHANGED" : "UNCHANGED",
                 netAsStr(&zrn->k.net), ipXAsStr(zrn->k.net.af, &zrn->k.via),
-                zrn->k.inType < BMX6_ROUTE_MAX_KNOWN ? zapi_rt_dict[zrn->k.inType].sys2Name : memAsHexStringSep(&zrn->k.inType, 1, 0, NULL),
-                zrn->k.table, zrn->k.ifindex, zrn->metric, zrn->distance, zrn->flags, zrn->message);
+		zrn->k.proto_type, zrn->k.table, zrn->k.ifindex, zrn->metric, zrn->distance, zrn->flags, zrn->message);
 }
 
 
@@ -78,7 +77,7 @@ void update_tunXin6_net_adv_list(struct avl_tree *redist_out_tree, struct tunXin
 		p->more = (ran->right ? YES : NO);
 		p->af = routn->k.net.af;
 		p->adv.bandwidth = routn->k.bandwidth;
-		p->adv.bmx6_route_type = routn->k.bmx6_route_type;
+		p->adv.proto_type = routn->k.proto_type;
 		p->adv.network = routn->k.net.ip;
 		p->adv.networkLen = routn->k.net.mask;
 		p->tunInDev = strlen(routn->k.tunInDev.str) ? routn->k.tunInDev.str : NULL;
@@ -108,17 +107,17 @@ void redist_rm_overlapping(struct avl_tree *redist_out_tree)
                         struct redist_out_node *ovlp = NULL;
                         struct redist_out_node t = {.k =
                                 {.bandwidth = routn->k.bandwidth, .tunInDev = routn->k.tunInDev,
-				.bmx6_route_type = routn->k.bmx6_route_type, .net = {.af = routn->k.net.af}}};
+				.proto_type = routn->k.proto_type, .net = {.af = routn->k.net.af}}};
 
                         while ((ovlp = avl_next_item(redist_out_tree, ovlp ? &ovlp->k : &t.k))) {
 
                                 dbgf_all(DBGT_INFO, "checking overlapping net=%s rtype=%d bw=%d tunIndev=%s, min=%d new=%d in favor of net=%s rtype=%d bw=%d tunInDev=%s min=%d new=%d",
-                                        netAsStr(&routn->k.net), routn->k.bmx6_route_type, routn->k.bandwidth.val.u8, routn->k.tunInDev.str, routn->minAggregatePrefixLen, routn->new,
-                                        netAsStr(&ovlp->k.net), ovlp->k.bmx6_route_type, ovlp->k.bandwidth.val.u8, ovlp->k.tunInDev.str, ovlp->minAggregatePrefixLen, ovlp->new);
+                                        netAsStr(&routn->k.net), routn->k.proto_type, routn->k.bandwidth.val.u8, routn->k.tunInDev.str, routn->minAggregatePrefixLen, routn->new,
+                                        netAsStr(&ovlp->k.net), ovlp->k.proto_type, ovlp->k.bandwidth.val.u8, ovlp->k.tunInDev.str, ovlp->minAggregatePrefixLen, ovlp->new);
 
                                 if (memcmp(&ovlp->k.tunInDev, &routn->k.tunInDev, sizeof(IFNAME_T)) ||
 					ovlp->k.bandwidth.val.u8 != routn->k.bandwidth.val.u8 ||
-                                        ovlp->k.bmx6_route_type != routn->k.bmx6_route_type ||
+                                        ovlp->k.proto_type != routn->k.proto_type ||
                                         ovlp->k.net.af != routn->k.net.af ||
                                         ovlp->k.net.mask >= routn->k.net.mask)
                                         break;
@@ -165,7 +164,7 @@ void redist_rm_aggregatable(struct avl_tree *redist_out_tree)
                         uint8_t b1 = bit_get((uint8_t*)&(r1->k.net.ip), 128, r1->k.net.mask + (v4 ? 96 : 0) - 1);
 
                         dbgf_all(DBGT_INFO, "checking aggregation for net=%s rtype=%d bw=%d tunInDev=%s min=%d new=%d lastBit=%d %s",
-                                netAsStr(&r1->k.net), r1->k.bmx6_route_type, r1->k.bandwidth.val.u8, r1->k.tunInDev.str, r1->minAggregatePrefixLen,
+                                netAsStr(&r1->k.net), r1->k.proto_type, r1->k.bandwidth.val.u8, r1->k.tunInDev.str, r1->minAggregatePrefixLen,
                                 r1->new, b1, memAsHexStringSep(&r1->k.net.ip, 16, 2, NULL));
 
                         if (!r1->new || !r1->k.net.mask || r1->k.net.mask <= r1->minAggregatePrefixLen || !b1)
@@ -178,7 +177,7 @@ void redist_rm_aggregatable(struct avl_tree *redist_out_tree)
                         struct redist_out_node *r0 = avl_find_item(redist_out_tree, &s0.k);
 
                         dbgf_all(DBGT_INFO, "                    with net=%s rtype=%d bw=%d tunInDev=%s min=%d new=%d %s",
-                                netAsStr(&s0.k.net), s0.k.bmx6_route_type, s0.k.bandwidth.val.u8, s0.k.tunInDev.str, s0.minAggregatePrefixLen,
+                                netAsStr(&s0.k.net), s0.k.proto_type, s0.k.bandwidth.val.u8, s0.k.tunInDev.str, s0.minAggregatePrefixLen,
                                 s0.new, memAsHexStringSep(&s0.k.net.ip, 16, 2, NULL));
 
                         if (r0 && r0->new && r0->k.net.mask > r0->minAggregatePrefixLen) {
@@ -212,7 +211,7 @@ void redist_rm_aggregatable(struct avl_tree *redist_out_tree)
 	prof_stop();
 }
 
-struct redistr_opt_node *matching_redist_opt(struct redist_in_node *rin, struct avl_tree *redist_opt_tree, struct sys_route_dict *rt_dict)
+struct redistr_opt_node *matching_redist_opt(struct redist_in_node *rin, struct avl_tree *redist_opt_tree)
 {
         struct redistr_opt_node *roptn;
         struct avl_node *ropti;
@@ -235,22 +234,8 @@ struct redistr_opt_node *matching_redist_opt(struct redist_in_node *rin, struct 
 			continue;
 		}
 
-		if (rin->k.inType > BMX6_ROUTE_MAX_SUPP) {
-			dbgf_all(DBGT_INFO, "skipping unsupported routeType=%d", rin->k.inType);
-			continue;
-		}
-
-		if (/*roptn->bmx6_redist_bits &&*/
-			!roptn->bmx6_redist_all &&
-			!bit_get(((uint8_t*) & roptn->bmx6_redist_bits),
-			sizeof (roptn->bmx6_redist_bits)*8, rt_dict[rin->k.inType].sys2bmx)) {
-
-			dbgf_all(DBGT_INFO, "skipping %s redist bits", roptn->nameKey);
-			continue;
-		}
-
-		if (roptn->bmx6_redist_sys && roptn->bmx6_redist_sys != rin->k.inType) {
-			dbgf_all(DBGT_INFO, "skipping %s redist sys=%d != %d", roptn->nameKey, roptn->bmx6_redist_sys, rin->k.inType);
+		if (!(roptn->searchProto == TYP_TUN_PROTO_ALL || roptn->searchProto == rin->k.proto_type)) {
+			dbgf_all(DBGT_INFO, "skipping non-matching %s proto=%d != %d", roptn->nameKey, roptn->searchProto, rin->k.proto_type);
 			continue;
 		}
 
@@ -273,7 +258,7 @@ struct redistr_opt_node *matching_redist_opt(struct redist_in_node *rin, struct 
 	return NULL;
 }
 
-IDM_T redistribute_routes(struct avl_tree *redist_out_tree, struct avl_tree *redist_in_tree, struct avl_tree *redist_opt_tree, struct sys_route_dict *rt_dict)
+IDM_T redistribute_routes(struct avl_tree *redist_out_tree, struct avl_tree *redist_in_tree, struct avl_tree *redist_opt_tree)
 {
 
 	prof_start(redistribute_routes, main);
@@ -299,13 +284,13 @@ IDM_T redistribute_routes(struct avl_tree *redist_out_tree, struct avl_tree *red
 
         for (rii = NULL; (rin = avl_iterate_item(redist_in_tree, &rii));) {
 
-		ASSERTION(-502479, IMPLIES(rin->roptn, rin->roptn == matching_redist_opt(rin, redist_opt_tree, rt_dict)));
+		ASSERTION(-502479, IMPLIES(rin->roptn, rin->roptn == matching_redist_opt(rin, redist_opt_tree)));
 
-		if ((roptn = rin->roptn ? rin->roptn : matching_redist_opt(rin, redist_opt_tree, rt_dict))) {
+		if ((roptn = rin->roptn ? rin->roptn : matching_redist_opt(rin, redist_opt_tree))) {
 
 			memset(&routf, 0, sizeof (routf));
 
-			routf.k.bmx6_route_type = rt_dict[rin->k.inType].sys2bmx;
+			routf.k.proto_type = roptn->advProto;
 			routf.k.net = roptn->net.mask >= rin->k.net.mask ? roptn->net : rin->k.net;
 			routf.k.bandwidth = roptn->bandwidth;
 			if ( roptn->tunInDev )
@@ -317,11 +302,11 @@ IDM_T redistribute_routes(struct avl_tree *redist_out_tree, struct avl_tree *red
                                 *(routn = debugMalloc(sizeof (routf), -300505)) = routf;
                                 avl_insert(redist_out_tree, routn, -300506);
                                 if ( __dbgf_track() ) {
-                                        redist_dbg(DBGL_CHANGES, DBGT_INFO, __FUNCTION__, rin, rt_dict, "parsing", "adding");
+                                        redist_dbg(DBGL_CHANGES, DBGT_INFO, __FUNCTION__, rin, "parsing", "adding");
                                 }
                         } else {
                                 if ( __dbgf_track() ) {
-                                        redist_dbg(DBGL_CHANGES, DBGT_INFO, __FUNCTION__, rin, rt_dict, "parsing", "reusing");
+                                        redist_dbg(DBGL_CHANGES, DBGT_INFO, __FUNCTION__, rin, "parsing", "reusing");
                                 }
                         }
 
@@ -344,7 +329,7 @@ IDM_T redistribute_routes(struct avl_tree *redist_out_tree, struct avl_tree *red
                 if (routn->new != routn->old) { // 10, 11, 01, 00
                         redist_changed = YES;
 			dbgf_track(DBGT_INFO, "CHANGED: old=%d new=%d rtype=%d bandwith=%d net=%s",
-				routn->old, routn->new, routn->k.bmx6_route_type, routn->k.bandwidth.val.u8, netAsStr(&routn->k.net));
+				routn->old, routn->new, routn->k.proto_type, routn->k.bandwidth.val.u8, netAsStr(&routn->k.net));
 		}
 
 
@@ -408,6 +393,9 @@ int32_t opt_redist(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_
 				ron->table = DEF_REDIST_TABLE;
 				UMETRIC_T bw = DEF_TUN_IN_BW;
 				ron->bandwidth = umetric_to_fmu8(&bw);
+				ron->searchProto = DEF_TUN_PROTO_SEARCH;
+				ron->advProto = DEF_TUN_PROTO_ADV;
+
                         } else if (ron && patch->diff == DEL) {
                                 avl_remove(redist_opt_tree, &ron->nameKey, -300498);
                                 debugFree(ron, -300499);
@@ -491,23 +479,11 @@ int32_t opt_redist(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_
                                 } else if (!strcmp(c->opt->name, ARG_REDIST_HYSTERESIS)) {
                                         ron->hysteresis = c->val ? strtol(c->val, NULL, 10) : DEF_REDIST_HYSTERESIS;
 
-                                } else if (!strcmp(c->opt->name, ARG_ROUTE_ALL)) {
+                                } else if (!strcmp(c->opt->name, ARG_TUN_PROTO_SEARCH)) {
+                                        ron->searchProto = c->val ? strtol(c->val, NULL, 10) : DEF_TUN_PROTO_SEARCH;
 
-                                        ron->bmx6_redist_all = (c->val && strtol(c->val, NULL, 10) == 1 ) ? 1 : 0;
-
-                                } else if (!strcmp(c->opt->name, ARG_ROUTE_SYS)) {
-
-                                        ron->bmx6_redist_sys = c->val ? strtol(c->val, NULL, 10) : 0;
-
-                                } else {
-                                        uint8_t t;
-                                        for (t = 0; t <= BMX6_ROUTE_MAX_KNOWN; t++) {
-                                                if (bmx6_rt_dict[t].sys2Name && !strcmp(c->opt->name, bmx6_rt_dict[t].sys2Name)) {
-                                                        bit_set((uint8_t*) &ron->bmx6_redist_bits,
-                                                                sizeof (ron->bmx6_redist_bits) * 8,
-                                                                t, (c->val && strtol(c->val, NULL, 10) == 1) ? 1 : 0);
-                                                }
-                                        }
+                                } else if (!strcmp(c->opt->name, ARG_TUN_PROTO_ADV)) {
+                                        ron->advProto = c->val ? strtol(c->val, NULL, 10) : DEF_TUN_PROTO_ADV;
                                 }
                         }
                 }

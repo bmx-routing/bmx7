@@ -141,7 +141,6 @@ uint32_t udpRxBytesMean, udpRxPacketsMean, udpTxBytesMean, udpTxPacketsMean;
 static void dev_check(void *kernel_ip_config_changed);
 static void (*ipexport) (int8_t del, const struct net_key *dst, uint32_t oif_idx, IPX_T *via, uint32_t metric, uint8_t distance) = NULL;
 
-struct sys_route_dict bmx6_rt_dict[BMX6_ROUTE_MAX_SUPP+1];
 
 
 STATIC_FUNC
@@ -352,7 +351,7 @@ char *rta2str(uint8_t rta)
 #endif
 
 STATIC_FUNC
-char *trackt2str(uint8_t cmd)
+char *trackt2str(uint16_t cmd)
 {
 	if ( cmd == IP_NOP )
 		return "TRACK_NOP";
@@ -406,8 +405,7 @@ char *trackt2str(uint8_t cmd)
                 return "ROUTE_TUNS";
 
 	else if ( cmd > IP_ROUTE_TUNS && cmd < IP_ROUTE_MAX ) {
-
-                return bmx6_rt_dict[ (cmd - IP_ROUTE_TUNS) ].sys2Name ? bmx6_rt_dict[ (cmd - IP_ROUTE_TUNS) ].sys2Name : "unknown";
+                return "TUN_PROTO_TYPE";
 
 	} 
 
@@ -425,7 +423,7 @@ struct dev_node * dev_get_by_name(char *name)
         return avl_find_item(&dev_name_tree, &key);
 }
 
-int rtnl_rcv( int fd, uint32_t pid, uint32_t seq, uint8_t cmd, uint8_t quiet, void (*func) (struct nlmsghdr *nh, void *data) ,void *data)
+int rtnl_rcv( int fd, uint32_t pid, uint32_t seq, uint16_t cmd, uint8_t quiet, void (*func) (struct nlmsghdr *nh, void *data) ,void *data)
 {
         int max_retries = 10;
         uint8_t more_data;
@@ -521,7 +519,7 @@ int rtnl_rcv( int fd, uint32_t pid, uint32_t seq, uint8_t cmd, uint8_t quiet, vo
 }
 
 STATIC_FUNC
-IDM_T rtnl_talk(struct rtnl_handle *iprth, struct nlmsghdr *nlh, uint8_t cmd, uint8_t quiet, void (*func) (struct nlmsghdr *nh, void *data) ,void *data)
+IDM_T rtnl_talk(struct rtnl_handle *iprth, struct nlmsghdr *nlh, uint16_t cmd, uint8_t quiet, void (*func) (struct nlmsghdr *nh, void *data) ,void *data)
 {
 
         // DONT USE setNet() here (because return pointer is static)!!!!!!!!!!!!!
@@ -1511,7 +1509,7 @@ IDM_T kernel_get_route(uint8_t quiet, uint8_t family, uint16_t type, uint32_t ta
 
 
 STATIC_FUNC
-IDM_T kernel_set_route(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_key *dst,
+IDM_T kernel_set_route(uint16_t cmd, int8_t del, uint8_t quiet, const struct net_key *dst,
         uint32_t table, uint32_t prio, int oif_idx, IPX_T *via, IPX_T *src, uint32_t metric)
 {
 
@@ -1555,6 +1553,9 @@ IDM_T kernel_set_route(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_
 
                 if (src)
                         add_rtattr(&req.nlh, RTA_PREFSRC, (char*) src, sizeof (IPX_T), dst->af);
+
+		if (cmd > IP_ROUTE_TUNS)
+			req.rtm.rtm_protocol = (cmd - IP_ROUTE_TUNS);
 
 
 
@@ -1639,7 +1640,7 @@ void set_ipexport( void (*func) (int8_t del, const struct net_key *dst, uint32_t
 
 
 STATIC_FUNC
-IDM_T iptrack(const struct net_key *net, uint8_t cmd, uint8_t quiet, int8_t del, uint32_t table, uint32_t prio,
+IDM_T iptrack(const struct net_key *net, uint16_t cmd, uint8_t quiet, int8_t del, uint32_t table, uint32_t prio,
         int oif_idx, IPX_T *via, IPX_T *src, uint32_t metric, struct route_export *rte)
 {
 
@@ -1755,7 +1756,7 @@ IDM_T iptrack(const struct net_key *net, uint8_t cmd, uint8_t quiet, int8_t del,
 
 
 
-IDM_T iproute(uint8_t cmd, int8_t del, uint8_t quiet, const struct net_key *dst, int32_t table_macro, int32_t prio_macro,
+IDM_T iproute(uint16_t cmd, int8_t del, uint8_t quiet, const struct net_key *dst, int32_t table_macro, int32_t prio_macro,
         int oif_idx, IPX_T *via, IPX_T *src, uint32_t metric, struct route_export *rte)
 {
         // DONT USE setNet() here (because return pointer is static)!!!!!!!!!!!!!
@@ -2349,7 +2350,7 @@ void ip_flush_rules(uint8_t family, int32_t table_macro)
 
 
 STATIC_FUNC
-void ip_flush_tracked( uint8_t cmd )
+void ip_flush_tracked( uint16_t cmd )
 {
 	TRACE_FUNCTION_CALL;
         struct avl_node *an;
@@ -3557,36 +3558,6 @@ void init_ip(void)
         assertion(-501254, is_zero((void*) &ZERO_NET_KEY, sizeof (ZERO_NET_KEY)));
         assertion(-501336, is_zero((void*) &llocal_prefix_cfg, sizeof (llocal_prefix_cfg)));
         assertion(-501395, is_zero((void*) &autoconf_prefix_cfg, sizeof (autoconf_prefix_cfg)));
-
-        memset(&bmx6_rt_dict, 0, sizeof(bmx6_rt_dict));
-        set_rt_dict(bmx6_rt_dict, BMX6_ROUTE_UNSPEC,  'u', ARG_ROUTE_UNSPEC,   BMX6_ROUTE_UNSPEC);
-        set_rt_dict(bmx6_rt_dict, BMX6_ROUTE_REDIRECT,'r', ARG_ROUTE_REDIRECT, BMX6_ROUTE_REDIRECT);
-        set_rt_dict(bmx6_rt_dict, BMX6_ROUTE_KERNEL,  'k', ARG_ROUTE_KERNEL,   BMX6_ROUTE_KERNEL);
-        set_rt_dict(bmx6_rt_dict, BMX6_ROUTE_BOOT,    't', ARG_ROUTE_BOOT,     BMX6_ROUTE_BOOT);
-        set_rt_dict(bmx6_rt_dict, BMX6_ROUTE_STATIC,  's', ARG_ROUTE_STATIC,   BMX6_ROUTE_STATIC);
-        set_rt_dict(bmx6_rt_dict, BMX6_ROUTE_GATED,   'g', ARG_ROUTE_GATED,    BMX6_ROUTE_GATED);
-        set_rt_dict(bmx6_rt_dict, BMX6_ROUTE_RA,      'a', ARG_ROUTE_RA,       BMX6_ROUTE_RA);
-        set_rt_dict(bmx6_rt_dict, BMX6_ROUTE_MRT,     'm', ARG_ROUTE_MRT,      BMX6_ROUTE_MRT);
-        set_rt_dict(bmx6_rt_dict, BMX6_ROUTE_ZEBRA,   'z', ARG_ROUTE_ZEBRA,    BMX6_ROUTE_ZEBRA);
-        set_rt_dict(bmx6_rt_dict, BMX6_ROUTE_BIRD,    'd', ARG_ROUTE_BIRD,     BMX6_ROUTE_BIRD);
-        set_rt_dict(bmx6_rt_dict, BMX6_ROUTE_DNROUTED,'n', ARG_ROUTE_DNROUTED, BMX6_ROUTE_DNROUTED);
-        set_rt_dict(bmx6_rt_dict, BMX6_ROUTE_XORP,    'p', ARG_ROUTE_XORP,     BMX6_ROUTE_XORP);
-        set_rt_dict(bmx6_rt_dict, BMX6_ROUTE_NTK,     'k', ARG_ROUTE_NTK,      BMX6_ROUTE_NTK);
-        set_rt_dict(bmx6_rt_dict, BMX6_ROUTE_DHCP,    'd', ARG_ROUTE_DHCP,     BMX6_ROUTE_DHCP);
-
-        set_rt_dict(bmx6_rt_dict, BMX6_ROUTE_SYSTEM,  'X', ARG_ROUTE_SYSTEM,   BMX6_ROUTE_SYSTEM);
-        set_rt_dict(bmx6_rt_dict, BMX6_ROUTE_CONNECT, 'C', ARG_ROUTE_CONNECT,  BMX6_ROUTE_CONNECT);
-        set_rt_dict(bmx6_rt_dict, BMX6_ROUTE_RIP,     'R', ARG_ROUTE_RIP,      BMX6_ROUTE_RIP);
-        set_rt_dict(bmx6_rt_dict, BMX6_ROUTE_RIPNG,   'R', ARG_ROUTE_RIPNG,    BMX6_ROUTE_RIPNG);
-        set_rt_dict(bmx6_rt_dict, BMX6_ROUTE_OSPF,    'O', ARG_ROUTE_OSPF,     BMX6_ROUTE_OSPF);
-        set_rt_dict(bmx6_rt_dict, BMX6_ROUTE_OSPF6,   'O', ARG_ROUTE_OSPF6,    BMX6_ROUTE_OSPF6);
-        set_rt_dict(bmx6_rt_dict, BMX6_ROUTE_ISIS,    'I', ARG_ROUTE_ISIS,     BMX6_ROUTE_ISIS);
-        set_rt_dict(bmx6_rt_dict, BMX6_ROUTE_BGP,     'B', ARG_ROUTE_BGP,      BMX6_ROUTE_BGP);
-        set_rt_dict(bmx6_rt_dict, BMX6_ROUTE_BABEL,   'A', ARG_ROUTE_BABEL,    BMX6_ROUTE_BABEL);
-        set_rt_dict(bmx6_rt_dict, BMX6_ROUTE_HSLS,    'H', ARG_ROUTE_HSLS,     BMX6_ROUTE_HSLS);
-        set_rt_dict(bmx6_rt_dict, BMX6_ROUTE_OLSR,    'o', ARG_ROUTE_OLSR,     BMX6_ROUTE_OLSR);
-        set_rt_dict(bmx6_rt_dict, BMX6_ROUTE_BMX6,    'x', ARG_ROUTE_BMX6,     BMX6_ROUTE_BMX6);
-        set_rt_dict(bmx6_rt_dict, BMX6_ROUTE_BATMAN,  'b', ARG_ROUTE_BATMAN,   BMX6_ROUTE_BATMAN);
 
 
 

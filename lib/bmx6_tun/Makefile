@@ -3,10 +3,10 @@ CFLAGS +=	$(CORE_CFLAGS) -fpic -I../../
 LDFLAGS +=	-shared
 #-Wl,-soname,bmxd_config 
 
-PLUGIN_NAME =   bmx6_table
+PLUGIN_NAME =   bmx6_tun
 
-SRC_C = table.c ../../redist.c
-SRC_H = table.h ../../redist.h ../../tun.h
+SRC_C = tun.c
+SRC_H = ../../redist.h ../../tun.h
 OBJS= $(SRC_C:.c=.o)
 
 PLUGIN_FULLNAME = $(PLUGIN_NAME).so
@@ -15,7 +15,7 @@ PLUGIN_SHORTNAME = $(PLUGIN_NAME).so
 LIBDIR = /usr/lib
 THISDIR = $(shell pwd )
 
-all:	$(PLUGIN_FULLNAME) Makefile
+all:	$(PLUGIN_FULLNAME)
 
 
 $(PLUGIN_FULLNAME):	$(OBJS) Makefile

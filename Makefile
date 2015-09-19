@@ -25,13 +25,10 @@ libs:	all
 	$(MAKE)  -C lib all CORE_CFLAGS='$(CFLAGS)'
 
 
-$(BINARY_NAME):	$(OBJS) Makefile
+$(BINARY_NAME):	$(OBJS) Makefile Common.mk
 	$(CC)  $(OBJS) -o $@  $(LDFLAGS) $(EXTRA_LDFLAGS)
 
-%.o:	%.c %.h Makefile $(SRC_H)
-	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) -c $< -o $@
-
-%.o:	%.c Makefile $(SRC_H)
+%.o:	%.c %.h Makefile Common.mk $(SRC_H)
 	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) -c $< -o $@
 
 

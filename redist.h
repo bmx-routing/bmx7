@@ -146,3 +146,4 @@ IDM_T redistribute_routes(struct avl_tree *redist_out_tree, struct avl_tree *zro
 
 int32_t opt_redist(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn, struct avl_tree *redist_opt_tree, uint8_t *changed);
 struct redistr_opt_node *matching_redist_opt(struct redist_in_node *rin, struct avl_tree *redist_opt_tree);
+

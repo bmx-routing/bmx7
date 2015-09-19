@@ -42,13 +42,14 @@
 #include "msg.h"
 #include "ip.h"
 #include "hna.h"
+#include "tun.h"
+#include "redist.h"
 #include "schedule.h"
 #include "plugin.h"
 #include "prof.h"
 #include "tools.h"
 #include "iptools.h"
 #include "allocate.h"
-#include "redist.h"
 
 
 void redist_dbg(int8_t dbgl, int8_t dbgt, const char *func, struct redist_in_node *zrn, char* misc1, char* misc2)

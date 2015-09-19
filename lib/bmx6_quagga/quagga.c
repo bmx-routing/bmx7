@@ -48,6 +48,7 @@
 #include "iptools.h"
 #include "ip.h"
 #include "hna.h"
+#include "tun.h"
 #include "redist.h"
 #include "allocate.h"
 #include "quagga.h"
@@ -858,7 +859,7 @@ static void quagga_cleanup( void )
         if (zcfg.socket)
                 zsock_disconnect();
 
-        set_tunXin6_net_adv_list(DEL, &quagga_net_adv_list);
+	(*set_tunXin6_net_adv_list)(DEL, (void**)&quagga_net_adv_list);
 
 }
 
@@ -866,6 +867,10 @@ static void quagga_cleanup( void )
 
 static int32_t quagga_init( void )
 {
+	if (!set_tunXin6_net_adv_list) {
+		dbgf_sys(DBGT_ERR, "Failed using functions from bmx6_tun.so module! Has it been loaded before this one?");
+		return FAILURE;
+	}
 
         assertion(-501424, (ZEBRA_ROUTE_MAX < TYP_TUN_PROTO_ALL));
 
@@ -874,7 +879,7 @@ static int32_t quagga_init( void )
 
         register_options_array(quagga_options, sizeof ( quagga_options), CODE_CATEGORY_NAME);
 
-        set_tunXin6_net_adv_list(ADD, &quagga_net_adv_list);
+        (*set_tunXin6_net_adv_list)(ADD, (void**)&quagga_net_adv_list);
 
 
 	return SUCCESS;

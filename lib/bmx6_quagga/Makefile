@@ -6,7 +6,7 @@ LDFLAGS +=	-shared
 PLUGIN_NAME =   bmx6_quagga
 
 SRC_C = quagga.c ../../redist.c
-SRC_H = quagga.h ../../redist.h
+SRC_H = quagga.h ../../redist.h ../../tun.h
 OBJS= $(SRC_C:.c=.o)
 
 PLUGIN_FULLNAME = $(PLUGIN_NAME).so
@@ -22,7 +22,7 @@ $(PLUGIN_FULLNAME):	$(OBJS) Makefile
 	$(CC) $(LDFLAGS) $(EXTRA_LDFLAGS) $(OBJS) -o $(PLUGIN_FULLNAME) 
 	ln -f -s $(THISDIR)/$(PLUGIN_FULLNAME) $(THISDIR)/../$(PLUGIN_FULLNAME)
 
-%.o:	%.c %.h Makefile  ../../redist.c ../../redist.h
+%.o:	%.c %.h Makefile $(SRC_H)
 	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) -c $< -o $@
 
 

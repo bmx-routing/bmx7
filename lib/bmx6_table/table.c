@@ -48,6 +48,7 @@
 #include "iptools.h"
 #include "ip.h"
 #include "hna.h"
+#include "tun.h"
 #include "redist.h"
 #include "allocate.h"
 #include "table.h"
@@ -375,7 +376,7 @@ int32_t sync_redist_routes(IDM_T cleanup, IDM_T resync)
 
 		rtevent_sk = unregister_netlink_event_hook(rtevent_sk, recv_rtevent_netlink_sk);
 
-		set_tunXin6_net_adv_list(DEL, &table_net_adv_list);
+		(*set_tunXin6_net_adv_list)(DEL, (void**)&table_net_adv_list);
 
 		filter_temporary_route_changes(FILTER_TMP_RT_CHANGES_PURGE);
 
@@ -401,7 +402,7 @@ int32_t sync_redist_routes(IDM_T cleanup, IDM_T resync)
 
 	} else {
 
-		set_tunXin6_net_adv_list(ADD, &table_net_adv_list);
+		(*set_tunXin6_net_adv_list)(ADD, (void**)&table_net_adv_list);
 
 		rtevent_sk = resync_routes(rtevent_sk);
 	}
@@ -495,6 +496,10 @@ static void rtredist_cleanup( void )
 
 static int32_t rtredist_init( void )
 {
+	if (!set_tunXin6_net_adv_list) {
+		dbgf_sys(DBGT_ERR, "Failed using functions from bmx6_tun.so module! Has it been loaded before this one?");
+		return FAILURE;
+	}
 
         register_options_array(rtredist_options, sizeof ( rtredist_options), CODE_CATEGORY_NAME);
 

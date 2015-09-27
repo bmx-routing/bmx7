@@ -926,7 +926,8 @@ void tx_packets( void *unused ) {
 			assertion(-502442, (it.frame_type < FRAME_TYPE_SIGNATURE_ADV || it.frame_type > FRAME_TYPE_OGM_AGG_SQN_ADV));
 			assertion(-502443, (!it.frame_cache_msgs_size));
 			assertion(-500430, (it.frames_out_pos)); // single message larger than MAX_UDPD_SIZE
-			assertion_dbg(-502444, IMPLIES(it.frame_type > FRAME_TYPE_OGM_AGG_SQN_ADV, it.frames_out_pos > (int) (FRM_SIGN_VERS_SIZE_MIN + my_LinkKey->rawKeyLen)),
+			assertion_dbg(-502444, IMPLIES((it.frame_type > FRAME_TYPE_OGM_AGG_SQN_ADV) && my_LinkKey,
+				it.frames_out_pos > (int) (FRM_SIGN_VERS_SIZE_MIN + my_LinkKey->rawKeyLen)),
 				"%d %d %d %d", it.frame_type, it.frames_out_pos, (FRM_SIGN_VERS_SIZE_MIN + my_LinkKey->rawKeyLen));
 		}
 

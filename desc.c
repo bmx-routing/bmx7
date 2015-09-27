@@ -60,6 +60,8 @@ int32_t desc_vbodies_size_in =        DEF_DESC_VBODIES_SIZE;
 int32_t vrt_frame_max_nesting = 2;
 
 int32_t unsolicitedDescAdvs = DEF_UNSOLICITED_DESC_ADVS;
+int32_t dhashRslvInterval = DEF_DHASH_RSLV_INTERVAL;
+int32_t dhashRslvIters = DEF_DHASH_RSLV_ITERS;
 
 
 
@@ -720,51 +722,66 @@ int32_t rx_frame_dhash_request(struct rx_frame_iterator *it)
 	return TLV_RX_DATA_PROCESSED;
 }
 
+void ref_resolve(struct reference_node *ref)
+{
+	struct dhash_node *dhn = ref->dhn;
+	struct key_node *claimedKey = ref->claimedKey;
+	struct neigh_node *nn = ref->neigh;
+
+	assertion(-502500, IMPLIES(claimedKey, avl_find(&claimedKey->neighRefs_tree, &nn)));
+
+	if (!claimedKey) {
+
+		schedule_tx_task(FRAME_TYPE_DHASH_REQ, &nn->local_id, nn, nn->best_tp_link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &dhn->dhash, sizeof(dhn->dhash));
+
+	} else if (claimedKey->content && !claimedKey->content->f_body) {
+
+		assertion(-502323, (claimedKey->bookedState->i.c >= KCTracked));
+
+		//schedule_tx_task(FRAME_TYPE_CONTENT_REQ, &nn->local_id, nn, nn->best_tp_link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &ck->kHash, sizeof(ck->kHash));
+
+	} else if (claimedKey->content) {
+
+		assertion(-502324, (claimedKey->bookedState->i.c >= KCTracked && claimedKey->content->f_body));
+
+		schedule_tx_task(FRAME_TYPE_DESC_REQ, &nn->local_id, nn, nn->best_tp_link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &dhn->dhash, sizeof(dhn->dhash));
+	}
+}
+
+
 STATIC_FUNC
 void dhash_tree_maintain(void)
 {
-	struct dhash_node *dhn = NULL;
-	DHASH_T dhash = ZERO_CYRYPSHA1;
+	static TIME_T next = 0;
 
-	while ((dhn = avl_next_item(&dhash_tree, &dhash))) {
+	if (doNowOrLater(&next, dhashRslvInterval, 0)) {
 
-		dhash = dhn->dhash;
+		struct dhash_node *dhn = NULL;
+		DHASH_T dhash = ZERO_CYRYPSHA1;
 
-		if (dhn->descContent || dhn->rejected)
-			continue;
+		while ((dhn = avl_next_item(&dhash_tree, &dhash))) {
 
-		struct neigh_node *nn = NULL;
-		struct reference_node *ref;
+			dhash = dhn->dhash;
 
-		while (dhn && (ref = avl_next_item(&dhn->neighRefs_tree, &nn))) {
+			if (dhn->descContent || dhn->rejected)
+				continue;
 
-			struct key_node *claimedKey = ref->claimedKey;
-			nn = ref->neigh;
+			struct neigh_node *nn = NULL;
+			struct reference_node *ref;
 
-			assertion(-502500, IMPLIES(claimedKey, avl_find(&claimedKey->neighRefs_tree, &nn)));
+			while (dhn && (ref = avl_next_item(&dhn->neighRefs_tree, &nn))) {
+				nn = ref->neigh;
 
-			if (((AGGREG_SQN_T) ((nn->ogm_aggreg_max - ref->aggSqn)) >= nn->ogm_aggreg_size) && !claimedKey) {
+				if (((AGGREG_SQN_T) ((nn->ogm_aggreg_max - ref->aggSqn)) >= nn->ogm_aggreg_size) && !ref->claimedKey) {
 
-				if (dhn->neighRefs_tree.items == 1)
-					dhn = NULL;
+					if (dhn->neighRefs_tree.items == 1)
+						dhn = NULL;
 
-				refNode_destroy(ref, NO);
+					refNode_destroy(ref, NO);
 
-			} else if (!claimedKey) {
-
-				schedule_tx_task(FRAME_TYPE_DHASH_REQ, &nn->local_id, nn, nn->best_tp_link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &dhn->dhash, sizeof(dhn->dhash));
-
-			} else if (claimedKey->content && !claimedKey->content->f_body) {
-
-				assertion(-502323, (claimedKey->bookedState->i.c >= KCTracked));
-
-				//schedule_tx_task(FRAME_TYPE_CONTENT_REQ, &nn->local_id, nn, nn->best_tp_link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &ck->kHash, sizeof(ck->kHash));
-
-			} else if (claimedKey->content) {
-
-				assertion(-502324, (claimedKey->bookedState->i.c >= KCTracked && claimedKey->content->f_body));
-
-				schedule_tx_task(FRAME_TYPE_DESC_REQ, &nn->local_id, nn, nn->best_tp_link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &dhn->dhash, sizeof(dhn->dhash));
+				} else {
+					ref_resolve(ref);
+				}
 			}
 		}
 	}
@@ -862,6 +879,10 @@ struct opt_type desc_options[]=
 			ARG_VALUE_FORM, HLP_DESC_VBODIES_SIZE_IN},
 	{ODI,0,ARG_UNSOLICITED_DESC_ADVS,  0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &unsolicitedDescAdvs,MIN_UNSOLICITED_DESC_ADVS,MAX_UNSOLICITED_DESC_ADVS,DEF_UNSOLICITED_DESC_ADVS,0,0,
 			ARG_VALUE_FORM, NULL},
+        {ODI,0,ARG_DHASH_RSLV_INTERVAL,    0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &dhashRslvInterval,MIN_DHASH_RSLV_INTERVAL, MAX_DHASH_RSLV_INTERVAL,DEF_DHASH_RSLV_INTERVAL,0,    NULL,
+			ARG_VALUE_FORM,	"set interval for resolving unknown descriptions in ms"},
+        {ODI,0,ARG_DHASH_RSLV_ITERS,    0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &dhashRslvIters,MIN_DHASH_RSLV_ITERS, MAX_DHASH_RSLV_ITERS,DEF_DHASH_RSLV_ITERS,0,    NULL,
+			ARG_VALUE_FORM,	"set max tx iterations for resolving unknown descriptions"},
 #endif
 	{ODI, 0, ARG_DESCRIPTIONS,	   0,  9,2, A_PS0N,A_USR, A_DYN, A_ARG, A_ANY, 0,               0,                  0,                 0,0,                  opt_show_descriptions,
 			0,		HLP_DESCRIPTIONS}
@@ -926,6 +947,8 @@ void init_desc( void )
 	handl.data_header_size = sizeof( struct hdr_description_request);
 	handl.min_msg_size = sizeof(struct msg_description_request);
 	handl.fixed_msg_size = 1;
+	handl.tx_iterations = &dhashRslvIters;
+//	handl.tx_task_interval_min = &dhashRslvInterval;
 	handl.tx_msg_handler = tx_msg_description_request;
 	handl.rx_msg_handler = rx_msg_description_request;
 	register_frame_handler(packet_frame_db, FRAME_TYPE_DESC_REQ, &handl);
@@ -947,6 +970,8 @@ void init_desc( void )
         handl.min_msg_size = sizeof (struct msg_dhash_request);
         handl.fixed_msg_size = 1;
 	handl.tx_packet_prepare_always = dhash_tree_maintain;
+	handl.tx_iterations = &dhashRslvIters;
+//	handl.tx_task_interval_min = &dhashRslvInterval;
         handl.tx_msg_handler = tx_msg_dhash_request;
         handl.rx_frame_handler = rx_frame_dhash_request;
         register_frame_handler(packet_frame_db, FRAME_TYPE_DHASH_REQ, &handl);

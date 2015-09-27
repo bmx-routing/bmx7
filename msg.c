@@ -249,7 +249,9 @@ void register_frame_handler(struct frame_db *db, int pos, struct frame_handl *ha
 	 */
 
 	static int32_t tx_iterations = 1;
-	handl->tx_task_interval_min = handl->tx_task_interval_min ? handl->tx_task_interval_min : 1;
+	static int32_t tx_interval_min = 500;
+
+	handl->tx_task_interval_min = handl->tx_task_interval_min ? handl->tx_task_interval_min : &tx_interval_min;
 	handl->tx_iterations = handl->tx_iterations ? handl->tx_iterations : &tx_iterations;
 
         db->handls[pos] = *handl;
@@ -770,7 +772,7 @@ IDM_T purge_tx_task_tree(struct neigh_node *onlyNeigh, struct dev_node *onlyDev,
 		if ((onlyNeigh && onlyNeigh != curr->neigh) || (onlyDev && onlyDev != curr->key.f.p.dev) || (onlyTtn && onlyTtn != curr))
 			continue;
 
-		if (force || (curr->tx_iterations <= 0 && ((TIME_T) (bmx_time - curr->send_ts) > packet_frame_db->handls[curr->key.f.type].tx_task_interval_min))) {
+		if (force || (curr->tx_iterations <= 0 && ((TIME_T) (bmx_time - curr->send_ts) > (TIME_T)*(packet_frame_db->handls[curr->key.f.type].tx_task_interval_min)))) {
 
 			avl_remove(&txTask_tree, &curr->key, -300715);
 
@@ -805,7 +807,7 @@ struct tx_task_node *get_next_ttn( struct tx_task_node *curr) {
 
 		if ((purge_tx_task_tree(NULL, NULL, next, NO) == NO) &&
 			 (next->tx_iterations > 0) &&
-			 ((TIME_T) (bmx_time - next->send_ts) >= packet_frame_db->handls[next->key.f.type].tx_task_interval_min)) {
+			 ((TIME_T) (bmx_time - next->send_ts) >= (TIME_T)*(packet_frame_db->handls[next->key.f.type].tx_task_interval_min))) {
 
 			return next;
 		}
@@ -996,7 +998,7 @@ void schedule_tx_task(uint8_t f_type, CRYPTSHA1_T *groupId, struct neigh_node *n
 	struct tx_task_node test = {
 		.key =	{ .f = { .p = { .sign = (f_type >= FRAME_TYPE_SIGNATURE_ADV), .dev = dev}, .type = f_type, .groupId = groupId ? *groupId : ZERO_CYRYPSHA1} },
 		.neigh = neigh, .tx_iterations = *(handl->tx_iterations),
-		.send_ts = ((TIME_T) (bmx_time - handl->tx_task_interval_min)),
+		.send_ts = ((TIME_T) (bmx_time - *handl->tx_task_interval_min)),
 		.frame_msgs_length = (f_msgs_len == SCHEDULE_MIN_MSG_SIZE ? handl->min_msg_size : f_msgs_len)
 	};
 

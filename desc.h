@@ -80,6 +80,16 @@ extern int32_t desc_vbodies_size_out;
 #define MAX_DESCRIPTION_TYPE     FRAME_TYPE_PROCESS_ALL
 #define HLP_DESCRIPTION_TYPE     "show description extension(s) of given type (0..253=type 254=none 255=all) \n"
 
+#define MIN_DHASH_RSLV_INTERVAL 1
+#define MAX_DHASH_RSLV_INTERVAL 1000000
+#define DEF_DHASH_RSLV_INTERVAL 5000
+#define ARG_DHASH_RSLV_INTERVAL "descResolveInterval"
+
+#define MIN_DHASH_RSLV_ITERS 1
+#define MAX_DHASH_RSLV_ITERS 20
+#define DEF_DHASH_RSLV_ITERS 5
+#define ARG_DHASH_RSLV_ITERS "descResolveIterations"
+
 struct msg_dhash_adv {
 	DHASH_T dhash;
 	GLOBAL_ID_T kHash;
@@ -142,6 +152,7 @@ IDM_T process_description_tlvs(struct packet_buff *pb, struct orig_node *on, str
 void update_my_description(void);
 
 void update_orig_dhash(struct desc_content *dc);
+void ref_resolve(struct reference_node *ref);
 
 SHA1_T *nodeIdFromDescAdv(uint8_t *desc_adv);
 char *nodeIdAsStringFromDescAdv(uint8_t *desc_adv);

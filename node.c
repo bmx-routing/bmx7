@@ -178,6 +178,8 @@ struct reference_node *refNode_update(struct neigh_node *neigh, AGGREG_SQN_T agg
 		oRef->mentionedRefTime = bmx_time;
 		oDhn->referred_by_others_timestamp = bmx_time;
 
+		ref_resolve(oRef);
+
 		return oRef;
 	}
 

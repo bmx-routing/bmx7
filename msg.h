@@ -376,7 +376,7 @@ struct frame_handl {
 	uint16_t data_header_size;
 	uint16_t min_msg_size;
 	uint16_t fixed_msg_size;
-	uint16_t tx_task_interval_min;
+	int32_t *tx_task_interval_min;
 	int32_t *tx_iterations;
 	char *name;
 	void (*tx_packet_prepare_casuals) (void);

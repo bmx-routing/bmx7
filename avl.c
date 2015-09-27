@@ -360,9 +360,9 @@ void avl_insert(struct avl_tree *tree, void *node, int32_t tag)
 
 	assertion(-502003, (new));
 #ifdef AVL_5XLINKED
-	assertion(-502004, ( new->left  || avl_first(tree)==new));
-	assertion(-502005, (!new->left  || avl_next(tree, AVL_ITEM_KEY(tree, new->left->item))==new));
-	assertion(-502006, (!new->right || avl_next(tree, AVL_ITEM_KEY(tree, new->item))==new->right));
+	ASSERTION(-502004, ( new->left  || avl_first(tree)==new));
+	ASSERTION(-502005, (!new->left  || avl_next(tree, AVL_ITEM_KEY(tree, new->left->item))==new));
+	ASSERTION(-502006, (!new->right || avl_next(tree, AVL_ITEM_KEY(tree, new->item))==new->right));
 #endif
 	ASSERTION(-502236, avl_find_item(tree, AVL_ITEM_KEY(tree, node)));
         return;
@@ -550,13 +550,13 @@ void *avl_remove(struct avl_tree *tree, void *key, int32_t tag)
         }
 
 #ifdef AVL_5XLINKED
-	assertion(-502007, (!left  ||   left->left   || avl_first(tree)==left));
-	assertion(-502008, (!left  ||  !left->left   || avl_next(tree, AVL_ITEM_KEY(tree, left->left->item))==left));
-	assertion(-502009, (!left  ||  !left->right  || avl_next(tree, AVL_ITEM_KEY(tree, left->item))==left->right));
+	ASSERTION(-502007, (!left  ||   left->left   || avl_first(tree)==left));
+	ASSERTION(-502008, (!left  ||  !left->left   || avl_next(tree, AVL_ITEM_KEY(tree, left->left->item))==left));
+	ASSERTION(-502009, (!left  ||  !left->right  || avl_next(tree, AVL_ITEM_KEY(tree, left->item))==left->right));
 
-	assertion(-502010, (!right ||  right->left   || avl_first(tree)==right));
-	assertion(-502011, (!right || !right->left   || avl_next(tree, AVL_ITEM_KEY(tree, right->left->item))==right));
-	assertion(-502012, (!right || !right->right  || avl_next(tree, AVL_ITEM_KEY(tree, right->item))==right->right));
+	ASSERTION(-502010, (!right ||  right->left   || avl_first(tree)==right));
+	ASSERTION(-502011, (!right || !right->left   || avl_next(tree, AVL_ITEM_KEY(tree, right->left->item))==right));
+	ASSERTION(-502012, (!right || !right->right  || avl_next(tree, AVL_ITEM_KEY(tree, right->item))==right->right));
 #endif
         return node;
 

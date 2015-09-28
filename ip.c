@@ -3106,6 +3106,7 @@ struct dev_status {
         HELLO_SQN_T helloSqn;
 	char rxBpP[12];
 	char txBpP[12];
+	char txTasks[12];
 };
 
 static const struct field_format dev_status_format[] = {
@@ -3121,6 +3122,7 @@ static const struct field_format dev_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,                      dev_status, helloSqn,    1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,               dev_status, rxBpP,       1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,               dev_status, txBpP,       1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,               dev_status, txTasks,     1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_END
 };
 
@@ -3153,6 +3155,7 @@ static int32_t dev_status_creator(struct status_handl *handl, void* data)
                 status[i].helloSqn = dev->link_hello_sqn;
 		sprintf(status[i].rxBpP,  "%d/%.1f", (dev->udpRxBytesMean / DEVSTAT_PRECISION), (((float)dev->udpRxPacketsMean) / DEVSTAT_PRECISION));
 		sprintf(status[i].txBpP, "%d/%.1f", (dev->udpTxBytesMean / DEVSTAT_PRECISION), (((float)dev->udpTxPacketsMean) / DEVSTAT_PRECISION));
+		sprintf(status[i].txTasks, "%d/%d", dev->tx_task_items, MAX_TX_TS_TREE_SIZE);
 
                 i++;
         }

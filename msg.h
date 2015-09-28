@@ -103,8 +103,11 @@ extern int32_t txBucketSize;
 #define HLP_FREF      "use referenced description 4:dflt, 0:disabled, 1-level-nesting, 2-level-nesting, 3-level-nesting"
 
 
-#define MAX_TX_TS_TREE_SIZE 150
-
+#define MIN_TX_TREE_SIZE_MAX 1
+#define MAX_TX_TREE_SIZE_MAX 1000
+#define DEF_TX_TREE_SIZE_MAX 150
+#define ARG_TX_TREE_SIZE_MAX "maxTxTaskTreeSize"
+extern int32_t txTaskTreeSizeMax;
 
 
 #define FRAME_TYPE_RSVD0            0

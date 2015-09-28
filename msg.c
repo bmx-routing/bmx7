@@ -62,6 +62,8 @@ int32_t txMinInterval = DEF_TX_MIN_INTERVAL;
 
 int32_t overlappingBursts = DEF_OVERLAPPING_BURSTS;
 
+int32_t txTaskTreeSizeMax = DEF_TX_TREE_SIZE_MAX;
+
 
 uint32_t txBucket = 0;
 int32_t txBucketSize = DEF_TX_BUCKET_SIZE;
@@ -991,8 +993,8 @@ void schedule_tx_task(uint8_t f_type, CRYPTSHA1_T *groupId, struct neigh_node *n
 		 handl->name, cryptShaAsString(groupId), neigh ? cryptShaAsShortStr(&neigh->local_id) : NULL,
 		 dev ? dev->label_cfg.str : NULL, f_msgs_len, memAsHexString(keyData, keyLen), keyLen);
 
-	if (dev->tx_task_items >= MAX_TX_TS_TREE_SIZE) {
-		dbg_mute(20, DBGL_SYS, DBGT_WARN, "%s reached MAX_TX_TS_TREE_SIZE", dev ? dev->label_cfg.str : "all");
+	if (dev->tx_task_items >= txTaskTreeSizeMax) {
+		dbg_mute(20, DBGL_SYS, DBGT_WARN, "%s txTaskItems=%d reached %s=%d", dev->label_cfg.str, dev->tx_task_items, ARG_TX_TREE_SIZE_MAX, txTaskTreeSizeMax);
 		return;
 	}
 
@@ -1168,6 +1170,8 @@ struct opt_type msg_options[]=
 			ARG_VALUE_FORM,	"set number of tx packets allowed to exceed average tx interval"},
         {ODI,0,ARG_OVERLAPPING_BURSTS,    0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &overlappingBursts,MIN_OVERLAPPING_BURSTS,MAX_OVERLAPPING_BURSTS,DEF_OVERLAPPING_BURSTS,0,    NULL,
 			ARG_VALUE_FORM,	"set acceptable burst-sqn overlap for detecting duplicate packets"},
+        {ODI,0,ARG_TX_TREE_SIZE_MAX,      0,  9,1, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &txTaskTreeSizeMax, MIN_TX_TREE_SIZE_MAX, MAX_TX_TREE_SIZE_MAX, DEF_TX_TREE_SIZE_MAX,0, NULL,
+			ARG_VALUE_FORM,	"set maximum tree size for scheduled tx tasks"},
         {ODI, 0, ARG_UDPD_SIZE,            0,  9,0, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &pref_udpd_size, MIN_UDPD_SIZE,      MAX_UDPD_SIZE,     DEF_UDPD_SIZE,0,      0,
 			ARG_VALUE_FORM,	HLP_UDPD_SIZE}
 	,

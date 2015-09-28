@@ -3155,7 +3155,7 @@ static int32_t dev_status_creator(struct status_handl *handl, void* data)
                 status[i].helloSqn = dev->link_hello_sqn;
 		sprintf(status[i].rxBpP,  "%d/%.1f", (dev->udpRxBytesMean / DEVSTAT_PRECISION), (((float)dev->udpRxPacketsMean) / DEVSTAT_PRECISION));
 		sprintf(status[i].txBpP, "%d/%.1f", (dev->udpTxBytesMean / DEVSTAT_PRECISION), (((float)dev->udpTxPacketsMean) / DEVSTAT_PRECISION));
-		sprintf(status[i].txTasks, "%d/%d", dev->tx_task_items, MAX_TX_TS_TREE_SIZE);
+		sprintf(status[i].txTasks, "%d/%d", dev->tx_task_items, txTaskTreeSizeMax);
 
                 i++;
         }
@@ -3522,7 +3522,7 @@ static struct opt_type ip_options[]=
         {ODI,0,ARG_NETLINK_BUFFSZ,         0,  9,1, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &netlinkBuffSize, MIN_NETLINK_BUFFSZ, MAX_NETLINK_BUFFSZ, DEF_NETLINK_BUFFSZ,0, NULL,
 			ARG_VALUE_FORM,	"set rtnl receive buffer size for netlink socket communication (increase if rtnl_rcv out of buffer logs)"},
 
-	{ODI,0,ARG_INTERFACES,	        0,  9,2,A_PS0,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
+			{ODI,0,ARG_INTERFACES,	        0,  9,2,A_PS0,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
 			0,		"show interfaces\n"},
 	{ODI,0,ARG_DEVSTAT_REGRESSION,      0, 9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,   &devStatRegression,MIN_DEVSTAT_REGRESSION,MAX_DEVSTAT_REGRESSION,DEF_DEVSTAT_REGRESSION,0,0,
 			ARG_VALUE_FORM,	HLP_DEVSTAT_REGRESSION},

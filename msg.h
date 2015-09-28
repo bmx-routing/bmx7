@@ -74,7 +74,7 @@ extern int32_t txBucketSize;
 #define PKT_FRAMES_SIZE_PREF     (pref_udpd_size - sizeof(struct packet_header))
 #define PKT_FRAMES_SIZE_MAX     ( MAX_UDPD_SIZE - sizeof(struct packet_header))
 
-#define FRM_SIGN_VERS_SIZE_MIN (sizeof(struct tlv_hdr) + sizeof(struct frame_msg_signature) + \
+#define FRM_SIGN_VERS_SIZE_MIN (sizeof(struct tlv_hdr) + sizeof(struct frame_hdr_signature) + sizeof(struct frame_msg_signature) + \
                                 sizeof(struct tlv_hdr) + sizeof(struct msg_ogm_aggreg_sqn_adv))
 
 #define FRM_SIGN_VERS_SIZE_MAX (FRM_SIGN_VERS_SIZE_MIN + (MAX_LINK_SIGN_LEN/8))

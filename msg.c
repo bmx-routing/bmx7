@@ -872,7 +872,7 @@ void tx_packets( void *unused ) {
 
 	prof_start( tx_packets, main );
 
-	int32_t result;
+	int32_t result = TLV_TX_DATA_IGNORED;
 	static uint8_t cache_data_array[PKT_FRAMES_SIZE_MAX - sizeof(struct tlv_hdr)] = {0};
 	static struct packet_buff pb;
         memset(&pb.i, 0, sizeof (pb.i));
@@ -883,6 +883,7 @@ void tx_packets( void *unused ) {
 		.frame_cache_array = cache_data_array, .frame_cache_size = sizeof(cache_data_array),
         };
 
+	int cnt = 0;
 
 	while ((nextTask)) {
 
@@ -928,10 +929,16 @@ void tx_packets( void *unused ) {
 			assertion(-502442, (it.frame_type < FRAME_TYPE_SIGNATURE_ADV || it.frame_type > FRAME_TYPE_OGM_AGG_SQN_ADV));
 			assertion(-502443, (!it.frame_cache_msgs_size));
 			assertion(-500430, (it.frames_out_pos)); // single message larger than MAX_UDPD_SIZE
-			assertion_dbg(-502444, IMPLIES((it.frame_type > FRAME_TYPE_OGM_AGG_SQN_ADV) && my_LinkKey,
-				it.frames_out_pos > (int) (FRM_SIGN_VERS_SIZE_MIN + my_LinkKey->rawKeyLen)),
-				"%d %d %d %d", it.frame_type, it.frames_out_pos, (FRM_SIGN_VERS_SIZE_MIN + my_LinkKey->rawKeyLen));
+			assertion_dbg(-502444, IMPLIES((it.frame_type > FRAME_TYPE_OGM_AGG_SQN_ADV),
+				it.frames_out_pos > (int) (FRM_SIGN_VERS_SIZE_MIN + my_LinkKey ? my_LinkKey->rawKeyLen : 0)),
+				"%d %d %d", it.frame_type, it.frames_out_pos, (FRM_SIGN_VERS_SIZE_MIN + my_LinkKey ? my_LinkKey->rawKeyLen : 0));
 		}
+
+		assertion_dbg(-500000, (++cnt) < 10000, "cnt=%d result=%d nextFt=%d ft=%d fp=%d keyLen=%d",
+			cnt, result, (nextTask ? (int) nextTask->key.f.type : -1), it.frame_type, it.frames_out_pos,
+			(my_LinkKey ? (int) (FRM_SIGN_VERS_SIZE_MIN + my_LinkKey->rawKeyLen) : -1));
+
+
 
 		if ((result == TLV_TX_DATA_FULL || !nextTask || memcmp(&it.ttn->key.f.p, &nextTask->key.f.p, sizeof(nextTask->key.f.p))) && it.frames_out_pos) {
 

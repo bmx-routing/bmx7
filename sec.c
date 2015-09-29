@@ -1079,9 +1079,10 @@ void check_nodes_dir(void *pathpp)
 				if (pathpp == &supportedNodesDir)
 					keyNode_delCredits(&globalId, NULL, &friend_kc);
 
-				avl_remove(treep, &globalId, -300660);
-
 				changed = YES;
+				avl_remove(treep, &globalId, -300660);
+				dbgf_sys(DBGT_INFO, "removed nodeId=%s!", cryptShaAsString(&globalId));
+
 				debugFree(tn, -300740);
 			}
 		}

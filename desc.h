@@ -82,7 +82,7 @@ extern int32_t desc_vbodies_size_out;
 
 #define MIN_DHASH_RSLV_INTERVAL 1
 #define MAX_DHASH_RSLV_INTERVAL 1000000
-#define DEF_DHASH_RSLV_INTERVAL 5000
+#define DEF_DHASH_RSLV_INTERVAL 2000
 #define ARG_DHASH_RSLV_INTERVAL "descResolveInterval"
 
 #define MIN_DHASH_RSLV_ITERS 1

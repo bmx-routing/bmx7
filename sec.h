@@ -54,7 +54,7 @@
 #define MIN_LINK_SIGN_LEN 0
 #define MAX_LINK_SIGN_LEN 2048
 #define DEF_LINK_SIGN_LEN 896
-#define HLP_LINK_SIGN_LEN "sign outgoing packets with given RSA key length"
+#define HLP_LINK_SIGN_LEN "sign outgoing packets with given RSA key length (512,768,896,1024,1536,2048)"
 extern int32_t linkSignLen;
 
 

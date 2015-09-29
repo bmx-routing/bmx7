@@ -115,7 +115,7 @@ extern int32_t txCasualInterval;
 
 #define MIN_TX_TREE_SIZE_MAX 1
 #define MAX_TX_TREE_SIZE_MAX 1000
-#define DEF_TX_TREE_SIZE_MAX 150
+#define DEF_TX_TREE_SIZE_MAX 200
 #define ARG_TX_TREE_SIZE_MAX "maxTxTaskTreeSize"
 extern int32_t txTaskTreeSizeMax;
 

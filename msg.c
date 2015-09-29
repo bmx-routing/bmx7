@@ -60,6 +60,11 @@ int32_t pref_udpd_size = DEF_UDPD_SIZE;
 int32_t txCasualInterval = DEF_TX_CASUAL_INTERVAL;
 int32_t txMinInterval = DEF_TX_MIN_INTERVAL;
 
+int32_t txFrameIterations = DEF_TX_FRAME_ITERS;
+int32_t txFrameInterval = DEF_TX_FRAME_INTERVAL;
+
+
+
 int32_t overlappingBursts = DEF_OVERLAPPING_BURSTS;
 
 int32_t txTaskTreeSizeMax = DEF_TX_TREE_SIZE_MAX;
@@ -250,11 +255,8 @@ void register_frame_handler(struct frame_db *db, int pos, struct frame_handl *ha
 			// without potentially conflicting message headers (frame data headers)
 	 */
 
-	static int32_t tx_iterations = 1;
-	static int32_t tx_interval_min = 500;
-
-	handl->tx_task_interval_min = handl->tx_task_interval_min ? handl->tx_task_interval_min : &tx_interval_min;
-	handl->tx_iterations = handl->tx_iterations ? handl->tx_iterations : &tx_iterations;
+	handl->tx_task_interval_min = handl->tx_task_interval_min ? handl->tx_task_interval_min : &txFrameInterval;
+	handl->tx_iterations = handl->tx_iterations ? handl->tx_iterations : &txFrameIterations;
 
         db->handls[pos] = *handl;
 
@@ -1164,14 +1166,18 @@ struct opt_type msg_options[]=
 //       ord parent long_name             shrt Attributes                            *ival              min                 max                default              *func,*syntax,*help
 
 #ifndef LESS_OPTIONS
-	{ODI,0,ARG_FREF,                   0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &dextReferencing,MIN_FREF,           MAX_FREF,          DEF_FREF,0,           opt_update_dext_method,
+	{ODI,0,ARG_FREF,                  0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &dextReferencing,MIN_FREF,           MAX_FREF,          DEF_FREF,0,           opt_update_dext_method,
 			ARG_VALUE_FORM, HLP_FREF},
-	{ODI,0,ARG_FZIP,                   0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &dextCompression,MIN_FZIP,           MAX_FZIP,          DEF_FZIP,0,           opt_update_dext_method,
+	{ODI,0,ARG_FZIP,                  0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &dextCompression,MIN_FZIP,           MAX_FZIP,          DEF_FZIP,0,           opt_update_dext_method,
 			ARG_VALUE_FORM, HLP_FZIP},
-        {ODI,0,ARG_TX_MIN_INTERVAL,         0,  9,1, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &txMinInterval, MIN_TX_MIN_INTERVAL, MAX_TX_MIN_INTERVAL, DEF_TX_MIN_INTERVAL,0, NULL,
-			ARG_VALUE_FORM,	"set aggregation interval (SHOULD be at most 1/5 of your and other's OGM interval)"},
+        {ODI,0,ARG_TX_MIN_INTERVAL,       0,  9,1, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &txMinInterval, MIN_TX_MIN_INTERVAL, MAX_TX_MIN_INTERVAL, DEF_TX_MIN_INTERVAL,0, NULL,
+			ARG_VALUE_FORM,	"set aggregation interval (SHOULD be around 1/5 of yours and others OGM interval)"},
         {ODI,0,ARG_TX_CASUAL_INTERVAL,    0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &txCasualInterval,MIN_TX_CASUAL_INTERVAL, MAX_TX_CASUAL_INTERVAL,DEF_TX_CASUAL_INTERVAL,0,    NULL,
 			ARG_VALUE_FORM,	"set interval for scheduling periodic tasks interval in ms"},
+        {ODI,0,ARG_TX_FRAME_INTERVAL,     0,  9,1, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &txFrameInterval, MIN_TX_FRAME_INTERVAL, MAX_TX_FRAME_INTERVAL, DEF_TX_FRAME_INTERVAL,0, NULL,
+			ARG_VALUE_FORM,	"set default interval for resending unreplied request frames"},
+        {ODI,0,ARG_TX_FRAME_ITERS,        0,  9,1, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &txFrameIterations, MIN_TX_FRAME_ITERS, MAX_TX_FRAME_ITERS, DEF_TX_FRAME_ITERS,0, NULL,
+			ARG_VALUE_FORM,	"set default iterations for resending unreplied request frames"},
         {ODI,0,ARG_TX_BUCKET_SIZE,        0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &txBucketSize,    MIN_TX_BUCKET_SIZE, MAX_TX_BUCKET_SIZE,DEF_TX_BUCKET_SIZE,0,    NULL,
 			ARG_VALUE_FORM,	"set number of tx packets allowed to exceed average tx interval"},
         {ODI,0,ARG_OVERLAPPING_BURSTS,    0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &overlappingBursts,MIN_OVERLAPPING_BURSTS,MAX_OVERLAPPING_BURSTS,DEF_OVERLAPPING_BURSTS,0,    NULL,

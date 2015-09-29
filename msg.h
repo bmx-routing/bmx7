@@ -46,11 +46,6 @@ extern int32_t pref_udpd_size;
 #define ARG_OVERLAPPING_BURSTS "overlappingBursts"
 
 
-#define MAX_TX_CASUAL_INTERVAL 5000
-#define MIN_TX_CASUAL_INTERVAL 100
-#define DEF_TX_CASUAL_INTERVAL 800
-#define ARG_TX_CASUAL_INTERVAL "avgTxInterval"
-extern int32_t txCasualInterval;
 
 
 #define BUCKET_COIN_SCALE 100000
@@ -64,11 +59,26 @@ extern int32_t txBucketSize;
 #define MAX_TX_BUCKET_SIZE 100000
 #define ARG_TX_BUCKET_SIZE "txBucketSize"
 
+#define MAX_TX_CASUAL_INTERVAL 5000
+#define MIN_TX_CASUAL_INTERVAL 100
+#define DEF_TX_CASUAL_INTERVAL 800
+#define ARG_TX_CASUAL_INTERVAL "txAvgInterval"
+extern int32_t txCasualInterval;
+
 #define MIN_TX_MIN_INTERVAL 35
 #define MAX_TX_MIN_INTERVAL 10000  // < U16_MAX due to metricalgo->ogm_interval field
 #define DEF_TX_MIN_INTERVAL 100
-#define ARG_TX_MIN_INTERVAL "minTxInterval"
+#define ARG_TX_MIN_INTERVAL "txMinInterval"
 
+#define MIN_TX_FRAME_INTERVAL 100
+#define MAX_TX_FRAME_INTERVAL 10000
+#define DEF_TX_FRAME_INTERVAL 500
+#define ARG_TX_FRAME_INTERVAL "txFrameInterval"
+
+#define MIN_TX_FRAME_ITERS 1
+#define MAX_TX_FRAME_ITERS 20
+#define DEF_TX_FRAME_ITERS 1
+#define ARG_TX_FRAME_ITERS "txFrameIterations"
 
 
 #define PKT_FRAMES_SIZE_PREF     (pref_udpd_size - sizeof(struct packet_header))

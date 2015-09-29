@@ -929,12 +929,11 @@ void tx_packets( void *unused ) {
 			assertion(-502442, (it.frame_type < FRAME_TYPE_SIGNATURE_ADV || it.frame_type > FRAME_TYPE_OGM_AGG_SQN_ADV));
 			assertion(-502443, (!it.frame_cache_msgs_size));
 			assertion(-500430, (it.frames_out_pos)); // single message larger than MAX_UDPD_SIZE
-			assertion_dbg(-502444, IMPLIES((it.frame_type > FRAME_TYPE_OGM_AGG_SQN_ADV),
-				it.frames_out_pos > (int) (FRM_SIGN_VERS_SIZE_MIN + my_LinkKey ? my_LinkKey->rawKeyLen : 0)),
-				"%d %d %d", it.frame_type, it.frames_out_pos, (FRM_SIGN_VERS_SIZE_MIN + my_LinkKey ? my_LinkKey->rawKeyLen : 0));
+			assertion_dbg(-502444, IMPLIES((it.frame_type > FRAME_TYPE_OGM_AGG_SQN_ADV), it.frames_out_pos > (int) (FRM_SIGN_VERS_SIZE_MIN + (my_LinkKey ? my_LinkKey->rawKeyLen : 0))),
+				"%d %d %d+%d", it.frame_type, it.frames_out_pos, FRM_SIGN_VERS_SIZE_MIN, (my_LinkKey ? my_LinkKey->rawKeyLen : 0));
 		}
 
-		assertion_dbg(-500000, (++cnt) < 10000, "cnt=%d result=%d nextFt=%d ft=%d fp=%d keyLen=%d",
+		assertion_dbg(-502519, (++cnt) < 10000, "cnt=%d result=%d nextFt=%d ft=%d fp=%d keyLen=%d",
 			cnt, result, (nextTask ? (int) nextTask->key.f.type : -1), it.frame_type, it.frames_out_pos,
 			(my_LinkKey ? (int) (FRM_SIGN_VERS_SIZE_MIN + my_LinkKey->rawKeyLen) : -1));
 

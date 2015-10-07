@@ -67,26 +67,11 @@ int32_t linkSignLen = DEF_LINK_SIGN_LEN;
 CRYPTKEY_T *my_NodeKey = NULL;
 CRYPTKEY_T *my_LinkKey = NULL;
 
-static char *trustedNodesDir = NULL;
-static int trusted_ifd = -1;
-static int trusted_iwd = -1;
 
-static char *supportedNodesDir = NULL;
-static int support_ifd = -1;
-static int support_iwd = -1;
+AVL_TREE(dirWatch_tree, struct DirWatch, ifd);
 
-struct trust_node {
-	GLOBAL_ID_T global_id;
-	uint8_t updated;
-	uint8_t maxTrust;
-/*
-	uint8_t maxDescDepth;
-	uint8_t maxDescSize;
-	uint8_t maxDescUpdFreq;
-	uint32_t minDescSqn;
- */
-};
-
+static struct DirWatch *trustedDirWatch = NULL;
+static struct DirWatch *supportDirWatch = NULL;
 
 GLOBAL_ID_T *get_desc_id(uint8_t *desc_adv, uint32_t desc_len, struct dsc_msg_signature **signpp, struct dsc_msg_version **verspp)
 {
@@ -156,8 +141,7 @@ GLOBAL_ID_T *get_desc_id(uint8_t *desc_adv, uint32_t desc_len, struct dsc_msg_si
 }
 
 
-static AVL_TREE(trusted_nodes_tree, struct trust_node, global_id);
-AVL_TREE(supportedKnown_nodes_tree, struct trust_node, global_id);
+
 STATIC_FUNC
 int create_packet_signature(struct tx_frame_iterator *it)
 {
@@ -940,14 +924,13 @@ int create_dsc_tlv_trusts(struct tx_frame_iterator *it)
         struct dsc_msg_trust *msg = (struct dsc_msg_trust *)tx_iterator_cache_msg_ptr(it);
         int32_t max_size = tx_iterator_cache_data_space_pref(it, 0, 0);
         int pos = 0;
-	char *dir = (it->frame_type==BMX_DSC_TLV_SUPPORTS) ? supportedNodesDir : trustedNodesDir;
-	struct avl_tree *tree = (it->frame_type==BMX_DSC_TLV_SUPPORTS) ? &supportedKnown_nodes_tree : &trusted_nodes_tree;
+	struct DirWatch *dw = (it->frame_type==BMX_DSC_TLV_SUPPORTS) ? supportDirWatch : trustedDirWatch;
 
 	assertion(-502487, (it->frame_type == BMX_DSC_TLV_SUPPORTS || it->frame_type == BMX_DSC_TLV_TRUSTS));
 
-	if (dir) {
+	if (dw) {
 		IDM_T addedMyself = NO;
-		while ((tn = avl_iterate_item(tree, &an)) || !addedMyself) {
+		while ((tn = avl_iterate_item(&dw->node_tree, &an)) || !addedMyself) {
 
 			if (pos + (int) sizeof(struct dsc_msg_trust) > max_size) {
 				dbgf_sys(DBGT_ERR, "Failed adding %s=%s", it->handl->name, cryptShaAsString(&tn->global_id));
@@ -999,10 +982,10 @@ IDM_T supportedKnownKey( CRYPTSHA1_T *pkhash ) {
 	if (!pkhash || is_zero(pkhash, sizeof(CRYPTSHA1_T)))
 		return NO;
 
-	if (!supportedNodesDir)
+	if (!supportDirWatch)
 		return -1;
 		
-	if (!(tn = avl_find_item(&supportedKnown_nodes_tree, pkhash)))
+	if (!(tn = avl_find_item(&supportDirWatch->node_tree, pkhash)))
 		return NO;
 
 	return tn->maxTrust + YES;
@@ -1011,28 +994,21 @@ IDM_T supportedKnownKey( CRYPTSHA1_T *pkhash ) {
 
 
 STATIC_FUNC
-void check_nodes_dir(void *pathpp)
+void check_nodes_dir(void *dirWatchPtr)
 {
-
-	assertion(-502489, (pathpp == &trustedNodesDir || pathpp == &supportedNodesDir));
+	struct DirWatch *dw = (struct DirWatch*) dirWatchPtr;
 
 	DIR *dir;
-	static uint32_t retry[2] = {5,5};
-	uint32_t *retryp = (pathpp == &trustedNodesDir) ? &retry[0] : &retry[1];
-	char *pathp = (pathpp == &trustedNodesDir) ? trustedNodesDir : supportedNodesDir;
-	struct avl_tree *treep = (pathpp == &trustedNodesDir) ? &trusted_nodes_tree : &supportedKnown_nodes_tree;
-	int ifd = (pathpp == &trustedNodesDir) ? trusted_ifd : support_ifd;
-	task_remove(check_nodes_dir, pathpp);
 
-	if ((dir = opendir(pathp))) {
+	task_remove(check_nodes_dir, dirWatchPtr);
+
+	if ((dir = opendir(dw->pathp))) {
 
 		struct dirent *dirEntry;
 		struct trust_node *tn;
-		int8_t changed = NO;
 		GLOBAL_ID_T globalId;
-		struct key_credits friend_kc = {.friend=1};
 
-		*retryp = 5;
+		dw->retryCnt = 5;
 
 		while ((dirEntry = readdir(dir)) != NULL) {
 
@@ -1044,7 +1020,7 @@ void check_nodes_dir(void *pathpp)
 				(hexStrToMem(globalIdString, (uint8_t*)&globalId, sizeof(GLOBAL_ID_T)) == SUCCESS)
 				) {
 
-				if ((tn = avl_find_item(treep, &globalId))) {
+				if ((tn = avl_find_item(&dw->node_tree, &globalId))) {
 
 					dbgf(tn->updated ? DBGL_SYS : DBGL_ALL, tn->updated ? DBGT_ERR : DBGT_INFO,
 						"file=%s prefix found %d times!",dirEntry->d_name, tn->updated);
@@ -1052,13 +1028,12 @@ void check_nodes_dir(void *pathpp)
 				} else {
 					tn = debugMallocReset(sizeof(struct trust_node), -300658);
 					tn->global_id = globalId;
-					changed = YES;
-					avl_insert(treep, tn, -300659);
+					avl_insert(&dw->node_tree, tn, -300659);
 					dbgf_sys(DBGT_INFO, "file=%s defines new nodeId=%s!",
 						dirEntry->d_name, cryptShaAsString(&globalId));
 
-					if (pathpp == &supportedNodesDir)
-						keyNode_updCredits(&globalId, NULL, &friend_kc);
+					if (dw->idChanged)
+						(*dw->idChanged) (ADD, &globalId);
 				}
 
 				tn->updated++;
@@ -1070,50 +1045,45 @@ void check_nodes_dir(void *pathpp)
 		closedir(dir);
 
 		memset(&globalId, 0, sizeof(globalId));
-		while ((tn = avl_next_item(treep, &globalId))) {
+		while ((tn = avl_next_item(&dw->node_tree, &globalId))) {
 			globalId = tn->global_id;
 			if (tn->updated || (myKey && cryptShasEqual(&tn->global_id, &myKey->kHash))) {
 				tn->updated = 0;
 			} else {
 
-				if (pathpp == &supportedNodesDir)
-					keyNode_delCredits(&globalId, NULL, &friend_kc);
+				if (dw->idChanged)
+					(*dw->idChanged) (DEL, &globalId);
 
-				changed = YES;
-				avl_remove(treep, &globalId, -300660);
+				avl_remove(&dw->node_tree, &globalId, -300660);
 				dbgf_sys(DBGT_INFO, "removed nodeId=%s!", cryptShaAsString(&globalId));
 
 				debugFree(tn, -300740);
 			}
 		}
 
-
-		if ((pathpp == &trustedNodesDir) && changed)
-			my_description_changed = YES;
-
-
-		if (ifd == -1)
-			task_register(DEF_TRUST_DIR_POLLING_INTERVAL, check_nodes_dir, pathpp, -300657);
+		if (dw->ifd == -1)
+			task_register(DEF_TRUST_DIR_POLLING_INTERVAL, check_nodes_dir, dw, -300657);
 
 	} else {
 
 		dbgf_sys(DBGT_WARN, "Problem opening dir=%s: %s! Retrying in %d ms...",
-			pathp, strerror(errno), *retryp);
+			dw->pathp, strerror(errno), dw->retryCnt);
 
-		task_register(*retryp, check_nodes_dir, pathpp, -300741);
+		task_register(dw->retryCnt, check_nodes_dir, dw, -300741);
 
-		*retryp = 5000;
+		dw->retryCnt = 5000;
 	}
 }
 
-STATIC_FUNC
 void inotify_event_hook(int fd)
 {
         TRACE_FUNCTION_CALL;
 
-	dbgf_track(DBGT_INFO, "detected changes in directory: %s", (fd == trusted_ifd) ? trustedNodesDir : supportedNodesDir);
+	struct DirWatch *dw = avl_find_item(&dirWatch_tree, &fd);
+        assertion(-501278, (fd > -1 && dw && dw->ifd == fd));
 
-        assertion(-501278, (fd > -1 && (fd == trusted_ifd || fd == support_ifd)));
+	dbgf_track(DBGT_INFO, "detected changes in directory: %s", dw->pathp);
+
 
         int ilen = 1024;
         char *ibuff = debugMalloc(ilen, -300375);
@@ -1135,7 +1105,7 @@ void inotify_event_hook(int fd)
                         processed += (sizeof (struct inotify_event) +ievent->len);
 
                         if (ievent->mask & (IN_DELETE_SELF)) {
-				dbgf_sys(DBGT_ERR, "directory %s has been removed \n", (fd == trusted_ifd) ? trustedNodesDir : supportedNodesDir);
+				dbgf_sys(DBGT_ERR, "directory %s has been removed \n", dw->pathp);
                                 cleanup_all(-502490);
                         }
                 }
@@ -1146,159 +1116,137 @@ void inotify_event_hook(int fd)
 
         debugFree(ibuff, -300377);
 
-	check_nodes_dir((fd == trusted_ifd) ? &trustedNodesDir : &supportedNodesDir);
+	check_nodes_dir(dw);
 }
 
 
-STATIC_FUNC
-void cleanup_trusted_nodes(void)
+void cleanup_dir_watch(struct DirWatch **dw)
 {
+	assertion(-500000, (dw));
 
-	if (trusted_ifd > -1) {
+	if (!(*dw))
+		return;
 
-		if (trusted_iwd > -1) {
-			inotify_rm_watch(trusted_ifd, trusted_iwd);
-			trusted_iwd = -1;
+	if ((*dw)->ifd > -1) {
+
+		avl_remove(&dirWatch_tree, &(*dw)->ifd, -300000);
+
+		if ((*dw)->iwd > -1) {
+			inotify_rm_watch((*dw)->ifd, (*dw)->iwd);
+			(*dw)->iwd = -1;
 		}
 
-		set_fd_hook(trusted_ifd, inotify_event_hook, DEL);
+		set_fd_hook((*dw)->ifd, inotify_event_hook, DEL);
 
-		close(trusted_ifd);
-		trusted_ifd = -1;
+		close((*dw)->ifd);
+		(*dw)->ifd = -1;
 	} else {
-		task_remove(check_nodes_dir, &trustedNodesDir);
+		task_remove(check_nodes_dir, *dw);
 	}
 
-	while (trusted_nodes_tree.items)
-		debugFree(avl_remove_first_item(&trusted_nodes_tree, -300661), -300664);
+	while ((*dw)->node_tree.items) {
+		struct trust_node *tn = avl_remove_first_item(&(*dw)->node_tree, -300661);
 
-	trustedNodesDir = NULL;
+		if ((*dw)->idChanged)
+			(*(*dw)->idChanged)(DEL, &tn->global_id);
+
+		debugFree(tn, -300664);
+	}
+
+	if ((*dw)->idChanged)
+		(*(*dw)->idChanged)(DEL, NULL);
+
+	debugFree(*dw, -300000);
+	*dw = NULL;
+
+}
+
+STATIC_FUNC
+void idChanged_Trusted(IDM_T del, GLOBAL_ID_T *id)
+{
+	my_description_changed = YES;
+}
+
+STATIC_FUNC
+void idChanged_Supported(IDM_T del, GLOBAL_ID_T *id)
+{
+	struct key_credits friend_kc = {.friend=1};
+
+	if (!id)
+		return;
+
+	if (del && !terminating)
+		keyNode_delCredits(id, NULL, &friend_kc);
+
+	else
+		keyNode_updCredits(id, NULL, &friend_kc);
+}
+
+IDM_T init_dir_watch(struct DirWatch **dw, char *path, void (* idChangedTask) (IDM_T del, GLOBAL_ID_T *id))
+{
+
+	cleanup_dir_watch(dw);
+
+	(*dw) = debugMallocReset(sizeof(struct DirWatch), -300000);
+
+	(*dw)->pathp = path;
+	(*dw)->idChanged = idChangedTask;
+	(*dw)->retryCnt = 5;
+	AVL_INIT_TREE((*dw)->node_tree, struct trust_node, global_id);
+
+	if (((*dw)->ifd = inotify_init()) < 0) {
+
+		dbg_sys(DBGT_WARN, "failed init inotify socket: %s! Using %d ms polling instead! You should enable inotify support in your kernel!",
+			strerror(errno), DEF_TRUST_DIR_POLLING_INTERVAL);
+		(*dw)->ifd = -1;
+
+	} else if (fcntl((*dw)->ifd, F_SETFL, O_NONBLOCK) < 0) {
+
+		dbgf_sys(DBGT_ERR, "failed setting inotify non-blocking: %s", strerror(errno));
+		return FAILURE;
+
+	} else if (((*dw)->iwd = inotify_add_watch((*dw)->ifd, (*dw)->pathp,
+		IN_CREATE | IN_DELETE | IN_DELETE_SELF | IN_MODIFY | IN_MOVE_SELF | IN_MOVED_FROM | IN_MOVED_TO)) < 0) {
+
+		dbgf_sys(DBGT_ERR, "failed adding watch for dir=%s: %s \n", (*dw)->pathp, strerror(errno));
+		return FAILURE;
+
+	} else {
+
+		set_fd_hook((*dw)->ifd, inotify_event_hook, ADD);
+		avl_insert(&dirWatch_tree, (*dw), -300000);
+	}
+
+	check_nodes_dir((*dw));
+
+	if (idChangedTask)
+		(*idChangedTask)(ADD, NULL);
+
+	return SUCCESS;
 }
 
 
 STATIC_FUNC
-int32_t opt_trusted_node_dir(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
+int32_t opt_dir_watch(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
 {
+
+	assertion(-500000, ((strcmp(opt->name, ARG_TRUSTED_NODES_DIR) == 0)|| (strcmp(opt->name, ARG_SUPPORTED_NODES_DIR) == 0)));
 
         if (cmd == OPT_CHECK && patch->diff == ADD && check_dir(patch->val, NO/*create*/, NO/*writable*/) == FAILURE)
 			return FAILURE;
 
         if (cmd == OPT_APPLY) {
 
-		if (patch->diff == DEL || (patch->diff == ADD && trustedNodesDir))
-			cleanup_trusted_nodes();
+		struct DirWatch **dw = (strcmp(opt->name, ARG_TRUSTED_NODES_DIR) == 0) ? &trustedDirWatch : &supportDirWatch;
 
-
-		if (patch->diff == ADD) {
-
-			assertion(-501286, (patch->val));
-
-			trustedNodesDir = patch->val;
-
-			if ((trusted_ifd = inotify_init()) < 0) {
-
-				dbg_sys(DBGT_WARN, "failed init inotify socket: %s! Using %d ms polling instead! You should enable inotify support in your kernel!",
-					strerror(errno), DEF_TRUST_DIR_POLLING_INTERVAL);
-				trusted_ifd = -1;
-
-			} else if (fcntl(trusted_ifd, F_SETFL, O_NONBLOCK) < 0) {
-
-				dbgf_sys(DBGT_ERR, "failed setting inotify non-blocking: %s", strerror(errno));
-				return FAILURE;
-
-			} else if ((trusted_iwd = inotify_add_watch(trusted_ifd, trustedNodesDir,
-				IN_CREATE | IN_DELETE | IN_DELETE_SELF | IN_MODIFY | IN_MOVE_SELF | IN_MOVED_FROM | IN_MOVED_TO)) < 0) {
-
-				dbgf_sys(DBGT_ERR, "failed adding watch for dir=%s: %s \n", trustedNodesDir, strerror(errno));
-				return FAILURE;
-
-			} else {
-
-				set_fd_hook(trusted_ifd, inotify_event_hook, ADD);
-			}
-
-			check_nodes_dir(&trustedNodesDir);
-		}
-
-		my_description_changed = YES;
-        }
-
-
-        return SUCCESS;
-}
-
-
-STATIC_FUNC
-void cleanup_supported_nodes(void)
-{
-
-	if (support_ifd > -1) {
-
-		if (support_iwd > -1) {
-			inotify_rm_watch(support_ifd, support_iwd);
-			support_iwd = -1;
-		}
-
-		set_fd_hook(support_ifd, inotify_event_hook, DEL);
-
-		close(support_ifd);
-		support_ifd = -1;
-	} else {
-		task_remove(check_nodes_dir, &supportedNodesDir);
-	}
-
-	while (supportedKnown_nodes_tree.items)
-		debugFree(avl_remove_first_item(&supportedKnown_nodes_tree, -300742), -300743);
-
-	supportedNodesDir = NULL;
-}
-
-
-STATIC_FUNC
-int32_t opt_supported_node_dir(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
-{
-
-        if (cmd == OPT_CHECK && patch->diff == ADD && check_dir(patch->val, NO/*create*/, NO/*writable*/) == FAILURE)
-			return FAILURE;
-
-        if (cmd == OPT_APPLY) {
-
-		if (patch->diff == DEL || (patch->diff == ADD && supportedNodesDir))
-			cleanup_supported_nodes();
-
+		if (patch->diff == DEL || patch->diff == ADD)
+			cleanup_dir_watch(dw);
 
 		if (patch->diff == ADD) {
-
 			assertion(-501286, (patch->val));
-
-			supportedNodesDir = patch->val;
-
-			if ((support_ifd = inotify_init()) < 0) {
-
-				dbg_sys(DBGT_WARN, "failed init inotify socket: %s! Using %d ms polling instead! You should enable inotify support in your kernel!",
-					strerror(errno), DEF_TRUST_DIR_POLLING_INTERVAL);
-				support_ifd = -1;
-
-			} else if (fcntl(support_ifd, F_SETFL, O_NONBLOCK) < 0) {
-
-				dbgf_sys(DBGT_ERR, "failed setting inotify non-blocking: %s", strerror(errno));
-				return FAILURE;
-
-			} else if ((support_iwd = inotify_add_watch(support_ifd, supportedNodesDir,
-				IN_CREATE | IN_DELETE | IN_DELETE_SELF | IN_MODIFY | IN_MOVE_SELF | IN_MOVED_FROM | IN_MOVED_TO)) < 0) {
-
-				dbgf_sys(DBGT_ERR, "failed adding watch for dir=%s: %s \n", supportedNodesDir, strerror(errno));
-				return FAILURE;
-
-			} else {
-
-				set_fd_hook(support_ifd, inotify_event_hook, ADD);
-			}
-
-			check_nodes_dir(&supportedNodesDir);
+			return init_dir_watch(dw, patch->val, !strcmp(opt->name, ARG_SUPPORTED_NODES_DIR)?idChanged_Supported:idChanged_Trusted);
 		}
         }
-
 
         return SUCCESS;
 }
@@ -1317,9 +1265,9 @@ struct opt_type sec_options[]=
 			ARG_VALUE_FORM, HLP_LINK_SIGN_LEN},
 	{ODI,0,ARG_LINK_SIGN_LT,      0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &linkSignLifetime,0,MAX_LINK_SIGN_LT,DEF_LINK_SIGN_LT,0, opt_linkSigning,
 			ARG_VALUE_FORM, HLP_LINK_SIGN_LT},
-	{ODI,0,ARG_TRUSTED_NODES_DIR,   0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,DEF_TRUSTED_NODES_DIR, opt_trusted_node_dir,
+	{ODI,0,ARG_TRUSTED_NODES_DIR,   0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,DEF_TRUSTED_NODES_DIR, opt_dir_watch,
 			ARG_DIR_FORM,"directory with global-id hashes of this node's trusted other nodes"},
-	{ODI,0,ARG_SUPPORTED_NODES_DIR, 0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,DEF_SUPPORTED_NODES_DIR, opt_supported_node_dir,
+	{ODI,0,ARG_SUPPORTED_NODES_DIR, 0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,DEF_SUPPORTED_NODES_DIR, opt_dir_watch,
 			ARG_DIR_FORM,"directory with global-id hashes of this node's supported other nodes"},
 
 };
@@ -1423,6 +1371,6 @@ void cleanup_sec( void )
 		cryptKeyFree(&my_LinkKey);
 	}
 
-	cleanup_trusted_nodes();
-	cleanup_supported_nodes();
+	cleanup_dir_watch(&trustedDirWatch);
+	cleanup_dir_watch(&supportDirWatch);
 }

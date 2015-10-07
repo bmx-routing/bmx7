@@ -83,8 +83,32 @@ extern int32_t linkSignLen;
 #define DEF_LINK_SIGN_MIN 0
 #define HLP_LINK_SIGN_MIN "require incoming link (packet) signatures of at least given RSA key length"
 
+struct DirWatch {
+	char *pathp;
+	int ifd;
+	int iwd;
+	uint32_t retryCnt;
+	void (* idChanged) (IDM_T del, GLOBAL_ID_T *id);
+	struct avl_tree node_tree;
+};
+
+struct trust_node {
+	GLOBAL_ID_T global_id;
+	uint8_t updated;
+	uint8_t maxTrust;
+	/*
+		uint8_t maxDescDepth;
+		uint8_t maxDescSize;
+		uint8_t maxDescUpdFreq;
+		uint32_t minDescSqn;
+	 */
+};
+
+
 extern CRYPTKEY_T *my_NodeKey;
 extern CRYPTKEY_T *my_LinkKey;
+
+
 
 
 #define DESCRIPTION_MSG_PUBKEY_FORMAT { \
@@ -139,6 +163,9 @@ INT_NEIGH_ID_T allocate_internalNeighId(struct neigh_node *nn);
 void free_internalNeighId(INT_NEIGH_ID_T ini);
 uint32_t *init_neighTrust(struct orig_node *on);
 IDM_T verify_neighTrust(struct orig_node *on, struct neigh_node *neigh);
+void cleanup_dir_watch(struct DirWatch **dw);
+IDM_T init_dir_watch(struct DirWatch **dw, char *path, void (* idChangedTask) (IDM_T del, GLOBAL_ID_T *id));
+void inotify_event_hook(int fd);
 
 void init_sec(void);
 void cleanup_sec(void);

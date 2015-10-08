@@ -3220,6 +3220,18 @@ int32_t opt_dev_prefix(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
 	return SUCCESS;
 }
 
+IPX_T create_crypto_IPv6(struct net_key *prefix, GLOBAL_ID_T *id)
+{
+	IPX_T ipx = prefix->ip;
+	memcpy(&ipx.s6_addr[(prefix->mask / 8)], id, ((128 - prefix->mask) / 8));
+
+	return ipx;
+/*	if (is_zero(&self->global_id.pkid, sizeof(self->global_id.pkid)/2))
+		memcpy(&self->primary_ip.s6_addr[(autoconf_prefix_cfg.mask/8)], &self->global_id.pkid.u8[sizeof(self->global_id.pkid)/2],
+			XMIN((128-autoconf_prefix_cfg.mask)/8, sizeof(self->global_id.pkid)/2));
+*/
+}
+
 STATIC_FUNC
 int32_t opt_auto_prefix(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
 {
@@ -3262,13 +3274,7 @@ int32_t opt_auto_prefix(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
         } else if (cmd == OPT_SET_POST && initializing ) {
 
 		assertion(-502043, (myKey));
-		my_primary_ip = autoconf_prefix_cfg.ip;
-		memcpy(&my_primary_ip.s6_addr[(autoconf_prefix_cfg.mask/8)], &myKey->kHash, ((128-autoconf_prefix_cfg.mask)/8));
-
-/*		if (is_zero(&self->global_id.pkid, sizeof(self->global_id.pkid)/2))
-			memcpy(&self->primary_ip.s6_addr[(autoconf_prefix_cfg.mask/8)], &self->global_id.pkid.u8[sizeof(self->global_id.pkid)/2],
-				XMIN((128-autoconf_prefix_cfg.mask)/8, sizeof(self->global_id.pkid)/2));
-*/
+		my_primary_ip = create_crypto_IPv6(&autoconf_prefix_cfg, &myKey->kHash);
 	}
 
 	return SUCCESS;

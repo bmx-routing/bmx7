@@ -1104,12 +1104,12 @@ void kernel_dev_tun_del( char *name, int32_t fd ) {
 
 	if ( DEF_TUN_OUT_PERSIST && ioctl( fd, TUNSETPERSIST, 0 ) < 0 ) {
 
-		dbg( DBGL_SYS, DBGT_ERR, "can't delete catch_all tunnel device: %s", strerror(errno) );
+		dbg( DBGL_SYS, DBGT_ERR, "can't delete tunnel dev=%s", strerror(errno) );
 		assertion(-501499,(0));
 		return;
 	}
 
-	dbgf( DBGL_SYS, DBGT_INFO, "closing catch_all tunnel!" );
+	dbgf(DBGL_SYS, DBGT_INFO, "closing tunnel dev=%s", name);
 
 	close( fd );
 

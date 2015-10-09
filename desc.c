@@ -796,14 +796,14 @@ int32_t tx_msg_dhash_adv(struct tx_frame_iterator *it)
 	struct msg_dhash_adv *msg = ((struct msg_dhash_adv*) tx_iterator_cache_msg_ptr(it));
 	struct dhash_node *dhn;
 
-	if ((dhn = avl_find_item(&dhash_tree, ((DHASH_T*)it->ttn->key.data)))) {
+	if ((dhn = avl_find_item(&dhash_tree, ((DHASH_T*)it->ttn->key.data))) && (dhn->descContent || dhn->rejected)) {
 
 		msg->dhash = dhn->dhash;
 
 		if (dhn->descContent) {
 			msg->descSqn = htonl(dhn->descContent->descSqn);
 			msg->kHash = dhn->descContent->key->kHash;
-		} //else: notify requesting node of stale dhash.
+		} // else notify requesting node of stale dhash.
 
 		return sizeof(struct msg_dhash_adv);
 	}

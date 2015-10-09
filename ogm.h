@@ -91,7 +91,7 @@ struct hdr_ogm_adv {
 	struct msg_ogm_dhash_adv msg[];
 } __attribute__((packed));
 
-
+struct avl_tree **ogm_aggreg_origs(AGGREG_SQN_T aggSqn);
 
 void remove_ogm(struct orig_node *on);
 void process_ogm_metric(void *voidRef);

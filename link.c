@@ -750,12 +750,12 @@ MAC_T *ip6Eui64ToMac(IPX_T *ll, MAC_T *mp)
 {
 	static MAC_T mac;
 
-	mac.u8[0] = ll->__in6_u.__u6_addr8[8]^(0x1 << 1);
-	mac.u8[1] = ll->__in6_u.__u6_addr8[9];
-	mac.u8[2] = ll->__in6_u.__u6_addr8[10];
-	mac.u8[3] = ll->__in6_u.__u6_addr8[13];
-	mac.u8[4] = ll->__in6_u.__u6_addr8[14];
-	mac.u8[5] = ll->__in6_u.__u6_addr8[15];
+	mac.u8[0] = ll->s6_addr[8]^(0x1 << 1);
+	mac.u8[1] = ll->s6_addr[9];
+	mac.u8[2] = ll->s6_addr[10];
+	mac.u8[3] = ll->s6_addr[13];
+	mac.u8[4] = ll->s6_addr[14];
+	mac.u8[5] = ll->s6_addr[15];
 
 	if (!mp)
 		return &mac;

@@ -446,6 +446,12 @@ void process_ogm_metric(void *voidRef)
 	dbgf_all(DBGT_INFO, "orig=%s via neigh=%s ogmMtc=%ju, ogmSqn=%d knownSqn=%d",
 		cryptShaAsShortStr(&on->k.nodeId), cryptShaAsShortStr(&ref->neigh->local_id), ogmMetric, ref->ogmSqnMax, on->ogmSqn);
 
+	if (on->key == myKey && (ref->ogmSqnMax > on->ogmSqn || (ref->ogmSqnMax == on->ogmSqn && ogmMetric >= on->ogmMetric))) {
+		dbgf_mute(70, DBGL_SYS, DBGT_WARN, "OGM SQN or metric attack on myself, rcvd via trusted=%d neigh=%s",
+			neighTrust, cryptShaAsShortStr(&ref->neigh->local_id));
+		return;
+	}
+
 	if (!neighTrust || !valid_metric || ogmMetric < on->path_metricalgo->umetric_min)
 		return;
 

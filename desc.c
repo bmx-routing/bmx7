@@ -740,7 +740,7 @@ void ref_resolve(struct reference_node *ref)
 
 		//schedule_tx_task(FRAME_TYPE_CONTENT_REQ, &nn->local_id, nn, nn->best_tp_link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &ck->kHash, sizeof(ck->kHash));
 
-	} else if (claimedKey->content) {
+	} else if (claimedKey->content && !dhn->descContent && !dhn->rejected) {
 
 		assertion(-502324, (claimedKey->bookedState->i.c >= KCTracked && claimedKey->content->f_body));
 

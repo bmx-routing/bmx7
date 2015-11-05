@@ -441,10 +441,12 @@ void process_ogm_metric(void *voidRef)
 	IDM_T neighTrust = verify_neighTrust(on, ref->neigh);
 	IDM_T valid_metric = is_fmetric_valid(ref->ogmMetricMax);
 	UMETRIC_T ogmMetric = valid_metric ? fmetric_to_umetric(ref->ogmMetricMax) : 0;
+	IDM_T discard = (!neighTrust || !valid_metric || ogmMetric < on->path_metricalgo->umetric_min);
 
-
-	dbgf_all(DBGT_INFO, "orig=%s via neigh=%s ogmMtc=%ju, ogmSqn=%d knownSqn=%d",
-		cryptShaAsShortStr(&on->k.nodeId), cryptShaAsShortStr(&ref->neigh->local_id), ogmMetric, ref->ogmSqnMax, on->ogmSqn);
+	dbgf_mute(70, discard ? DBGL_CHANGES : DBGL_ALL, discard ? DBGT_WARN : DBGT_INFO,
+		"orig=%s via neigh=%s nbTrust=%d validMetric=%d ogmMtc=%ju minMtc=%ju ogmSqn=%d knownSqn=%d",
+		cryptShaAsShortStr(&on->k.nodeId), cryptShaAsShortStr(&ref->neigh->local_id),
+		neighTrust, valid_metric, ogmMetric, on->path_metricalgo->umetric_min, ref->ogmSqnMax, on->ogmSqn);
 
 	if (on->key == myKey && (ref->ogmSqnMax > on->ogmSqn || (ref->ogmSqnMax == on->ogmSqn && ogmMetric >= on->ogmMetric))) {
 		dbgf_mute(70, DBGL_SYS, DBGT_WARN, "OGM SQN or metric attack on myself, rcvd via trusted=%d neigh=%s",
@@ -452,7 +454,7 @@ void process_ogm_metric(void *voidRef)
 		return;
 	}
 
-	if (!neighTrust || !valid_metric || ogmMetric < on->path_metricalgo->umetric_min)
+	if (discard)
 		return;
 
 	static int count = 0;

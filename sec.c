@@ -966,7 +966,7 @@ int process_dsc_tlv_trusts(struct rx_frame_iterator *it)
 		struct neigh_node *nn;
 
 		while ((nn = avl_iterate_item(&local_tree, &an))) {
-			update_neighTrust(it->on, it->dcNew, nn);
+			update_neighTrust(it->on, (it->op == TLV_OP_NEW ? it->dcNew : NULL), nn);
 		}
 	}
 

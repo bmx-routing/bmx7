@@ -1328,7 +1328,7 @@ int process_dsc_tlv_tun6(struct rx_frame_iterator *it)
 	TRACE_FUNCTION_CALL;
 	int16_t m;
 
-	if (it->dcNew->key == myKey)
+	if (it->dcOp->key == myKey)
 		return it->f_msgs_len;
 
 
@@ -1401,7 +1401,7 @@ int process_dsc_tlv_tun6(struct rx_frame_iterator *it)
 
 		dbgf_all(DBGT_INFO, "op=%s tunnel_out.items=%d tun_net.items=%d msg=%d/%d localIp=%s nodeId=%s key=%s",
 			tlv_op_str(it->op), tun_out_tree.items, tun_net_tree.items, m, it->f_msgs_fixed,
-			ip6AsStr(&adv->localIp), nodeIdAsStringFromDescAdv(it->dcNew->desc_frame),
+			ip6AsStr(&adv->localIp), nodeIdAsStringFromDescAdv(it->dcOp->desc_frame),
 			memAsHexString(&key, sizeof(key)));
 
 		if (it->op == TLV_OP_TEST) {
@@ -1414,7 +1414,7 @@ int process_dsc_tlv_tun6(struct rx_frame_iterator *it)
 				(tin = avl_find_item_by_field(&tun_in_tree, &adv->localIp, tun_in_node, remote)) ||
 				(un = find_overlapping_hna(&adv->localIp, 128, it->on))) {
 				dbgf_sys(DBGT_ERR, "nodeId=%s %s=%s blocked (by my %s=%s or other's %s with nodeId=%s)",
-					nodeIdAsStringFromDescAdv(it->dcNew->desc_frame),
+					nodeIdAsStringFromDescAdv(it->dcOp->desc_frame),
 					ARG_TUN_DEV, ip6AsStr(&adv->localIp),
 					ARG_TUN_IN, tin ? tin->nameKey.str : DBG_NIL,
 					ARG_UHNA, un ? cryptShaAsString(un->on ? &un->on->k.nodeId : &myKey->kHash) : DBG_NIL);
@@ -1485,7 +1485,7 @@ int process_dsc_tlv_tunXin6ingress(struct rx_frame_iterator *it)
 	uint8_t isSrc4 = (it->f_type == BMX_DSC_TLV_TUN4IN6_INGRESS);
 	int32_t pos;
 
-	if (it->dcNew->key == myKey)
+	if (it->dcOp->key == myKey)
 		return it->f_msgs_len;
 
 
@@ -1718,7 +1718,7 @@ int process_dsc_tlv_tunXin6net(struct rx_frame_iterator *it)
 
 	uint8_t used = NO;
 
-	if (it->dcNew->key == myKey && it->op != TLV_OP_TEST)
+	if (it->dcOp->key == myKey && it->op != TLV_OP_TEST)
 		return it->f_msgs_len;
 
 

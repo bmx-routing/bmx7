@@ -549,7 +549,7 @@ int process_dsc_tlv_signature(struct rx_frame_iterator *it)
         TRACE_FUNCTION_CALL;
 
 	ASSERTION(-502482, IMPLIES(it->f_type == BMX_DSC_TLV_DSC_SIGNATURE && it->op == TLV_OP_TEST,
-		test_description_signature(it->dcNew->desc_frame, it->dcNew->desc_frame_len)));
+		test_description_signature(it->dcOp->desc_frame, it->dcOp->desc_frame_len)));
 
 	return TLV_RX_DATA_PROCESSED;
 }
@@ -966,7 +966,7 @@ int process_dsc_tlv_trusts(struct rx_frame_iterator *it)
 		struct neigh_node *nn;
 
 		while ((nn = avl_iterate_item(&local_tree, &an))) {
-			update_neighTrust(it->on, (it->op == TLV_OP_NEW ? it->dcNew : NULL), nn);
+			update_neighTrust(it->on, (it->op == TLV_OP_NEW ? it->dcOp : NULL), nn);
 		}
 	}
 

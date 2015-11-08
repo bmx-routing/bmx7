@@ -320,7 +320,7 @@ struct rx_frame_iterator {
 	struct frame_db *db;
 	struct orig_node *on;
 	struct desc_content *dcOld;
-	struct desc_content *dcNew;
+	struct desc_content *dcOp;
 
 	uint8_t *frames_in;
 	int32_t frames_length;

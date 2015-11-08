@@ -515,7 +515,7 @@ int process_dsc_tlv_llip(struct rx_frame_iterator *it)
 	}
 
 	if ((op == TLV_OP_NEW || op == TLV_OP_DEL) && it->on->neigh)
-		updateNeighDevId(it->on->neigh, (op == TLV_OP_NEW ? it->dcNew : NULL));
+		updateNeighDevId(it->on->neigh, (op == TLV_OP_NEW ? it->dcOp : NULL));
 
 
 

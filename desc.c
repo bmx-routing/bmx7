@@ -67,7 +67,7 @@ int32_t dhashRslvIters = DEF_DHASH_RSLV_ITERS;
 
 
 
-IDM_T process_description_tlvs(struct packet_buff *pb, struct orig_node *on, struct desc_content *dcOld, struct desc_content *dcNew, uint8_t op, uint8_t filter)
+IDM_T process_description_tlvs(struct packet_buff *pb, struct orig_node *on, struct desc_content *dcOld, struct desc_content *dcOp, uint8_t op, uint8_t filter)
 {
         TRACE_FUNCTION_CALL;
         assertion(-500370, (op == TLV_OP_DEL || op == TLV_OP_TEST || op == TLV_OP_NEW || op == TLV_OP_DEBUG ||
@@ -77,21 +77,21 @@ IDM_T process_description_tlvs(struct packet_buff *pb, struct orig_node *on, str
         int32_t result;
 	int8_t blocked = NO;
 
-	assertion(-500807, (dcNew && dcNew->desc_frame && dcNew->dhn));
-	assertion(-502047, IMPLIES(op == TLV_OP_DEL || op == TLV_OP_NEW, on && dcNew));
+	assertion(-500807, (dcOp && dcOp->desc_frame && dcOp->dhn));
+	assertion(-502047, IMPLIES(op == TLV_OP_DEL || op == TLV_OP_NEW, on && dcOp));
 
-	if (filter <= description_tlv_db->handl_max && !contents_data(dcNew, filter))
+	if (filter <= description_tlv_db->handl_max && !contents_data(dcOp, filter))
 		return TLV_RX_DATA_DONE;
 
         struct rx_frame_iterator it = {
                 .caller = __FUNCTION__, .op = op, .pb = pb, .db = description_tlv_db, .process_filter = filter,
-		.on = on, .dcOld = dcOld, .dcNew = dcNew,
+		.on = on, .dcOld = dcOld, .dcOp = dcOp,
 		.f_type = -1, .frames_length = 0, .frames_in = NULL
 	};
 
 
         dbgf_track(DBGT_INFO, "op=%s nodeId=%s filter=%d",
-                tlv_op_str(op), nodeIdAsStringFromDescAdv(dcNew->desc_frame), filter);
+                tlv_op_str(op), nodeIdAsStringFromDescAdv(dcOp->desc_frame), filter);
 
 
         while ((result = rx_frame_iterate(&it)) > TLV_RX_DATA_DONE) {
@@ -132,18 +132,18 @@ IDM_T process_description_tlvs(struct packet_buff *pb, struct orig_node *on, str
 
 IDM_T desc_frame_changed(  struct rx_frame_iterator *it, uint8_t type )
 {
-	struct desc_content *rOld = it->dcOld;
-	struct desc_content *rNew = it->dcNew;
-	struct key_node *kn = (rOld ? rOld->key : (rNew ? rNew->key : NULL));
+	struct desc_content *dcA = it->dcOld;
+	struct desc_content *dcB = it->dcOp;
+	struct key_node *kn = (dcA ? dcA->key : (dcB ? dcB->key : NULL));
 
 	assertion(-502274, (kn));
 
-	IDM_T changed = (contents_dlen(rOld, type) != contents_dlen(rNew, type) ||
-		(contents_dlen(rOld, type) && memcmp(contents_data(rOld, type), contents_data(rNew, type), contents_dlen(rNew, type))));
+	IDM_T changed = (contents_dlen(dcA, type) != contents_dlen(dcB, type) ||
+		(contents_dlen(dcA, type) && memcmp(contents_data(dcA, type), contents_data(dcB, type), contents_dlen(dcB, type))));
 
-	dbgf_track(DBGT_INFO, "orig=%s %s type=%d (%s) old_len=%d new_len=%d",
+	dbgf_track(DBGT_INFO, "orig=%s %s type=%d (%s) dcA_len=%d dcB_len=%d",
 		cryptShaAsString(&kn->kHash), changed ? "  CHANGED" : "UNCHANGED",
-		type, it->db->handls[type].name, contents_dlen(rOld, type), contents_dlen(rNew, type));
+		type, it->db->handls[type].name, contents_dlen(dcA, type), contents_dlen(dcB, type));
 
 	return changed;
 }
@@ -370,7 +370,7 @@ int32_t opt_show_descriptions(uint8_t cmd, uint8_t _save, struct opt_type *opt,
 			if (!dc || !dc->contentRefs_tree.items || dc->unresolvedContentCounter)
 				continue;
 
-			struct rx_frame_iterator it = {.caller = __FUNCTION__, .on = NULL, .dcNew = dc,
+			struct rx_frame_iterator it = {.caller = __FUNCTION__, .on = NULL, .dcOp = dc,
 				.op = TLV_OP_PLUGIN_MIN, .db = description_tlv_db, .process_filter = type_filter, .f_type = -1,};
 
                         int32_t result;

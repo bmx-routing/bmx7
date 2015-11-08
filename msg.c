@@ -357,10 +357,10 @@ int32_t rx_frame_iterate(struct rx_frame_iterator *it)
 			goto_error(rx_frame_iterate_error, "chash hdr expanded type");
 
 
-	} else if (!it->frames_in && it->dcNew) {
+	} else if (!it->frames_in && it->dcOp) {
 
 		int8_t f_type = it->f_type;
-		while( ((++f_type) <= it->db->handl_max) && !contents_data(it->dcNew, f_type));
+		while( ((++f_type) <= it->db->handl_max) && !contents_data(it->dcOp, f_type));
 
 		if (f_type > it->db->handl_max) {
 			if (missed_mandatory_frames(it, f_type_prev+1, it->db->handl_max))
@@ -368,7 +368,7 @@ int32_t rx_frame_iterate(struct rx_frame_iterator *it)
 
 			if ( it->db == description_tlv_db && it->on && it->dcOld && it->op == TLV_OP_NEW &&
 				it->process_filter == FRAME_TYPE_PROCESS_ALL && f_type_prev < it->db->handl_max ) {
-				assertion(-502432, (it->dcOld != it->dcNew));
+				assertion(-502432, (it->dcOld != it->dcOp));
 				process_description_tlvs_del( it->on, it->dcOld, (f_type_prev + 1), it->db->handl_max );
 			}
 
@@ -376,8 +376,8 @@ int32_t rx_frame_iterate(struct rx_frame_iterator *it)
 		}
 
 		it->f_type = it->f_type_expanded = f_type;
-		it->f_dlen = contents_dlen(it->dcNew, f_type);
-		it->f_data = contents_data(it->dcNew, f_type);
+		it->f_dlen = contents_dlen(it->dcOp, f_type);
+		it->f_data = contents_data(it->dcOp, f_type);
 
 		it->_f_len = 0;
 		it->_f_pos_next = 0;
@@ -483,7 +483,7 @@ rx_frame_iterate_error:{
 			"exp_type=%d exp_len=%d gzip=%d maxNesting=%d expHash=%s "
 			"f_data=%s",
 			it->caller, it->db->name, goto_error_code, tlv_rx_result_str(result),
-			!!it->dcNew, it->f_type, (it->f_handl ? it->f_handl->name : NULL), it->f_type_expanded,
+			!!it->dcOp, it->f_type, (it->f_handl ? it->f_handl->name : NULL), it->f_type_expanded,
 			ARG_VRT_FRAME_DATA_SIZE_IN, vrt_frame_data_size_in,
 			it->frames_length, it->_f_pos_next, it->f_dlen, it->f_msgs_len,
 			chHdr.u.i.expanded_type, chHdr.u.i.expanded_length, chHdr.u.i.gzip, chHdr.u.i.maxNesting, cryptShaAsShortStr(&chHdr.expanded_chash),

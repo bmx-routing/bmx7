@@ -298,7 +298,7 @@ int process_dsc_tlv_hna(struct rx_frame_iterator *it)
         struct orig_node *on = it->on;
         uint8_t op = it->op;
 
-	assertion(-502326, (it->dcNew && it->dcNew->key));
+	assertion(-502326, (it->dcOp && it->dcOp->key));
         assertion(-500588, IMPLIES(op==TLV_OP_NEW || op==TLV_OP_DEL || op>=TLV_OP_CUSTOM_MIN, on));
 
         uint32_t hna_net_curr = 0;
@@ -328,7 +328,7 @@ int process_dsc_tlv_hna(struct rx_frame_iterator *it)
                 uint8_t flags = set_hna_to_key(&key, (struct dsc_msg_hna6 *) (it->f_data + pos));
 
                 dbgf_track(DBGT_INFO, "%s nodeId=%s %s=%s",
-                        tlv_op_str(op), cryptShaAsString(&it->dcNew->key->kHash), ARG_UHNA, netAsStr(&key));
+                        tlv_op_str(op), cryptShaAsString(&it->dcOp->key->kHash), ARG_UHNA, netAsStr(&key));
 
                 if (op == TLV_OP_TEST) {
 
@@ -339,7 +339,7 @@ int process_dsc_tlv_hna(struct rx_frame_iterator *it)
                                 (un = find_overlapping_hna(&key.ip, key.mask, on))) {
 
                                 dbgf_sys(DBGT_ERR, "nodeId=%s %s=%s blocked (by nodeId=%s)",
-                                        cryptShaAsString(&it->dcNew->key->kHash), ARG_UHNA, netAsStr(&key),
+                                        cryptShaAsString(&it->dcOp->key->kHash), ARG_UHNA, netAsStr(&key),
 					un ? cryptShaAsString(un->on ? &un->on->k.nodeId : &myKey->kHash) : "???");
 
                                 return TLV_RX_DATA_BLOCKED;
@@ -352,7 +352,7 @@ int process_dsc_tlv_hna(struct rx_frame_iterator *it)
 //				if (is_ip_net_equal(&(hna_net_keys[i].ip), &key.ip, XMIN(hna_net_keys[i].mask, key.mask), AF_INET6)) {
                                 if (!memcmp(&hna_net_keys[i], &key, sizeof (key))) {
                                         dbgf_sys(DBGT_ERR, "nodeId=%s FAILURE due to double hna=%s announcement",
-                                                cryptShaAsString(&it->dcNew->key->kHash), netAsStr(&key));
+                                                cryptShaAsString(&it->dcOp->key->kHash), netAsStr(&key));
                                         return TLV_RX_DATA_FAILURE;
                                 }
                         }

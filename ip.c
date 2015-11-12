@@ -3048,8 +3048,8 @@ int32_t opt_ip_version(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
 
 		// add rule for hosts and announced interfaces and networks
 
-		ip_flush_routes(AF_INET, BMX_TABLE_HNA);
-		ip_flush_rules(AF_INET, BMX_TABLE_HNA);
+		ip_flush_routes(AF_INET6, BMX_TABLE_HNA);
+		ip_flush_rules(AF_INET6, BMX_TABLE_HNA);
 
 		if (policy_routing == POLICY_RT_ENABLED) {
 			nl_rule_event_sk = register_netlink_event_hook(nl_mgrp(RTNLGRP_IPV4_RULE) | nl_mgrp(RTNLGRP_IPV6_RULE), (netlinkBuffSize/2), recv_ruleEvent_netlink_sk);

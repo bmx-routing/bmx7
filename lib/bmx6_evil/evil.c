@@ -185,16 +185,6 @@ int32_t opt_evil_route(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
 		prevEvilRouteDropping = evilRouteDropping;
 
 
-	if (cmd == OPT_POST && initializing) {
-
-		// must be configured after general IPv6 options:
-		iproute(IP_RULE_DEFAULT, ADD, NO, &ZERO_NET6_KEY, DEF_EVIL_IP_TABLE, DEF_EVIL_IP_RULE, 0, 0, 0, 0, NULL);
-	}
-
-	if (cmd == OPT_UNREGISTER && terminating) {
-		// cleaned up anyway:
-		// iproute(IP_RULE_DEFAULT, DEL, NO, &ZERO_NET6_KEY, DEF_EVIL_IP_TABLE, DEF_EVIL_IP_RULE, 0, 0, 0, 0, NULL);
-	}
 
 	return SUCCESS;
 }
@@ -222,20 +212,43 @@ int32_t opt_evil_watch(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
         return SUCCESS;
 }
 
+STATIC_FUNC
+int32_t opt_evil_init(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
+{
+
+	if (cmd == OPT_CHECK || cmd == OPT_APPLY)
+		return FAILURE;
+
+	if (cmd == OPT_SET_POST && initializing) {
+
+		evil_tun_idx = kernel_dev_tun_add( DEF_EVIL_TUN_NAME, &evil_tun_fd, NO);
+		set_fd_hook(evil_tun_fd, tun_out_devZero_hook, ADD);
+
+		ip_flush_routes(AF_INET6, DEF_EVIL_IP_TABLE);
+		ip_flush_rules(AF_INET6, DEF_EVIL_IP_TABLE);
+
+		// must be configured after general IPv6 options:
+		iproute(IP_RULE_DEFAULT, ADD, NO, &ZERO_NET6_KEY, DEF_EVIL_IP_TABLE, DEF_EVIL_IP_RULE, 0, 0, 0, 0, NULL);
+	}
+
+	return SUCCESS;
+}
 
 static struct opt_type evil_options[]= {
 //        ord parent long_name          shrt Attributes				*ival		min		max		default		*func,*syntax,*help
+	{ODI,0,"evilInit",              0,  8,0,A_PS0,A_ADM,A_INI,A_ARG,A_ANY,	0,		0,		0,		0,0,            opt_evil_init,
+			NULL,HLP_DUMMY_OPT},
 	{ODI,0,ARG_ATTACKED_NODES_DIR,  0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,DEF_ATTACKED_NODES_DIR, opt_evil_watch,
 			ARG_DIR_FORM,"directory with global-id hashes of this node's attacked other nodes"},
-	{ODI,0,ARG_EVIL_ROUTE_DROPPING, 0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &evilRouteDropping,MIN_EVIL_ROUTE_DROPPING,MAX_EVIL_ROUTE_DROPPING,DEF_EVIL_ROUTE_DROPPING,0,opt_evil_route,
+	{ODI,0,ARG_EVIL_ROUTE_DROPPING, 0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &evilRouteDropping,MIN_EVIL_ROUTE_DROPPING,MAX_EVIL_ROUTE_DROPPING,DEF_EVIL_ROUTE_DROPPING,0,opt_evil_route,
 			ARG_VALUE_FORM, "do not forward IPv6 packets towards attacked nodes"},
-	{ODI,0,ARG_EVIL_DESC_DROPPING,  0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &evilDescDropping,MIN_EVIL_DESC_DROPPING,MAX_EVIL_DESC_DROPPING,DEF_EVIL_DESC_DROPPING,0,NULL,
+	{ODI,0,ARG_EVIL_DESC_DROPPING,  0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &evilDescDropping,MIN_EVIL_DESC_DROPPING,MAX_EVIL_DESC_DROPPING,DEF_EVIL_DESC_DROPPING,0,NULL,
 			ARG_VALUE_FORM, "do not propagate description updates from attacked nodes"},
-	{ODI,0,ARG_EVIL_OGM_DROPPING,   0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &evilOgmDropping,MIN_EVIL_OGM_DROPPING,MAX_EVIL_OGM_DROPPING,DEF_EVIL_OGM_DROPPING,0,NULL,
+	{ODI,0,ARG_EVIL_OGM_DROPPING,   0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &evilOgmDropping,MIN_EVIL_OGM_DROPPING,MAX_EVIL_OGM_DROPPING,DEF_EVIL_OGM_DROPPING,0,NULL,
 			ARG_VALUE_FORM, "do not propagate routing updates (OGMs) from attacked nodes"},
-	{ODI,0,ARG_EVIL_OGM_METRICS,    0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &evilOgmMetrics, MIN_EVIL_OGM_METRICS,MAX_EVIL_OGM_METRICS,DEF_EVIL_OGM_METRICS,0,NULL,
+	{ODI,0,ARG_EVIL_OGM_METRICS,    0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &evilOgmMetrics, MIN_EVIL_OGM_METRICS,MAX_EVIL_OGM_METRICS,DEF_EVIL_OGM_METRICS,0,NULL,
 			ARG_VALUE_FORM, "Modify metrics of routing updates (OGMs) from attacked nodes"},
-	{ODI,0,ARG_EVIL_OGM_SQNS,       0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &evilOgmSqns,    MIN_EVIL_OGM_SQNS,MAX_EVIL_OGM_SQNS,DEF_EVIL_OGM_SQNS,0,NULL,
+	{ODI,0,ARG_EVIL_OGM_SQNS,       0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &evilOgmSqns,    MIN_EVIL_OGM_SQNS,MAX_EVIL_OGM_SQNS,DEF_EVIL_OGM_SQNS,0,NULL,
 			ARG_VALUE_FORM, "Modify SQNs of routing updates (OGMs) from attacked nodes"},
 };
 
@@ -243,9 +256,6 @@ static struct opt_type evil_options[]= {
 
 static int32_t evil_init( void )
 {
-	evil_tun_idx = kernel_dev_tun_add( DEF_EVIL_TUN_NAME, &evil_tun_fd, NO);
-	set_fd_hook(evil_tun_fd, tun_out_devZero_hook, ADD);
-
         register_options_array(evil_options, sizeof ( evil_options), CODE_CATEGORY_NAME);
 
 	orig_tx_frame_desc_adv = packet_frame_db->handls[FRAME_TYPE_DESC_ADVS].tx_frame_handler;
@@ -269,10 +279,16 @@ static void evil_cleanup( void )
 
 	cleanup_dir_watch(&evilDirWatch);
 
-	ip_flush_routes(AF_INET6, DEF_EVIL_IP_TABLE);
-	
-	set_fd_hook(evil_tun_fd, tun_out_devZero_hook, DEL);
-	kernel_dev_tun_del(DEF_EVIL_TUN_NAME, evil_tun_fd);
+	if (evil_tun_fd) {
+		iproute(IP_RULE_DEFAULT, DEL, NO, &ZERO_NET6_KEY, DEF_EVIL_IP_TABLE, DEF_EVIL_IP_RULE, 0, 0, 0, 0, NULL);
+
+		ip_flush_routes(AF_INET6, DEF_EVIL_IP_TABLE);
+		ip_flush_rules(AF_INET6, DEF_EVIL_IP_TABLE);
+
+		set_fd_hook(evil_tun_fd, tun_out_devZero_hook, DEL);
+		kernel_dev_tun_del(DEF_EVIL_TUN_NAME, evil_tun_fd);
+		evil_tun_fd = 0;
+	}
 }
 
 

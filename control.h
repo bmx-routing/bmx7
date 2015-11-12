@@ -360,6 +360,7 @@ struct opt_type {
 #define ARG_IP_FORM	"<ADDRESS>"
 #define ARG_ADDR_FORM	"<ADDRESS>/<PREFIX-LENGTH>"
 #define ARG_NETW_FORM	"<NETWORK>/<PREFIX-LENGTH>"
+#define HLP_DUMMY_OPT   "Dummy parameter. DO NOT USE!"
 	
 	char	*syntax;
 	char	*help;

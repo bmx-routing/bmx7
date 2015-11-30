@@ -684,6 +684,7 @@ int32_t rsa_load( char *tmp_path ) {
 	return SUCCESS;
 }
 
+
 STATIC_FUNC
 int32_t opt_key_path(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
 {
@@ -692,13 +693,26 @@ int32_t opt_key_path(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct op
 	static char key_path[MAX_PATH_SIZE] = DEF_KEY_PATH;
 	char tmp_path[MAX_PATH_SIZE] = "";
 
+	static int32_t keyLen = DEF_NODE_SIGN_LEN;
+
+
+	if (cmd == OPT_CHECK) {
+
+		keyLen = (patch->diff == ADD) ? strtol(patch->val, NULL, 10) : DEF_NODE_SIGN_LEN;
+
+		if (!keyLen || (keyLen%8) || cryptKeyTypeByLen(keyLen/8) == FAILURE)
+			return FAILURE;
+	}
+
 	if ( (cmd == OPT_CHECK || cmd == OPT_SET_POST) && initializing && !done ) {
 
-		if (cmd == OPT_CHECK) {
-			if ( wordlen( patch->val )+1 >= MAX_PATH_SIZE  ||  patch->val[0] != '/' )
+		struct opt_child *c = patch ? list_iterate(&patch->childs_instance_list, NULL) : NULL;
+
+		if (cmd == OPT_CHECK && c && c->val) {
+			if ( wordlen( c->val )+1 >= MAX_PATH_SIZE  ||  c->val[0] != '/' )
 				return FAILURE;
 
-			snprintf( tmp_path, wordlen(patch->val)+1, "%s", patch->val );
+			snprintf( tmp_path, wordlen(c->val)+1, "%s", c->val );
 		} else {
 			strcpy( tmp_path, key_path );
 		}
@@ -716,18 +730,18 @@ int32_t opt_key_path(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct op
 #ifndef NO_KEY_GEN
 		if ( check_file( tmp_path, YES/*regular*/,YES/*read*/, NO/*writable*/, NO/*executable*/ ) == FAILURE ) {
 
-			dbgf_sys(DBGT_WARN, "key=%s does not exist! Creating...", tmp_path);
+			dbgf_sys(DBGT_WARN, "key=%s does not exist! Creating RSA%d private key. This can take a while...", tmp_path, keyLen);
 
-			if (cryptKeyMakeDer(DEF_DESC_SIGN, tmp_path) != SUCCESS) {
-				dbgf_sys(DBGT_ERR, "Failed creating new %d bit key to %s!", DEF_DESC_SIGN, tmp_path);
+			if (cryptKeyMakeDer(keyLen, tmp_path) != SUCCESS) {
+				dbgf_sys(DBGT_ERR, "Failed creating new %d bit key to %s!", keyLen, tmp_path);
 				return FAILURE;
 			}
 		}
 #endif
-		if (rsa_load( tmp_path ) == SUCCESS ) {
-			dbgf_sys(DBGT_INFO, "Successfully initialized %d bit RSA key=%s !", (my_NodeKey->rawKeyLen * 8), tmp_path);
+		if (rsa_load( tmp_path ) == SUCCESS && my_NodeKey->rawKeyLen * 8 == keyLen) {
+			dbgf_sys(DBGT_INFO, "Successfully initialized RSA%d key=%s !", (my_NodeKey->rawKeyLen * 8), tmp_path);
 		} else {
-			dbgf_sys(DBGT_ERR, "key=%s invalid!", tmp_path);
+			dbgf_sys(DBGT_ERR, "key=%s (length?) invalid!", tmp_path);
 			return FAILURE;
 		}
 
@@ -1257,17 +1271,19 @@ STATIC_FUNC
 struct opt_type sec_options[]=
 {
 //order must be before ARG_HOSTNAME (which initializes self via init_self):
-	{ODI,0,ARG_KEY_PATH,		0,  4,1,A_PS1,A_ADM,A_INI,A_CFA,A_ANY,	0,		0,		0,		0,DEF_KEY_PATH,	opt_key_path,
+	{ODI,0,ARG_NODE_SIGN_LEN,         0,  4,1,A_PS1N,A_ADM,A_INI,A_CFA,A_ANY,       0,MIN_NODE_SIGN_LEN,MAX_NODE_SIGN_LEN,DEF_NODE_SIGN_LEN,0, opt_key_path,
+			ARG_VALUE_FORM, HLP_NODE_SIGN_LEN},
+	{ODI,ARG_NODE_SIGN_LEN,ARG_KEY_PATH,0,4,1,A_CS1, A_ADM,A_INI,A_CFA,A_ANY,	0,0,    	    0,		      0,     DEF_KEY_PATH, opt_key_path,
 			ARG_DIR_FORM,	"set path to rsa der-encoded private key file (used as permanent public ID"},
 	{ODI,0,ARG_NODE_SIGN_MAX,         0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &nodeSignMax,MIN_NODE_SIGN_MAX,MAX_NODE_SIGN_MAX,DEF_NODE_SIGN_MAX,0, opt_flush_all,
 			ARG_VALUE_FORM, HLP_NODE_SIGN_MAX},
 	{ODI,0,ARG_LINK_SIGN_LEN,         0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &linkSignLen,  MIN_LINK_SIGN_LEN,MAX_LINK_SIGN_LEN,DEF_LINK_SIGN_LEN,0, opt_linkSigning,
 			ARG_VALUE_FORM, HLP_LINK_SIGN_LEN},
-	{ODI,0,ARG_LINK_SIGN_LT,      0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &linkSignLifetime,0,MAX_LINK_SIGN_LT,DEF_LINK_SIGN_LT,0, opt_linkSigning,
+	{ODI,0,ARG_LINK_SIGN_LT,          0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &linkSignLifetime,0,MAX_LINK_SIGN_LT,DEF_LINK_SIGN_LT,0, opt_linkSigning,
 			ARG_VALUE_FORM, HLP_LINK_SIGN_LT},
-	{ODI,0,ARG_TRUSTED_NODES_DIR,   0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,DEF_TRUSTED_NODES_DIR, opt_dir_watch,
+	{ODI,0,ARG_TRUSTED_NODES_DIR,     0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,DEF_TRUSTED_NODES_DIR, opt_dir_watch,
 			ARG_DIR_FORM,"directory with global-id hashes of this node's trusted other nodes"},
-	{ODI,0,ARG_SUPPORTED_NODES_DIR, 0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,DEF_SUPPORTED_NODES_DIR, opt_dir_watch,
+	{ODI,0,ARG_SUPPORTED_NODES_DIR,   0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,DEF_SUPPORTED_NODES_DIR, opt_dir_watch,
 			ARG_DIR_FORM,"directory with global-id hashes of this node's supported other nodes"},
 
 };

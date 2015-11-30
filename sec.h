@@ -37,11 +37,11 @@
 #define ARG_KEY_PATH "keyPath"
 #define DEF_KEY_PATH "/etc/bmx6/rsa.der"
 
-#define ARG_DESC_SIGN "nodeSignatureLen"
-#define MIN_DESC_SIGN 512
-#define MAX_DESC_SIGN 4096
-#define DEF_DESC_SIGN 2048
-#define HLP_DESC_SIGN "sign own descriptions with given RSA key length"
+#define ARG_NODE_SIGN_LEN "nodeSignatureLen"
+#define MIN_NODE_SIGN_LEN 512
+#define MAX_NODE_SIGN_LEN 4096
+#define DEF_NODE_SIGN_LEN 3072
+#define HLP_NODE_SIGN_LEN "sign own descriptions with given RSA key length (512,768,896,1024,1536,2048,3072,4096)"
 
 
 #define ARG_NODE_SIGN_MAX "nodeSignatureLenMax"

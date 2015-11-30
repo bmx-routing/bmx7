@@ -306,6 +306,7 @@ typedef uint32_t DESC_SQN_T;
 
 
 
+#define ARG_LIST "list"
 #define ARG_SHOW "show"
 #define ARG_ORIGINATORS "originators"
 #define ARG_STATUS "status"

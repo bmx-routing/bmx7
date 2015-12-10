@@ -57,6 +57,26 @@
 #define HLP_LINK_SIGN_LEN "sign outgoing packets with given RSA key length (512,768,896,1024,1536,2048)"
 extern int32_t linkSignLen;
 
+#define ARG_DEV_SIGNATURES "strictSignatures"
+#define MIN_DEV_SIGNATURES 0
+#define OPT_DEV_SIGNATURES_NONE 0
+#define OPT_DEV_SIGNATURES_TX 1
+#define OPT_DEV_SIGNATURES_RXTX 2
+#define MAX_DEV_SIGNATURES 2
+#define DEF_DEV_SIGNATURES 2
+#define HLP_DEV_SIGNATURES "force link signatures for device. 0: no, 1: tx, 2: rx&tx"
+
+#define ARG_LINK_VERIFY "linkVerification"
+#define MIN_LINK_VERIFY 0
+#define MAX_LINK_VERIFY 1
+#define DEF_LINK_VERIFY 1
+#define HLP_LINK_VERIFY "disable (skip) link-signature verification"
+
+#define ARG_NODE_VERIFY "nodeVerification"
+#define MIN_NODE_VERIFY 0
+#define MAX_NODE_VERIFY 1
+#define DEF_NODE_VERIFY 1
+#define HLP_NODE_VERIFY "disable (skip) node description-signature verification"
 
 // http://my.opera.com/securitygroup/blog/2009/09/29/512-bit-rsa-key-breaking-developments
 // assuming 70 days to crack RSA512 keys (2009!) with a single dual-core machine,

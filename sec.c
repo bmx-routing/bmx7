@@ -60,6 +60,9 @@ static int32_t nodeSignMax = DEF_NODE_SIGN_MAX;
 static int32_t linkSignMax = DEF_LINK_SIGN_MAX;
 static int32_t linkSignMin = DEF_LINK_SIGN_MIN;
 
+static int32_t linkVerify = DEF_LINK_VERIFY;
+static int32_t nodeVerify = DEF_NODE_VERIFY;
+
 
 int32_t linkSignLifetime = DEF_LINK_SIGN_LT;
 int32_t linkSignLen = DEF_LINK_SIGN_LEN;
@@ -165,7 +168,8 @@ int create_packet_signature(struct tx_frame_iterator *it)
 		struct frame_msg_signature *msg = (struct frame_msg_signature *) &(hdr[1]);
 		assertion(-502517, ((uint8_t*)msg == tx_iterator_cache_msg_ptr(it)));
 
-		msg->type = my_LinkKey ? my_LinkKey->rawKeyType : 0;
+
+		msg->type = (my_LinkKey && it->ttn->key.f.p.dev->strictSignatures >= OPT_DEV_SIGNATURES_TX) ? my_LinkKey->rawKeyType : 0;
 
 		if (msg->type) {
 			//during later signature calculation msg is not hold in iterator cache anymore:
@@ -178,7 +182,7 @@ int create_packet_signature(struct tx_frame_iterator *it)
 			return sizeof(struct frame_msg_signature);
 		}
 
-	} else {
+	} else if (hdr) {
 		assertion(-502099, (it->frame_type > FRAME_TYPE_SIGNATURE_ADV));
 		assertion(-502100, (hdr && dataOffset));
 		assertion(-502197, (my_LinkKey && my_LinkKey->rawKeyLen && my_LinkKey->rawKeyType));
@@ -207,8 +211,8 @@ int create_packet_signature(struct tx_frame_iterator *it)
 		dataOffset = 0;
 
 		prof_stop();
-		return TLV_TX_DATA_DONE;
 	}
+	return TLV_TX_DATA_DONE;
 }
 
 STATIC_FUNC
@@ -287,22 +291,22 @@ int process_packet_signature(struct rx_frame_iterator *it)
 			goto_error_return( finish, "Failed key retrieval from description!", TLV_RX_DATA_FAILURE);
 	}
 
-	if ( pkey && !msg->type )
+	if ( pkey && !msg->type && it->pb->i.iif->strictSignatures >= OPT_DEV_SIGNATURES_RXTX)
 		goto_error_return( finish, "Key described but not used!", TLV_RX_DATA_FAILURE);
 	else if ( !pkey && msg->type )
 		goto_error_return( finish, "Key undescribed but used!", TLV_RX_DATA_FAILURE);
 
-	if (pkey) {
+	if (pkey && msg->type) {
 
-		if ( pkey->rawKeyType != msg->type )
-			goto_error_return( finish, "Described key different from used", TLV_RX_DATA_FAILURE);
+		if (pkey->rawKeyType != msg->type)
+			goto_error_return(finish, "Described key different from used", TLV_RX_DATA_FAILURE);
 
 		cryptShaNew(&it->pb->i.llip, sizeof(IPX_T));
 		cryptShaUpdate(hdr, sizeof(struct frame_hdr_signature));
 		cryptShaUpdate(data, dataLen);
 		cryptShaFinal(&packetSha);
 
-		if (cryptVerify(msg->signature, sign_len, &packetSha, pkey) != SUCCESS)
+		if (linkVerify && cryptVerify(msg->signature, sign_len, &packetSha, pkey) != SUCCESS)
 			goto_error_return(finish, "Failed signature verification", TLV_RX_DATA_FAILURE);
 	}
 
@@ -393,9 +397,7 @@ int create_dsc_tlv_linkKey(struct tx_frame_iterator *it)
 	TRACE_FUNCTION_CALL;
 
 	if (!linkSignLen) {
-
 		assertion(-502203, (!my_LinkKey));
-
 		return TLV_TX_DATA_DONE;
 	}
 
@@ -600,7 +602,8 @@ struct content_node *test_description_signature(uint8_t *desc, uint32_t desc_len
 
 	assertion(-502207, (pkey && cryptPubKeyCheck(pkey) == SUCCESS));
 
-	if (cryptVerify(signMsg->signature, signLen , &dataSha, pkey) != SUCCESS )
+
+	if (nodeVerify && cryptVerify(signMsg->signature, signLen , &dataSha, pkey) != SUCCESS )
 		goto_error( finish, "Invalid signature");
 
 	goto_return_code = pkeyRef;
@@ -1279,6 +1282,10 @@ struct opt_type sec_options[]=
 			ARG_VALUE_FORM, HLP_NODE_SIGN_MAX},
 	{ODI,0,ARG_LINK_SIGN_LEN,         0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &linkSignLen,  MIN_LINK_SIGN_LEN,MAX_LINK_SIGN_LEN,DEF_LINK_SIGN_LEN,0, opt_linkSigning,
 			ARG_VALUE_FORM, HLP_LINK_SIGN_LEN},
+	{ODI,0,ARG_LINK_VERIFY,           0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &linkVerify,   MIN_LINK_VERIFY,MAX_LINK_VERIFY, DEF_LINK_VERIFY,0, NULL,
+			ARG_VALUE_FORM, HLP_LINK_VERIFY},
+	{ODI,0,ARG_NODE_VERIFY,           0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &nodeVerify,   MIN_NODE_VERIFY,MAX_NODE_VERIFY, DEF_NODE_VERIFY,0, NULL,
+			ARG_VALUE_FORM, HLP_NODE_VERIFY},
 	{ODI,0,ARG_LINK_SIGN_LT,          0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &linkSignLifetime,0,MAX_LINK_SIGN_LT,DEF_LINK_SIGN_LT,0, opt_linkSigning,
 			ARG_VALUE_FORM, HLP_LINK_SIGN_LT},
 	{ODI,0,ARG_TRUSTED_NODES_DIR,     0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,DEF_TRUSTED_NODES_DIR, opt_dir_watch,

@@ -949,7 +949,7 @@ void tx_packets( void *unused ) {
 				pb.p.hdr.comp_version = my_compatibility;
 				pb.p.hdr.keyHash = myKey->kHash;
 
-				if (it.prev_out_type > FRAME_TYPE_OGM_AGG_SQN_ADV && my_LinkKey && my_LinkKey->rawKeyLen)
+				if (it.prev_out_type > FRAME_TYPE_OGM_AGG_SQN_ADV)
 					it.db->handls[FRAME_TYPE_SIGNATURE_ADV].tx_frame_handler(&it);
 
 				assertion(-502446, (it.frames_out_pos <= it.frames_out_max));

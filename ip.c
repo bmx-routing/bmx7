@@ -56,6 +56,7 @@
 #include "tools.h"
 #include "iptools.h"
 #include "allocate.h"
+#include "sec.h"
 
 #define CODE_CATEGORY_NAME "ip"
 
@@ -3368,6 +3369,7 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
 
                         // some configurable interface values - initialized to unspecified:
                         dev->linklayer_conf = OPT_CHILD_UNDEFINED;
+			dev->strictSignatures = DEF_DEV_SIGNATURES;
                         dev->channel_conf = OPT_CHILD_UNDEFINED;
                         dev->umetric_max_conf = (UMETRIC_T) OPT_CHILD_UNDEFINED;
                         dev->umetric_min_conf = (UMETRIC_T) OPT_CHILD_UNDEFINED;
@@ -3436,6 +3438,10 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
                         } else if (!strcmp(c->opt->name, ARG_DEV_CHANNEL) && cmd == OPT_APPLY) {
 
                                 dev->channel_conf = c->val ? strtol(c->val, NULL, 10) : OPT_CHILD_UNDEFINED;
+
+                        } else if (!strcmp(c->opt->name, ARG_DEV_SIGNATURES) && cmd == OPT_APPLY) {
+
+                                dev->strictSignatures = c->val ? strtol(c->val, NULL, 10) : DEF_DEV_SIGNATURES;
 
                         } else if (!strcmp(c->opt->name, ARG_DEV_BITRATE_MAX) && cmd == OPT_APPLY) {
 
@@ -3554,6 +3560,8 @@ static struct opt_type ip_options[]=
 	{ODI,ARG_DEV,ARG_DEV_BITRATE_MIN, 0, 9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,              0,              0,0,              opt_dev,
 			ARG_VALUE_FORM,	HLP_DEV_BITRATE_MIN},
 
+	{ODI,ARG_DEV,ARG_DEV_SIGNATURES, 0, 9,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		MIN_DEV_SIGNATURES,MAX_DEV_SIGNATURES,DEF_DEV_SIGNATURES,0, opt_dev,
+			ARG_VALUE_FORM,	HLP_DEV_SIGNATURES},
 
 
 };

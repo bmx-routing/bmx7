@@ -491,6 +491,8 @@ struct dev_node {
 
 	HELLO_SQN_T link_hello_sqn;
 
+	uint8_t strictSignatures;
+
 	int8_t linklayer_conf;
 	int8_t linklayer;
 

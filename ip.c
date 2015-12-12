@@ -571,8 +571,8 @@ IDM_T kernel_get_if_config_post(IDM_T purge_all, uint16_t curr_sqn)
 
                         if ( purge_all || curr_sqn != ian->update_sqn || curr_sqn != iln->update_sqn) {
 
-                                dbgf_track(DBGT_WARN, "addr index %d %s addr %s REMOVED",
-                                        iln->index, ian->label.str, ipXAsStr(ian->ifa.ifa_family, &ian->ip_addr));
+                                dbgf_track(DBGT_WARN, "addr index=%d label=%s addr=%s (currSqn=%d ilnSqn=%d ianSqn=%d) REMOVED",
+                                        iln->index, ian->label.str, ipXAsStr(ian->ifa.ifa_family, &ian->ip_addr), curr_sqn, iln->update_sqn, ian->update_sqn);
 
                                 if (ian->dev) {
                                         ian->dev->hard_conf_changed = YES;
@@ -3281,6 +3281,27 @@ int32_t opt_auto_prefix(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
 	return SUCCESS;
 }
 
+STATIC_FUNC
+void dev_destroy(struct dev_node *dev)
+{
+	if (dev->active)
+		dev_deactivate(dev);
+
+	avl_remove(&dev_name_tree, &dev->name_phy_cfg, -300205);
+
+	if (dev->if_llocal_addr)
+		dev->if_llocal_addr->dev = NULL;
+
+	if (dev->if_global_addr)
+		dev->if_global_addr->dev = NULL;
+
+	uint16_t i;
+	for (i = 0; i < plugin_data_registries[PLUGIN_DATA_DEV]; i++) {
+		assertion(-500767, (!dev->plugin_data[i]));
+	}
+
+	debugFree(dev, -300048);
+}
 
 STATIC_FUNC
 int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
@@ -3332,17 +3353,7 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
 
                                 opt_dev_changed = YES;
 
-                                if (dev->active)
-                                        dev_deactivate(dev);
-
-                                avl_remove(&dev_name_tree, &dev->name_phy_cfg, -300205);
-
-                                uint16_t i;
-                                for (i = 0; i < plugin_data_registries[PLUGIN_DATA_DEV]; i++) {
-                                        assertion(-500767, (!dev->plugin_data[i]));
-                                }
-
-                                debugFree(dev, -300048);
+				dev_destroy(dev);
 
                                 return SUCCESS;
 
@@ -3634,20 +3645,8 @@ void cleanup_ip(void)
 
         kernel_get_if_config_post(YES,0);
 
-
-
-        while (dev_name_tree.items) {
-
-                struct dev_node *dev = dev_name_tree.root->item;
-
-                if (dev->active)
-                        dev_deactivate(dev);
-
-                avl_remove(&dev_name_tree, &dev->name_phy_cfg, -300204);
-
-                debugFree(dev, -300046);
-        }
-
+        while (dev_name_tree.items)
+		dev_destroy(dev_name_tree.root->item);
 
         if (ip_rth.fd >= 0) {
                 close(ip_rth.fd);

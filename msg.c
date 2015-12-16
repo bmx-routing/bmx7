@@ -59,6 +59,7 @@ int32_t pref_udpd_size = DEF_UDPD_SIZE;
 
 int32_t txCasualInterval = DEF_TX_CASUAL_INTERVAL;
 int32_t txMinInterval = DEF_TX_MIN_INTERVAL;
+int32_t txBucketDrain = DEF_TX_BUCKET_DRAIN;
 
 int32_t txFrameIterations = DEF_TX_FRAME_ITERS;
 int32_t txFrameInterval = DEF_TX_FRAME_INTERVAL;
@@ -820,6 +821,7 @@ struct tx_task_node *get_next_ttn( struct tx_task_node *curr) {
 	return NULL;
 }
 
+STATIC_FUNC
 TIME_T nextBucketSchedule(TIME_T minInterval, TIME_T drainInterval, TIME_T maxInterval, uint32_t *debtBucket, uint32_t debtLimit, TIME_T *last, IDM_T send, uint32_t variation)
 {
 	assertion(-502440, (minInterval <= drainInterval && drainInterval <= maxInterval));
@@ -865,7 +867,10 @@ void tx_packets( void *unused ) {
 
 		nextTask = get_next_ttn(NULL);
 	}
-	TIME_T nextSchedule = nextBucketSchedule(txMinInterval, ((txCasualInterval*DEF_TX_BUCKET_DRAIN)/100), txCasualInterval, &txBucket, txBucketSize, &txBucketLast, !!nextTask, 10);
+
+	TIME_T realMinInterval = XMIN(txMinInterval, txCasualInterval);
+	TIME_T drainInterval = realMinInterval + (((txCasualInterval - realMinInterval) * (100 - txBucketDrain)) / 100);
+	TIME_T nextSchedule = nextBucketSchedule(realMinInterval, drainInterval, txCasualInterval, &txBucket, txBucketSize, &txBucketLast, !!nextTask, 10);
 
 	task_register(nextSchedule, tx_packets, NULL, -300353);
 
@@ -1171,15 +1176,17 @@ struct opt_type msg_options[]=
 	{ODI,0,ARG_FZIP,                  0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &dextCompression,MIN_FZIP,           MAX_FZIP,          DEF_FZIP,0,           opt_update_dext_method,
 			ARG_VALUE_FORM, HLP_FZIP},
         {ODI,0,ARG_TX_MIN_INTERVAL,       0,  9,1, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &txMinInterval, MIN_TX_MIN_INTERVAL, MAX_TX_MIN_INTERVAL, DEF_TX_MIN_INTERVAL,0, NULL,
-			ARG_VALUE_FORM,	"set aggregation interval (SHOULD be around 1/5 of yours and others OGM interval)"},
+			ARG_VALUE_FORM,	HLP_TX_MIN_INTERVAL},
         {ODI,0,ARG_TX_CASUAL_INTERVAL,    0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &txCasualInterval,MIN_TX_CASUAL_INTERVAL, MAX_TX_CASUAL_INTERVAL,DEF_TX_CASUAL_INTERVAL,0,    NULL,
-			ARG_VALUE_FORM,	"set interval for scheduling periodic tasks interval in ms"},
+			ARG_VALUE_FORM,	HLP_TX_CASUAL_INTERVAL},
+        {ODI,0,ARG_TX_BUCKET_DRAIN,       0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &txBucketDrain,   MIN_TX_BUCKET_DRAIN,MAX_TX_BUCKET_DRAIN,DEF_TX_BUCKET_DRAIN,0,    NULL,
+			ARG_VALUE_FORM,	HLP_TX_BUCKET_DRAIN},
+        {ODI,0,ARG_TX_BUCKET_SIZE,        0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &txBucketSize,    MIN_TX_BUCKET_SIZE, MAX_TX_BUCKET_SIZE,DEF_TX_BUCKET_SIZE,0,    NULL,
+			ARG_VALUE_FORM,	HLP_TX_BUCKET_SIZE},
         {ODI,0,ARG_TX_FRAME_INTERVAL,     0,  9,1, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &txFrameInterval, MIN_TX_FRAME_INTERVAL, MAX_TX_FRAME_INTERVAL, DEF_TX_FRAME_INTERVAL,0, NULL,
 			ARG_VALUE_FORM,	"set default interval for resending unreplied request frames"},
-        {ODI,0,ARG_TX_FRAME_ITERS,        0,  9,1, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &txFrameIterations, MIN_TX_FRAME_ITERS, MAX_TX_FRAME_ITERS, DEF_TX_FRAME_ITERS,0, NULL,
+        {ODI,0,ARG_TX_FRAME_ITERS,        0,  9,1, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &txFrameIterations,MIN_TX_FRAME_ITERS,MAX_TX_FRAME_ITERS,DEF_TX_FRAME_ITERS,0, NULL,
 			ARG_VALUE_FORM,	"set default iterations for resending unreplied request frames"},
-        {ODI,0,ARG_TX_BUCKET_SIZE,        0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &txBucketSize,    MIN_TX_BUCKET_SIZE, MAX_TX_BUCKET_SIZE,DEF_TX_BUCKET_SIZE,0,    NULL,
-			ARG_VALUE_FORM,	"set number of tx packets allowed to exceed average tx interval"},
         {ODI,0,ARG_OVERLAPPING_BURSTS,    0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &overlappingBursts,MIN_OVERLAPPING_BURSTS,MAX_OVERLAPPING_BURSTS,DEF_OVERLAPPING_BURSTS,0,    NULL,
 			ARG_VALUE_FORM,	"set acceptable burst-sqn overlap for detecting duplicate packets"},
         {ODI,0,ARG_TX_TREE_SIZE_MAX,      0,  9,1, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &txTaskTreeSizeMax, MIN_TX_TREE_SIZE_MAX, MAX_TX_TREE_SIZE_MAX, DEF_TX_TREE_SIZE_MAX,0, NULL,
@@ -1212,7 +1219,7 @@ void init_msg( void )
 
 	register_options_array( msg_options, sizeof( msg_options ), CODE_CATEGORY_NAME );
 
-	task_register(rand_num(txMinInterval), tx_packets, NULL, -300350);
+	task_register(rand_num(txCasualInterval), tx_packets, NULL, -300350);
 
 }
 

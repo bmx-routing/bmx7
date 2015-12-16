@@ -52,23 +52,31 @@ extern int32_t pref_udpd_size;
 extern uint32_t txBucket;
 extern int32_t txBucketSize;
 
-#define DEF_TX_BUCKET_DRAIN 70
+#define DEF_TX_MIN_INTERVAL 100
+#define MIN_TX_MIN_INTERVAL 35
+#define MAX_TX_MIN_INTERVAL 10000  // < U16_MAX due to metricalgo->ogm_interval field
+#define ARG_TX_MIN_INTERVAL "txMinInterval"
+#define HLP_TX_MIN_INTERVAL "set min tx interval (for sending dynamic messages) in ms"
+
+#define DEF_TX_CASUAL_INTERVAL 800
+#define MIN_TX_CASUAL_INTERVAL 100
+#define MAX_TX_CASUAL_INTERVAL 10000
+#define ARG_TX_CASUAL_INTERVAL "txAvgInterval"
+#define HLP_TX_CASUAL_INTERVAL "set target (average) tx interval (for sending periodic messages) in ms"
+extern int32_t txCasualInterval;
 
 #define DEF_TX_BUCKET_SIZE 50
 #define MIN_TX_BUCKET_SIZE 1
 #define MAX_TX_BUCKET_SIZE 100000
 #define ARG_TX_BUCKET_SIZE "txBucketSize"
+#define HLP_TX_BUCKET_SIZE "set number of tx packets allowed to exceed target (average) tx rate"
 
-#define MAX_TX_CASUAL_INTERVAL 5000
-#define MIN_TX_CASUAL_INTERVAL 100
-#define DEF_TX_CASUAL_INTERVAL 800
-#define ARG_TX_CASUAL_INTERVAL "txAvgInterval"
-extern int32_t txCasualInterval;
+#define DEF_TX_BUCKET_DRAIN 34
+#define MIN_TX_BUCKET_DRAIN 0
+#define MAX_TX_BUCKET_DRAIN 100
+#define ARG_TX_BUCKET_DRAIN "txBucketDrain"
+#define HLP_TX_BUCKET_DRAIN "specifies in percent how much tx bucket drains between txMinInterval (e.g. drain=100%) and txAvgInterval (e.g. drain=0%)."
 
-#define MIN_TX_MIN_INTERVAL 35
-#define MAX_TX_MIN_INTERVAL 10000  // < U16_MAX due to metricalgo->ogm_interval field
-#define DEF_TX_MIN_INTERVAL 100
-#define ARG_TX_MIN_INTERVAL "txMinInterval"
 
 #define MIN_TX_FRAME_INTERVAL 100
 #define MAX_TX_FRAME_INTERVAL 10000

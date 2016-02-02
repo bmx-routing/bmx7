@@ -1207,8 +1207,8 @@ int32_t opt_version(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt
 
         assertion(-501257, !strcmp(opt->name, ARG_VERSION));
 
-        dbg_printf(cn, "version=%s-%s compatibility=%d revision=%s id=%s ip=%s hostname=%s\n",
-                        BMX_BRANCH, BRANCH_VERSION, my_compatibility, GIT_REV, cryptShaAsString(&myKey->kHash), ip6AsStr(&my_primary_ip), my_Hostname);
+        dbg_printf(cn, "version=%s-%s compatibility=%d revision=%s id=%s descSqn=%d ip=%s hostname=%s\n",
+                        BMX_BRANCH, BRANCH_VERSION, my_compatibility, GIT_REV, cryptShaAsString(&myKey->kHash), myKey->currOrig ? (int)myKey->currOrig->descContent->descSqn : -1, ip6AsStr(&my_primary_ip), my_Hostname);
 
         if (initializing)
                 cleanup_all(CLEANUP_SUCCESS);

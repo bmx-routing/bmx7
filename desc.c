@@ -358,7 +358,7 @@ int32_t opt_show_descriptions(uint8_t cmd, uint8_t _save, struct opt_type *opt,
                 while ((dhn = avl_iterate_item(&dhash_tree, &an))) {
 
 			struct desc_content *dc = dhn->descContent;
-			if (name && (!dc->orig || strcmp(name, dc->orig->k.hostname)))
+			if (name && (!dc || !dc->orig || strcmp(name, dc->orig->k.hostname)))
 				continue;
 
                         dbg_printf(cn, "\ndescSha=%s nodeId=%s name=%s state=%s contents=%d/%d rejected=%d neighRefs=%d:",

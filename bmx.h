@@ -47,7 +47,7 @@ typedef int8_t IDM_T; // smallest int which size does NOT matter
 #define vdprintf vfdprintf
 #endif
 
-#define BMX_BRANCH "BMX6"
+#define BMX_BRANCH "BMX7"
 #define BRANCH_VERSION "0.1-alpha" //put exactly one distinct word inside the string like "0.3-pre-alpha" or "0.3-rc1" or "0.3"
 
 #define cv16 16 // deployed cv16..cv16, announces 16, uses cv16, accepts 16..16, processes cv16..cv16, finished cv16=CV16     , developing CV17+

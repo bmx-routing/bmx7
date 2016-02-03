@@ -827,7 +827,7 @@ IDM_T setted_pubkey(struct desc_content *dc, uint8_t type, GLOBAL_ID_T *globalId
 	if (setList) {
 		for (m = 0; m < msgs; m++) {
 
-			if (cryptShasEqual(globalId, &setList[m].globalId))
+			if (cryptShasEqual(globalId, &setList[m].nodeId))
 				return 1;
 		}
 		return 0;
@@ -954,7 +954,7 @@ int create_dsc_tlv_trusts(struct tx_frame_iterator *it)
 				return TLV_TX_DATA_FULL;
 			}
 
-			msg->globalId = tn ? tn->global_id : myKey->kHash;
+			msg->nodeId = tn ? tn->global_id : myKey->kHash;
 			msg++;
 			pos += sizeof(struct dsc_msg_trust);
 

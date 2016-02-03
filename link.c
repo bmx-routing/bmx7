@@ -699,7 +699,7 @@ int32_t rx_msg_hello_reply(struct rx_frame_iterator *it)
 
 struct link_status {
 	GLOBAL_ID_T *shortId;
-	GLOBAL_ID_T *globalId;
+	GLOBAL_ID_T *nodeId;
 	char* name;
 	char* nodeKey;
 	char* linkKey;
@@ -723,7 +723,7 @@ struct link_status {
 
 static const struct field_format link_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_SHORT_ID,  link_status, shortId,          1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, link_status, globalId,         1, FIELD_RELEVANCE_LOW),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, link_status, nodeId,         1, FIELD_RELEVANCE_LOW),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      link_status, name,             1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      link_status, nodeKey,          1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      link_status, linkKey,           1, FIELD_RELEVANCE_HIGH),
@@ -786,7 +786,7 @@ static int32_t link_status_creator(struct status_handl *handl, void *data)
 			while ((link = avl_next_item(&linkDev->link_tree, (link ? &link->k : NULL)))) {
 				struct dsc_msg_pubkey *pkm;
 
-				status[i].globalId = &on->k.nodeId;
+				status[i].nodeId = &on->k.nodeId;
 				status[i].shortId = &on->k.nodeId;
 				status[i].name = on->k.hostname;
 				status[i].nodeKey = cryptKeyTypeAsString(((struct dsc_msg_pubkey*) on->key->content->f_body)->type);

@@ -67,7 +67,7 @@ struct content_node * content_get(SHA1_T *chash)
 
 struct content_status {
 	GLOBAL_ID_T *shortId;
-	GLOBAL_ID_T *globalId;
+	GLOBAL_ID_T *nodeId;
 	char* name;
 	char *state;
 	DESC_SQN_T descSqn;
@@ -97,7 +97,7 @@ struct content_status {
 
 static const struct field_format content_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_SHORT_ID,  content_status, shortId,       1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, content_status, globalId,      1, FIELD_RELEVANCE_LOW),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, content_status, nodeId,      1, FIELD_RELEVANCE_LOW),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      content_status, name,          1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      content_status, state,         1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              content_status, descSqn,       1, FIELD_RELEVANCE_HIGH),
@@ -142,7 +142,7 @@ uint8_t *content_status_page(uint8_t *sOut, uint32_t i, struct content_usage_nod
 
 	if (kn) {
 		cs->shortId = &kn->kHash;
-		cs->globalId = &kn->kHash;
+		cs->nodeId = &kn->kHash;
 		cs->state = kn->bookedState->secName;
 	}
 

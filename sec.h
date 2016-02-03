@@ -155,12 +155,12 @@ struct dsc_msg_signature {
 
 
 #define DESCRIPTION_MSG_TRUST_FORMAT { \
-{FIELD_TYPE_STRING_BINARY, -1, 8*sizeof(CRYPTSHA1_T),               1, FIELD_RELEVANCE_HIGH,  "globalId"},  \
+{FIELD_TYPE_STRING_BINARY, -1, 8*sizeof(CRYPTSHA1_T),               1, FIELD_RELEVANCE_HIGH,  "nodeId"},  \
 {FIELD_TYPE_UINT,          -1, 8*sizeof(uint16_t),                   1, FIELD_RELEVANCE_HIGH,  "reserved"}, \
 FIELD_FORMAT_END }
 
 struct dsc_msg_trust {
-	CRYPTSHA1_T globalId;
+	CRYPTSHA1_T nodeId;
 	uint16_t reserved;
 } __attribute__((packed));
 
@@ -177,7 +177,7 @@ GLOBAL_ID_T *get_desc_id(uint8_t *desc_adv, uint32_t desc_len, struct dsc_msg_si
 
 struct content_node *test_description_signature(uint8_t *desc, uint32_t desc_len);
 
-IDM_T setted_pubkey(struct desc_content *dc, uint8_t type, GLOBAL_ID_T *globalId);
+IDM_T setted_pubkey(struct desc_content *dc, uint8_t type, GLOBAL_ID_T *nodeId);
 IDM_T supportedKnownKey(CRYPTSHA1_T *pkhash);
 INT_NEIGH_ID_T allocate_internalNeighId(struct neigh_node *nn);
 void free_internalNeighId(INT_NEIGH_ID_T ini);

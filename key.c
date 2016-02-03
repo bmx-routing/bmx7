@@ -821,7 +821,7 @@ void keyNode_delCredits_(const char* f, GLOBAL_ID_T *kHash, struct key_node *kn,
 				struct key_credits vkc = {.recom = kn->currOrig};
 
 				for (m = 0; m < suppMsgs; m++)
-					keyNode_delCredits(&suppMsg[m].globalId, NULL, &vkc);
+					keyNode_delCredits(&suppMsg[m].nodeId, NULL, &vkc);
 
 			}
 			kn->dirFriend = 0;
@@ -866,9 +866,9 @@ void keyNode_addCredits_(struct key_node *kn, struct key_credits *kc)
 			for (m = 0; m < suppMsgs; m++) {
 
 				if (kn->dirFriend < kc->friend)
-					keyNode_updCredits(&suppMsg[m].globalId, NULL, &vkc);
+					keyNode_updCredits(&suppMsg[m].nodeId, NULL, &vkc);
 				else
-					keyNode_delCredits(&suppMsg[m].globalId, NULL, &vkc);
+					keyNode_delCredits(&suppMsg[m].nodeId, NULL, &vkc);
 			}
 		}
 

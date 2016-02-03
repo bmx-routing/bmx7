@@ -733,7 +733,7 @@ void register_status_handl(uint16_t min_msg_size, IDM_T multiline, const struct 
 
 struct bmx_status {
 	GLOBAL_ID_T *shortId;
-	GLOBAL_ID_T *globalId;
+	GLOBAL_ID_T *nodeId;
 	char* name;
 	char *nodeKey;
 	char *linkKey;
@@ -761,7 +761,7 @@ struct bmx_status {
 
 static const struct field_format bmx_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_SHORT_ID,  bmx_status, shortId,       1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, bmx_status, globalId,      1, FIELD_RELEVANCE_LOW),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, bmx_status, nodeId,      1, FIELD_RELEVANCE_LOW),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      bmx_status, name,          1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      bmx_status, nodeKey,       1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      bmx_status, linkKey,       1, FIELD_RELEVANCE_HIGH),
@@ -793,7 +793,7 @@ static int32_t bmx_status_creator(struct status_handl *handl, void *data)
 	struct tun_in_node *tin = avl_first_item(&tun_in_tree);
 	struct bmx_status *status = (struct bmx_status *) (handl->data = debugRealloc(handl->data, sizeof(struct bmx_status), -300365));
 	struct dsc_msg_pubkey *pkm;
-	status->globalId = &myKey->kHash;
+	status->nodeId = &myKey->kHash;
 	status->shortId = &myKey->kHash;
 	status->name = my_Hostname;
 	status->shortDhash = &myKey->currOrig->descContent->dhn->dhash;
@@ -823,7 +823,7 @@ static int32_t bmx_status_creator(struct status_handl *handl, void *data)
 
 struct orig_status {
 	GLOBAL_ID_T *shortId;
-	GLOBAL_ID_T *globalId;
+	GLOBAL_ID_T *nodeId;
 	char* name;
 	char *state;
 	uint16_t pref;
@@ -859,7 +859,7 @@ struct orig_status {
 
 static const struct field_format orig_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_SHORT_ID,  orig_status, shortId,       1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, orig_status, globalId,      1, FIELD_RELEVANCE_LOW),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, orig_status, nodeId,        1, FIELD_RELEVANCE_LOW),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      orig_status, name,          1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      orig_status, state,         1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, pref,          1, FIELD_RELEVANCE_MEDI),
@@ -914,7 +914,7 @@ uint8_t *key_status_page(uint8_t *sOut, uint32_t i, struct orig_node *on, struct
 
 	if (kn) {
 		os->shortId = &kn->kHash;
-		os->globalId = &kn->kHash;
+		os->nodeId = &kn->kHash;
 		os->state = kn->bookedState->secName;
 		os->pref = (*(kn->bookedState->prefGet))(kn);
 		os->brcTo = kn->pktIdTime ? (((TIME_T) (link_purge_to - (bmx_time - kn->pktIdTime))) / 1000) : 0;
@@ -1006,7 +1006,7 @@ static int32_t orig_status_creator(struct status_handl *handl, void *data)
 
 struct ref_status {
 	GLOBAL_ID_T *shortId;
-	GLOBAL_ID_T *globalId;
+	GLOBAL_ID_T *nodeId;
 	char* name;
 	char *state;
 	uint8_t claim;
@@ -1029,7 +1029,7 @@ struct ref_status {
 
 static const struct field_format ref_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_SHORT_ID,  ref_status, shortId,       1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, ref_status, globalId,      1, FIELD_RELEVANCE_LOW),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, ref_status, nodeId,      1, FIELD_RELEVANCE_LOW),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      ref_status, name,          1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      ref_status, state,         1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              ref_status, claim,         1, FIELD_RELEVANCE_HIGH),
@@ -1072,7 +1072,7 @@ uint8_t *ref_status_page(uint8_t *sOut, uint32_t i, struct reference_node *ref, 
 
 	if (kn) {
 		rs->shortId = &kn->kHash;
-		rs->globalId = &kn->kHash;
+		rs->nodeId = &kn->kHash;
 		rs->state = kn->bookedState->secName;
 		rs->claim = !!ref->claimedKey;
 		rs->desc = !!ref->dhn->descContent;

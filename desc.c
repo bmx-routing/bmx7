@@ -376,12 +376,12 @@ int32_t opt_show_descriptions(uint8_t cmd, uint8_t _save, struct opt_type *opt,
                         int32_t result;
                         while ((result = rx_frame_iterate(&it)) > TLV_RX_DATA_DONE) {
 
-				if (it.f_handl) {
-					dbg_printf(cn, "\n  %s (%s):", it.f_handl->name, dc->final[it.f_type].desc_tlv_body_len ? "inline" : "referenced");
+				dbg_printf(cn, "\n  %s=%d (%s%s):",
+					it.f_handl ? it.f_handl->name : "DSC_UNKNOWN", it.f_type_expanded,
+					dc->final[it.f_type].desc_tlv_body_len ? "inline" : "ref=",
+					dc->final[it.f_type].desc_tlv_body_len ? "" : cryptShaAsString(&dc->final[it.f_type].u.cun->k.content->chash));
+				if (it.f_handl)
 					fields_dbg_lines(cn, relevance, it.f_msgs_len, it.f_msg, it.f_handl->min_msg_size, it.f_handl->msg_format);
-				} else {
-					dbg_printf(cn, "\n  DSC_UNKNOWN=%d (%s)", it.f_type_expanded, dc->final[it.f_type_expanded].desc_tlv_body_len ? "inline" : "referenced");
-				}
                         }
 
 		}

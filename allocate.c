@@ -181,7 +181,7 @@ void checkLeak(void)
 
         if (chunkList != NULL) {
 
-                openlog( "bmx6", LOG_PID, LOG_DAEMON );
+                openlog( "bmx7", LOG_PID, LOG_DAEMON );
 
                 for (walker = chunkList; walker != NULL; walker = walker->next) {
 			syslog( LOG_ERR, "Memory leak detected, malloc tag = %d\n", walker->tag );

@@ -355,8 +355,8 @@ int cryptKeyMakeDer( int32_t keyBitSize, char *tmp_path ) {
 	}
 	
 	// alternatively create private der encoded key with openssl:
-	// openssl genrsa -out /etc/bmx6/rsa.pem 1024
-	// openssl rsa -in /etc/bmx6/rsa.pem -inform PEM -out /etc/bmx6/rsa.der -outform DER
+	// openssl genrsa -out /etc/bmx7/rsa.pem 1024
+	// openssl rsa -in /etc/bmx7/rsa.pem -inform PEM -out /etc/bmx7/rsa.der -outform DER
 	//
 	// read this with:
 	//    dumpasn1 key.der
@@ -669,8 +669,8 @@ CRYPTKEY_T *cryptKeyFromDer( char *keyPath ) {
 #ifndef NO_KEY_GEN
 
 // alternatively create private der encoded key with openssl:
-// openssl genrsa -out /etc/bmx6/rsa.pem 1024
-// openssl rsa -in /etc/bmx6/rsa.pem -inform PEM -out /etc/bmx6/rsa.der -outform DER
+// openssl genrsa -out /etc/bmx7/rsa.pem 2048
+// openssl rsa -in /etc/bmx7/rsa.pem -inform PEM -out /etc/bmx7/rsa.der -outform DER
 //
 // read this with:
 //    dumpasn1 key.der

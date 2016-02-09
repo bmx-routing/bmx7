@@ -287,7 +287,7 @@ struct plugin* get_plugin( void ) {
 	memset( &http_info_plugin, 0, sizeof ( struct plugin ) );
 	
 
-	http_info_plugin.plugin_name = "bmx6_http_info_plugin";
+	http_info_plugin.plugin_name = "bmx7_http_info_plugin";
 	http_info_plugin.plugin_size = sizeof ( struct plugin );
 	http_info_plugin.cb_init = http_info_init;
 	http_info_plugin.cb_cleanup = http_info_cleanup;

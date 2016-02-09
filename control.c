@@ -1654,7 +1654,7 @@ int32_t opt_connect_client_to_daemon(uint8_t cmd, struct opt_type *opt, struct c
 			
 			if ( connect ( unix_sock, (struct sockaddr *)&unix_addr, sizeof(struct sockaddr_un) ) < 0 ) {
 
-                                dbg_sys(DBGT_ERR, "can't connect to unix socket '%s': %s ! Is bmx6 running on this host ?",
+                                dbg_sys(DBGT_ERR, "can't connect to unix socket '%s': %s ! Is bmx7 running on this host ?",
 				     tmp_path, strerror(errno) );
 				
 				cleanup_all( CLEANUP_FAILURE );
@@ -1782,7 +1782,7 @@ int32_t opt_connect_daemon_to_unix_sock(uint8_t cmd, uint8_t _save, struct opt_t
 		} else {
 			
 			dbg_sys(DBGT_ERR,
-			     "%s busy! Probably bmx6 is already running! Use [--%s %s] -c ... to connect to a running bmx6",
+			     "%s busy! Probably bmx7 is already running! Use [--%s %s] -c ... to connect to a running bmx7",
 			     tmp_path, ARG_RUN_DIR, run_dir );
 			cleanup_all( CLEANUP_FAILURE );
 			
@@ -2872,7 +2872,7 @@ int32_t opt_help(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
 	dbg_printf( cn, "\n");
 
 	if ( relevance != MAX_RELEVANCE ) {
-                dbg_printf(cn, "Environment variables (e.g. sudo %s=/usr/src/bmx6/lib %s -d3 eth0:bmx ):\n",
+                dbg_printf(cn, "Environment variables (e.g. sudo %s=/usr/src/bmx7/lib %s -d3 dev=eth0 ):\n",
 		            BMX_ENV_LIB_PATH, prog_name );
 
 		dbg_printf(cn, "\t%s\n", BMX_ENV_LIB_PATH );
@@ -3011,7 +3011,7 @@ void init_control(void)
 	for ( i = DBGL_MIN; i <= DBGL_MAX; i++ )
 		LIST_INIT_HEAD( dbgl_clients[i], struct dbgl_node, list, list );
 	
-	openlog( "bmx6", LOG_PID, LOG_DAEMON );
+	openlog( "bmx7", LOG_PID, LOG_DAEMON );
 	
 	memset( &Patch_opt, 0, sizeof( struct opt_type ) );
 

@@ -918,7 +918,7 @@ void _add_tun_bit_node(struct tun_search_node *tsna, struct tun_net_node *tnna)
 				cryptShaAsString(&on->k.nodeId), on->k.hostname);
 
 			if (!(
-				(tbkn.tsn->routeSearchProto == TYP_TUN_PROTO_ALL || tbkn.tsn->routeSearchProto == tbkn.tnn->tunNetKey.bmx6RouteType) &&
+				(tbkn.tsn->routeSearchProto == TYP_TUN_PROTO_ALL || tbkn.tsn->routeSearchProto == tbkn.tnn->tunNetKey.bmx7RouteType) &&
 				tsn_netKey->af == tnn_netKey->af &&
 				(tbkn.tsn->netPrefixMax == TYP_TUN_OUT_PREFIX_NET ?
 				tsn_netKey->mask >= tnn_netKey->mask : tbkn.tsn->netPrefixMax >= tnn_netKey->mask) &&
@@ -1106,7 +1106,7 @@ void eval_tun_bit_tree(void *onlyIfOrderChanged)
 			assertion(-501564, (currBKey.keyNodes.tnn));
 			assertion(-501565, (currBKey.keyNodes.tnn->tunNetKey.ton));
 			assertion(-501574, (assert_tbn_ton_tdn(isv4, currBKey.keyNodes.tnn->tunNetKey.ton, tbn_curr)));
-			//TODO: This one would casually cause bmx6 to crash. But later 501577 seems NOT !!?
+			//TODO: This one would casually cause bmx7 to crash. But later 501577 seems NOT !!?
 			//assertion(-501575, IMPLIES(tbn_curr,
 			//	tbn_curr->active_tdn==tbn_curr->tunBitKey.keyNodes.tnn->tunNetKey.ton->tdnCatchAll[isv4] ||
 			//	tbn_curr->active_tdn==tbn_curr->tunBitKey.keyNodes.tnn->tunNetKey.ton->tdnDedicated[isv4] ));
@@ -1758,7 +1758,7 @@ int process_dsc_tlv_tunXin6net(struct rx_frame_iterator *it)
 					struct tun_net_key tnk = ZERO_TUN_NET_KEY;
 					tnk.ton = ton;
 					tnk.netKey = net;
-					tnk.bmx6RouteType = adv->proto_type;
+					tnk.bmx7RouteType = adv->proto_type;
 
 					struct tun_net_node *tnn = avl_find_item(&tun_net_tree, &tnk);
 					char *what = NULL;
@@ -2016,7 +2016,7 @@ static int32_t tun_out_status_creator(struct status_handl *handl, void *data)
 				status->localTunIp = &tun->localIp;
 				status->remoteTunIp = &tun->remoteIp;
 				status->tunId = tun->tunOutKey.tun6Id;
-				status->advProto = tnn->tunNetKey.bmx6RouteType;
+				status->advProto = tnn->tunNetKey.bmx7RouteType;
 				strcpy(status->advNet, netAsStr(&tnn->tunNetKey.netKey));
 				strcpy(status->srcIngress, netAsStr(&tun->ingressPrefix[(tnn->tunNetKey.netKey.af == AF_INET)]));
 				status->advBwVal = fmetric_u8_to_umetric(tnn->bandwidth);
@@ -2876,7 +2876,7 @@ static struct opt_type tun_options[]= {
 	{ODI,ARG_TUN_OUT,ARG_TUN_OUT_TRULE,0,9,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,   0,	          0,              0,         0,DEF_TUN_OUT_TRULE,opt_tun_search,
 			FORM_TUN_OUT_TRULE, "ip rules tabel and preference to maintain matching tunnels"},
 	{ODI,ARG_TUN_OUT,ARG_EXPORT_ONLY,  0,9,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,  0,            MIN_EXPORT_ONLY,MAX_EXPORT_ONLY,DEF_EXPORT_ONLY,0,opt_tun_search,
-			ARG_VALUE_FORM,"do not add route to bmx6 tun table!  Requires quagga plugin!"},
+			ARG_VALUE_FORM,"do not add route to bmx7 tun table!  Requires quagga plugin!"},
 	{ODI,ARG_TUN_OUT,ARG_EXPORT_DISTANCE,0,9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,MIN_EXPORT_DISTANCE,MAX_EXPORT_DISTANCE,DEF_EXPORT_DISTANCE,0,opt_tun_search,
 			ARG_VALUE_FORM,	"export distance to network (256 == no export). Requires quagga plugin!"},
 

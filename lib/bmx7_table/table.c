@@ -497,7 +497,7 @@ static void rtredist_cleanup( void )
 static int32_t rtredist_init( void )
 {
 	if (!set_tunXin6_net_adv_list) {
-		dbgf_sys(DBGT_ERR, "Failed using functions from bmx6_tun.so module! Has it been loaded before this one?");
+		dbgf_sys(DBGT_ERR, "Failed using functions from bmx7_tun.so module! Has it been loaded before this one?");
 		return FAILURE;
 	}
 

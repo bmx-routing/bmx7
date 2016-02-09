@@ -15,7 +15,7 @@
  * 02110-1301, USA
  */
 
-#define DEF_ATTACKED_NODES_DIR "/etc/bmx6/attackedNodes"
+#define DEF_ATTACKED_NODES_DIR "/etc/bmx7/attackedNodes"
 #define ARG_ATTACKED_NODES_DIR "attackedNodesDir"
 
 #define DEF_EVIL_TUN_NAME "bmxZero"

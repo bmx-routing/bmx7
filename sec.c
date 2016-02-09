@@ -637,7 +637,7 @@ finish: {
 
 int32_t rsa_load( char *tmp_path ) {
 
-	// test with: ./bmx6 f=0 d=0 --keyDir=$(pwdd)/rsa-test/key.der
+	// test with: ./bmx7 f=0 d=0 --keyDir=$(pwdd)/rsa-test/key.der
 
 
 	dbgf_sys(DBGT_INFO, "testing %s=%s", ARG_KEY_PATH, tmp_path);

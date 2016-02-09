@@ -22,7 +22,7 @@
 
 #define ARG_TUN_NAME_PREFIX "tunDevName"
 #define MAX_TUN_NAME_PREFIX_LEN 5
-#define DEF_TUN_NAME_PREFIX "bmx"
+#define DEF_TUN_NAME_PREFIX "X7"
 #define DEF_TUN_NAME_TYPE_IN "In_"
 #define DEF_TUN_NAME_TYPE_OUT "Out_"
 #define DEF_TUN_NAME_TYPE_CATCH4 "C4"
@@ -97,7 +97,7 @@
 #define DEF_TUN_OUT_RULE DEF_IP_RULE_TUN
 #define MIN_TUN_OUT_RULE MIN_IP_RULE_TUN
 #define MAX_TUN_OUT_RULE MAX_IP_RULE_TUN
-#define DEF_TUN_OUT_TRULE "32766/254"
+#define DEF_TUN_OUT_TRULE "32767/254"
 #define FORM_TUN_OUT_TRULE "<PREF>/<TABLE>"
 
 #define MIN_TUN_OUT_PREFIX 0
@@ -261,7 +261,7 @@ struct tunXin6_net_adv_node {
 	struct dsc_msg_tun6in6net adv;
 
 	//	struct list_node list;
-	//	uint8_t bmx6_route_type;
+	//	uint8_t bmx7_route_type;
 	//	FMETRIC_U8_T bandwidth;
 	//	struct net_key net;
 	char *tunInDev;
@@ -343,7 +343,7 @@ struct tun_bit_node {
 struct tun_search_node {
 	//        struct tun_search_key tunSearchKey;
 	char nameKey[NETWORK_NAME_LEN];
-	uint64_t bmx6RouteBits;
+	uint64_t bmx7RouteBits;
 	int16_t routeSearchProto;
 	int16_t routeSetProto;
 	uint16_t exportDistance;
@@ -380,8 +380,8 @@ struct tun_search_node {
 };
 
 struct tun_net_key {
-	uint8_t bmx6RouteType;
-	uint8_t bmx6RouteType__REMOVE;
+	uint8_t bmx7RouteType;
+	uint8_t bmx7RouteType__REMOVE;
 	struct net_key netKey;
 	struct tun_out_node *ton;
 } __attribute__((packed));

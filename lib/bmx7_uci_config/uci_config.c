@@ -773,7 +773,7 @@ int32_t opt_conf_file ( uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
 		uci_set_confdir( bmx_ctx, conf_path );
 		
 		dbg( DBGL_CHANGES, DBGT_INFO, 
-		     "loading uci bmx6 backend: file://%s/%s succeeded", conf_path, bmx_conf_name );
+		     "loading uci bmx7 backend: file://%s/%s succeeded", conf_path, bmx_conf_name );
 		
 		//initially lookup the bmx package so that we can save future changes
 		memset(&bmx_pptr, 0, sizeof(bmx_pptr));

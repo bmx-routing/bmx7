@@ -66,7 +66,7 @@ extern int32_t desc_vbodies_size_out;
 #define ARG_UNSOLICITED_DESC_ADVS "unsolicitedDescAdvs"
 
 #define ARG_DSQN_PATH "descSqnPath"
-#define DEF_DSQN_PATH "/etc/bmx6/descSqn"
+#define DEF_DSQN_PATH "/etc/bmx7/descSqn"
 
 
 #define ARG_DESCRIPTIONS        "descriptions"

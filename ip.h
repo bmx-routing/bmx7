@@ -108,7 +108,7 @@ extern int32_t devStatRegression;
 #define DEF_AUTO_MASK_MOD        8
 
 
-#define DEF_AUTO_IP6_PREFIX      "fd66:66:66::/64"
+#define DEF_AUTO_IP6_PREFIX      "fd77:77:77::/64"
 #define DEF_AUTO_IP6_MASK        64 // DO NOT CHANGE THIS
 #define ARG_AUTO_IP6_PREFIX      "ipAutoPrefix"
 #define HLP_AUTO_IP6_PREFIX      "Autoconfigure IPv6 addresses (MUST be something/64)"
@@ -191,13 +191,13 @@ extern int32_t devStatRegression;
 
 #define ARG_IP_RULE_HNA "tablePrefHnas"
 #define MIN_IP_RULE_HNA 3
-#define MAX_IP_RULE_HNA 32766
-#define DEF_IP_RULE_HNA 60 // avoid conflicts with bmxd and others
+#define MAX_IP_RULE_HNA 32767
+#define DEF_IP_RULE_HNA 70 // avoid conflicts with bmxd and others
 
 #define ARG_IP_RULE_TUN "tablePrefTuns"
 #define MIN_IP_RULE_TUN 3
 #define MAX_IP_RULE_TUN U16_MAX //64000
-#define DEF_IP_RULE_TUN 32766
+#define DEF_IP_RULE_TUN 32767
 
 #define BMX_TABLE_MAX   -1
 //#define BMX_TABLE_HOSTS -1
@@ -214,7 +214,7 @@ extern int32_t devStatRegression;
 #define MAX_IP_TABLE 254
 
 #define ARG_IP_TABLE_HNA "tableHnas"
-#define DEF_IP_TABLE_HNA 60 //avoid conflicts with bmxd and others
+#define DEF_IP_TABLE_HNA 70 //avoid conflicts with bmxd and others
 #define MIN_IP_TABLE_HNA MIN_IP_TABLE
 #define MAX_IP_TABLE_HNA MAX_IP_TABLE
 
@@ -230,7 +230,7 @@ extern int32_t devStatRegression;
 
 //extern int32_t base_port;
 #define ARG_BASE_PORT "basePort"
-#define DEF_BASE_PORT 6240
+#define DEF_BASE_PORT 6270
 #define MIN_BASE_PORT 1025
 #define MAX_BASE_PORT 60000
 

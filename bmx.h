@@ -287,10 +287,10 @@ typedef uint32_t DESC_SQN_T;
 
 
 
-#define BMX_ENV_LIB_PATH "BMX6_LIB_PATH"
+#define BMX_ENV_LIB_PATH "BMX7_LIB_PATH"
 #define BMX_DEF_LIB_PATH "/usr/lib"
-// e.g. sudo BMX_LIB_PATH="$(pwd)/lib" ./bmx6 -d3 eth0:bmx
-#define BMX_ENV_DEBUG "BMX6_DEBUG"
+// e.g. sudo BMX_LIB_PATH="$(pwd)/lib" ./bmx7 -d3 dev=eth0
+#define BMX_ENV_DEBUG "BMX7_DEBUG"
 
 
 

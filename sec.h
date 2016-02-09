@@ -25,22 +25,22 @@
 #include <netinet/in.h>
 #include <linux/if.h>
 
-//#define DEF_PERSISTENT_PATH "/etc/bmx6"
+//#define DEF_PERSISTENT_PATH "/etc/bmx7"
 #define DEF_TRUST_DIR_POLLING_INTERVAL 5000
 
-#define DEF_TRUSTED_NODES_DIR "/etc/bmx6/trustedNodes"
+#define DEF_TRUSTED_NODES_DIR "/etc/bmx7/trustedNodes"
 #define ARG_TRUSTED_NODES_DIR "trustedNodesDir"
 
-#define DEF_SUPPORTED_NODES_DIR "/etc/bmx6/supportedNodes"
+#define DEF_SUPPORTED_NODES_DIR "/etc/bmx7/supportedNodes"
 #define ARG_SUPPORTED_NODES_DIR "supportedNodesDir"
 
 #define ARG_KEY_PATH "keyPath"
-#define DEF_KEY_PATH "/etc/bmx6/rsa.der"
+#define DEF_KEY_PATH "/etc/bmx7/rsa.der"
 
 #define ARG_NODE_SIGN_LEN "nodeSignatureLen"
 #define MIN_NODE_SIGN_LEN 512
 #define MAX_NODE_SIGN_LEN 4096
-#define DEF_NODE_SIGN_LEN 3072
+#define DEF_NODE_SIGN_LEN 2048
 #define HLP_NODE_SIGN_LEN "sign own descriptions with given RSA key length (512,768,896,1024,1536,2048,3072,4096)"
 
 

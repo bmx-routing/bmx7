@@ -70,7 +70,7 @@ extern int32_t Client_mode;
 
 #define ARG_CONNECT "connect"
 #define ARG_RUN_DIR "runtimeDir"
-#define DEF_RUN_DIR "/var/run/bmx6"
+#define DEF_RUN_DIR "/var/run/bmx7"
 
 
 #define ARG_DBG_SYSLOG "syslog"

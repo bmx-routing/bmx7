@@ -23,7 +23,7 @@
 #define ARG_EXPORT_UHNA      "unicastHna"
 #define DEF_EXPORT_UHNA      0
 
-#define ARG_EXPORT_RTYPE_BMX "bmx6"
+#define ARG_EXPORT_RTYPE_BMX "bmx7"
 #define DEF_EXPORT_RTYPE_BMX 1
 
 #define ARG_EXPORT_ONLY   "exportOnly"

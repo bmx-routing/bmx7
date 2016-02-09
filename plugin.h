@@ -15,7 +15,7 @@
  * 02110-1301, USA
  */
 
-#define BMX_LIB_CONFIG "bmx6_config.so"
+#define BMX_LIB_CONFIG "bmx7_config.so"
 
 #define ARG_PLUGIN "plugin"
 

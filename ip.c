@@ -2442,7 +2442,7 @@ int update_interface_rules(void)
 
 #ifdef WITH_UNUSED
 STATIC_FUNC
-struct net_key bmx6AutoEUI64Ip6(ADDR_T mac, struct net_key *prefix)
+struct net_key bmx7AutoEUI64Ip6(ADDR_T mac, struct net_key *prefix)
 {
         struct net_key autoPrefix = ZERO_NET6_KEY;
 
@@ -2925,7 +2925,7 @@ static void get_rule_list_nlhdr(struct nlmsghdr *nh, void *unused )
 	for (an = NULL; (tn = avl_iterate_item(&iptrack_tree, &an));) {
 		if (tn->cmd == IP_RULE_DEFAULT && tn->k.cmd_type == IP_RULES &&
 			tn->k.net.af == r->rtm_family && tn->k.table == table && tn->k.prio == rta_prio &&
-			//all the following is not yet used by bmx6 so must be zero or set by somebody else:
+			//all the following is not yet used by bmx7 so must be zero or set by somebody else:
 			!r->rtm_flags && !r->rtm_protocol && !r->rtm_src_len && !r->rtm_dst_len && !r->rtm_tos &&
 			!tb[FRA_SRC] && !tb[FRA_DST] && !tb[FRA_FWMARK] && !tb[FRA_FWMASK] && !tb[FRA_IFNAME] && !tb[FRA_OIFNAME]) {
 			
@@ -3627,18 +3627,18 @@ void cleanup_ip(void)
         close_ifevent_netlink_sk();
 
         // if ever started succesfully in daemon mode...
-	// flush default routes installed by bmx6:
+	// flush default routes installed by bmx7:
 	ip_flush_tracked( IP_ROUTE_FLUSH );
 
-	// flush all routes in this bmx6 tables (there should be NOTHING!):
+	// flush all routes in this bmx7 tables (there should be NOTHING!):
 	ip_flush_routes(AF_INET6, BMX_TABLE_HNA);
 	//ip_flush_routes(AF_INET, BMX_TABLE_HNA);
 
-	// flush default routes installed by bmx6:
+	// flush default routes installed by bmx7:
 	ip_flush_tracked( IP_RULE_FLUSH );
 
 
-	// flush all rules pointing to bmx6 tables (there should be NOTHING!):
+	// flush all rules pointing to bmx7 tables (there should be NOTHING!):
 	ip_flush_rules(AF_INET6, BMX_TABLE_HNA);
 	//ip_flush_rules(AF_INET, BMX_TABLE_HNA);
 

@@ -15,10 +15,10 @@
  * 02110-1301, USA
  */
 
-#define DEF_CONF_NAME "bmx6"
+#define DEF_CONF_NAME "bmx7"
 #define DEF_CONF_FILE UCI_CONFDIR"/"DEF_CONF_NAME
 #define DEF_SECT_NAME "general"
-#define DEF_SECT_TYPE "bmx6"
+#define DEF_SECT_TYPE "bmx7"
 
 #define ARG_CONFIG_FILE		"configFile"
 #define ARG_SAVE_CONFIG		"configSave"

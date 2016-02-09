@@ -22,7 +22,7 @@
 
 #define ARG_TUN_NAME_PREFIX "tunDevName"
 #define MAX_TUN_NAME_PREFIX_LEN 5
-#define DEF_TUN_NAME_PREFIX "X7"
+//#define DEF_TUN_NAME_PREFIX see hna.h: DEF_TUN_NAME_PREFIX
 #define DEF_TUN_NAME_TYPE_IN "In_"
 #define DEF_TUN_NAME_TYPE_OUT "Out_"
 #define DEF_TUN_NAME_TYPE_CATCH4 "C4"

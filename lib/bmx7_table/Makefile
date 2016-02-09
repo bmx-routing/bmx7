@@ -3,10 +3,10 @@ CFLAGS +=	$(CORE_CFLAGS) -fpic -I../../
 LDFLAGS +=	-shared
 #-Wl,-soname,bmxd_config 
 
-PLUGIN_NAME =   bmx6_quagga
+PLUGIN_NAME =   bmx7_table
 
-SRC_C = quagga.c ../../redist.c
-SRC_H = quagga.h ../../redist.h ../../tun.h
+SRC_C = table.c ../../redist.c
+SRC_H = table.h ../../redist.h ../../tun.h
 OBJS= $(SRC_C:.c=.o)
 
 PLUGIN_FULLNAME = $(PLUGIN_NAME).so

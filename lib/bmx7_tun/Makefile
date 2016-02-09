@@ -3,10 +3,10 @@ CFLAGS +=	$(CORE_CFLAGS) -fpic -I../../
 LDFLAGS +=	-shared
 #-Wl,-soname,bmxd_config 
 
-PLUGIN_NAME =   bmx6_http_info
+PLUGIN_NAME =   bmx7_tun
 
-SRC_C = http_info.c
-SRC_H = http_info.h
+SRC_C = tun.c
+SRC_H = ../../redist.h ../../tun.h
 OBJS= $(SRC_C:.c=.o)
 
 PLUGIN_FULLNAME = $(PLUGIN_NAME).so
@@ -15,14 +15,14 @@ PLUGIN_SHORTNAME = $(PLUGIN_NAME).so
 LIBDIR = /usr/lib
 THISDIR = $(shell pwd )
 
-all:	$(PLUGIN_FULLNAME) Makefile
+all:	$(PLUGIN_FULLNAME)
 
 
 $(PLUGIN_FULLNAME):	$(OBJS) Makefile
 	$(CC) $(LDFLAGS) $(EXTRA_LDFLAGS) $(OBJS) -o $(PLUGIN_FULLNAME) 
 	ln -f -s $(THISDIR)/$(PLUGIN_FULLNAME) $(THISDIR)/../$(PLUGIN_FULLNAME)
 
-%.o:	%.c %.h Makefile
+%.o:	%.c %.h Makefile $(SRC_H)
 	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) -c $< -o $@
 
 

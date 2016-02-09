@@ -3,7 +3,7 @@ CFLAGS +=	$(CORE_CFLAGS) -fpic -I../../
 LDFLAGS +=	
 #-Wl,-soname,bmxd_config 
 
-PLUGIN_NAME =   bmx6_json
+PLUGIN_NAME =   bmx7_json
 
 SRC_C = json.c
 SRC_H = json.h

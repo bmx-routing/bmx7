@@ -1,12 +1,11 @@
 
 CFLAGS +=	$(CORE_CFLAGS) -fpic -I../../
 LDFLAGS +=	-shared
-#-Wl,-soname,bmxd_config 
 
-PLUGIN_NAME =   bmx6_table
+PLUGIN_NAME =   bmx7_evil
 
-SRC_C = table.c ../../redist.c
-SRC_H = table.h ../../redist.h ../../tun.h
+SRC_C = evil.c
+SRC_H = evil.h
 OBJS= $(SRC_C:.c=.o)
 
 PLUGIN_FULLNAME = $(PLUGIN_NAME).so
@@ -22,7 +21,7 @@ $(PLUGIN_FULLNAME):	$(OBJS) Makefile
 	$(CC) $(LDFLAGS) $(EXTRA_LDFLAGS) $(OBJS) -o $(PLUGIN_FULLNAME) 
 	ln -f -s $(THISDIR)/$(PLUGIN_FULLNAME) $(THISDIR)/../$(PLUGIN_FULLNAME)
 
-%.o:	%.c %.h Makefile $(SRC_H)
+%.o:	%.c %.h Makefile
 	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) -c $< -o $@
 
 

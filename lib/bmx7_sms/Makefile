@@ -3,10 +3,10 @@ CFLAGS +=	$(CORE_CFLAGS) -fpic -I../../
 LDFLAGS +=	-shared
 #-Wl,-soname,bmxd_config 
 
-PLUGIN_NAME =   bmx6_evil
+PLUGIN_NAME =   bmx7_sms
 
-SRC_C = evil.c
-SRC_H = evil.h
+SRC_C = sms.c
+SRC_H = sms.h
 OBJS= $(SRC_C:.c=.o)
 
 PLUGIN_FULLNAME = $(PLUGIN_NAME).so

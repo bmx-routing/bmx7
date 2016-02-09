@@ -1,12 +1,12 @@
 
-CFLAGS +=	$(CORE_CFLAGS) -fpic -I../../ -I/usr/local/include/uci/
-LDFLAGS +=	-luci
-#-Wl,-soname,bmx6_config
+CFLAGS +=	$(CORE_CFLAGS) -fpic -I../../
+LDFLAGS +=	-shared
+#-Wl,-soname,bmxd_config 
 
-PLUGIN_NAME =   bmx6_config
+PLUGIN_NAME =   bmx7_http_info
 
-SRC_C = uci_config.c
-SRC_H = uci_config.h
+SRC_C = http_info.c
+SRC_H = http_info.h
 OBJS= $(SRC_C:.c=.o)
 
 PLUGIN_FULLNAME = $(PLUGIN_NAME).so
@@ -19,7 +19,7 @@ all:	$(PLUGIN_FULLNAME) Makefile
 
 
 $(PLUGIN_FULLNAME):	$(OBJS) Makefile
-	$(CC) -shared $(OBJS) $(LDFLAGS) $(EXTRA_LDFLAGS) -o $(PLUGIN_FULLNAME)
+	$(CC) $(LDFLAGS) $(EXTRA_LDFLAGS) $(OBJS) -o $(PLUGIN_FULLNAME) 
 	ln -f -s $(THISDIR)/$(PLUGIN_FULLNAME) $(THISDIR)/../$(PLUGIN_FULLNAME)
 
 %.o:	%.c %.h Makefile
@@ -37,3 +37,9 @@ install:	all
 
 strip:		all
 		strip $(PLUGIN_FULLNAME)
+
+
+
+
+
+

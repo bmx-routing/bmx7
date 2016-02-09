@@ -12,13 +12,13 @@ CFLAGS += -pedantic -Wall -W -Wno-unused-parameter -Os -g3 -std=gnu99 -DGIT_REV=
 # CFLAGS += -DEXTREME_PARANOIA -DEXIT_ON_ERROR -DPROFILING
 
 # CFLAGS += -DNO_KEY_GEN  # use openssl instead, like:
-                          # openssl genrsa -out /etc/bmx6/rsa.pem 1024
-                          # openssl rsa -in /etc/bmx6/rsa.pem -inform PEM -out /etc/bmx6/rsa.der -outform DER
+                          # openssl genrsa -out /etc/bmx7/rsa.pem 1024
+                          # openssl rsa -in /etc/bmx7/rsa.pem -inform PEM -out /etc/bmx7/rsa.der -outform DER
 
 # Some test cases:
 # CFLAGS += -DTEST_LINK_ID_COLLISION_DETECTION
 # CFLAGS += -DTEST_DEBUG          # (testing syntax of __VA_ARGS__ dbg...() macros)
-# CFLAGS += -DTEST_DEBUG_MALLOC   # allocates a never freed byte which should be reported at bmx6 termination
+# CFLAGS += -DTEST_DEBUG_MALLOC   # allocates a never freed byte which should be reported at bmx7 termination
 # CFLAGS += -DAVL_5XLINKED -DAVL_DEBUG -DAVL_TEST
 CFLAGS += -DAVL_5XLINKED
 
@@ -82,5 +82,5 @@ SRC_H += $(shell echo "$(CFLAGS) $(EXTRA_CFLAGS)" | grep -q "DTRAFFIC_DUMP" && e
 
 OBJS = $(SRC_C:.c=.o)
 
-PACKAGE_NAME := bmx6
-BINARY_NAME  := bmx6
+PACKAGE_NAME := bmx7
+BINARY_NAME  := bmx7

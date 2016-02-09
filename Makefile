@@ -1,4 +1,4 @@
-# Copyright (c) 2010  BMX protocol contributors
+# Copyright (c) 2010-2016  BMX protocol contributors
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of version 2 of the GNU General Public
@@ -64,22 +64,17 @@ help:
 	#
 	# further make targets:
 	# help					show this help
-	# all					compile  bmx6 core only
-	# libs			 		compile  bmx6 plugins
-	# build_all				compile  bmx6 and plugins
-	# strip / strip_libs / strip_all	strip    bmx6 / plugins / all
-	# install / install_libs / install_all	install  bmx6 / plugins / all
-	# clean / clean_libs / clean_all	clean    bmx6 / libs / all
+	# all					compile  bmx7 core only
+	# libs			 		compile  bmx7 plugins
+	# build_all				compile  bmx7 and plugins
+	# strip / strip_libs / strip_all	strip    bmx7 / plugins / all
+	# install / install_libs / install_all	install  bmx7 / plugins / all
+	# clean / clean_libs / clean_all	clean    bmx7 / libs / all
 	#
-	# minimum compile requirements are zlib and cyassl libraries:
+	# minimum compile requirements are zlib and polarssl libraries:
 	#
-	# for cyassl do:
-	#   wget http://www.yassl.com/cyassl-1.6.5.zip
-	#   unzip cyassl-2.6.0.zip
-	#   cd cyassl-2.6.0
-	#   ./configure --includedir=/usr/local/include/cyassl --libdir=/usr/local/lib
-	#   make
-	#   make install
+	# for polarssl on debian do:
+	#   apt-get install libpolarssl-dev
 	#
 	# for zlib on debian do:
 	#   apt-get install zlib1g-dev

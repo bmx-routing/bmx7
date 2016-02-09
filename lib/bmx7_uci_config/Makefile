@@ -1,12 +1,11 @@
 
-CFLAGS +=	$(CORE_CFLAGS) -fpic -I../../
-LDFLAGS +=	-shared
-#-Wl,-soname,bmxd_config 
+CFLAGS +=	$(CORE_CFLAGS) -fpic -I../../ -I/usr/local/include/uci/
+LDFLAGS +=	-luci
 
-PLUGIN_NAME =   bmx6_tun
+PLUGIN_NAME =   bmx7_config
 
-SRC_C = tun.c
-SRC_H = ../../redist.h ../../tun.h
+SRC_C = uci_config.c
+SRC_H = uci_config.h
 OBJS= $(SRC_C:.c=.o)
 
 PLUGIN_FULLNAME = $(PLUGIN_NAME).so
@@ -15,14 +14,14 @@ PLUGIN_SHORTNAME = $(PLUGIN_NAME).so
 LIBDIR = /usr/lib
 THISDIR = $(shell pwd )
 
-all:	$(PLUGIN_FULLNAME)
+all:	$(PLUGIN_FULLNAME) Makefile
 
 
 $(PLUGIN_FULLNAME):	$(OBJS) Makefile
-	$(CC) $(LDFLAGS) $(EXTRA_LDFLAGS) $(OBJS) -o $(PLUGIN_FULLNAME) 
+	$(CC) -shared $(OBJS) $(LDFLAGS) $(EXTRA_LDFLAGS) -o $(PLUGIN_FULLNAME)
 	ln -f -s $(THISDIR)/$(PLUGIN_FULLNAME) $(THISDIR)/../$(PLUGIN_FULLNAME)
 
-%.o:	%.c %.h Makefile $(SRC_H)
+%.o:	%.c %.h Makefile
 	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) -c $< -o $@
 
 
@@ -37,9 +36,3 @@ install:	all
 
 strip:		all
 		strip $(PLUGIN_FULLNAME)
-
-
-
-
-
-

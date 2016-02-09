@@ -469,21 +469,20 @@ int32_t check_file(char *path, uint8_t regular, uint8_t read, uint8_t write, uin
 
 
 
-int32_t check_dir( char *path, uint8_t create, uint8_t write ) {
+int32_t check_dir( char *path, uint8_t create, uint8_t write, uint8_t onlyBasePath ) {
 
 	struct stat fstat;
+	char tmp_path[MAX_PATH_SIZE] = "";
+	strcpy( tmp_path, path );
+	char *slash;
+
+	if (onlyBasePath && (slash = strrchr(tmp_path, '/')) && slash != tmp_path)
+		*slash = 0;
 
 	errno = 0;
-	int stat_ret = stat( path, &fstat );
+	int stat_ret = stat( tmp_path, &fstat );
 
-	if ( stat_ret < 0 ) {
-
-		if ( create && mkdir( path, S_IRUSR|S_IWUSR|S_IXUSR|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH ) >= 0 )
-			return SUCCESS;
-
-                dbgf_sys(DBGT_ERR, "directory %s does not exist and can not be created (%s)", path, strerror(errno));
-
-	} else {
+	if ( stat_ret >= 0 ) {
 
 		if ( S_ISDIR( fstat.st_mode )  &&
 		     ( S_IRUSR & fstat.st_mode)  &&
@@ -491,8 +490,17 @@ int32_t check_dir( char *path, uint8_t create, uint8_t write ) {
 		     ((S_IWUSR & fstat.st_mode) || !write) )
 			return SUCCESS;
 
-                dbgf_sys(DBGT_ERR, "directory %s exists but has inapropriate permissions (%s)", path, strerror(errno));
+                dbgf_sys(DBGT_ERR, "directory %s exists but has inappropriate permissions (%s)", path, strerror(errno));
 
+	} else {
+
+		if (create && (slash = strrchr(tmp_path, '/')) && slash != tmp_path)
+			check_dir( tmp_path, create, write, YES);
+
+		if ( create && mkdir( tmp_path, S_IRUSR|S_IWUSR|S_IXUSR|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH ) >= 0 )
+			return SUCCESS;
+
+                dbgf_sys(DBGT_ERR, "directory %s does not exist and can not be created (%s)", tmp_path, strerror(errno));
 	}
 
 	return FAILURE;

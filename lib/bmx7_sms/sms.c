@@ -320,16 +320,16 @@ int32_t opt_sms(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
                 sprintf(tmp_sms_rx_dir, "%s/%s", tmp_sms_dir, DEF_SMS_RX_SUBDIR);
                 sprintf(tmp_sms_tx_dir, "%s/%s", tmp_sms_dir, DEF_SMS_TX_SUBDIR);
 
-                if (check_dir(run_dir, YES/*create*/, YES/*writable*/) == FAILURE)
+                if (check_dir(run_dir, YES/*create*/, YES/*writable*/, NO) == FAILURE)
 			return FAILURE;
 
-                if (check_dir(tmp_sms_dir, YES/*create*/, YES/*writable*/) == FAILURE)
+                if (check_dir(tmp_sms_dir, YES/*create*/, YES/*writable*/, NO) == FAILURE)
 			return FAILURE;
 
-                if (check_dir(tmp_sms_rx_dir, YES/*create*/, YES/*writable*/) == FAILURE)
+                if (check_dir(tmp_sms_rx_dir, YES/*create*/, YES/*writable*/, NO) == FAILURE)
                         return FAILURE;
 
-                if (check_dir(tmp_sms_tx_dir, YES/*create*/, YES/*writable*/) == FAILURE)
+                if (check_dir(tmp_sms_tx_dir, YES/*create*/, YES/*writable*/, NO) == FAILURE)
                         return FAILURE;
 
                 sms_dir =  tmp_sms_dir;

@@ -1376,13 +1376,8 @@ DESC_SQN_T newDescriptionSqn( char* newPath, uint8_t exitIfFailure )
 		if (wordlen(path) + 1 >= MAX_PATH_SIZE || path[0] != '/')
 			goto_error(finish, "path has illegal format");
 
-		char *slash = strrchr(path, '/');
-		if (slash) {
-			*slash = 0;
-			if (check_dir(path, YES, YES) == FAILURE)
-				goto_error(finish, "dir can not be created");
-			*slash = '/';
-		}
+		if (check_dir(path, YES, YES, YES) == FAILURE)
+			goto_error(finish, "dir can not be created");
 	}
 
 	if (currSqn==0) {

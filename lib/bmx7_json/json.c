@@ -660,16 +660,16 @@ int32_t opt_json_update_interval(uint8_t cmd, uint8_t _save, struct opt_type *op
                 sprintf(tmp_orig_dir, "%s/%s", tmp_json_dir, DEF_JSON_ORIG_SUBDIR);
                 sprintf(tmp_desc_dir, "%s/%s", tmp_json_dir, DEF_JSON_DESC_SUBDIR);
 
-                if (check_dir(run_dir, YES/*create*/, YES/*writable*/) == FAILURE)
+                if (check_dir(run_dir, YES/*create*/, YES/*writable*/, NO) == FAILURE)
                         return FAILURE;
 
-                if (check_dir(tmp_json_dir, YES/*create*/, YES/*writable*/) == FAILURE)
+                if (check_dir(tmp_json_dir, YES/*create*/, YES/*writable*/, NO) == FAILURE)
 			return FAILURE;
 
-                if (check_dir(tmp_orig_dir, YES/*create*/, YES/*writable*/) == FAILURE)
+                if (check_dir(tmp_orig_dir, YES/*create*/, YES/*writable*/, NO) == FAILURE)
                         return FAILURE;
 
-                if (check_dir(tmp_desc_dir, YES/*create*/, YES/*writable*/) == FAILURE)
+                if (check_dir(tmp_desc_dir, YES/*create*/, YES/*writable*/, NO) == FAILURE)
                         return FAILURE;
 
                 json_dir =  tmp_json_dir;

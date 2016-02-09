@@ -195,7 +195,7 @@ int32_t opt_evil_watch(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
 
 	assertion(-500000, ((strcmp(opt->name, ARG_ATTACKED_NODES_DIR) == 0)));
 
-        if (cmd == OPT_CHECK && patch->diff == ADD && check_dir(patch->val, NO/*create*/, NO/*writable*/) == FAILURE)
+        if (cmd == OPT_CHECK && patch->diff == ADD && check_dir(patch->val, YES/*create*/, YES/*writable*/, NO) == FAILURE)
 			return FAILURE;
 
         if (cmd == OPT_APPLY) {

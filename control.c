@@ -2911,14 +2911,14 @@ int32_t opt_run_dir(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt
 		
 		snprintf( tmp_dir, wordlen(patch->val)+1, "%s", patch->val );
 		
-		if ( check_dir( tmp_dir, YES/*create*/, YES/*writable*/ ) == FAILURE )
+		if ( check_dir( tmp_dir, YES/*create*/, YES/*writable*/, NO ) == FAILURE )
 			return FAILURE;
 
                 strcpy(run_dir, tmp_dir);
 		
 	} else 	if ( cmd == OPT_SET_POST  &&  initializing ) {
 		
-		if ( check_dir( run_dir, YES/*create*/, YES/*writable*/ ) == FAILURE )
+		if ( check_dir( run_dir, YES/*create*/, YES/*writable*/, NO ) == FAILURE )
 			return FAILURE;
 
         }

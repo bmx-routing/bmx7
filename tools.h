@@ -88,7 +88,7 @@ int8_t wordsEqual ( char *a, char *b );
 void wordCopy( char *out, char *in );
 uint32_t wordlen ( char *s );
 int32_t check_file(char *path, uint8_t regular, uint8_t read, uint8_t write, uint8_t exec);
-int32_t check_dir( char *path, uint8_t create, uint8_t write );
+int32_t check_dir(char *path, uint8_t create, uint8_t write, uint8_t onlyBasePath);
 int32_t rm_dir_content(char* dir_name, char* prefix);
 
 uint8_t *find_array_data(uint8_t *arr, uint32_t arrLen, uint8_t *element, uint32_t elemLen);

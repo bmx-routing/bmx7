@@ -720,15 +720,9 @@ int32_t opt_key_path(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct op
 			strcpy( tmp_path, key_path );
 		}
 
-		char *slash = strrchr(tmp_path, '/');
-		if (slash) {
-			*slash = 0;
-			if ( check_dir( tmp_path, YES, YES) == FAILURE ) {
-				dbgf_sys(DBGT_ERR, "dir=%s does not exist and can not be created!", tmp_path);
-				return FAILURE;
-			}
-			*slash = '/';
-		}
+		if ( check_dir( tmp_path, YES, YES, YES) == FAILURE )
+			return FAILURE;
+
 
 #ifndef NO_KEY_GEN
 		if ( check_file( tmp_path, YES/*regular*/,YES/*read*/, NO/*writable*/, NO/*executable*/ ) == FAILURE ) {
@@ -1249,8 +1243,8 @@ int32_t opt_dir_watch(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct o
 
 	assertion(-500000, ((strcmp(opt->name, ARG_TRUSTED_NODES_DIR) == 0)|| (strcmp(opt->name, ARG_SUPPORTED_NODES_DIR) == 0)));
 
-        if (cmd == OPT_CHECK && patch->diff == ADD && check_dir(patch->val, NO/*create*/, NO/*writable*/) == FAILURE)
-			return FAILURE;
+        if (cmd == OPT_CHECK && patch->diff == ADD && check_dir(patch->val, YES/*create*/, YES/*writable*/, NO) == FAILURE)
+		return FAILURE;
 
         if (cmd == OPT_APPLY) {
 

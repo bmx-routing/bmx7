@@ -54,6 +54,7 @@
 #include "iptools.h"
 #include "schedule.h"
 #include "allocate.h"
+#include "sec.h"
 
 #define CODE_CATEGORY_NAME "hna"
 
@@ -363,9 +364,15 @@ int process_dsc_tlv_hna(struct rx_frame_iterator *it)
 			}
                         hna_net_keys[i] = key;
 			hna_net_curr = i + 1;
-                        
-                         
 
+			if (is_ip_net_equal(&key.ip, &autoconf_prefix_cfg.ip, autoconf_prefix_cfg.mask - 4, AF_INET6)) {
+
+				if (key.mask != 128 || memcmp(&key.ip.s6_addr[(autoconf_prefix_cfg.mask / 8)], &it->dcOp->key->kHash, ((128 - autoconf_prefix_cfg.mask) / 8))) {
+                                        dbgf_sys(DBGT_ERR, "nodeId=%s FAILURE due to non-matching crypto hna=%s announcement",
+                                                cryptShaAsString(&it->dcOp->key->kHash), netAsStr(&key));
+					return TLV_RX_DATA_FAILURE;
+				}
+			}
 
 
                 } else if (op == TLV_OP_NEW) {
@@ -441,6 +448,18 @@ int32_t opt_uhna(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
 
                                 return FAILURE;
                         }
+
+			if (is_ip_net_equal(&hna.ip, &autoconf_prefix_cfg.ip, autoconf_prefix_cfg.mask - 4, AF_INET6)) {
+
+				if (hna.mask != 128 || memcmp(&hna.ip.s6_addr[(autoconf_prefix_cfg.mask / 8)], &myKey->kHash, ((128 - autoconf_prefix_cfg.mask) / 8))) {
+					dbgf_cn(cn, DBGL_CHANGES, DBGT_ERR, "nodeId=%s FAILURE due to non-matching crypto hna=%s announcement",
+                                                cryptShaAsString(&myKey->kHash), netAsStr(&hna));
+					return FAILURE;
+				}
+			}
+
+
+
                 }
 
                 if (cmd == OPT_APPLY) {

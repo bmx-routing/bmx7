@@ -2551,22 +2551,22 @@ void dev_if_fix(void)
                                 }
                         }
 
-			if (!is_ip6llocal && DEF_AUTO_IP6_DEVMASK) {
+			if (!is_ip6llocal && DEF_AUTO_IP6ID_MASK) {
 
-				if (is_ip_equal(&my_primary_ip, &ian->ip_addr) && DEF_AUTO_IP6_DEVMASK == ian->ifa.ifa_prefixlen) {
+				if (is_ip_equal(&my_primary_ip, &ian->ip_addr) && (DEF_AUTO_IP6ID_MASK == ian->ifa.ifa_prefixlen)) {
 
 					dev->if_global_addr = ian;
 				}
 			}
                 }
 
-                if (DEF_AUTO_IP6_DEVMASK && !dev->if_global_addr) {
+                if (DEF_AUTO_IP6ID_MASK && !dev->if_global_addr) {
 
 			dbgf_sys(DBGT_INFO, "Autoconfiguring dev=%s idx=%d ip=%s", dev->label_cfg.str, dev->if_link->index, ip6AsStr(&my_primary_ip));
 
-                        kernel_set_addr(ADD, dev->if_link->index, AF_INET6, &my_primary_ip, DEF_AUTO_IP6_DEVMASK, NO /*deprecated*/);
+                        kernel_set_addr(ADD, dev->if_link->index, AF_INET6, &my_primary_ip, DEF_AUTO_IP6ID_MASK, NO /*deprecated*/);
                         dev->autoIP6Configured.ip = my_primary_ip;
-			dev->autoIP6Configured.mask = DEF_AUTO_IP6_DEVMASK;
+			dev->autoIP6Configured.mask = DEF_AUTO_IP6ID_MASK;
                         dev->autoIP6IfIndex = dev->if_link->index;
                 }
 
@@ -3242,19 +3242,19 @@ int32_t opt_auto_prefix(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
         if (cmd == OPT_REGISTER) {
 
 		autoconf_prefix_cfg = ZERO_NET6_KEY;
-		str2netw(DEF_AUTO_IP6_PREFIX, &autoconf_prefix_cfg.ip, NULL, &autoconf_prefix_cfg.mask, &autoconf_prefix_cfg.af, NO);
+		str2netw(DEF_AUTO_IP6ID_PREFIX, &autoconf_prefix_cfg.ip, NULL, &autoconf_prefix_cfg.mask, &autoconf_prefix_cfg.af, NO);
 
         } else if ((cmd == OPT_ADJUST || cmd == OPT_CHECK || cmd == OPT_APPLY)) {
 
                 struct net_key prefix = ZERO_NET6_KEY;
-                str2netw(DEF_AUTO_IP6_PREFIX, &prefix.ip, NULL, &prefix.mask, &prefix.af, NO);
+                str2netw(DEF_AUTO_IP6ID_PREFIX, &prefix.ip, NULL, &prefix.mask, &prefix.af, NO);
 
                 if (patch->diff == ADD) {
 
                         if (str2netw(patch->val, &prefix.ip, cn, &prefix.mask, &prefix.af, NO) == FAILURE ||
-                                prefix.mask < DEF_AUTO_MASK_MIN || prefix.mask > DEF_AUTO_MASK_MAX ||
-				prefix.mask % DEF_AUTO_MASK_MOD || !is_ip_valid(&prefix.ip, prefix.af) ||
-				! prefix.ip.s6_addr[prefix.mask/8] /* as long as dummy tun6 src addresses are used */||
+                                prefix.mask != DEF_AUTO_IP6ID_MASK || !is_ip_valid(&prefix.ip, prefix.af) ||
+				(prefix.ip.s6_addr[DEF_AUTO_TUNID_OCT_POS] % 0xF) || // should be zero
+				!(prefix.ip.s6_addr[DEF_AUTO_TUNID_OCT_POS+1] || prefix.ip.s6_addr[DEF_AUTO_TUNID_OCT_POS+2]) || //zero-starting IDs are likely invalid
                                 (is_ip_net_equal(&prefix.ip, &IP6_MC_PREF, IP6_MC_PLEN, AF_INET6)) ||
                                 (is_ip_net_equal(&prefix.ip, &IP6_LINKLOCAL_UC_PREF, IP6_LINKLOCAL_UC_PLEN, AF_INET6))
                                 ) {
@@ -3553,8 +3553,8 @@ static struct opt_type ip_options[]=
 	{ODI,0,ARG_LLOCAL_PREFIX,	0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_dev_prefix,
 			ARG_NETW_FORM,HLP_LLOCAL_PREFIX},
 //order must be after ARG_HOSTNAME (which initializes self via init_self(), called from opt_hostname):
-	{ODI,0,ARG_AUTO_IP6_PREFIX,     0,  6,1,A_PS1,A_ADM,A_INI,A_CFA,A_ANY,	0,      	0,      	0,              0,DEF_AUTO_IP6_PREFIX,opt_auto_prefix,
-			ARG_VALUE_FORM,	HLP_AUTO_IP6_PREFIX},
+	{ODI,0,ARG_AUTO_IP6ID_PREFIX,     0,  6,1,A_PS1,A_ADM,A_INI,A_CFA,A_ANY,	0,      	0,      	0,              0,DEF_AUTO_IP6ID_PREFIX,opt_auto_prefix,
+			ARG_VALUE_FORM,	HLP_AUTO_IP6ID_PREFIX},
 
 	{ODI,0,ARG_DEV,		        'i',9,2,A_PM1N,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0, 		0,		0,0, 		opt_dev,
 			"<interface-name>", HLP_DEV},

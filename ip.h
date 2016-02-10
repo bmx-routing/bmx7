@@ -102,21 +102,14 @@ extern int32_t devStatRegression;
 #define HLP_GLOBAL_PREFIX "specify global prefix for interfaces"
 
 
-#define DEF_AUTO_MASK_DISABLED   0  // DO NOT CHANGE THIS
-#define DEF_AUTO_MASK_MIN        8
-#define DEF_AUTO_MASK_MAX        64
-#define DEF_AUTO_MASK_MOD        8
+#define DEF_AUTO_IP6ID_PREFIX  "fd70::/16"
+#define ARG_AUTO_IP6ID_PREFIX  "ipAutoPrefix"
+#define HLP_AUTO_IP6ID_PREFIX  "Autoconfigure IPv6 addresses (MUST be something/16)"
+#define DEF_AUTO_IP6ID_MASK    16
 
-
-#define DEF_AUTO_IP6_PREFIX      "fd77:77:77::/64"
-#define DEF_AUTO_IP6_MASK        64 // DO NOT CHANGE THIS
-#define ARG_AUTO_IP6_PREFIX      "ipAutoPrefix"
-#define HLP_AUTO_IP6_PREFIX      "Autoconfigure IPv6 addresses (MUST be something/64)"
-#define DEF_AUTO_IP6_BYTE6       0x00
-#define DEF_AUTO_IP6_DEVMASK     64
-
-#define MAX_TUN_REMOTE_IPS       0x0F // limited by 8-bit tun6Id range and (65 - DEF_AUTO_REMOTE_MASK) bit size
-#define DEF_TUN_REMOTE_BYTE6     0xF0
+#define DEF_AUTO_TUNID_OCT_POS ( (DEF_AUTO_IP6ID_MASK / 8) - ((uint8_t)(!((DEF_AUTO_IP6ID_MASK % 8)))) )
+#define MIN_AUTO_TUNID_OCT     0x1
+#define MAX_AUTO_TUNID_OCT     0xF // limited by 8-bit tun6Id range and (65 - DEF_AUTO_REMOTE_MASK) bit size
 
 #define ARG_INTERFACES "interfaces"
 

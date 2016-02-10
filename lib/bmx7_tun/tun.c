@@ -246,11 +246,11 @@ void reconfigure_tun_ins(void)
 
 		if (!tin->remote_manual) {
 			tin->remote = my_primary_ip;
-			tin->remote.s6_addr[(autoconf_prefix_cfg.mask / 8) - 1] = DEF_TUN_REMOTE_BYTE6 + m;
+			tin->remote.s6_addr[DEF_AUTO_TUNID_OCT_POS] += (m+MIN_AUTO_TUNID_OCT);
 		}
 
 		configure_tunnel_in(ADD, tin, m++);
-		assertion(-502040, (m <= MAX_TUN_REMOTE_IPS));
+		assertion(-502040, ((m + MIN_AUTO_TUNID_OCT) <= MAX_AUTO_TUNID_OCT));
 		assertion(-501237, (tin->upIfIdx && tin->tun6Id >= 0));
 	}
 }
@@ -2462,7 +2462,7 @@ int32_t opt_tun_in_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
 
 		tin = avl_find_item(&tun_in_tree, name);
 
-		if (!tin && tun_in_tree.items >= MAX_TUN_REMOTE_IPS)
+		if (!tin && tun_in_tree.items >= MAX_AUTO_TUNID_OCT)
 			return FAILURE;
 
 		if (cmd == OPT_APPLY) {

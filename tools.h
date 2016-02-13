@@ -48,8 +48,8 @@ static inline uint64_t ntoh64(uint64_t x) {
 
 
 
-
-IDM_T hexStrToMem(char *s, uint8_t *m, uint16_t mLen);
+char* rmStrKeyValue(char* str, char* key);
+IDM_T hexStrToMem(char *s, uint8_t *m, uint16_t mLen, uint8_t strict);
 char* memAsHexString( const void* mem, uint32_t len);
 char* memAsHexStringSep( const void* mem, uint32_t len, uint16_t seperationLen, char *seperator);
 char* memAsCharString( const char* mem, uint32_t len);

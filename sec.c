@@ -27,6 +27,8 @@
 #include <fcntl.h>
 #include <dirent.h>
 #include <sys/inotify.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 #include "list.h"
 #include "control.h"
@@ -63,6 +65,8 @@ static int32_t linkSignMin = DEF_LINK_SIGN_MIN;
 static int32_t linkVerify = DEF_LINK_VERIFY;
 static int32_t nodeVerify = DEF_NODE_VERIFY;
 
+static int32_t publishSupportedNodes = DEF_SUPPORT_PUBLISHING;
+
 
 int32_t linkSignLifetime = DEF_LINK_SIGN_LT;
 int32_t linkSignLen = DEF_LINK_SIGN_LEN;
@@ -74,7 +78,6 @@ CRYPTKEY_T *my_LinkKey = NULL;
 AVL_TREE(dirWatch_tree, struct DirWatch, ifd);
 
 static struct DirWatch *trustedDirWatch = NULL;
-static struct DirWatch *supportDirWatch = NULL;
 
 GLOBAL_ID_T *get_desc_id(uint8_t *desc_adv, uint32_t desc_len, struct dsc_msg_signature **signpp, struct dsc_msg_version **verspp)
 {
@@ -689,6 +692,161 @@ int32_t rsa_load( char *tmp_path ) {
 
 
 STATIC_FUNC
+IDM_T getTrustStringParameter(struct KeyWatchNode *tn, GLOBAL_ID_T *id, char *fileName, char *misc, struct ctrl_node *cn)
+{
+	assertion(-500000, (fileName));
+	char *goto_error_code = NULL;
+	GLOBAL_ID_T foundId;
+
+	dbgf_all(DBGT_INFO, "checking %s", fileName);
+
+	if (!strcmp(fileName, ".") || !strcmp(fileName, ".."))
+		return 0;
+
+	if ((strlen(fileName) >= MAX_KEY_FILE_SIZE) || (strlen(fileName) < (2 * sizeof(GLOBAL_ID_T))) ||
+		(hexStrToMem(fileName, (uint8_t*) & foundId, sizeof(foundId), NO/*strict*/) != SUCCESS))
+		return 0;
+
+	if (id && !cryptShasEqual(&foundId, id))
+		return 0;
+
+	if (tn) {
+		strcpy(tn->fileName, fileName);
+		tn->global_id = foundId;
+	}
+
+	char haystack[MAX_KEY_FILE_SIZE];
+	strcpy(haystack, fileName + (2 * sizeof(GLOBAL_ID_T)));
+	char *valPtr;
+	int valInt;
+	IDM_T myself = cryptShasEqual(&myKey->kHash, &foundId);
+
+	if ((valPtr = rmStrKeyValue(haystack, ".trust="))) {
+		if (strlen(valPtr) == 1 && (valInt = strtol(valPtr, NULL, 10)) >= MIN_TRUST_LEVEL && valInt <= MAX_TRUST_LEVEL) {
+			if (tn)
+				tn->trust = myself ? DEF_TRUST_LEVEL : valInt;
+		} else {
+			goto_error(getTrustStringParameter_error, "Invalid trust level");
+		}
+	}
+
+	if ((valPtr = rmStrKeyValue(haystack, ".support="))) {
+		if (strlen(valPtr) == 1 && (valInt = strtol(valPtr, NULL, 10)) >= MIN_SUPPORT_LEVEL && valInt <= MAX_SUPPORT_LEVEL) {
+			if (tn)
+				tn->support = myself ? DEF_SUPPORT_LEVEL : valInt;
+		} else {
+			goto_error(getTrustStringParameter_error, "Invalid support level");
+		}
+	}
+
+	if (misc)
+		strcpy(misc, haystack);
+
+	return 1;
+
+
+getTrustStringParameter_error:
+
+	dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "trustFile=%s  %s", fileName, goto_error_code);
+	return -1;
+}
+
+STATIC_FUNC
+int32_t opt_set_trusted (uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
+{
+	char *goto_error_code = NULL;
+	struct opt_child *c = NULL;
+	char *dirName = trustedDirWatch ? trustedDirWatch->pathp : DEF_TRUSTED_NODES_DIR;
+	DIR *dir;
+	struct dirent *dirEntry;
+	char foundFileTail[MAX_KEY_FILE_SIZE] = {0};
+	struct KeyWatchNode kwn = {.trust = DEF_TRUST_LEVEL, .support = DEF_SUPPORT_LEVEL};
+	int found = 0;
+	char newFullPath[MAX_PATH_SIZE] = {0}, oldFullPath[MAX_PATH_SIZE] = {0};
+
+	if (cmd == OPT_CHECK || cmd == OPT_APPLY) {
+
+
+		if (strlen(patch->val) != (int)(2 * sizeof(kwn.global_id)))
+			goto_error(opt_set_trusted_error, "Invalid Id hex length!");
+
+		if (hexStrToMem(patch->val, (uint8_t*)&kwn.global_id, sizeof(kwn.global_id), YES/*strict*/) != SUCCESS)
+			goto_error(opt_set_trusted_error, "Invalid Id hex value!");
+
+                while ((c = list_iterate(&patch->childs_instance_list, c))) {
+
+                        if (!strcmp(c->opt->name, ARG_TRUSTED_NODES_DIR)) {
+
+				if ( wordlen( c->val )+1 >= MAX_PATH_SIZE  ||  c->val[0] != '/' )
+					goto_error(opt_set_trusted_error, "Invalid trustedNodesDir");
+
+				dirName = c->val;
+			}
+		}
+
+		if (!dirName || check_dir(dirName, (!strcmp(dirName, DEF_TRUSTED_NODES_DIR) ? YES : NO), YES, NO) != SUCCESS)
+			goto_error(opt_set_trusted_error, "Failed checking trustedNodesDir");
+
+		if (!(dir = opendir(dirName)))
+			goto_error(opt_set_trusted_error, "Could no open trustedNodesDir path");
+
+		while ((dirEntry = readdir(dir)) != NULL) {
+
+			if (!found && getTrustStringParameter(&kwn, &kwn.global_id, dirEntry->d_name, foundFileTail, cn) == 1) {
+				found = YES;
+			} else if (getTrustStringParameter(NULL, &kwn.global_id, dirEntry->d_name, NULL, cn) != 0) {
+				sprintf(oldFullPath, "%s/%s", dirName, dirEntry->d_name);
+				dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "Removing duplicate or invalid trustFile=%s", oldFullPath);
+				remove(oldFullPath);
+			}
+		}
+
+                while (!cryptShasEqual(&myKey->kHash, &kwn.global_id) && (c = list_iterate(&patch->childs_instance_list, c))) {
+
+			if (!strcmp(c->opt->name, ARG_SET_TRUSTED_LEVEL))
+                                kwn.trust = strtol(c->val, NULL, 10);
+			if (!strcmp(c->opt->name, ARG_SET_SUPPORT_LEVEL))
+                                kwn.support = strtol(c->val, NULL, 10);
+		}
+
+		closedir(dir);
+
+		sprintf(oldFullPath, "%s/%s", dirName, kwn.fileName);
+		sprintf(newFullPath, "%s/%s.trust=%d.support=%d%s", dirName, cryptShaAsString(&kwn.global_id), kwn.trust, kwn.support, foundFileTail);
+
+		if (cmd == OPT_APPLY) {
+
+			dbgf_cn(cn, DBGL_SYS, DBGT_INFO, "%s found=%d id=%s oldTrustFile=%s newTrustFile=%s", patch->diff == DEL ? "DEL" : (found ? "MOVE" : "ADD"),
+				found, cryptShaAsShortStr(&kwn.global_id), oldFullPath, newFullPath);
+
+			if (found && patch->diff == DEL) {
+				if (remove(oldFullPath) != 0)
+					goto_error(opt_set_trusted_error, "Failed removing oldTrustFile");
+			} else if (found && patch->diff == ADD) {
+				if (rename(oldFullPath, newFullPath) != 0)
+					goto_error(opt_set_trusted_error, "Failed renaming oldTrustFile");
+			} else if (!found && patch->diff == ADD) {
+				int fd;
+				if ((fd=open(newFullPath, O_RDWR | O_CREAT, S_IRUSR | S_IRGRP | S_IROTH)) < 0)
+					goto_error(opt_set_trusted_error, "Failed creating newTrustFile");
+				else
+					close(fd);
+			}
+
+
+		}
+
+	}
+	return SUCCESS;
+
+opt_set_trusted_error:
+
+	dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "%s error=%s oldTrustFile=%s newTrustFile=%s", goto_error_code, strerror(errno), oldFullPath, newFullPath);
+
+	return FAILURE;
+}
+
+STATIC_FUNC
 int32_t opt_key_path(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
 {
 
@@ -930,37 +1088,41 @@ int process_dsc_tlv_supports(struct rx_frame_iterator *it)
 STATIC_FUNC
 int create_dsc_tlv_trusts(struct tx_frame_iterator *it)
 {
-        struct avl_node *an = NULL;
-        struct trust_node *tn;
         struct dsc_msg_trust *msg = (struct dsc_msg_trust *)tx_iterator_cache_msg_ptr(it);
         int32_t max_size = tx_iterator_cache_data_space_pref(it, 0, 0);
-        int pos = 0;
-	struct DirWatch *dw = (it->frame_type==BMX_DSC_TLV_SUPPORTS) ? supportDirWatch : trustedDirWatch;
 
 	assertion(-502487, (it->frame_type == BMX_DSC_TLV_SUPPORTS || it->frame_type == BMX_DSC_TLV_TRUSTS));
 
-	if (dw) {
-		IDM_T addedMyself = NO;
-		while ((tn = avl_iterate_item(&dw->node_tree, &an)) || !addedMyself) {
+	if (trustedDirWatch && (it->frame_type == BMX_DSC_TLV_TRUSTS || publishSupportedNodes)) {
 
-			if (pos + (int) sizeof(struct dsc_msg_trust) > max_size) {
-				dbgf_sys(DBGT_ERR, "Failed adding %s=%s", it->handl->name, cryptShaAsString(&tn->global_id));
-				return TLV_TX_DATA_FULL;
+		struct avl_node *an = NULL;
+		struct KeyWatchNode *tn;
+		int pos = 0;
+
+		while ((tn = avl_iterate_item(&trustedDirWatch->node_tree, &an))) {
+
+			struct dsc_msg_trust dmt = {
+				.nodeId = tn->global_id,
+				.reserved = (it->frame_type == BMX_DSC_TLV_TRUSTS) ? tn->trust : tn->support
+			};
+
+			if (dmt.reserved) {
+
+				if (pos + (int) sizeof(struct dsc_msg_trust) > max_size) {
+					dbgf_sys(DBGT_ERR, "Failed adding %s=%s", it->handl->name, cryptShaAsString(&dmt.nodeId));
+					return TLV_TX_DATA_FULL;
+				}
+
+				*msg = dmt;
+				msg++;
+				pos += sizeof(struct dsc_msg_trust);
+
+				dbgf_track(DBGT_INFO, "adding %s=%s", it->handl->name, cryptShaAsString(&dmt.nodeId));
 			}
-
-			msg->nodeId = tn ? tn->global_id : myKey->kHash;
-			msg++;
-			pos += sizeof(struct dsc_msg_trust);
-
-			dbgf_track(DBGT_INFO, "adding %s=%s", it->handl->name, cryptShaAsString(&tn->global_id));
-
-			if (tn && cryptShasEqual(&tn->global_id, &myKey->kHash))
-				addedMyself = YES;
-			else if (!tn)
-				break;
 		}
 
-		return pos;
+		if (pos)
+			return pos;
 	}
 
         return TLV_TX_DATA_IGNORED;
@@ -988,19 +1150,18 @@ int process_dsc_tlv_trusts(struct rx_frame_iterator *it)
 
 IDM_T supportedKnownKey( CRYPTSHA1_T *pkhash ) {
 
-	struct trust_node *tn;
+	struct KeyWatchNode *tn;
 
 	if (!pkhash || is_zero(pkhash, sizeof(CRYPTSHA1_T)))
 		return NO;
 
-	if (!supportDirWatch)
+	if (!trustedDirWatch)
 		return -1;
 		
-	if (!(tn = avl_find_item(&supportDirWatch->node_tree, pkhash)))
+	if (!(tn = avl_find_item(&trustedDirWatch->node_tree, pkhash)) || !tn->support)
 		return NO;
 
-	return tn->maxTrust + YES;
-
+	return tn->support;
 }
 
 
@@ -1016,59 +1177,56 @@ void check_nodes_dir(void *dirWatchPtr)
 	if ((dir = opendir(dw->pathp))) {
 
 		struct dirent *dirEntry;
-		struct trust_node *tn;
-		GLOBAL_ID_T globalId;
+		struct KeyWatchNode *ttn;
 
 		dw->retryCnt = 5;
 
 		while ((dirEntry = readdir(dir)) != NULL) {
 
-			char globalIdString[(2*sizeof(GLOBAL_ID_T))+1] = {0};
+			struct KeyWatchNode kwt;
+			IDM_T correct;
 
-			if (
-				(strlen(dirEntry->d_name) >= (2*sizeof(GLOBAL_ID_T))) &&
-				(strncpy(globalIdString, dirEntry->d_name, 2*sizeof(GLOBAL_ID_T))) &&
-				(hexStrToMem(globalIdString, (uint8_t*)&globalId, sizeof(GLOBAL_ID_T)) == SUCCESS)
-				) {
+			if ((correct = getTrustStringParameter(&kwt, NULL, dirEntry->d_name, NULL, NULL)) == 0)
+				continue;
 
-				if ((tn = avl_find_item(&dw->node_tree, &globalId))) {
+			if (correct == -1 || ((ttn = avl_find_item(&dw->node_tree, &kwt.global_id)) && ttn->updated)) {
+				char oldFullPath[MAX_PATH_SIZE] = {0};
+				sprintf(oldFullPath, "%s/%s", dw->pathp, dirEntry->d_name);
+				dbgf_sys(DBGT_ERR, "Removing duplicate or invalid trustFile=%s", oldFullPath);
+				remove(oldFullPath);
+				continue;
+			}
 
-					dbgf(tn->updated ? DBGL_SYS : DBGL_ALL, tn->updated ? DBGT_ERR : DBGT_INFO,
-						"file=%s prefix found %d times!",dirEntry->d_name, tn->updated);
+			if (ttn) {
 
-				} else {
-					tn = debugMallocReset(sizeof(struct trust_node), -300658);
-					tn->global_id = globalId;
-					avl_insert(&dw->node_tree, tn, -300659);
-					dbgf_sys(DBGT_INFO, "file=%s defines new nodeId=%s!",
-						dirEntry->d_name, cryptShaAsString(&globalId));
-
-					if (dw->idChanged)
-						(*dw->idChanged) (ADD, &globalId);
+				if (strcmp(ttn->fileName, kwt.fileName)) {
+					memset(ttn->fileName, 0, sizeof(ttn->fileName));
+					strcpy(ttn->fileName, kwt.fileName);
+					(*dw->idChanged) (ADD, ttn, dw);
 				}
 
-				tn->updated++;
-
-			} else if (strcmp(dirEntry->d_name, ".") && strcmp(dirEntry->d_name, "..")) {
-				dbgf_sys(DBGT_ERR, "file=%s has illegal format!", dirEntry->d_name);
+			} else {
+				ttn = debugMallocReset(sizeof(struct KeyWatchNode), -300658);
+				ttn->global_id = kwt.global_id;
+				strcpy(ttn->fileName, kwt.fileName);
+				avl_insert(&dw->node_tree, ttn, -300659);
+				dbgf_sys(DBGT_INFO, "file=%s defines new nodeId=%s!", kwt.fileName, cryptShaAsString(&kwt.global_id));
+				(*dw->idChanged) (ADD, ttn, dw);
 			}
+
+			ttn->updated++;
 		}
 		closedir(dir);
 
-		memset(&globalId, 0, sizeof(globalId));
-		while ((tn = avl_next_item(&dw->node_tree, &globalId))) {
-			globalId = tn->global_id;
-			if (tn->updated || (myKey && cryptShasEqual(&tn->global_id, &myKey->kHash))) {
-				tn->updated = 0;
+		GLOBAL_ID_T globalId = ZERO_CYRYPSHA1;
+		while ((ttn = avl_next_item(&dw->node_tree, &globalId))) {
+			globalId = ttn->global_id;
+
+			if (ttn->updated) {
+				ttn->updated = 0;
 			} else {
-
-				if (dw->idChanged)
-					(*dw->idChanged) (DEL, &globalId);
-
-				avl_remove(&dw->node_tree, &globalId, -300660);
 				dbgf_sys(DBGT_INFO, "removed nodeId=%s!", cryptShaAsString(&globalId));
-
-				debugFree(tn, -300740);
+				(*dw->idChanged) (DEL, ttn, dw);
 			}
 		}
 
@@ -1155,17 +1313,10 @@ void cleanup_dir_watch(struct DirWatch **dw)
 		task_remove(check_nodes_dir, *dw);
 	}
 
-	while ((*dw)->node_tree.items) {
-		struct trust_node *tn = avl_remove_first_item(&(*dw)->node_tree, -300661);
+	(*(*dw)->idChanged)(DEL, NULL, *dw);
 
-		if ((*dw)->idChanged)
-			(*(*dw)->idChanged)(DEL, &tn->global_id);
-
-		debugFree(tn, -300664);
-	}
-
-	if ((*dw)->idChanged)
-		(*(*dw)->idChanged)(DEL, NULL);
+	while ((*dw)->node_tree.items)
+		(*(*dw)->idChanged)(DEL, ((struct KeyWatchNode *) avl_first_item(&(*dw)->node_tree)), *dw);
 
 	debugFree(*dw, -300000);
 	*dw = NULL;
@@ -1173,28 +1324,66 @@ void cleanup_dir_watch(struct DirWatch **dw)
 }
 
 STATIC_FUNC
-void idChanged_Trusted(IDM_T del, GLOBAL_ID_T *id)
+void idChanged_Trusted(IDM_T del, struct KeyWatchNode *kwn, struct DirWatch *dw)
 {
-	my_description_changed = YES;
-}
-
-STATIC_FUNC
-void idChanged_Supported(IDM_T del, GLOBAL_ID_T *id)
-{
-	struct key_credits friend_kc = {.friend=1};
-
-	if (!id)
+	if (!kwn) {
+		if (!del){
+			kwn = debugMallocReset(sizeof(struct KeyWatchNode), -300000);
+			kwn->global_id = myKey->kHash;
+			kwn->trust = DEF_TRUST_LEVEL;
+			kwn->support = DEF_SUPPORT_LEVEL;
+			avl_insert(&dw->node_tree, kwn, -300000);
+		} else {
+			kwn = avl_remove(&dw->node_tree, &myKey->kHash, -300000);
+			debugFree(kwn, -300000);
+		}
 		return;
+	}
 
-	if (del && !terminating)
-		keyNode_delCredits(id, NULL, &friend_kc);
+	if (del && cryptShasEqual(&myKey->kHash, &kwn->global_id)) {
+		memset(kwn->fileName, 0, sizeof(kwn->fileName));
+		return;
+	}
+	struct KeyWatchNode kwt = { .trust = MIN_TRUST_LEVEL, .support = MIN_SUPPORT_LEVEL};
+	getTrustStringParameter(&kwt, &kwn->global_id, kwn->fileName, NULL, NULL);
 
-	else
-		keyNode_updCredits(id, NULL, &friend_kc);
+
+	if ((del && kwn->trust > MIN_TRUST_LEVEL) || (!del && kwn->trust != kwt.trust)) {
+		kwn->trust = (del ? MIN_TRUST_LEVEL : kwt.trust);
+		my_description_changed = YES;
+	}
+
+	if ((del && kwn->support > MIN_SUPPORT_LEVEL) || (!del && kwn->support != kwt.support)) {
+
+		uint8_t prevSupport = kwn->support;
+
+		kwn->support = (del ? MIN_SUPPORT_LEVEL: kwt.support);
+
+		if ((!!prevSupport != !!kwn->support) && !terminating) {
+
+			struct key_credits friend_kc = {.friend=1};
+
+			if (del)
+				keyNode_delCredits(&kwn->global_id, NULL, &friend_kc);
+
+			else
+				keyNode_updCredits(&kwn->global_id, NULL, &friend_kc);
+
+
+			if (publishSupportedNodes)
+				my_description_changed = YES;
+		}
+	}
+
+	if (del) {
+		avl_remove(&dw->node_tree, &kwn->global_id, -300000);
+		debugFree(kwn, -300000);
+	}
 }
 
-IDM_T init_dir_watch(struct DirWatch **dw, char *path, void (* idChangedTask) (IDM_T del, GLOBAL_ID_T *id))
+IDM_T init_dir_watch(struct DirWatch **dw, char *path, void (* idChangedTask) (IDM_T del, struct KeyWatchNode *kwn, struct DirWatch *dw))
 {
+	assertion(-500000, (dw && path && idChangedTask));
 
 	cleanup_dir_watch(dw);
 
@@ -1203,7 +1392,7 @@ IDM_T init_dir_watch(struct DirWatch **dw, char *path, void (* idChangedTask) (I
 	(*dw)->pathp = path;
 	(*dw)->idChanged = idChangedTask;
 	(*dw)->retryCnt = 5;
-	AVL_INIT_TREE((*dw)->node_tree, struct trust_node, global_id);
+	AVL_INIT_TREE((*dw)->node_tree, struct KeyWatchNode, global_id);
 
 	if (((*dw)->ifd = inotify_init()) < 0) {
 
@@ -1228,10 +1417,9 @@ IDM_T init_dir_watch(struct DirWatch **dw, char *path, void (* idChangedTask) (I
 		avl_insert(&dirWatch_tree, (*dw), -300000);
 	}
 
-	check_nodes_dir((*dw));
+	(*((*dw)->idChanged))(ADD, NULL, *dw);
 
-	if (idChangedTask)
-		(*idChangedTask)(ADD, NULL);
+	check_nodes_dir((*dw));
 
 	return SUCCESS;
 }
@@ -1241,21 +1429,19 @@ STATIC_FUNC
 int32_t opt_dir_watch(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
 {
 
-	assertion(-500000, ((strcmp(opt->name, ARG_TRUSTED_NODES_DIR) == 0)|| (strcmp(opt->name, ARG_SUPPORTED_NODES_DIR) == 0)));
-
         if (cmd == OPT_CHECK && patch->diff == ADD && check_dir(patch->val, YES/*create*/, YES/*writable*/, NO) == FAILURE)
 		return FAILURE;
 
         if (cmd == OPT_APPLY) {
 
-		struct DirWatch **dw = (strcmp(opt->name, ARG_TRUSTED_NODES_DIR) == 0) ? &trustedDirWatch : &supportDirWatch;
+		struct DirWatch **dw = &trustedDirWatch;
 
 		if (patch->diff == DEL || patch->diff == ADD)
 			cleanup_dir_watch(dw);
 
 		if (patch->diff == ADD) {
 			assertion(-501286, (patch->val));
-			return init_dir_watch(dw, patch->val, !strcmp(opt->name, ARG_SUPPORTED_NODES_DIR)?idChanged_Supported:idChanged_Trusted);
+			return init_dir_watch(dw, patch->val, idChanged_Trusted);
 		}
         }
 
@@ -1263,11 +1449,60 @@ int32_t opt_dir_watch(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct o
 }
 
 
+struct trust_status {
+	GLOBAL_ID_T *shortId;
+	GLOBAL_ID_T *nodeId;
+	char* name;
+	uint8_t trust;
+	uint8_t support;
+	char *fileName;
+};
+
+static const struct field_format trust_status_format[] = {
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_SHORT_ID,  trust_status, shortId,  1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, trust_status, nodeId,   1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      trust_status, name,     1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              trust_status, trust,    1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              trust_status, support,  1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      trust_status, fileName, 1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_END
+};
+
+static int32_t trust_status_creator(struct status_handl *handl, void *data)
+{
+	if (!trustedDirWatch)
+		return 0;
+
+	uint32_t max_size = trustedDirWatch->node_tree.items * sizeof(struct trust_status);
+	uint32_t i = 0;
+	struct avl_node *an = NULL;
+	struct KeyWatchNode *kwn;
+	struct orig_node *on;
+
+	struct trust_status *status = ((struct trust_status*) (handl->data = debugRealloc(handl->data, max_size, -300000)));
+	memset(status, 0, max_size);
+
+	while((kwn = avl_iterate_item(&trustedDirWatch->node_tree, &an))) {
+
+		status[i].nodeId = &kwn->global_id;
+		status[i].shortId = &kwn->global_id;
+		status[i].name = (on=avl_find_item(&orig_tree, &kwn->global_id)) ? on->k.hostname : NULL;
+		status[i].trust = kwn->trust;
+		status[i].support = kwn->support;
+		status[i].fileName = kwn->fileName;
+		i++;
+	}
+
+	return i * sizeof(struct trust_status);
+}
+
 
 STATIC_FUNC
 struct opt_type sec_options[]=
 {
 //order must be before ARG_HOSTNAME (which initializes self via init_self):
+	{ODI,0,ARG_TRUST_STATUS,	 0,  9,1,A_PS0N,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
+			0,		"list trusted and supported nodes\n"},
 	{ODI,0,ARG_NODE_SIGN_LEN,         0,  4,1,A_PS1N,A_ADM,A_INI,A_CFA,A_ANY,       0,MIN_NODE_SIGN_LEN,MAX_NODE_SIGN_LEN,DEF_NODE_SIGN_LEN,0, opt_key_path,
 			ARG_VALUE_FORM, HLP_NODE_SIGN_LEN},
 	{ODI,ARG_NODE_SIGN_LEN,ARG_KEY_PATH,0,4,1,A_CS1, A_ADM,A_INI,A_CFA,A_ANY,	0,0,    	    0,		      0,     DEF_KEY_PATH, opt_key_path,
@@ -1276,16 +1511,24 @@ struct opt_type sec_options[]=
 			ARG_VALUE_FORM, HLP_NODE_SIGN_MAX},
 	{ODI,0,ARG_LINK_SIGN_LEN,         0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &linkSignLen,  MIN_LINK_SIGN_LEN,MAX_LINK_SIGN_LEN,DEF_LINK_SIGN_LEN,0, opt_linkSigning,
 			ARG_VALUE_FORM, HLP_LINK_SIGN_LEN},
-	{ODI,0,ARG_LINK_VERIFY,           0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &linkVerify,   MIN_LINK_VERIFY,MAX_LINK_VERIFY, DEF_LINK_VERIFY,0, NULL,
+	{ODI,0,ARG_LINK_VERIFY,           0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &linkVerify,   MIN_LINK_VERIFY,MAX_LINK_VERIFY, DEF_LINK_VERIFY,0, NULL,
 			ARG_VALUE_FORM, HLP_LINK_VERIFY},
-	{ODI,0,ARG_NODE_VERIFY,           0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &nodeVerify,   MIN_NODE_VERIFY,MAX_NODE_VERIFY, DEF_NODE_VERIFY,0, NULL,
+	{ODI,0,ARG_NODE_VERIFY,           0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &nodeVerify,   MIN_NODE_VERIFY,MAX_NODE_VERIFY, DEF_NODE_VERIFY,0, NULL,
 			ARG_VALUE_FORM, HLP_NODE_VERIFY},
 	{ODI,0,ARG_LINK_SIGN_LT,          0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &linkSignLifetime,0,MAX_LINK_SIGN_LT,DEF_LINK_SIGN_LT,0, opt_linkSigning,
 			ARG_VALUE_FORM, HLP_LINK_SIGN_LT},
 	{ODI,0,ARG_TRUSTED_NODES_DIR,     0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,DEF_TRUSTED_NODES_DIR, opt_dir_watch,
-			ARG_DIR_FORM,"directory with global-id hashes of this node's trusted other nodes"},
-	{ODI,0,ARG_SUPPORTED_NODES_DIR,   0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,DEF_SUPPORTED_NODES_DIR, opt_dir_watch,
-			ARG_DIR_FORM,"directory with global-id hashes of this node's supported other nodes"},
+			ARG_DIR_FORM,HLP_TRUSTED_NODES_DIR},
+	{ODI,0,ARG_SET_TRUSTED,		  0,  9,2,A_PM1N,A_ADM,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_set_trusted,
+			0,		"set global-id hash of trusted node"},
+	{ODI,ARG_SET_TRUSTED,ARG_TRUSTED_NODES_DIR,0,9,2,A_CS1, A_ADM,A_INI,A_CFA,A_ANY,0,              0,    	        0,		0,DEF_TRUSTED_NODES_DIR, opt_set_trusted,
+			ARG_DIR_FORM,	HLP_TRUSTED_NODES_DIR},
+	{ODI,ARG_SET_TRUSTED,ARG_SET_TRUSTED_LEVEL,0,9,2,A_CS1, A_ADM,A_INI,A_CFA,A_ANY,0,       MIN_TRUST_LEVEL,MAX_TRUST_LEVEL, DEF_TRUST_LEVEL,0,  opt_set_trusted,
+			ARG_DIR_FORM,	""},
+	{ODI,ARG_SET_TRUSTED,ARG_SET_SUPPORT_LEVEL, 0,9,2,A_CS1, A_ADM,A_INI,A_CFA,A_ANY,0,       MIN_SUPPORT_LEVEL,MAX_SUPPORT_LEVEL, DEF_SUPPORT_LEVEL,0,  opt_set_trusted,
+			ARG_DIR_FORM,	""},
+	{ODI,0,ARG_SUPPORT_PUBLISHING,    0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &publishSupportedNodes, MIN_SUPPORT_PUBLISHING,MAX_SUPPORT_PUBLISHING, DEF_SUPPORT_PUBLISHING,0, NULL,
+			ARG_VALUE_FORM, HLP_SUPPORT_PUBLISHING},
 
 };
 
@@ -1293,6 +1536,7 @@ struct opt_type sec_options[]=
 void init_sec( void )
 {
 	register_options_array( sec_options, sizeof( sec_options ), CODE_CATEGORY_NAME );
+	register_status_handl(sizeof(struct trust_status), 1, trust_status_format, ARG_TRUST_STATUS, trust_status_creator);
 
         struct frame_handl handl;
         memset(&handl, 0, sizeof ( handl));
@@ -1389,5 +1633,4 @@ void cleanup_sec( void )
 	}
 
 	cleanup_dir_watch(&trustedDirWatch);
-	cleanup_dir_watch(&supportDirWatch);
 }

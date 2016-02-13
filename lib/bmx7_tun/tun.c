@@ -2241,7 +2241,7 @@ int32_t opt_tun_search(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
 
 				if (c->val) {
 
-					if (hexStrToMem(c->val, pkid.h.u8, sizeof(pkid)) == FAILURE)
+					if (hexStrToMem(c->val, pkid.h.u8, sizeof(pkid), YES/*strict*/) == FAILURE)
 						return FAILURE;
 
 

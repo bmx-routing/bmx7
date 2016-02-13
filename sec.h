@@ -28,14 +28,31 @@
 //#define DEF_PERSISTENT_PATH "/etc/bmx7"
 #define DEF_TRUST_DIR_POLLING_INTERVAL 5000
 
+#define ARG_TRUST_STATUS "trusted"
+
 #define DEF_TRUSTED_NODES_DIR "/etc/bmx7/trustedNodes"
 #define ARG_TRUSTED_NODES_DIR "trustedNodesDir"
-
-#define DEF_SUPPORTED_NODES_DIR "/etc/bmx7/supportedNodes"
-#define ARG_SUPPORTED_NODES_DIR "supportedNodesDir"
+#define HLP_TRUSTED_NODES_DIR "directory with global-id hashes of this node's trusted other nodes"
 
 #define ARG_KEY_PATH "keyPath"
 #define DEF_KEY_PATH "/etc/bmx7/rsa.der"
+
+#define ARG_SET_TRUSTED "setTrustedNode"
+#define ARG_SET_TRUSTED_LEVEL "trust"
+#define DEF_TRUST_LEVEL 1
+#define MIN_TRUST_LEVEL 0
+#define MAX_TRUST_LEVEL 2
+
+#define ARG_SET_SUPPORT_LEVEL "support"
+#define DEF_SUPPORT_LEVEL 1
+#define MIN_SUPPORT_LEVEL 0
+#define MAX_SUPPORT_LEVEL 1
+
+#define ARG_SUPPORT_PUBLISHING "publishSupportedNodes"
+#define MIN_SUPPORT_PUBLISHING 0
+#define MAX_SUPPORT_PUBLISHING 1
+#define DEF_SUPPORT_PUBLISHING 1
+#define HLP_SUPPORT_PUBLISHING "publish (describe) id of nodes supported with priority"
 
 #define ARG_NODE_SIGN_LEN "nodeSignatureLen"
 #define MIN_NODE_SIGN_LEN 512
@@ -103,19 +120,19 @@ extern int32_t linkSignLen;
 #define DEF_LINK_SIGN_MIN 0
 #define HLP_LINK_SIGN_MIN "require incoming link (packet) signatures of at least given RSA key length"
 
-struct DirWatch {
-	char *pathp;
-	int ifd;
-	int iwd;
-	uint32_t retryCnt;
-	void (* idChanged) (IDM_T del, GLOBAL_ID_T *id);
-	struct avl_tree node_tree;
-};
+#define MAX_KEY_FILE_SIZE 100
 
-struct trust_node {
+struct KeyWatchNode {
+	// persistent id:
 	GLOBAL_ID_T global_id;
+	// new file name:
+	char fileName[MAX_KEY_FILE_SIZE];
+	// old parameters:
 	uint8_t updated;
-	uint8_t maxTrust;
+	uint8_t trust;
+	uint8_t support;
+	uint8_t misc;
+
 	/*
 		uint8_t maxDescDepth;
 		uint8_t maxDescSize;
@@ -123,6 +140,16 @@ struct trust_node {
 		uint32_t minDescSqn;
 	 */
 };
+
+struct DirWatch {
+	char *pathp;
+	int ifd;
+	int iwd;
+	uint32_t retryCnt;
+	void (* idChanged) (IDM_T del, struct KeyWatchNode *kwn, struct DirWatch *dw);
+	struct avl_tree node_tree;
+};
+
 
 
 extern CRYPTKEY_T *my_NodeKey;
@@ -184,7 +211,7 @@ void free_internalNeighId(INT_NEIGH_ID_T ini);
 uint32_t *init_neighTrust(struct orig_node *on);
 IDM_T verify_neighTrust(struct orig_node *on, struct neigh_node *neigh);
 void cleanup_dir_watch(struct DirWatch **dw);
-IDM_T init_dir_watch(struct DirWatch **dw, char *path, void (* idChangedTask) (IDM_T del, GLOBAL_ID_T *id));
+IDM_T init_dir_watch(struct DirWatch **dw, char *path, void (* idChangedTask) (IDM_T del, struct KeyWatchNode *kwn, struct DirWatch *dw));
 void inotify_event_hook(int fd);
 
 void init_sec(void);

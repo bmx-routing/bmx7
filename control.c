@@ -2117,7 +2117,8 @@ int32_t call_option(uint8_t ad, uint8_t cmd, uint8_t save, struct opt_type *opt,
 	}
 	
 	if ( ad == DEL  &&  ( /*!on_the_fly this is what concurrent -r and -g configurations do || */
-                /* opt->dyn_t == A_INI this is what conf-reload tries   ||*/  opt->cfg_t == A_ARG ) ) {
+                /* opt->dyn_t == A_INI this is what conf-reload tries   ||*/  opt->cfg_t == A_ARG &&
+		opt->opt_t != A_PM1N) ) {
 		dbg_sys(DBGT_ERR, "option %s can not be resetted during startup!", opt->name );
 		return FAILURE;
 	}

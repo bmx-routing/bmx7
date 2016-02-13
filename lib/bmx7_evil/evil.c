@@ -117,7 +117,7 @@ int32_t evil_tx_frame_ogm_dhash_aggreg_advs(struct tx_frame_iterator *it)
 
 		while (origs && (on = avl_iterate_item(origs, &an))) {
 
-			struct trust_node *tn = avl_find_item(&evilDirWatch->node_tree, &on->key->kHash);
+			struct KeyWatchNode *tn = avl_find_item(&evilDirWatch->node_tree, &on->key->kHash);
 
 			if (tn && evilOgmDropping)
 				continue;
@@ -140,15 +140,25 @@ int32_t evil_tx_frame_ogm_dhash_aggreg_advs(struct tx_frame_iterator *it)
 
 
 STATIC_FUNC
-void idChanged_Evil(IDM_T del, GLOBAL_ID_T *id)
+void idChanged_Evil(IDM_T del, struct KeyWatchNode *kwn, struct DirWatch *dw)
 {
-	if (evilRouteDropping && id) {
-		
-		struct net_key routeKey = {.af = AF_INET6, .mask = 128, .ip = create_crypto_IPv6(&autoconf_prefix_cfg, id)};
+	if (!kwn || (kwn->misc != (del ? MIN_SUPPORT_LEVEL : MAX_SUPPORT_LEVEL)))
+		return;
+	
+	kwn->misc = (del ? MIN_SUPPORT_LEVEL : MAX_SUPPORT_LEVEL);
 
-		dbgf_track(DBGT_WARN, "del=%d route=%s to id=%s table=%d idx=%d", del, netAsStr(&routeKey), cryptShaAsShortStr(id), DEF_EVIL_IP_TABLE, evil_tun_idx);
+	if (evilRouteDropping ) {
+
+		struct net_key routeKey = {.af = AF_INET6, .mask = 128, .ip = create_crypto_IPv6(&autoconf_prefix_cfg, &kwn->global_id)};
+
+		dbgf_track(DBGT_WARN, "del=%d route=%s to id=%s table=%d idx=%d", del, netAsStr(&routeKey), cryptShaAsShortStr(&kwn->global_id), DEF_EVIL_IP_TABLE, evil_tun_idx);
 
 		iproute(IP_ROUTE_TUNS, del, NO, &routeKey, DEF_EVIL_IP_TABLE, 0, evil_tun_idx, NULL, NULL, DEF_EVIL_IP_METRIC, NULL);
+	}
+
+	if (del) {
+		avl_remove(&dw->node_tree, &kwn->global_id, -300000);
+		debugFree(kwn, -300000);
 	}
 }
 
@@ -173,10 +183,10 @@ int32_t opt_evil_route(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
 		int32_t nextEvilRouteDropping = evilRouteDropping;
 		evilRouteDropping = YES;
 
-		struct trust_node *tn;
+		struct KeyWatchNode *tn;
 		struct avl_node *an = NULL;
 		while (evilDirWatch && (tn = avl_iterate_item(&evilDirWatch->node_tree, &an)))
-			(*evilDirWatch->idChanged)((nextEvilRouteDropping ? ADD : DEL), &tn->global_id);
+			(*evilDirWatch->idChanged)((nextEvilRouteDropping ? ADD : DEL), tn, evilDirWatch);
 
 		evilRouteDropping = nextEvilRouteDropping;
 	}

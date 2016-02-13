@@ -35,6 +35,7 @@
 #include "control.h"
 #include "bmx.h"
 #include "tools.h"
+#include "allocate.h"
 
 char* memAsHexStringSep( const void* mem, uint32_t len, uint16_t seperationLen, char *seperator)
 {
@@ -71,23 +72,56 @@ char* memAsHexString( const void* mem, uint32_t len)
         return memAsHexStringSep(mem, len, 0, NULL);
 }
 
+char* rmStrKeyValue(char* str, char* key)
+{
+	char *needleBegin = NULL, *needleVal = NULL, *needleEnd = NULL, *ret = NULL;
+	char *haystack = debugMallocReset(strlen(str)+1, -300000);
+
+	if (
+		(strcpy(haystack, str)) &&
+		(needleBegin = strstr(haystack, key)) &&
+		(strlen(needleBegin) > strlen(key)) &&
+		(needleVal = needleBegin + strlen(key)) &&
+		(needleEnd = (strchr(needleVal, '.') ? strchr(needleVal, '.') : strchr(needleVal, 0))) &&
+		(needleVal < needleEnd)
+		) {
+
+		memset(str, 0, strlen(str));
+
+		if (haystack < needleBegin)
+			strncpy(str + strlen(str), haystack, (needleBegin - haystack));
+
+		if (*needleEnd != 0)
+			strcpy(str + strlen(str), needleEnd);
+
+		*needleEnd = 0;
+
+		strcpy(str + strlen(str) + 1, needleBegin);
+
+		ret = (str + strlen(str) + 1 + (needleVal - needleBegin));
+	}
 
 
-IDM_T hexStrToMem(char *s, uint8_t *m, uint16_t mLen)
+	dbgf_all(DBGT_INFO, "in=%s key=%s beg=%s val=%s end=%s ret=%s, out=%s", haystack, key, needleBegin, needleVal, needleEnd, ret, str);
+	debugFree(haystack, -300000);
+	return ret;
+}
+
+IDM_T hexStrToMem(char *s, uint8_t *m, uint16_t mLen, uint8_t strict)
 {
         assertion(-501291, (s && mLen));
 
-        int l = strlen(s);
+	int l = XMIN(strlen(s), (2 * mLen));
         int o = (2 * mLen) - l;
         int p = 0;
 
         if(m)
                 memset(m, 0, mLen);
 
-        if (l > 2 * mLen)
+        if (strict && (strlen(s) > 2 * mLen))
                 return FAILURE;
 
-        while (p < l) {
+	while (p < l) {
 
                 char *endptr;
 

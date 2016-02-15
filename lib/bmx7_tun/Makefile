@@ -15,14 +15,14 @@ PLUGIN_SHORTNAME = $(PLUGIN_NAME).so
 LIBDIR = /usr/lib
 THISDIR = $(shell pwd )
 
-all:	$(PLUGIN_FULLNAME)
+all:	$(PLUGIN_FULLNAME) Makefile
 
 
 $(PLUGIN_FULLNAME):	$(OBJS) Makefile
 	$(CC) $(LDFLAGS) $(EXTRA_LDFLAGS) $(OBJS) -o $(PLUGIN_FULLNAME) 
 	ln -f -s $(THISDIR)/$(PLUGIN_FULLNAME) $(THISDIR)/../$(PLUGIN_FULLNAME)
 
-%.o:	%.c %.h Makefile $(SRC_H)
+%.o:	%.c Makefile $(SRC_H)
 	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) -c $< -o $@
 
 

@@ -164,7 +164,7 @@ void lndev_assign_best(struct neigh_node *onlyLocal, LinkNode *onlyLink )
 
 		if (sendLinkRevisedOgms && local->best_tp_link && local->best_tp_link->timeaware_tx_probe > old_timeaware_tx_probe) {
 
-			struct reference_node *ref = NULL;
+			struct NeighRef_node *ref = NULL;
 			while ((ref = avl_next_item(&local->refsByKhash_tree, ref ? &ref->claimedKey : NULL))) {
 				assertion(-502422, (ref->dhn));
 				if (ref->dhn->descContent && ref->dhn->descContent->orig)

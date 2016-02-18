@@ -1375,7 +1375,7 @@ int process_dsc_tlv_tun6(struct rx_frame_iterator *it)
 
 			for (t = 0; t < sizeof(tlv_types); t++) {
 
-				if (desc_frame_changed(it, tlv_types[t])) {
+				if (desc_frame_changed(it->dcOld, it->dcOp, tlv_types[t])) {
 					new_tun6_advs_changed = YES;
 					break;
 				}
@@ -1726,7 +1726,7 @@ int process_dsc_tlv_tunXin6net(struct rx_frame_iterator *it)
 
 	if (it->op == TLV_OP_NEW) {
 
-		if (!new_tun6_advs_changed && !desc_frame_changed(it, it->f_type))
+		if (!new_tun6_advs_changed && !desc_frame_changed(it->dcOld, it->dcOp, it->f_type))
 			return it->f_msgs_len;
 	}
 

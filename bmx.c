@@ -833,6 +833,7 @@ struct orig_status {
 	TIME_T nQTo;
 	uint16_t friend;
 	uint16_t recom;
+	uint16_t trustees;
 	char S[2]; // supported by me
 	char s[2]; // me supported by him
 	char T[2]; // trusted by me;
@@ -869,6 +870,7 @@ static const struct field_format orig_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, nQTo,          1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, friend,        1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, recom,         1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, trustees,      1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       orig_status, S,             1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       orig_status, s,             1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       orig_status, T,             1, FIELD_RELEVANCE_HIGH),
@@ -921,10 +923,11 @@ uint8_t *key_status_page(uint8_t *sOut, uint32_t i, struct orig_node *on, struct
 		os->signTo = kn->pktSignTime ? (((TIME_T) (link_purge_to - (bmx_time - kn->pktSignTime))) / 1000) : 0;
 		os->tAPTo = kn->TAPTime ? (((TIME_T) (tracked_timeout - (bmx_time - kn->TAPTime))) / 1000) : 0;
 		os->nQTo = kn->nQTime ? (((TIME_T) (neigh_qualifying_to - (bmx_time - kn->nQTime))) / 1000) : 0;
-		os->friend = kn->dirFriend;
+		os->friend = kn->dFriend;
 		os->recom = kn->recommendations_tree.items;
+		os->trustees = kn->trustees_tree.items;
 		os->S[0] = (S = supportedKnownKey(&kn->kHash)) == -1 ? 'A' : (S + '0');
-		os->T[0] = (T = setted_pubkey(myKey->currOrig->descContent, BMX_DSC_TLV_TRUSTS, &kn->kHash)) == -1 ? 'A' : (T + '0');
+		os->T[0] = (T = setted_pubkey(myKey->currOrig->descContent, BMX_DSC_TLV_TRUSTS, &kn->kHash, 0)) == -1 ? 'A' : (T + '0');
 		os->nodeKey = (kn->content && (kn->content->f_body_len >= sizeof(struct dsc_msg_pubkey))) ?
 			cryptKeyTypeAsString(((struct dsc_msg_pubkey*) kn->content->f_body)->type) : DBG_NIL;
 	} else {
@@ -933,8 +936,8 @@ uint8_t *key_status_page(uint8_t *sOut, uint32_t i, struct orig_node *on, struct
 	}
 
 	if (dc) {
-		os->s[0] = (s = setted_pubkey(dc, BMX_DSC_TLV_SUPPORTS, &myKey->kHash)) == -1 ? 'A' : (s + '0');
-		os->t[0] = (t = setted_pubkey(dc, BMX_DSC_TLV_TRUSTS, &myKey->kHash)) == -1 ? 'A' : (t + '0');
+		os->s[0] = (s = setted_pubkey(dc, BMX_DSC_TLV_SUPPORTS, &myKey->kHash, 0)) == -1 ? 'A' : (s + '0');
+		os->t[0] = (t = setted_pubkey(dc, BMX_DSC_TLV_TRUSTS, &myKey->kHash, 0)) == -1 ? 'A' : (t + '0');
 		os->descSqn = dc->descSqn;
 		snprintf(os->descSize, sizeof(os->descSize), "%d+%d", dc->desc_frame_len, dc->ref_content_len);
 		snprintf(os->contents, sizeof(os->contents), "%d/%d", (dc->contentRefs_tree.items - dc->unresolvedContentCounter), dc->contentRefs_tree.items);
@@ -1051,7 +1054,7 @@ static const struct field_format ref_status_format[] = {
 };
 
 STATIC_FUNC
-uint8_t *ref_status_page(uint8_t *sOut, uint32_t i, struct reference_node *ref, uint8_t shownSqn)
+uint8_t *ref_status_page(uint8_t *sOut, uint32_t i, struct NeighRef_node *ref, uint8_t shownSqn)
 {
 	struct dhash_node *dhn = ref->dhn;
 	struct desc_content *dc = ref->dhn->descContent;
@@ -1112,7 +1115,7 @@ static int32_t ref_status_creator(struct status_handl *handl, void *data)
 	struct avl_node *it;
 	struct avl_node *an;
 	struct orig_node *on;
-	struct reference_node *ref;
+	struct NeighRef_node *ref;
 	struct key_node *kn;
 	struct dhash_node *dhn;
 	static uint8_t shownSqn = 0;

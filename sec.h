@@ -38,15 +38,17 @@
 #define DEF_KEY_PATH "/etc/bmx7/rsa.der"
 
 #define ARG_SET_TRUSTED "setTrustedNode"
-#define ARG_SET_TRUSTED_LEVEL "trust"
-#define DEF_TRUST_LEVEL 1
-#define MIN_TRUST_LEVEL 0
-#define MAX_TRUST_LEVEL 2
-
 #define ARG_SET_SUPPORT_LEVEL "support"
-#define DEF_SUPPORT_LEVEL 1
-#define MIN_SUPPORT_LEVEL 0
-#define MAX_SUPPORT_LEVEL 1
+#define ARG_SET_TRUSTED_LEVEL "trust"
+#define MIN_TRUST_LEVEL 0
+#define TYP_TRUST_LEVEL_ALL -1
+#define TYP_TRUST_LEVEL_NONE 0
+#define TYP_TRUST_LEVEL_RECOMMENDED 1
+#define TYP_TRUST_LEVEL_DIRECT 2
+#define TYP_TRUST_LEVEL_IMPORT 3
+#define MAX_TRUST_LEVEL 3
+#define DEF_TRUST_LEVEL 2
+
 
 #define ARG_SUPPORT_PUBLISHING "publishSupportedNodes"
 #define MIN_SUPPORT_PUBLISHING 0
@@ -188,7 +190,16 @@ FIELD_FORMAT_END }
 
 struct dsc_msg_trust {
 	CRYPTSHA1_T nodeId;
-	uint16_t reserved;
+#if __BYTE_ORDER == __LITTLE_ENDIAN         // 2 bytes
+	unsigned int reserved : 14;
+	unsigned int trustLevel : 2;
+#elif __BYTE_ORDER == __BIG_ENDIAN
+	unsigned int trustLevel : 2;
+	unsigned int reserved : 14;
+#else
+#error "Please fix <bits/endian.h>"
+#endif
+
 } __attribute__((packed));
 
 struct dsc_msg_version {
@@ -203,8 +214,8 @@ struct dsc_msg_version {
 GLOBAL_ID_T *get_desc_id(uint8_t *desc_adv, uint32_t desc_len, struct dsc_msg_signature **signpp, struct dsc_msg_version **verspp);
 
 struct content_node *test_description_signature(uint8_t *desc, uint32_t desc_len);
-
-IDM_T setted_pubkey(struct desc_content *dc, uint8_t type, GLOBAL_ID_T *nodeId);
+void apply_trust_changes(int8_t f_type, struct orig_node *on, struct desc_content* dcOld, struct desc_content *dcNew);
+IDM_T setted_pubkey(struct desc_content *dc, uint8_t type, GLOBAL_ID_T *globalId, uint8_t searchDepth);
 IDM_T supportedKnownKey(CRYPTSHA1_T *pkhash);
 INT_NEIGH_ID_T allocate_internalNeighId(struct neigh_node *nn);
 void free_internalNeighId(INT_NEIGH_ID_T ini);

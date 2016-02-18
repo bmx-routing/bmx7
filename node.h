@@ -373,7 +373,7 @@ struct orig_node {
 
 };
 
-struct reference_node {
+struct NeighRef_node {
 	struct dhash_node *dhn;
 	struct neigh_node *neigh;
 	struct key_node *claimedKey;
@@ -390,11 +390,12 @@ struct reference_node {
 
 struct key_credits {
 	uint8_t nQualifying;
-	uint8_t friend;
+	uint8_t dFriend;
 	uint8_t pktId;
 	uint8_t pktSign;
 	struct orig_node *recom;
-	struct reference_node *ref;
+	struct orig_node *trusteeRef;
+	struct NeighRef_node *neighRef;
 };
 
 struct key_node {
@@ -402,12 +403,13 @@ struct key_node {
 	struct KeyState *bookedState;
 	struct KeyState *decreasedEffectiveState;
 	struct content_node *content;
-	uint8_t dirFriend; //[0,1,2=supportHisDirSupKeys]
+	uint8_t dFriend; //[0,1,2=supportHisDirSupKeys]
 	TIME_T pktIdTime;
 	TIME_T pktSignTime;
 	TIME_T nQTime;
 	TIME_T TAPTime;
 	struct avl_tree neighRefs_tree;
+	struct avl_tree trustees_tree;
 	struct orig_node *currOrig;
 	struct desc_content *nextDesc;
 	struct avl_tree recommendations_tree; //ofMyDirect2SupportedKeys
@@ -499,8 +501,8 @@ extern uint32_t content_tree_unresolveds;
  Data Infrastructure
  ************************************************************/
 
-void refNode_destroy(struct reference_node *ref, IDM_T reAssessState);
-struct reference_node *refNode_update(struct neigh_node *neigh, AGGREG_SQN_T aggSqn, DHASH_T *descHash, struct CRYPTSHA1_T *claimedKey, DESC_SQN_T claimedSqn);
+void refNode_destroy(struct NeighRef_node *ref, IDM_T reAssessState);
+struct NeighRef_node *refNode_update(struct neigh_node *neigh, AGGREG_SQN_T aggSqn, DHASH_T *descHash, struct CRYPTSHA1_T *claimedKey, DESC_SQN_T claimedSqn);
 
 struct dhash_node* dhash_node_create(DHASH_T *dhash, struct neigh_node *neigh);
 void dhash_node_reject(struct dhash_node *dhn);

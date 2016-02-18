@@ -142,10 +142,10 @@ int32_t evil_tx_frame_ogm_dhash_aggreg_advs(struct tx_frame_iterator *it)
 STATIC_FUNC
 void idChanged_Evil(IDM_T del, struct KeyWatchNode *kwn, struct DirWatch *dw)
 {
-	if (!kwn || (kwn->misc != (del ? MIN_SUPPORT_LEVEL : MAX_SUPPORT_LEVEL)))
+	if (!kwn || (kwn->misc != (del ? MIN_TRUST_LEVEL : MAX_TRUST_LEVEL)))
 		return;
 	
-	kwn->misc = (del ? MIN_SUPPORT_LEVEL : MAX_SUPPORT_LEVEL);
+	kwn->misc = (del ? MIN_TRUST_LEVEL : MAX_TRUST_LEVEL);
 
 	if (evilRouteDropping ) {
 

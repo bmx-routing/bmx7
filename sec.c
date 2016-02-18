@@ -722,7 +722,7 @@ IDM_T getTrustStringParameter(struct KeyWatchNode *tn, GLOBAL_ID_T *id, char *fi
 	IDM_T myself = cryptShasEqual(&myKey->kHash, &foundId);
 
 	if ((valPtr = rmStrKeyValue(haystack, ".trust="))) {
-		if (strlen(valPtr) == 1 && (valInt = strtol(valPtr, NULL, 10)) >= MIN_TRUST_LEVEL && valInt <= MAX_TRUST_LEVEL) {
+		if (strlen(valPtr) == 1 && (valInt = strtol(valPtr, NULL, 10)) >= MIN_TRUST_LEVEL && valInt <= MAX_TRUST_LEVEL && valInt != TYP_TRUST_LEVEL_RECOMMENDED) {
 			if (tn)
 				tn->trust = myself ? DEF_TRUST_LEVEL : valInt;
 		} else {
@@ -731,9 +731,9 @@ IDM_T getTrustStringParameter(struct KeyWatchNode *tn, GLOBAL_ID_T *id, char *fi
 	}
 
 	if ((valPtr = rmStrKeyValue(haystack, ".support="))) {
-		if (strlen(valPtr) == 1 && (valInt = strtol(valPtr, NULL, 10)) >= MIN_SUPPORT_LEVEL && valInt <= MAX_SUPPORT_LEVEL) {
+		if (strlen(valPtr) == 1 && (valInt = strtol(valPtr, NULL, 10)) >= MIN_TRUST_LEVEL && valInt <= MAX_TRUST_LEVEL && valInt != TYP_TRUST_LEVEL_RECOMMENDED) {
 			if (tn)
-				tn->support = myself ? DEF_SUPPORT_LEVEL : valInt;
+				tn->support = myself ? DEF_TRUST_LEVEL : valInt;
 		} else {
 			goto_error(getTrustStringParameter_error, "Invalid support level");
 		}
@@ -760,7 +760,7 @@ int32_t opt_set_trusted (uint8_t cmd, uint8_t _save, struct opt_type *opt, struc
 	DIR *dir;
 	struct dirent *dirEntry;
 	char foundFileTail[MAX_KEY_FILE_SIZE] = {0};
-	struct KeyWatchNode kwn = {.trust = DEF_TRUST_LEVEL, .support = DEF_SUPPORT_LEVEL};
+	struct KeyWatchNode kwn = {.trust = DEF_TRUST_LEVEL, .support = DEF_TRUST_LEVEL};
 	int found = 0;
 	char newFullPath[MAX_PATH_SIZE] = {0}, oldFullPath[MAX_PATH_SIZE] = {0};
 
@@ -804,9 +804,12 @@ int32_t opt_set_trusted (uint8_t cmd, uint8_t _save, struct opt_type *opt, struc
                 while (!cryptShasEqual(&myKey->kHash, &kwn.global_id) && (c = list_iterate(&patch->childs_instance_list, c))) {
 
 			if (!strcmp(c->opt->name, ARG_SET_TRUSTED_LEVEL))
-                                kwn.trust = strtol(c->val, NULL, 10);
+                                kwn.trust = c->val ? strtol(c->val, NULL, 10) : DEF_TRUST_LEVEL;
 			if (!strcmp(c->opt->name, ARG_SET_SUPPORT_LEVEL))
-                                kwn.support = strtol(c->val, NULL, 10);
+                                kwn.support = c->val ? strtol(c->val, NULL, 10) : DEF_TRUST_LEVEL;
+
+			if (kwn.support == TYP_TRUST_LEVEL_RECOMMENDED || kwn.trust == TYP_TRUST_LEVEL_RECOMMENDED)
+				goto_error(opt_set_trusted_error, "Invalid trust or support parameter");
 		}
 
 		closedir(dir);
@@ -832,10 +835,7 @@ int32_t opt_set_trusted (uint8_t cmd, uint8_t _save, struct opt_type *opt, struc
 				else
 					close(fd);
 			}
-
-
 		}
-
 	}
 	return SUCCESS;
 
@@ -964,45 +964,69 @@ static uint8_t internalNeighId_array[(LOCALS_MAX/8) + (!!(LOCALS_MAX%8))];
 static int32_t internalNeighId_max = -1;
 static uint16_t internalNeighId_u32s = 0;
 
-IDM_T setted_pubkey(struct desc_content *dc, uint8_t type, GLOBAL_ID_T *globalId)
+IDM_T setted_pubkey(struct desc_content *dc, uint8_t type, GLOBAL_ID_T *globalId, uint8_t isRecommendedDc)
 {
-
-	assertion(-502483, (type <= description_tlv_db->handl_max));
-	assertion(-502484, (description_tlv_db->handls[type].fixed_msg_size));
-	assertion(-502485, (description_tlv_db->handls[type].data_header_size == 0));
-	assertion(-502486, (description_tlv_db->handls[type].min_msg_size == sizeof(struct dsc_msg_trust)));
-
-	struct dsc_msg_trust *setList = contents_data(dc, type);
+	assertion(-500000, (type == BMX_DSC_TLV_TRUSTS || type == BMX_DSC_TLV_SUPPORTS));
+	struct dsc_msg_trust *msg = contents_data(dc, type);
 	uint32_t msgs = contents_dlen(dc, type) / sizeof(struct dsc_msg_trust);
 	uint32_t m =0;
+	struct orig_node *on;
 
-	if (setList) {
-		for (m = 0; m < msgs; m++) {
+	if (!msgs)
+		return (isRecommendedDc ? TYP_TRUST_LEVEL_NONE : TYP_TRUST_LEVEL_ALL);
 
-			if (cryptShasEqual(globalId, &setList[m].nodeId))
-				return 1;
-		}
-		return 0;
+	for (m = 0; m < msgs; m++) {
+
+		if (msg[m].trustLevel >= TYP_TRUST_LEVEL_DIRECT && cryptShasEqual(&msg[m].nodeId, globalId))
+			return msg[m].trustLevel;
 	}
-	return -1;
+
+	if (isRecommendedDc)
+		return 0;
+
+	for (m = 0; m < msgs; m++) {
+
+		if (
+			(msg[m].trustLevel >= TYP_TRUST_LEVEL_IMPORT) &&
+			(on = avl_find_item(&orig_tree, &msg[m].nodeId)) &&
+			(setted_pubkey(on->descContent, type, globalId, 1) >= TYP_TRUST_LEVEL_DIRECT)
+			) {
+			return TYP_TRUST_LEVEL_RECOMMENDED;
+		}
+	}
+
+	return 0;
 }
 
 STATIC_FUNC
-void update_neighTrust(struct orig_node *on, struct desc_content *dcNew, struct neigh_node *nn)
+void update_neighTrust(struct neigh_node *onlyNn, struct orig_node *on, struct desc_content *dcNew)
 {
+	struct avl_node *an = NULL;
+	struct neigh_node *nn;
 
-	if (setted_pubkey(dcNew, BMX_DSC_TLV_TRUSTS, &nn->local_id)) {
+//	uint32_t newTrustedNeighBits[internalNeighId_u32s];
+//	uint32_t oldTrustedNeighBits[internalNeighId_u32s];
+//	memset(&newTrustedNeighBits, 0, sizeof(newTrustedNeighBits));
+//	memcpy(&oldTrustedNeighBits, on->trustedNeighsBitArray, sizeof(oldTrustedNeighBits));
 
-		bit_set((uint8_t*) on->trustedNeighsBitArray, internalNeighId_u32s * 32, nn->internalNeighId, 1);
+	while ((nn = (onlyNn ? onlyNn : avl_iterate_item(&local_tree, &an)))) {
 
-	} else {
+		if (setted_pubkey(dcNew, BMX_DSC_TLV_TRUSTS, &nn->local_id, 0) != TYP_TRUST_LEVEL_NONE) {
 
-		if (bit_get((uint8_t*) on->trustedNeighsBitArray, internalNeighId_u32s * 32, nn->internalNeighId)) {
+			bit_set((uint8_t*) on->trustedNeighsBitArray, internalNeighId_u32s * 32, nn->internalNeighId, 1);
 
-			bit_set((uint8_t*) on->trustedNeighsBitArray, internalNeighId_u32s * 32, nn->internalNeighId, 0);
+		} else {
 
-			purge_orig_router(on, nn, NULL, NO);
+			if (bit_get((uint8_t*) on->trustedNeighsBitArray, internalNeighId_u32s * 32, nn->internalNeighId)) {
+
+				bit_set((uint8_t*) on->trustedNeighsBitArray, internalNeighId_u32s * 32, nn->internalNeighId, 0);
+
+				purge_orig_router(on, nn, NULL, NO);
+			}
 		}
+
+		if (onlyNn)
+			break;
 	}
 }
 
@@ -1011,12 +1035,7 @@ uint32_t *init_neighTrust(struct orig_node *on) {
 
 	on->trustedNeighsBitArray = debugMallocReset(internalNeighId_u32s*4, -300654);
 
-	struct avl_node *an = NULL;
-	struct neigh_node *nn;
-
-	while ((nn = avl_iterate_item(&local_tree, &an))) {
-		update_neighTrust(on, NULL, nn);
-	}
+	update_neighTrust(NULL, on, NULL);
 
 	return on->trustedNeighsBitArray;
 }
@@ -1056,11 +1075,10 @@ INT_NEIGH_ID_T allocate_internalNeighId(struct neigh_node *nn) {
 			}
 
 		}
-
 	}
 
 	for (an = NULL; (on = avl_iterate_item(&orig_tree, &an));)
-		update_neighTrust(on, on->descContent, nn);
+		update_neighTrust(nn, on, on->descContent);
 
 
 	return ini;
@@ -1078,9 +1096,108 @@ void free_internalNeighId(INT_NEIGH_ID_T ini) {
 	bit_set(internalNeighId_array, (sizeof(internalNeighId_array)*8),ini,0);
 }
 
+
+STATIC_FUNC
+int test_dsc_tlv_trust(uint8_t type, struct desc_content *dc)
+{
+	if ((type != BMX_DSC_TLV_SUPPORTS && type != BMX_DSC_TLV_TRUSTS) )
+		return FAILURE;
+
+	struct dsc_msg_trust *trustList = contents_data(dc, type);
+	uint32_t msgs = contents_dlen(dc, type) / sizeof(struct dsc_msg_trust);
+	uint32_t m =0;
+
+	assertion(-502483, (type <= description_tlv_db->handl_max));
+	assertion(-502484, (description_tlv_db->handls[type].fixed_msg_size));
+	assertion(-502485, (description_tlv_db->handls[type].data_header_size == 0));
+	assertion(-502486, (description_tlv_db->handls[type].min_msg_size == sizeof(struct dsc_msg_trust)));
+	assertion(-500000, (!(contents_dlen(dc, type) % sizeof(struct dsc_msg_trust))));
+
+	if (trustList) {
+		CRYPTSHA1_T sha = ZERO_CYRYPSHA1;
+		for (m = 0; m < msgs; m++) {
+
+			if (memcmp(&trustList[m].nodeId, &sha, sizeof(sha)) <= 0) {
+				dbgf_sys(DBGT_ERR, "dscTlvType=%s msg=%d nodeId=%s is less or equal than previous nodeId=%s",
+					description_tlv_db->handls[type].name, m, cryptShaAsString(&trustList[m].nodeId), cryptShaAsString(&sha));
+				return FAILURE;
+			}
+
+			if (trustList[m].trustLevel > MAX_TRUST_LEVEL)
+				return FAILURE;
+	
+			sha = trustList[m].nodeId;
+		}
+	}
+
+	return SUCCESS;
+}
+
+void apply_trust_changes(int8_t f_type, struct orig_node *on, struct desc_content* dcOld, struct desc_content *dcNew )
+{
+	assertion(-500000, (desc_frame_changed(dcOld, dcNew, f_type)));
+	assertion(-500000, (f_type == BMX_DSC_TLV_TRUSTS || f_type == BMX_DSC_TLV_SUPPORTS));
+	assertion(-500000, (on && on->key));
+
+	struct dsc_msg_trust *newMsg = contents_data(dcNew, f_type);
+	uint32_t newMsgs = contents_dlen(dcNew, f_type) / sizeof(struct dsc_msg_trust);
+	uint32_t m;
+	struct key_credits vkc = {
+		.trusteeRef = (f_type == BMX_DSC_TLV_TRUSTS ? on : NULL),
+		.recom = (f_type == BMX_DSC_TLV_SUPPORTS ? on : NULL)
+	};
+
+	AVL_TREE(tmp_tree, struct dsc_msg_trust, nodeId);
+	struct dsc_msg_trust *oldMsg = contents_data(dcOld, f_type);
+	uint32_t oldMsgs = contents_dlen(dcOld, f_type) / sizeof(struct dsc_msg_trust);
+
+	for (m = 0; m < oldMsgs; m++) {
+
+		if (f_type == BMX_DSC_TLV_TRUSTS && oldMsg[m].trustLevel < TYP_TRUST_LEVEL_IMPORT)
+			continue;
+
+		if (cryptShasEqual(&on->key->kHash, &oldMsg[m].nodeId))
+			continue;
+
+//			if(!cryptShasEqual(&oldMsg[m].nodeId, &myKey->kHash) && !cryptShasEqual(&oldMsg[m].nodeId, &it->on->key->kHash))
+		avl_insert(&tmp_tree, &oldMsg[m], -300000);
+	}
+
+	for (m = 0; m < newMsgs; m++) {
+
+		if (f_type == BMX_DSC_TLV_TRUSTS && newMsg[m].trustLevel < TYP_TRUST_LEVEL_IMPORT)
+			continue;
+//			if(cryptShasEqual(&opMsg[m].nodeId, &myKey->kHash) || cryptShasEqual(&opMsg[m].nodeId, &it->on->key->kHash))
+//				continue;
+
+		if (cryptShasEqual(&on->key->kHash, &newMsg[m].nodeId))
+			continue;
+
+		if (!(oldMsg = avl_remove(&tmp_tree, &newMsg[m].nodeId, -300000)))
+			keyNode_updCredits(&newMsg[m].nodeId, NULL, &vkc);
+
+	}
+
+	while ((oldMsg = avl_remove_first_item(&tmp_tree, -300000))) {
+
+		keyNode_delCredits(&oldMsg->nodeId, NULL, &vkc);
+	}
+}
+
 STATIC_FUNC
 int process_dsc_tlv_supports(struct rx_frame_iterator *it)
 {
+	if (it->op == TLV_OP_TEST && test_dsc_tlv_trust(it->f_type, it->dcOp) != SUCCESS)
+		return TLV_RX_DATA_FAILURE;
+
+	if ((it->op == TLV_OP_NEW || it->op == TLV_OP_DEL) && desc_frame_changed(it->dcOld, it->dcOp, it->f_type)) {
+
+		IDM_T add = (it->op == TLV_OP_NEW);
+
+		if (it->on->key->dFriend >= TYP_TRUST_LEVEL_IMPORT)
+			apply_trust_changes(BMX_DSC_TLV_SUPPORTS, it->on, (add ? it->dcOld : it->dcOp), (add ? it->dcOp : NULL));
+			
+	}
 	return TLV_RX_DATA_PROCESSED;
 }
 
@@ -1101,23 +1218,21 @@ int create_dsc_tlv_trusts(struct tx_frame_iterator *it)
 
 		while ((tn = avl_iterate_item(&trustedDirWatch->node_tree, &an))) {
 
-			struct dsc_msg_trust dmt = {
-				.nodeId = tn->global_id,
-				.reserved = (it->frame_type == BMX_DSC_TLV_TRUSTS) ? tn->trust : tn->support
-			};
+			uint8_t configTrust = ((it->frame_type == BMX_DSC_TLV_TRUSTS) ? tn->trust : tn->support);
 
-			if (dmt.reserved) {
+			if (configTrust >= TYP_TRUST_LEVEL_DIRECT) {
 
 				if (pos + (int) sizeof(struct dsc_msg_trust) > max_size) {
-					dbgf_sys(DBGT_ERR, "Failed adding %s=%s", it->handl->name, cryptShaAsString(&dmt.nodeId));
+					dbgf_sys(DBGT_ERR, "Failed adding %s=%s", it->handl->name, cryptShaAsString(&tn->global_id));
 					return TLV_TX_DATA_FULL;
 				}
 
-				*msg = dmt;
+				msg->nodeId = tn->global_id;
+				msg->trustLevel = configTrust;
 				msg++;
 				pos += sizeof(struct dsc_msg_trust);
 
-				dbgf_track(DBGT_INFO, "adding %s=%s", it->handl->name, cryptShaAsString(&dmt.nodeId));
+				dbgf_track(DBGT_INFO, "adding %s=%s", it->handl->name, cryptShaAsString(&tn->global_id));
 			}
 		}
 
@@ -1133,35 +1248,55 @@ int create_dsc_tlv_trusts(struct tx_frame_iterator *it)
 STATIC_FUNC
 int process_dsc_tlv_trusts(struct rx_frame_iterator *it)
 {
-	if ((it->op == TLV_OP_NEW || it->op == TLV_OP_DEL) && desc_frame_changed( it, it->f_type )) {
+	if (it->op == TLV_OP_TEST && test_dsc_tlv_trust(it->f_type, it->dcOp) != SUCCESS)
+		return TLV_RX_DATA_FAILURE;
 
+	if ((it->op == TLV_OP_NEW || it->op == TLV_OP_DEL) && desc_frame_changed( it->dcOld, it->dcOp, it->f_type )) {
+
+		IDM_T add = (it->op == TLV_OP_NEW);
+
+		apply_trust_changes(BMX_DSC_TLV_TRUSTS, it->on, (add ? it->dcOld : it->dcOp), (add ? it->dcOp : NULL));
+
+		update_neighTrust(NULL, it->on, (add ? it->dcOp : NULL));
+
+		struct orig_node *on;
 		struct avl_node *an = NULL;
-		struct neigh_node *nn;
-
-		while ((nn = avl_iterate_item(&local_tree, &an))) {
-			update_neighTrust(it->on, (it->op == TLV_OP_NEW ? it->dcOp : NULL), nn);
+		while((on = avl_iterate_item(&it->on->key->trustees_tree, &an))) {
+			update_neighTrust(NULL, on, on->descContent);
 		}
+
 	}
 
 
 	return TLV_RX_DATA_PROCESSED;
 }
 
-
 IDM_T supportedKnownKey( CRYPTSHA1_T *pkhash ) {
 
 	struct KeyWatchNode *tn;
+	struct avl_node *an = NULL;
 
 	if (!pkhash || is_zero(pkhash, sizeof(CRYPTSHA1_T)))
-		return NO;
+		return TYP_TRUST_LEVEL_NONE;
 
 	if (!trustedDirWatch)
-		return -1;
+		return TYP_TRUST_LEVEL_ALL;
 		
-	if (!(tn = avl_find_item(&trustedDirWatch->node_tree, pkhash)) || !tn->support)
-		return NO;
+	if ((tn = avl_find_item(&trustedDirWatch->node_tree, pkhash)) && tn->support >= TYP_TRUST_LEVEL_DIRECT)
+		return tn->support;
 
-	return tn->support;
+
+	for (tn = NULL; (tn = avl_iterate_item(&trustedDirWatch->node_tree, &an));) {
+
+		if (tn->support >= TYP_TRUST_LEVEL_IMPORT) {
+			struct orig_node *on = avl_find_item(&orig_tree, &tn->global_id);
+
+			if (on && setted_pubkey( on->descContent, BMX_DSC_TLV_SUPPORTS, pkhash, 1) >= TYP_TRUST_LEVEL_DIRECT)
+				return TYP_TRUST_LEVEL_RECOMMENDED;
+		}
+	}
+
+	return TYP_TRUST_LEVEL_NONE;
 }
 
 
@@ -1331,7 +1466,7 @@ void idChanged_Trusted(IDM_T del, struct KeyWatchNode *kwn, struct DirWatch *dw)
 			kwn = debugMallocReset(sizeof(struct KeyWatchNode), -300000);
 			kwn->global_id = myKey->kHash;
 			kwn->trust = DEF_TRUST_LEVEL;
-			kwn->support = DEF_SUPPORT_LEVEL;
+			kwn->support = DEF_TRUST_LEVEL;
 			avl_insert(&dw->node_tree, kwn, -300000);
 		} else {
 			kwn = avl_remove(&dw->node_tree, &myKey->kHash, -300000);
@@ -1344,24 +1479,24 @@ void idChanged_Trusted(IDM_T del, struct KeyWatchNode *kwn, struct DirWatch *dw)
 		memset(kwn->fileName, 0, sizeof(kwn->fileName));
 		return;
 	}
-	struct KeyWatchNode kwt = { .trust = MIN_TRUST_LEVEL, .support = MIN_SUPPORT_LEVEL};
+	struct KeyWatchNode kwt = { .trust = DEF_TRUST_LEVEL, .support = DEF_TRUST_LEVEL};
 	getTrustStringParameter(&kwt, &kwn->global_id, kwn->fileName, NULL, NULL);
 
 
-	if ((del && kwn->trust > MIN_TRUST_LEVEL) || (!del && kwn->trust != kwt.trust)) {
-		kwn->trust = (del ? MIN_TRUST_LEVEL : kwt.trust);
+	if ((del && kwn->trust >= TYP_TRUST_LEVEL_DIRECT) || (!del && kwn->trust != kwt.trust)) {
+		kwn->trust = (del ? TYP_TRUST_LEVEL_NONE : kwt.trust);
 		my_description_changed = YES;
 	}
 
-	if ((del && kwn->support > MIN_SUPPORT_LEVEL) || (!del && kwn->support != kwt.support)) {
+	if ((del && kwn->support > TYP_TRUST_LEVEL_NONE) || (!del && kwn->support != kwt.support)) {
 
 		uint8_t prevSupport = kwn->support;
 
-		kwn->support = (del ? MIN_SUPPORT_LEVEL: kwt.support);
+		kwn->support = (del ? TYP_TRUST_LEVEL_NONE: kwt.support);
 
-		if ((!!prevSupport != !!kwn->support) && !terminating) {
+		if ((prevSupport != kwn->support) && !terminating) {
 
-			struct key_credits friend_kc = {.friend=1};
+			struct key_credits friend_kc = {.dFriend = (del ? TYP_TRUST_LEVEL_DIRECT : kwt.support)};
 
 			if (del)
 				keyNode_delCredits(&kwn->global_id, NULL, &friend_kc);
@@ -1370,7 +1505,7 @@ void idChanged_Trusted(IDM_T del, struct KeyWatchNode *kwn, struct DirWatch *dw)
 				keyNode_updCredits(&kwn->global_id, NULL, &friend_kc);
 
 
-			if (publishSupportedNodes)
+			if (publishSupportedNodes && (prevSupport != kwn->support))
 				my_description_changed = YES;
 		}
 	}
@@ -1527,7 +1662,7 @@ struct opt_type sec_options[]=
 			ARG_DIR_FORM,	HLP_TRUSTED_NODES_DIR},
 	{ODI,ARG_SET_TRUSTED,ARG_SET_TRUSTED_LEVEL,0,9,2,A_CS1, A_ADM,A_INI,A_CFA,A_ANY,0,       MIN_TRUST_LEVEL,MAX_TRUST_LEVEL, DEF_TRUST_LEVEL,0,  opt_set_trusted,
 			ARG_DIR_FORM,	""},
-	{ODI,ARG_SET_TRUSTED,ARG_SET_SUPPORT_LEVEL, 0,9,2,A_CS1, A_ADM,A_INI,A_CFA,A_ANY,0,       MIN_SUPPORT_LEVEL,MAX_SUPPORT_LEVEL, DEF_SUPPORT_LEVEL,0,  opt_set_trusted,
+	{ODI,ARG_SET_TRUSTED,ARG_SET_SUPPORT_LEVEL, 0,9,2,A_CS1, A_ADM,A_INI,A_CFA,A_ANY,0,       MIN_TRUST_LEVEL,MAX_TRUST_LEVEL, DEF_TRUST_LEVEL,0,  opt_set_trusted,
 			ARG_DIR_FORM,	""},
 	{ODI,0,ARG_SUPPORT_PUBLISHING,    0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &publishSupportedNodes, MIN_SUPPORT_PUBLISHING,MAX_SUPPORT_PUBLISHING, DEF_SUPPORT_PUBLISHING,0, NULL,
 			ARG_VALUE_FORM, HLP_SUPPORT_PUBLISHING},

@@ -496,7 +496,7 @@ void content_schedule_requests(void)
 			continue;
 
 		struct content_usage_node *cun;
-		struct reference_node *ref;
+		struct NeighRef_node *ref;
 		struct avl_node *anu = NULL;
 
 		while ((cun = avl_iterate_item(&cn->usage_tree, &anu))) {

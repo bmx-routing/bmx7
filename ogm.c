@@ -425,7 +425,7 @@ UMETRIC_T lndev_best_via_router(struct neigh_node *local, struct orig_node *on, 
 
 void process_ogm_metric(void *voidRef)
 {
-	struct reference_node *ref = voidRef;
+	struct NeighRef_node *ref = voidRef;
 	assertion(-502475, (ref));
 	assertion(-502476, (ref->dhn));
 
@@ -519,7 +519,7 @@ int32_t rx_frame_ogm_dhash_aggreg_advs(struct rx_frame_iterator *it)
 
 		for (; msg < &(hdr->msg[it->f_msgs_fixed]); msg++) {
 
-			struct reference_node *ref;
+			struct NeighRef_node *ref;
 
 			if ((ref = refNode_update(nn, aggSqn, &msg->dhash, NULL, 0))) {
 

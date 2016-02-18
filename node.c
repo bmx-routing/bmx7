@@ -74,7 +74,7 @@ AVL_TREE(dhash_tree, struct dhash_node, dhash);
 AVL_TREE(orig_tree, struct orig_node, k.nodeId);
 
 
-void refNode_destroy(struct reference_node *ref, IDM_T reAssessState)
+void refNode_destroy(struct NeighRef_node *ref, IDM_T reAssessState)
 {
 	assertion(-502454, (ref && ref->neigh));
 
@@ -103,14 +103,14 @@ void refNode_destroy(struct reference_node *ref, IDM_T reAssessState)
 
 
 STATIC_FUNC
-struct reference_node *refNode_create_(struct neigh_node *neigh, AGGREG_SQN_T aggSqn, struct dhash_node *dhn, DESC_SQN_T claimedSqn)
+struct NeighRef_node *refNode_create_(struct neigh_node *neigh, AGGREG_SQN_T aggSqn, struct dhash_node *dhn, DESC_SQN_T claimedSqn)
 {
 	assertion(-502455, (neigh));
 	assertion(-502456, (dhn));
 	assertion(-502457, (!avl_find_item(&neigh->refsByDhash_tree, &dhn)));
 	assertion(-502458, (!avl_find_item(&dhn->neighRefs_tree, &neigh)));
 
-	struct reference_node *ref= debugMallocReset(sizeof(struct reference_node), -300722);
+	struct NeighRef_node *ref= debugMallocReset(sizeof(struct NeighRef_node), -300722);
 	ref->dhn = dhn;
 	ref->neigh = neigh;
 	ref->aggSqn = aggSqn;
@@ -124,7 +124,7 @@ struct reference_node *refNode_create_(struct neigh_node *neigh, AGGREG_SQN_T ag
 /*
  * returns NULL on failure. Then given neigh must be removed
  * */
-struct reference_node *refNode_update(struct neigh_node *neigh, AGGREG_SQN_T aggSqn, DHASH_T *descHash, struct CRYPTSHA1_T *claimedKey, DESC_SQN_T claimedSqn )
+struct NeighRef_node *refNode_update(struct neigh_node *neigh, AGGREG_SQN_T aggSqn, DHASH_T *descHash, struct CRYPTSHA1_T *claimedKey, DESC_SQN_T claimedSqn )
 {
 	assertion(-502459, (neigh));
 	assertion(-502460, (descHash));
@@ -132,7 +132,7 @@ struct reference_node *refNode_update(struct neigh_node *neigh, AGGREG_SQN_T agg
 	assertion(-502462, IMPLIES(claimedKey || claimedSqn, descHash  && claimedKey && claimedSqn));
 
 	struct dhash_node *oDhn = NULL, *nDhn = NULL;
-	struct reference_node *oRef = NULL, *nRef = NULL;
+	struct NeighRef_node *oRef = NULL, *nRef = NULL;
 
 	if ((oDhn = avl_find_item(&dhash_tree, descHash)) || (oDhn = (nDhn = dhash_node_create(descHash, neigh)))) {
 
@@ -169,7 +169,7 @@ struct reference_node *refNode_update(struct neigh_node *neigh, AGGREG_SQN_T agg
 
 			assertion(-502464, IMPLIES(claimedKey && kn, cryptShasEqual(claimedKey, &kn->kHash)));
 
-			struct key_credits ref_kc = {.ref = oRef};
+			struct key_credits ref_kc = {.neighRef = oRef};
 
 			if (!keyNode_updCredits(claimedKey, kn, &ref_kc))
 				goto error;
@@ -282,6 +282,10 @@ void neigh_destroy(struct neigh_node *local)
 	debugFree(local, -300333);
 }
 
+
+
+
+
 struct neigh_node *neigh_create(struct orig_node *on)
 {
 	struct neigh_node *nn = (on->neigh = debugMallocReset(sizeof(struct neigh_node), -300757));
@@ -289,8 +293,8 @@ struct neigh_node *neigh_create(struct orig_node *on)
 	avl_insert(&local_tree, nn, -300758);
 
 	AVL_INIT_TREE(nn->linkDev_tree, LinkDevNode, key.devIdx);
-	AVL_INIT_TREE(nn->refsByDhash_tree, struct reference_node, dhn);
-	AVL_INIT_TREE(nn->refsByKhash_tree, struct reference_node, claimedKey);
+	AVL_INIT_TREE(nn->refsByDhash_tree, struct NeighRef_node, dhn);
+	AVL_INIT_TREE(nn->refsByKhash_tree, struct NeighRef_node, claimedKey);
 
 	nn->internalNeighId = allocate_internalNeighId(nn);
 
@@ -358,7 +362,7 @@ struct dhash_node* dhash_node_create(DHASH_T *dhash, struct neigh_node *neigh)
 		dhn->dhash = *dhash;
 		dhn->referred_by_others_timestamp = bmx_time;
 		dhn->referred_by_me_timestamp = bmx_time;
-		AVL_INIT_TREE(dhn->neighRefs_tree, struct reference_node, neigh);
+		AVL_INIT_TREE(dhn->neighRefs_tree, struct NeighRef_node, neigh);
 		avl_insert(&dhash_tree, dhn, -300142);
 	}
 
@@ -412,7 +416,7 @@ void init_self(void)
 	assertion(-502094, (my_NodeKey));
 	assertion(-502477, (!myKey));
 
-	struct key_credits friend_kc = {.friend=1};
+	struct key_credits friend_kc = {.dFriend = TYP_TRUST_LEVEL_IMPORT};
 	struct dsc_msg_pubkey *msg = debugMallocReset(sizeof(struct dsc_msg_pubkey) +my_NodeKey->rawKeyLen, -300631);
 	msg->type = my_NodeKey->rawKeyType;
 	memcpy(msg->key, my_NodeKey->rawKey, my_NodeKey->rawKeyLen);

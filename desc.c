@@ -130,10 +130,8 @@ IDM_T process_description_tlvs(struct packet_buff *pb, struct orig_node *on, str
 
 
 
-IDM_T desc_frame_changed(  struct rx_frame_iterator *it, uint8_t type )
+IDM_T desc_frame_changed(  struct desc_content *dcA, struct desc_content *dcB, uint8_t type )
 {
-	struct desc_content *dcA = it->dcOld;
-	struct desc_content *dcB = it->dcOp;
 	struct key_node *kn = (dcA ? dcA->key : (dcB ? dcB->key : NULL));
 
 	assertion(-502274, (kn));
@@ -143,7 +141,7 @@ IDM_T desc_frame_changed(  struct rx_frame_iterator *it, uint8_t type )
 
 	dbgf_track(DBGT_INFO, "orig=%s %s type=%d (%s) dcA_len=%d dcB_len=%d",
 		cryptShaAsString(&kn->kHash), changed ? "  CHANGED" : "UNCHANGED",
-		type, it->db->handls[type].name, contents_dlen(dcA, type), contents_dlen(dcB, type));
+		type, description_tlv_db->handls[type].name, contents_dlen(dcA, type), contents_dlen(dcB, type));
 
 	return changed;
 }
@@ -686,7 +684,7 @@ int32_t tx_msg_dhash_request(struct tx_frame_iterator *it)
 	struct msg_dhash_request *msg = ((struct msg_dhash_request*) tx_iterator_cache_msg_ptr(it));
 	DHASH_T *dhash = ((DHASH_T*) it->ttn->key.data);
 	struct dhash_node *dhn = avl_find_item(&dhash_tree, dhash);
-	struct reference_node *ref;
+	struct NeighRef_node *ref;
 
 	if (!dhn || dhn->rejected || !dhn->neighRefs_tree.items || ((ref = avl_find_item(&it->ttn->neigh->refsByDhash_tree, &dhn)) && ref->claimedKey))
 		return TLV_TX_DATA_DONE;
@@ -723,7 +721,7 @@ int32_t rx_frame_dhash_request(struct rx_frame_iterator *it)
 	return TLV_RX_DATA_PROCESSED;
 }
 
-void ref_resolve(struct reference_node *ref)
+void ref_resolve(struct NeighRef_node *ref)
 {
 	struct dhash_node *dhn = ref->dhn;
 	struct key_node *claimedKey = ref->claimedKey;
@@ -768,7 +766,7 @@ void dhash_tree_maintain(void)
 				continue;
 
 			struct neigh_node *nn = NULL;
-			struct reference_node *ref;
+			struct NeighRef_node *ref;
 
 			while (dhn && (ref = avl_next_item(&dhn->neighRefs_tree, &nn))) {
 				nn = ref->neigh;
@@ -820,7 +818,7 @@ int32_t rx_msg_dhash_adv(struct rx_frame_iterator *it)
 	struct msg_dhash_adv *msg = (struct msg_dhash_adv*) (it->f_msg);
 	struct neigh_node *nn = it->pb->i.verifiedLink->k.linkDev->key.local;
 	AGGREG_SQN_T aggSqnInvalidMax = (nn->ogm_aggreg_max - AGGREG_SQN_CACHE_RANGE);
-	struct reference_node *ref;
+	struct NeighRef_node *ref;
 
 	if (!msg->descSqn) {
 

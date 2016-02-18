@@ -712,7 +712,7 @@ void metrics_description_event_hook(int32_t cb_id, struct orig_node *on)
 		if (!on->path_metricalgo)
 			metricalgo_assign(on, NULL);
 
-		struct reference_node *ref = NULL;
+		struct NeighRef_node *ref = NULL;
 		while ((ref = avl_next_item(&on->descContent->dhn->neighRefs_tree, ref ? &ref->neigh : NULL)))
 			process_ogm_metric(ref);
 

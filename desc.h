@@ -152,11 +152,11 @@ IDM_T process_description_tlvs(struct packet_buff *pb, struct orig_node *on, str
 void update_my_description(void);
 
 void update_orig_dhash(struct desc_content *dc);
-void ref_resolve(struct reference_node *ref);
+void ref_resolve(struct NeighRef_node *ref);
 
 SHA1_T *nodeIdFromDescAdv(uint8_t *desc_adv);
 char *nodeIdAsStringFromDescAdv(uint8_t *desc_adv);
-IDM_T desc_frame_changed(struct rx_frame_iterator *it, uint8_t type);
+IDM_T desc_frame_changed(struct desc_content *dcA, struct desc_content *dcB, uint8_t type);
 
 int32_t opt_update_dext_method(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn);
 int32_t opt_update_description(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn);

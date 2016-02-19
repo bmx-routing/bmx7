@@ -1426,13 +1426,15 @@ IDM_T init_dir_watch(struct DirWatch **dw, char *path, void (* idChangedTask) (I
 
 
 STATIC_FUNC
-int32_t opt_dir_watch(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
+int32_t opt_trust_watch(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
 {
 
         if (cmd == OPT_CHECK && patch->diff == ADD && check_dir(patch->val, YES/*create*/, YES/*writable*/, NO) == FAILURE)
 		return FAILURE;
 
         if (cmd == OPT_APPLY) {
+
+		my_description_changed = YES;
 
 		struct DirWatch **dw = &trustedDirWatch;
 
@@ -1517,7 +1519,7 @@ struct opt_type sec_options[]=
 			ARG_VALUE_FORM, HLP_NODE_VERIFY},
 	{ODI,0,ARG_LINK_SIGN_LT,          0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &linkSignLifetime,0,MAX_LINK_SIGN_LT,DEF_LINK_SIGN_LT,0, opt_linkSigning,
 			ARG_VALUE_FORM, HLP_LINK_SIGN_LT},
-	{ODI,0,ARG_TRUSTED_NODES_DIR,     0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,DEF_TRUSTED_NODES_DIR, opt_dir_watch,
+	{ODI,0,ARG_TRUSTED_NODES_DIR,     0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,DEF_TRUSTED_NODES_DIR, opt_trust_watch,
 			ARG_DIR_FORM,HLP_TRUSTED_NODES_DIR},
 	{ODI,0,ARG_SET_TRUSTED,		  0,  9,2,A_PM1N,A_ADM,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_set_trusted,
 			0,		"set global-id hash of trusted node"},

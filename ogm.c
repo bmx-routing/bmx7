@@ -384,6 +384,8 @@ int32_t tx_frame_ogm_dhash_aggreg_advs(struct tx_frame_iterator *it)
 		msg->metric.val.u16 = htons(umetric_to_fmetric(on->ogmMetric).val.u16);
 
 		on->descContent->dhn->referred_by_me_timestamp = bmx_time;
+		dbgf_track(DBGT_INFO, "dhash=%s sqn=%d metric=%ju", cryptShaAsShortStr(&msg->dhash), on->ogmSqn, on->ogmMetric);
+
 	}
 
 	dbgf_all(DBGT_INFO, "aggSqn=%d aggSqnMax=%d ogms=%d", *sqn, ogm_aggreg_sqn_max, ogms);
@@ -440,10 +442,10 @@ void process_ogm_metric(void *voidRef)
 	struct orig_node *on = ref->dhn->descContent->orig;
 	IDM_T neighTrust = verify_neighTrust(on, ref->neigh);
 	IDM_T valid_metric = is_fmetric_valid(ref->ogmMetricMax);
-	UMETRIC_T ogmMetric = valid_metric ? fmetric_to_umetric(ref->ogmMetricMax) : 0;
-	IDM_T discard = (!neighTrust || !valid_metric || ogmMetric < on->path_metricalgo->umetric_min);
+	UMETRIC_T ogmMetric = valid_metric ? (neighTrust ? fmetric_to_umetric(ref->ogmMetricMax) : UMETRIC_MIN__NOT_ROUTABLE) : 0;
+	IDM_T discard = (!valid_metric || (ogmMetric < on->path_metricalgo->umetric_min && ogmMetric != UMETRIC_MIN__NOT_ROUTABLE));
 
-	dbgf_mute(70, discard ? DBGL_CHANGES : DBGL_ALL, discard ? DBGT_WARN : DBGT_INFO,
+	dbgf_track(discard ? DBGT_WARN : DBGT_INFO,
 		"orig=%s via neigh=%s nbTrust=%d validMetric=%d ogmMtc=%ju minMtc=%ju ogmSqn=%d knownSqn=%d",
 		cryptShaAsShortStr(&on->k.nodeId), cryptShaAsShortStr(&ref->neigh->local_id),
 		neighTrust, valid_metric, ogmMetric, on->path_metricalgo->umetric_min, ref->ogmSqnMax, on->ogmSqn);
@@ -511,7 +513,8 @@ int32_t rx_frame_ogm_dhash_aggreg_advs(struct rx_frame_iterator *it)
 	struct neigh_node *nn = it->pb->i.verifiedLink->k.linkDev->key.local;
 	IDM_T new = ((AGGREG_SQN_T) (nn->ogm_aggreg_max - aggSqn)) < nn->ogm_aggreg_size && !bit_get(nn->ogm_aggreg_sqns, AGGREG_SQN_CACHE_RANGE, aggSqn);
 
-	dbgf_all(DBGT_INFO, "new=%d neigh=%s aggSqn=%d/%d/%d msgs=%d", new, nn->on->k.hostname, aggSqn, nn->ogm_aggreg_max, nn->ogm_aggreg_size, it->f_msgs_fixed);
+	dbgf_track(DBGT_INFO, "new=%d neigh=%s aggSqn=%d/%d/%d msgs=%d",
+		new, nn->on->k.hostname, aggSqn, nn->ogm_aggreg_max, nn->ogm_aggreg_size, it->f_msgs_fixed);
 
 	if (new) {
 		
@@ -527,7 +530,7 @@ int32_t rx_frame_ogm_dhash_aggreg_advs(struct rx_frame_iterator *it)
 				FMETRIC_U16_T ogmMtc = {.val = {.u16 = ntohs(msg->metric.val.u16)}};
 				struct orig_node *on = ref->dhn->descContent ? ref->dhn->descContent->orig : NULL;
 
-				dbgf_all(DBGT_INFO, "dhash=%s hostname=%s ogmSqn=%d ogmMtc=%d",
+				dbgf_track(DBGT_INFO, "dhash=%s hostname=%s ogmSqn=%d ogmMtc=%d",
 					cryptShaAsShortStr(&msg->dhash), on ? on->k.hostname : NULL, ogmSqn, ogmMtc.val.u16);
 
 				if (ogmSqn > ref->ogmSqnMax || (ogmSqn == ref->ogmSqnMax && ogmMtc.val.u16 > ref->ogmMetricMax.val.u16 )) {

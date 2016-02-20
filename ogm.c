@@ -398,6 +398,7 @@ STATIC_FUNC
 UMETRIC_T lndev_best_via_router(struct neigh_node *local, struct orig_node *on, UMETRIC_T *ogm_metric, LinkNode **bestPathLink)
 {
 	assertion(-502474, (local->linkDev_tree.items));
+	assertion(-500000, (!(*bestPathLink)));
         UMETRIC_T metric_best = 0;
 
 	 struct avl_node *linkDev_an = NULL;
@@ -411,14 +412,15 @@ UMETRIC_T lndev_best_via_router(struct neigh_node *local, struct orig_node *on, 
 
 			UMETRIC_T um = apply_lndev_metric_algo(link, ogm_metric, on->path_metricalgo);
 
-			if (metric_best <= um) {
+			if (metric_best < um) {
 				metric_best = um;
-				*bestPathLink = link;
+				if (um > UMETRIC_MIN__NOT_ROUTABLE)
+					*bestPathLink = link;
 			}
 		}
 	}
 
-        assertion(-501088, (*bestPathLink));
+//        assertion(-501088, (*bestPathLink));
         return metric_best;
 }
 
@@ -467,12 +469,13 @@ void process_ogm_metric(void *voidRef)
 
 		LinkNode *best_rt_link = NULL;
 		UMETRIC_T best_rt_metric = lndev_best_via_router(ref->neigh, on, &ogmMetric, &best_rt_link);
-		assertion(-502478, (best_rt_metric && best_rt_link));
+		assertion(-502478, (best_rt_metric));
 
 		if (
 			((ref->ogmSqnMax >= (on->ogmSqn + 2))) ||
 			((ref->ogmSqnMax >= (on->ogmSqn + 1)) && (((TIME_T)(bmx_time - ref->ogmSqnTime)) >= on->path_metricalgo->ogm_sqn_late_hystere)) ||
-			((ref->ogmSqnMax >= (on->ogmSqn + 0)) && (best_rt_link == on->curr_rt_link)) ||
+			((ref->ogmSqnMax >= (on->ogmSqn + 1)) && (best_rt_link == on->curr_rt_link)) ||
+			((ref->ogmSqnMax >= (on->ogmSqn + 0)) && (best_rt_metric > on->ogmMetric) && (best_rt_link == on->curr_rt_link)) ||
 			((ref->ogmSqnMax >= (on->ogmSqn + 0)) && (best_rt_metric > on->ogmMetric) && ref->ogmBestSinceSqn && (((OGM_SQN_T) (ref->ogmSqnMax - ref->ogmBestSinceSqn)) >= on->path_metricalgo->ogm_sqn_best_hystere)) ||
 			((ref->ogmSqnMax >= (on->ogmSqn + 0)) && (best_rt_metric > ((on->ogmMetric * (100 + on->path_metricalgo->ogm_metric_hystere))/100)))
 			) {
@@ -484,7 +487,8 @@ void process_ogm_metric(void *voidRef)
 
 				on->curr_rt_link = best_rt_link;
 
-				cb_route_change_hooks(ADD, on);
+				if (on->curr_rt_link)
+					cb_route_change_hooks(ADD, on);
 			}
 
 			schedule_ogm(on, ref->ogmSqnMax, best_rt_metric);

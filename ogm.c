@@ -119,7 +119,8 @@ void schedule_ogm_aggregations(void)
 STATIC_FUNC
 void schedule_ogm( struct orig_node *on, OGM_SQN_T ogmSqn, UMETRIC_T um )
 {
-	assertion(-502281, (on && ogmSqn && um));
+//	assertion(-502281, (on && ogmSqn && um));
+	assertion(-502281, (on && um));
 
 	if ((ogmSqn > on->ogmSqn) || (ogmSqn == on->ogmSqn && um > on->ogmMetric)) {
 

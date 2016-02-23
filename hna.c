@@ -367,9 +367,9 @@ int process_dsc_tlv_hna(struct rx_frame_iterator *it)
 
 			if (is_ip_net_equal(&key.ip, &autoconf_prefix_cfg.ip, autoconf_prefix_cfg.mask - 4, AF_INET6)) {
 
-				if (key.mask != 128 || memcmp(&key.ip.s6_addr[(autoconf_prefix_cfg.mask / 8)], &it->dcOp->key->kHash, ((128 - autoconf_prefix_cfg.mask) / 8))) {
-                                        dbgf_sys(DBGT_ERR, "nodeId=%s FAILURE due to non-matching crypto hna=%s announcement",
-                                                cryptShaAsString(&it->dcOp->key->kHash), netAsStr(&key));
+				if (key.mask != 128 || verify_crypto_ip6_suffix(&key.ip, autoconf_prefix_cfg.mask, &it->dcOp->key->kHash) != SUCCESS) {
+                                        dbgf_sys(DBGT_ERR, "nodeId=%s FAILURE due to non-matching crypto hna=%s mask=%d announcement",
+                                                cryptShaAsString(&it->dcOp->key->kHash), netAsStr(&key), autoconf_prefix_cfg.mask);
 					return TLV_RX_DATA_FAILURE;
 				}
 			}

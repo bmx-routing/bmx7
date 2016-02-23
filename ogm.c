@@ -53,7 +53,7 @@
 int32_t ogmIid = NO;
 
 
-static int32_t ogmSqnRange = DEF_OGM_SQN_RANGE;
+int32_t ogmSqnRange = DEF_OGM_SQN_RANGE;
 
 static int32_t minMyOgmInterval = DEF_OGM_INTERVAL;   /* orginator message interval in miliseconds */
 static int32_t maxMyOgmIFactor = DEF_OGM_IFACTOR;
@@ -381,7 +381,9 @@ int32_t tx_frame_ogm_dhash_aggreg_advs(struct tx_frame_iterator *it)
 
 	for (msg = hdr->msg; (origs && (on = avl_iterate_item(origs, &an))); msg++) {
 		msg->dhash = on->descContent->dhn->dhash;
+		msg->roughDHash = *((uint32_t*)&on->descContent->dhn->dhash);
 		msg->sqn = htons(on->ogmSqn);
+		msg->sqnHashChainLink = ((OgmHashChainElem_T*)&on->ogmHashChainElem)->u.e.link;
 		msg->metric.val.u16 = htons(umetric_to_fmetric(on->ogmMetric).val.u16);
 
 		on->descContent->dhn->referred_by_me_timestamp = bmx_time;

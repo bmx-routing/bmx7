@@ -365,6 +365,8 @@ struct orig_node {
 
 	TIME_T ogmSqnTime;
 	OGM_SQN_T ogmSqn;
+	CRYPTSHA1_T ogmHashChainElem;
+
 	UMETRIC_T ogmMetric;
 	LinkNode *curr_rt_link; // the configured route in the kernel!
 

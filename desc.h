@@ -122,14 +122,6 @@ struct hdr_description_request { // 20 bytes
 
 
 
-
-#define VERSION_MSG_FORMAT { \
-{FIELD_TYPE_UINT,             -1, 8,                       1, FIELD_RELEVANCE_HIGH, "comp_version" }, \
-{FIELD_TYPE_HEX,              -1, 8,                       1, FIELD_RELEVANCE_MEDI, "capabilities" }, \
-{FIELD_TYPE_UINT,             -1, (8*sizeof(DESC_SQN_T)),  0, FIELD_RELEVANCE_HIGH, "descSqn" }, \
-{FIELD_TYPE_HEX,              -1, 32,                      0, FIELD_RELEVANCE_HIGH, "codeRevision" }, \
-FIELD_FORMAT_END}
-
 struct description_msg_name {
 	uint8_t type;
 	uint8_t len;

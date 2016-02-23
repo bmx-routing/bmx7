@@ -79,6 +79,53 @@ AVL_TREE(dirWatch_tree, struct DirWatch, ifd);
 
 static struct DirWatch *trustedDirWatch = NULL;
 
+
+
+OgmHashChainElem_T myOgmHashChainRoot;
+
+
+
+
+OgmHashChainLink_T calcOgmHashId(struct key_node *node, OgmHashChainElem_T *root, OGM_SQN_T iterations)
+{
+
+	OgmHashChainInputs_T plain = {.elem = *root, .nodeId = node->kHash};
+
+	OGM_SQN_T i = 0;
+
+	while ((i++) < iterations) {
+		cryptShaAtomic(&plain, sizeof(plain), &plain.elem.u.sha);
+		plain.elem.u.e.seed = root->u.e.seed;
+	}
+
+	return plain.elem.u.e.link;
+}
+
+IDM_T verify_crypto_ip6_suffix( IPX_T *ip, uint8_t mask, CRYPTSHA1_T *id) {
+
+	if (mask % 8)
+		return FAILURE;
+
+	if (!memcmp(&(ip->s6_addr[(mask / 8)]), id, ((128 - mask) / 8)))
+		return SUCCESS;
+
+	return FAILURE;
+}
+
+IPX_T create_crypto_IPv6(struct net_key *prefix, GLOBAL_ID_T *id)
+{
+	IPX_T ipx = prefix->ip;
+	memcpy(&ipx.s6_addr[(prefix->mask / 8)], id, ((128 - prefix->mask) / 8));
+
+	return ipx;
+/*	if (is_zero(&self->global_id.pkid, sizeof(self->global_id.pkid)/2))
+		memcpy(&self->primary_ip.s6_addr[(autoconf_prefix_cfg.mask/8)], &self->global_id.pkid.u8[sizeof(self->global_id.pkid)/2],
+			XMIN((128-autoconf_prefix_cfg.mask)/8, sizeof(self->global_id.pkid)/2));
+*/
+}
+
+
+
 GLOBAL_ID_T *get_desc_id(uint8_t *desc_adv, uint32_t desc_len, struct dsc_msg_signature **signpp, struct dsc_msg_version **verspp)
 {
 	if (!desc_adv || desc_len < packet_frame_db->handls[FRAME_TYPE_DESC_ADVS].min_msg_size || desc_len > MAX_DESC_ROOT_SIZE)

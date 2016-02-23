@@ -605,7 +605,6 @@ struct rtnl_get_node {
 //usefult IP tools:
 
 
-IPX_T create_crypto_IPv6(struct net_key *prefix, GLOBAL_ID_T *id);
 
 // core:
 

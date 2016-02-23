@@ -35,6 +35,7 @@
 #include "crypt.h"
 #include "avl.h"
 #include "node.h"
+#include "sec.h"
 #include "metrics.h"
 #include "ogm.h"
 #include "msg.h"
@@ -690,8 +691,6 @@ void metricalgo_assign(struct orig_node *on, struct host_metricalgo *host_algo)
 
 	on->path_metricalgo = debugMalloc(sizeof (struct host_metricalgo), -300286);
 	memcpy(on->path_metricalgo, host_algo, sizeof (struct host_metricalgo));
-
-	on->ogmSqn = 0;
 }
 
 

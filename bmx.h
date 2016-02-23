@@ -195,8 +195,11 @@ typedef uint32_t PKT_SQN_T;
 
 
 // OGMs:
+
+typedef uint16_t ROUGH_DHASH_T;
+
 typedef uint16_t OGM_SQN_T;
-#define OGM_SQN_BIT_SIZE (16)
+#define OGM_SQN_BIT_SIZE (14)
 #define OGM_SQN_MASK     ((1<<OGM_SQN_BIT_SIZE)-1)
 #define OGM_SQN_MAX      OGM_SQN_MASK
 

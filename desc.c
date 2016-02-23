@@ -423,6 +423,10 @@ int32_t create_dsc_tlv_version(struct tx_frame_iterator *it)
         dsc->comp_version = my_compatibility;
         dsc->descSqn = newDescriptionSqn( NULL, 1);
 
+	cryptRand(&myOgmHashChainRoot, sizeof(myOgmHashChainRoot));
+	dsc->ogmHashChainAnchor.u.e.link = calcOgmHashId(myKey, &myOgmHashChainRoot, ogmSqnRange);
+	dsc->maxOgmSqn = htons(ogmSqnRange);
+
 	return sizeof(struct dsc_msg_version);
 }
 
@@ -435,17 +439,27 @@ int32_t process_dsc_tlv_version(struct rx_frame_iterator *it)
 	if (it->op != TLV_OP_TEST && it->op != TLV_OP_NEW)
 		return it->f_dlen;
 
-	DESC_SQN_T newSqn = ntohl(((struct dsc_msg_version*)it->f_data)->descSqn);
+	struct dsc_msg_version *msg = ((struct dsc_msg_version*)it->f_data);
 
-	if (it->dcOld && newSqn <= it->dcOld->descSqn)
+	if (it->dcOld && ntohl(msg->descSqn) <= it->dcOld->descSqn)
 		return TLV_RX_DATA_FAILURE;
 
-	if (it->op == TLV_OP_NEW && it->on->neigh) {
+	if (ntohs(msg->maxOgmSqn) > MAX_OGM_SQN_RANGE)
+		return TLV_RX_DATA_FAILURE;
 
-		it->on->neigh->burstSqn = 0;
 
-		if (it->dcOld && newSqn >= (it->dcOld->descSqn + DESC_SQN_REBOOT_ADDS))
-			keyNode_schedLowerWeight(it->on->key, KCPromoted);
+	if (it->op == TLV_OP_NEW) {
+
+		if (it->on->neigh) {
+
+			it->on->neigh->burstSqn = 0;
+
+			if (it->dcOld && ntohl(msg->descSqn) >= (it->dcOld->descSqn + DESC_SQN_REBOOT_ADDS))
+				keyNode_schedLowerWeight(it->on->key, KCPromoted);
+		}
+
+		it->on->ogmSqn = 0;
+		it->on->ogmHashChainElem = msg->ogmHashChainAnchor.u.sha;
 	}
 
 	return sizeof(struct dsc_msg_version);

@@ -15,11 +15,16 @@
  * 02110-1301, USA
  */
 
+#include "bmx.h"
+#include "node.h"
+
+
 
 
 
 extern int32_t ogmIid;
 extern uint32_t ogms_pending;
+extern int32_t ogmSqnRange;
 
 #define ARG_OGM_IFACTOR "ogmIntervalFactor"
 #define DEF_OGM_IFACTOR 120
@@ -78,12 +83,42 @@ struct hdr_ogm_aggreg_req {
 	struct msg_ogm_aggreg_req msg[];
 } __attribute__((packed));
 
-
+/*
+ *            short long
+ * sqnHashLink  112  112
+ * shortDhash    15   16
+ * sqn           13   13
+ * flags          1    8
+ * metric        11   11
+ * ---------------------
+ *              152  160
+ * */
 
 struct msg_ogm_dhash_adv {
+	OgmHashChainLink_T sqnHashChainLink;
 	DHASH_T dhash;
+	ROUGH_DHASH_T roughDHash;
+
+	union {
+
+		struct {
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+#elif __BYTE_ORDER == __BIG_ENDIAN
+			unsigned int sqn : OGM_SQN_BIT_SIZE; // 14
+			unsigned int trustedFlag : 1;
+			unsigned int trustedFlag : 6;
+			unsigned int metric_exp : OGM_EXPONENT_BIT_SIZE; // 5
+			unsigned int metric_mantissa : OGM_MANTISSA_BIT_SIZE; // 6
+#else
+#error "Please fix <bits/endian.h>"
+#endif
+		} __attribute__((packed)) f;
+		uint16_t u16;
+	} u;
+
+
+	OGM_SQN_T sqn;
 	FMETRIC_U16_T metric;
-	uint16_t sqn;
 } __attribute__((packed));
 
 struct hdr_ogm_adv {

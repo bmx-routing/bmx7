@@ -153,7 +153,7 @@ struct mandatory_tlv_metricalgo { // 16 bytes
 
 	ALGO_T algo_type;                   // 2 bytes
 
-        uint16_t flags;                     // 2 bytes
+	uint16_t flags; // 2 bytes
 
 #if __BYTE_ORDER == __LITTLE_ENDIAN         // 1 byte
 	unsigned int tp_exp_divisor : 2;
@@ -183,6 +183,7 @@ struct mandatory_tlv_metricalgo { // 16 bytes
 
 struct description_tlv_metricalgo {
 	struct mandatory_tlv_metricalgo m;
+
 	uint8_t optional[];
 } __attribute__((packed));
 

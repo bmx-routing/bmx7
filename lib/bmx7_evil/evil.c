@@ -123,6 +123,8 @@ int32_t evil_tx_frame_ogm_dhash_aggreg_advs(struct tx_frame_iterator *it)
 				continue;
 
 			hdr->msg[o].dhash = on->descContent->dhn->dhash;
+			hdr->msg[o].roughDHash = *((uint32_t*)&on->descContent->dhn->dhash);
+			hdr->msg[o].sqnHashChainLink = ((OgmHashChainElem_T*)&on->ogmHashChainElem)->u.e.link;
 			hdr->msg[o].sqn = htons(on->ogmSqn + (tn ? evilOgmSqns : 0));
 			hdr->msg[o].metric.val.u16 = htons(umetric_to_fmetric((tn && evilOgmMetrics) ? UMETRIC_MAX : on->ogmMetric).val.u16);
 

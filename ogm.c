@@ -559,7 +559,7 @@ struct opt_type ogm_options[]=
 			ARG_VALUE_FORM,	"set average OGM sequence number range (affects frequency of bmx7 description updates)"},
         {ODI,0,ARG_SEND_LINK_REVISED_OGMS, 0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,   &sendLinkRevisedOgms,MIN_SEND_REVISED_OGMS, 1, DEF_SEND_LINK_REVISED_OGMS,0,    NULL,
 			ARG_VALUE_FORM,	"send revised ogms with better metric (but unchanged sqn)"},
-        {ODI,0,ARG_OGM_INTERVAL,        'o',9,1, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &minMyOgmInterval,  MIN_OGM_INTERVAL,   MAX_OGM_INTERVAL,   DEF_OGM_INTERVAL,0,   0,
+        {ODI,0,ARG_OGM_INTERVAL,        0,9,1, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &minMyOgmInterval,  MIN_OGM_INTERVAL,   MAX_OGM_INTERVAL,   DEF_OGM_INTERVAL,0,   0,
 			ARG_VALUE_FORM,	"set interval in ms with which new originator message (OGM) are send"},
         {ODI,0,ARG_OGM_IFACTOR,         0,9,1, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &maxMyOgmIFactor,  MIN_OGM_IFACTOR,   MAX_OGM_IFACTOR,   DEF_OGM_IFACTOR, 0,   0,
 			ARG_VALUE_FORM,	"set factor (relative to ogmInterval) for max delay of own ogms"},

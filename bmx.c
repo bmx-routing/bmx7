@@ -1242,7 +1242,7 @@ int32_t opt_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_
                 else
                         strncpy(status_name, opt->name, sizeof (status_name));
 
-                if ((handl = avl_find_item(&status_tree, status_name))) {
+                if ((handl = avl_closest_item(&status_tree, status_name)) && !strncmp(handl->status_name, status_name, strlen(status_name))) {
 
                         if (cmd == OPT_APPLY) {
 

@@ -960,12 +960,12 @@ struct key_node *keyNode_updCredits(GLOBAL_ID_T *kHash, struct key_node *kn, str
 	if (!kn || kn->decreasedEffectiveState == kn->bookedState) {
 
 		for (r = 0; r < (kn ? kn->bookedState->i.r + 1 : KRSize); r++) {
-			dbgf_all(DBGT_INFO, "testing sec=%-10s from sec=%s",
-				keyMatrix[0][r].secName, kn ? kn->bookedState->secName : NULL);
+			dbgf_all(DBGT_INFO, "testing row=%-10s from sec=%s",
+				keyMatrix[0][r].rowName, kn ? kn->bookedState->secName : NULL);
 
 			if ((condSuccess = (*(keyMatrix[0][r].rowCond))(kn, (kc ? kc : (struct key_credits*) &zeroKeyCredit)))) {
 
-				for (c = (kn ? kn->bookedState->i.c + 1 : 0); c < KCSize; c++) {
+				for (c = (kn ? kn->bookedState->i.c + (r < kn->bookedState->i.r ? 0 : 1) : 0); c < KCSize; c++) {
 					dbgf_all(DBGT_INFO, "testing set=%-10s from sec=%s",
 						keyMatrix[c][0].setName, kn ? kn->bookedState->secName: NULL);
 

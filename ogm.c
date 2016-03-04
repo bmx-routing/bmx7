@@ -591,6 +591,8 @@ int32_t init_ogm( void )
 {
 	register_options_array(ogm_options, sizeof(ogm_options), CODE_CATEGORY_NAME);
 
+	assertion(-500000, (sizeof( ((struct msg_ogm_dhash_adv*)NULL)->u) == sizeof( ((struct msg_ogm_dhash_adv*)NULL)->u.u16)));
+
         struct frame_handl handl;
         memset(&handl, 0, sizeof ( handl));
 

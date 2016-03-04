@@ -387,7 +387,7 @@ int32_t tx_frame_ogm_dhash_aggreg_advs(struct tx_frame_iterator *it)
 		msg->u.f.sqn = on->ogmSqn;
 		msg->u.f.hopCount = 0;
 		msg->u.f.trustedFlag = 0;
-		msg->u.u16 = htons(msg->u.u16);
+		msg->u.u32 = htonl(msg->u.u32);
 
 		msg->dhash = on->descContent->dhn->dhash;
 		msg->roughDHash = *((uint32_t*)&on->descContent->dhn->dhash);
@@ -540,7 +540,7 @@ int32_t rx_frame_ogm_dhash_aggreg_advs(struct rx_frame_iterator *it)
 
 			if ((ref = refNode_update(nn, aggSqn, &msg->dhash, NULL, 0))) {
 
-				struct msg_ogm_dhash_adv tmp = {.u = {.u16 = ntohs(msg->u.u16) } };
+				struct msg_ogm_dhash_adv tmp = {.u = {.u32 = ntohl(msg->u.u32) } };
 				OGM_SQN_T ogmSqn = tmp.u.f.sqn;
 				FMETRIC_U16_T ogmMtc = {.val = {.f = {.exp_fm16 = tmp.u.f.metric_exp, .mantissa_fm16 = tmp.u.f.metric_mantissa}}};
 
@@ -591,8 +591,7 @@ int32_t init_ogm( void )
 {
 	register_options_array(ogm_options, sizeof(ogm_options), CODE_CATEGORY_NAME);
 
-	struct msg_ogm_dhash_adv test;
-	assertion(-500000, (sizeof( test.u) == sizeof( test.u.u16)));
+	assertion(-500000, (sizeof( ((struct msg_ogm_dhash_adv*)NULL)->u) == sizeof( ((struct msg_ogm_dhash_adv*)NULL)->u.u32)));
 
         struct frame_handl handl;
         memset(&handl, 0, sizeof ( handl));

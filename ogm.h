@@ -106,7 +106,7 @@ struct msg_ogm_dhash_adv {
 			unsigned int metric_exp : OGM_EXPONENT_BIT_SIZE; // 5
 			unsigned int metric_mantissa : OGM_MANTISSA_BIT_SIZE; // 6
 		} __attribute__((packed)) f;
-		uint16_t u16;
+		uint32_t u32;
 	} u;
 
 } __attribute__((packed));

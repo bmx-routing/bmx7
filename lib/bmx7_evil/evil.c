@@ -128,7 +128,7 @@ int32_t evil_tx_frame_ogm_dhash_aggreg_advs(struct tx_frame_iterator *it)
 			hdr->msg[o].u.f.sqn = on->ogmSqn + (tn ? evilOgmSqns : 0);
 			hdr->msg[o].u.f.hopCount = 0;
 			hdr->msg[o].u.f.trustedFlag = 0;
-			hdr->msg[o].u.u16 = htons(hdr->msg[o].u.u16);
+			hdr->msg[o].u.u32 = htonl(hdr->msg[o].u.u32);
 
 			hdr->msg[o].dhash = on->descContent->dhn->dhash;
 			hdr->msg[o].roughDHash = *((uint32_t*)&on->descContent->dhn->dhash);

@@ -122,12 +122,17 @@ int32_t evil_tx_frame_ogm_dhash_aggreg_advs(struct tx_frame_iterator *it)
 			if (tn && evilOgmDropping)
 				continue;
 
+			FMETRIC_U16_T fm16 = umetric_to_fmetric((tn && evilOgmMetrics) ? UMETRIC_MAX : on->ogmMetric);
+			hdr->msg[o].u.f.metric_exp = fm16.val.f.exp_fm16;
+			hdr->msg[o].u.f.metric_mantissa = fm16.val.f.mantissa_fm16;
+			hdr->msg[o].u.f.sqn = on->ogmSqn + (tn ? evilOgmSqns : 0);
+			hdr->msg[o].u.f.hopCount = 0;
+			hdr->msg[o].u.f.trustedFlag = 0;
+			hdr->msg[o].u.u16 = htons(hdr->msg[o].u.u16);
+
 			hdr->msg[o].dhash = on->descContent->dhn->dhash;
 			hdr->msg[o].roughDHash = *((uint32_t*)&on->descContent->dhn->dhash);
 			hdr->msg[o].sqnHashChainLink = ((OgmHashChainElem_T*)&on->ogmHashChainElem)->u.e.link;
-			hdr->msg[o].sqn = htons(on->ogmSqn + (tn ? evilOgmSqns : 0));
-			hdr->msg[o].metric.val.u16 = htons(umetric_to_fmetric((tn && evilOgmMetrics) ? UMETRIC_MAX : on->ogmMetric).val.u16);
-
 			on->descContent->dhn->referred_by_me_timestamp = bmx_time;
 			o++;
 		}

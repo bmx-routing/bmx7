@@ -380,11 +380,18 @@ int32_t tx_frame_ogm_dhash_aggreg_advs(struct tx_frame_iterator *it)
 	hdr->aggregation_sqn = htons(*sqn);
 
 	for (msg = hdr->msg; (origs && (on = avl_iterate_item(origs, &an))); msg++) {
+
+		FMETRIC_U16_T fm16 = umetric_to_fmetric(on->ogmMetric);
+		msg->u.f.metric_exp = fm16.val.f.exp_fm16;
+		msg->u.f.metric_mantissa = fm16.val.f.mantissa_fm16;
+		msg->u.f.sqn = on->ogmSqn;
+		msg->u.f.hopCount = 0;
+		msg->u.f.trustedFlag = 0;
+		msg->u.u16 = htons(msg->u.u16);
+
 		msg->dhash = on->descContent->dhn->dhash;
 		msg->roughDHash = *((uint32_t*)&on->descContent->dhn->dhash);
-		msg->sqn = htons(on->ogmSqn);
 		msg->sqnHashChainLink = ((OgmHashChainElem_T*)&on->ogmHashChainElem)->u.e.link;
-		msg->metric.val.u16 = htons(umetric_to_fmetric(on->ogmMetric).val.u16);
 
 		on->descContent->dhn->referred_by_me_timestamp = bmx_time;
 		dbgf_track(DBGT_INFO, "dhash=%s sqn=%d metric=%ju", cryptShaAsShortStr(&msg->dhash), on->ogmSqn, on->ogmMetric);
@@ -533,8 +540,10 @@ int32_t rx_frame_ogm_dhash_aggreg_advs(struct rx_frame_iterator *it)
 
 			if ((ref = refNode_update(nn, aggSqn, &msg->dhash, NULL, 0))) {
 
-				OGM_SQN_T ogmSqn = ntohs(msg->sqn);
-				FMETRIC_U16_T ogmMtc = {.val = {.u16 = ntohs(msg->metric.val.u16)}};
+				struct msg_ogm_dhash_adv tmp = {.u = {.u16 = ntohs(msg->u.u16) } };
+				OGM_SQN_T ogmSqn = tmp.u.f.sqn;
+				FMETRIC_U16_T ogmMtc = {.val = {.f = {.exp_fm16 = tmp.u.f.metric_exp, .mantissa_fm16 = tmp.u.f.metric_mantissa}}};
+
 				struct orig_node *on = ref->dhn->descContent ? ref->dhn->descContent->orig : NULL;
 
 				dbgf_track(DBGT_INFO, "dhash=%s hostname=%s ogmSqn=%d ogmMtc=%d",

@@ -46,7 +46,7 @@ typedef uint16_t IID_T;
 typedef uint64_t UMETRIC_T;
 
 
-#define OGM_MANTISSA_BIT_SIZE  5
+#define OGM_MANTISSA_BIT_SIZE  6
 #define OGM_EXPONENT_BIT_SIZE  5
 #define OGM_EXPONENT_OFFSET    OGM_MANTISSA_BIT_SIZE
 

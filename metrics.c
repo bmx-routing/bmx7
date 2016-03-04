@@ -219,11 +219,9 @@ char *umetric_to_human(UMETRIC_T val) {
         static uint8_t p=0;
 
         if (val < UMETRIC_MIN__NOT_ROUTABLE) {
-                return "INVALID";
+                return "-1";
         } else if (val <= UMETRIC_MIN__NOT_ROUTABLE) {
-                return "noROUTE";
-        } else if (val <= UMETRIC_ROUTABLE) {
-                return "ROUTE  ";
+                return "0";
         } else {
                 p = ((p + 1) % UMETRIC_TO_HUMAN_ARRAYS);
 

@@ -1432,7 +1432,7 @@ finish: {
 	}
 
 	dbgf_track(DBGT_INFO, "New descSqn=%d", currSqn);
-	return htonl(currSqn);
+	return currSqn;
 }
 }
 

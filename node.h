@@ -262,7 +262,7 @@ struct neigh_node {
 
 
 	struct avl_tree refsByDhash_tree;
-	struct avl_tree refsByKhash_tree;
+	struct avl_tree refsByOgmHChainLXD_tree;
 
 	TIME_T ogm_aggreg_time;
 	AGGREG_SQN_T ogm_aggreg_max;
@@ -335,6 +335,46 @@ struct dhash_node {
 };
 
 
+#define OGM_HASH_CHAIN_LINK_BITSIZE 112
+
+typedef struct {
+	uint8_t u8[OGM_HASH_CHAIN_LINK_BITSIZE / 8];
+} __attribute__((packed)) OgmHChainLink_T;
+
+typedef struct {
+	uint8_t u8[sizeof(CRYPTSHA1_T) - (OGM_HASH_CHAIN_LINK_BITSIZE / 8)];
+} __attribute__((packed)) OgmHChainSeed_T;
+
+typedef struct {
+
+	union {
+
+		struct {
+			OgmHChainLink_T link;
+			OgmHChainSeed_T seed;
+		} e;
+		CRYPTSHA1_T sha;
+	} u;
+} __attribute__((packed)) OgmHChainElem_T;
+
+typedef struct {
+	OgmHChainElem_T elem;
+	DESC_SQN_T descSqn;
+	CRYPTSHA1_T nodeId;
+} __attribute__((packed)) OgmHChainInputs_T;
+
+
+struct ogmHChainLXD_node {
+	OgmHChainLink_T ogmHChainLXD;
+
+	TIME_T referred_by_me_timestamp; // last time this node was referred
+	TIME_T referred_by_others_timestamp;
+
+	struct desc_content *descContent;
+	uint8_t rejected;
+	struct avl_tree neighRefs_tree;
+};
+
 struct orig_node {
 	// filled in by validate_new_link_desc0():
 
@@ -365,7 +405,8 @@ struct orig_node {
 
 	TIME_T ogmSqnTime;
 	OGM_SQN_T ogmSqn;
-	CRYPTSHA1_T ogmHashChainElem;
+	uint8_t ogmHopCount;
+	OgmHChainElem_T ogmHChainElem;
 
 	UMETRIC_T ogmMetric;
 	LinkNode *curr_rt_link; // the configured route in the kernel!
@@ -377,11 +418,13 @@ struct orig_node {
 
 struct NeighRef_node {
 	struct dhash_node *dhn;
+	struct ogmHChainLXD_node *oxn;
 	struct neigh_node *neigh;
 	struct key_node *claimedKey;
 	TIME_T mentionedRefTime;
 	DESC_SQN_T claimedDescSqn;
 	OGM_SQN_T ogmSqnMax;
+	uint8_t ogmHopCount;
 	TIME_T ogmSqnTime;
 	TIME_T ogmBestSinceSqn;
 	AGGREG_SQN_T aggSqn;
@@ -495,6 +538,8 @@ extern struct avl_tree link_tree;
 extern struct avl_tree orig_tree;
 extern struct avl_tree key_tree;
 extern struct avl_tree dhash_tree;
+extern struct avl_tree ogmHChainLXD_tree;
+
 
 extern uint32_t content_tree_unresolveds;
 
@@ -504,7 +549,7 @@ extern uint32_t content_tree_unresolveds;
  ************************************************************/
 
 void refNode_destroy(struct NeighRef_node *ref, IDM_T reAssessState);
-struct NeighRef_node *refNode_update(struct neigh_node *neigh, AGGREG_SQN_T aggSqn, DHASH_T *descHash, struct CRYPTSHA1_T *claimedKey, DESC_SQN_T claimedSqn);
+struct NeighRef_node *refNode_update(struct neigh_node *neigh, AGGREG_SQN_T aggSqn, DHASH_T *dHash, struct CRYPTSHA1_T *claimedKey, DESC_SQN_T claimedDescSqn, ROUGH_DHASH_T roughDhash, OGM_SQN_T ogmSqn, OgmHChainLink_T *olxd, OgmHChainSeed_T *ocs);
 
 struct dhash_node* dhash_node_create(DHASH_T *dhash, struct neigh_node *neigh);
 void dhash_node_reject(struct dhash_node *dhn);

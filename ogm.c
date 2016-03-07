@@ -66,11 +66,11 @@ int32_t sendLinkRevisedOgms = DEF_SEND_LINK_REVISED_OGMS;
 
 
 
-struct avl_tree **ogm_aggreg_origs(AGGREG_SQN_T aggSqn)
+struct avl_tree **get_my_ogm_aggreg_origs(AGGREG_SQN_T aggSqn)
 {
-	static struct avl_tree *ogm_aggreg_orig_trees[AGGREG_SQN_CACHE_RANGE] = {NULL};
+	static struct avl_tree *my_ogm_aggreg_orig_trees[AGGREG_SQN_CACHE_RANGE] = {NULL};
 
-	return &ogm_aggreg_orig_trees[(AGGREG_SQN_CACHE_MASK & aggSqn)];
+	return &my_ogm_aggreg_orig_trees[(AGGREG_SQN_CACHE_MASK & aggSqn)];
 }
 
 
@@ -79,7 +79,7 @@ void remove_ogm( struct orig_node *on )
 
 	if (on->ogmAggregActive) {
 		AGGREG_SQN_T aggregSqn = on->ogmAggregSqn;
-		struct avl_tree *aggregSqnOrigs = *ogm_aggreg_origs(aggregSqn);
+		struct avl_tree *aggregSqnOrigs = *get_my_ogm_aggreg_origs(aggregSqn);
 		ASSERTION(-502280, (aggregSqnOrigs && aggregSqnOrigs->items && avl_find(aggregSqnOrigs, &on->k.nodeId)));
 
 		on->ogmAggregActive = 0;
@@ -87,10 +87,10 @@ void remove_ogm( struct orig_node *on )
 
 		if (!aggregSqnOrigs->items) {
 			debugFree(aggregSqnOrigs, -300761);
-			*ogm_aggreg_origs(aggregSqn) = (struct avl_tree*) NULL;
+			*get_my_ogm_aggreg_origs(aggregSqn) = (struct avl_tree*) NULL;
 		}
 
-		while (ogm_aggreg_sqn_max_window_size && (ogm_aggreg_sqn_max - (ogm_aggreg_sqn_max_window_size - 1)) == aggregSqn && !(*ogm_aggreg_origs(aggregSqn))) {
+		while (ogm_aggreg_sqn_max_window_size && (ogm_aggreg_sqn_max - (ogm_aggreg_sqn_max_window_size - 1)) == aggregSqn && !(*get_my_ogm_aggreg_origs(aggregSqn))) {
 
 			ogm_aggreg_sqn_max_window_size--;
 			aggregSqn++;
@@ -103,13 +103,13 @@ STATIC_FUNC
 void schedule_ogm_aggregations(void)
 {
 	assertion(-502276, ((ogm_aggreg_sqn_max - ogm_aggreg_sqn_send) <= 1));
-	assertion(-502471, ((*ogm_aggreg_origs(ogm_aggreg_sqn_max))));
-	assertion(-502275, ((*ogm_aggreg_origs(ogm_aggreg_sqn_max))->items));
+	assertion(-502471, ((*get_my_ogm_aggreg_origs(ogm_aggreg_sqn_max))));
+	assertion(-502275, ((*get_my_ogm_aggreg_origs(ogm_aggreg_sqn_max))->items));
 
 	if (ogm_aggreg_sqn_max > ogm_aggreg_sqn_send) {
 
 		ogm_aggreg_sqn_send = ogm_aggreg_sqn_max;
-		uint16_t sz = (*ogm_aggreg_origs(ogm_aggreg_sqn_max))->items * sizeof(struct msg_ogm_dhash_adv);
+		uint16_t sz = (*get_my_ogm_aggreg_origs(ogm_aggreg_sqn_max))->items * sizeof(struct msg_ogm_dhash_adv);
 		schedule_tx_task(FRAME_TYPE_OGM_DHASH_ADV, NULL, NULL, NULL, sz, &ogm_aggreg_sqn_max, sizeof(ogm_aggreg_sqn_max));
 	}
 }
@@ -117,7 +117,7 @@ void schedule_ogm_aggregations(void)
 
 
 STATIC_FUNC
-void schedule_ogm( struct orig_node *on, OGM_SQN_T ogmSqn, UMETRIC_T um )
+void schedule_ogm( struct orig_node *on, OGM_SQN_T ogmSqn, uint8_t ogmHopCount, UMETRIC_T um )
 {
 //	assertion(-502281, (on && ogmSqn && um));
 	assertion(-502281, (on && um));
@@ -126,7 +126,7 @@ void schedule_ogm( struct orig_node *on, OGM_SQN_T ogmSqn, UMETRIC_T um )
 
 		if (on->ogmAggregActive && on->ogmAggregSqn == ogm_aggreg_sqn_max && ogm_aggreg_sqn_max > ogm_aggreg_sqn_send) {
 
-			ASSERTION(-502282, (avl_find((*ogm_aggreg_origs(ogm_aggreg_sqn_max)), &on->k.nodeId)));
+			ASSERTION(-502282, (avl_find((*get_my_ogm_aggreg_origs(ogm_aggreg_sqn_max)), &on->k.nodeId)));
 
 		} else {
 			remove_ogm(on);
@@ -137,7 +137,7 @@ void schedule_ogm( struct orig_node *on, OGM_SQN_T ogmSqn, UMETRIC_T um )
 
 				if (ogm_aggreg_sqn_max_window_size >= AGGREG_SQN_CACHE_RANGE) {
 					struct avl_tree *origs;
-					while ((origs = *ogm_aggreg_origs(ogm_aggreg_sqn_max + 1))) {
+					while ((origs = *get_my_ogm_aggreg_origs(ogm_aggreg_sqn_max + 1))) {
 						struct orig_node *o = avl_first_item(origs);
 						dbgf_sys(DBGT_WARN, "Removing scheduled ogmSqn=%d hostname=%s ogmAggActive=%d ogmAggSqn=%d ogmAggSqnMax=%d",
 							o->ogmSqn, o->k.hostname, o->ogmAggregActive, o->ogmAggregSqn, ogm_aggreg_sqn_max);
@@ -151,12 +151,12 @@ void schedule_ogm( struct orig_node *on, OGM_SQN_T ogmSqn, UMETRIC_T um )
 				ogm_aggreg_sqn_max_window_size++;
 			}
 
-			if (!(*ogm_aggreg_origs(ogm_aggreg_sqn_max))) {
-				(*ogm_aggreg_origs(ogm_aggreg_sqn_max)) = debugMallocReset(sizeof(struct avl_tree), -300762);
-				AVL_INIT_TREE((*(*ogm_aggreg_origs(ogm_aggreg_sqn_max))), struct orig_node, k.nodeId );
+			if (!(*get_my_ogm_aggreg_origs(ogm_aggreg_sqn_max))) {
+				(*get_my_ogm_aggreg_origs(ogm_aggreg_sqn_max)) = debugMallocReset(sizeof(struct avl_tree), -300762);
+				AVL_INIT_TREE((*(*get_my_ogm_aggreg_origs(ogm_aggreg_sqn_max))), struct orig_node, k.nodeId );
 			}
 
-			avl_insert((*ogm_aggreg_origs(ogm_aggreg_sqn_max)), on, -300763);
+			avl_insert((*get_my_ogm_aggreg_origs(ogm_aggreg_sqn_max)), on, -300763);
 
 			on->ogmAggregActive = 1;
 			on->ogmAggregSqn = ogm_aggreg_sqn_max;
@@ -166,8 +166,9 @@ void schedule_ogm( struct orig_node *on, OGM_SQN_T ogmSqn, UMETRIC_T um )
 
 		on->ogmSqn = ogmSqn;
 		on->ogmMetric = um;
+		on->ogmHopCount = ogmHopCount;
 
-		if ((*ogm_aggreg_origs(ogm_aggreg_sqn_max))->items >= OGMS_DHASH_PER_AGGREG_PREF)
+		if ((*get_my_ogm_aggreg_origs(ogm_aggreg_sqn_max))->items >= OGMS_DHASH_PER_AGGREG_PREF)
 			schedule_ogm_aggregations();
 	}
 }
@@ -185,7 +186,7 @@ void schedule_my_originator_message(void)
 
 	} else {
 
-		schedule_ogm(on, on->ogmSqn + 1, UMETRIC_MAX);
+		schedule_ogm(on, on->ogmSqn + 1, 0, UMETRIC_MAX);
 	}
 }
 
@@ -202,7 +203,7 @@ void revise_ogm_aggregations(void)
 	IDM_T myNextNow = doNowOrLater(&myNextGuarantee, myGuaranteedInterval, (myKey->currOrig->ogmSqn == 0));
 
 	if (myNextNow ||
-		(ogm_aggreg_sqn_max > ogm_aggreg_sqn_send && *ogm_aggreg_origs(ogm_aggreg_sqn_max) && (*ogm_aggreg_origs(ogm_aggreg_sqn_max))->items)) {
+		(ogm_aggreg_sqn_max > ogm_aggreg_sqn_send && *get_my_ogm_aggreg_origs(ogm_aggreg_sqn_max) && (*get_my_ogm_aggreg_origs(ogm_aggreg_sqn_max))->items)) {
 
 		if (doNowOrLater(&myNextHitchhike, minMyOgmInterval, myNextNow)) {
 			doNowOrLater(&myNextGuarantee, myGuaranteedInterval, YES); //sync the two timeouts!
@@ -212,7 +213,7 @@ void revise_ogm_aggregations(void)
 
 		dbgf(myNextNow ? DBGL_CHANGES : DBGL_ALL, DBGT_INFO, "myNextNow=%d myGuaranteedInterval=%d sqnMax=%d sqnSend=%d size=%d max=%d",
 			myNextNow, myGuaranteedInterval, ogm_aggreg_sqn_max, ogm_aggreg_sqn_send,
-			(*ogm_aggreg_origs(ogm_aggreg_sqn_max)) ? (*ogm_aggreg_origs(ogm_aggreg_sqn_max))->items : 0,
+			(*get_my_ogm_aggreg_origs(ogm_aggreg_sqn_max)) ? (*get_my_ogm_aggreg_origs(ogm_aggreg_sqn_max))->items : 0,
 			OGMS_DHASH_PER_AGGREG_PREF);
 
 		schedule_ogm_aggregations();
@@ -354,7 +355,7 @@ int32_t rx_msg_ogm_aggreg_request(struct rx_frame_iterator *it)
         if (cryptShasEqual(&hdr->dest_nodeId, &myKey->kHash) && (((AGGREG_SQN_T)(ogm_aggreg_sqn_max - sqn)) < ogm_aggreg_sqn_max_window_size) ) {
 
 		struct neigh_node *nn = it->pb->i.verifiedLink->k.linkDev->key.local;
-		uint16_t ogms = (*ogm_aggreg_origs(sqn)) ? (*ogm_aggreg_origs(sqn))->items : 0;
+		uint16_t ogms = (*get_my_ogm_aggreg_origs(sqn)) ? (*get_my_ogm_aggreg_origs(sqn))->items : 0;
 
 		schedule_tx_task(FRAME_TYPE_OGM_DHASH_ADV, NULL, NULL, nn->best_tp_link->k.myDev, (ogms * sizeof(struct msg_ogm_dhash_adv)), &sqn, sizeof(sqn));
 
@@ -364,12 +365,13 @@ int32_t rx_msg_ogm_aggreg_request(struct rx_frame_iterator *it)
 }
 
 
+
 STATIC_FUNC
 int32_t tx_frame_ogm_dhash_aggreg_advs(struct tx_frame_iterator *it)
 {
 	struct hdr_ogm_adv *hdr = ((struct hdr_ogm_adv*) tx_iterator_cache_hdr_ptr(it));
 	AGGREG_SQN_T *sqn = ((AGGREG_SQN_T *)it->ttn->key.data);
-	struct avl_tree *origs = (*ogm_aggreg_origs(*sqn));
+	struct avl_tree *origs = (*get_my_ogm_aggreg_origs(*sqn));
 	uint16_t ogms = origs ? origs->items : 0;
 	struct avl_node *an = NULL;
 	struct orig_node *on;
@@ -385,13 +387,13 @@ int32_t tx_frame_ogm_dhash_aggreg_advs(struct tx_frame_iterator *it)
 		msg->u.f.metric_exp = fm16.val.f.exp_fm16;
 		msg->u.f.metric_mantissa = fm16.val.f.mantissa_fm16;
 		msg->u.f.sqn = on->ogmSqn;
-		msg->u.f.hopCount = 0;
+		msg->u.f.hopCount = on->ogmHopCount;
 		msg->u.f.trustedFlag = 0;
 		msg->u.u32 = htonl(msg->u.u32);
 
 		msg->dhash = on->descContent->dhn->dhash;
-		msg->roughDHash = *((uint32_t*)&on->descContent->dhn->dhash);
-		msg->sqnHashChainLink = ((OgmHashChainElem_T*)&on->ogmHashChainElem)->u.e.link;
+		msg->roughDHash = (*((ROUGH_DHASH_T*)&on->descContent->dhn->dhash));
+		bit_xor(msg->ogmHChainLXD.u8, on->ogmHChainElem.u.e.link.u8, on->descContent->dhn->dhash.h.u8, sizeof(OgmHChainLink_T));
 
 		on->descContent->dhn->referred_by_me_timestamp = bmx_time;
 		dbgf_track(DBGT_INFO, "dhash=%s sqn=%d metric=%ju", cryptShaAsShortStr(&msg->dhash), on->ogmSqn, on->ogmMetric);
@@ -500,7 +502,7 @@ void process_ogm_metric(void *voidRef)
 					cb_route_change_hooks(ADD, on);
 			}
 
-			schedule_ogm(on, ref->ogmSqnMax, best_rt_metric);
+			schedule_ogm(on, ref->ogmSqnMax, ref->ogmHopCount, best_rt_metric);
 
 			ref->ogmBestSinceSqn = 0;
 
@@ -537,11 +539,11 @@ int32_t rx_frame_ogm_dhash_aggreg_advs(struct rx_frame_iterator *it)
 		for (; msg < &(hdr->msg[it->f_msgs_fixed]); msg++) {
 
 			struct NeighRef_node *ref;
+			struct msg_ogm_dhash_adv tmp = {.u = {.u32 = ntohl(msg->u.u32) } };
+			OGM_SQN_T ogmSqn = tmp.u.f.sqn;
 
-			if ((ref = refNode_update(nn, aggSqn, &msg->dhash, NULL, 0))) {
+			if ((ref = refNode_update(nn, aggSqn, NULL, NULL, 0, msg->roughDHash, ogmSqn, &msg->ogmHChainLXD, NULL))) {
 
-				struct msg_ogm_dhash_adv tmp = {.u = {.u32 = ntohl(msg->u.u32) } };
-				OGM_SQN_T ogmSqn = tmp.u.f.sqn;
 				FMETRIC_U16_T ogmMtc = {.val = {.f = {.exp_fm16 = tmp.u.f.metric_exp, .mantissa_fm16 = tmp.u.f.metric_mantissa}}};
 
 				struct orig_node *on = ref->dhn->descContent ? ref->dhn->descContent->orig : NULL;
@@ -554,6 +556,7 @@ int32_t rx_frame_ogm_dhash_aggreg_advs(struct rx_frame_iterator *it)
 					if (ogmSqn > ref->ogmSqnMax) {
 						ref->ogmSqnMax = ogmSqn;
 						ref->ogmSqnTime = bmx_time;
+						ref->ogmHopCount = tmp.u.f.hopCount;
 					}
 
 					ref->ogmMetricMax = ogmMtc;

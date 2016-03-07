@@ -71,6 +71,9 @@ AVL_TREE(local_tree, struct neigh_node, local_id);
 
 AVL_TREE(dhash_tree, struct dhash_node, dhash);
 
+AVL_TREE(ogmHChainLXD_tree, struct ogmHChainLXD_node, ogmHChainLXD);
+
+
 AVL_TREE(orig_tree, struct orig_node, k.nodeId);
 
 
@@ -80,7 +83,6 @@ void refNode_destroy(struct NeighRef_node *ref, IDM_T reAssessState)
 
 	if (ref->claimedKey) {
 		avl_remove(&ref->claimedKey->neighRefs_tree, &ref->neigh, -300717);
-		avl_remove(&ref->neigh->refsByKhash_tree, &ref->claimedKey, -300718);
 	}
 
 	if (ref->dhn) {
@@ -124,20 +126,22 @@ struct NeighRef_node *refNode_create_(struct neigh_node *neigh, AGGREG_SQN_T agg
 /*
  * returns NULL on failure. Then given neigh must be removed
  * */
-struct NeighRef_node *refNode_update(struct neigh_node *neigh, AGGREG_SQN_T aggSqn, DHASH_T *descHash, struct CRYPTSHA1_T *claimedKey, DESC_SQN_T claimedSqn )
+struct NeighRef_node *refNode_update(struct neigh_node *neigh, AGGREG_SQN_T aggSqn,
+	DHASH_T *dHash, struct CRYPTSHA1_T *claimedKey, DESC_SQN_T claimedDescSqn,
+	ROUGH_DHASH_T roughDhash, OGM_SQN_T ogmSqn, OgmHChainLink_T *olxd, OgmHChainSeed_T *ocs )
 {
 	assertion(-502459, (neigh));
-	assertion(-502460, (descHash));
+	assertion(-502460, (dHash));
 	assertion(-502461, (curr_rx_packet->i.verifiedLink->k.linkDev->key.local == neigh));
-	assertion(-502462, IMPLIES(claimedKey || claimedSqn, descHash  && claimedKey && claimedSqn));
+	assertion(-502462, IMPLIES(claimedKey || claimedDescSqn, dHash  && claimedKey && claimedDescSqn));
 
 	struct dhash_node *oDhn = NULL, *nDhn = NULL;
 	struct NeighRef_node *oRef = NULL, *nRef = NULL;
 
-	if ((oDhn = avl_find_item(&dhash_tree, descHash)) || (oDhn = (nDhn = dhash_node_create(descHash, neigh)))) {
+	if ((oDhn = avl_find_item(&dhash_tree, dHash)) || (oDhn = (nDhn = dhash_node_create(dHash, neigh)))) {
 
 		if (claimedKey && oDhn->descContent &&
-			(!cryptShasEqual(claimedKey, &oDhn->descContent->key->kHash) || claimedSqn != oDhn->descContent->descSqn))
+			(!cryptShasEqual(claimedKey, &oDhn->descContent->key->kHash) || claimedDescSqn != oDhn->descContent->descSqn))
 			goto error;
 
 		if ((oRef = avl_find_item(&oDhn->neighRefs_tree, &neigh))) {
@@ -145,7 +149,7 @@ struct NeighRef_node *refNode_update(struct neigh_node *neigh, AGGREG_SQN_T aggS
 			if (!IMPLIES(claimedKey && oRef->claimedKey, (cryptShasEqual(claimedKey, &oRef->claimedKey->kHash))))
 				goto error;
 
-			if (!IMPLIES(claimedKey && (oRef->claimedKey || oRef->claimedDescSqn), (claimedSqn == oRef->claimedDescSqn)))
+			if (!IMPLIES(claimedKey && (oRef->claimedKey || oRef->claimedDescSqn), (claimedDescSqn == oRef->claimedDescSqn)))
 				goto error;
 
 			if (!IMPLIES(oDhn->descContent && oRef->claimedKey, (oDhn->descContent->key == oRef->claimedKey)))
@@ -157,10 +161,10 @@ struct NeighRef_node *refNode_update(struct neigh_node *neigh, AGGREG_SQN_T aggS
 			oRef->aggSqn = (((AGGREG_SQN_T) (oRef->aggSqn - aggSqn)) < AGGREG_SQN_CACHE_RANGE) ? oRef->aggSqn : aggSqn;
 
 			if (!oRef->claimedDescSqn)
-				oRef->claimedDescSqn = oDhn->descContent ? oDhn->descContent->descSqn : claimedSqn;
+				oRef->claimedDescSqn = oDhn->descContent ? oDhn->descContent->descSqn : claimedDescSqn;
 
 		} else {
-			oRef = (nRef = refNode_create_(neigh, aggSqn, oDhn, claimedSqn));
+			oRef = (nRef = refNode_create_(neigh, aggSqn, oDhn, claimedDescSqn));
 		}
 
 		struct key_node *kn = NULL;
@@ -264,8 +268,6 @@ void neigh_destroy(struct neigh_node *local)
 	while (local->refsByDhash_tree.items)
 		refNode_destroy(avl_first_item(&local->refsByDhash_tree), YES);
 
-	while (local->refsByKhash_tree.items)
-		refNode_destroy(avl_first_item(&local->refsByKhash_tree), YES);
 
 
 	purge_tx_task_tree(local, NULL, NULL, YES);
@@ -294,7 +296,7 @@ struct neigh_node *neigh_create(struct orig_node *on)
 
 	AVL_INIT_TREE(nn->linkDev_tree, LinkDevNode, key.devIdx);
 	AVL_INIT_TREE(nn->refsByDhash_tree, struct NeighRef_node, dhn);
-	AVL_INIT_TREE(nn->refsByKhash_tree, struct NeighRef_node, claimedKey);
+	AVL_INIT_TREE(nn->refsByOgmHChainLXD_tree, struct NeighRef_node, oxn);
 
 	nn->internalNeighId = allocate_internalNeighId(nn);
 

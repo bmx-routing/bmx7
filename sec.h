@@ -202,32 +202,7 @@ struct dsc_msg_trust {
 } __attribute__((packed));
 
 
-#define OGM_HASH_CHAIN_LINK_BITSIZE 112
-
-typedef struct {
-	uint8_t u8[OGM_HASH_CHAIN_LINK_BITSIZE / 8];
-} __attribute__((packed)) OgmHashChainLink_T;
-
-typedef struct {
-	uint8_t u8[sizeof(CRYPTSHA1_T) - (OGM_HASH_CHAIN_LINK_BITSIZE / 8)];
-} __attribute__((packed)) OgmHashChainSeed_T;
-
-typedef struct {
-	union {
-		struct {
-			OgmHashChainLink_T link;
-			OgmHashChainSeed_T seed;
-		} e;
-		CRYPTSHA1_T sha;
-	} u;
-} __attribute__((packed)) OgmHashChainElem_T;
-
-typedef struct {
-	OgmHashChainElem_T elem;
-	CRYPTSHA1_T nodeId;
-} __attribute__((packed)) OgmHashChainInputs_T;
-
-extern OgmHashChainElem_T myOgmHashChainRoot;
+extern OgmHChainElem_T myOgmHChainRoot;
 
 
 
@@ -236,8 +211,8 @@ extern OgmHashChainElem_T myOgmHashChainRoot;
 {FIELD_TYPE_HEX,           -1, 8,                              1, FIELD_RELEVANCE_MEDI, "capabilities" }, \
 {FIELD_TYPE_UINT,          -1, (8*sizeof(DESC_SQN_T)),         0, FIELD_RELEVANCE_HIGH, "descSqn" }, \
 {FIELD_TYPE_UINT,          -1, (8*sizeof(OGM_SQN_T)),          0, FIELD_RELEVANCE_HIGH, "maxOgmSqn" }, \
-{FIELD_TYPE_STRING_BINARY, -1, (8*sizeof(OgmHashChainLink_T)), 0, FIELD_RELEVANCE_HIGH, "ogmHashChainAnchor" }, \
-{FIELD_TYPE_STRING_BINARY, -1, (8*sizeof(OgmHashChainSeed_T)), 0, FIELD_RELEVANCE_HIGH, "ogmHashChainSeed" }, \
+{FIELD_TYPE_STRING_BINARY, -1, (8*sizeof(OgmHChainLink_T)),    0, FIELD_RELEVANCE_HIGH, "ogmHChainAnchor" }, \
+{FIELD_TYPE_STRING_BINARY, -1, (8*sizeof(OgmHChainSeed_T)),    0, FIELD_RELEVANCE_HIGH, "ogmHChainSeed" }, \
 {FIELD_TYPE_HEX,           -1, 32,                             0, FIELD_RELEVANCE_HIGH, "codeRevision" }, \
 FIELD_FORMAT_END}
 
@@ -247,13 +222,13 @@ struct dsc_msg_version {
 	DESC_SQN_T descSqn;
 	OGM_SQN_T maxOgmSqn;
 
-	OgmHashChainElem_T ogmHashChainAnchor;
+	OgmHChainElem_T ogmHChainAnchor;
 
 	uint32_t codeRevision;
 
 } __attribute__((packed));
 
-OgmHashChainLink_T calcOgmHashId(struct key_node *node, OgmHashChainElem_T *root, OGM_SQN_T iterations);
+OgmHChainLink_T calcOgmHashId(struct key_node *node, OgmHChainElem_T *root, DESC_SQN_T descSqn, OGM_SQN_T iterations);
 
 IPX_T create_crypto_IPv6(struct net_key *prefix, GLOBAL_ID_T *id);
 IDM_T verify_crypto_ip6_suffix(IPX_T *ip, uint8_t mask, CRYPTSHA1_T *id);

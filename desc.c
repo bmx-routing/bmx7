@@ -421,10 +421,10 @@ int32_t create_dsc_tlv_version(struct tx_frame_iterator *it)
         sscanf(GIT_REV, "%8X", &rev_u32);
         dsc->codeRevision = htonl(rev_u32);
         dsc->comp_version = my_compatibility;
-        dsc->descSqn = newDescriptionSqn( NULL, 1);
+        dsc->descSqn = htonl(newDescriptionSqn( NULL, 1));
 
-	cryptRand(&myOgmHashChainRoot, sizeof(myOgmHashChainRoot));
-	dsc->ogmHashChainAnchor.u.e.link = calcOgmHashId(myKey, &myOgmHashChainRoot, ogmSqnRange);
+	cryptRand(&myOgmHChainRoot, sizeof(myOgmHChainRoot));
+	dsc->ogmHChainAnchor.u.e.link = calcOgmHashId(myKey, &myOgmHChainRoot, ntohl(dsc->descSqn), ogmSqnRange);
 	dsc->maxOgmSqn = htons(ogmSqnRange);
 
 	return sizeof(struct dsc_msg_version);
@@ -459,7 +459,7 @@ int32_t process_dsc_tlv_version(struct rx_frame_iterator *it)
 		}
 
 		it->on->ogmSqn = 0;
-		it->on->ogmHashChainElem = msg->ogmHashChainAnchor.u.sha;
+		it->on->ogmHChainElem = msg->ogmHChainAnchor;
 	}
 
 	return sizeof(struct dsc_msg_version);
@@ -696,11 +696,11 @@ int32_t tx_msg_dhash_request(struct tx_frame_iterator *it)
 
 	struct hdr_dhash_request *hdr = ((struct hdr_dhash_request*) tx_iterator_cache_hdr_ptr(it));
 	struct msg_dhash_request *msg = ((struct msg_dhash_request*) tx_iterator_cache_msg_ptr(it));
-	DHASH_T *dhash = ((DHASH_T*) it->ttn->key.data);
-	struct dhash_node *dhn = avl_find_item(&dhash_tree, dhash);
+	OgmHChainLink_T *ogmHChainDXL = ((OgmHChainLink_T*) it->ttn->key.data);
+	struct ogmHChainLXD_node *oxn = avl_find_item(&ogmHChainLXD_tree, ogmHChainDXL);
 	struct NeighRef_node *ref;
 
-	if (!dhn || dhn->rejected || !dhn->neighRefs_tree.items || ((ref = avl_find_item(&it->ttn->neigh->refsByDhash_tree, &dhn)) && ref->claimedKey))
+	if (!oxn || !(ref = avl_find_item(&it->ttn->neigh->refsByOgmHChainLXD_tree, &oxn)) || ref->dhn || ref->dhn->rejected || ref->claimedKey)
 		return TLV_TX_DATA_DONE;
 
 	if (hdr->msg == msg) {
@@ -710,7 +710,7 @@ int32_t tx_msg_dhash_request(struct tx_frame_iterator *it)
 		assertion(-502288, (cryptShasEqual(&hdr->dest_nodeId, &it->ttn->key.f.groupId)));
 	}
 
-	msg->dhash = *dhash;
+	msg->ogmHChainDXL = *ogmHChainDXL;
 
 	return sizeof(struct msg_dhash_request);
 }
@@ -723,13 +723,14 @@ int32_t rx_frame_dhash_request(struct rx_frame_iterator *it)
 	struct neigh_node *nn = it->pb->i.verifiedLink->k.linkDev->key.local;
 	struct hdr_dhash_request *hdr = (struct hdr_dhash_request*) (it->f_data);
 	struct msg_dhash_request *msg = (struct msg_dhash_request*) (it->f_msg);
+	struct ogmHChainLXD_node *oxn;
 
 	if (cryptShasEqual(&hdr->dest_nodeId, &myKey->kHash)) {
 
 		for (; msg < &(hdr->msg[it->f_msgs_fixed]); msg++) {
 
-			if ((avl_find(&dhash_tree, &msg->dhash)))
-				schedule_tx_task(FRAME_TYPE_DHASH_ADV, NULL, NULL, nn->best_tp_link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &msg->dhash, sizeof(DHASH_T));
+			if ((oxn = avl_find_item(&ogmHChainLXD_tree, &msg->ogmHChainDXL)) && oxn->descContent)
+				schedule_tx_task(FRAME_TYPE_DHASH_ADV, NULL, NULL, nn->best_tp_link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &oxn->descContent->dhn->dhash, sizeof(oxn->descContent->dhn->dhash));
 		}
 	}
 	return TLV_RX_DATA_PROCESSED;
@@ -737,15 +738,16 @@ int32_t rx_frame_dhash_request(struct rx_frame_iterator *it)
 
 void ref_resolve(struct NeighRef_node *ref)
 {
-	struct dhash_node *dhn = ref->dhn;
 	struct key_node *claimedKey = ref->claimedKey;
 	struct neigh_node *nn = ref->neigh;
 
 	assertion(-502500, IMPLIES(claimedKey, avl_find(&claimedKey->neighRefs_tree, &nn)));
+	assertion(-502500, (!!claimedKey == !!ref->dhn));
+	assertion(-500000, (ref->oxn));
 
 	if (!claimedKey) {
 
-		schedule_tx_task(FRAME_TYPE_DHASH_REQ, &nn->local_id, nn, nn->best_tp_link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &dhn->dhash, sizeof(dhn->dhash));
+		schedule_tx_task(FRAME_TYPE_DHASH_REQ, &nn->local_id, nn, nn->best_tp_link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &ref->oxn->ogmHChainLXD, sizeof(ref->oxn->ogmHChainLXD));
 
 	} else if (claimedKey->content && !claimedKey->content->f_body) {
 
@@ -753,11 +755,11 @@ void ref_resolve(struct NeighRef_node *ref)
 
 		//schedule_tx_task(FRAME_TYPE_CONTENT_REQ, &nn->local_id, nn, nn->best_tp_link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &ck->kHash, sizeof(ck->kHash));
 
-	} else if (claimedKey->content && !dhn->descContent && !dhn->rejected) {
+	} else if (claimedKey->content && !ref->dhn->descContent && !ref->dhn->rejected) {
 
 		assertion(-502324, (claimedKey->bookedState->i.c >= KCTracked && claimedKey->content->f_body));
 
-		schedule_tx_task(FRAME_TYPE_DESC_REQ, &nn->local_id, nn, nn->best_tp_link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &dhn->dhash, sizeof(dhn->dhash));
+		schedule_tx_task(FRAME_TYPE_DESC_REQ, &nn->local_id, nn, nn->best_tp_link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &ref->dhn->dhash, sizeof(ref->dhn->dhash));
 	}
 }
 
@@ -813,9 +815,11 @@ int32_t tx_msg_dhash_adv(struct tx_frame_iterator *it)
 
 		msg->dhash = dhn->dhash;
 
-		if (dhn->descContent) {
-			msg->descSqn = htonl(dhn->descContent->descSqn);
+		if (dhn->descContent && dhn->descContent->orig) {
 			msg->kHash = dhn->descContent->key->kHash;
+			msg->descSqn = htonl(dhn->descContent->descSqn);
+			msg->ogmHChainElem = dhn->descContent->orig->ogmHChainElem;
+			msg->ogmSqn = dhn->descContent->orig->ogmSqn;
 		} // else notify requesting node of stale dhash.
 
 		return sizeof(struct msg_dhash_adv);
@@ -840,7 +844,9 @@ int32_t rx_msg_dhash_adv(struct rx_frame_iterator *it)
 			ref->aggSqn = aggSqnInvalidMax; // do not try to resolve this anymore
 
 	} else {
-		refNode_update(nn, aggSqnInvalidMax, &msg->dhash, &msg->kHash, ntohl(msg->descSqn));
+		OgmHChainLink_T olxd;
+		bit_xor(olxd.u8, msg->ogmHChainElem.u.e.link.u8, msg->dhash.h.u8, sizeof(olxd));
+		refNode_update(nn, aggSqnInvalidMax, &msg->dhash, &msg->kHash, ntohl(msg->descSqn), *((ROUGH_DHASH_T*)&msg->dhash), ntohs(msg->ogmSqn), &olxd, &msg->ogmHChainElem.u.e.seed);
 	}
 
 	return TLV_RX_DATA_PROCESSED;

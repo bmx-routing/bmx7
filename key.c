@@ -888,17 +888,14 @@ void keyNode_addCredits_(struct key_node *kn, struct key_credits *kc)
 	if (kc->neighRef) {
 		struct NeighRef_node *ref;
 		if ((ref = avl_find_item(&kn->neighRefs_tree, &kc->neighRef->neigh)) && ref != kc->neighRef) {
-			ASSERTION(-502400, (ref == avl_find_item(&kc->neighRef->neigh->refsByKhash_tree, &kn)));
 			assertion(-502401, (ref->dhn != kc->neighRef->dhn));
 			refNode_destroy(ref, NO);
 		}
 
-		ASSERTION(-502402, (!avl_find(&kn->neighRefs_tree, &kc->neighRef->neigh) && !avl_find(&kc->neighRef->neigh->refsByKhash_tree, &kn)));
 
 		if (!kc->neighRef->claimedKey) {
 			kc->neighRef->claimedKey = kn;
 			avl_insert(&kn->neighRefs_tree, kc->neighRef, -300712);
-			avl_insert(&kc->neighRef->neigh->refsByKhash_tree, kc->neighRef, -300713);
 		}
 		kc->neighRef->mentionedRefTime = bmx_time;
 	}

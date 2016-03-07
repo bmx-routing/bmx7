@@ -92,13 +92,15 @@ extern int32_t desc_vbodies_size_out;
 
 struct msg_dhash_adv {
 	DHASH_T dhash;
+	OgmHChainElem_T ogmHChainElem;
 	GLOBAL_ID_T kHash;
 	DESC_SQN_T descSqn;
+	OGM_SQN_T ogmSqn;
 
 } __attribute__((packed));
 
 struct msg_dhash_request {
-	DHASH_T dhash;
+	OgmHChainLink_T ogmHChainDXL;
 } __attribute__((packed));
 
 struct hdr_dhash_request { // 20 bytes

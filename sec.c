@@ -81,15 +81,15 @@ static struct DirWatch *trustedDirWatch = NULL;
 
 
 
-OgmHashChainElem_T myOgmHashChainRoot;
+OgmHChainElem_T myOgmHChainRoot;
 
 
 
 
-OgmHashChainLink_T calcOgmHashId(struct key_node *node, OgmHashChainElem_T *root, OGM_SQN_T iterations)
+OgmHChainLink_T calcOgmHashId(struct key_node *node, OgmHChainElem_T *root, DESC_SQN_T descSqn, OGM_SQN_T iterations)
 {
 
-	OgmHashChainInputs_T plain = {.elem = *root, .nodeId = node->kHash};
+	OgmHChainInputs_T plain = {.elem = *root, .descSqn = descSqn ,.nodeId = node->kHash};
 
 	OGM_SQN_T i = 0;
 

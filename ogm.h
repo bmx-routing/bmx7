@@ -93,7 +93,7 @@ struct hdr_ogm_aggreg_req {
  * */
 
 struct msg_ogm_dhash_adv {
-	OgmHashChainLink_T sqnHashChainLink;
+	OgmHChainLink_T ogmHChainLXD;
 	DHASH_T dhash;
 	ROUGH_DHASH_T roughDHash;
 
@@ -116,7 +116,7 @@ struct hdr_ogm_adv {
 	struct msg_ogm_dhash_adv msg[];
 } __attribute__((packed));
 
-struct avl_tree **ogm_aggreg_origs(AGGREG_SQN_T aggSqn);
+struct avl_tree **get_my_ogm_aggreg_origs(AGGREG_SQN_T aggSqn);
 
 void remove_ogm(struct orig_node *on);
 void process_ogm_metric(void *voidRef);

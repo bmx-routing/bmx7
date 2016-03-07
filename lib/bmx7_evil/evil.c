@@ -101,6 +101,8 @@ int32_t evil_tx_msg_dhash_adv(struct tx_frame_iterator *it)
 }
 
 
+
+
 STATIC_FUNC
 int32_t evil_tx_frame_ogm_dhash_aggreg_advs(struct tx_frame_iterator *it)
 {
@@ -108,7 +110,7 @@ int32_t evil_tx_frame_ogm_dhash_aggreg_advs(struct tx_frame_iterator *it)
 
 		struct hdr_ogm_adv *hdr = ((struct hdr_ogm_adv*) tx_iterator_cache_hdr_ptr(it));
 		AGGREG_SQN_T *sqn = ((AGGREG_SQN_T *)it->ttn->key.data);
-		struct avl_tree *origs = (*ogm_aggreg_origs(*sqn));
+		struct avl_tree *origs = (*get_my_ogm_aggreg_origs(*sqn));
 		uint16_t o = 0;
 		struct avl_node *an = NULL;
 		struct orig_node *on;
@@ -131,8 +133,8 @@ int32_t evil_tx_frame_ogm_dhash_aggreg_advs(struct tx_frame_iterator *it)
 			hdr->msg[o].u.u32 = htonl(hdr->msg[o].u.u32);
 
 			hdr->msg[o].dhash = on->descContent->dhn->dhash;
-			hdr->msg[o].roughDHash = *((uint32_t*)&on->descContent->dhn->dhash);
-			hdr->msg[o].sqnHashChainLink = ((OgmHashChainElem_T*)&on->ogmHashChainElem)->u.e.link;
+			hdr->msg[o].roughDHash = *((ROUGH_DHASH_T*)&on->descContent->dhn->dhash);
+			bit_xor(hdr->msg[o].ogmHChainLXD.u8, on->ogmHChainElem.u.e.link.u8, on->descContent->dhn->dhash.h.u8, sizeof(OgmHChainLink_T));
 			on->descContent->dhn->referred_by_me_timestamp = bmx_time;
 			o++;
 		}

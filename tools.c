@@ -472,6 +472,28 @@ uint8_t is_zero(void *data, int32_t len)
         return YES;
 }
 
+void bit_xor(uint8_t *out, uint8_t *a, uint8_t *b, uint32_t size)
+{
+	uint32_t p = 0;
+
+	while (p < size) {
+
+		if ((size - p) >= sizeof(uint64_t)) {
+			*((uint64_t*) (&out[p])) = (*((uint64_t*) (&a[p]))) ^ (*((uint64_t*) (&b[p])));
+			p += sizeof(uint64_t);
+		} else if ((size - p) >= sizeof(uint32_t)) {
+			*((uint32_t*) (&out[p])) = (*((uint32_t*) (&a[p]))) ^ (*((uint32_t*) (&b[p])));
+			p += sizeof(uint32_t);
+		} else if ((size - p) >= sizeof(uint16_t)) {
+			*((uint16_t*) (&out[p])) = (*((uint16_t*) (&a[p]))) ^ (*((uint16_t*) (&b[p])));
+			p += sizeof(uint16_t);
+		} else if ((size - p) >= sizeof(uint8_t)) {
+			*((uint8_t*) (&out[p])) = (*((uint8_t*) (&a[p]))) ^ (*((uint8_t*) (&b[p])));
+			p += sizeof(uint8_t);
+		}
+	}
+	assertion(-500000, (p==size));
+}
 
 
 

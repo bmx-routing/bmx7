@@ -52,7 +52,6 @@
 #define CODE_CATEGORY_NAME "metric"
 
 
-
 static int32_t my_link_window = DEF_HELLO_SQN_WINDOW;
 
 //int32_t link_ignore_min = DEF_LINK_IGNORE_MIN;
@@ -164,11 +163,13 @@ void lndev_assign_best(struct neigh_node *onlyLocal, LinkNode *onlyLink )
 
 		if (sendLinkRevisedOgms && local->best_tp_link && local->best_tp_link->timeaware_tx_probe > old_timeaware_tx_probe) {
 
-			struct NeighRef_node *ref = NULL;
-			while ((ref = avl_next_item(&local->refsByDhash_tree, ref ? &ref->dhn: NULL))) {
-				if (ref->claimedKey && ref->dhn->descContent && ref->dhn->descContent->orig)
+			IID_T iid;
+			for (iid = 0; iid < local->neighIID4x_repos.max_free; iid++) {
+				struct NeighRef_node *ref = iid_get_node_by_neighIID4x(&local->neighIID4x_repos, iid, NO, NULL);
+				if (ref && ref->kn && ref->kn->on && ref->kn->on->dc->descSqn == ref->descSqn && ref->kn->on->ogmSqnMaxSend == ref->ogmProcessedSqn)
 					process_ogm_metric(ref);
 			}
+
 		}
 
                 if(onlyLocal)
@@ -246,7 +247,7 @@ void purge_linkDevs(LinkDevKey *onlyLinkDev, struct dev_node *only_dev, IDM_T pu
 			debugFree(linkDev, -300045);
 
 			if (purgeLocal && !local->linkDev_tree.items)
-				keyNode_schedLowerWeight(local->on->key, KCPromoted);
+				keyNode_schedLowerWeight(local->on->kn, KCPromoted);
 
 		}
 
@@ -323,7 +324,7 @@ LinkNode *getLinkNode(struct dev_node *dev, IPX_T *llip, DEVIDX_T idx, struct ne
 
 		dbgf_track(DBGT_INFO, "creating new link=%s (total %d)", ip6AsStr(llip), link_dev_tree.items);
 
-		updateNeighDevId(verifiedNeigh, verifiedNeigh->on->descContent);
+		updateNeighDevId(verifiedNeigh, verifiedNeigh->on->dc);
 
 	} else if (!is_ip_equal(&linkDev->key.llocal_ip, llip)) {
 
@@ -610,7 +611,7 @@ void schedule_hello_reply(void)
 
 	while ((link = avl_iterate_item(&link_tree, &an))) {
 
-		schedule_tx_task(ogmIid ? FRAME_TYPE_HELLO_REPLY_IID : FRAME_TYPE_HELLO_REPLY_DHASH, &link->k.linkDev->key.local->local_id,
+		schedule_tx_task(FRAME_TYPE_HELLO_REPLY_DHASH, &link->k.linkDev->key.local->local_id,
 			link->k.linkDev->key.local, link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &link->k.linkDev->key.devIdx, sizeof(DEVIDX_T));
 	}
 }
@@ -626,6 +627,8 @@ int32_t tx_msg_hello_reply(struct tx_frame_iterator *it)
 	LinkKey lk = {.linkDev = ldn, .myDev = it->ttn->key.f.p.dev};
 	LinkNode *link = ldn ? avl_find_item(&link_tree, &lk) : NULL;
 
+	assertion(-500000, (it->frame_type == FRAME_TYPE_HELLO_REPLY_DHASH));
+
 	if (!link || !ldn || ldn->key.devIdx < DEVIDX_MIN) {
 
 		dbgf_track(DBGT_INFO, "yet unestablished devIdx=%d link=%p ldn=%p dev=%p neigh=%p for neigh=%s llip=%s dev=%s",
@@ -635,27 +638,15 @@ int32_t tx_msg_hello_reply(struct tx_frame_iterator *it)
 		return TLV_TX_DATA_DONE;
 	}
 
-	if (ogmIid && it->frame_type == FRAME_TYPE_HELLO_REPLY_IID) {
-/*
-		struct msg_hello_reply_iid* msg = ((struct msg_hello_reply_iid*) tx_iterator_cache_msg_ptr(it));
-		msg->dest_transmitterIid4x = neigh->on->dhn->myIID4orig;
-		msg->u.d.receiverDevId = ldn->neighDevId;
-		msg->u.d.rxLq_63range = (link->timeaware_rx_probe * 63) / UMETRIC_MAX;
-		msg->u.u16 = htons(msg->u.u16);
-		return sizeof(struct msg_hello_reply_iid);
-*/
-	} else if (!ogmIid && it->frame_type == FRAME_TYPE_HELLO_REPLY_DHASH) {
+	struct msg_hello_reply_dhash* msg = ((struct msg_hello_reply_dhash*) tx_iterator_cache_msg_ptr(it));
+	msg->dest_dhash = neigh->on->dc->dHash;
+	msg->u.d.receiverDevIdx = ldn->key.devIdx;
+	msg->u.d.rxLq_63range = (link->timeaware_rx_probe * 63) / UMETRIC_MAX;
+	msg->u.u16 = htons(msg->u.u16);
 
-		struct msg_hello_reply_dhash* msg = ((struct msg_hello_reply_dhash*) tx_iterator_cache_msg_ptr(it));
-		msg->dest_dhash = neigh->on->descContent->dhn->dhash;
-		msg->u.d.receiverDevIdx = ldn->key.devIdx;
-		msg->u.d.rxLq_63range = (link->timeaware_rx_probe * 63) / UMETRIC_MAX;
-		msg->u.u16 = htons(msg->u.u16);
+	iid_get_myIID4x_by_node(neigh->on);
 
-		neigh->on->descContent->dhn->referred_by_me_timestamp = bmx_time;
-
-		return sizeof(struct msg_hello_reply_dhash);
-	}
+	return sizeof(struct msg_hello_reply_dhash);
 
 	return TLV_TX_DATA_DONE;
 }
@@ -666,22 +657,13 @@ int32_t rx_msg_hello_reply(struct rx_frame_iterator *it)
 	TRACE_FUNCTION_CALL;
 	struct packet_buff *pb = it->pb;
 	assertion(-502431, (pb->i.verifiedLink));
-
 	struct msg_hello_reply_dhash msg;
+	assertion(-500000, (it->f_type == FRAME_TYPE_HELLO_REPLY_DHASH));
 
-	if (!ogmIid && it->f_type == FRAME_TYPE_HELLO_REPLY_DHASH) {
-		if (!cryptShasEqual(&(((struct msg_hello_reply_dhash *) it->f_msg)->dest_dhash), &myKey->currOrig->descContent->dhn->dhash))
-			return TLV_RX_DATA_PROCESSED;
-		msg.u.u16 = ntohs(((struct msg_hello_reply_dhash *) it->f_msg)->u.u16);
-	} else if (ogmIid && it->f_type == FRAME_TYPE_HELLO_REPLY_IID) {
-/*
-		if (self->dhn != iid_get_node_by_neighIID4x(neigh, ((struct msg_hello_reply_iid *) it->f_msg)->dest_transmitterIid4x))
-			return TLV_RX_DATA_PROCESSED;
-		msg.u.u16 = ntohs(((struct msg_hello_reply_iid *) it->f_msg)->u.u16);
-*/
-	} else {
+	if (!cryptShasEqual(&(((struct msg_hello_reply_dhash *) it->f_msg)->dest_dhash), &myKey->on->dc->dHash))
 		return TLV_RX_DATA_PROCESSED;
-	}
+
+	msg.u.u16 = ntohs(((struct msg_hello_reply_dhash *) it->f_msg)->u.u16);
 
 	LinkNode *link = pb->i.verifiedLink;
 	struct neigh_node *neigh = link->k.linkDev->key.local;
@@ -788,8 +770,8 @@ static int32_t link_status_creator(struct status_handl *handl, void *data)
 				status[i].nodeId = &on->k.nodeId;
 				status[i].shortId = &on->k.nodeId;
 				status[i].name = on->k.hostname;
-				status[i].nodeKey = cryptKeyTypeAsString(((struct dsc_msg_pubkey*) on->key->content->f_body)->type);
-				status[i].linkKey = (pkm = contents_data(on->descContent, BMX_DSC_TLV_LINK_PUBKEY)) ? cryptKeyTypeAsString(pkm->type) : DBG_NIL;
+				status[i].nodeKey = cryptKeyTypeAsString(((struct dsc_msg_pubkey*) on->kn->content->f_body)->type);
+				status[i].linkKey = (pkm = contents_data(on->dc, BMX_DSC_TLV_LINK_PUBKEY)) ? cryptKeyTypeAsString(pkm->type) : DBG_NIL;
 				status[i].nbLocalIp = linkDev->key.llocal_ip;
 				strcpy(status[i].nbMac, memAsHexStringSep(ip6Eui64ToMac(&linkDev->key.llocal_ip, NULL), 6, 1, ":"));
 				status[i].nbIdx = linkDev->key.devIdx;

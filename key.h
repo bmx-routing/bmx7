@@ -24,11 +24,6 @@
 #define MAX_LINK_PURGE_TO  864000000 /*10 days*/
 #define ARG_LINK_PURGE_TO  "linkPurgeTimeout"
 
-#define MIN_OGM_PURGE_TO  (MAX_OGM_INTERVAL + MAX_TX_MIN_INTERVAL)
-#define MAX_OGM_PURGE_TO  864000000 /*10 days*/
-#define DEF_OGM_PURGE_TO  100000
-#define ARG_OGM_PURGE_TO  "purgeTimeout"
-
 extern int32_t link_purge_to;
 extern int32_t tracked_timeout;
 extern int32_t neigh_qualifying_to;

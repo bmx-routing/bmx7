@@ -81,24 +81,53 @@ static struct DirWatch *trustedDirWatch = NULL;
 
 
 
-OgmHChainElem_T myOgmHChainRoot;
+ChainElem_T myOgmHChainRoot;
 
 
-
-
-OgmHChainLink_T calcOgmHashId(struct key_node *node, OgmHChainElem_T *root, DESC_SQN_T descSqn, OGM_SQN_T iterations)
+void chainLinkCalc(ChainInputs_T *ci_tmp,  OGM_SQN_T diff)
 {
 
-	OgmHChainInputs_T plain = {.elem = *root, .descSqn = descSqn ,.nodeId = node->kHash};
+	ChainElem_T chainElem;
 
-	OGM_SQN_T i = 0;
-
-	while ((i++) < iterations) {
-		cryptShaAtomic(&plain, sizeof(plain), &plain.elem.u.sha);
-		plain.elem.u.e.seed = root->u.e.seed;
+	while (diff--) {
+		cryptShaAtomic(ci_tmp, sizeof(*ci_tmp), &chainElem.u.sha);
+		ci_tmp->elem.u.e.link = chainElem.u.e.link;
 	}
 
-	return plain.elem.u.e.link;
+
+}
+
+
+OGM_SQN_T chainOgmFind(ChainLink_T *chainOgm, struct desc_content *dc)
+{
+
+	assertion(-500000, (chainOgm && dc));
+	bit_xor(&dc->chainInputs_tmp.elem.u.e.link, chainOgm, &dc->chainOgmConstInputHash, sizeof(chainOgm));
+
+	OGM_SQN_T sqnOffset = 0;
+	while (sqnOffset <= dc->ogmSqnRange) {
+
+		if ((memcmp(&dc->chainInputs_tmp.elem.u.e.link, &dc->chainLinkMaxRcvd, sizeof(ChainLink_T)) == 0) &&
+			 (((OGM_SQN_T)((dc->ogmSqnZero + dc->ogmSqnRange) - (sqnOffset + dc->ogmSqnMaxRcvd))) <= dc->ogmSqnRange)) {
+
+			if (sqnOffset) {
+				bit_xor(&dc->chainLinkMaxRcvd, chainOgm, &dc->chainOgmConstInputHash, sizeof(chainOgm));
+				dc->ogmSqnMaxRcvd += sqnOffset;
+			}
+
+			return (dc->ogmSqnMaxRcvd);
+		}
+
+		if (memcmp(&dc->chainInputs_tmp.elem.u.e.link, &dc->chainAnchor, sizeof(ChainLink_T)) == 0) {
+			return (sqnOffset + dc->ogmSqnZero);
+		}
+
+		chainLinkCalc(&dc->chainInputs_tmp, 1);
+
+		sqnOffset++;
+	}
+
+	return dc->ogmSqnZero;
 }
 
 IDM_T verify_crypto_ip6_suffix( IPX_T *ip, uint8_t mask, CRYPTSHA1_T *id) {
@@ -209,10 +238,10 @@ int create_packet_signature(struct tx_frame_iterator *it)
 
 		hdr = (struct frame_hdr_signature*) tx_iterator_cache_hdr_ptr(it);
 		hdr->sqn.u32.burstSqn = htonl(myBurstSqn);
-		hdr->sqn.u32.descSqn = htonl(myKey->currOrig->descContent->descSqn);
+		hdr->sqn.u32.descSqn = htonl(myKey->on->dc->descSqn);
 		hdr->devIdx = htons(it->ttn->key.f.p.dev->llipKey.devIdx);
 		
-		assertion(-502445, (be64toh(hdr->sqn.u64) == (((uint64_t) myKey->currOrig->descContent->descSqn) << 32) + myBurstSqn));
+		assertion(-502445, (be64toh(hdr->sqn.u64) == (((uint64_t) myKey->on->dc->descSqn) << 32) + myBurstSqn));
 
 
 		struct frame_msg_signature *msg = (struct frame_msg_signature *) &(hdr[1]);
@@ -304,7 +333,10 @@ int process_packet_signature(struct rx_frame_iterator *it)
 
 	assertion(-502480, (claimedKey->content));
 
-	if (descSqn < (claimedKey->nextDesc ? claimedKey->nextDesc->descSqn : (claimedKey->currOrig ? claimedKey->currOrig->descContent->descSqn : 0)))
+	if (
+		(descSqn < claimedKey->nextDescSqnMin) ||
+		(claimedKey->nextDesc && (descSqn < claimedKey->nextDesc->descSqn)) ||
+		(claimedKey->on && (descSqn < claimedKey->on->dc->descSqn)))
 		goto_error_return( finish, "outdated descSqn", TLV_RX_DATA_PROCESSED);
 
 	if (!claimedKey->content->f_body) {
@@ -314,9 +346,10 @@ int process_packet_signature(struct rx_frame_iterator *it)
 
 	if (!(dc = (claimedKey->nextDesc ?
 		(claimedKey->nextDesc->descSqn == descSqn ? claimedKey->nextDesc : NULL) :
-		(claimedKey->currOrig && claimedKey->currOrig->descContent->descSqn == descSqn ? claimedKey->currOrig->descContent : NULL)))) {
+		(claimedKey->on && claimedKey->on->dc->descSqn == descSqn ? claimedKey->on->dc : NULL)))) {
 
-		schedule_tx_task(FRAME_TYPE_DESC_REQ, &claimedKey->kHash, NULL, pb->i.iif, SCHEDULE_MIN_MSG_SIZE, &descSqn, sizeof(descSqn));
+		IID_T iid = 0;
+		schedule_tx_task(FRAME_TYPE_DESC_REQ, &claimedKey->kHash, NULL, pb->i.iif, SCHEDULE_MIN_MSG_SIZE, &iid, sizeof(iid));
 		goto_error_return( finish, "unknown desc", TLV_RX_DATA_PROCESSED);
 	}
 
@@ -331,9 +364,9 @@ int process_packet_signature(struct rx_frame_iterator *it)
 		!find_array_data(llip_data, llip_dlen, (uint8_t*) & pb->i.llip, sizeof(struct dsc_msg_llip)))
 		goto_error_return( finish, "Missing or Invalid src llip", TLV_RX_DATA_FAILURE);
 
-	if (dc->orig && dc->orig->neigh) {
+	if (dc->on && dc->on->neigh) {
 //		assertion(-502481, (dc->orig->neigh->pktKey));
-		pkey = dc->orig->neigh->linkKey;
+		pkey = dc->on->neigh->linkKey;
 
 	} else if ((pkey_msg = contents_data(dc, BMX_DSC_TLV_LINK_PUBKEY))) {
 
@@ -360,13 +393,13 @@ int process_packet_signature(struct rx_frame_iterator *it)
 			goto_error_return(finish, "Failed signature verification", TLV_RX_DATA_FAILURE);
 	}
 
-	dc->dhn->referred_by_others_timestamp = bmx_time;
+	dc->referred_by_others_timestamp = bmx_time;
 
 	struct key_credits kc = {.pktId = 1, .pktSign = 1};
 	if (!(claimedKey = keyNode_updCredits(NULL, claimedKey, &kc)) || claimedKey->bookedState->i.c < KCNeighbor)
 		goto_error_return( finish, "< KCNeighbor", TLV_RX_DATA_PROCESSED);
 
-	if (dc->orig == claimedKey->currOrig && (nn = dc->orig->neigh)) {
+	if (dc->on == claimedKey->on && (nn = dc->on->neigh)) {
 
 		if (nn->burstSqn <= burstSqn)
 			nn->burstSqn = burstSqn;
@@ -1036,7 +1069,7 @@ IDM_T setted_pubkey(struct desc_content *dc, uint8_t type, GLOBAL_ID_T *globalId
 		if (
 			(msg[m].trustLevel >= TYP_TRUST_LEVEL_IMPORT) &&
 			(on = avl_find_item(&orig_tree, &msg[m].nodeId)) &&
-			(setted_pubkey(on->descContent, type, globalId, 1) >= TYP_TRUST_LEVEL_DIRECT)
+			(setted_pubkey(on->dc, type, globalId, 1) >= TYP_TRUST_LEVEL_DIRECT)
 			) {
 			return TYP_TRUST_LEVEL_RECOMMENDED;
 		}
@@ -1125,7 +1158,7 @@ INT_NEIGH_ID_T allocate_internalNeighId(struct neigh_node *nn) {
 	}
 
 	for (an = NULL; (on = avl_iterate_item(&orig_tree, &an));)
-		update_neighTrust(nn, on, on->descContent);
+		update_neighTrust(nn, on, on->dc);
 
 
 	return ini;
@@ -1184,7 +1217,7 @@ void apply_trust_changes(int8_t f_type, struct orig_node *on, struct desc_conten
 {
 	assertion(-500000, (desc_frame_changed(dcOld, dcNew, f_type)));
 	assertion(-500000, (f_type == BMX_DSC_TLV_TRUSTS || f_type == BMX_DSC_TLV_SUPPORTS));
-	assertion(-500000, (on && on->key));
+	assertion(-500000, (on && on->kn));
 
 	struct dsc_msg_trust *newMsg = contents_data(dcNew, f_type);
 	uint32_t newMsgs = contents_dlen(dcNew, f_type) / sizeof(struct dsc_msg_trust);
@@ -1203,7 +1236,7 @@ void apply_trust_changes(int8_t f_type, struct orig_node *on, struct desc_conten
 		if (f_type == BMX_DSC_TLV_TRUSTS && oldMsg[m].trustLevel < TYP_TRUST_LEVEL_IMPORT)
 			continue;
 
-		if (cryptShasEqual(&on->key->kHash, &oldMsg[m].nodeId))
+		if (cryptShasEqual(&on->kn->kHash, &oldMsg[m].nodeId))
 			continue;
 
 //			if(!cryptShasEqual(&oldMsg[m].nodeId, &myKey->kHash) && !cryptShasEqual(&oldMsg[m].nodeId, &it->on->key->kHash))
@@ -1217,7 +1250,7 @@ void apply_trust_changes(int8_t f_type, struct orig_node *on, struct desc_conten
 //			if(cryptShasEqual(&opMsg[m].nodeId, &myKey->kHash) || cryptShasEqual(&opMsg[m].nodeId, &it->on->key->kHash))
 //				continue;
 
-		if (cryptShasEqual(&on->key->kHash, &newMsg[m].nodeId))
+		if (cryptShasEqual(&on->kn->kHash, &newMsg[m].nodeId))
 			continue;
 
 		if (!(oldMsg = avl_remove(&tmp_tree, &newMsg[m].nodeId, -300000)))
@@ -1241,7 +1274,7 @@ int process_dsc_tlv_supports(struct rx_frame_iterator *it)
 
 		IDM_T add = (it->op == TLV_OP_NEW);
 
-		if (it->on->key->dFriend >= TYP_TRUST_LEVEL_IMPORT)
+		if (it->on->kn->dFriend >= TYP_TRUST_LEVEL_IMPORT)
 			apply_trust_changes(BMX_DSC_TLV_SUPPORTS, it->on, (add ? it->dcOld : it->dcOp), (add ? it->dcOp : NULL));
 			
 	}
@@ -1308,8 +1341,8 @@ int process_dsc_tlv_trusts(struct rx_frame_iterator *it)
 
 		struct orig_node *on;
 		struct avl_node *an = NULL;
-		while((on = avl_iterate_item(&it->on->key->trustees_tree, &an))) {
-			update_neighTrust(NULL, on, on->descContent);
+		while((on = avl_iterate_item(&it->on->kn->trustees_tree, &an))) {
+			update_neighTrust(NULL, on, on->dc);
 		}
 
 	}
@@ -1338,7 +1371,7 @@ IDM_T supportedKnownKey( CRYPTSHA1_T *pkhash ) {
 		if (tn->support >= TYP_TRUST_LEVEL_IMPORT) {
 			struct orig_node *on = avl_find_item(&orig_tree, &tn->global_id);
 
-			if (on && setted_pubkey( on->descContent, BMX_DSC_TLV_SUPPORTS, pkhash, 1) >= TYP_TRUST_LEVEL_DIRECT)
+			if (on && setted_pubkey( on->dc, BMX_DSC_TLV_SUPPORTS, pkhash, 1) >= TYP_TRUST_LEVEL_DIRECT)
 				return TYP_TRUST_LEVEL_RECOMMENDED;
 		}
 	}

@@ -142,13 +142,12 @@ extern int32_t txTaskTreeSizeMax;
 #define FRAME_TYPE_HELLO_REPLY_DHASH  13
 #define FRAME_TYPE_HELLO_REPLY_IID  14
 
-#define FRAME_TYPE_DHASH_ADV        19  // Hash-for-description-of-OG-ID advertisements
+#define FRAME_TYPE_IID_ADV        19  // Hash-for-description-of-OG-ID advertisements
 
-#define FRAME_TYPE_OGM_DHASH_ADV    21
-#define FRAME_TYPE_OGM_IID_ADV      22
+#define FRAME_TYPE_OGM_ADV    21
 
 #define FRAME_TYPE_OGM_REQ          27
-#define FRAME_TYPE_DHASH_REQ        28  // Hash-for-description-of-OG-ID requests
+#define FRAME_TYPE_IID_REQ        28  // Hash-for-description-of-OG-ID requests
 #define FRAME_TYPE_DESC_REQ         29
 #define FRAME_TYPE_CONTENT_REQ      30
 
@@ -168,7 +167,7 @@ extern int32_t txTaskTreeSizeMax;
 #define DEF_DBG_FRAME_TYPES ( \
 	 (1 << FRAME_TYPE_CONTENT_ADV) | (1 << FRAME_TYPE_CONTENT_REQ) | \
 	 (1 << FRAME_TYPE_DESC_ADVS) | (1 << FRAME_TYPE_DESC_REQ) | \
-	 (1 << FRAME_TYPE_DHASH_ADV) | (1 << FRAME_TYPE_DHASH_REQ) | \
+	 (1 << FRAME_TYPE_IID_ADV) | (1 << FRAME_TYPE_IID_REQ) | \
 /*       (1 << FRAME_TYPE_OGM_DHASH_ADV) | (1 << FRAME_TYPE_OGM_IID_ADV) |*/ \
 	 (1 << FRAME_TYPE_OGM_REQ) \
 	 )

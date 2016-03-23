@@ -80,39 +80,39 @@ extern int32_t desc_vbodies_size_out;
 #define MAX_DESCRIPTION_TYPE     FRAME_TYPE_PROCESS_ALL
 #define HLP_DESCRIPTION_TYPE     "show description extension(s) of given type (0..253=type 254=none 255=all) \n"
 
-#define MIN_DHASH_RSLV_INTERVAL 1
-#define MAX_DHASH_RSLV_INTERVAL 1000000
-#define DEF_DHASH_RSLV_INTERVAL 2000
-#define ARG_DHASH_RSLV_INTERVAL "descResolveInterval"
+#define MIN_REF_RSLV_INTERVAL 1
+#define MAX_REF_RSLV_INTERVAL 1000000
+#define DEF_REF_RSLV_INTERVAL 2000
+#define ARG_REF_RSLV_INTERVAL "iidResolveInterval"
+extern int32_t refRslvInterval;
 
 #define MIN_DHASH_RSLV_ITERS 1
 #define MAX_DHASH_RSLV_ITERS 20
 #define DEF_DHASH_RSLV_ITERS 5
 #define ARG_DHASH_RSLV_ITERS "descResolveIterations"
 
-struct msg_dhash_adv {
-	DHASH_T dhash;
-	OgmHChainElem_T ogmHChainElem;
-	GLOBAL_ID_T kHash;
+struct msg_iid_adv {
+	IID_T transmitterIID4x;
 	DESC_SQN_T descSqn;
-	OGM_SQN_T ogmSqn;
+	ChainLink_T chainOgm;
+	CRYPTSHA1_T nodeId;
 
 } __attribute__((packed));
 
-struct msg_dhash_request {
-	OgmHChainLink_T ogmHChainDXL;
+struct msg_iid_request {
+	IID_T receiverIID4x;
 } __attribute__((packed));
 
-struct hdr_dhash_request { // 20 bytes
+struct hdr_iid_request {
 	GLOBAL_ID_T dest_nodeId;
-	struct msg_dhash_request msg[];
+	struct msg_iid_request msg[];
 } __attribute__((packed));
 
-struct msg_description_request { // 2 bytes
-	DHASH_T dhash;
+struct msg_description_request {
+	CRYPTSHA1_T kHash;
 } __attribute__((packed));
 
-struct hdr_description_request { // 20 bytes
+struct hdr_description_request {
 	DHASH_T dest_kHash;
 	struct msg_description_request msg[];
 } __attribute__((packed));
@@ -146,7 +146,6 @@ IDM_T process_description_tlvs(struct packet_buff *pb, struct orig_node *on, str
 void update_my_description(void);
 
 void update_orig_dhash(struct desc_content *dc);
-void ref_resolve(struct NeighRef_node *ref);
 
 SHA1_T *nodeIdFromDescAdv(uint8_t *desc_adv);
 char *nodeIdAsStringFromDescAdv(uint8_t *desc_adv);

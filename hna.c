@@ -202,7 +202,7 @@ struct hna_node * find_orig_hna(struct orig_node *on)
         struct hna_node *un;
         struct avl_node *it = NULL;
 
-	on = (myKey && myKey->currOrig == on) ? NULL : on;
+	on = (myKey && myKey->on == on) ? NULL : on;
 
         while ((un = avl_iterate_item(&global_uhna_tree, &it)) && un->on != on);
 
@@ -215,7 +215,7 @@ struct hna_node * find_overlapping_hna( IPX_T *ipX, uint8_t prefixlen, struct or
         struct hna_node *un;
         struct avl_node *it = NULL;
 
-	except = (myKey && myKey->currOrig == except) ? NULL : except;
+	except = (myKey && myKey->on == except) ? NULL : except;
 
         while ((un = avl_iterate_item(&global_uhna_tree, &it))) {
 
@@ -236,7 +236,7 @@ void configure_hna_(IDM_T del, struct net_key* key, struct orig_node *on, uint8_
 
         assertion(-500236, ((del && un) != (!del && !un)));
 
-	on = (myKey && myKey->currOrig == on) ? NULL : on;
+	on = (myKey && myKey->on == on) ? NULL : on;
 
         // update uhna_tree:
         if ( del ) {
@@ -299,7 +299,7 @@ int process_dsc_tlv_hna(struct rx_frame_iterator *it)
         struct orig_node *on = it->on;
         uint8_t op = it->op;
 
-	assertion(-502326, (it->dcOp && it->dcOp->key));
+	assertion(-502326, (it->dcOp && it->dcOp->kn));
         assertion(-500588, IMPLIES(op==TLV_OP_NEW || op==TLV_OP_DEL || op>=TLV_OP_CUSTOM_MIN, on));
 
         uint32_t hna_net_curr = 0;
@@ -329,7 +329,7 @@ int process_dsc_tlv_hna(struct rx_frame_iterator *it)
                 uint8_t flags = set_hna_to_key(&key, (struct dsc_msg_hna6 *) (it->f_data + pos));
 
                 dbgf_track(DBGT_INFO, "%s nodeId=%s %s=%s",
-                        tlv_op_str(op), cryptShaAsString(&it->dcOp->key->kHash), ARG_UHNA, netAsStr(&key));
+                        tlv_op_str(op), cryptShaAsString(&it->dcOp->kn->kHash), ARG_UHNA, netAsStr(&key));
 
                 if (op == TLV_OP_TEST) {
 
@@ -340,7 +340,7 @@ int process_dsc_tlv_hna(struct rx_frame_iterator *it)
                                 (un = find_overlapping_hna(&key.ip, key.mask, on))) {
 
                                 dbgf_sys(DBGT_ERR, "nodeId=%s %s=%s blocked (by nodeId=%s)",
-                                        cryptShaAsString(&it->dcOp->key->kHash), ARG_UHNA, netAsStr(&key),
+                                        cryptShaAsString(&it->dcOp->kn->kHash), ARG_UHNA, netAsStr(&key),
 					un ? cryptShaAsString(un->on ? &un->on->k.nodeId : &myKey->kHash) : "???");
 
                                 return TLV_RX_DATA_BLOCKED;
@@ -353,7 +353,7 @@ int process_dsc_tlv_hna(struct rx_frame_iterator *it)
 //				if (is_ip_net_equal(&(hna_net_keys[i].ip), &key.ip, XMIN(hna_net_keys[i].mask, key.mask), AF_INET6)) {
                                 if (!memcmp(&hna_net_keys[i], &key, sizeof (key))) {
                                         dbgf_sys(DBGT_ERR, "nodeId=%s FAILURE due to double hna=%s announcement",
-                                                cryptShaAsString(&it->dcOp->key->kHash), netAsStr(&key));
+                                                cryptShaAsString(&it->dcOp->kn->kHash), netAsStr(&key));
                                         return TLV_RX_DATA_FAILURE;
                                 }
                         }
@@ -367,9 +367,9 @@ int process_dsc_tlv_hna(struct rx_frame_iterator *it)
 
 			if (is_ip_net_equal(&key.ip, &autoconf_prefix_cfg.ip, autoconf_prefix_cfg.mask - 4, AF_INET6)) {
 
-				if (key.mask != 128 || verify_crypto_ip6_suffix(&key.ip, autoconf_prefix_cfg.mask, &it->dcOp->key->kHash) != SUCCESS) {
+				if (key.mask != 128 || verify_crypto_ip6_suffix(&key.ip, autoconf_prefix_cfg.mask, &it->dcOp->kn->kHash) != SUCCESS) {
                                         dbgf_sys(DBGT_ERR, "nodeId=%s FAILURE due to non-matching crypto hna=%s mask=%d announcement",
-                                                cryptShaAsString(&it->dcOp->key->kHash), netAsStr(&key), autoconf_prefix_cfg.mask);
+                                                cryptShaAsString(&it->dcOp->kn->kHash), netAsStr(&key), autoconf_prefix_cfg.mask);
 					return TLV_RX_DATA_FAILURE;
 				}
 			}
@@ -505,7 +505,7 @@ void hna_route_change_hook(uint8_t del, struct orig_node *on)
         if (!is_ip_set(&on->primary_ip))
                 return;
 
-	process_description_tlvs(NULL, on, NULL, on->descContent, del ? TLV_OP_CUSTOM_HNA_ROUTE_DEL : TLV_OP_CUSTOM_HNA_ROUTE_ADD, BMX_DSC_TLV_HNA6);
+	process_description_tlvs(NULL, on, NULL, on->dc, del ? TLV_OP_CUSTOM_HNA_ROUTE_DEL : TLV_OP_CUSTOM_HNA_ROUTE_ADD, BMX_DSC_TLV_HNA6);
 
 }
 

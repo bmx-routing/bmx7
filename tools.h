@@ -79,7 +79,7 @@ void bits_clear(uint8_t *array, uint32_t array_bit_size, uint32_t beg_bit, uint3
 
 char* bits_print(uint8_t *array, uint32_t array_bit_size, uint32_t beg_bit, uint32_t end_bit, uint32_t range_mask);
 
-void bit_xor(uint8_t *out, uint8_t *a, uint8_t *b, uint32_t size);
+void bit_xor(void *out, void *a, void *b, uint32_t size);
 
 uint8_t is_zero(void *data, int len);
 

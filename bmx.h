@@ -174,9 +174,6 @@ extern int32_t dad_to;
 
 
 
-#define MIN_DHASH_TO 300000
-#define DHASH_TO_TOLERANCE_FK 10
-
 
 
 
@@ -198,8 +195,8 @@ typedef uint32_t PKT_SQN_T;
 
 typedef uint16_t ROUGH_DHASH_T;
 
-typedef uint16_t OGM_SQN_T;
-#define OGM_SQN_BIT_SIZE (14)
+typedef uint32_t OGM_SQN_T;
+#define OGM_SQN_BIT_SIZE (32)
 #define OGM_SQN_MASK     ((1<<OGM_SQN_BIT_SIZE)-1)
 #define OGM_SQN_MAX      OGM_SQN_MASK
 

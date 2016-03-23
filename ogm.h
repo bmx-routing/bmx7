@@ -20,7 +20,6 @@
 
 
 
-extern int32_t ogmIid;
 extern uint32_t ogms_pending;
 extern int32_t ogmSqnRange;
 
@@ -61,7 +60,7 @@ extern int32_t sendLinkRevisedOgms;
 #define OGMS_DHASH_PER_AGGREG_PREF (SIGNED_FRAMES_SIZE_PREF - (\
                               sizeof(struct tlv_hdr) + \
                               sizeof (struct hdr_ogm_adv))) \
-                              / sizeof(struct msg_ogm_dhash_adv)
+                              / sizeof(struct msg_ogm_adv)
 
 
 
@@ -80,7 +79,6 @@ struct hdr_ogm_aggreg_req {
 	GLOBAL_ID_T dest_nodeId;
 	struct msg_ogm_aggreg_req msg[];
 } __attribute__((packed));
-
 /*
  *            short long
  * sqnHashLink  112  112
@@ -92,15 +90,14 @@ struct hdr_ogm_aggreg_req {
  *              152  160
  * */
 
-struct msg_ogm_dhash_adv {
-	OgmHChainLink_T ogmHChainLXD;
-	DHASH_T dhash;
-	ROUGH_DHASH_T roughDHash;
+struct msg_ogm_adv {
+	ChainLink_T chainOgm;
+	IID_T transmitterIID4x;
 
 	union {
 
 		struct {
-			unsigned int sqn : OGM_SQN_BIT_SIZE; // 14
+			unsigned int TODO_consider_iid_here : OGM_SQN_BIT_SIZE; // 14
 			unsigned int trustedFlag : 1;
 			unsigned int hopCount : 6;
 			unsigned int metric_exp : OGM_EXPONENT_BIT_SIZE; // 5
@@ -113,7 +110,7 @@ struct msg_ogm_dhash_adv {
 
 struct hdr_ogm_adv {
 	AGGREG_SQN_T aggregation_sqn;
-	struct msg_ogm_dhash_adv msg[];
+	struct msg_ogm_adv msg[];
 } __attribute__((packed));
 
 struct avl_tree **get_my_ogm_aggreg_origs(AGGREG_SQN_T aggSqn);

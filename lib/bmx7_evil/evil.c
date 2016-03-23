@@ -76,9 +76,9 @@ int32_t evil_tx_frame_description_adv(struct tx_frame_iterator *it)
 
 	if (evilDirWatch && evilDescDropping) {
 
-		struct dhash_node *dhn = avl_find_item(&dhash_tree, (DHASH_T*)it->ttn->key.data);
+		struct desc_content *dc = avl_find_item(&descContent_tree, (DHASH_T*)it->ttn->key.data);
 
-		if (dhn && dhn->descContent && avl_find(&evilDirWatch->node_tree, &dhn->descContent->key->kHash))
+		if (dc && avl_find(&evilDirWatch->node_tree, &dc->kn->kHash))
 			return TLV_TX_DATA_DONE;
 
 	}
@@ -89,14 +89,7 @@ int32_t evil_tx_frame_description_adv(struct tx_frame_iterator *it)
 STATIC_FUNC
 int32_t evil_tx_msg_dhash_adv(struct tx_frame_iterator *it)
 {
-	if (evilDirWatch && evilDescDropping) {
-
-		struct dhash_node *dhn = avl_find_item(&dhash_tree, ((DHASH_T*)it->ttn->key.data));
-
-		if (dhn && dhn->descContent && avl_find(&evilDirWatch->node_tree, &dhn->descContent->key->kHash))
-			return TLV_TX_DATA_DONE;
-	}
-
+	IDM_T TODO;
 	return (*orig_tx_msg_dhash_adv)(it);
 }
 
@@ -104,7 +97,7 @@ int32_t evil_tx_msg_dhash_adv(struct tx_frame_iterator *it)
 
 
 STATIC_FUNC
-int32_t evil_tx_frame_ogm_dhash_aggreg_advs(struct tx_frame_iterator *it)
+int32_t evil_tx_frame_ogm_aggreg_advs(struct tx_frame_iterator *it)
 {
 	if (evilDirWatch && (evilOgmDropping || evilOgmMetrics || evilOgmSqns)) {
 
@@ -119,7 +112,7 @@ int32_t evil_tx_frame_ogm_dhash_aggreg_advs(struct tx_frame_iterator *it)
 
 		while (origs && (on = avl_iterate_item(origs, &an))) {
 
-			struct KeyWatchNode *tn = avl_find_item(&evilDirWatch->node_tree, &on->key->kHash);
+			struct KeyWatchNode *tn = avl_find_item(&evilDirWatch->node_tree, &on->kn->kHash);
 
 			if (tn && evilOgmDropping)
 				continue;
@@ -127,21 +120,21 @@ int32_t evil_tx_frame_ogm_dhash_aggreg_advs(struct tx_frame_iterator *it)
 			FMETRIC_U16_T fm16 = umetric_to_fmetric((tn && evilOgmMetrics) ? UMETRIC_MAX : on->ogmMetric);
 			hdr->msg[o].u.f.metric_exp = fm16.val.f.exp_fm16;
 			hdr->msg[o].u.f.metric_mantissa = fm16.val.f.mantissa_fm16;
-			hdr->msg[o].u.f.sqn = on->ogmSqn + (tn ? evilOgmSqns : 0);
 			hdr->msg[o].u.f.hopCount = 0;
 			hdr->msg[o].u.f.trustedFlag = 0;
 			hdr->msg[o].u.u32 = htonl(hdr->msg[o].u.u32);
 
-			hdr->msg[o].dhash = on->descContent->dhn->dhash;
-			hdr->msg[o].roughDHash = *((ROUGH_DHASH_T*)&on->descContent->dhn->dhash);
-			bit_xor(hdr->msg[o].ogmHChainLXD.u8, on->ogmHChainElem.u.e.link.u8, on->descContent->dhn->dhash.h.u8, sizeof(OgmHChainLink_T));
-			on->descContent->dhn->referred_by_me_timestamp = bmx_time;
+			hdr->msg[o].chainOgm = on->chainLinkMaxSend;
+			bit_xor(&hdr->msg[o].chainOgm, &on->chainLinkMaxSend, &on->dc->chainOgmConstInputHash, sizeof(on->chainLinkMaxSend));
+
+			hdr->msg[o].transmitterIID4x = htons(iid_get_myIID4x_by_node(on));
+
 			o++;
 		}
 
 		dbgf_all(DBGT_INFO, "aggSqn=%d ogms=%d", *sqn, o);
 
-		return (o * sizeof(struct msg_ogm_dhash_adv));
+		return (o * sizeof(struct msg_ogm_adv));
 	}
 
 	return (*orig_tx_frame_ogm_dhash_aggreg_advs)(it);
@@ -280,11 +273,11 @@ static int32_t evil_init( void )
 	orig_tx_frame_desc_adv = packet_frame_db->handls[FRAME_TYPE_DESC_ADVS].tx_frame_handler;
 	packet_frame_db->handls[FRAME_TYPE_DESC_ADVS].tx_frame_handler = evil_tx_frame_description_adv;
 
-	orig_tx_msg_dhash_adv = packet_frame_db->handls[FRAME_TYPE_DHASH_ADV].tx_msg_handler;
-	packet_frame_db->handls[FRAME_TYPE_DHASH_ADV].tx_msg_handler = evil_tx_msg_dhash_adv;
+	orig_tx_msg_dhash_adv = packet_frame_db->handls[FRAME_TYPE_IID_ADV].tx_msg_handler;
+	packet_frame_db->handls[FRAME_TYPE_IID_ADV].tx_msg_handler = evil_tx_msg_dhash_adv;
 
-	orig_tx_frame_ogm_dhash_aggreg_advs = packet_frame_db->handls[FRAME_TYPE_OGM_DHASH_ADV].tx_frame_handler;
-	packet_frame_db->handls[FRAME_TYPE_OGM_DHASH_ADV].tx_frame_handler = evil_tx_frame_ogm_dhash_aggreg_advs;
+	orig_tx_frame_ogm_dhash_aggreg_advs = packet_frame_db->handls[FRAME_TYPE_OGM_ADV].tx_frame_handler;
+	packet_frame_db->handls[FRAME_TYPE_OGM_ADV].tx_frame_handler = evil_tx_frame_ogm_aggreg_advs;
 
 	return SUCCESS;
 }
@@ -293,8 +286,8 @@ static int32_t evil_init( void )
 static void evil_cleanup( void )
 {
 	packet_frame_db->handls[FRAME_TYPE_DESC_ADVS].tx_frame_handler = orig_tx_frame_desc_adv;
-	packet_frame_db->handls[FRAME_TYPE_DHASH_ADV].tx_msg_handler = orig_tx_msg_dhash_adv;
-	packet_frame_db->handls[FRAME_TYPE_OGM_DHASH_ADV].tx_frame_handler = orig_tx_frame_ogm_dhash_aggreg_advs;
+	packet_frame_db->handls[FRAME_TYPE_IID_ADV].tx_msg_handler = orig_tx_msg_dhash_adv;
+	packet_frame_db->handls[FRAME_TYPE_OGM_ADV].tx_frame_handler = orig_tx_frame_ogm_dhash_aggreg_advs;
 
 	cleanup_dir_watch(&evilDirWatch);
 

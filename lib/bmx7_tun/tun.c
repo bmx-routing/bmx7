@@ -504,7 +504,7 @@ struct tun_dev_node * tun_dev_out_del(struct tun_bit_node *tbn)
 
 	assertion(-501460, (is_ip_set(&ton->localIp)));
 	assertion(-501461, (ton->tunOutKey.on));
-	assertion(-501462, (ton->tunOutKey.on != myKey->currOrig));
+	assertion(-501462, (ton->tunOutKey.on != myKey->on));
 	assertion(-501463, (tdn));
 	assertion(-501464, (tdn->ifIdx));
 	assertion(-501465, (tdn->orig_mtu));
@@ -645,7 +645,7 @@ struct tun_dev_node *tun_dev_out_add(struct tun_bit_node *tbn, IDM_T tdn_state)
 
 	assertion(-501524, (is_ip_set(&ton->localIp)));
 	assertion(-501235, (ton->tunOutKey.on));
-	assertion(-501321, (ton->tunOutKey.on != myKey->currOrig));
+	assertion(-501321, (ton->tunOutKey.on != myKey->on));
 	assertion(-501343, (is_ip_set(&ton->tunOutKey.on->primary_ip)));
 
 	dbgf_track(DBGT_INFO, "tdn_state=%d", tdn_state);
@@ -1328,7 +1328,7 @@ int process_dsc_tlv_tun6(struct rx_frame_iterator *it)
 	TRACE_FUNCTION_CALL;
 	int16_t m;
 
-	if (it->dcOp->key == myKey)
+	if (it->dcOp->kn == myKey)
 		return it->f_msgs_len;
 
 
@@ -1485,7 +1485,7 @@ int process_dsc_tlv_tunXin6ingress(struct rx_frame_iterator *it)
 	uint8_t isSrc4 = (it->f_type == BMX_DSC_TLV_TUN4IN6_INGRESS);
 	int32_t pos;
 
-	if (it->dcOp->key == myKey)
+	if (it->dcOp->kn == myKey)
 		return it->f_msgs_len;
 
 
@@ -1718,7 +1718,7 @@ int process_dsc_tlv_tunXin6net(struct rx_frame_iterator *it)
 
 	uint8_t used = NO;
 
-	if (it->dcOp->key == myKey && it->op != TLV_OP_TEST)
+	if (it->dcOp->kn == myKey && it->op != TLV_OP_TEST)
 		return it->f_msgs_len;
 
 

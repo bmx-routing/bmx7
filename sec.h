@@ -202,7 +202,7 @@ struct dsc_msg_trust {
 } __attribute__((packed));
 
 
-extern OgmHChainElem_T myOgmHChainRoot;
+extern ChainElem_T myOgmHChainRoot;
 
 
 
@@ -211,8 +211,8 @@ extern OgmHChainElem_T myOgmHChainRoot;
 {FIELD_TYPE_HEX,           -1, 8,                              1, FIELD_RELEVANCE_MEDI, "capabilities" }, \
 {FIELD_TYPE_UINT,          -1, (8*sizeof(DESC_SQN_T)),         0, FIELD_RELEVANCE_HIGH, "descSqn" }, \
 {FIELD_TYPE_UINT,          -1, (8*sizeof(OGM_SQN_T)),          0, FIELD_RELEVANCE_HIGH, "maxOgmSqn" }, \
-{FIELD_TYPE_STRING_BINARY, -1, (8*sizeof(OgmHChainLink_T)),    0, FIELD_RELEVANCE_HIGH, "ogmHChainAnchor" }, \
-{FIELD_TYPE_STRING_BINARY, -1, (8*sizeof(OgmHChainSeed_T)),    0, FIELD_RELEVANCE_HIGH, "ogmHChainSeed" }, \
+{FIELD_TYPE_STRING_BINARY, -1, (8*sizeof(ChainLink_T)),    0, FIELD_RELEVANCE_HIGH, "ogmHChainAnchor" }, \
+{FIELD_TYPE_STRING_BINARY, -1, (8*sizeof(ChainSeed_T)),    0, FIELD_RELEVANCE_HIGH, "ogmHChainSeed" }, \
 {FIELD_TYPE_HEX,           -1, 32,                             0, FIELD_RELEVANCE_HIGH, "codeRevision" }, \
 FIELD_FORMAT_END}
 
@@ -220,15 +220,17 @@ struct dsc_msg_version {
 	uint8_t comp_version;
 	uint8_t capabilities;
 	DESC_SQN_T descSqn;
-	OGM_SQN_T maxOgmSqn;
+	OGM_SQN_T ogmSqnZero;
+	uint16_t ogmSqnRange;
 
-	OgmHChainElem_T ogmHChainAnchor;
+	ChainElem_T ogmHChainAnchor;
 
 	uint32_t codeRevision;
 
 } __attribute__((packed));
 
-OgmHChainLink_T calcOgmHashId(struct key_node *node, OgmHChainElem_T *root, DESC_SQN_T descSqn, OGM_SQN_T iterations);
+void chainLinkCalc(ChainInputs_T *ci_tmp, OGM_SQN_T diff);
+OGM_SQN_T chainOgmFind(ChainLink_T *chainOgm, struct desc_content *dc);
 
 IPX_T create_crypto_IPv6(struct net_key *prefix, GLOBAL_ID_T *id);
 IDM_T verify_crypto_ip6_suffix(IPX_T *ip, uint8_t mask, CRYPTSHA1_T *id);

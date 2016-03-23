@@ -111,10 +111,9 @@ struct hdr_content_req { // 20 bytes
 } __attribute__((packed));
 
 
+int8_t descContent_resolve(struct desc_content *dc, IDM_T init_not_finalize);
+struct desc_content* descContent_create(uint8_t *dsc, uint32_t dlen, struct key_node *kn);
 void descContent_destroy(struct desc_content *dc);
-struct desc_content* descContent_create(uint8_t *dsc, uint32_t dlen, struct key_node *key);
-
-
 struct content_node * content_get(SHA1_T *chash);
 void *contents_data(struct desc_content *contents, uint8_t type);
 uint32_t contents_dlen(struct desc_content *contents, uint8_t type);

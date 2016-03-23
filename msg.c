@@ -848,8 +848,7 @@ void tx_packets( void *unused ) {
 
         dbgf_all(DBGT_INFO, " ");
 
-
-	myKey->currOrig->descContent->dhn->referred_by_me_timestamp = bmx_time;
+	iid_get_myIID4x_by_node(myKey->on);
 
 	// These are always scheduled as needed (if my_tx_interval is due)
 	for (ft = 0; ft <= FRAME_TYPE_MAX_KNOWN; ft++) {

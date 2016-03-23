@@ -27,12 +27,7 @@
 #include <netinet/ip6.h>
 #include <netinet/udp.h>
 
-
-
-/*
- * from iid.h:
- */
-typedef uint16_t IID_T;
+#include "iid.h"
 
 
 
@@ -193,8 +188,6 @@ typedef CRYPTSHA1_T RHASH_T;
 
 typedef CRYPTSHA1_T GLOBAL_ID_T;
 
-typedef CRYPTSHA1_T LOCAL_ID_T;
-
 typedef uint16_t DEVIDX_T;
 #define DEVIDX_INVALID 0
 #define DEVIDX_MIN 1
@@ -246,7 +239,7 @@ typedef struct {
 } LinkNode;
 
 struct neigh_node {
-	LOCAL_ID_T local_id;
+	GLOBAL_ID_T local_id;
 	struct avl_tree linkDev_tree;
 	LinkNode *best_rp_link;
 	LinkNode *best_tp_link;
@@ -261,8 +254,7 @@ struct neigh_node {
 	CRYPTKEY_T *linkKey;
 
 
-	struct avl_tree refsByDhash_tree;
-	struct avl_tree refsByOgmHChainLXD_tree;
+	struct iid_repos neighIID4x_repos;
 
 	TIME_T ogm_aggreg_time;
 	AGGREG_SQN_T ogm_aggreg_max;
@@ -288,7 +280,7 @@ struct content_usage_node {
 
 struct content_node {
 	SHA1_T chash;
-	struct key_node *key;
+	struct key_node *kn;
 	uint8_t *f_body;
 	uint32_t f_body_len;
 	uint8_t nested;
@@ -307,72 +299,105 @@ struct desc_tlv_body {
 	uint16_t desc_tlv_body_len;
 };
 
-struct desc_content {
-	IDM_T cntr;
-	struct key_node *key;
-	struct orig_node *orig;
-	uint8_t *desc_frame;
-	uint16_t desc_frame_len;
-	int32_t ref_content_len;
-	DESC_SQN_T descSqn;
-
-	struct dhash_node *dhn;
-	struct avl_tree contentRefs_tree;
-	uint32_t unresolvedContentCounter;
-	uint8_t max_nesting;
-	struct desc_tlv_body final[BMX_DSC_TLV_ARRSZ];
-};
-
-struct dhash_node {
-	DHASH_T dhash;
-
-	TIME_T referred_by_me_timestamp; // last time this node was referred
-	TIME_T referred_by_others_timestamp;
-
-	struct desc_content *descContent;
-	uint8_t rejected;
-	struct avl_tree neighRefs_tree;
-};
-
 
 #define OGM_HASH_CHAIN_LINK_BITSIZE 112
 
 typedef struct {
 	uint8_t u8[OGM_HASH_CHAIN_LINK_BITSIZE / 8];
-} __attribute__((packed)) OgmHChainLink_T;
+} __attribute__((packed)) ChainLink_T;
 
 typedef struct {
 	uint8_t u8[sizeof(CRYPTSHA1_T) - (OGM_HASH_CHAIN_LINK_BITSIZE / 8)];
-} __attribute__((packed)) OgmHChainSeed_T;
+} __attribute__((packed)) ChainSeed_T;
 
 typedef struct {
 
 	union {
 
 		struct {
-			OgmHChainLink_T link;
-			OgmHChainSeed_T seed;
+			ChainLink_T link;
+			ChainSeed_T seed;
 		} e;
 		CRYPTSHA1_T sha;
 	} u;
-} __attribute__((packed)) OgmHChainElem_T;
+} __attribute__((packed)) ChainElem_T;
 
 typedef struct {
-	OgmHChainElem_T elem;
-	DESC_SQN_T descSqn;
+	ChainElem_T elem;
 	CRYPTSHA1_T nodeId;
-} __attribute__((packed)) OgmHChainInputs_T;
+	DESC_SQN_T descSqnNetOrder;
+} __attribute__((packed)) ChainInputs_T;
 
+typedef struct {
+	DHASH_T dHash;
+	ChainInputs_T anchor;
+} __attribute__((packed)) ChainOgmConstInput_T;
 
-struct ogmHChainLXD_node {
-	OgmHChainLink_T ogmHChainLXD;
+typedef struct {
+	ChainOgmConstInput_T c;
+	ChainLink_T l;
+} __attribute__((packed)) ChainOgmInput_T;
 
-	TIME_T referred_by_me_timestamp; // last time this node was referred
+struct ChainAnchorKey {
+	DHASH_T dHash;
+	ChainElem_T anchor;
+	struct key_node *kn;
+	DESC_SQN_T descSqnNetOrder;
+} __attribute__((packed));
+
+struct desc_content {
+	DHASH_T dHash;
+
+	IDM_T cntr;
+	struct key_node *kn;
+	struct orig_node *on;
+	uint8_t *desc_frame;
+	uint16_t desc_frame_len;
+	int32_t ref_content_len;
+	DESC_SQN_T descSqn;
 	TIME_T referred_by_others_timestamp;
 
-	struct desc_content *descContent;
-	uint8_t rejected;
-	struct avl_tree neighRefs_tree;
+	struct avl_tree contentRefs_tree;
+	uint32_t unresolvedContentCounter;
+	uint8_t max_nesting;
+
+	CRYPTSHA1_T chainOgmConstInputHash;
+	ChainInputs_T chainInputs_tmp;
+	ChainLink_T chainAnchor;
+	ChainLink_T chainLinkMaxRcvd;
+	OGM_SQN_T ogmSqnMaxRcvd;
+	OGM_SQN_T ogmSqnZero;
+	uint16_t ogmSqnRange;
+
+	struct desc_tlv_body final[BMX_DSC_TLV_ARRSZ];
+};
+
+struct InaptChainOgm {
+	ChainLink_T *chainOgm;
+	FMETRIC_U16_T ogmMtc;
+};
+
+struct NeighRef_node {
+	AGGREG_SQN_T aggSqn;
+	uint8_t scheduled_ogm_processing;
+	uint8_t shown;
+
+	struct InaptChainOgm *inaptChainOgm;
+
+	// set by ref_node_update():
+	IID_T __neighIID4x;
+	struct neigh_node *nn;
+	struct key_node *kn;
+	DESC_SQN_T descSqn;
+	OGM_SQN_T ogmSqnMaxRcvd;
+	FMETRIC_U16_T ogmMtcMaxRcvd;
+
+	// set by rx_frame_ogm_aggreg_adv():
+	OGM_SQN_T ogmProcessedSqn;
+	TIME_T ogmProcessedSqnTime;
+	TIME_T ogmBestSinceSqn;
+	FMETRIC_U16_T ogmProcessedMetricMax;
+
 };
 
 struct orig_node {
@@ -386,9 +411,11 @@ struct orig_node {
 
 	//	struct dhash_node *dhn; //TODO: remove
 	//	int32_t currKeySupportsPerOrig;
-	struct desc_content *descContent;
-	struct key_node *key;
+	struct desc_content *dc;
+	struct key_node *kn;
 	struct neigh_node *neigh;
+	IID_T __myIID4x;
+
 	TIME_T updated_timestamp; // last time this on's desc was succesfully updated
 
 	// filled in by process_desc0_tlvs()->
@@ -403,10 +430,12 @@ struct orig_node {
 	IDM_T ogmAggregActive;
 	AGGREG_SQN_T ogmAggregSqn;
 
+	ChainElem_T anchor;
+
 	TIME_T ogmSqnTime;
-	OGM_SQN_T ogmSqn;
-	uint8_t ogmHopCount;
-	OgmHChainElem_T ogmHChainElem;
+	OGM_SQN_T ogmSqnMaxSend;
+	ChainLink_T chainLinkMaxSend;
+
 
 	UMETRIC_T ogmMetric;
 	LinkNode *curr_rt_link; // the configured route in the kernel!
@@ -416,22 +445,6 @@ struct orig_node {
 
 };
 
-struct NeighRef_node {
-	struct dhash_node *dhn;
-	struct ogmHChainLXD_node *oxn;
-	struct neigh_node *neigh;
-	struct key_node *claimedKey;
-	TIME_T mentionedRefTime;
-	DESC_SQN_T claimedDescSqn;
-	OGM_SQN_T ogmSqnMax;
-	uint8_t ogmHopCount;
-	TIME_T ogmSqnTime;
-	TIME_T ogmBestSinceSqn;
-	AGGREG_SQN_T aggSqn;
-	FMETRIC_U16_T ogmMetricMax;
-	uint8_t scheduled_ogm_processing;
-	uint8_t shown;
-};
 
 struct key_credits {
 	uint8_t nQualifying;
@@ -455,8 +468,9 @@ struct key_node {
 	TIME_T TAPTime;
 	struct avl_tree neighRefs_tree;
 	struct avl_tree trustees_tree;
-	struct orig_node *currOrig;
+	struct orig_node *on;
 	struct desc_content *nextDesc;
+	DESC_SQN_T nextDescSqnMin;
 	struct avl_tree recommendations_tree; //ofMyDirect2SupportedKeys
 };
 
@@ -538,6 +552,7 @@ extern struct avl_tree link_tree;
 extern struct avl_tree orig_tree;
 extern struct avl_tree key_tree;
 extern struct avl_tree dhash_tree;
+extern struct avl_tree descContent_tree;
 extern struct avl_tree ogmHChainLXD_tree;
 
 
@@ -548,13 +563,8 @@ extern uint32_t content_tree_unresolveds;
  Data Infrastructure
  ************************************************************/
 
-void refNode_destroy(struct NeighRef_node *ref, IDM_T reAssessState);
-struct NeighRef_node *refNode_update(struct neigh_node *neigh, AGGREG_SQN_T aggSqn, DHASH_T *dHash, struct CRYPTSHA1_T *claimedKey, DESC_SQN_T claimedDescSqn, ROUGH_DHASH_T roughDhash, OGM_SQN_T ogmSqn, OgmHChainLink_T *olxd, OgmHChainSeed_T *ocs);
-
-struct dhash_node* dhash_node_create(DHASH_T *dhash, struct neigh_node *neigh);
-void dhash_node_reject(struct dhash_node *dhn);
-void dhash_clean_data(struct dhash_node *dhn);
-
+void neighRef_destroy(struct NeighRef_node *ref, IDM_T reAssessState);
+struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn, IID_T neighIID4x, CRYPTSHA1_T *kHash, DESC_SQN_T descSqn, struct InaptChainOgm *chainOgm);
 int purge_orig_router(struct orig_node *onlyOrig, struct neigh_node *onlyNeigh, LinkNode *onlyLink, IDM_T onlyUseless);
 void neigh_destroy(struct neigh_node *local);
 struct neigh_node *neigh_create(struct orig_node *on);

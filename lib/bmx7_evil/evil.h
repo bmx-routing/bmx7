@@ -46,6 +46,6 @@
 #define ARG_EVIL_OGM_SQNS "evilOgmSqns"
 #define DEF_EVIL_OGM_SQNS 0
 #define MIN_EVIL_OGM_SQNS 0
-#define MAX_EVIL_OGM_SQNS OGM_SQN_MAX
+#define MAX_EVIL_OGM_SQNS 10
 
 

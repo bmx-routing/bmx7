@@ -246,7 +246,7 @@ int32_t opt_evil_init(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct o
 	return SUCCESS;
 }
 
-static struct opt_type evil_options[]= {
+static struct opt_type evil_options[] = {
 //        ord parent long_name          shrt Attributes				*ival		min		max		default		*func,*syntax,*help
 	{ODI,0,"evilInit",              0,  8,0,A_PS0,A_ADM,A_INI,A_ARG,A_ANY,	0,		0,		0,		0,0,            opt_evil_init,
 			NULL,HLP_DUMMY_OPT},
@@ -261,7 +261,7 @@ static struct opt_type evil_options[]= {
 	{ODI,0,ARG_EVIL_OGM_METRICS,    0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &evilOgmMetrics, MIN_EVIL_OGM_METRICS,MAX_EVIL_OGM_METRICS,DEF_EVIL_OGM_METRICS,0,NULL,
 			ARG_VALUE_FORM, "Modify metrics of routing updates (OGMs) from attacked nodes"},
 	{ODI,0,ARG_EVIL_OGM_SQNS,       0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &evilOgmSqns,    MIN_EVIL_OGM_SQNS,MAX_EVIL_OGM_SQNS,DEF_EVIL_OGM_SQNS,0,NULL,
-			ARG_VALUE_FORM, "Modify SQNs of routing updates (OGMs) from attacked nodes"},
+			ARG_VALUE_FORM, "Modify SQNs of routing updates (OGMs) from attacked nodes"}
 };
 
 

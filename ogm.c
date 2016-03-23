@@ -119,7 +119,10 @@ STATIC_FUNC
 void schedule_ogm( struct orig_node *on, OGM_SQN_T ogmSqn, UMETRIC_T um )
 {
 //	assertion(-502281, (on && ogmSqn && um));
+        TRACE_FUNCTION_CALL;
 	assertion(-502281, (on && um));
+
+	dbgf_track(DBGT_INFO, "ogmSqn=%d maxSend=%d range=%d metric=%s", ogmSqn, on->ogmSqnMaxSend, on->dc->ogmSqnRange, umetric_to_human(um));
 
 	if ((((OGM_SQN_T)(ogmSqn - (on->ogmSqnMaxSend+1))) <= on->dc->ogmSqnRange) || (ogmSqn == on->ogmSqnMaxSend && um > on->ogmMetric)) {
 
@@ -183,14 +186,14 @@ void schedule_my_originator_message(void)
         TRACE_FUNCTION_CALL;
 	struct orig_node *on = myKey->on;
 
-	if (((OGM_SQN_T)((on->ogmSqnMaxSend + 2) - (on->dc->ogmSqnZero + on->dc->ogmSqnRange))) >= on->dc->ogmSqnRange) {
+	dbgf_track(DBGT_INFO, "maxSend=%d zero=%d range=%d", on->ogmSqnMaxSend, on->dc->ogmSqnZero, on->dc->ogmSqnRange);
+
+	if (((OGM_SQN_T)(on->ogmSqnMaxSend + 2 - on->dc->ogmSqnZero)) >= on->dc->ogmSqnRange) {
 
 		my_description_changed = YES;
-
-	} else {
-
-		schedule_ogm(on, on->ogmSqnMaxSend + 1, UMETRIC_MAX);
 	}
+
+	schedule_ogm(on, on->ogmSqnMaxSend + 1, UMETRIC_MAX);
 }
 
 STATIC_FUNC
@@ -214,10 +217,10 @@ void revise_ogm_aggregations(void)
 		}
 
 
-		dbgf(myNextNow ? DBGL_CHANGES : DBGL_ALL, DBGT_INFO, "myNextNow=%d myGuaranteedInterval=%d sqnMax=%d sqnSend=%d size=%d max=%d",
+		dbgf(myNextNow ? DBGL_CHANGES : DBGL_ALL, DBGT_INFO, "myNextNow=%d myGuaranteedInterval=%d sqnMax=%d sqnSend=%d size=%d max=%d ogmSqnMaxSend=%d",
 			myNextNow, myGuaranteedInterval, ogm_aggreg_sqn_max, ogm_aggreg_sqn_send,
 			(*get_my_ogm_aggreg_origs(ogm_aggreg_sqn_max)) ? (*get_my_ogm_aggreg_origs(ogm_aggreg_sqn_max))->items : 0,
-			OGMS_DHASH_PER_AGGREG_PREF);
+			OGMS_DHASH_PER_AGGREG_PREF, myKey->on->ogmSqnMaxSend);
 
 		schedule_ogm_aggregations();
 	}
@@ -556,7 +559,7 @@ int32_t rx_frame_ogm_aggreg_advs(struct rx_frame_iterator *it)
 STATIC_FUNC
 struct opt_type ogm_options[]=
 {
-        {ODI, 0, ARG_OGM_SQN_RANGE,        0,  9,0, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY,&ogmSqnRange,    MIN_OGM_SQN_RANGE,  MAX_OGM_SQN_RANGE, DEF_OGM_SQN_RANGE,0,  0,
+        {ODI, 0, ARG_OGM_SQN_RANGE,        0,  9,0, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY,&ogmSqnRange,    MIN_OGM_SQN_RANGE,  MAX_OGM_SQN_RANGE, DEF_OGM_SQN_RANGE,0,  opt_update_dext_method,
 			ARG_VALUE_FORM,	"set average OGM sequence number range (affects frequency of bmx7 description updates)"},
         {ODI,0,ARG_SEND_LINK_REVISED_OGMS, 0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,   &sendLinkRevisedOgms,MIN_SEND_REVISED_OGMS, 1, DEF_SEND_LINK_REVISED_OGMS,0,    NULL,
 			ARG_VALUE_FORM,	"send revised ogms with better metric (but unchanged sqn)"},

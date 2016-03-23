@@ -34,12 +34,8 @@ extern int32_t ogmSqnRange;
 #define MIN_OGM_INTERVAL 200
 #define MAX_OGM_INTERVAL 60000 // 60000 = 1 minutes
 
-#define _DEF_OGM_SQN_DIV   5
-#define _MIN_OGM_SQN_RANGE 32
-#define _MAX_OGM_SQN_RANGE 8192 // changing this will cause compatibility trouble
-
-#define MIN_OGM_SQN_RANGE _MIN_OGM_SQN_RANGE + (_MIN_OGM_SQN_RANGE/(2*_DEF_OGM_SQN_DIV))
-#define MAX_OGM_SQN_RANGE _MAX_OGM_SQN_RANGE - (_MAX_OGM_SQN_RANGE/(2*_DEF_OGM_SQN_DIV))
+#define MIN_OGM_SQN_RANGE 10
+#define MAX_OGM_SQN_RANGE 8192 // changing this will cause compatibility trouble
 #define DEF_OGM_SQN_RANGE MAX_OGM_SQN_RANGE
 #define ARG_OGM_SQN_RANGE "ogmSqnRange"
 
@@ -97,7 +93,7 @@ struct msg_ogm_adv {
 	union {
 
 		struct {
-			unsigned int TODO_consider_iid_here : OGM_SQN_BIT_SIZE; // 14
+			unsigned int TODO_consider_iid_here : 14;
 			unsigned int trustedFlag : 1;
 			unsigned int hopCount : 6;
 			unsigned int metric_exp : OGM_EXPONENT_BIT_SIZE; // 5

@@ -210,7 +210,8 @@ extern ChainElem_T myOgmHChainRoot;
 {FIELD_TYPE_UINT,          -1, 8,                              1, FIELD_RELEVANCE_HIGH, "comp_version" }, \
 {FIELD_TYPE_HEX,           -1, 8,                              1, FIELD_RELEVANCE_MEDI, "capabilities" }, \
 {FIELD_TYPE_UINT,          -1, (8*sizeof(DESC_SQN_T)),         0, FIELD_RELEVANCE_HIGH, "descSqn" }, \
-{FIELD_TYPE_UINT,          -1, (8*sizeof(OGM_SQN_T)),          0, FIELD_RELEVANCE_HIGH, "maxOgmSqn" }, \
+{FIELD_TYPE_UINT,          -1, (8*sizeof(OGM_SQN_T)),          0, FIELD_RELEVANCE_HIGH, "ogmSqnZero" }, \
+{FIELD_TYPE_UINT,          -1, (8*sizeof(uint16_t)),           0, FIELD_RELEVANCE_HIGH, "ogmSqnRange" }, \
 {FIELD_TYPE_STRING_BINARY, -1, (8*sizeof(ChainElem_T)),        0, FIELD_RELEVANCE_HIGH, "ogmHChainAnchor" }, \
 {FIELD_TYPE_HEX,           -1, 32,                             0, FIELD_RELEVANCE_HIGH, "codeRevision" }, \
 FIELD_FORMAT_END}

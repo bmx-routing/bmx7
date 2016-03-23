@@ -434,7 +434,7 @@ int32_t create_dsc_tlv_version(struct tx_frame_iterator *it)
 
 	dsc->ogmHChainAnchor = anchor.elem;
 	dsc->ogmSqnRange = htons(ogmSqnRange);
-	dsc->ogmSqnZero = htons(myKey->on ? myKey->on->ogmSqnMaxSend : 0);
+	dsc->ogmSqnZero = htonl(myKey->on ? myKey->on->ogmSqnMaxSend : 0);
 	return sizeof(struct dsc_msg_version);
 }
 

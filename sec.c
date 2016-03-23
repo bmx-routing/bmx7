@@ -423,6 +423,7 @@ finish:{
 		"pkey_msg_type=%s pkey_msg_len=%d "
 		"pkey_type=%s pkey=%s "
 		"dev=%s srcIp=%s llIps=%s pcktSqn=%d/%d "
+		"descSqn=%d keyDescSqn=%d nextDescSqn=%d minDescSqn=%d "
 		"problem?=%s",
 		goto_error_code?"Failed":"Done", dataLen, cryptShaAsString(&packetSha),
 		sign_len, memAsHexString(msg->signature, XMIN(sign_len,8)),
@@ -430,6 +431,7 @@ finish:{
 		pkey ? cryptKeyTypeAsString(pkey->rawKeyType) : "---", pkey ? memAsHexString(pkey->rawKey, pkey->rawKeyLen) : "---",
 		pb->i.iif->label_cfg.str, pb->i.llip_str, (llip_dlen ? memAsHexStringSep(llip_data, llip_dlen, sizeof(struct dsc_msg_llip), " ") : NULL),
 		burstSqn, (nn ? (int)nn->burstSqn : -1),
+		descSqn, (claimedKey && claimedKey->on ? (int)claimedKey->on->dc->descSqn : -1), (claimedKey && claimedKey->nextDesc ? (int)claimedKey->nextDesc->descSqn : -1), (claimedKey ? (int)claimedKey->nextDescSqnMin : -1),
 		goto_error_code);
 
 	if (pkeyTmp)

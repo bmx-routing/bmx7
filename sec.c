@@ -334,8 +334,8 @@ int process_packet_signature(struct rx_frame_iterator *it)
 	assertion(-502480, (claimedKey->content));
 
 	if (
-		(descSqn < claimedKey->nextDescSqnMin) ||
-		(claimedKey->nextDesc && (descSqn < claimedKey->nextDesc->descSqn)) ||
+		((descSqn + 1) < claimedKey->nextDescSqnMin) ||
+		(claimedKey->nextDesc && (descSqn < claimedKey->nextDesc->descSqn || descSqn < claimedKey->nextDescSqnMin)) ||
 		(claimedKey->on && (descSqn < claimedKey->on->dc->descSqn)))
 		goto_error_return( finish, "outdated descSqn", TLV_RX_DATA_PROCESSED);
 

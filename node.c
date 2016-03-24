@@ -186,7 +186,7 @@ void inaptChainOgm_update_(struct NeighRef_node *ref, struct InaptChainOgm *inap
 	ref->inaptChainOgm->ogmMtc = inaptChainOgm->ogmMtc;
 }
 
-struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn, IID_T neighIID4x, CRYPTSHA1_T *kHash, DESC_SQN_T descSqn, struct InaptChainOgm *chainOgm)
+struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn, IID_T neighIID4x, CRYPTSHA1_T *kHash, DESC_SQN_T descSqn, struct InaptChainOgm *inChainOgm)
 {
 	assertion(-502459, (nn));
 	assertion(-502461, (curr_rx_packet->i.verifiedLink->k.linkDev->key.local == nn));
@@ -195,6 +195,12 @@ struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn
 
 	struct NeighRef_node *ref = iid_get_node_by_neighIID4x(&nn->neighIID4x_repos, neighIID4x, YES, NULL);
 	struct key_node *kn = NULL;
+	struct desc_content *dc = NULL;
+	OGM_SQN_T ogmSqn = 0;
+	struct InaptChainOgm *chainOgm = NULL;
+
+	char *goto_error_code = NULL;
+	struct NeighRef_node *goto_error_ret = NULL;
 
 	if (kHash) {
 		if (ref && cryptShasEqual(&ref->kn->kHash, kHash)) {
@@ -205,7 +211,7 @@ struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn
 			struct key_credits kc = {.neighRef = ref};
 			if (!(kn = keyNode_updCredits(kHash, NULL, &kc))) {
 				neighRef_destroy(ref, YES);
-				return NULL;
+				goto_error_return( finish, "Insufficient credits", NULL);
 			}
 		}
 
@@ -213,9 +219,6 @@ struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn
 	}
 
 	if (ref) {
-
-		struct desc_content *dc = NULL;
-		OGM_SQN_T ogmSqn;
 
 		ref->aggSqn = (((AGGREG_SQN_T) (ref->aggSqn - aggSqn)) < AGGREG_SQN_CACHE_RANGE) ? ref->aggSqn : aggSqn;
 
@@ -227,14 +230,14 @@ struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn
 		if (dc)
 			dc->referred_by_others_timestamp = bmx_time;
 
-		if ((chainOgm = chainOgm ? chainOgm : ref->inaptChainOgm)) {
+		if ((chainOgm = inChainOgm ? inChainOgm : ref->inaptChainOgm)) {
 
 			if (dc && ((ogmSqn = chainOgmFind(chainOgm->chainOgm, dc)) != dc->ogmSqnZero)) {
 
 				assertion(-500000, (((OGM_SQN_T) (dc->ogmSqnZero + dc->ogmSqnRange - ogmSqn)) <= dc->ogmSqnRange));
 
 				if (((OGM_SQN_T) (ogmSqn - ref->ogmSqnMaxRcvd)) > dc->ogmSqnRange)
-					return NULL;
+					goto_error_return( finish, "Outdated ogmSqn", NULL);
 
 				ref->ogmSqnMaxRcvd = ogmSqn;
 				ref->ogmMtcMaxRcvd.val.u16 = (ref->inaptChainOgm && !memcmp(ref->inaptChainOgm->chainOgm, chainOgm->chainOgm, sizeof(ChainLink_T))) ?
@@ -251,7 +254,7 @@ struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn
 					inaptChainOgm_destroy_(ref);
 
 				neighRef_maintain(ref);
-				return NULL;
+				goto_error_return( finish, "Unresolved ogmSqn", NULL);
 			}
 		}
 		if (kn && dc && dc->on && dc->descSqn == ref->descSqn &&
@@ -262,10 +265,7 @@ struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn
 			assertion(-500000, (kn && kn == ref->kn));
 			assertion(-500000, (dc && dc == ref->kn->on->dc));
 
-			dbgf_track(DBGT_INFO, "nodeId=%s hostname=%s ogmSqn=%d ogmMtc=%d",
-				cryptShaAsShortStr(&ref->kn->kHash), ref->kn->on->k.hostname, ref->ogmSqnMaxRcvd, ref->ogmMtcMaxRcvd.val.u16);
-
-			if ((((OGM_SQN_T)(ref->ogmSqnMaxRcvd - ref->ogmProcessedSqn)) < ref->kn->on->dc->ogmSqnRange) &&
+			if ((((OGM_SQN_T)(ref->ogmSqnMaxRcvd - ref->ogmProcessedSqn)) < dc->ogmSqnRange) &&
 				(ref->ogmMtcMaxRcvd.val.u16 > ref->ogmProcessedMetricMax.val.u16 )) {
 
 				if (ref->ogmSqnMaxRcvd != ref->ogmProcessedSqn) {
@@ -278,11 +278,31 @@ struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn
 				process_ogm_metric(ref);
 			}
 
-
-			return ref;
+			goto_error_return( finish, "SUCCESS", ref);
 		}
 	}
-	return NULL;
+
+finish: {
+	dbgf_track(DBGT_INFO, 
+		"problem=%s neigh=%s aggSqn=%d IID=%d kHash=%s descSqn=%d chainOgm=%s ogmMtc=%d \n"
+		"REF: nodeId=%s descSqn=%d hostname=%s ogmSqnMaxRcvd=%d ogmSqnProcessed=%d ogmMtc=%d \n"
+		"DC: ogmSqnZero=%d ogmSqnRange=%d  \n"
+		"OUT: ogmSqn=%d chainOgm=%s ogmMtc=%d ",
+		goto_error_code, nn->on->k.hostname, aggSqn, neighIID4x, cryptShaAsShortStr(kHash), descSqn,
+		memAsHexString(inChainOgm ? &inChainOgm->chainOgm : NULL, sizeof(ChainLink_T)), (inChainOgm ? (int)inChainOgm->ogmMtc.val.u16 : -1),
+		cryptShaAsShortStr(ref && ref->kn ? &ref->kn->kHash : NULL),
+		(ref ? (int)ref->descSqn : -1 ),
+		(ref && ref->kn && ref->kn->on ? ref->kn->on->k.hostname : NULL),
+		(ref ? (int)ref->ogmSqnMaxRcvd : -1),
+		(ref ? (int)ref->ogmProcessedSqn : -1),
+		(ref ? (int)ref->ogmMtcMaxRcvd.val.u16 : -1),
+		(dc ? (int)dc->ogmSqnZero : -1), (dc ? (int)dc->ogmSqnRange : -1), (dc ? (int)dc->ogmSqnMaxRcvd : -1),
+		ogmSqn, memAsHexString(chainOgm ? &chainOgm->chainOgm : NULL, sizeof(ChainLink_T)), (chainOgm ? (int)chainOgm->ogmMtc.val.u16 : -1)
+		);
+
+
+	return goto_error_ret;
+}
 }
 
 

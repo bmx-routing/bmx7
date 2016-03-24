@@ -193,20 +193,23 @@ struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn
 	assertion(-500000, (neighIID4x));
 	assertion(-500000, IMPLIES((kHash || descSqn), (kHash && descSqn)));
 
-	struct NeighRef_node *ref = iid_get_node_by_neighIID4x(&nn->neighIID4x_repos, neighIID4x, YES, NULL);
+	char *goto_error_code = NULL;
+	struct NeighRef_node *goto_error_ret = NULL;
+	struct NeighRef_node *ref = NULL;
 	struct key_node *kn = NULL;
 	struct desc_content *dc = NULL;
 	OGM_SQN_T ogmSqn = 0;
 	struct InaptChainOgm *chainOgm = NULL;
 
-	char *goto_error_code = NULL;
-	struct NeighRef_node *goto_error_ret = NULL;
+	if (!(ref = iid_get_node_by_neighIID4x(&nn->neighIID4x_repos, neighIID4x, YES, NULL)) || (ref = neighRef_create_(nn, aggSqn, neighIID4x)))
+		goto_error_return( finish, "No neighRef!!!", NULL);
 
 	if (kHash) {
-		if (ref && cryptShasEqual(&ref->kn->kHash, kHash)) {
+		if (ref->kn && cryptShasEqual(&ref->kn->kHash, kHash)) {
 			kn = ref->kn;
-		} else if (ref) {
-			neighRef_destroy(ref, YES);
+		} else {
+			if (ref->kn)
+				neighRef_destroy(ref, YES);
 			ref = neighRef_create_(nn, aggSqn, neighIID4x);
 			struct key_credits kc = {.neighRef = ref};
 			if (!(kn = keyNode_updCredits(kHash, NULL, &kc))) {
@@ -216,70 +219,69 @@ struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn
 		}
 
 		ref->descSqn = (descSqn > ref->descSqn) ? descSqn : ref->descSqn;
+	} else {
+		kn = ref->kn;
 	}
 
-	if (ref) {
+	ref->aggSqn = (((AGGREG_SQN_T) (ref->aggSqn - aggSqn)) < AGGREG_SQN_CACHE_RANGE) ? ref->aggSqn : aggSqn;
 
-		ref->aggSqn = (((AGGREG_SQN_T) (ref->aggSqn - aggSqn)) < AGGREG_SQN_CACHE_RANGE) ? ref->aggSqn : aggSqn;
+	if (kn && kn->nextDesc && kn->nextDesc->descSqn == ref->descSqn)
+		dc = kn->nextDesc;
+	else if (kn && kn->on && kn->on->dc->descSqn == ref->descSqn)
+		dc = kn->on->dc;
 
-		if (kn && kn->nextDesc && kn->nextDesc->descSqn == ref->descSqn)
-			dc = kn->nextDesc;
-		else if (kn && kn->on && kn->on->dc->descSqn == ref->descSqn)
-			dc = kn->on->dc;
+	if ((chainOgm = inChainOgm ? inChainOgm : ref->inaptChainOgm)) {
 
-		if (dc)
+		if (dc && ((ogmSqn = chainOgmFind(chainOgm->chainOgm, dc)) != dc->ogmSqnZero)) {
+
+			assertion(-500000, (((OGM_SQN_T) (dc->ogmSqnZero + dc->ogmSqnRange - ogmSqn)) <= dc->ogmSqnRange));
+
+			if (((OGM_SQN_T) (ogmSqn - ref->ogmSqnMaxRcvd)) > dc->ogmSqnRange)
+				goto_error_return(finish, "Outdated ogmSqn", NULL);
+
 			dc->referred_by_others_timestamp = bmx_time;
 
-		if ((chainOgm = inChainOgm ? inChainOgm : ref->inaptChainOgm)) {
+			ref->ogmSqnMaxRcvd = ogmSqn;
+			ref->ogmMtcMaxRcvd.val.u16 = (ref->inaptChainOgm && !memcmp(ref->inaptChainOgm->chainOgm, chainOgm->chainOgm, sizeof(ChainLink_T))) ?
+				XMAX(ref->inaptChainOgm->ogmMtc.val.u16, chainOgm->ogmMtc.val.u16) :
+				chainOgm->ogmMtc.val.u16;
 
-			if (dc && ((ogmSqn = chainOgmFind(chainOgm->chainOgm, dc)) != dc->ogmSqnZero)) {
+			inaptChainOgm_destroy_(ref);
 
-				assertion(-500000, (((OGM_SQN_T) (dc->ogmSqnZero + dc->ogmSqnRange - ogmSqn)) <= dc->ogmSqnRange));
+		} else {
 
-				if (((OGM_SQN_T) (ogmSqn - ref->ogmSqnMaxRcvd)) > dc->ogmSqnRange)
-					goto_error_return( finish, "Outdated ogmSqn", NULL);
-
-				ref->ogmSqnMaxRcvd = ogmSqn;
-				ref->ogmMtcMaxRcvd.val.u16 = (ref->inaptChainOgm && !memcmp(ref->inaptChainOgm->chainOgm, chainOgm->chainOgm, sizeof(ChainLink_T))) ?
-					XMAX(ref->inaptChainOgm->ogmMtc.val.u16, chainOgm->ogmMtc.val.u16) :
-					chainOgm->ogmMtc.val.u16;
-
+			if (kn && kn->bookedState->i.c >= KCTracked)
+				inaptChainOgm_update_(ref, chainOgm);
+			else
 				inaptChainOgm_destroy_(ref);
 
-			} else {
-
-				if (kn && kn->bookedState->i.c >= KCTracked)
-					inaptChainOgm_update_(ref, chainOgm);
-				else
-					inaptChainOgm_destroy_(ref);
-
-				neighRef_maintain(ref);
-				goto_error_return( finish, "Unresolved ogmSqn", NULL);
-			}
+			neighRef_maintain(ref);
+			goto_error_return(finish, "Unresolved ogmSqn", NULL);
 		}
-		if (kn && dc && dc->on && dc->descSqn == ref->descSqn &&
-			(((OGM_SQN_T)(ref->ogmSqnMaxRcvd - dc->ogmSqnZero)) >= 1) &&
-			(((OGM_SQN_T)(ref->ogmSqnMaxRcvd - dc->ogmSqnZero)) <= dc->ogmSqnRange)
-			) {
-			assertion(-500000, (nn && nn == ref->nn));
-			assertion(-500000, (kn && kn == ref->kn));
-			assertion(-500000, (dc && dc == ref->kn->on->dc));
+	}
 
-			if ((((OGM_SQN_T)(ref->ogmSqnMaxRcvd - ref->ogmProcessedSqn)) < dc->ogmSqnRange) &&
-				(ref->ogmMtcMaxRcvd.val.u16 > ref->ogmProcessedMetricMax.val.u16 )) {
+	if (kn && dc && dc->on && dc->descSqn == ref->descSqn &&
+		(((OGM_SQN_T) (ref->ogmSqnMaxRcvd - dc->ogmSqnZero)) >= 1) &&
+		(((OGM_SQN_T) (ref->ogmSqnMaxRcvd - dc->ogmSqnZero)) <= dc->ogmSqnRange)
+		) {
+		assertion(-500000, (nn && nn == ref->nn));
+		assertion(-500000, (kn && kn == ref->kn));
+		assertion(-500000, (dc && dc == ref->kn->on->dc));
 
-				if (ref->ogmSqnMaxRcvd != ref->ogmProcessedSqn) {
-					ref->ogmProcessedSqn = ref->ogmSqnMaxRcvd;
-					ref->ogmProcessedSqnTime = bmx_time;
-				}
+		if ((((OGM_SQN_T) (ref->ogmSqnMaxRcvd - ref->ogmProcessedSqn)) < dc->ogmSqnRange) &&
+			(ref->ogmMtcMaxRcvd.val.u16 > ref->ogmProcessedMetricMax.val.u16)) {
 
-				ref->ogmProcessedMetricMax = ref->ogmMtcMaxRcvd;
-
-				process_ogm_metric(ref);
+			if (ref->ogmSqnMaxRcvd != ref->ogmProcessedSqn) {
+				ref->ogmProcessedSqn = ref->ogmSqnMaxRcvd;
+				ref->ogmProcessedSqnTime = bmx_time;
 			}
 
-			goto_error_return( finish, "SUCCESS", ref);
+			ref->ogmProcessedMetricMax = ref->ogmMtcMaxRcvd;
+
+			process_ogm_metric(ref);
 		}
+
+		goto_error_return(finish, "SUCCESS", ref);
 	}
 
 finish: {

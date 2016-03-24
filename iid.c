@@ -230,17 +230,12 @@ IID_T iid_get_neighIID4x_by_node(NIID_T *niidn, IDM_T update)
 NIID_T* iid_get_node_by_neighIID4x(struct iid_repos *rep, IID_T neighIID4x, IDM_T update, void (*destroy) (NIID_T *niidn) )
 {
 	TRACE_FUNCTION_CALL;
+	struct iid_ref *ref = NULL;
 
-	if (!rep || rep->max_free <= neighIID4x) {
+
+	if (!rep || rep->max_free <= neighIID4x || !(ref = &(rep->arr.r[neighIID4x])) || !ref->iidn) {
+
 		return NULL;
-	}
-
-	struct iid_ref *ref = &(rep->arr.r[neighIID4x]);
-
-
-	if (!ref->iidn) {
-
-		dbgf_all(DBGT_WARN, "neighIID4x=%d not recorded by neighIID4x_repos", neighIID4x);
 
 	} else if (((TIME_T) (bmx_time - ref->referred_timestamp)) > NB_IID_TIMEOUT) {
 

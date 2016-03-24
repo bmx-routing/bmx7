@@ -201,7 +201,7 @@ struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn
 	OGM_SQN_T ogmSqn = 0;
 	struct InaptChainOgm *chainOgm = NULL;
 
-	if (!(ref = iid_get_node_by_neighIID4x(&nn->neighIID4x_repos, neighIID4x, YES, NULL)) || (ref = neighRef_create_(nn, aggSqn, neighIID4x)))
+	if (!(ref = iid_get_node_by_neighIID4x(&nn->neighIID4x_repos, neighIID4x, YES, NULL)) && !(ref = neighRef_create_(nn, aggSqn, neighIID4x)))
 		goto_error_return( finish, "No neighRef!!!", NULL);
 
 	if (kHash) {

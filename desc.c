@@ -232,11 +232,7 @@ void update_orig_dhash(struct desc_content *dcNew)
 		schedule_tx_task(FRAME_TYPE_IID_ADV, NULL, NULL, NULL, SCHEDULE_MIN_MSG_SIZE, &iid, sizeof(iid));
 	}
 
-	struct NeighRef_node *nref;
-	struct neigh_node *nn;
-	for (nn = NULL; (nref = avl_next_item(&on->kn->neighRefs_tree, &nn));)
-		neighRef_update(nn, nref->aggSqn, iid_get_neighIID4x_by_node(nref, YES), &on->kn->kHash, on->dc->descSqn, NULL);
-
+	neighRefs_update(on->kn);
 }
 
 

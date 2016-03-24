@@ -1041,7 +1041,7 @@ void keyNode_fixTimeouts()
 		while ((ref = avl_next_item(&kn->neighRefs_tree, &neigh))) {
 			neigh = ref->nn;
 			
-			if (!iid_get_neighIID4x_by_node(ref, NO))
+			if (!iid_get_neighIID4x_timeout_by_node(ref))
 				neighRef_destroy(ref, YES);
 
 		}

@@ -52,7 +52,7 @@ void iid_free(struct iid_repos *rep, IID_T iid, IDM_T force);
 void iid_set_neighIID4x(struct iid_repos *rep, IID_T neighIID4x, NIID_T *niidn);
 IID_T iid_new_myIID4x(MIID_T *dhn);
 
-IID_T iid_get_neighIID4x_by_node(NIID_T *niidn, IDM_T update);
+IID_T iid_get_neighIID4x_by_node(NIID_T *niidn, IDM_T update, IDM_T force);
 IID_T iid_get_neighIID4x_timeout_by_node(NIID_T *niidn);
 NIID_T* iid_get_node_by_neighIID4x(struct iid_repos *rep, IID_T neighIID4x, IDM_T update, void (*destroy) (NIID_T *niidn));
 IID_T iid_get_myIID4x_by_node(MIID_T* miidn);

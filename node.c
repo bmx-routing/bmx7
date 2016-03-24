@@ -83,7 +83,7 @@ void neighRef_destroy(struct NeighRef_node *ref, IDM_T reAssessState)
 	if (ref->scheduled_ogm_processing)
 		task_remove(process_ogm_metric, (void*)ref);
 
-	iid_free(&ref->nn->neighIID4x_repos, iid_get_neighIID4x_by_node(ref, NO), NO);
+	iid_free(&ref->nn->neighIID4x_repos, iid_get_neighIID4x_by_node(ref, NO, YES), NO);
 
 	if (kn)
 		avl_remove(&kn->neighRefs_tree, &ref->nn, -300717);
@@ -116,9 +116,10 @@ struct NeighRef_node *neighRef_create_(struct neigh_node *neigh, AGGREG_SQN_T ag
 STATIC_FUNC
 void neighRef_maintain(struct NeighRef_node *ref)
 {
-	if (iid_get_neighIID4x_timeout_by_node(ref)) {
+	IID_T iid;
 
-		IID_T iid = iid_get_neighIID4x_by_node(ref, NO);
+	if ((iid = iid_get_neighIID4x_by_node(ref, NO, NO))) {
+
 		struct key_node *kn = ref->kn;
 		struct neigh_node *nn = ref->nn;
 
@@ -307,7 +308,20 @@ finish: {
 }
 }
 
+void neighRefs_update(struct key_node *kn) {
 
+	assertion(-500000, (kn && (kn->nextDesc || kn->on)));
+
+	struct NeighRef_node *nref;
+	struct neigh_node *nn;
+	IID_T iid;
+	for (nn = NULL; (nref = avl_next_item(&kn->neighRefs_tree, &nn));) {
+		if ((iid = iid_get_neighIID4x_by_node(nref, NO, NO)))
+			neighRef_update(nn, nref->aggSqn, iid, &kn->kHash, kn->nextDesc ? kn->nextDesc->descSqn : kn->on->dc->descSqn, NULL);
+		else
+			neighRef_destroy(nref, YES);
+	}
+}
 
 
 int purge_orig_router(struct orig_node *onlyOrig, struct neigh_node *onlyNeigh, LinkNode *onlyLink, IDM_T onlyUseless)

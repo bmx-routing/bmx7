@@ -206,16 +206,16 @@ IID_T iid_get_neighIID4x_timeout_by_node(NIID_T *niidn)
 
 	TIME_T to = ((TIME_T) ((bmx_time - niidn->nn->neighIID4x_repos.arr.r[niidn->__neighIID4x].referred_timestamp)));
 
-	if (to <= NB_IID_TIMEOUT)
-		return to;
+	if (to < NB_IID_TIMEOUT)
+		return (NB_IID_TIMEOUT - to);
 	else
 		return 0;
 }
 
-IID_T iid_get_neighIID4x_by_node(NIID_T *niidn, IDM_T update)
+IID_T iid_get_neighIID4x_by_node(NIID_T *niidn, IDM_T update, IDM_T force)
 {
 
-	if (!iid_get_neighIID4x_timeout_by_node(niidn)) {
+	if (!force && !iid_get_neighIID4x_timeout_by_node(niidn)) {
 		
 		return 0;
 

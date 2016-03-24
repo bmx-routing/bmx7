@@ -889,10 +889,7 @@ struct desc_content* descContent_create(uint8_t *dsc, uint32_t dlen, struct key_
 
 	kn->nextDesc = dc;
 
-	struct NeighRef_node *nref;
-	struct neigh_node *nn;
-	for (nn = NULL; (nref = avl_next_item(&dc->kn->neighRefs_tree, &nn));)
-		neighRef_update(nn, nref->aggSqn, iid_get_neighIID4x_by_node(nref, YES), &kn->kHash, descSqn, NULL);
+	neighRefs_update(kn);
 
 	if (!dc->unresolvedContentCounter)
 		keyNode_updCredits(NULL, kn, NULL);

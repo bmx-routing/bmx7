@@ -692,7 +692,9 @@ int32_t tx_msg_iid_request(struct tx_frame_iterator *it)
 	struct msg_iid_request *msg = ((struct msg_iid_request*) tx_iterator_cache_msg_ptr(it));
 
 	IID_T *iid = ((IID_T*) it->ttn->key.data);
-	struct NeighRef_node *ref = iid_get_node_by_neighIID4x(&it->ttn->neigh->neighIID4x_repos, htons(*iid), NO, NULL);
+	struct NeighRef_node *ref = iid_get_node_by_neighIID4x(&it->ttn->neigh->neighIID4x_repos, *iid, NO, NULL);
+
+	dbgf_track(DBGT_INFO, "iid=%d ref=%d nodeId=%s", *iid, !!ref, cryptShaAsShortStr((ref ? &ref->kn->kHash : NULL)));
 
 	if (!ref || ref->kn)
 		return TLV_TX_DATA_DONE;
@@ -705,8 +707,6 @@ int32_t tx_msg_iid_request(struct tx_frame_iterator *it)
 	}
 
 	msg->receiverIID4x = htons(*iid);
-
-	dbgf_track(DBGT_INFO, "iid=%d", *iid);
 
 	return sizeof(struct msg_iid_request);
 }

@@ -192,7 +192,6 @@ void inaptChainOgm_update_(struct NeighRef_node *ref, struct InaptChainOgm *inap
 struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn, IID_T neighIID4x, CRYPTSHA1_T *kHash, DESC_SQN_T descSqn, struct InaptChainOgm *inChainOgm)
 {
 	assertion(-502459, (nn));
-	assertion(-502461, (curr_rx_packet->i.verifiedLink->k.linkDev->key.local == nn));
 	assertion(-500000, (neighIID4x));
 	assertion(-500000, IMPLIES((kHash || descSqn), (kHash && descSqn)));
 

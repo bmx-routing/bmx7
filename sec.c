@@ -84,14 +84,20 @@ static struct DirWatch *trustedDirWatch = NULL;
 ChainElem_T myOgmHChainRoot;
 
 
-void chainLinkCalc(ChainInputs_T *ci_tmp,  OGM_SQN_T diff)
+void chainLinkCalc(ChainInputs_T *i,  OGM_SQN_T diff)
 {
 
 	ChainElem_T chainElem;
 
 	while (diff--) {
-		cryptShaAtomic(ci_tmp, sizeof(*ci_tmp), &chainElem.u.sha);
-		ci_tmp->elem.u.e.link = chainElem.u.e.link;
+		cryptShaAtomic(i, sizeof(*i), &chainElem.u.sha);
+		i->elem.u.e.link = chainElem.u.e.link;
+		dbgf_track(DBGT_INFO, "link=%s seed=%s descSqn=%d id=%s",
+			memAsHexString(&i->elem.u.e.link, sizeof(i->elem.u.e.link)),
+			memAsHexString(&i->elem.u.e.seed, sizeof(i->elem.u.e.seed)),
+			ntohl(i->descSqnNetOrder),
+			memAsHexString(&i->nodeId, sizeof(i->nodeId))
+			)
 	}
 
 
@@ -106,6 +112,14 @@ OGM_SQN_T chainOgmFind(ChainLink_T *chainOgm, struct desc_content *dc)
 
 	OGM_SQN_T sqnOffset = 0;
 	while (sqnOffset <= dc->ogmSqnRange) {
+
+		dbgf_track(DBGT_INFO, "testing chainOgm=%s chainLink=%s zero=%d maxRcvd=%d diff=%d against maxRcvd=%s anchor=%s",
+			memAsHexString(chainOgm, sizeof(ChainLink_T)),
+			memAsHexString(&dc->chainInputs_tmp.elem.u.e.link, sizeof(ChainLink_T)),
+			dc->ogmSqnZero, dc->ogmSqnMaxRcvd, sqnOffset,
+			memAsHexString(&dc->chainLinkMaxRcvd, sizeof(ChainLink_T)),
+			memAsHexString(&dc->chainAnchor, sizeof(ChainLink_T))
+			);
 
 		if ((memcmp(&dc->chainInputs_tmp.elem.u.e.link, &dc->chainLinkMaxRcvd, sizeof(ChainLink_T)) == 0) &&
 			 (((OGM_SQN_T)((dc->ogmSqnZero + dc->ogmSqnRange) - (sqnOffset + dc->ogmSqnMaxRcvd))) <= dc->ogmSqnRange)) {

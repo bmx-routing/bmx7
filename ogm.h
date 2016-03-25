@@ -36,7 +36,7 @@ extern int32_t ogmSqnRange;
 
 #define MIN_OGM_SQN_RANGE 10
 #define MAX_OGM_SQN_RANGE 8192 // changing this will cause compatibility trouble
-#define DEF_OGM_SQN_RANGE MAX_OGM_SQN_RANGE
+#define DEF_OGM_SQN_RANGE MIN_OGM_SQN_RANGE
 #define ARG_OGM_SQN_RANGE "ogmSqnRange"
 
 #define MIN_OGM_AGGREG_HISTORY 2

@@ -92,7 +92,7 @@ void chainLinkCalc(ChainInputs_T *i,  OGM_SQN_T diff)
 	while (diff--) {
 		cryptShaAtomic(i, sizeof(*i), &chainElem.u.sha);
 		i->elem.u.e.link = chainElem.u.e.link;
-		dbgf_track(DBGT_INFO, "link=%s seed=%s descSqn=%d id=%s",
+		dbgf_track(DBGT_INFO, "%10d link=%s seed=%s descSqn=%d id=%s",
 			memAsHexString(&i->elem.u.e.link, sizeof(i->elem.u.e.link)),
 			memAsHexString(&i->elem.u.e.seed, sizeof(i->elem.u.e.seed)),
 			ntohl(i->descSqnNetOrder),

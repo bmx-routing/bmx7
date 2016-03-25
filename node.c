@@ -206,12 +206,17 @@ struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn
 		goto_error_return( finish, "No neighRef!!!", NULL);
 
 	if (kHash) {
+
 		if (ref->kn && cryptShasEqual(&ref->kn->kHash, kHash)) {
+
 			kn = ref->kn;
+
 		} else {
-			if (ref->kn)
+			if (ref->kn) {
 				neighRef_destroy(ref, YES);
-			ref = neighRef_create_(nn, aggSqn, neighIID4x);
+				ref = neighRef_create_(nn, aggSqn, neighIID4x);
+			}
+
 			struct key_credits kc = {.neighRef = ref};
 			if (!(kn = keyNode_updCredits(kHash, NULL, &kc))) {
 				neighRef_destroy(ref, YES);

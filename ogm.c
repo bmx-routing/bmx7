@@ -122,8 +122,6 @@ void schedule_ogm( struct orig_node *on, OGM_SQN_T ogmSqn, UMETRIC_T um )
         TRACE_FUNCTION_CALL;
 	assertion(-502281, (on && um));
 
-	dbgf_track(DBGT_INFO, "ogmSqn=%d maxSend=%d range=%d metric=%s", ogmSqn, on->ogmSqnMaxSend, on->dc->ogmSqnRange, umetric_to_human(um));
-
 	if ((((OGM_SQN_T)(ogmSqn - (on->ogmSqnMaxSend+1))) <= on->dc->ogmSqnRange) || (ogmSqn == on->ogmSqnMaxSend && um > on->ogmMetric)) {
 
 		if (on->ogmAggregActive && on->ogmAggregSqn == ogm_aggreg_sqn_max && ogm_aggreg_sqn_max > ogm_aggreg_sqn_send) {
@@ -177,6 +175,10 @@ void schedule_ogm( struct orig_node *on, OGM_SQN_T ogmSqn, UMETRIC_T um )
 		if ((*get_my_ogm_aggreg_origs(ogm_aggreg_sqn_max))->items >= OGMS_DHASH_PER_AGGREG_PREF)
 			schedule_ogm_aggregations();
 	}
+	dbgf_track(DBGT_INFO, "ogmSqn=%d maxSend=%d range=%d metric=%s chainOgm=%s",
+		ogmSqn, on->ogmSqnMaxSend, on->dc->ogmSqnRange, umetric_to_human(um),
+		memAsHexString(&on->chainLinkMaxSend, sizeof(on->chainLinkMaxSend)));
+
 }
 
 

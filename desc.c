@@ -762,7 +762,13 @@ int32_t rx_msg_iid_adv(struct rx_frame_iterator *it)
 	struct neigh_node *nn = it->pb->i.verifiedLink->k.linkDev->key.local;
 	AGGREG_SQN_T aggSqnInvalidMax = (nn->ogm_aggreg_max - AGGREG_SQN_CACHE_RANGE);
 	struct InaptChainOgm chainOgm = {.chainOgm = &msg->chainOgm, .ogmMtc = {.val = {.u16 = 0}}};
-	neighRef_update(nn, aggSqnInvalidMax, ntohs(msg->transmitterIID4x), &msg->nodeId, ntohl(msg->descSqn), &chainOgm);
+	IID_T iid = ntohs(msg->transmitterIID4x);
+	DESC_SQN_T descSqn = ntohl(msg->descSqn);
+
+	dbgf_track(DBGT_INFO, "neigh=%s iid=%d nodeId=%s descSqn=%d chainOgm=%s",
+		nn->on->k.hostname, iid, cryptShaAsShortStr(&msg->nodeId), descSqn, memAsHexString(&msg->chainOgm, sizeof(msg->chainOgm)));
+
+	neighRef_update(nn, aggSqnInvalidMax, iid, &msg->nodeId, descSqn, &chainOgm);
 
 	return TLV_RX_DATA_PROCESSED;
 }

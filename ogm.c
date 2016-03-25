@@ -402,7 +402,9 @@ int32_t tx_frame_ogm_aggreg_advs(struct tx_frame_iterator *it)
 
 		msg->transmitterIID4x = htons(iid_get_myIID4x_by_node(on));
 
-		dbgf_track(DBGT_INFO, "name=%s dhash=%s sqn=%d metric=%ju", on->k.hostname, cryptShaAsShortStr(&on->dc->dHash), on->ogmSqnMaxSend, on->ogmMetric);
+		dbgf_track(DBGT_INFO, "name=%s dhash=%s sqn=%d metric=%ju chainOgm=%s",
+			on->k.hostname, cryptShaAsShortStr(&on->dc->dHash), on->ogmSqnMaxSend, on->ogmMetric,
+			memAsHexString(&msg->chainOgm, sizeof(msg->chainOgm)));
 	}
 
 	dbgf_all(DBGT_INFO, "aggSqn=%d aggSqnMax=%d ogms=%d", *sqn, ogm_aggreg_sqn_max, ogms);

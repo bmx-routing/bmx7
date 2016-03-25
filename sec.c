@@ -89,16 +89,22 @@ void chainLinkCalc(ChainInputs_T *i,  OGM_SQN_T diff)
 
 	ChainElem_T chainElem;
 
+	assertion(-500000, (sizeof(ChainInputs_T) ==
+		sizeof(ChainLink_T) + sizeof(ChainSeed_T) + sizeof(DESC_SQN_T) + sizeof(GLOBAL_ID_T)));
 
 	while (diff--) {
-		cryptShaAtomic(i, sizeof(*i), &chainElem.u.sha);
-		i->elem.u.e.link = chainElem.u.e.link;
-		dbgf_track(DBGT_INFO, "%10d link=%s seed=%s descSqn=%d id=%s", diff,
+
+		cryptShaAtomic(i, sizeof(ChainInputs_T), &chainElem.u.sha);
+
+		dbgf_track(DBGT_INFO, "%10d link=%s -> link=%s seed=%s descSqn=%d id=%s", diff,
 			memAsHexString(&i->elem.u.e.link, sizeof(i->elem.u.e.link)),
+			memAsHexString(&chainElem.u.e.link, sizeof(chainElem.u.e.link)),
 			memAsHexString(&i->elem.u.e.seed, sizeof(i->elem.u.e.seed)),
 			ntohl(i->descSqnNetOrder),
 			memAsHexString(&i->nodeId, sizeof(i->nodeId))
-			)
+			);
+
+		i->elem.u.e.link = chainElem.u.e.link;
 	}
 
 

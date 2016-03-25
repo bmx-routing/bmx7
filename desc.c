@@ -706,6 +706,8 @@ int32_t tx_msg_iid_request(struct tx_frame_iterator *it)
 
 	msg->receiverIID4x = htons(*iid);
 
+	dbgf_track(DBGT_INFO, "iid=%d", *iid);
+
 	return sizeof(struct msg_iid_request);
 }
 
@@ -724,8 +726,13 @@ int32_t rx_frame_iid_request(struct rx_frame_iterator *it)
 
 			MIID_T *in;
 			IID_T iid = ntohs(msg->receiverIID4x);
-			if ((in = iid_get_node_by_myIID4x(iid)) && (((OGM_SQN_T) (in->ogmSqnMaxSend - (in->dc->ogmSqnZero + 1))) < in->dc->ogmSqnRange))
+			if ((in = iid_get_node_by_myIID4x(iid)) && (((OGM_SQN_T) (in->ogmSqnMaxSend - (in->dc->ogmSqnZero + 1))) < in->dc->ogmSqnRange)) {
+			
 				schedule_tx_task(FRAME_TYPE_IID_ADV, NULL, NULL, nn->best_tp_link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &iid, sizeof(iid));
+
+				dbgf_track(DBGT_INFO, "neigh=%s iid=%d", nn->on->k.hostname, iid);
+			}
+
 		}
 	}
 	return TLV_RX_DATA_PROCESSED;
@@ -746,6 +753,9 @@ int32_t tx_msg_iid_adv(struct tx_frame_iterator *it)
 		msg->transmitterIID4x = htons(*iid);
 		msg->descSqn = htonl(in->dc->descSqn);
 		bit_xor(&msg->chainOgm, &in->chainLinkMaxSend, &in->dc->chainOgmConstInputHash, sizeof(msg->chainOgm));
+
+		dbgf_track(DBGT_INFO, "iid=%d nodeId=%s descSqn=%d chainOgm=%s",
+			*iid, cryptShaAsShortStr(&msg->nodeId), in->dc->descSqn, memAsHexString(&msg->chainOgm, sizeof(msg->chainOgm)));
 
 		return sizeof(struct msg_iid_adv);
 	}

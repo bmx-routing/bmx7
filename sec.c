@@ -116,14 +116,20 @@ void chainLinkCalc(ChainInputs_T *i,  OGM_SQN_T diff)
 OGM_SQN_T chainOgmFind(ChainLink_T *chainOgm, struct desc_content *dc)
 {
 
+	dbgf_track(DBGT_INFO, "testing chainLink=%s cih=%s chainOgm=%s",
+		memAsHexString(&dc->chainInputs_tmp.elem.u.e.link, sizeof(ChainLink_T)),
+		memAsHexString(&dc->chainOgmConstInputHash, sizeof(ChainLink_T)),
+		memAsHexString(chainOgm, sizeof(ChainLink_T))
+		);
+
 	assertion(-500000, (chainOgm && dc));
-	bit_xor(&dc->chainInputs_tmp.elem.u.e.link, chainOgm, &dc->chainOgmConstInputHash, sizeof(chainOgm));
+	bit_xor(&dc->chainInputs_tmp.elem.u.e.link, chainOgm, &dc->chainOgmConstInputHash, sizeof(ChainLink_T));
+
 
 	OGM_SQN_T sqnOffset = 0;
 	while (sqnOffset <= dc->ogmSqnRange) {
 
-		dbgf_track(DBGT_INFO, "testing chainOgm=%s chainLink=%s zero=%d maxRcvd=%d diff=%d < range=%d against maxRcvd=%s anchor=%s",
-			memAsHexString(chainOgm, sizeof(ChainLink_T)),
+		dbgf_track(DBGT_INFO, "testing chainLink=%s zero=%d maxRcvd=%d diff=%d < range=%d against maxRcvd=%s anchor=%s",
 			memAsHexString(&dc->chainInputs_tmp.elem.u.e.link, sizeof(ChainLink_T)),
 			dc->ogmSqnZero, dc->ogmSqnMaxRcvd, sqnOffset, dc->ogmSqnRange,
 			memAsHexString(&dc->chainLinkMaxRcvd, sizeof(ChainLink_T)),

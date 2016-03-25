@@ -298,7 +298,7 @@ finish: {
 		"problem=%s neigh=%s aggSqn=%d IID=%d kHash=%s descSqn=%d chainOgm=%s ogmMtc=%d \n"
 		"REF: nodeId=%s descSqn=%d hostname=%s ogmSqnMaxRcvd=%d ogmSqnProcessed=%d ogmMtc=%d \n"
 		"DC: ogmSqnZero=%d ogmSqnRange=%d  \n"
-		"OUT: ogmSqn=%d chainOgm=%s ogmMtc=%d ",
+		"OUT: ogmSqn=%d ",
 		goto_error_code, ((nn && nn->on) ? nn->on->k.hostname : NULL), aggSqn, neighIID4x, cryptShaAsShortStr(kHash), descSqn,
 		memAsHexString(inChainOgm ? inChainOgm->chainOgm : NULL, sizeof(ChainLink_T)), (inChainOgm ? (int)inChainOgm->ogmMtc.val.u16 : -1),
 		cryptShaAsShortStr(ref && ref->kn ? &ref->kn->kHash : NULL),
@@ -308,8 +308,7 @@ finish: {
 		(ref ? (int)ref->ogmProcessedSqn : -1),
 		(ref ? (int)ref->ogmMtcMaxRcvd.val.u16 : -1),
 		(dc ? (int)dc->ogmSqnZero : -1), (dc ? (int)dc->ogmSqnRange : -1), (dc ? (int)dc->ogmSqnMaxRcvd : -1),
-		ogmSqn, memAsHexString(chainOgm ? chainOgm->chainOgm : NULL, sizeof(ChainLink_T)), (chainOgm ? (int)chainOgm->ogmMtc.val.u16 : -1)
-		);
+		ogmSqn);
 
 
 	return goto_error_ret;

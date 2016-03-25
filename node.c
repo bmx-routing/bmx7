@@ -114,7 +114,7 @@ struct NeighRef_node *neighRef_create_(struct neigh_node *neigh, AGGREG_SQN_T ag
 }
 
 STATIC_FUNC
-void neighRef_maintain(struct NeighRef_node *ref)
+struct NeighRef_node *neighRef_maintain(struct NeighRef_node *ref)
 {
 	IID_T iid;
 
@@ -131,10 +131,12 @@ void neighRef_maintain(struct NeighRef_node *ref)
 
 			schedule_tx_task(FRAME_TYPE_DESC_REQ, &nn->local_id, nn, nn->best_tp_link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &iid, sizeof(iid));
 		}
+		return ref;
 
 
 	} else {
 		neighRef_destroy(ref, YES);
+		return NULL;
 	}
 }
 
@@ -220,6 +222,7 @@ struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn
 			struct key_credits kc = {.neighRef = ref};
 			if (!(kn = keyNode_updCredits(kHash, NULL, &kc))) {
 				neighRef_destroy(ref, YES);
+				ref = NULL;
 				goto_error_return( finish, "Insufficient credits", NULL);
 			}
 		}
@@ -261,7 +264,7 @@ struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn
 			else
 				inaptChainOgm_destroy_(ref);
 
-			neighRef_maintain(ref);
+			ref = neighRef_maintain(ref);
 			goto_error_return(finish, "Unresolved ogmSqn", NULL);
 		}
 	}
@@ -296,7 +299,7 @@ finish: {
 		"REF: nodeId=%s descSqn=%d hostname=%s ogmSqnMaxRcvd=%d ogmSqnProcessed=%d ogmMtc=%d \n"
 		"DC: ogmSqnZero=%d ogmSqnRange=%d  \n"
 		"OUT: ogmSqn=%d chainOgm=%s ogmMtc=%d ",
-		goto_error_code, nn->on->k.hostname, aggSqn, neighIID4x, cryptShaAsShortStr(kHash), descSqn,
+		goto_error_code, ((nn && nn->on) ? nn->on->k.hostname : NULL), aggSqn, neighIID4x, cryptShaAsShortStr(kHash), descSqn,
 		memAsHexString(inChainOgm ? inChainOgm->chainOgm : NULL, sizeof(ChainLink_T)), (inChainOgm ? (int)inChainOgm->ogmMtc.val.u16 : -1),
 		cryptShaAsShortStr(ref && ref->kn ? &ref->kn->kHash : NULL),
 		(ref ? (int)ref->descSqn : -1 ),

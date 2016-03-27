@@ -191,12 +191,12 @@ void schedule_my_originator_message(void)
 
 	dbgf_track(DBGT_INFO, "maxSend=%d zero=%d range=%d", on->ogmSqnMaxSend, on->dc->ogmSqnZero, on->dc->ogmSqnRange);
 
-	if (((OGM_SQN_T)(on->ogmSqnMaxSend + 2 - on->dc->ogmSqnZero)) >= on->dc->ogmSqnRange) {
+	if (((OGM_SQN_T)(on->ogmSqnMaxSend - on->dc->ogmSqnZero)) < on->dc->ogmSqnRange) {
 
+		schedule_ogm(on, on->ogmSqnMaxSend + 1, UMETRIC_MAX);
+	} else {
 		my_description_changed = YES;
 	}
-
-	schedule_ogm(on, on->ogmSqnMaxSend + 1, UMETRIC_MAX);
 }
 
 STATIC_FUNC

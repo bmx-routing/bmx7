@@ -488,6 +488,9 @@ void destroy_orig_node(struct orig_node *on)
 
 	iid_free(NULL, on->__myIID4x, NO);
 
+	if (terminating && !orig_tree.items)
+		iid_purge_repos(&my_iid_repos);
+
 	debugFree(on, -300759);
 }
 

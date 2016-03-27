@@ -126,7 +126,7 @@ void schedule_ogm( struct orig_node *on, OGM_SQN_T ogmSqn, UMETRIC_T um )
 		ogmSqn, on->dc->ogmSqnMaxRcvd, on->ogmSqnMaxSend, on->dc->ogmSqnRange, umetric_to_human(um),
 		memAsHexString(&on->chainLinkMaxSend, sizeof(on->chainLinkMaxSend)));
 
-	if ((((OGM_SQN_T)(ogmSqn - (on->ogmSqnMaxSend+1))) <= on->dc->ogmSqnRange) || (ogmSqn == on->ogmSqnMaxSend && um > on->ogmMetric)) {
+	if ((((OGM_SQN_T) (ogmSqn - (on->ogmSqnMaxSend + 1))) <= on->dc->ogmSqnRange) || (ogmSqn == on->ogmSqnMaxSend && um > on->ogmMetric)) {
 
 		if (on->ogmAggregActive && on->ogmAggregSqn == ogm_aggreg_sqn_max && ogm_aggreg_sqn_max > ogm_aggreg_sqn_send) {
 

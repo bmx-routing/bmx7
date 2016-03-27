@@ -726,7 +726,8 @@ int32_t rx_frame_iid_request(struct rx_frame_iterator *it)
 
 			MIID_T *in;
 			IID_T iid = ntohs(msg->receiverIID4x);
-			if ((in = iid_get_node_by_myIID4x(iid)) && (((OGM_SQN_T) (in->ogmSqnMaxSend - (in->dc->ogmSqnZero + 1))) < in->dc->ogmSqnRange)) {
+			if ((in = iid_get_node_by_myIID4x(iid)) &&
+				(((OGM_SQN_T) (in->ogmSqnMaxSend - (in->dc->ogmSqnZero + 1))) < in->dc->ogmSqnRange)) {
 			
 				schedule_tx_task(FRAME_TYPE_IID_ADV, NULL, NULL, nn->best_tp_link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &iid, sizeof(iid));
 

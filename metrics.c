@@ -432,7 +432,7 @@ UMETRIC_T apply_metric_algo(UMETRIC_T *linkQuality, UMETRIC_T *linkMax, const UM
 {
         TRACE_FUNCTION_CALL;
 
-//        assertion(-501037, ((*path & ~UMETRIC_MASK) == 0));
+        assertion_dbg(-501037, ((*path & ~UMETRIC_MASK) == 0), "um=%ju mask=%ju max=%ju",*path, UMETRIC_MASK, UMETRIC_MAX);
         assertion(-501038, (*path <= UMETRIC_MAX));
         assertion(-501039, (*path >= UMETRIC_MIN__NOT_ROUTABLE));
 

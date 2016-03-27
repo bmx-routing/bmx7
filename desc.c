@@ -213,7 +213,7 @@ void update_orig_dhash(struct desc_content *dcNew)
 		cb_plugin_hooks(PLUGIN_CB_STATUS, NULL);
 	}
 
-	memset(&on->anchor, 0, sizeof(on->anchor));
+//	memset(&on->anchor, 0, sizeof(on->anchor));
 
 	kn->nextDescSqnMin = dcNew->descSqn + 1;
 	kn->nextDesc = NULL;

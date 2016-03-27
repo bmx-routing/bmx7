@@ -430,7 +430,7 @@ struct orig_node {
 	IDM_T ogmAggregActive;
 	AGGREG_SQN_T ogmAggregSqn;
 
-	ChainElem_T anchor;
+	//ChainElem_T anchor;
 
 	TIME_T ogmSqnTime;
 	OGM_SQN_T ogmSqnMaxSend;

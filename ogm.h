@@ -89,7 +89,7 @@ struct hdr_ogm_aggreg_req {
 struct msg_ogm_adv {
 	ChainLink_T chainOgm;
 	IID_T transmitterIID4x;
-
+	OGM_SQN_T ogmSqn_remove;
 	union {
 
 		struct {

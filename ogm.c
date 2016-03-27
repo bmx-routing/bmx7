@@ -402,6 +402,7 @@ int32_t tx_frame_ogm_aggreg_advs(struct tx_frame_iterator *it)
 		bit_xor(&msg->chainOgm, &on->chainLinkMaxSend, &on->dc->chainOgmConstInputHash, sizeof(msg->chainOgm));
 
 		msg->transmitterIID4x = htons(iid_get_myIID4x_by_node(on));
+		msg->ogmSqn_remove = htonl(on->ogmSqnMaxSend);
 
 		dbgf_track(DBGT_INFO, "name=%s dhash=%s sqn=%d metric=%ju cih=%s chainLink=%s -> chainOgm=%s",
 			on->k.hostname, cryptShaAsShortStr(&on->dc->dHash), on->ogmSqnMaxSend, on->ogmMetric,
@@ -551,6 +552,8 @@ int32_t rx_frame_ogm_aggreg_advs(struct rx_frame_iterator *it)
 
 			struct msg_ogm_adv tmp = {.u = {.u32 = ntohl(msg->u.u32) } };
 			struct InaptChainOgm chainOgm = { .chainOgm = &msg->chainOgm, .ogmMtc = {.val = {.f = {.exp_fm16 = tmp.u.f.metric_exp, .mantissa_fm16 = tmp.u.f.metric_mantissa}}}};
+
+			dbgf_track(DBGT_INFO, "iid=%d, ogmSqn=%d", ntohs(msg->transmitterIID4x), ntohl(msg->ogmSqn_remove));
 
 			neighRef_update(nn, aggSqn, ntohs(msg->transmitterIID4x), NULL, 0, &chainOgm);
 

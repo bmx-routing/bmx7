@@ -318,12 +318,17 @@ void neighRefs_update(struct key_node *kn) {
 
 	assertion(-500000, (kn && (kn->nextDesc || kn->on)));
 
+	dbgf_track(DBGT_INFO, "id=%s name=%s", cryptShaAsShortStr(&kn->kHash), kn->on ? kn->on->k.hostname : NULL);
 	struct NeighRef_node *nref;
 	struct neigh_node *nn;
 	IID_T iid;
-	for (nn = NULL; (nref = avl_next_item(&kn->neighRefs_tree, &nn));) {
+	uint32_t c = 0;
+	for (nn = NULL; (nref = avl_next_item(&kn->neighRefs_tree, &nn)); c++) {
+		assertion(-500000, (nn == nref->nn));
+		assertion(-500000, (c <= kn->neighRefs_tree.items));
 		if ((iid = iid_get_neighIID4x_by_node(nref, NO, NO)))
-			neighRef_update(nref->nn, nref->aggSqn, iid, &kn->kHash, kn->nextDesc ? kn->nextDesc->descSqn : kn->on->dc->descSqn, NULL);
+			neighRef_update(nref->nn, nref->aggSqn, iid, &kn->kHash, 
+				kn->nextDesc ? kn->nextDesc->descSqn : (kn->on ? kn->on->dc->descSqn : 0), NULL);
 		else
 			neighRef_destroy(nref, YES);
 	}

@@ -232,7 +232,10 @@ void update_orig_dhash(struct desc_content *dcNew)
 		schedule_tx_task(FRAME_TYPE_IID_ADV, NULL, NULL, NULL, SCHEDULE_MIN_MSG_SIZE, &iid, sizeof(iid));
 	}
 
-	neighRefs_update(on->kn);
+	if (on->kn == myKey)
+		schedule_ogm(on, on->ogmSqnMaxSend + 1, UMETRIC_MAX);
+	else
+		neighRefs_update(on->kn);
 }
 
 

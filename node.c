@@ -324,7 +324,7 @@ void neighRefs_update(struct key_node *kn) {
 	IID_T iid;
 	uint32_t c = 0;
 	for (nn = NULL; (nref = avl_next_item(&kn->neighRefs_tree, &nn)); c++) {
-		assertion(-500000, (nn == nref->nn));
+		nn = nref->nn;
 		assertion(-500000, (c <= kn->neighRefs_tree.items));
 		if ((iid = iid_get_neighIID4x_by_node(nref, NO, NO)))
 			neighRef_update(nref->nn, nref->aggSqn, iid, &kn->kHash, 

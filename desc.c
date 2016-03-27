@@ -694,7 +694,7 @@ int32_t tx_msg_iid_request(struct tx_frame_iterator *it)
 	IID_T *iid = ((IID_T*) it->ttn->key.data);
 	struct NeighRef_node *ref = iid_get_node_by_neighIID4x(&it->ttn->neigh->neighIID4x_repos, *iid, NO, NULL);
 
-	dbgf_track(DBGT_INFO, "iid=%d ref=%d nodeId=%s", *iid, !!ref, cryptShaAsShortStr((ref ? &ref->kn->kHash : NULL)));
+	dbgf_track(DBGT_INFO, "iid=%d ref=%d nodeId=%s", *iid, !!ref, cryptShaAsShortStr((ref && ref->kn ? &ref->kn->kHash : NULL)));
 
 	if (!ref || ref->kn)
 		return TLV_TX_DATA_DONE;

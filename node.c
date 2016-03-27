@@ -276,8 +276,8 @@ struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn
 		assertion(-500000, (kn && kn == ref->kn));
 		assertion(-500000, (dc && dc == ref->kn->on->dc));
 
-		if ((((OGM_SQN_T) (ref->ogmSqnMaxRcvd - ref->ogmProcessedSqn)) < dc->ogmSqnRange) &&
-			(ref->ogmMtcMaxRcvd.val.u16 > ref->ogmProcessedMetricMax.val.u16)) {
+		if ((ref->ogmSqnMaxRcvd == ref->ogmProcessedSqn && (ref->ogmMtcMaxRcvd.val.u16 > ref->ogmProcessedMetricMax.val.u16)) ||
+			(((OGM_SQN_T) (ref->ogmSqnMaxRcvd - (ref->ogmProcessedSqn + 1))) < dc->ogmSqnRange)) {
 
 			if (ref->ogmSqnMaxRcvd != ref->ogmProcessedSqn) {
 				ref->ogmProcessedSqn = ref->ogmSqnMaxRcvd;
@@ -296,7 +296,7 @@ finish: {
 	dbgf_track(DBGT_INFO, 
 		"problem=%s neigh=%s aggSqn=%d IID=%d kHash=%s descSqn=%d chainOgm=%s ogmMtc=%d \n"
 		"REF: nodeId=%s descSqn=%d hostname=%s ogmSqnMaxRcvd=%d ogmSqnProcessed=%d ogmMtc=%d \n"
-		"DC: ogmSqnZero=%d ogmSqnRange=%d  \n"
+		"DC: ogmSqnZero=%d ogmSqnRange=%d  ogmSqnMaxRcvd=%d \n"
 		"OUT: ogmSqn=%d ",
 		goto_error_code, ((nn && nn->on) ? nn->on->k.hostname : NULL), aggSqn, neighIID4x, cryptShaAsShortStr(kHash), descSqn,
 		memAsHexString(inChainOgm ? inChainOgm->chainOgm : NULL, sizeof(ChainLink_T)), (inChainOgm ? (int)inChainOgm->ogmMtc.val.u16 : -1),

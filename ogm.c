@@ -122,9 +122,11 @@ void schedule_ogm( struct orig_node *on, OGM_SQN_T ogmSqn, UMETRIC_T um )
         TRACE_FUNCTION_CALL;
 	assertion(-502281, (on && um));
 
-	dbgf_track(DBGT_INFO, "ogmSqn=%d maxRcvd=%d maxSend=%d range=%d metric=%s chainLinkMaxSend=%s",
-		ogmSqn, on->dc->ogmSqnMaxRcvd, on->ogmSqnMaxSend, on->dc->ogmSqnRange, umetric_to_human(um),
+	dbgf_track(DBGT_INFO, "ogmSqn=%d maxRcvd=%d maxSend=%d range=%d metric=%s %juchainLinkMaxSend=%s",
+		ogmSqn, on->dc->ogmSqnMaxRcvd, on->ogmSqnMaxSend, on->dc->ogmSqnRange, umetric_to_human(um), um,
 		memAsHexString(&on->chainLinkMaxSend, sizeof(on->chainLinkMaxSend)));
+
+	assertion_dbg(-500000, ((um & ~UMETRIC_MASK) == 0), "um=%ju mask=%ju max=%ju",um, UMETRIC_MASK, UMETRIC_MAX);
 
 	if ((((OGM_SQN_T) (ogmSqn - (on->ogmSqnMaxSend + 1))) <= on->dc->ogmSqnRange) || (ogmSqn == on->ogmSqnMaxSend && um > on->ogmMetric)) {
 
@@ -421,6 +423,8 @@ UMETRIC_T lndev_best_via_router(struct neigh_node *local, struct orig_node *on, 
 {
 	assertion(-502474, (local->linkDev_tree.items));
 	assertion(-500000, (!(*bestPathLink)));
+	assertion_dbg(-500000, ((*ogm_metric & ~UMETRIC_MASK) == 0), "um=%ju mask=%ju max=%ju",*ogm_metric, UMETRIC_MASK, UMETRIC_MAX);
+
         UMETRIC_T metric_best = 0;
 
 	 struct avl_node *linkDev_an = NULL;
@@ -476,6 +480,8 @@ void process_ogm_metric(void *voidRef)
 		cryptShaAsShortStr(&on->k.nodeId), cryptShaAsShortStr(&ref->nn->local_id),
 		neighTrust, valid_metric, ogmMetric, on->path_metricalgo->umetric_min, ref->ogmProcessedSqn, on->ogmSqnMaxSend);
 
+	assertion_dbg(-500000, ((ogmMetric & ~UMETRIC_MASK) == 0), "um=%ju mask=%ju max=%ju",ogmMetric, UMETRIC_MASK, UMETRIC_MAX);
+
 	if (on->kn == myKey && ((((OGM_SQN_T)(ref->ogmProcessedSqn - (on->ogmSqnMaxSend + 1))) <= on->dc->ogmSqnRange) || (ref->ogmProcessedSqn == on->ogmSqnMaxSend && ogmMetric >= on->ogmMetric))) {
 		dbgf_mute(70, DBGL_SYS, DBGT_WARN, "OGM SQN or metric attack on myself, rcvd via trusted=%d neigh=%s",
 			neighTrust, cryptShaAsShortStr(&ref->nn->local_id));
@@ -493,6 +499,7 @@ void process_ogm_metric(void *voidRef)
 		LinkNode *best_rt_link = NULL;
 		UMETRIC_T best_rt_metric = lndev_best_via_router(ref->nn, on, &ogmMetric, &best_rt_link);
 		assertion(-502478, (best_rt_metric));
+		assertion_dbg(-500000, ((best_rt_metric & ~UMETRIC_MASK) == 0), "um=%ju mask=%ju max=%ju",best_rt_metric, UMETRIC_MASK, UMETRIC_MAX);
 
 		if (
 			((((OGM_SQN_T)(ref->ogmProcessedSqn - (on->ogmSqnMaxSend + 2))) <= on->dc->ogmSqnRange)) ||

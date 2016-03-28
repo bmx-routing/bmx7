@@ -327,8 +327,7 @@ void neighRefs_update(struct key_node *kn) {
 		nn = nref->nn;
 		assertion(-500000, (c <= kn->neighRefs_tree.items));
 		if ((iid = iid_get_neighIID4x_by_node(nref, NO, NO)))
-			neighRef_update(nref->nn, nref->aggSqn, iid, &kn->kHash, 
-				kn->nextDesc ? kn->nextDesc->descSqn : (kn->on ? kn->on->dc->descSqn : 0), NULL);
+			neighRef_update(nn, nref->aggSqn, iid, NULL, 0, NULL);
 		else
 			neighRef_destroy(nref, YES);
 	}

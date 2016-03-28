@@ -523,7 +523,7 @@ UMETRIC_T apply_lq_threshold_curve(UMETRIC_T lm, struct host_metricalgo *algo)
 UMETRIC_T apply_lndev_metric_algo(LinkNode *link, const UMETRIC_T *path, struct host_metricalgo *algo)
 {
         TRACE_FUNCTION_CALL;
-
+        assertion_dbg(-500000, ((*path & ~UMETRIC_MASK) == 0), "um=%ju mask=%ju max=%ju",*path, UMETRIC_MASK, UMETRIC_MAX);
         assertion(-500823, (link->k.myDev->umetric_max));
 
         UMETRIC_T tq = umetric_to_the_power_of_n(link->timeaware_tx_probe, algo->algo_tp_exp_numerator, algo->algo_tp_exp_divisor);

@@ -211,7 +211,7 @@ void revise_ogm_aggregations(void)
 	static TIME_T myNextGuarantee = 0;
 
 	TIME_T myGuaranteedInterval = ((minMyOgmInterval * maxMyOgmIFactor) / 100);
-	IDM_T myNextNow = doNowOrLater(&myNextGuarantee, myGuaranteedInterval, (myKey->on->ogmSqnMaxSend == 0));
+	IDM_T myNextNow = doNowOrLater(&myNextGuarantee, myGuaranteedInterval, (myKey->on->ogmSqnMaxSend == myKey->on->dc->ogmSqnZero));
 
 	if (myNextNow ||
 		(ogm_aggreg_sqn_max > ogm_aggreg_sqn_send && *get_my_ogm_aggreg_origs(ogm_aggreg_sqn_max) && (*get_my_ogm_aggreg_origs(ogm_aggreg_sqn_max))->items)) {

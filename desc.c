@@ -218,6 +218,8 @@ void update_orig_dhash(struct desc_content *dcNew)
 	kn->nextDescSqnMin = dcNew->descSqn + 1;
 	kn->nextDesc = NULL;
 
+	assertion_dbg(-500000, ((on->ogmMetric & ~UMETRIC_MASK) == 0), "um=%ju mask=%ju max=%ju",on->ogmMetric, UMETRIC_MASK, UMETRIC_MAX);
+
 	process_description_tlvs(NULL, on, dcOld, dcNew, TLV_OP_NEW, FRAME_TYPE_PROCESS_ALL);
 
 	if (dcOld)
@@ -232,9 +234,7 @@ void update_orig_dhash(struct desc_content *dcNew)
 		schedule_tx_task(FRAME_TYPE_IID_ADV, NULL, NULL, NULL, SCHEDULE_MIN_MSG_SIZE, &iid, sizeof(iid));
 	}
 
-	if (on->kn == myKey)
-		schedule_ogm(on, on->ogmSqnMaxSend + 1, UMETRIC_MAX);
-	else
+	if (on->kn != myKey)
 		neighRefs_update(on->kn);
 }
 

@@ -1400,7 +1400,7 @@ int process_dsc_tlv_tun6(struct rx_frame_iterator *it)
 		struct dsc_msg_tun6 *adv = &(((struct dsc_msg_tun6 *) (it->f_data))[m]);
 		struct tun_out_key key = set_tun_adv_key(it->on, m);
 
-		dbgf_all(DBGT_INFO, "op=%s tunnel_out.items=%d tun_net.items=%d msg=%d/%d localIp=%s nodeId=%s key=%s",
+		dbgf_track(DBGT_INFO, "op=%s tunnel_out.items=%d tun_net.items=%d msg=%d/%d localIp=%s nodeId=%s key=%s",
 			tlv_op_str(it->op), tun_out_tree.items, tun_net_tree.items, m, it->f_msgs_fixed,
 			ip6AsStr(&adv->localIp), nodeIdAsStringFromDescAdv(it->dcOp->desc_frame),
 			memAsHexString(&key, sizeof(key)));

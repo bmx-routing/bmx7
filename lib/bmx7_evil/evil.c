@@ -123,9 +123,7 @@ int32_t evil_tx_frame_ogm_aggreg_advs(struct tx_frame_iterator *it)
 			hdr->msg[o].u.f.hopCount = 0;
 			hdr->msg[o].u.f.trustedFlag = 0;
 			hdr->msg[o].u.u32 = htonl(hdr->msg[o].u.u32);
-
-			hdr->msg[o].chainOgm = on->chainLinkMaxSend;
-			bit_xor(&hdr->msg[o].chainOgm, &on->chainLinkMaxSend, &on->dc->chainOgmConstInputHash, sizeof(on->chainLinkMaxSend));
+			hdr->msg[o].chainOgm = chainOgmCalc(on->dc, on->ogmSqnMaxSend);
 
 			hdr->msg[o].transmitterIID4x = htons(iid_get_myIID4x_by_node(on));
 

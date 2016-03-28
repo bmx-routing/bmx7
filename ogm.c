@@ -122,9 +122,8 @@ void schedule_ogm( struct orig_node *on, OGM_SQN_T ogmSqn, UMETRIC_T um )
         TRACE_FUNCTION_CALL;
 	assertion(-502281, (on && um));
 
-	dbgf_track(DBGT_INFO, "ogmSqn=%d maxRcvd=%d maxSend=%d range=%d metric=%s %juchainLinkMaxSend=%s",
-		ogmSqn, on->dc->ogmSqnMaxRcvd, on->ogmSqnMaxSend, on->dc->ogmSqnRange, umetric_to_human(um), um,
-		memAsHexString(&on->chainLinkMaxSend, sizeof(on->chainLinkMaxSend)));
+	dbgf_track(DBGT_INFO, "ogmSqn=%d maxRcvd=%d maxSend=%d range=%d metric=%s %ju",
+		ogmSqn, on->dc->ogmSqnMaxRcvd, on->ogmSqnMaxSend, on->dc->ogmSqnRange, umetric_to_human(um), um);
 
 	assertion_dbg(-500000, ((um & ~UMETRIC_MASK) == 0), "um=%ju mask=%ju max=%ju",um, UMETRIC_MASK, UMETRIC_MAX);
 
@@ -174,7 +173,6 @@ void schedule_ogm( struct orig_node *on, OGM_SQN_T ogmSqn, UMETRIC_T um )
 
 		dc->chainInputs_tmp.elem.u.e.link = dc->chainLinkMaxRcvd;
 		chainLinkCalc(&dc->chainInputs_tmp, dc->ogmSqnMaxRcvd - ogmSqn);
-		on->chainLinkMaxSend = dc->chainInputs_tmp.elem.u.e.link;
 		on->ogmSqnMaxSend = ogmSqn;
 		on->ogmMetric = um;
 
@@ -400,16 +398,13 @@ int32_t tx_frame_ogm_aggreg_advs(struct tx_frame_iterator *it)
 
 		msg->u.f.trustedFlag = 0;
 		msg->u.u32 = htonl(msg->u.u32);
-
-		bit_xor(&msg->chainOgm, &on->chainLinkMaxSend, &on->dc->chainOgmConstInputHash, sizeof(msg->chainOgm));
-
+		msg->chainOgm = chainOgmCalc(on->dc, on->ogmSqnMaxSend);
 		msg->transmitterIID4x = htons(iid_get_myIID4x_by_node(on));
 		msg->ogmSqn_remove = htonl(on->ogmSqnMaxSend);
 
-		dbgf_track(DBGT_INFO, "name=%s dhash=%s sqn=%d metric=%ju cih=%s chainLink=%s -> chainOgm=%s",
+		dbgf_track(DBGT_INFO, "name=%s dhash=%s sqn=%d metric=%ju cih=%s chainOgm=%s",
 			on->k.hostname, cryptShaAsShortStr(&on->dc->dHash), on->ogmSqnMaxSend, on->ogmMetric,
 			memAsHexString(&on->dc->chainOgmConstInputHash, sizeof(msg->chainOgm)),
-			memAsHexString(&on->chainLinkMaxSend, sizeof(on->chainLinkMaxSend)),
 			memAsHexString(&msg->chainOgm, sizeof(msg->chainOgm)));
 	}
 
@@ -490,9 +485,6 @@ void process_ogm_metric(void *voidRef)
 
 	if (discard)
 		return;
-
-	static int count = 0;
-	assertion(-502477, (count <= 2)); //this one calls itself via schedule_ogm()->schedule_ogm_aggregations()->process_ogm()
 
 	if (((OGM_SQN_T)(ref->ogmProcessedSqn - (on->ogmSqnMaxSend + 0))) <= on->dc->ogmSqnRange) {
 

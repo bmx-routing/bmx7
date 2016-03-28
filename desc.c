@@ -756,7 +756,7 @@ int32_t tx_msg_iid_adv(struct tx_frame_iterator *it)
 		msg->nodeId = in->kn->kHash;
 		msg->transmitterIID4x = htons(*iid);
 		msg->descSqn = htonl(in->dc->descSqn);
-		bit_xor(&msg->chainOgm, &in->chainLinkMaxSend, &in->dc->chainOgmConstInputHash, sizeof(msg->chainOgm));
+		msg->chainOgm = chainOgmCalc(in->dc, in->ogmSqnMaxSend);
 
 		dbgf_track(DBGT_INFO, "iid=%d nodeId=%s descSqn=%d ogmSqn=%d chainOgm=%s",
 			*iid, cryptShaAsShortStr(&msg->nodeId), in->dc->descSqn, in->ogmSqnMaxSend, memAsHexString(&msg->chainOgm, sizeof(msg->chainOgm)));

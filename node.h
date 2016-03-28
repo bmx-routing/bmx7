@@ -434,7 +434,6 @@ struct orig_node {
 
 	TIME_T ogmSqnTime;
 	OGM_SQN_T ogmSqnMaxSend;
-	ChainLink_T chainLinkMaxSend;
 
 
 	UMETRIC_T ogmMetric;

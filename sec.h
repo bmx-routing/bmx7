@@ -231,6 +231,7 @@ struct dsc_msg_version {
 
 void chainLinkCalc(ChainInputs_T *ci_tmp, OGM_SQN_T diff);
 OGM_SQN_T chainOgmFind(ChainLink_T *chainOgm, struct desc_content *dc);
+ChainLink_T chainOgmCalc(struct desc_content *dc, OGM_SQN_T ogmSqn);
 
 IPX_T create_crypto_IPv6(struct net_key *prefix, GLOBAL_ID_T *id);
 IDM_T verify_crypto_ip6_suffix(IPX_T *ip, uint8_t mask, CRYPTSHA1_T *id);

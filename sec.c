@@ -106,10 +106,22 @@ void chainLinkCalc(ChainInputs_T *i,  OGM_SQN_T diff)
 
 		i->elem.u.e.link = chainElem.u.e.link;
 	}
-
-
 }
 
+
+ChainLink_T chainOgmCalc(struct desc_content *dc, OGM_SQN_T ogmSqn) {
+
+	assertion(-500000, (ogmSqn > dc->ogmSqnMaxRcvd));
+	assertion(-500000, (ogmSqn - dc->ogmSqnMaxRcvd < dc->ogmSqnRange));
+
+	ChainLink_T chainOgm;
+
+	dc->chainInputs_tmp.elem.u.e.link = dc->chainLinkMaxRcvd;
+	chainLinkCalc(&dc->chainInputs_tmp, dc->ogmSqnMaxRcvd - ogmSqn);
+
+	bit_xor(&chainOgm, &dc->chainInputs_tmp.elem.u.e.link, &dc->chainOgmConstInputHash, sizeof(chainOgm));
+	return chainOgm;
+}
 
 OGM_SQN_T chainOgmFind(ChainLink_T *chainOgm, struct desc_content *dc)
 {

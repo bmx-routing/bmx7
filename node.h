@@ -361,13 +361,14 @@ struct desc_content {
 	uint32_t unresolvedContentCounter;
 	uint8_t max_nesting;
 
-	CRYPTSHA1_T chainOgmConstInputHash;
-	ChainInputs_T chainInputs_tmp;
-	ChainLink_T chainAnchor;
-	ChainLink_T chainLinkMaxRcvd;
-	OGM_SQN_T ogmSqnMaxRcvd;
-	OGM_SQN_T ogmSqnZero;
 	uint16_t ogmSqnRange;
+	OGM_SQN_T ogmSqnZero;
+	OGM_SQN_T ogmSqnMaxSend;
+	OGM_SQN_T ogmSqnMaxRcvd;
+	ChainLink_T chainLinkMaxRcvd;
+	ChainInputs_T chainInputs_tmp;
+	CRYPTSHA1_T chainOgmConstInputHash;
+	ChainLink_T chainAnchor;
 
 	struct desc_tlv_body final[BMX_DSC_TLV_ARRSZ];
 };
@@ -391,12 +392,10 @@ struct NeighRef_node {
 	DESC_SQN_T descSqn;
 	OGM_SQN_T ogmSqnMaxRcvd;
 	FMETRIC_U16_T ogmMtcMaxRcvd;
+	TIME_T ogmTimeMaxRcvd;
 
 	// set by rx_frame_ogm_aggreg_adv():
-	OGM_SQN_T ogmProcessedSqn;
-	TIME_T ogmProcessedSqnTime;
 	TIME_T ogmBestSinceSqn;
-	FMETRIC_U16_T ogmProcessedMetricMax;
 
 };
 
@@ -429,12 +428,6 @@ struct orig_node {
 
 	IDM_T ogmAggregActive;
 	AGGREG_SQN_T ogmAggregSqn;
-
-	//ChainElem_T anchor;
-
-	TIME_T ogmSqnTime;
-	OGM_SQN_T ogmSqnMaxSend;
-
 
 	UMETRIC_T ogmMetric;
 	LinkNode *curr_rt_link; // the configured route in the kernel!

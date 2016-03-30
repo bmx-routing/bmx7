@@ -242,12 +242,16 @@ struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn
 
 		if (dc && ((ogmSqn = chainOgmFind(chainOgm->chainOgm, dc)) != dc->ogmSqnZero)) {
 
-			assertion(-500000, (((OGM_SQN_T) (dc->ogmSqnZero + dc->ogmSqnRange - ogmSqn)) <= dc->ogmSqnRange));
+			assertion(-500000, (((OGM_SQN_T) (ogmSqn - (dc->ogmSqnZero + 1))) < dc->ogmSqnRange));
 
-			if (((OGM_SQN_T) (ogmSqn - ref->ogmSqnMaxRcvd)) > dc->ogmSqnRange)
+			if ((((OGM_SQN_T) (ref->ogmSqnMaxRcvd - (dc->ogmSqnZero + 1))) < dc->ogmSqnRange) &&
+				(((OGM_SQN_T) (ref->ogmSqnMaxRcvd - (ogmSqn + 1))) < dc->ogmSqnRange))
 				goto_error_return(finish, "Outdated ogmSqn", NULL);
 
 			dc->referred_by_others_timestamp = bmx_time;
+
+			if (ref->ogmSqnMaxRcvd != ogmSqn)
+				ref->ogmTimeMaxRcvd = bmx_time;
 
 			ref->ogmSqnMaxRcvd = ogmSqn;
 			ref->ogmMtcMaxRcvd.val.u16 = (ref->inaptChainOgm && !memcmp(ref->inaptChainOgm->chainOgm, chainOgm->chainOgm, sizeof(ChainLink_T))) ?
@@ -268,30 +272,8 @@ struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn
 		}
 	}
 
-	if (kn && dc && dc->on && dc->descSqn == ref->descSqn &&
-		(((OGM_SQN_T) (ref->ogmSqnMaxRcvd - dc->ogmSqnZero)) >= 1) &&
-		(((OGM_SQN_T) (ref->ogmSqnMaxRcvd - dc->ogmSqnZero)) <= dc->ogmSqnRange)
-		) {
-		assertion(-500000, (nn && nn == ref->nn));
-		assertion(-500000, (kn && kn == ref->kn));
-		assertion(-500000, (dc && dc == ref->kn->on->dc));
-
-		if ((ref->ogmSqnMaxRcvd == ref->ogmProcessedSqn && (ref->ogmMtcMaxRcvd.val.u16 > ref->ogmProcessedMetricMax.val.u16)) ||
-			(((OGM_SQN_T) (ref->ogmSqnMaxRcvd - (ref->ogmProcessedSqn + 1))) < dc->ogmSqnRange)) {
-
-			if (ref->ogmSqnMaxRcvd != ref->ogmProcessedSqn) {
-				ref->ogmProcessedSqn = ref->ogmSqnMaxRcvd;
-				ref->ogmProcessedSqnTime = bmx_time;
-			}
-
-			ref->ogmProcessedMetricMax = ref->ogmMtcMaxRcvd;
-
-			process_ogm_metric(ref);
-		}
-
-		goto_error_return(finish, "SUCCESS", ref);
-	}
-
+	process_ogm_metric(ref);
+	
 finish: {
 	dbgf_track(DBGT_INFO, 
 		"problem=%s neigh=%s aggSqn=%d IID=%d kHash=%s descSqn=%d chainOgm=%s ogmMtc=%d \n"
@@ -304,7 +286,7 @@ finish: {
 		(ref ? (int)ref->descSqn : -1 ),
 		(ref && ref->kn && ref->kn->on ? ref->kn->on->k.hostname : NULL),
 		(ref ? (int)ref->ogmSqnMaxRcvd : -1),
-		(ref ? (int)ref->ogmProcessedSqn : -1),
+		(ref ? (int)ref->ogmSqnMaxRcvd : -1),
 		(ref ? (int)ref->ogmMtcMaxRcvd.val.u16 : -1),
 		(dc ? (int)dc->ogmSqnZero : -1), (dc ? (int)dc->ogmSqnRange : -1), (dc ? (int)dc->ogmSqnMaxRcvd : -1),
 		ogmSqn);

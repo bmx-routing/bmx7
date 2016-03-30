@@ -859,6 +859,7 @@ struct desc_content* descContent_create(uint8_t *dsc, uint32_t dlen, struct key_
 
 	dc->ogmSqnZero = ntohl(versMsg->ogmSqnZero);
 	dc->ogmSqnRange = ntohs(versMsg->ogmSqnRange);
+	dc->ogmSqnMaxSend = dc->ogmSqnZero;
 
 	if (kn == myKey) {
 		dc->ogmSqnMaxRcvd = dc->ogmSqnZero + dc->ogmSqnRange;

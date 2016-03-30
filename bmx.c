@@ -808,7 +808,7 @@ static int32_t bmx_status_creator(struct status_handl *handl, void *data)
 	status->tun6Address = tin ? &tin->tunAddr46[0] : NULL;
 	status->descSqn = myKey->on->dc->descSqn;
 	status->lastDesc = (bmx_time - myKey->on->updated_timestamp) / 1000;
-	status->ogmSqn = myKey->on->ogmSqnMaxSend;
+	status->ogmSqn = myKey->on->dc->ogmSqnMaxSend;
 	status->uptime = get_human_uptime(0);
 	snprintf(status->cpu, sizeof(status->cpu), "%d.%1d", s_curr_avg_cpu_load / 10, s_curr_avg_cpu_load % 10);
 	snprintf(status->mem, sizeof(status->mem), "%dK/%d", debugMalloc_bytes / 1000, debugMalloc_objects);
@@ -955,7 +955,7 @@ uint8_t *key_status_page(uint8_t *sOut, uint32_t i, struct orig_node *on, struct
 		os->nbLocalIp = (on->curr_rt_link ? on->curr_rt_link->k.linkDev->key.llocal_ip : ZERO_IP);
 		os->nbName = (on->curr_rt_link ? on->curr_rt_link->k.linkDev->key.local->on->k.hostname : DBG_NIL);
 		os->metric = on->ogmMetric;
-		os->ogmSqn = on->ogmSqnMaxSend;
+		os->ogmSqn = on->dc->ogmSqnMaxSend;
 		os->lastDesc = (bmx_time - on->updated_timestamp) / 1000;
 	}
 

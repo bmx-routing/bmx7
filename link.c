@@ -166,7 +166,7 @@ void lndev_assign_best(struct neigh_node *onlyLocal, LinkNode *onlyLink )
 			IID_T iid;
 			for (iid = 0; iid < local->neighIID4x_repos.max_free; iid++) {
 				struct NeighRef_node *ref = iid_get_node_by_neighIID4x(&local->neighIID4x_repos, iid, NO, NULL);
-				if (ref && ref->kn && ref->kn->on && ref->kn->on->dc->descSqn == ref->descSqn && ref->kn->on->ogmSqnMaxSend == ref->ogmProcessedSqn)
+				if (ref && ref->kn && ref->kn->on && ref->kn->on->dc->descSqn == ref->descSqn && ref->kn->on->dc->ogmSqnMaxSend == ref->ogmSqnMaxRcvd)
 					process_ogm_metric(ref);
 			}
 

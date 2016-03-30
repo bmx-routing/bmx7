@@ -209,6 +209,7 @@ extern ChainElem_T myOgmHChainRoot;
 #define VERSION_MSG_FORMAT { \
 {FIELD_TYPE_UINT,          -1, 8,                              1, FIELD_RELEVANCE_HIGH, "comp_version" }, \
 {FIELD_TYPE_HEX,           -1, 8,                              1, FIELD_RELEVANCE_MEDI, "capabilities" }, \
+{FIELD_TYPE_UINT,          -1, (8*sizeof(DESC_SQN_T)),         0, FIELD_RELEVANCE_HIGH, "bootSqn" }, \
 {FIELD_TYPE_UINT,          -1, (8*sizeof(DESC_SQN_T)),         0, FIELD_RELEVANCE_HIGH, "descSqn" }, \
 {FIELD_TYPE_UINT,          -1, (8*sizeof(OGM_SQN_T)),          0, FIELD_RELEVANCE_HIGH, "ogmSqnZero" }, \
 {FIELD_TYPE_UINT,          -1, (8*sizeof(uint16_t)),           0, FIELD_RELEVANCE_HIGH, "ogmSqnRange" }, \

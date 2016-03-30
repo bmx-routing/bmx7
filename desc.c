@@ -424,8 +424,7 @@ int32_t create_dsc_tlv_version(struct tx_frame_iterator *it)
         dsc->codeRevision = htonl(rev_u32);
         dsc->comp_version = my_compatibility;
         dsc->descSqn = htonl(newDescriptionSqn( NULL, 1));
-
-
+	dsc->bootSqn = (myKey->on) ? ((struct dsc_msg_version*) (contents_data(myKey->on->dc, BMX_DSC_TLV_VERSION)))->bootSqn : dsc->descSqn;
 
 	cryptRand(&myOgmHChainRoot, sizeof(myOgmHChainRoot));
 	ChainInputs_T anchor = {.descSqnNetOrder = dsc->descSqn, .nodeId = myKey->kHash, .elem = myOgmHChainRoot};
@@ -447,6 +446,9 @@ int32_t process_dsc_tlv_version(struct rx_frame_iterator *it)
 		return it->f_dlen;
 
 	struct dsc_msg_version *msg = ((struct dsc_msg_version*)it->f_data);
+
+	if (it->dcOld && msg->bootSqn != ((struct dsc_msg_version*) (contents_data(it->dcOld, BMX_DSC_TLV_VERSION)))->bootSqn)
+		return TLV_RX_DATA_REBOOTED;
 
 	if (it->dcOld && ntohl(msg->descSqn) <= it->dcOld->descSqn)
 		return TLV_RX_DATA_FAILURE;

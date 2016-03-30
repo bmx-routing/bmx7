@@ -490,7 +490,7 @@ rx_frame_iterate_error:{
 			chHdr.u.i.expanded_type, chHdr.u.i.expanded_length, chHdr.u.i.gzip, chHdr.u.i.maxNesting, cryptShaAsShortStr(&chHdr.expanded_chash),
 			(it->f_data && it->f_dlen) ? memAsHexString(it->f_data, it->f_dlen) : NULL);
 
-	EXITERROR(-502074, result != TLV_RX_DATA_FAILURE);
+	EXITERROR(-502074, result == TLV_RX_DATA_REBOOTED || result != TLV_RX_DATA_FAILURE);
         return result;
 }
 }

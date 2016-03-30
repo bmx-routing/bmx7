@@ -219,6 +219,7 @@ FIELD_FORMAT_END}
 struct dsc_msg_version {
 	uint8_t comp_version;
 	uint8_t capabilities;
+	DESC_SQN_T bootSqn;
 	DESC_SQN_T descSqn;
 	OGM_SQN_T ogmSqnZero;
 	uint16_t ogmSqnRange;

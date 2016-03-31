@@ -209,7 +209,7 @@ void revise_ogm_aggregations(void)
 	static TIME_T myNextGuarantee = 0;
 
 	TIME_T myGuaranteedInterval = ((minMyOgmInterval * maxMyOgmIFactor) / 100);
-	IDM_T myNextNow = doNowOrLater(&myNextGuarantee, myGuaranteedInterval, (myKey->on->dc->ogmSqnMaxSend == 0));
+	IDM_T myNextNow = !my_description_changed && doNowOrLater(&myNextGuarantee, myGuaranteedInterval, (myKey->on->dc->ogmSqnMaxSend == 0));
 
 	if (myNextNow ||
 		(ogm_aggreg_sqn_max > ogm_aggreg_sqn_send && *get_my_ogm_aggreg_origs(ogm_aggreg_sqn_max) && (*get_my_ogm_aggreg_origs(ogm_aggreg_sqn_max))->items)) {
@@ -483,7 +483,7 @@ void process_ogm_metric(void *voidRef)
 	IDM_T discard = (!valid_metric || (ogmMetric < on->mtcAlgo->umetric_min && ogmMetric != UMETRIC_MIN__NOT_ROUTABLE));
 
 	dbgf_track(discard ? DBGT_WARN : DBGT_INFO,
-		"orig=%s via neigh=%s nbTrust=%d validMetric=%d ogmMtc=%ju minMtc=%ju ogmSqn=%d knownSqn=%d",
+		"orig=%s via neigh=%s nbTrust=%d validMetric=%d ogmMtc=%ju minMtc=%ju ogmSqnRcvd=%d ogmSqnMaxSend=%d",
 		cryptShaAsShortStr(&on->k.nodeId), cryptShaAsShortStr(&nn->local_id),
 		neighTrust, valid_metric, ogmMetric, on->mtcAlgo->umetric_min, ref->ogmSqnMaxRcvd, on->dc->ogmSqnMaxSend);
 

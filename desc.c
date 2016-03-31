@@ -680,7 +680,7 @@ finish:
 	if (dc)
 		dc->referred_by_others_timestamp = bmx_time;
 
-	dbgf_track(DBGT_INFO, "rcvd dhash=%s nodeId=%s via_dev=%s via_ip=%s dc=%d",
+	dbgf_track(DBGT_INFO, "Finished rcvd dhash=%s nodeId=%s via_dev=%s via_ip=%s dc=%d",
 		memAsHexString(&dHash, sizeof(dHash)), cryptShaAsString(nodeId),
 		it->pb->i.iif->label_cfg.str, it->pb->i.llip_str, !!dc);
 

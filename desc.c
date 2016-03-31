@@ -432,7 +432,6 @@ int32_t create_dsc_tlv_version(struct tx_frame_iterator *it)
 
 	dsc->ogmHChainAnchor = anchor.elem;
 	dsc->ogmSqnRange = htons(ogmSqnRange);
-	dsc->ogmSqnZero = htonl(myKey->on ? myKey->on->dc->ogmSqnMaxSend : 0);
 	return sizeof(struct dsc_msg_version);
 }
 
@@ -731,9 +730,7 @@ int32_t rx_frame_iid_request(struct rx_frame_iterator *it)
 
 			MIID_T *in;
 			IID_T iid = ntohs(msg->receiverIID4x);
-			if ((in = iid_get_node_by_myIID4x(iid)) &&
-				(((OGM_SQN_T) (in->dc->ogmSqnMaxSend - (in->dc->ogmSqnZero + 1))) < in->dc->ogmSqnRange) &&
-				(((OGM_SQN_T) (in->dc->ogmSqnMaxRcvd - (in->dc->ogmSqnMaxSend))) < in->dc->ogmSqnRange)) {
+			if ((in = iid_get_node_by_myIID4x(iid))) {
 			
 				schedule_tx_task(FRAME_TYPE_IID_ADV, NULL, NULL, nn->best_tp_link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &iid, sizeof(iid));
 
@@ -755,9 +752,7 @@ int32_t tx_msg_iid_adv(struct tx_frame_iterator *it)
 	IID_T *iid = (IID_T*) it->ttn->key.data;
 	MIID_T *in;
 
-	if ((in = iid_get_node_by_myIID4x(*iid)) &&
-		(((OGM_SQN_T) (in->dc->ogmSqnMaxSend - (in->dc->ogmSqnZero + 1))) < in->dc->ogmSqnRange) &&
-		(((OGM_SQN_T) (in->dc->ogmSqnMaxRcvd - (in->dc->ogmSqnMaxSend))) < in->dc->ogmSqnRange)) {
+	if ((in = iid_get_node_by_myIID4x(*iid))) {
 		msg->nodeId = in->kn->kHash;
 		msg->transmitterIID4x = htons(*iid);
 		msg->descSqn = htonl(in->dc->descSqn);

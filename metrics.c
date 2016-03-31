@@ -672,9 +672,9 @@ void metricalgo_remove(struct orig_node *on)
 {
 	remove_ogm(on);
 
-	if (on->path_metricalgo) {
-		debugFree(on->path_metricalgo, -300285);
-		on->path_metricalgo = NULL;
+	if (on->mtcAlgo) {
+		debugFree(on->mtcAlgo, -300285);
+		on->mtcAlgo = NULL;
 	}
 }
 
@@ -684,13 +684,13 @@ void metricalgo_assign(struct orig_node *on, struct host_metricalgo *host_algo)
 
 	metricalgo_remove(on);
 
-	assertion(-500684, (!on->path_metricalgo));
+	assertion(-500684, (!on->mtcAlgo));
 
 	if (!host_algo)
 		host_algo = &my_hostmetricalgo;
 
-	on->path_metricalgo = debugMalloc(sizeof (struct host_metricalgo), -300286);
-	memcpy(on->path_metricalgo, host_algo, sizeof (struct host_metricalgo));
+	on->mtcAlgo = debugMalloc(sizeof (struct host_metricalgo), -300286);
+	memcpy(on->mtcAlgo, host_algo, sizeof (struct host_metricalgo));
 }
 
 
@@ -706,7 +706,7 @@ void metrics_description_event_hook(int32_t cb_id, struct orig_node *on)
 
 	if (cb_id==PLUGIN_CB_DESCRIPTION_CREATED) {
 
-		if (!on->path_metricalgo)
+		if (!on->mtcAlgo)
 			metricalgo_assign(on, NULL);
 
 		struct NeighRef_node *ref = NULL;

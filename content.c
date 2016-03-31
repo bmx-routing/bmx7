@@ -857,15 +857,14 @@ struct desc_content* descContent_create(uint8_t *dsc, uint32_t dlen, struct key_
 	dc->desc_frame_len = dlen;
 	dc->descSqn = descSqn;
 
-	dc->ogmSqnZero = ntohl(versMsg->ogmSqnZero);
 	dc->ogmSqnRange = ntohs(versMsg->ogmSqnRange);
-	dc->ogmSqnMaxSend = dc->ogmSqnZero;
+	dc->ogmSqnMaxSend = 0;
 
 	if (kn == myKey) {
-		dc->ogmSqnMaxRcvd = dc->ogmSqnZero + dc->ogmSqnRange;
+		dc->ogmSqnMaxRcvd = dc->ogmSqnRange;
 		dc->chainLinkMaxRcvd = myOgmHChainRoot.u.e.link;
 	} else {
-		dc->ogmSqnMaxRcvd = ntohl(versMsg->ogmSqnZero);
+		dc->ogmSqnMaxRcvd = 0;
 		dc->chainLinkMaxRcvd = versMsg->ogmHChainAnchor.u.e.link;
 	}
 	dc->chainAnchor = versMsg->ogmHChainAnchor.u.e.link;

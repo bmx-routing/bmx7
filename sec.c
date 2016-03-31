@@ -111,7 +111,7 @@ void chainLinkCalc(ChainInputs_T *i,  OGM_SQN_T diff)
 
 ChainLink_T chainOgmCalc(struct desc_content *dc, OGM_SQN_T ogmSqn)
 {
-	assertion(-500000, (((OGM_SQN_T)(dc->ogmSqnMaxRcvd - ogmSqn)) <= dc->ogmSqnRange));
+	assertion(-500000, (dc->ogmSqnMaxRcvd >= ogmSqn));
 
 	ChainLink_T chainOgm;
 
@@ -133,18 +133,18 @@ OGM_SQN_T chainOgmFind(ChainLink_T *chainOgm, struct desc_content *dc)
 		memAsHexString(&dc->chainInputs_tmp.elem.u.e.link, sizeof(ChainLink_T))
 		);
 
-	OGM_SQN_T sqnReturn = dc->ogmSqnZero;
+	OGM_SQN_T sqnReturn = 0;
 	OGM_SQN_T sqnOffset = 0;
 	while (1) {
 
-		dbgf_track(DBGT_INFO, "testing chainLink=%s zero=%d maxRcvd=%d diff=%d < range=%d against maxRcvd=%s anchor=%s",
+		dbgf_track(DBGT_INFO, "testing chainLink=%s maxRcvd=%d diff=%d < range=%d against maxRcvd=%s anchor=%s",
 			memAsHexString(&dc->chainInputs_tmp.elem.u.e.link, sizeof(ChainLink_T)),
-			dc->ogmSqnZero, dc->ogmSqnMaxRcvd, sqnOffset, dc->ogmSqnRange,
+			dc->ogmSqnMaxRcvd, sqnOffset, dc->ogmSqnRange,
 			memAsHexString(&dc->chainLinkMaxRcvd, sizeof(ChainLink_T)),
 			memAsHexString(&dc->chainAnchor, sizeof(ChainLink_T))
 			);
 
-		if ((((OGM_SQN_T) (dc->ogmSqnMaxRcvd + sqnOffset - dc->ogmSqnZero)) <= dc->ogmSqnRange) &&
+		if ((dc->ogmSqnMaxRcvd + sqnOffset <= dc->ogmSqnRange) &&
 			(memcmp(&dc->chainInputs_tmp.elem.u.e.link, &dc->chainLinkMaxRcvd, sizeof(ChainLink_T)) == 0)) {
 
 			if (sqnOffset) {
@@ -156,23 +156,24 @@ OGM_SQN_T chainOgmFind(ChainLink_T *chainOgm, struct desc_content *dc)
 			break;
 		}
 
-		if (memcmp(&dc->chainInputs_tmp.elem.u.e.link, &dc->chainAnchor, sizeof(ChainLink_T)) == 0) {
+		if ((dc->ogmSqnMaxRcvd >= sqnOffset) &&
+			(memcmp(&dc->chainInputs_tmp.elem.u.e.link, &dc->chainAnchor, sizeof(ChainLink_T)) == 0)) {
 
-			assertion(-500000, ((OGM_SQN_T)(dc->ogmSqnMaxRcvd - (dc->ogmSqnZero + sqnOffset))) <= dc->ogmSqnRange);
+			assertion(-500000, ((OGM_SQN_T)(dc->ogmSqnMaxRcvd - sqnOffset)) <= dc->ogmSqnRange);
 
-			sqnReturn = sqnOffset + dc->ogmSqnZero;
+			sqnReturn = sqnOffset;
 			break;
 		}
 
-		if ((++sqnOffset) <= dc->ogmSqnRange)
+		if (((++sqnOffset) <= dc->ogmSqnRange) && ((dc->ogmSqnMaxRcvd + sqnOffset <= dc->ogmSqnRange) || (dc->ogmSqnMaxRcvd >= sqnOffset)))
 			chainLinkCalc(&dc->chainInputs_tmp, 1);
 		else
 			break;
 	}
 
-	assertion(-500000, (((OGM_SQN_T)(dc->ogmSqnMaxRcvd - dc->ogmSqnZero)) <= dc->ogmSqnRange));
-	assertion(-500000, (((OGM_SQN_T)(sqnReturn - dc->ogmSqnZero)) <= dc->ogmSqnRange));
-	assertion(-500000, (((OGM_SQN_T)(dc->ogmSqnMaxRcvd - sqnReturn)) <= dc->ogmSqnRange));
+	assertion(-500000, (sqnReturn <= dc->ogmSqnRange));
+	assertion(-500000, (dc->ogmSqnMaxRcvd <= dc->ogmSqnRange));
+	assertion(-500000, (dc->ogmSqnMaxRcvd >= sqnReturn));
 
 	return sqnReturn;
 }

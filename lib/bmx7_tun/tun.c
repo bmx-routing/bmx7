@@ -1036,7 +1036,7 @@ IDM_T _recalc_tun_bit_tree(void)
 		if (linkQuality <= UMETRIC_MIN__NOT_ROUTABLE || pathMetric <= UMETRIC_MIN__NOT_ROUTABLE)
 			e2eMetric = UMETRIC_MIN__NOT_ROUTABLE;
 		else
-			e2eMetric = apply_metric_algo(&linkQuality, &linkMax, &pathMetric, on->path_metricalgo);
+			e2eMetric = apply_metric_algo(&linkQuality, &linkMax, &pathMetric, on->mtcAlgo);
 
 		dbgf_all(DBGT_INFO, "acceptable e2eMetric=%s,", umetric_to_human(e2eMetric));
 

@@ -362,7 +362,6 @@ struct desc_content {
 	uint8_t max_nesting;
 
 	uint16_t ogmSqnRange;
-	OGM_SQN_T ogmSqnZero;
 	OGM_SQN_T ogmSqnMaxSend;
 	OGM_SQN_T ogmSqnMaxRcvd;
 	ChainLink_T chainLinkMaxRcvd;
@@ -422,7 +421,7 @@ struct orig_node {
 	//	uint8_t blocked; // blocked description
 	//	uint8_t added; // added description
 
-	struct host_metricalgo *path_metricalgo;
+	struct host_metricalgo *mtcAlgo;
 
 	uint32_t *trustedNeighsBitArray;
 

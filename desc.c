@@ -553,10 +553,7 @@ int32_t tx_msg_description_request(struct tx_frame_iterator *it)
 	struct schedule_dsc_req *req = (struct schedule_dsc_req*)ttn->key.data;
 	struct NeighRef_node *ref = (req->iid) ? iid_get_node_by_neighIID4x(&ttn->neigh->neighIID4x_repos, req->iid, NO, NULL) : NULL;
 	struct key_node *kn = (req->iid && ref) ? ref->kn : keyNode_get(&ttn->key.f.groupId);
-
-	dbgf_track(DBGT_INFO, "%s dev=%s to neigh khash=%s iterations=%d requesting kHash=%s iid=%d descSqn=%d credits=%s",
-		it->db->handls[ttn->key.f.type].name, ttn->key.f.p.dev->label_cfg.str, cryptShaAsString(&ttn->key.f.groupId),
-		ttn->tx_iterations, cryptShaAsString(kn ? &kn->kHash : NULL), req->iid, req->descSqn, kn ? kn->bookedState->secName : NULL);
+	int32_t ret = TLV_TX_DATA_DONE;
 
 
 	if ( ( req && kn && (req->descSqn > (kn->nextDesc ? kn->nextDesc->descSqn : 0)) && (req->descSqn > (kn->on? kn->on->dc->descSqn : 0)) ) && (
@@ -575,12 +572,15 @@ int32_t tx_msg_description_request(struct tx_frame_iterator *it)
 
 		msg->kHash = kn->kHash;
 
-		dbgf_track(DBGT_INFO, "created msg=%d", ((int) ((((char*) msg) - ((char*) hdr) - sizeof( *hdr)) / sizeof(*msg))));
-
-		return sizeof(struct msg_description_request);
+		ret = sizeof(struct msg_description_request);
 	}
 
-	return TLV_TX_DATA_DONE;
+	dbgf_track(DBGT_INFO, "%s dev=%s to neigh khash=%s iterations=%d requesting kHash=%s iid=%d descSqn=%d credits=%s ret=%d",
+		it->db->handls[ttn->key.f.type].name, ttn->key.f.p.dev->label_cfg.str, cryptShaAsString(&ttn->key.f.groupId),
+		ttn->tx_iterations, cryptShaAsString(kn ? &kn->kHash : NULL), req->iid, req->descSqn, kn ? kn->bookedState->secName : NULL);
+
+
+	return ret;
 }
 
 STATIC_FUNC
@@ -697,10 +697,10 @@ int32_t tx_msg_iid_request(struct tx_frame_iterator *it)
 	struct hdr_iid_request *hdr = ((struct hdr_iid_request*) tx_iterator_cache_hdr_ptr(it));
 	struct msg_iid_request *msg = ((struct msg_iid_request*) tx_iterator_cache_msg_ptr(it));
 
+	int32_t ret = TLV_TX_DATA_DONE;
+
 	IID_T *iid = ((IID_T*) it->ttn->key.data);
 	struct NeighRef_node *ref = iid_get_node_by_neighIID4x(&it->ttn->neigh->neighIID4x_repos, *iid, NO, NULL);
-
-	dbgf_track(DBGT_INFO, "iid=%d ref=%d nodeId=%s", *iid, !!ref, cryptShaAsShortStr((ref && ref->kn ? &ref->kn->kHash : NULL)));
 
 	if (ref && (!ref->kn || (ref->inaptChainOgm && !ref->inaptChainOgm->confirmed))) {
 
@@ -713,10 +713,11 @@ int32_t tx_msg_iid_request(struct tx_frame_iterator *it)
 
 		msg->receiverIID4x = htons(*iid);
 
-		return sizeof(struct msg_iid_request);
+		ret = sizeof(struct msg_iid_request);
 	}
 
-	return TLV_TX_DATA_DONE;
+	dbgf_track(DBGT_INFO, "iid=%d ref=%d nodeId=%s send=%d", *iid, !!ref, cryptShaAsShortStr(ref && ref->kn ? &ref->kn->kHash : NULL), ret);
+	return ret;
 }
 
 STATIC_FUNC

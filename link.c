@@ -112,15 +112,11 @@ void lndev_assign_best(struct neigh_node *onlyLocal, LinkNode *onlyLink )
 		LinkDevNode *linkDev = NULL;
                 struct avl_node *link_an = NULL;
 
-		UMETRIC_T old_timeaware_tx_probe = 0;
-
                 if (local->best_rp_link)
                         local->best_rp_link->timeaware_rx_probe = timeaware_rx_probe(local->best_rp_link);
 
-                if (local->best_tp_link) {
-			old_timeaware_tx_probe = local->best_tp_link->timeaware_tx_probe;
+                if (local->best_tp_link)
                         local->best_tp_link->timeaware_tx_probe = timeaware_tx_probe(local->best_tp_link);
-		}
 
 
                 dbgf_all(DBGT_INFO, "local_id=%s", cryptShaAsString(&local->local_id));
@@ -166,7 +162,7 @@ void lndev_assign_best(struct neigh_node *onlyLocal, LinkNode *onlyLink )
                         local->best_tp_link = local->best_rp_link;
 
 
-		if (sendRevisedOgms) {
+		if (sendRevisedOgms && local->best_tp_link) {
 			
 			if (local->best_tp_link->timeaware_tx_probe < (((100-sendRevisedOgms) * local->old_best_tx_probe) / 100)) {
 				local->old_best_tx_probe = local->best_tp_link->timeaware_tx_probe;

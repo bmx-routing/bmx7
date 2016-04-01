@@ -288,6 +288,7 @@ int32_t rx_frame_ogm_aggreg_sqn(struct rx_frame_iterator *it)
 					((AGGREG_SQN_MASK)& (nn->ogm_aggreg_max + 1)), max, AGGREG_SQN_MASK);
 			}
 
+			dbgf_track(DBGT_INFO, "new ogm aggregation from neigh=%s %d/%d", nn->on->k.hostname, nn->ogm_aggreg_max, max);
 			nn->ogm_aggreg_max = max;
 			nn->ogm_aggreg_time = bmx_time;
 		}
@@ -303,7 +304,7 @@ void schedule_ogm_req(void)
 
 	while ((nn = avl_next_item(&local_tree, nn ? &nn->local_id : NULL))) {
 
-		if (nn->orig_routes && nn->best_tp_link && (nn->ogm_aggreg_time || nn->ogm_aggreg_max)) { //ever updated:
+		if (/*nn->orig_routes &&*/ nn->best_tp_link && (nn->ogm_aggreg_time || nn->ogm_aggreg_max)) { //ever updated:
 
 			AGGREG_SQN_T cnt = 0;
 

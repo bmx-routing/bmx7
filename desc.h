@@ -60,7 +60,7 @@ extern int32_t desc_vbodies_size_out;
 #define MAX_DESC0_REFERRED_TO 100000
 #define DEF_DESC0_REFERRED_TO 10000
 
-#define DEF_UNSOLICITED_DESC_ADVS 1
+#define DEF_UNSOLICITED_DESC_ADVS 0
 #define MIN_UNSOLICITED_DESC_ADVS 0
 #define MAX_UNSOLICITED_DESC_ADVS 1
 #define ARG_UNSOLICITED_DESC_ADVS "unsolicitedDescAdvs"
@@ -91,6 +91,7 @@ extern int32_t refRslvInterval;
 #define DEF_DHASH_RSLV_ITERS 5
 #define ARG_DHASH_RSLV_ITERS "descResolveIterations"
 
+
 struct msg_iid_adv {
 	IID_T transmitterIID4x;
 	DESC_SQN_T descSqn;
@@ -107,6 +108,11 @@ struct hdr_iid_request {
 	GLOBAL_ID_T dest_nodeId;
 	struct msg_iid_request msg[];
 } __attribute__((packed));
+
+struct schedule_dsc_req {
+	IID_T iid;
+	DESC_SQN_T descSqn;
+};
 
 struct msg_description_request {
 	CRYPTSHA1_T kHash;

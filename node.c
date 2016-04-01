@@ -86,7 +86,7 @@ void inaptChainOgm_destroy_(struct NeighRef_node *ref)
 
 
 STATIC_FUNC
-void inaptChainOgm_update_(struct NeighRef_node *ref, struct InaptChainOgm *inaptChainOgm)
+void inaptChainOgm_update_(struct NeighRef_node *ref, struct InaptChainOgm *inaptChainOgm, uint8_t confirmed)
 {
 	if (!ref->inaptChainOgm) {
 		ref->inaptChainOgm = debugMalloc(sizeof(struct InaptChainOgm), -300000);
@@ -97,6 +97,8 @@ void inaptChainOgm_update_(struct NeighRef_node *ref, struct InaptChainOgm *inap
 		*ref->inaptChainOgm->chainOgm = *inaptChainOgm->chainOgm;
 		ref->inaptChainOgm->ogmMtc = inaptChainOgm->ogmMtc;
 	}
+
+	ref->inaptChainOgm->confirmed = confirmed;
 }
 
 void neighRef_destroy(struct NeighRef_node *ref, IDM_T reAssessState)
@@ -146,13 +148,15 @@ struct NeighRef_node *neighRef_maintain(struct NeighRef_node *ref)
 		struct key_node *kn = ref->kn;
 		struct neigh_node *nn = ref->nn;
 
-		if (!kn) {
+		if (!kn || (ref->inaptChainOgm && !ref->inaptChainOgm->confirmed)) {
 
 			schedule_tx_task(FRAME_TYPE_IID_REQ, &nn->local_id, nn, nn->best_tp_link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &iid, sizeof(iid));
 
-		} else if (kn->bookedState->i.c >= KCTracked && kn->content->f_body && (ref->inaptChainOgm || (!kn->on && !kn->nextDesc))) {
+		} else if (kn->bookedState->i.c >= KCTracked && kn->content->f_body && ref->inaptChainOgm && ref->inaptChainOgm->confirmed &&
+			(ref->descSqn > (kn->nextDesc ? kn->nextDesc->descSqn : 0)) && (ref->descSqn > (kn->on ? kn->on->dc->descSqn : 0))) {
 
-			schedule_tx_task(FRAME_TYPE_DESC_REQ, &nn->local_id, nn, nn->best_tp_link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &iid, sizeof(iid));
+			struct schedule_dsc_req req = {.iid = iid, .descSqn = ref->descSqn};
+			schedule_tx_task(FRAME_TYPE_DESC_REQ, &nn->local_id, nn, nn->best_tp_link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &req, sizeof(req));
 		}
 		return ref;
 
@@ -165,7 +169,7 @@ struct NeighRef_node *neighRef_maintain(struct NeighRef_node *ref)
 
 
 
-STATIC_FUNC
+
 void neighRefs_maintain(void)
 {
 	static TIME_T next = 0;
@@ -281,7 +285,7 @@ struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn
 		} else {
 
 			if (kn->bookedState->i.c >= KCTracked)
-				inaptChainOgm_update_(ref, chainOgm);
+				inaptChainOgm_update_(ref, chainOgm, (kHash && descSqn));
 			else
 				inaptChainOgm_destroy_(ref);
 

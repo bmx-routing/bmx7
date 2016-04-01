@@ -51,7 +51,7 @@
 
 #define CODE_CATEGORY_NAME "message"
 
-static IDM_T test_unsknown_packet_and_desc_frames_are_simply_ignored;
+static IDM_T TODO_test_unsknown_packet_and_desc_frames_are_simply_ignored;
 
 static int32_t drop_all_packets = DEF_DROP_ALL_PACKETS;
 

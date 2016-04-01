@@ -21,9 +21,7 @@ typedef struct NeighRef_node NIID_T;
 
 #define IID_RSVD_UNUSED 0
 #define IID_RSVD_MAX    0
-#define IID_MIN_USED    1
-
-#define IID_SPREAD_FK   1  /*default=2 , 1 means no spreading    #define IID_REPOS_USAGE_WARNING 10 */
+#define IID_MIN_USED_FOR_SELF 1
 
 struct iid_ref {
 	void *iidn;

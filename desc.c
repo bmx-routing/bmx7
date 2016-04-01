@@ -220,6 +220,8 @@ void update_orig_dhash(struct desc_content *dcNew)
 
 	assertion_dbg(-500000, ((on->ogmMetric & ~UMETRIC_MASK) == 0), "um=%ju mask=%ju max=%ju",on->ogmMetric, UMETRIC_MASK, UMETRIC_MAX);
 
+	assertion(-500000, IMPLIES(myKey == on->kn, iid == IID_MIN_USED_FOR_SELF)); // Not strictly necessary yet but maybe this requirement can be useful later.
+
 	process_description_tlvs(NULL, on, dcOld, dcNew, TLV_OP_NEW, FRAME_TYPE_PROCESS_ALL);
 
 	if (dcOld)
@@ -234,7 +236,7 @@ void update_orig_dhash(struct desc_content *dcNew)
 		schedule_tx_task(FRAME_TYPE_IID_ADV, NULL, NULL, NULL, SCHEDULE_MIN_MSG_SIZE, &iid, sizeof(iid));
 	}
 
-	if (on->kn != myKey)
+//	if (on->kn != myKey)
 		neighRefs_update(on->kn);
 }
 
@@ -548,37 +550,37 @@ int32_t tx_msg_description_request(struct tx_frame_iterator *it)
 	struct tx_task_node *ttn = it->ttn;
 	struct hdr_description_request *hdr = ((struct hdr_description_request*) tx_iterator_cache_hdr_ptr(it));
 	struct msg_description_request *msg = ((struct msg_description_request*) tx_iterator_cache_msg_ptr(it));
-	IID_T *iid = (IID_T*)(ttn->key.data);
-	struct NeighRef_node *ref;
-	struct key_node *kn;
+	struct schedule_dsc_req *req = (struct schedule_dsc_req*)ttn->key.data;
+	struct NeighRef_node *ref = (req->iid) ? iid_get_node_by_neighIID4x(&ttn->neigh->neighIID4x_repos, req->iid, NO, NULL) : NULL;
+	struct key_node *kn = (req->iid && ref) ? ref->kn : keyNode_get(&ttn->key.f.groupId);
 
-	if (!(
-		((*iid) && (ref = iid_get_node_by_neighIID4x(&ttn->neigh->neighIID4x_repos, *iid, NO, NULL)) && (kn=ref->kn) && kn->bookedState->i.c >= KCTracked && kn->content->f_body) ||
-		(!(*iid) && (kn=keyNode_get(&ttn->key.f.groupId)) && kn->bookedState->i.c >= KCTracked && kn->content->f_body)
-		)) {
-		return TLV_TX_DATA_DONE;
-	}
-
-	assertion(-500855, (tx_iterator_cache_data_space_pref(it, 0, 0) >= ((int) (sizeof(struct msg_description_request)))));
-
-	dbgf_track(DBGT_INFO, "%s dev=%s to khash=%s iterations=%d requesting dhash=%s send=%d",
+	dbgf_track(DBGT_INFO, "%s dev=%s to neigh khash=%s iterations=%d requesting kHash=%s iid=%d descSqn=%d credits=%s",
 		it->db->handls[ttn->key.f.type].name, ttn->key.f.p.dev->label_cfg.str, cryptShaAsString(&ttn->key.f.groupId),
-		ttn->tx_iterations, cryptShaAsString(&kn->kHash));
+		ttn->tx_iterations, cryptShaAsString(kn ? &kn->kHash : NULL), req->iid, req->descSqn, kn ? kn->bookedState->secName : NULL);
 
 
-	if (hdr->msg == msg) {
-		assertion(-500854, (is_zero(hdr, sizeof(*hdr))));
-		hdr->dest_kHash = ttn->key.f.groupId;
-	} else {
-		assertion(-500871, (cryptShasEqual(&hdr->dest_kHash, &ttn->key.f.groupId)));
+	if ( ( req && kn && (req->descSqn > (kn->nextDesc ? kn->nextDesc->descSqn : 0)) && (req->descSqn > (kn->on? kn->on->dc->descSqn : 0)) ) && (
+		((!req->iid) && kn->bookedState->i.c >= KCTracked && kn->content->f_body && (kn->bookedState->i.r <= KRQualifying || kn->bookedState->i.c >= KCNeighbor)) ||
+		(req->iid && ref && kn->bookedState->i.c >= KCTracked && kn->content->f_body && ref->inaptChainOgm && ref->inaptChainOgm->confirmed && ref->descSqn == req->descSqn)
+		)) {
+
+		assertion(-500855, (tx_iterator_cache_data_space_pref(it, 0, 0) >= ((int) (sizeof(struct msg_description_request)))));
+
+		if (hdr->msg == msg) {
+			assertion(-500854, (is_zero(hdr, sizeof(*hdr))));
+			hdr->dest_kHash = ttn->key.f.groupId;
+		} else {
+			assertion(-500871, (cryptShasEqual(&hdr->dest_kHash, &ttn->key.f.groupId)));
+		}
+
+		msg->kHash = kn->kHash;
+
+		dbgf_track(DBGT_INFO, "created msg=%d", ((int) ((((char*) msg) - ((char*) hdr) - sizeof( *hdr)) / sizeof(*msg))));
+
+		return sizeof(struct msg_description_request);
 	}
 
-	msg->kHash = kn->kHash;
-
-	dbgf_track(DBGT_INFO, "created msg=%d", ((int) ((((char*) msg) - ((char*) hdr) - sizeof( *hdr)) / sizeof(*msg))));
-
-
-	return sizeof(struct msg_description_request);
+	return TLV_TX_DATA_DONE;
 }
 
 STATIC_FUNC
@@ -700,19 +702,21 @@ int32_t tx_msg_iid_request(struct tx_frame_iterator *it)
 
 	dbgf_track(DBGT_INFO, "iid=%d ref=%d nodeId=%s", *iid, !!ref, cryptShaAsShortStr((ref && ref->kn ? &ref->kn->kHash : NULL)));
 
-	if (!ref || ref->kn)
-		return TLV_TX_DATA_DONE;
+	if (ref && (!ref->kn || (ref->inaptChainOgm && !ref->inaptChainOgm->confirmed))) {
 
-	if (hdr->msg == msg) {
-		assertion(-502287, (is_zero(hdr, sizeof(*hdr))));
-		hdr->dest_nodeId = it->ttn->key.f.groupId;
-	} else {
-		assertion(-502288, (cryptShasEqual(&hdr->dest_nodeId, &it->ttn->key.f.groupId)));
+		if (hdr->msg == msg) {
+			assertion(-502287, (is_zero(hdr, sizeof(*hdr))));
+			hdr->dest_nodeId = it->ttn->key.f.groupId;
+		} else {
+			assertion(-502288, (cryptShasEqual(&hdr->dest_nodeId, &it->ttn->key.f.groupId)));
+		}
+
+		msg->receiverIID4x = htons(*iid);
+
+		return sizeof(struct msg_iid_request);
 	}
 
-	msg->receiverIID4x = htons(*iid);
-
-	return sizeof(struct msg_iid_request);
+	return TLV_TX_DATA_DONE;
 }
 
 STATIC_FUNC
@@ -782,6 +786,9 @@ int32_t rx_msg_iid_adv(struct rx_frame_iterator *it)
 	dbgf_track(DBGT_INFO, "neigh=%s iid=%d nodeId=%s descSqn=%d chainOgm=%s",
 		nn->on->k.hostname, iid, cryptShaAsShortStr(&msg->nodeId), descSqn, memAsHexString(&msg->chainOgm, sizeof(msg->chainOgm)));
 
+//	if (iid == IID_MIN_USED_FOR_SELF && !cryptShasEqual(&msg->nodeId, &nn->local_id))
+//		return TLV_RX_DATA_FAILURE;
+
 	neighRef_update(nn, aggSqnInvalidMax, iid, &msg->nodeId, descSqn, &chainOgm);
 
 	return TLV_RX_DATA_PROCESSED;
@@ -834,7 +841,7 @@ struct opt_type desc_options[]=
 	{ODI,0,ARG_UNSOLICITED_DESC_ADVS,  0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &unsolicitedDescAdvs,MIN_UNSOLICITED_DESC_ADVS,MAX_UNSOLICITED_DESC_ADVS,DEF_UNSOLICITED_DESC_ADVS,0,0,
 			ARG_VALUE_FORM, NULL},
         {ODI,0,ARG_REF_RSLV_INTERVAL,    0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &refRslvInterval,MIN_REF_RSLV_INTERVAL, MAX_REF_RSLV_INTERVAL,DEF_REF_RSLV_INTERVAL,0,    NULL,
-			ARG_VALUE_FORM,	"set interval for resolving unknown descriptions in ms"},
+			ARG_VALUE_FORM,	"set interval for resolving unresolved neighRefs in ms"},
         {ODI,0,ARG_DHASH_RSLV_ITERS,    0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &dhashRslvIters,MIN_DHASH_RSLV_ITERS, MAX_DHASH_RSLV_ITERS,DEF_DHASH_RSLV_ITERS,0,    NULL,
 			ARG_VALUE_FORM,	"set max tx iterations for resolving unknown descriptions"},
 #endif
@@ -924,6 +931,7 @@ void init_desc( void )
         handl.min_msg_size = sizeof (struct msg_iid_request);
         handl.fixed_msg_size = 1;
 	handl.tx_iterations = &dhashRslvIters;
+	handl.tx_packet_prepare_casuals = neighRefs_maintain;
 //	handl.tx_task_interval_min = &dhashRslvInterval;
         handl.tx_msg_handler = tx_msg_iid_request;
         handl.rx_frame_handler = rx_frame_iid_request;

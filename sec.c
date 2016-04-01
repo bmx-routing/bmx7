@@ -376,8 +376,8 @@ int process_packet_signature(struct rx_frame_iterator *it)
 	if ( sign_len > (linkSignMax/8) || sign_len < (linkSignMin/8) )
 		goto_error_return( finish, "Unsupported signature-key length!", TLV_RX_DATA_PROCESSED);
 
-	if (!claimedKey || claimedKey->bookedState->i.c < KCTracked)
-		goto_error_return( finish, "< KCTracked", TLV_RX_DATA_PROCESSED);
+	if (!claimedKey || claimedKey->bookedState->i.c < KCTracked || (claimedKey->bookedState->i.r > KRQualifying && claimedKey->bookedState->i.c < KCNeighbor))
+		goto_error_return( finish, "< KCTracked || (<= KRQualifying && < KCNeighbor)", TLV_RX_DATA_PROCESSED);
 
 	assertion(-502480, (claimedKey->content));
 
@@ -393,16 +393,16 @@ int process_packet_signature(struct rx_frame_iterator *it)
 	}
 
 	if (!(dc = (claimedKey->nextDesc ?
-		(claimedKey->nextDesc->descSqn == descSqn ? claimedKey->nextDesc : NULL) :
-		(claimedKey->on && claimedKey->on->dc->descSqn == descSqn ? claimedKey->on->dc : NULL)))) {
+		((claimedKey->nextDesc->descSqn == descSqn) ? claimedKey->nextDesc : NULL) :
+		((claimedKey->on && claimedKey->on->dc->descSqn == descSqn) ? claimedKey->on->dc : NULL)))) {
 
-		IID_T iid = 0;
-		schedule_tx_task(FRAME_TYPE_DESC_REQ, &claimedKey->kHash, NULL, pb->i.iif, SCHEDULE_MIN_MSG_SIZE, &iid, sizeof(iid));
+		struct schedule_dsc_req req = {.iid = 0, .descSqn = descSqn};
+		schedule_tx_task(FRAME_TYPE_DESC_REQ, &claimedKey->kHash, NULL, pb->i.iif, SCHEDULE_MIN_MSG_SIZE, &req, sizeof(req));
 		goto_error_return( finish, "unknown desc", TLV_RX_DATA_PROCESSED);
 	}
 
-	if (claimedKey->bookedState->i.c < KCCertified)
-		goto_error_return( finish, "< KCCertified", TLV_RX_DATA_PROCESSED);
+	if (claimedKey->bookedState->i.c < KCCertified || (claimedKey->bookedState->i.r > KRQualifying && claimedKey->bookedState->i.c < KCNeighbor))
+		goto_error_return( finish, "< KCCertified || (<= KRQualifying && < KCNeighbor)", TLV_RX_DATA_PROCESSED);
 
 	if (dc->unresolvedContentCounter)
 		goto_error_return( finish, "unresovled desc content", TLV_RX_DATA_PROCESSED);
@@ -466,14 +466,14 @@ finish:{
 	dbgf(
 		goto_error_ret != TLV_RX_DATA_PROCESSED ? DBGL_SYS : (goto_error_code ? DBGL_CHANGES : DBGL_ALL),
 		goto_error_ret != TLV_RX_DATA_PROCESSED ? DBGT_ERR : DBGT_INFO,
-		"%s verifying  data_len=%d data_sha=%s "
+		"%s verifying  nodeId=%s credits=%s data_len=%d data_sha=%s "
 		"sign_len=%d signature=%s... "
 		"pkey_msg_type=%s pkey_msg_len=%d "
 		"pkey_type=%s pkey=%s "
 		"dev=%s srcIp=%s llIps=%s pcktSqn=%d/%d "
 		"descSqn=%d keyDescSqn=%d nextDescSqn=%d minDescSqn=%d "
 		"problem?=%s",
-		goto_error_code?"Failed":"Done", dataLen, cryptShaAsString(&packetSha),
+		goto_error_code?"Failed":"Done", cryptShaAsString(claimedKey ? &claimedKey->kHash : NULL), (claimedKey ? claimedKey->bookedState->setName : NULL), dataLen, cryptShaAsString(&packetSha),
 		sign_len, memAsHexString(msg->signature, XMIN(sign_len,8)),
 		pkey_msg ? cryptKeyTypeAsString(pkey_msg->type) : "---", pkey_msg ? cryptKeyLenByType(pkey_msg->type) : 0,
 		pkey ? cryptKeyTypeAsString(pkey->rawKeyType) : "---", pkey ? memAsHexString(pkey->rawKey, pkey->rawKeyLen) : "---",

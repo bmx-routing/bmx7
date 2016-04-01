@@ -67,7 +67,7 @@ int8_t iid_extend_repos(struct iid_repos *rep)
 {
 	TRACE_FUNCTION_CALL;
 
-	assertion(-500217, (rep != &my_iid_repos || IID_SPREAD_FK != 1 || rep->tot_used == rep->arr_size));
+	assertion(-500217, (rep != &my_iid_repos || rep->tot_used == rep->arr_size));
 
 	if (rep->arr_size + IID_REPOS_SIZE_BLOCK >= IID_REPOS_SIZE_WARN) {
 
@@ -136,7 +136,7 @@ void iid_free(struct iid_repos *rep, IID_T iid, IDM_T force)
 
 		IID_T i;
 
-		for (i = iid; i > IID_MIN_USED; i--) {
+		for (i = iid; i > IID_MIN_USED_FOR_SELF; i--) {
 
 			if (rep->arr.r[i-1].referred_timestamp)
 				break;
@@ -150,9 +150,9 @@ void iid_free(struct iid_repos *rep, IID_T iid, IDM_T force)
 	dbgf_all(DBGT_INFO, "mine=%d, iid=%d tot_used=%d, min_free=%d max_free=%d",
 		(rep == &my_iid_repos), iid, rep->tot_used, rep->min_free, rep->max_free);
 
-	if (rep->tot_used > 0 && rep->tot_used <= IID_MIN_USED) {
+	if (rep->tot_used > 0 && rep->tot_used <= IID_MIN_USED_FOR_SELF) {
 
-		assertion(-500362, (rep->tot_used == IID_MIN_USED && rep->max_free == IID_MIN_USED && rep->min_free == IID_MIN_USED));
+		assertion(-500362, (rep->tot_used == IID_MIN_USED_FOR_SELF && rep->max_free == IID_MIN_USED_FOR_SELF && rep->min_free == IID_MIN_USED_FOR_SELF));
 
 		iid_purge_repos(rep);
 	}
@@ -162,13 +162,9 @@ void iid_free(struct iid_repos *rep, IID_T iid, IDM_T force)
 IID_T iid_get_myIID4x_by_node(MIID_T* miidn)
 {
 	assertion(-500000, (miidn));
-	IID_T iid;
+	IID_T iid = miidn->__myIID4x;
 
-	if (!miidn->__myIID4x) {
-		iid = iid_new_myIID4x(miidn);
-	} else {
-		iid = miidn->__myIID4x;
-	}
+	assertion(-500000, (iid));
 	assertion(-500000, (my_iid_repos.max_free > iid));
 	assertion(-500000, (my_iid_repos.arr.r[iid].iidn == miidn));
 
@@ -261,7 +257,7 @@ void _iid_set(struct iid_repos *rep, IID_T IIDpos, NIID_T *nbn, MIID_T *myn)
 {
 	TRACE_FUNCTION_CALL;
 	assertion(-500530, (rep));
-	assertion(-500535, (IIDpos >= IID_MIN_USED));
+	assertion(-500535, (IIDpos >= IID_MIN_USED_FOR_SELF));
 	assertion(-500000, (XOR(nbn, myn))); // eihter the one ore the other !!
 	assertion(-500531, IMPLIES(myn, rep == &my_iid_repos));
 
@@ -310,29 +306,10 @@ IID_T iid_new_myIID4x(MIID_T *on)
 
 	assertion(-500216, (my_iid_repos.tot_used <= my_iid_repos.arr_size));
 
-	while (my_iid_repos.arr_size <= my_iid_repos.tot_used * IID_SPREAD_FK)
+	while (my_iid_repos.arr_size <= my_iid_repos.tot_used)
 		iid_extend_repos(&my_iid_repos);
 
-	if (IID_SPREAD_FK > 1) {
-
-		uint32_t random = rand_num(my_iid_repos.arr_size);
-
-		// Never put random function intro MAX()! It would be called twice
-		mid = XMAX(IID_MIN_USED, random);
-
-		while (my_iid_repos.arr.r[mid].referred_timestamp) {
-
-			mid++;
-			if (mid >= my_iid_repos.arr_size) {
-				mid = IID_MIN_USED;
-				assertion(-500533, (!(warn++)));
-			}
-		}
-
-	} else {
-
-		mid = my_iid_repos.min_free;
-	}
+	mid = my_iid_repos.min_free;
 
 	_iid_set(&my_iid_repos, mid, 0, on);
 
@@ -364,7 +341,7 @@ void iid_set_neighIID4x(struct iid_repos *rep, IID_T neighIID4x, NIID_T *niidn)
 		if (
 			rep->arr_size > IID_REPOS_SIZE_BLOCK &&
 			rep->arr_size > my_iid_repos.arr_size &&
-			rep->tot_used < rep->arr_size / (2 * IID_SPREAD_FK)) {
+			rep->tot_used < rep->arr_size / 2) {
 
 			dbgf_track(DBGT_WARN, "IID_REPOS USAGE WARNING neighIID4x=%d  arr_size=%d used=%d",
 				neighIID4x, rep->arr_size, rep->tot_used);

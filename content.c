@@ -485,12 +485,17 @@ void content_schedule_requests(void)
 
 	while (content_tree_unresolveds && (cn = avl_iterate_item(&content_tree, &anc))) {
 
-		if (cn->f_body)
-			continue;
-
 		struct content_usage_node *cun;
 		struct NeighRef_node *ref;
 		struct avl_node *anu = NULL;
+
+
+		if (cn->f_body)
+			continue;
+
+		if (cn->last_request && ((TIME_T)(bmx_time - cn->last_request < (TIME_T)(txCasualInterval/2))))
+			continue;
+
 
 		while ((cun = avl_iterate_item(&cn->usage_tree, &anu))) {
 			struct key_node *kn = cun->k.descContent->kn;
@@ -955,6 +960,10 @@ int32_t tx_msg_content_request(struct tx_frame_iterator *it)
 	}
 
 	msg->chash = *cHash;
+
+	cn->last_request = bmx_time;
+
+	dbgf_track(DBGT_INFO, "send to neigh kHash=%s cHash=%s", cryptShaAsShortStr(&hdr->dest_kHash), cryptShaAsShortStr(&msg->chash))
 
 	return sizeof (struct msg_content_req);
 }

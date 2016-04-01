@@ -300,9 +300,6 @@ IID_T iid_new_myIID4x(MIID_T *on)
 {
 	TRACE_FUNCTION_CALL;
 	IID_T mid;
-#ifndef NO_ASSERTIONS
-	IDM_T warn = 0;
-#endif
 
 	assertion(-500216, (my_iid_repos.tot_used <= my_iid_repos.arr_size));
 

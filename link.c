@@ -161,7 +161,7 @@ void lndev_assign_best(struct neigh_node *onlyLocal, LinkNode *onlyLink )
                 if (!local->best_tp_link || local->best_tp_link->timeaware_tx_probe == 0)
                         local->best_tp_link = local->best_rp_link;
 
-		if (sendLinkRevisedOgms && local->best_tp_link && local->best_tp_link->timeaware_tx_probe > old_timeaware_tx_probe) {
+		if (sendRevisedOgms && local->best_tp_link && local->best_tp_link->timeaware_tx_probe > (((100+sendRevisedOgms) * old_timeaware_tx_probe) / 100)) {
 
 			IID_T iid;
 			for (iid = 0; iid < local->neighIID4x_repos.max_free; iid++) {

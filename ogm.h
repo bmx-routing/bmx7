@@ -46,9 +46,10 @@ extern int32_t ogmSqnRange;
 
 
 #define MIN_SEND_REVISED_OGMS 0
-#define DEF_SEND_LINK_REVISED_OGMS 0
-#define ARG_SEND_LINK_REVISED_OGMS "sendRevisedOgms"
-extern int32_t sendLinkRevisedOgms;
+#define DEF_SEND_REVISED_OGMS 33
+#define MAX_SEND_REVISED_OGMS 10000
+#define ARG_SEND_REVISED_OGMS "sendRevisedOgms"
+extern int32_t sendRevisedOgms;
 
 #define OGM_JUMPS_PER_AGGREGATION 10
 

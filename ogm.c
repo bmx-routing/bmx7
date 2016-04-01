@@ -61,7 +61,7 @@ AGGREG_SQN_T ogm_aggreg_sqn_max = 0;
 AGGREG_SQN_T ogm_aggreg_sqn_max_window_size = 0;
 AGGREG_SQN_T ogm_aggreg_sqn_send = 0;
 
-int32_t sendLinkRevisedOgms = DEF_SEND_LINK_REVISED_OGMS;
+int32_t sendRevisedOgms = DEF_SEND_REVISED_OGMS;
 
 
 
@@ -512,9 +512,10 @@ void process_ogm_metric(void *voidRef)
 			((ref->ogmSqnMaxRcvd >= (dc->ogmSqnMaxSend + 2))) ||
 			((ref->ogmSqnMaxRcvd >= (dc->ogmSqnMaxSend + 1)) && (((TIME_T)(bmx_time - ref->ogmTimeMaxRcvd)) >= on->mtcAlgo->ogm_sqn_late_hystere)) ||
 			((ref->ogmSqnMaxRcvd >= (dc->ogmSqnMaxSend + 1)) && (bestLinkViaNeigh == on->curr_rt_link)) ||
-			((ref->ogmSqnMaxRcvd >= (dc->ogmSqnMaxSend + 0)) && (bestMtcViaNeigh > on->ogmMetric) && (bestLinkViaNeigh == on->curr_rt_link)) ||
-			((ref->ogmSqnMaxRcvd >= (dc->ogmSqnMaxSend + 0)) && (bestMtcViaNeigh > on->ogmMetric) && ref->ogmBestSinceSqn && (ref->ogmSqnMaxRcvd >= on->mtcAlgo->ogm_sqn_best_hystere + ref->ogmBestSinceSqn)) ||
-			((ref->ogmSqnMaxRcvd >= (dc->ogmSqnMaxSend + 0)) && (bestMtcViaNeigh > ((on->ogmMetric * (100 + on->mtcAlgo->ogm_metric_hystere))/100)))
+			(sendRevisedOgms && (
+			((ref->ogmSqnMaxRcvd >= (dc->ogmSqnMaxSend + 0)) && (bestMtcViaNeigh > (((100 + sendRevisedOgms) * on->ogmMetric) / 100)) && (bestLinkViaNeigh == on->curr_rt_link)) ||
+			((ref->ogmSqnMaxRcvd >= (dc->ogmSqnMaxSend + 0)) && (bestMtcViaNeigh > (((100 + sendRevisedOgms) * on->ogmMetric) / 100)) && ref->ogmBestSinceSqn && (ref->ogmSqnMaxRcvd >= on->mtcAlgo->ogm_sqn_best_hystere + ref->ogmBestSinceSqn)) ||
+			((ref->ogmSqnMaxRcvd >= (dc->ogmSqnMaxSend + 0)) && (bestMtcViaNeigh > (((((100 + sendRevisedOgms) * on->ogmMetric) / 100) * (100 + on->mtcAlgo->ogm_metric_hystere))/100)))))
 			) {
 
 			if (bestLinkViaNeigh != on->curr_rt_link) {
@@ -585,8 +586,8 @@ struct opt_type ogm_options[]=
 {
         {ODI, 0, ARG_OGM_SQN_RANGE,        0,  9,0, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY,&ogmSqnRange,    MIN_OGM_SQN_RANGE,  MAX_OGM_SQN_RANGE, DEF_OGM_SQN_RANGE,0,  opt_update_dext_method,
 			ARG_VALUE_FORM,	"set average OGM sequence number range (affects frequency of bmx7 description updates)"},
-        {ODI,0,ARG_SEND_LINK_REVISED_OGMS, 0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,   &sendLinkRevisedOgms,MIN_SEND_REVISED_OGMS, 1, DEF_SEND_LINK_REVISED_OGMS,0,    NULL,
-			ARG_VALUE_FORM,	"send revised ogms with better metric (but unchanged sqn)"},
+        {ODI,0,ARG_SEND_REVISED_OGMS, 0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,   &sendRevisedOgms,MIN_SEND_REVISED_OGMS, MAX_SEND_REVISED_OGMS, DEF_SEND_REVISED_OGMS,0,    NULL,
+			ARG_VALUE_FORM,	"send revised ogms (with unchanged sqn) if metric increased by given percent"},
         {ODI,0,ARG_OGM_INTERVAL,        0,9,1, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &minMyOgmInterval,  MIN_OGM_INTERVAL,   MAX_OGM_INTERVAL,   DEF_OGM_INTERVAL,0,   0,
 			ARG_VALUE_FORM,	"set interval in ms with which new originator message (OGM) are send"},
         {ODI,0,ARG_OGM_IFACTOR,         0,9,1, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &maxMyOgmIFactor,  MIN_OGM_IFACTOR,   MAX_OGM_IFACTOR,   DEF_OGM_IFACTOR, 0,   0,

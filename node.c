@@ -240,20 +240,15 @@ struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn
 			ref->ogmMtcMaxRcvd.val.u16 = 0;
 		}
 
-	} else if (!(kn = ref->kn)) {
-
-		inaptChainOgm_destroy_(ref);
-
-		ref = neighRef_maintain(ref);
-		goto_error_return(finish, "Unresolved id", NULL);
+	} else {
+		kn = ref->kn;
 	}
-
 
 
 	if ((chainOgm = inChainOgm ? inChainOgm : ref->inaptChainOgm)) {
 
-		if ((kn->on && (dc = kn->on->dc) && dc->descSqn == ref->descSqn && (ogmSqn = chainOgmFind(chainOgm->chainOgm, dc))) ||
-			((dc = kn->nextDesc) && dc->descSqn >= ref->descSqn && (ogmSqn = chainOgmFind(chainOgm->chainOgm, dc)))) {
+		if ((kn && kn->on && (dc = kn->on->dc) && dc->descSqn == ref->descSqn && (ogmSqn = chainOgmFind(chainOgm->chainOgm, dc))) ||
+			(kn && (dc = kn->nextDesc) && dc->descSqn >= ref->descSqn && (ogmSqn = chainOgmFind(chainOgm->chainOgm, dc)))) {
 
 			assertion(-500000, (ogmSqn <= dc->ogmSqnRange));
 			assertion(-500000, (dc->ogmSqnMaxRcvd <= dc->ogmSqnRange));
@@ -284,10 +279,7 @@ struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn
 
 		} else {
 
-			if (kn->bookedState->i.c >= KCTracked)
-				inaptChainOgm_update_(ref, chainOgm, (kHash && descSqn));
-			else
-				inaptChainOgm_destroy_(ref);
+			inaptChainOgm_update_(ref, chainOgm, (kHash && descSqn));
 
 			ref = neighRef_maintain(ref);
 			goto_error_return(finish, "Unresolved ogmSqn", NULL);

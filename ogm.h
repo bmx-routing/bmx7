@@ -24,9 +24,9 @@ extern uint32_t ogms_pending;
 extern int32_t ogmSqnRange;
 
 #define ARG_OGM_IFACTOR "ogmIntervalFactor"
-#define DEF_OGM_IFACTOR 120
+#define DEF_OGM_IFACTOR 110
 #define MIN_OGM_IFACTOR 100
-#define MAX_OGM_IFACTOR 10000
+#define MAX_OGM_IFACTOR 1000
 
 
 #define ARG_OGM_INTERVAL "ogmInterval"

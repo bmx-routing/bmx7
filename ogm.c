@@ -567,7 +567,7 @@ int32_t rx_frame_ogm_aggreg_advs(struct rx_frame_iterator *it)
 			struct msg_ogm_adv tmp = {.u = {.u32 = ntohl(msg->u.u32) } };
 			struct InaptChainOgm chainOgm = { .chainOgm = &msg->chainOgm, .ogmMtc = {.val = {.f = {.exp_fm16 = tmp.u.f.metric_exp, .mantissa_fm16 = tmp.u.f.metric_mantissa}}}};
 
-			dbgf_track(DBGT_INFO, "iid=%d, ogmSqn=%d", ntohs(msg->transmitterIID4x), ntohl(msg->ogmSqn_remove));
+			dbgf_track(DBGT_INFO, "iid=%d, ogmSqn=%d ogmMtc=%d", ntohs(msg->transmitterIID4x), ntohl(msg->ogmSqn_remove), chainOgm.ogmMtc.val.u16);
 
 			neighRef_update(nn, aggSqn, ntohs(msg->transmitterIID4x), NULL, 0, &chainOgm);
 

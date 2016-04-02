@@ -118,10 +118,6 @@ ChainElem_T myChainLinkCache(OGM_SQN_T sqn, DESC_SQN_T descSqn)
 	static OGM_SQN_T lastOgmRange = 0;
 	static OGM_SQN_T ogmSqnMod = 0;
 
-
-	stack.nodeId = myKey->kHash;
-	stack.descSqnNetOrder = htonl(descSqn);
-
 	if (!descSqn) {
 		assertion(-500000, (terminating));
 
@@ -142,6 +138,8 @@ ChainElem_T myChainLinkCache(OGM_SQN_T sqn, DESC_SQN_T descSqn)
 
 		ogmSqnMod = ogmSqnRange % CHAIN_ARRAY_FRACTION;
 
+		stack.nodeId = myKey->kHash;
+		stack.descSqnNetOrder = htonl(descSqn);
 		cryptRand(&stack.elem, sizeof(ChainElem_T));
 
 		while (sqn--) {
@@ -159,6 +157,8 @@ ChainElem_T myChainLinkCache(OGM_SQN_T sqn, DESC_SQN_T descSqn)
 	} else {
 		assertion(-500000, (sqn <= lastOgmRange));
 
+		stack.nodeId = myKey->kHash;
+		stack.descSqnNetOrder = htonl(descSqn);
 		stack.elem.u.e.link = chainLinks[(sqn / CHAIN_ARRAY_FRACTION) + ((sqn % CHAIN_ARRAY_FRACTION > ogmSqnMod) ? 1 : 0)];
 		chainLinkCalc(&stack, sqn % CHAIN_ARRAY_FRACTION);
 	}

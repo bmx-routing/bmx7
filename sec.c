@@ -92,7 +92,7 @@ void chainLinkCalc(ChainInputs_T *i,  OGM_SQN_T diff)
 	assertion(-500000, (sizeof(ChainInputs_T) ==
 		sizeof(ChainLink_T) + sizeof(ChainSeed_T) + sizeof(DESC_SQN_T) + sizeof(GLOBAL_ID_T)));
 
-	while (diff--) {
+	while (diff) {
 
 		cryptShaAtomic(i, sizeof(ChainInputs_T), &chainElem.u.sha);
 
@@ -105,6 +105,8 @@ void chainLinkCalc(ChainInputs_T *i,  OGM_SQN_T diff)
 			);
 
 		i->elem.u.e.link = chainElem.u.e.link;
+
+		diff--;
 	}
 }
 
@@ -142,12 +144,14 @@ ChainElem_T myChainLinkCache(OGM_SQN_T sqn, DESC_SQN_T descSqn)
 		stack.descSqnNetOrder = htonl(descSqn);
 		cryptRand(&stack.elem, sizeof(ChainElem_T));
 
-		while (sqn--) {
+		while (sqn) {
 
 			if (sqn % CHAIN_ARRAY_FRACTION == ogmSqnMod)
 				chainLinks[sqn / CHAIN_ARRAY_FRACTION] = stack.elem.u.e.link;
 
 			chainLinkCalc(&stack, 1);
+
+			sqn--;
 		}
 
 		lastDescSqn = descSqn;
@@ -160,7 +164,7 @@ ChainElem_T myChainLinkCache(OGM_SQN_T sqn, DESC_SQN_T descSqn)
 		stack.nodeId = myKey->kHash;
 		stack.descSqnNetOrder = htonl(descSqn);
 		stack.elem.u.e.link = chainLinks[(sqn / CHAIN_ARRAY_FRACTION) + ((sqn % CHAIN_ARRAY_FRACTION > ogmSqnMod) ? 1 : 0)];
-		chainLinkCalc(&stack, sqn % CHAIN_ARRAY_FRACTION);
+		chainLinkCalc(&stack, ((ogmSqnMod >= (sqn % CHAIN_ARRAY_FRACTION)) ? (ogmSqnMod - (sqn % CHAIN_ARRAY_FRACTION)) : ((ogmSqnMod + CHAIN_ARRAY_FRACTION) - (sqn % CHAIN_ARRAY_FRACTION))));
 	}
 
 	return stack.elem;

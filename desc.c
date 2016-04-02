@@ -412,67 +412,6 @@ int32_t opt_update_dext_method(uint8_t cmd, uint8_t _save, struct opt_type *opt,
 
 
 
-STATIC_FUNC
-int32_t create_dsc_tlv_version(struct tx_frame_iterator *it)
-{
-        TRACE_FUNCTION_CALL;
-
-	struct dsc_msg_version *dsc = (struct dsc_msg_version *)tx_iterator_cache_msg_ptr(it);
-
-        dsc->capabilities = htons(my_desc_capabilities);
-
-        uint32_t rev_u32;
-        sscanf(GIT_REV, "%8X", &rev_u32);
-        dsc->codeRevision = htonl(rev_u32);
-        dsc->comp_version = my_compatibility;
-        dsc->descSqn = htonl(newDescriptionSqn( NULL, 1));
-	dsc->bootSqn = (myKey->on) ? ((struct dsc_msg_version*) (contents_data(myKey->on->dc, BMX_DSC_TLV_VERSION)))->bootSqn : dsc->descSqn;
-
-	cryptRand(&myOgmHChainRoot, sizeof(myOgmHChainRoot));
-	ChainInputs_T anchor = {.descSqnNetOrder = dsc->descSqn, .nodeId = myKey->kHash, .elem = myOgmHChainRoot};
-	chainLinkCalc(&anchor, ogmSqnRange);
-
-	dsc->ogmHChainAnchor = anchor.elem;
-	dsc->ogmSqnRange = htons(ogmSqnRange);
-	return sizeof(struct dsc_msg_version);
-}
-
-STATIC_FUNC
-int32_t process_dsc_tlv_version(struct rx_frame_iterator *it)
-{
-        TRACE_FUNCTION_CALL;
-	assertion(-502321, IMPLIES(it->op == TLV_OP_NEW || it->op == TLV_OP_DEL, it->on));
-
-	if (it->op != TLV_OP_TEST && it->op != TLV_OP_NEW)
-		return it->f_dlen;
-
-	struct dsc_msg_version *msg = ((struct dsc_msg_version*)it->f_data);
-
-	if (it->dcOld && msg->bootSqn != ((struct dsc_msg_version*) (contents_data(it->dcOld, BMX_DSC_TLV_VERSION)))->bootSqn)
-		return TLV_RX_DATA_REBOOTED;
-
-	if (it->dcOld && ntohl(msg->descSqn) <= it->dcOld->descSqn)
-		return TLV_RX_DATA_FAILURE;
-
-	if (ntohs(msg->ogmSqnRange) > MAX_OGM_SQN_RANGE)
-		return TLV_RX_DATA_FAILURE;
-
-
-	if (it->op == TLV_OP_NEW) {
-
-		if (it->on->neigh) {
-
-			it->on->neigh->burstSqn = 0;
-
-			if (it->dcOld && ntohl(msg->descSqn) >= (it->dcOld->descSqn + DESC_SQN_REBOOT_ADDS))
-				keyNode_schedLowerWeight(it->on->kn, KCPromoted);
-		}
-	}
-
-	return sizeof(struct dsc_msg_version);
-}
-
-
 
 
 
@@ -874,18 +813,6 @@ void init_desc( void )
 
 	struct frame_handl handl;
         memset(&handl, 0, sizeof ( handl));
-
-	static const struct field_format version_format[] = VERSION_MSG_FORMAT;
-        handl.name = "DSC_VERSION";
-	handl.alwaysMandatory = 1;
-	handl.min_msg_size = sizeof (struct dsc_msg_version);
-        handl.fixed_msg_size = 1;
-	handl.dextReferencing = (int32_t*)&fref_never;
-	handl.dextCompression = (int32_t*)&never_fzip;
-        handl.tx_frame_handler = create_dsc_tlv_version;
-        handl.rx_frame_handler = process_dsc_tlv_version;
-        handl.msg_format = version_format;
-        register_frame_handler(description_tlv_db, BMX_DSC_TLV_VERSION, &handl);
 
 
 	static const struct field_format names_format[] = DESCRIPTION_MSG_NAME_FORMAT;

@@ -367,7 +367,7 @@ struct desc_content {
 	OGM_SQN_T ogmSqnMaxSend;
 	OGM_SQN_T ogmSqnMaxRcvd;
 	ChainLink_T chainLinkMaxRcvd;
-	ChainInputs_T chainInputs_tmp;
+	ChainInputs_T chainCache;
 	CRYPTSHA1_T chainOgmConstInputHash;
 	ChainLink_T chainAnchor;
 

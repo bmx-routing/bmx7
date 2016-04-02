@@ -864,19 +864,13 @@ struct desc_content* descContent_create(uint8_t *dsc, uint32_t dlen, struct key_
 
 	dc->ogmSqnRange = ntohs(versMsg->ogmSqnRange);
 	dc->ogmSqnMaxSend = 0;
-
-	if (kn == myKey) {
-		dc->ogmSqnMaxRcvd = dc->ogmSqnRange;
-		dc->chainLinkMaxRcvd = myOgmHChainRoot.u.e.link;
-	} else {
-		dc->ogmSqnMaxRcvd = 0;
-		dc->chainLinkMaxRcvd = versMsg->ogmHChainAnchor.u.e.link;
-	}
+	dc->ogmSqnMaxRcvd = 0;
+	dc->chainLinkMaxRcvd = versMsg->ogmHChainAnchor.u.e.link;
 	dc->chainAnchor = versMsg->ogmHChainAnchor.u.e.link;
-	dc->chainInputs_tmp.elem = versMsg->ogmHChainAnchor;
-	dc->chainInputs_tmp.nodeId = kn->kHash;
-	dc->chainInputs_tmp.descSqnNetOrder = versMsg->descSqn;
-	ChainOgmConstInput_T coci = {.dHash = dc->dHash, .anchor = dc->chainInputs_tmp};
+	dc->chainCache.elem = versMsg->ogmHChainAnchor;
+	dc->chainCache.nodeId = kn->kHash;
+	dc->chainCache.descSqnNetOrder = versMsg->descSqn;
+	ChainOgmConstInput_T coci = {.dHash = dc->dHash, .anchor = dc->chainCache};
 	cryptShaAtomic(&coci, sizeof(coci), &dc->chainOgmConstInputHash);
 
 	dc->referred_by_others_timestamp = bmx_time;

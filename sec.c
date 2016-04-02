@@ -80,8 +80,8 @@ AVL_TREE(dirWatch_tree, struct DirWatch, ifd);
 static struct DirWatch *trustedDirWatch = NULL;
 
 
+static int32_t ogmSqnRange = DEF_OGM_SQN_RANGE;
 
-ChainElem_T myOgmHChainRoot;
 
 
 void chainLinkCalc(ChainInputs_T *i,  OGM_SQN_T diff)
@@ -108,6 +108,64 @@ void chainLinkCalc(ChainInputs_T *i,  OGM_SQN_T diff)
 	}
 }
 
+ChainElem_T myChainLinkCache(OGM_SQN_T sqn, DESC_SQN_T descSqn)
+{
+#define CHAIN_ARRAY_FRACTION 20
+
+	static ChainInputs_T stack;
+	static ChainLink_T *chainLinks = NULL;
+	static DESC_SQN_T lastDescSqn = 0;
+	static OGM_SQN_T lastOgmRange = 0;
+	static OGM_SQN_T ogmSqnMod = 0;
+
+
+	stack.nodeId = myKey->kHash;
+	stack.descSqnNetOrder = htonl(descSqn);
+
+	if (!descSqn) {
+		assertion(-500000, (terminating));
+
+		if (chainLinks)
+			debugFree(chainLinks, -300000);
+
+		chainLinks = NULL;
+
+	} else if (descSqn != lastDescSqn) {
+
+		assertion(-500000, (sqn == (OGM_SQN_T)ogmSqnRange));
+		assertion(-500000, (descSqn > lastDescSqn));
+
+		if (chainLinks)
+			debugFree(chainLinks, -300000);
+
+		chainLinks = debugMalloc(((ogmSqnRange / CHAIN_ARRAY_FRACTION) + 1) * sizeof(ChainLink_T), -300000);
+
+		ogmSqnMod = ogmSqnRange % CHAIN_ARRAY_FRACTION;
+
+		cryptRand(&stack.elem, sizeof(ChainElem_T));
+
+		while (sqn--) {
+
+			if (sqn % CHAIN_ARRAY_FRACTION == ogmSqnMod)
+				chainLinks[sqn / CHAIN_ARRAY_FRACTION] = stack.elem.u.e.link;
+
+			chainLinkCalc(&stack, 1);
+		}
+
+		lastDescSqn = descSqn;
+		lastOgmRange = ogmSqnRange;
+
+
+	} else {
+		assertion(-500000, (sqn <= lastOgmRange));
+
+		stack.elem.u.e.link = chainLinks[(sqn / CHAIN_ARRAY_FRACTION) + ((sqn % CHAIN_ARRAY_FRACTION > ogmSqnMod) ? 1 : 0)];
+		chainLinkCalc(&stack, sqn % CHAIN_ARRAY_FRACTION);
+	}
+
+	return stack.elem;
+}
+
 
 ChainLink_T chainOgmCalc(struct desc_content *dc, OGM_SQN_T ogmSqn)
 {
@@ -115,10 +173,10 @@ ChainLink_T chainOgmCalc(struct desc_content *dc, OGM_SQN_T ogmSqn)
 
 	ChainLink_T chainOgm;
 
-	dc->chainInputs_tmp.elem.u.e.link = dc->chainLinkMaxRcvd;
-	chainLinkCalc(&dc->chainInputs_tmp, dc->ogmSqnMaxRcvd - ogmSqn);
+	dc->chainCache.elem.u.e.link = dc->chainLinkMaxRcvd;
+	chainLinkCalc(&dc->chainCache, dc->ogmSqnMaxRcvd - ogmSqn);
 
-	bit_xor(&chainOgm, &dc->chainInputs_tmp.elem.u.e.link, &dc->chainOgmConstInputHash, sizeof(chainOgm));
+	bit_xor(&chainOgm, &dc->chainCache.elem.u.e.link, &dc->chainOgmConstInputHash, sizeof(chainOgm));
 	return chainOgm;
 }
 
@@ -126,47 +184,77 @@ OGM_SQN_T chainOgmFind(ChainLink_T *chainOgm, struct desc_content *dc)
 {
 
 	assertion(-500000, (chainOgm && dc));
-	bit_xor(&dc->chainInputs_tmp.elem.u.e.link, chainOgm, &dc->chainOgmConstInputHash, sizeof(ChainLink_T));
+	bit_xor(&dc->chainCache.elem.u.e.link, chainOgm, &dc->chainOgmConstInputHash, sizeof(ChainLink_T));
 
-	dbgf_track(DBGT_INFO, "chainOgm=%s -> chainLink=%s",
+	dbgf_track(DBGT_INFO, "chainOgm=%s -> chainLink=%s maxRcvd=%d range=%d",
 		memAsHexString(chainOgm, sizeof(ChainLink_T)),
-		memAsHexString(&dc->chainInputs_tmp.elem.u.e.link, sizeof(ChainLink_T))
-		);
+		memAsHexString(&dc->chainCache.elem.u.e.link,
+		sizeof(ChainLink_T)), dc->ogmSqnMaxRcvd, dc->ogmSqnRange);
 
 	OGM_SQN_T sqnReturn = 0;
 	OGM_SQN_T sqnOffset = 0;
+	ChainLink_T chainLink;
+	ChainInputs_T downTest;
+
 	while (1) {
 
-		dbgf_track(DBGT_INFO, "testing chainLink=%s maxRcvd=%d diff=%d < range=%d against maxRcvd=%s anchor=%s",
-			memAsHexString(&dc->chainInputs_tmp.elem.u.e.link, sizeof(ChainLink_T)),
-			dc->ogmSqnMaxRcvd, sqnOffset, dc->ogmSqnRange,
+		dbgf_track(DBGT_INFO, "testing chainLink-%d=%s against maxRcvd-0=%s anchor-0=%s", sqnOffset,
+			memAsHexString(&dc->chainCache.elem.u.e.link, sizeof(ChainLink_T)),
 			memAsHexString(&dc->chainLinkMaxRcvd, sizeof(ChainLink_T)),
 			memAsHexString(&dc->chainAnchor, sizeof(ChainLink_T))
 			);
 
-		if ((dc->ogmSqnMaxRcvd + sqnOffset <= dc->ogmSqnRange) &&
-			(memcmp(&dc->chainInputs_tmp.elem.u.e.link, &dc->chainLinkMaxRcvd, sizeof(ChainLink_T)) == 0)) {
+		if (sqnOffset + dc->ogmSqnMaxRcvd <= dc->ogmSqnRange) {
 
-			if (sqnOffset) {
-				bit_xor(&dc->chainLinkMaxRcvd, chainOgm, &dc->chainOgmConstInputHash, sizeof(ChainLink_T));
-				dc->ogmSqnMaxRcvd += sqnOffset;
+			// Testing above maxRcvd:
+			if (memcmp(&dc->chainCache.elem.u.e.link, &dc->chainLinkMaxRcvd, sizeof(ChainLink_T)) == 0) {
+
+				if (sqnOffset) {
+					bit_xor(&dc->chainLinkMaxRcvd, chainOgm, &dc->chainOgmConstInputHash, sizeof(ChainLink_T));
+					dc->ogmSqnMaxRcvd += sqnOffset;
+				}
+
+				sqnReturn = dc->ogmSqnMaxRcvd;
+				break;
+			}
+		}
+
+
+		if (sqnOffset <= dc->ogmSqnMaxRcvd/2 ) {
+
+			// Testing below maxRcvd and upper half between anchor and maxRcvd:
+			if (sqnOffset >=1) {
+				if (sqnOffset==1) {
+					chainLink = dc->chainCache.elem.u.e.link;
+					downTest.descSqnNetOrder = dc->chainCache.descSqnNetOrder;
+					downTest.nodeId = dc->chainCache.nodeId;
+					downTest.elem.u.e.seed = dc->chainCache.elem.u.e.seed;
+					downTest.elem.u.e.link = dc->chainLinkMaxRcvd;
+				}
+
+				chainLinkCalc(&downTest, 1);
+				dbgf_track(DBGT_INFO, "testing chainLink-0=%s against maxRcvd-%d=%s",
+					memAsHexString(&chainLink, sizeof(ChainLink_T)), sqnOffset, memAsHexString(&downTest.elem.u.e.link, sizeof(ChainLink_T)));
+
+				if (memcmp(&downTest, &chainLink, sizeof(ChainLink_T)) == 0) {
+					sqnReturn = dc->ogmSqnMaxRcvd - sqnOffset;
+					break;
+				}
 			}
 
-			sqnReturn = dc->ogmSqnMaxRcvd;
-			break;
+			// Testing below maxRcvd and lower half between anchor and maxRcvd:
+			if (memcmp(&dc->chainCache.elem.u.e.link, &dc->chainAnchor, sizeof(ChainLink_T)) == 0) {
+
+				assertion(-500000, ((OGM_SQN_T)(dc->ogmSqnMaxRcvd - sqnOffset)) <= dc->ogmSqnRange);
+
+				sqnReturn = sqnOffset;
+				break;
+			}
 		}
 
-		if ((dc->ogmSqnMaxRcvd >= sqnOffset) &&
-			(memcmp(&dc->chainInputs_tmp.elem.u.e.link, &dc->chainAnchor, sizeof(ChainLink_T)) == 0)) {
 
-			assertion(-500000, ((OGM_SQN_T)(dc->ogmSqnMaxRcvd - sqnOffset)) <= dc->ogmSqnRange);
-
-			sqnReturn = sqnOffset;
-			break;
-		}
-
-		if (((++sqnOffset) <= dc->ogmSqnRange) && ((dc->ogmSqnMaxRcvd + sqnOffset <= dc->ogmSqnRange) || (dc->ogmSqnMaxRcvd >= sqnOffset)))
-			chainLinkCalc(&dc->chainInputs_tmp, 1);
+		if (((++sqnOffset) + dc->ogmSqnMaxRcvd <= dc->ogmSqnRange) || (sqnOffset <= dc->ogmSqnMaxRcvd/2))
+			chainLinkCalc(&dc->chainCache, 1);
 		else
 			break;
 	}
@@ -496,6 +584,64 @@ finish:{
 }
 }
 
+
+
+STATIC_FUNC
+int32_t create_dsc_tlv_version(struct tx_frame_iterator *it)
+{
+        TRACE_FUNCTION_CALL;
+
+	struct dsc_msg_version *dsc = (struct dsc_msg_version *)tx_iterator_cache_msg_ptr(it);
+	DESC_SQN_T descSqn = newDescriptionSqn( NULL, 1);
+
+        dsc->capabilities = htons(my_desc_capabilities);
+
+        uint32_t rev_u32;
+        sscanf(GIT_REV, "%8X", &rev_u32);
+        dsc->codeRevision = htonl(rev_u32);
+        dsc->comp_version = my_compatibility;
+        dsc->descSqn = htonl(descSqn);
+	dsc->bootSqn = (myKey->on) ? ((struct dsc_msg_version*) (contents_data(myKey->on->dc, BMX_DSC_TLV_VERSION)))->bootSqn : dsc->descSqn;
+
+	dsc->ogmHChainAnchor = myChainLinkCache(ogmSqnRange, descSqn);
+	dsc->ogmSqnRange = htons(ogmSqnRange);
+	return sizeof(struct dsc_msg_version);
+}
+
+STATIC_FUNC
+int32_t process_dsc_tlv_version(struct rx_frame_iterator *it)
+{
+        TRACE_FUNCTION_CALL;
+	assertion(-502321, IMPLIES(it->op == TLV_OP_NEW || it->op == TLV_OP_DEL, it->on));
+
+	if (it->op != TLV_OP_TEST && it->op != TLV_OP_NEW)
+		return it->f_dlen;
+
+	struct dsc_msg_version *msg = ((struct dsc_msg_version*)it->f_data);
+
+	if (it->dcOld && msg->bootSqn != ((struct dsc_msg_version*) (contents_data(it->dcOld, BMX_DSC_TLV_VERSION)))->bootSqn)
+		return TLV_RX_DATA_REBOOTED;
+
+	if (it->dcOld && ntohl(msg->descSqn) <= it->dcOld->descSqn)
+		return TLV_RX_DATA_FAILURE;
+
+	if (ntohs(msg->ogmSqnRange) > MAX_OGM_SQN_RANGE)
+		return TLV_RX_DATA_FAILURE;
+
+
+	if (it->op == TLV_OP_NEW) {
+
+		if (it->on->neigh) {
+
+			it->on->neigh->burstSqn = 0;
+
+			if (it->dcOld && ntohl(msg->descSqn) >= (it->dcOld->descSqn + DESC_SQN_REBOOT_ADDS))
+				keyNode_schedLowerWeight(it->on->kn, KCPromoted);
+		}
+	}
+
+	return sizeof(struct dsc_msg_version);
+}
 
 
 
@@ -1770,6 +1916,8 @@ struct opt_type sec_options[]=
 //order must be before ARG_HOSTNAME (which initializes self via init_self):
 	{ODI,0,ARG_TRUST_STATUS,	 0,  9,1,A_PS0N,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
 			0,		"list trusted and supported nodes\n"},
+        {ODI, 0, ARG_OGM_SQN_RANGE,        0,  9,0, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY,&ogmSqnRange,    MIN_OGM_SQN_RANGE,  MAX_OGM_SQN_RANGE, DEF_OGM_SQN_RANGE,0,  opt_update_dext_method,
+			ARG_VALUE_FORM,	"set average OGM sequence number range (affects frequency of bmx7 description updates)"},
 	{ODI,0,ARG_NODE_SIGN_LEN,         0,  4,1,A_PS1N,A_ADM,A_INI,A_CFA,A_ANY,       0,MIN_NODE_SIGN_LEN,MAX_NODE_SIGN_LEN,DEF_NODE_SIGN_LEN,0, opt_key_path,
 			ARG_VALUE_FORM, HLP_NODE_SIGN_LEN},
 	{ODI,ARG_NODE_SIGN_LEN,ARG_KEY_PATH,0,4,1,A_CS1, A_ADM,A_INI,A_CFA,A_ANY,	0,0,    	    0,		      0,     DEF_KEY_PATH, opt_key_path,
@@ -1819,6 +1967,18 @@ void init_sec( void )
         handl.rx_frame_handler = process_packet_signature;
 	handl.msg_format = frame_signature_format;
         register_frame_handler(packet_frame_db, FRAME_TYPE_SIGNATURE_ADV, &handl);
+
+	static const struct field_format version_format[] = VERSION_MSG_FORMAT;
+        handl.name = "DSC_VERSION";
+	handl.alwaysMandatory = 1;
+	handl.min_msg_size = sizeof (struct dsc_msg_version);
+        handl.fixed_msg_size = 1;
+	handl.dextReferencing = (int32_t*)&fref_never;
+	handl.dextCompression = (int32_t*)&never_fzip;
+        handl.tx_frame_handler = create_dsc_tlv_version;
+        handl.rx_frame_handler = process_dsc_tlv_version;
+        handl.msg_format = version_format;
+        register_frame_handler(description_tlv_db, BMX_DSC_TLV_VERSION, &handl);
 
 
 
@@ -1900,4 +2060,6 @@ void cleanup_sec( void )
 	}
 
 	cleanup_dir_watch(&trustedDirWatch);
+
+	myChainLinkCache(0, 0);
 }

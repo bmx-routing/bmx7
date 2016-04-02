@@ -52,7 +52,6 @@
 
 
 
-int32_t ogmSqnRange = DEF_OGM_SQN_RANGE;
 
 static int32_t minMyOgmInterval = DEF_OGM_INTERVAL;   /* orginator message interval in miliseconds */
 static int32_t maxMyOgmIFactor = DEF_OGM_IFACTOR;
@@ -192,6 +191,9 @@ void schedule_my_originator_message(void)
 	dbgf_track(DBGT_INFO, "maxSend=%d range=%d", on->dc->ogmSqnMaxSend, on->dc->ogmSqnRange);
 
 	if (on->dc->ogmSqnMaxSend < on->dc->ogmSqnRange) {
+
+		on->dc->chainLinkMaxRcvd = myChainLinkCache(on->dc->ogmSqnMaxSend + 1, on->dc->descSqn).u.e.link;
+		on->dc->ogmSqnMaxRcvd = on->dc->ogmSqnMaxSend + 1;
 
 		schedule_ogm(on, on->dc->ogmSqnMaxSend + 1, UMETRIC_MAX);
 	} else {
@@ -584,8 +586,6 @@ int32_t rx_frame_ogm_aggreg_advs(struct rx_frame_iterator *it)
 STATIC_FUNC
 struct opt_type ogm_options[]=
 {
-        {ODI, 0, ARG_OGM_SQN_RANGE,        0,  9,0, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY,&ogmSqnRange,    MIN_OGM_SQN_RANGE,  MAX_OGM_SQN_RANGE, DEF_OGM_SQN_RANGE,0,  opt_update_dext_method,
-			ARG_VALUE_FORM,	"set average OGM sequence number range (affects frequency of bmx7 description updates)"},
         {ODI,0,ARG_SEND_REVISED_OGMS, 0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,   &sendRevisedOgms,MIN_SEND_REVISED_OGMS, MAX_SEND_REVISED_OGMS, DEF_SEND_REVISED_OGMS,0,    NULL,
 			ARG_VALUE_FORM,	"send revised ogms (with unchanged sqn) if metric increased by given percent"},
         {ODI,0,ARG_OGM_INTERVAL,        0,9,1, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &minMyOgmInterval,  MIN_OGM_INTERVAL,   MAX_OGM_INTERVAL,   DEF_OGM_INTERVAL,0,   0,

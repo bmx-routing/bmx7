@@ -124,6 +124,11 @@ extern int32_t linkSignLen;
 
 #define MAX_KEY_FILE_SIZE 100
 
+#define MIN_OGM_SQN_RANGE 10
+#define MAX_OGM_SQN_RANGE 8192 // changing this will cause compatibility trouble
+#define DEF_OGM_SQN_RANGE 600
+#define ARG_OGM_SQN_RANGE "ogmSqnRange"
+
 struct KeyWatchNode {
 	// persistent id:
 	GLOBAL_ID_T global_id;
@@ -202,7 +207,6 @@ struct dsc_msg_trust {
 } __attribute__((packed));
 
 
-extern ChainElem_T myOgmHChainRoot;
 
 
 
@@ -232,6 +236,7 @@ struct dsc_msg_version {
 void chainLinkCalc(ChainInputs_T *ci_tmp, OGM_SQN_T diff);
 OGM_SQN_T chainOgmFind(ChainLink_T *chainOgm, struct desc_content *dc);
 ChainLink_T chainOgmCalc(struct desc_content *dc, OGM_SQN_T ogmSqn);
+ChainElem_T myChainLinkCache(OGM_SQN_T sqn, DESC_SQN_T descSqn);
 
 IPX_T create_crypto_IPv6(struct net_key *prefix, GLOBAL_ID_T *id);
 IDM_T verify_crypto_ip6_suffix(IPX_T *ip, uint8_t mask, CRYPTSHA1_T *id);

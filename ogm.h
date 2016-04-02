@@ -21,7 +21,6 @@
 
 
 extern uint32_t ogms_pending;
-extern int32_t ogmSqnRange;
 
 #define ARG_OGM_IFACTOR "ogmIntervalFactor"
 #define DEF_OGM_IFACTOR 110
@@ -34,10 +33,6 @@ extern int32_t ogmSqnRange;
 #define MIN_OGM_INTERVAL 200
 #define MAX_OGM_INTERVAL 60000 // 60000 = 1 minutes
 
-#define MIN_OGM_SQN_RANGE 10
-#define MAX_OGM_SQN_RANGE 8192 // changing this will cause compatibility trouble
-#define DEF_OGM_SQN_RANGE 600
-#define ARG_OGM_SQN_RANGE "ogmSqnRange"
 
 #define MIN_OGM_AGGREG_HISTORY 2
 #define MAX_OGM_AGGREG_HISTORY AGGREG_SQN_CACHE_RANGE

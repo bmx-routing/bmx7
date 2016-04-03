@@ -80,24 +80,29 @@ extern int32_t desc_vbodies_size_out;
 #define MAX_DESCRIPTION_TYPE     FRAME_TYPE_PROCESS_ALL
 #define HLP_DESCRIPTION_TYPE     "show description extension(s) of given type (0..253=type 254=none 255=all) \n"
 
-#define MIN_REF_RSLV_INTERVAL 1
-#define MAX_REF_RSLV_INTERVAL 1000000
-#define DEF_REF_RSLV_INTERVAL 2000
-#define ARG_REF_RSLV_INTERVAL "iidResolveInterval"
-extern int32_t refRslvInterval;
+#define MIN_REF_MAINTAIN_INTERVAL 1
+#define MAX_REF_MAINTAIN_INTERVAL 1000000
+#define DEF_REF_MAINTAIN_INTERVAL 5000
+#define ARG_REF_MAINTAIN_INTERVAL "maintainanceInterval"
+extern int32_t maintainanceInterval;
 
 #define MIN_DHASH_RSLV_ITERS 1
 #define MAX_DHASH_RSLV_ITERS 20
-#define DEF_DHASH_RSLV_ITERS 5
-#define ARG_DHASH_RSLV_ITERS "descResolveIterations"
+#define DEF_DHASH_RSLV_ITERS 4
+#define ARG_DHASH_RSLV_ITERS "resolveIterations"
+extern int32_t resolveIterations;
 
+#define MIN_DHASH_RSLV_INTERVAL 100
+#define MAX_DHASH_RSLV_INTERVAL 10000
+#define DEF_DHASH_RSLV_INTERVAL 200
+#define ARG_DHASH_RSLV_INTERVAL "resolveInterval"
+extern int32_t resolveInterval;
 
 struct msg_iid_adv {
 	IID_T transmitterIID4x;
 	DESC_SQN_T descSqn;
 	ChainLink_T chainOgm;
 	CRYPTSHA1_T nodeId;
-
 } __attribute__((packed));
 
 struct msg_iid_request {

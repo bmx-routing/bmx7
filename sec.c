@@ -112,7 +112,7 @@ void chainLinkCalc(ChainInputs_T *i,  OGM_SQN_T diff)
 
 ChainElem_T myChainLinkCache(OGM_SQN_T sqn, DESC_SQN_T descSqn)
 {
-#define CHAIN_ARRAY_FRACTION 20
+#define CacheInterspace 16//(ogmSqnRange / ((4096 / (sizeof(ChainLink_T) ))-1))
 
 	static ChainInputs_T stack;
 	static ChainLink_T *chainLinks = NULL;
@@ -136,9 +136,9 @@ ChainElem_T myChainLinkCache(OGM_SQN_T sqn, DESC_SQN_T descSqn)
 		if (chainLinks)
 			debugFree(chainLinks, -300000);
 
-		chainLinks = debugMalloc(((ogmSqnRange / CHAIN_ARRAY_FRACTION) + 1) * sizeof(ChainLink_T), -300000);
+		chainLinks = debugMalloc(((ogmSqnRange / CacheInterspace) + 1) * sizeof(ChainLink_T), -300000);
 
-		ogmSqnMod = ogmSqnRange % CHAIN_ARRAY_FRACTION;
+		ogmSqnMod = ogmSqnRange % CacheInterspace;
 
 		stack.nodeId = myKey->kHash;
 		stack.descSqnNetOrder = htonl(descSqn);
@@ -146,8 +146,8 @@ ChainElem_T myChainLinkCache(OGM_SQN_T sqn, DESC_SQN_T descSqn)
 
 		while (sqn) {
 
-			if (sqn % CHAIN_ARRAY_FRACTION == ogmSqnMod)
-				chainLinks[sqn / CHAIN_ARRAY_FRACTION] = stack.elem.u.e.link;
+			if (sqn % CacheInterspace == ogmSqnMod)
+				chainLinks[sqn / CacheInterspace] = stack.elem.u.e.link;
 
 			chainLinkCalc(&stack, 1);
 
@@ -163,8 +163,8 @@ ChainElem_T myChainLinkCache(OGM_SQN_T sqn, DESC_SQN_T descSqn)
 
 		stack.nodeId = myKey->kHash;
 		stack.descSqnNetOrder = htonl(descSqn);
-		stack.elem.u.e.link = chainLinks[(sqn / CHAIN_ARRAY_FRACTION) + ((sqn % CHAIN_ARRAY_FRACTION > ogmSqnMod) ? 1 : 0)];
-		chainLinkCalc(&stack, ((ogmSqnMod >= (sqn % CHAIN_ARRAY_FRACTION)) ? (ogmSqnMod - (sqn % CHAIN_ARRAY_FRACTION)) : ((ogmSqnMod + CHAIN_ARRAY_FRACTION) - (sqn % CHAIN_ARRAY_FRACTION))));
+		stack.elem.u.e.link = chainLinks[(sqn / CacheInterspace) + ((sqn % CacheInterspace > ogmSqnMod) ? 1 : 0)];
+		chainLinkCalc(&stack, ((ogmSqnMod >= (sqn % CacheInterspace)) ? (ogmSqnMod - (sqn % CacheInterspace)) : ((ogmSqnMod + CacheInterspace) - (sqn % CacheInterspace))));
 	}
 
 	return stack.elem;

@@ -60,8 +60,9 @@ int32_t desc_vbodies_size_in =        DEF_DESC_VBODIES_SIZE;
 int32_t vrt_frame_max_nesting = 2;
 
 int32_t unsolicitedDescAdvs = DEF_UNSOLICITED_DESC_ADVS;
-int32_t refRslvInterval = DEF_REF_RSLV_INTERVAL;
-int32_t dhashRslvIters = DEF_DHASH_RSLV_ITERS;
+int32_t maintainanceInterval = DEF_REF_MAINTAIN_INTERVAL;
+int32_t resolveIterations = DEF_DHASH_RSLV_ITERS;
+int32_t resolveInterval = DEF_DHASH_RSLV_INTERVAL;
 
 
 
@@ -780,10 +781,12 @@ struct opt_type desc_options[]=
 			ARG_VALUE_FORM, HLP_DESC_VBODIES_SIZE_IN},
 	{ODI,0,ARG_UNSOLICITED_DESC_ADVS,  0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &unsolicitedDescAdvs,MIN_UNSOLICITED_DESC_ADVS,MAX_UNSOLICITED_DESC_ADVS,DEF_UNSOLICITED_DESC_ADVS,0,0,
 			ARG_VALUE_FORM, NULL},
-        {ODI,0,ARG_REF_RSLV_INTERVAL,    0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &refRslvInterval,MIN_REF_RSLV_INTERVAL, MAX_REF_RSLV_INTERVAL,DEF_REF_RSLV_INTERVAL,0,    NULL,
+        {ODI,0,ARG_REF_MAINTAIN_INTERVAL,    0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &maintainanceInterval,MIN_REF_MAINTAIN_INTERVAL, MAX_REF_MAINTAIN_INTERVAL,DEF_REF_MAINTAIN_INTERVAL,0,    NULL,
 			ARG_VALUE_FORM,	"set interval for resolving unresolved neighRefs in ms"},
-        {ODI,0,ARG_DHASH_RSLV_ITERS,    0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &dhashRslvIters,MIN_DHASH_RSLV_ITERS, MAX_DHASH_RSLV_ITERS,DEF_DHASH_RSLV_ITERS,0,    NULL,
+        {ODI,0,ARG_DHASH_RSLV_ITERS,    0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &resolveIterations,MIN_DHASH_RSLV_ITERS, MAX_DHASH_RSLV_ITERS,DEF_DHASH_RSLV_ITERS,0,    NULL,
 			ARG_VALUE_FORM,	"set max tx iterations for resolving unknown descriptions"},
+        {ODI,0,ARG_DHASH_RSLV_INTERVAL, 0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &resolveInterval,MIN_DHASH_RSLV_INTERVAL, MAX_DHASH_RSLV_INTERVAL,DEF_DHASH_RSLV_INTERVAL,0,    NULL,
+			ARG_VALUE_FORM,	"set tx interval for resolving unknown descriptions"},
 #endif
 	{ODI, 0, ARG_DESCRIPTIONS,	   0,  9,2, A_PS0N,A_USR, A_DYN, A_ARG, A_ANY, 0,               0,                  0,                 0,0,                  opt_show_descriptions,
 			0,		HLP_DESCRIPTIONS}
@@ -836,8 +839,8 @@ void init_desc( void )
 	handl.data_header_size = sizeof( struct hdr_description_request);
 	handl.min_msg_size = sizeof(struct msg_description_request);
 	handl.fixed_msg_size = 1;
-	handl.tx_iterations = &dhashRslvIters;
-//	handl.tx_task_interval_min = &dhashRslvInterval;
+	handl.tx_iterations = &resolveIterations;
+	handl.tx_task_interval_min = &resolveInterval;
 	handl.tx_msg_handler = tx_msg_description_request;
 	handl.rx_msg_handler = rx_msg_description_request;
 	register_frame_handler(packet_frame_db, FRAME_TYPE_DESC_REQ, &handl);
@@ -858,9 +861,9 @@ void init_desc( void )
         handl.data_header_size = sizeof( struct hdr_iid_request);
         handl.min_msg_size = sizeof (struct msg_iid_request);
         handl.fixed_msg_size = 1;
-	handl.tx_iterations = &dhashRslvIters;
+	handl.tx_iterations = &resolveIterations;
 	handl.tx_packet_prepare_casuals = neighRefs_maintain;
-//	handl.tx_task_interval_min = &dhashRslvInterval;
+	handl.tx_task_interval_min = &resolveInterval;
         handl.tx_msg_handler = tx_msg_iid_request;
         handl.rx_frame_handler = rx_frame_iid_request;
         register_frame_handler(packet_frame_db, FRAME_TYPE_IID_REQ, &handl);

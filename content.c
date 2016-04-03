@@ -311,7 +311,7 @@ struct content_node * content_add_body( uint8_t *body, uint32_t body_len, uint8_
 
 					dbgf_sys(DBGT_ERR, "FAILED B: nested=%d", nested);
 
-				} else if (!(--dc->unresolvedContentCounter) && descContent_resolve(dc, NO) != SUCCESS) {
+				} else if (!(--dc->unresolvedContentCounter) && descContent_assemble(dc, NO) != SUCCESS) {
 
 					dbgf_sys(DBGT_ERR, "FAILED C: dc->unresolved=%d", dc->unresolvedContentCounter);
 
@@ -323,10 +323,15 @@ struct content_node * content_add_body( uint8_t *body, uint32_t body_len, uint8_
 			}
 		}
 
-		if (cn->kn)
+		if (cn->kn) {
 			keyNode_updCredits(NULL, cn->kn, NULL);
+			
+			struct NeighRef_node *nref = NULL;
+			for (an = NULL; (nref = avl_iterate_item(&cn->kn->neighRefs_tree, &an));)
+				neighRef_maintain(nref, NO);
+		}
 
-		while ((cun = avl_iterate_item(&cn->usage_tree, &an))&& (dc = cun->k.descContent)) {
+		for (an=NULL; (cun = avl_iterate_item(&cn->usage_tree, &an))&& (dc = cun->k.descContent);) {
 			if (!dc->unresolvedContentCounter && dc->kn != cn->kn)
 				keyNode_updCredits(NULL, dc->kn, NULL);
 		}
@@ -477,57 +482,65 @@ int32_t create_chash_tlv(struct tlv_hdr *tlv, uint8_t *f_data, uint32_t f_len, u
 }
 
 
+void content_maintain(struct content_node *cn)
+{
+	struct content_usage_node *cun;
+	struct NeighRef_node *ref;
+	struct avl_node *anu = NULL;
+
+	if (cn->f_body)
+		return;
+
+	if (cn->last_request && ((TIME_T) (bmx_time - cn->last_request < (TIME_T) resolveInterval)))
+		return;
+
+	while ((cun = avl_iterate_item(&cn->usage_tree, &anu))) {
+		struct key_node *kn = cun->k.descContent->kn;
+
+		assertion(-502309, (kn->bookedState->i.c >= KCTracked));
+
+		if (kn->content != cn && kn->pktIdTime) {
+			struct neigh_node *nn = kn->on ? kn->on->neigh : NULL;
+			schedule_tx_task(FRAME_TYPE_CONTENT_REQ, &kn->kHash, nn, nn ? nn->best_tp_link->k.myDev : NULL, SCHEDULE_MIN_MSG_SIZE, &cn->chash, sizeof(SHA1_T));
+		}
+
+		struct avl_node *ann = NULL;
+		while ((ref = avl_iterate_item(&kn->neighRefs_tree, &ann))) {
+			if (ref->descSqn >= cun->k.descContent->descSqn)
+				schedule_tx_task(FRAME_TYPE_CONTENT_REQ, &ref->nn->local_id, ref->nn, ref->nn->best_tp_link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &cn->chash, sizeof(SHA1_T));
+		}
+	}
+
+	if (cn->kn) {
+
+		assertion(-502310, (cn->kn->bookedState->i.c >= KCTracked));
+
+		if (cn->kn->pktIdTime)
+			schedule_tx_task(FRAME_TYPE_CONTENT_REQ, &cn->kn->kHash, NULL, NULL, SCHEDULE_MIN_MSG_SIZE, &cn->chash, sizeof(SHA1_T));
+
+		struct avl_node *anr = NULL;
+		while ((ref = avl_iterate_item(&cn->kn->neighRefs_tree, &anr))) {
+
+			schedule_tx_task(FRAME_TYPE_CONTENT_REQ, &ref->nn->local_id, ref->nn, ref->nn->best_tp_link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &cn->chash, sizeof(SHA1_T));
+		}
+	}
+}
+
+
 STATIC_FUNC
-void content_schedule_requests(void)
+void contents_maintain(void)
 {
 	struct content_node *cn;
 	struct avl_node *anc = NULL;
+	static TIME_T next = 0;
 
-	while (content_tree_unresolveds && (cn = avl_iterate_item(&content_tree, &anc))) {
+	IDM_T TOTO_remove_this_function;
 
-		struct content_usage_node *cun;
-		struct NeighRef_node *ref;
-		struct avl_node *anu = NULL;
+	if (!doNowOrLater(&next, maintainanceInterval, 0))
+		return;
 
-
-		if (cn->f_body)
-			continue;
-
-		if (cn->last_request && ((TIME_T)(bmx_time - cn->last_request < (TIME_T)(txCasualInterval/2))))
-			continue;
-
-
-		while ((cun = avl_iterate_item(&cn->usage_tree, &anu))) {
-			struct key_node *kn = cun->k.descContent->kn;
-
-			assertion(-502309, (kn->bookedState->i.c >= KCTracked));
-
-			if (kn->content != cn && kn->pktIdTime) {
-				struct neigh_node *nn = kn->on ? kn->on->neigh : NULL;
-				schedule_tx_task(FRAME_TYPE_CONTENT_REQ, &kn->kHash, nn, nn ? nn->best_tp_link->k.myDev : NULL, SCHEDULE_MIN_MSG_SIZE, &cn->chash, sizeof(SHA1_T));
-			}
-
-			struct avl_node *ann = NULL;
-			while ((ref = avl_iterate_item(&kn->neighRefs_tree, &ann))) {
-				if (ref->descSqn >= cun->k.descContent->descSqn)
-					schedule_tx_task(FRAME_TYPE_CONTENT_REQ, &ref->nn->local_id, ref->nn, ref->nn->best_tp_link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &cn->chash, sizeof(SHA1_T));
-			}
-		}
-
-		if (cn->kn) {
-
-			assertion(-502310, (cn->kn->bookedState->i.c >= KCTracked));
-
-			if (cn->kn->pktIdTime)
-				schedule_tx_task(FRAME_TYPE_CONTENT_REQ, &cn->kn->kHash, NULL, NULL, SCHEDULE_MIN_MSG_SIZE, &cn->chash, sizeof(SHA1_T));
-
-			struct avl_node *anr = NULL;
-			while ((ref = avl_iterate_item(&cn->kn->neighRefs_tree, &anr))) {
-
-				schedule_tx_task(FRAME_TYPE_CONTENT_REQ, &ref->nn->local_id, ref->nn, ref->nn->best_tp_link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &cn->chash, sizeof(SHA1_T));
-			}
-		}
-	}
+	while (content_tree_unresolveds && (cn = avl_iterate_item(&content_tree, &anc)))
+		content_maintain(cn);
 }
 
 
@@ -680,7 +693,7 @@ IDM_T content_attach_references(uint8_t *outData, uint32_t *outLen, SHA1_T *f_bo
 }
 
 
-int8_t descContent_resolve(struct desc_content *dc, IDM_T init_not_finalize)
+int8_t descContent_assemble(struct desc_content *dc, IDM_T init_not_finalize)
 {
 	assertion(-502253, (dc && dc->kn && dc->desc_frame && dc->desc_frame_len));
 	assertion(-502254, (!dc->unresolvedContentCounter)); //always zero during finalize or init
@@ -796,7 +809,7 @@ int8_t descContent_resolve(struct desc_content *dc, IDM_T init_not_finalize)
 	}
 
 	if (init_not_finalize && !dc->unresolvedContentCounter)
-		return descContent_resolve(dc, NO);
+		return descContent_assemble(dc, NO);
 
 	dbgf_all(DBGT_INFO, "done");
 	return SUCCESS;
@@ -876,7 +889,7 @@ struct desc_content* descContent_create(uint8_t *dsc, uint32_t dlen, struct key_
 	dc->referred_by_others_timestamp = bmx_time;
 
 
-	if (descContent_resolve(dc, YES) != SUCCESS) {
+	if (descContent_assemble(dc, YES) != SUCCESS) {
 		dbgf_track(DBGT_ERR, "Failed resolving descContent");
 		IDM_T TODO_ifFailingDueToLowConformanceToleranceAndUnknownSmsTlvTypeThisLoopsOnReRequestingTheDesc;
 		EXITERROR(-502271, (NO));
@@ -1079,7 +1092,9 @@ void init_content( void )
 	handl.data_header_size = sizeof(struct hdr_content_req);
 	handl.min_msg_size = sizeof(struct msg_content_req);
         handl.fixed_msg_size = 1;
-	handl.tx_packet_prepare_always = content_schedule_requests;
+//	handl.tx_packet_prepare_always = contents_maintain;
+	handl.tx_iterations = &resolveIterations;
+	handl.tx_task_interval_min = &resolveInterval;
         handl.tx_msg_handler = tx_msg_content_request;
         handl.rx_msg_handler = rx_msg_content_request;
         register_frame_handler(packet_frame_db, FRAME_TYPE_CONTENT_REQ, &handl);

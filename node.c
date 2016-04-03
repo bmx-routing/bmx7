@@ -138,8 +138,8 @@ struct NeighRef_node *neighRef_create_(struct neigh_node *neigh, AGGREG_SQN_T ag
 	return ref;
 }
 
-STATIC_FUNC
-struct NeighRef_node *neighRef_maintain(struct NeighRef_node *ref)
+
+struct NeighRef_node *neighRef_maintain(struct NeighRef_node *ref, IDM_T reassessState)
 {
 	IID_T iid;
 
@@ -157,12 +157,24 @@ struct NeighRef_node *neighRef_maintain(struct NeighRef_node *ref)
 
 			struct schedule_dsc_req req = {.iid = iid, .descSqn = ref->descSqn};
 			schedule_tx_task(FRAME_TYPE_DESC_REQ, &nn->local_id, nn, nn->best_tp_link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &req, sizeof(req));
+
+		} else if (kn->bookedState->i.c >= KCTracked && !kn->content->f_body) {
+
+			content_maintain(kn->content);
+
+		} else if (kn->bookedState->i.c >= KCTracked && kn->nextDesc && kn->nextDesc->unresolvedContentCounter) {
+
+			struct content_usage_node *cun;
+			struct avl_node *an = NULL;
+			while ((cun = avl_iterate_item(&kn->nextDesc->contentRefs_tree, &an)) && !cun->k.content->f_body)
+				content_maintain(cun->k.content);
 		}
+
 		return ref;
 
 
 	} else {
-		neighRef_destroy(ref, YES);
+		neighRef_destroy(ref, reassessState);
 		return NULL;
 	}
 }
@@ -178,7 +190,7 @@ void neighRefs_maintain(void)
 	IID_T iid;
 	struct NeighRef_node *ref;
 
-	if (!doNowOrLater(&next, refRslvInterval, 0))
+	if (!doNowOrLater(&next, maintainanceInterval, 0))
 		return;
 
 	while ((nn = avl_next_item(&local_tree, &nid))) {
@@ -187,7 +199,7 @@ void neighRefs_maintain(void)
 		for (iid = 0; iid < nn->neighIID4x_repos.max_free; iid++) {
 
 			if ((ref = iid_get_node_by_neighIID4x(&nn->neighIID4x_repos, iid, NO, NULL)))
-				neighRef_maintain(ref);
+				neighRef_maintain(ref, YES);
 
 		}
 	}
@@ -281,12 +293,13 @@ struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn
 
 			inaptChainOgm_update_(ref, chainOgm, (kHash && descSqn));
 
-			ref = neighRef_maintain(ref);
+			ref = neighRef_maintain(ref, YES);
 			goto_error_return(finish, "Unresolved ogmSqn", NULL);
 		}
 	}
 
-	process_ogm_metric(ref);
+	if (ref)
+		process_ogm_metric(ref);
 	
 finish: {
 	dbgf_track(DBGT_INFO, 

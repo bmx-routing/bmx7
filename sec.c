@@ -501,7 +501,7 @@ int process_packet_signature(struct rx_frame_iterator *it)
 
 		struct content_usage_node *cun;
 		struct avl_node *an = NULL;
-		while ((cun = avl_iterate_item(&dc->contentRefs_tree, &an)) && !cun->k.content->f_body)
+		while ((cun = avl_iterate_item(&dc->contentRefs_tree, &an)))
 				content_maintain(cun->k.content);
 
 		goto_error_return( finish, "unresovled desc content", TLV_RX_DATA_PROCESSED);

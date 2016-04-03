@@ -162,7 +162,7 @@ struct NeighRef_node *neighRef_maintain(struct NeighRef_node *ref, IDM_T reasses
 
 			content_maintain(kn->content);
 
-		} else if (kn->bookedState->i.c >= KCTracked && kn->nextDesc && kn->nextDesc->unresolvedContentCounter) {
+		} else if (kn->bookedState->i.c >= KCCertified && kn->nextDesc && kn->nextDesc->unresolvedContentCounter) {
 
 			struct content_usage_node *cun;
 			struct avl_node *an = NULL;

@@ -511,18 +511,15 @@ void content_maintain(struct content_node *cn)
 		}
 	}
 
-	if (cn->kn) {
-
-		assertion(-502310, (cn->kn->bookedState->i.c >= KCTracked));
+	if (cn->kn && cn->kn->bookedState->i.c >= KCTracked) {
 
 		if (cn->kn->pktIdTime)
 			schedule_tx_task(FRAME_TYPE_CONTENT_REQ, &cn->kn->kHash, NULL, NULL, SCHEDULE_MIN_MSG_SIZE, &cn->chash, sizeof(SHA1_T));
 
 		struct avl_node *anr = NULL;
-		while ((ref = avl_iterate_item(&cn->kn->neighRefs_tree, &anr))) {
-
+		while ((ref = avl_iterate_item(&cn->kn->neighRefs_tree, &anr)))
 			schedule_tx_task(FRAME_TYPE_CONTENT_REQ, &ref->nn->local_id, ref->nn, ref->nn->best_tp_link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &cn->chash, sizeof(SHA1_T));
-		}
+
 	}
 }
 
@@ -534,7 +531,7 @@ void contents_maintain(void)
 	struct avl_node *anc = NULL;
 	static TIME_T next = 0;
 
-	IDM_T TOTO_remove_this_function;
+	IDM_T TODO_remove_this_function;
 
 	if (!doNowOrLater(&next, maintainanceInterval, 0))
 		return;

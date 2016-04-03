@@ -488,6 +488,9 @@ void content_maintain(struct content_node *cn)
 	struct NeighRef_node *ref;
 	struct avl_node *anu = NULL;
 
+	dbgf_track(DBGT_INFO, "cHash=%s body=%d lastReq=%d interval=%d usages=%d kn=%s",
+		cryptShaAsShortStr(&cn->chash), cn->f_body_len, cn->last_request, resolveInterval, cn->usage_tree.items, cn->kn ? cn->kn->bookedState->secName : NULL);
+
 	if (cn->f_body)
 		return;
 

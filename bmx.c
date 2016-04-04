@@ -839,6 +839,7 @@ struct orig_status {
 	char T[2]; // trusted by me;
 	char t[2]; // me trusted by him
 	char *nodeKey;
+	IID_T myIid;
 	DESC_SQN_T descSqn;
 	char descSize[20];
 	char contents[12]; //contentRefs
@@ -846,11 +847,13 @@ struct orig_status {
 	IPX_T primaryIp;
 	char *dev;
 	uint32_t nbIdx;
+	uint32_t myIdx;
 	IPX_T nbLocalIp;
 	char* nbName;
 	UMETRIC_T metric;
 	OGM_SQN_T ogmSqn;
 	uint32_t lastDesc;
+	IID_T nbIid;
 	CRYPTSHA1_T *shortDHash;
 	CRYPTSHA1_T *dHash;
 	uint16_t lastRef;
@@ -875,18 +878,21 @@ static const struct field_format orig_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       orig_status, T,             1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       orig_status, t,             1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      orig_status, nodeKey,       1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, myIid,         1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, descSqn,       1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       orig_status, descSize,      1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       orig_status, contents,      1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      orig_status, linkKey,       1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_IPX,               orig_status, primaryIp,     1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      orig_status, dev,           1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, nbIdx,         1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, myIdx,         1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, nbIdx,         1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_IPX,               orig_status, nbLocalIp,     1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      orig_status, nbName,        1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           orig_status, metric,        1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, ogmSqn,        1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, lastDesc,      1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, nbIid,         1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_SHORT_ID,  orig_status, shortDHash,    1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, orig_status, dHash,         1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, lastRef,       1, FIELD_RELEVANCE_HIGH),
@@ -951,12 +957,16 @@ uint8_t *key_status_page(uint8_t *sOut, uint32_t i, struct orig_node *on, struct
 		os->name = on->k.hostname;
 		os->primaryIp = on->primary_ip;
 		os->dev = on->curr_rt_link && on->curr_rt_link->k.myDev ? on->curr_rt_link->k.myDev->name_phy_cfg.str : DBG_NIL;
+		os->myIdx = on->curr_rt_link && on->curr_rt_link->k.myDev ? on->curr_rt_link->k.myDev->llipKey.devIdx : 0;
 		os->nbIdx = (on->curr_rt_link ? on->curr_rt_link->k.linkDev->key.devIdx : 0);
 		os->nbLocalIp = (on->curr_rt_link ? on->curr_rt_link->k.linkDev->key.llocal_ip : ZERO_IP);
 		os->nbName = (on->curr_rt_link ? on->curr_rt_link->k.linkDev->key.local->on->k.hostname : DBG_NIL);
 		os->metric = on->ogmMetric;
 		os->ogmSqn = on->dc->ogmSqnMaxSend;
 		os->lastDesc = (bmx_time - on->updated_timestamp) / 1000;
+		os->myIid = iid_get_myIID4x_by_node(on);
+		struct NeighRef_node *nref = on->curr_rt_link ? avl_find_item(&kn->neighRefs_tree, &on->curr_rt_link->k.linkDev->key.local) : NULL;
+		os->nbIid = nref ? iid_get_neighIID4x_by_node(nref, NO, NO) : 0;
 	}
 
 	snprintf(os->nbs, sizeof(os->nbs), "%d", (kn ? kn->neighRefs_tree.items : 0));

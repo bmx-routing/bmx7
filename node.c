@@ -281,20 +281,23 @@ struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn
 				chainOgm->ogmMtc.val.u16;
 
 			inaptChainOgm_destroy_(ref);
+			content_resolve(kn, ref);
 
 			goto_error_code = "SUCCESS";
 		} else {
 
 			inaptChainOgm_update_(ref, chainOgm, (kHash && descSqn));
-	
-			goto_error_code = "Unresolved ogmSqn";
+			ref = neighRef_resolve_or_destroy(ref, YES);
+
+			goto_error_return(finish, "Unresolved ogmSqn", NULL);
 		}
 	}
 
-	if ((ref = neighRef_resolve_or_destroy(ref, YES)))
+	if (ref)
 		process_ogm_metric(ref);
 	
 finish: {
+
 	dbgf_track(DBGT_INFO, 
 		"problem=%s neigh=%s aggSqn=%d IID=%d kHash=%s descSqn=%d chainOgm=%s ogmMtc=%d \n"
 		"REF: nodeId=%s descSqn=%d hostname=%s ogmSqnMaxRcvd=%d ogmMtcMaxRcvd=%d \n"

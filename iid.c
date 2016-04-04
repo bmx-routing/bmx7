@@ -41,6 +41,7 @@
 #include "key.h"
 #include "sec.h"
 #include "metrics.h"
+#include "ogm.h"
 #include "msg.h"
 #include "ip.h"
 #include "hna.h"
@@ -107,7 +108,7 @@ void iid_purge_repos(struct iid_repos *rep)
 
 }
 
-void iid_free(struct iid_repos *rep, IID_T iid, IDM_T force)
+void iid_free(struct iid_repos *rep, IID_T iid)
 {
 	TRACE_FUNCTION_CALL;
 	rep = rep ? rep : &my_iid_repos;
@@ -124,10 +125,6 @@ void iid_free(struct iid_repos *rep, IID_T iid, IDM_T force)
 		((NIID_T*)(ref->iidn))->__neighIID4x = 0;
 
 	ref->iidn = NULL;
-
-//	if (rep == &my_iid_repos && !(force || (((TIME_T) (bmx_time - ref->referred_timestamp)) > MY_IID_TIMEOUT)))
-//		return;
-
 	ref->referred_timestamp = 0;
 
 	rep->min_free = XMIN(rep->min_free, iid);
@@ -208,22 +205,13 @@ IID_T iid_get_neighIID4x_timeout_by_node(NIID_T *niidn)
 		return 0;
 }
 
-IID_T iid_get_neighIID4x_by_node(NIID_T *niidn, IDM_T update, IDM_T force)
+IID_T iid_get_neighIID4x_by_node(NIID_T *niidn)
 {
-
-	if (!force && !iid_get_neighIID4x_timeout_by_node(niidn)) {
-		
-		return 0;
-
-	} else {
-		if (update)
-			niidn->nn->neighIID4x_repos.arr.r[niidn->__neighIID4x].referred_timestamp = bmx_time;
-
-		return niidn->__neighIID4x;
-	}
+	return niidn ? niidn->__neighIID4x : IID_RSVD_MAX;
 }
 
-NIID_T* iid_get_node_by_neighIID4x(struct iid_repos *rep, IID_T neighIID4x, IDM_T update, void (*destroy) (NIID_T *niidn) )
+
+NIID_T* iid_get_node_by_neighIID4x(struct iid_repos *rep, IID_T neighIID4x, IDM_T update )
 {
 	TRACE_FUNCTION_CALL;
 	struct iid_ref *ref = NULL;
@@ -232,14 +220,6 @@ NIID_T* iid_get_node_by_neighIID4x(struct iid_repos *rep, IID_T neighIID4x, IDM_
 	if (!rep || rep->max_free <= neighIID4x || !(ref = &(rep->arr.r[neighIID4x])) || !ref->iidn) {
 
 		return NULL;
-
-	} else if (((TIME_T) (bmx_time - ref->referred_timestamp)) > NB_IID_TIMEOUT) {
-
-		dbgf_track(DBGT_WARN, "neighIID4x=%d outdated in neighIID4x_repos, now_sec=%d, ref=%d",
-			neighIID4x, bmx_time_sec, ref->referred_timestamp);
-
-		if (destroy)
-			(*destroy)((NIID_T*)(ref->iidn));
 
 	} else {
 

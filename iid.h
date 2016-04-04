@@ -10,8 +10,7 @@ typedef struct orig_node MIID_T;
 typedef struct NeighRef_node NIID_T;
 
 
-#define MY_IID_TIMEOUT 80000
-#define NB_IID_TIMEOUT 60000
+#define NB_IID_TIMEOUT ((MAX_OGM_INTERVAL * 120) / 100)
 
 
 #define IID_REPOS_SIZE_BLOCK 32
@@ -19,7 +18,6 @@ typedef struct NeighRef_node NIID_T;
 #define IID_REPOS_SIZE_MAX  ((IID_T)(-1))
 #define IID_REPOS_SIZE_WARN 1024
 
-#define IID_RSVD_UNUSED 0
 #define IID_RSVD_MAX    0
 #define IID_MIN_USED_FOR_SELF 1
 
@@ -46,13 +44,13 @@ extern struct iid_repos my_iid_repos;
 
 int8_t iid_extend_repos(struct iid_repos *rep);
 void iid_purge_repos(struct iid_repos *rep);
-void iid_free(struct iid_repos *rep, IID_T iid, IDM_T force);
+void iid_free(struct iid_repos *rep, IID_T iid);
 void iid_set_neighIID4x(struct iid_repos *rep, IID_T neighIID4x, NIID_T *niidn);
-IID_T iid_new_myIID4x(MIID_T *dhn);
+IID_T iid_new_myIID4x(MIID_T *on);
 
-IID_T iid_get_neighIID4x_by_node(NIID_T *niidn, IDM_T update, IDM_T force);
+IID_T iid_get_neighIID4x_by_node(NIID_T *niidn);
 IID_T iid_get_neighIID4x_timeout_by_node(NIID_T *niidn);
-NIID_T* iid_get_node_by_neighIID4x(struct iid_repos *rep, IID_T neighIID4x, IDM_T update, void (*destroy) (NIID_T *niidn));
+NIID_T* iid_get_node_by_neighIID4x(struct iid_repos *rep, IID_T neighIID4x, IDM_T update);
 IID_T iid_get_myIID4x_by_node(MIID_T* miidn);
 
 MIID_T* iid_get_node_by_myIID4x(IID_T myIID4x);

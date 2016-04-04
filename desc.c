@@ -237,8 +237,7 @@ void update_orig_dhash(struct desc_content *dcNew)
 		schedule_tx_task(FRAME_TYPE_IID_ADV, NULL, NULL, NULL, SCHEDULE_MIN_MSG_SIZE, &iid, sizeof(iid));
 	}
 
-//	if (on->kn != myKey)
-		neighRefs_update(on->kn);
+	neighRefs_update(on->kn);
 }
 
 
@@ -491,14 +490,14 @@ int32_t tx_msg_description_request(struct tx_frame_iterator *it)
 	struct hdr_description_request *hdr = ((struct hdr_description_request*) tx_iterator_cache_hdr_ptr(it));
 	struct msg_description_request *msg = ((struct msg_description_request*) tx_iterator_cache_msg_ptr(it));
 	struct schedule_dsc_req *req = (struct schedule_dsc_req*)ttn->key.data;
-	struct NeighRef_node *ref = (req->iid) ? iid_get_node_by_neighIID4x(&ttn->neigh->neighIID4x_repos, req->iid, NO, NULL) : NULL;
+	struct NeighRef_node *ref = (req->iid) ? iid_get_node_by_neighIID4x(&ttn->neigh->neighIID4x_repos, req->iid, NO) : NULL;
 	struct key_node *kn = (req->iid && ref) ? ref->kn : keyNode_get(&ttn->key.f.groupId);
 	int32_t ret = TLV_TX_DATA_DONE;
 
 
 	if ( ( req && kn && (req->descSqn > (kn->nextDesc ? kn->nextDesc->descSqn : 0)) && (req->descSqn > (kn->on? kn->on->dc->descSqn : 0)) ) && (
 		((!req->iid) && kn->bookedState->i.c >= KCTracked && kn->content->f_body && (kn->bookedState->i.r <= KRQualifying || kn->bookedState->i.c >= KCNeighbor)) ||
-		(req->iid && ref && kn->bookedState->i.c >= KCTracked && kn->content->f_body && ref->inaptChainOgm && ref->inaptChainOgm->confirmed && ref->descSqn == req->descSqn)
+		(req->iid && ref && iid_get_neighIID4x_timeout_by_node(ref) && kn->bookedState->i.c >= KCTracked && kn->content->f_body && ref->inaptChainOgm && ref->inaptChainOgm->confirmed && ref->descSqn == req->descSqn)
 		)) {
 
 		assertion(-500855, (tx_iterator_cache_data_space_pref(it, 0, 0) >= ((int) (sizeof(struct msg_description_request)))));
@@ -640,9 +639,9 @@ int32_t tx_msg_iid_request(struct tx_frame_iterator *it)
 	int32_t ret = TLV_TX_DATA_DONE;
 
 	IID_T *iid = ((IID_T*) it->ttn->key.data);
-	struct NeighRef_node *ref = iid_get_node_by_neighIID4x(&it->ttn->neigh->neighIID4x_repos, *iid, NO, NULL);
+	struct NeighRef_node *ref = iid_get_node_by_neighIID4x(&it->ttn->neigh->neighIID4x_repos, *iid, NO);
 
-	if (ref && (!ref->kn || (ref->inaptChainOgm && !ref->inaptChainOgm->confirmed))) {
+	if (ref && iid_get_neighIID4x_timeout_by_node(ref) && (!ref->kn || (ref->inaptChainOgm && !ref->inaptChainOgm->confirmed))) {
 
 		if (hdr->msg == msg) {
 			assertion(-502287, (is_zero(hdr, sizeof(*hdr))));

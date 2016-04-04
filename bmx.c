@@ -966,7 +966,7 @@ uint8_t *key_status_page(uint8_t *sOut, uint32_t i, struct orig_node *on, struct
 		os->lastDesc = (bmx_time - on->updated_timestamp) / 1000;
 		os->myIid = iid_get_myIID4x_by_node(on);
 		struct NeighRef_node *nref = on->curr_rt_link ? avl_find_item(&kn->neighRefs_tree, &on->curr_rt_link->k.linkDev->key.local) : NULL;
-		os->nbIid = nref ? iid_get_neighIID4x_by_node(nref, NO, NO) : 0;
+		os->nbIid = nref ? iid_get_neighIID4x_by_node(nref) : 0;
 	}
 
 	snprintf(os->nbs, sizeof(os->nbs), "%d", (kn ? kn->neighRefs_tree.items : 0));
@@ -1147,7 +1147,7 @@ static int32_t ref_status_creator(struct status_handl *handl, void *data)
 		allRefs += nn->neighIID4x_repos.tot_used;
 		IID_T iid;
 
-		for (iid = 0; (iid < nn->neighIID4x_repos.max_free && (ref = iid_get_node_by_neighIID4x(&nn->neighIID4x_repos, iid, NO, NULL))); iid++) {
+		for (iid = 0; (iid < nn->neighIID4x_repos.max_free && (ref = iid_get_node_by_neighIID4x(&nn->neighIID4x_repos, iid, NO))); iid++) {
 			
 			if (ref->kn)
 				droppedDRefs++;

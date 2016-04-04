@@ -125,8 +125,8 @@ void iid_free(struct iid_repos *rep, IID_T iid, IDM_T force)
 
 	ref->iidn = NULL;
 
-	if (rep == &my_iid_repos && !(force || (((TIME_T) (bmx_time - ref->referred_timestamp)) > MY_IID_TIMEOUT)))
-		return;
+//	if (rep == &my_iid_repos && !(force || (((TIME_T) (bmx_time - ref->referred_timestamp)) > MY_IID_TIMEOUT)))
+//		return;
 
 	ref->referred_timestamp = 0;
 

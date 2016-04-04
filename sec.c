@@ -480,7 +480,6 @@ int process_packet_signature(struct rx_frame_iterator *it)
 		goto_error_return( finish, "outdated descSqn", TLV_RX_DATA_PROCESSED);
 
 	if (!claimedKey->content->f_body) {
-
 		content_resolve(claimedKey, NULL);
 		goto_error_return( finish, "unresolved key", TLV_RX_DATA_PROCESSED);
 	}
@@ -498,11 +497,9 @@ int process_packet_signature(struct rx_frame_iterator *it)
 		goto_error_return( finish, "< KCCertified || (<= KRQualifying && < KCNeighbor)", TLV_RX_DATA_PROCESSED);
 
 	if (dc->unresolvedContentCounter) {
-
 		content_resolve(claimedKey, NULL);
 		goto_error_return( finish, "unresovled desc content", TLV_RX_DATA_PROCESSED);
 	}
-
 
 	if ((llip_data = contents_data(dc, BMX_DSC_TLV_LLIP)) && (llip_dlen = contents_dlen(dc, BMX_DSC_TLV_LLIP)) &&
 		!find_array_data(llip_data, llip_dlen, (uint8_t*) & pb->i.llip, sizeof(struct dsc_msg_llip)))
@@ -559,6 +556,7 @@ int process_packet_signature(struct rx_frame_iterator *it)
 
 
 finish:{
+
 	dbgf(
 		goto_error_ret != TLV_RX_DATA_PROCESSED ? DBGL_SYS : (goto_error_code ? DBGL_CHANGES : DBGL_ALL),
 		goto_error_ret != TLV_RX_DATA_PROCESSED ? DBGT_ERR : DBGT_INFO,

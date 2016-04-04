@@ -94,8 +94,13 @@ void inaptChainOgm_update_(struct NeighRef_node *ref, struct InaptChainOgm *inap
 	}
 
 	if (ref->inaptChainOgm != inaptChainOgm) {
-		*ref->inaptChainOgm->chainOgm = *inaptChainOgm->chainOgm;
-		ref->inaptChainOgm->ogmMtc = inaptChainOgm->ogmMtc;
+		
+		if (memcmp(inaptChainOgm->chainOgm, ref->inaptChainOgm->chainOgm, sizeof(ChainLink_T))) {
+			ref->inaptChainOgm->ogmMtc = inaptChainOgm->ogmMtc;
+			*ref->inaptChainOgm->chainOgm = *inaptChainOgm->chainOgm;
+		} else {
+			ref->inaptChainOgm->ogmMtc.val.u16 = XMAX(inaptChainOgm->ogmMtc.val.u16, ref->inaptChainOgm->ogmMtc.val.u16);
+		}
 	}
 
 	ref->inaptChainOgm->confirmed = confirmed;
@@ -160,7 +165,7 @@ struct NeighRef_node *neighRef_resolve_or_destroy(struct NeighRef_node *ref, IDM
 
 		} else if (kn->bookedState->i.c >= KCTracked) {
 
-			content_resolve(kn, ref);
+			content_resolve(kn, ref->nn);
 		}
 
 		return ref;
@@ -281,7 +286,7 @@ struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn
 				chainOgm->ogmMtc.val.u16;
 
 			inaptChainOgm_destroy_(ref);
-			content_resolve(kn, ref);
+			content_resolve(kn, ref->nn);
 
 			goto_error_code = "SUCCESS";
 		} else {
@@ -300,7 +305,7 @@ finish: {
 
 	dbgf_track(DBGT_INFO, 
 		"problem=%s neigh=%s aggSqn=%d IID=%d kHash=%s descSqn=%d chainOgm=%s ogmMtc=%d \n"
-		"REF: nodeId=%s descSqn=%d hostname=%s ogmSqnMaxRcvd=%d ogmMtcMaxRcvd=%d \n"
+		"REF: nodeId=%s descSqn=%d hostname=%s ogmSqnMaxRcvd=%d ogmMtcMaxRcvd=%d inaptChainOgmRcvd=%s inaptMtcRcvd=%d\n"
 		"DC: ogmSqnRange=%d  ogmSqnMaxRcvd=%d \n"
 		"OUT: ogmSqn=%d ",
 		goto_error_code, ((nn && nn->on) ? nn->on->k.hostname : NULL), aggSqn, neighIID4x, cryptShaAsShortStr(kHash), descSqn,
@@ -311,6 +316,8 @@ finish: {
 		(ref && ref->kn && ref->kn->on ? ref->kn->on->k.hostname : NULL),
 		(ref ? (int)ref->ogmSqnMaxRcvd : -1),
 		(ref ? (int)ref->ogmMtcMaxRcvd.val.u16 : -1),
+		(ref && ref->inaptChainOgm ? memAsHexString(ref->inaptChainOgm->chainOgm, sizeof(ChainLink_T)): NULL),
+		(ref && ref->inaptChainOgm ? (int)ref->inaptChainOgm->ogmMtc.val.u16 : -1),
 
 		(dc ? (int)dc->ogmSqnRange : -1), (dc ? (int)dc->ogmSqnMaxRcvd : -1),
 		ogmSqn);

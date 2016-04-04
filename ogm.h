@@ -41,7 +41,7 @@ extern uint32_t ogms_pending;
 
 
 #define MIN_SEND_REVISED_OGMS 0
-#define DEF_SEND_REVISED_OGMS 33
+#define DEF_SEND_REVISED_OGMS 20
 #define MAX_SEND_REVISED_OGMS 99
 #define ARG_SEND_REVISED_OGMS "sendRevisedOgms"
 extern int32_t sendRevisedOgms;

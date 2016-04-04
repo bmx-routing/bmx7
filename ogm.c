@@ -516,8 +516,8 @@ void process_ogm_metric(void *voidRef)
 			((ref->ogmSqnMaxRcvd >= (dc->ogmSqnMaxSend + 1)) && (bestLinkViaNeigh == on->curr_rt_link)) ||
 			(sendRevisedOgms && (
 			((ref->ogmSqnMaxRcvd >= (dc->ogmSqnMaxSend + 0)) && (bestMtcViaNeigh > (((100 + sendRevisedOgms) * on->ogmMetric) / 100)) && (bestLinkViaNeigh == on->curr_rt_link)) ||
-			((ref->ogmSqnMaxRcvd >= (dc->ogmSqnMaxSend + 0)) && (bestMtcViaNeigh > (((100 + sendRevisedOgms) * on->ogmMetric) / 100)) && ref->ogmBestSinceSqn && (ref->ogmSqnMaxRcvd >= on->mtcAlgo->ogm_sqn_best_hystere + ref->ogmBestSinceSqn)) ||
-			((ref->ogmSqnMaxRcvd >= (dc->ogmSqnMaxSend + 0)) && (bestMtcViaNeigh > (((((100 + sendRevisedOgms) * on->ogmMetric) / 100) * (100 + on->mtcAlgo->ogm_metric_hystere))/100)))))
+			((ref->ogmSqnMaxRcvd >= (dc->ogmSqnMaxSend + 0)) && ref->ogmBestSinceSqn && (ref->ogmSqnMaxRcvd >= on->mtcAlgo->ogm_sqn_best_hystere + ref->ogmBestSinceSqn)) ||
+			((ref->ogmSqnMaxRcvd >= (dc->ogmSqnMaxSend + 0)) && (bestMtcViaNeigh > ((on->ogmMetric * (100 + on->mtcAlgo->ogm_metric_hystere))/100)))))
 			) {
 
 			if (bestLinkViaNeigh != on->curr_rt_link) {

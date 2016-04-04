@@ -93,7 +93,7 @@
 
 #define MIN_OGM_METRIC_HYST 0
 #define MAX_OGM_METRIC_HYST 64000
-#define DEF_OGM_METRIC_HYST 10
+#define DEF_OGM_METRIC_HYST 20
 #define ARG_OGM_METRIC_HYST "pathMetricHysteresis"
 //extern int32_t my_path_hystere;
 
@@ -104,7 +104,7 @@
 
 #define MIN_OGM_SQN_BEST_HYST 0
 #define MAX_OGM_SQN_BEST_HYST 255
-#define DEF_OGM_SQN_BEST_HYST 5
+#define DEF_OGM_SQN_BEST_HYST 3
 #define ARG_OGM_SQN_BEST_HYST "pathSqnBestHysteresis"
 
 

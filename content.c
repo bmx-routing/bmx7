@@ -484,9 +484,6 @@ int32_t create_chash_tlv(struct tlv_hdr *tlv, uint8_t *f_data, uint32_t f_len, u
 STATIC_FUNC
 void content_resolve_(struct key_node *kn, struct content_node *cn, struct neigh_node *viaNeigh)
 {
-	struct content_usage_node *cun;
-	struct avl_node *anu = NULL;
-
 	dbgf_track(DBGT_INFO, "cHash=%s body=%d interval=%d usages=%d kn=%s",
 		cryptShaAsShortStr(&cn->chash), cn->f_body_len, resolveInterval, cn->usage_tree.items, cn->kn ? cn->kn->bookedState->secName : NULL);
 
@@ -497,38 +494,6 @@ void content_resolve_(struct key_node *kn, struct content_node *cn, struct neigh
 		schedule_tx_task(FRAME_TYPE_CONTENT_REQ, &viaNeigh->local_id, viaNeigh, viaNeigh->best_tp_link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &cn->chash, sizeof(SHA1_T));
 	} else if (kn->pktIdTime) {
 		schedule_tx_task(FRAME_TYPE_CONTENT_REQ, &kn->kHash, NULL, NULL, SCHEDULE_MIN_MSG_SIZE, &cn->chash, sizeof(SHA1_T));
-	}
-	return;
-
-	IDM_T TODO_remove_following;
-	struct NeighRef_node *ref;
-
-	
-	while ((cun = avl_iterate_item(&cn->usage_tree, &anu))) {
-		struct key_node *kn = cun->k.descContent->kn;
-		struct neigh_node *nn = kn->on ? kn->on->neigh : NULL;
-
-		assertion(-502309, (kn->bookedState->i.c >= KCCertified));
-
-		if (kn->content != cn && kn->pktIdTime) {
-			schedule_tx_task(FRAME_TYPE_CONTENT_REQ, &kn->kHash, nn, nn ? nn->best_tp_link->k.myDev : NULL, SCHEDULE_MIN_MSG_SIZE, &cn->chash, sizeof(SHA1_T));
-		}
-
-		struct avl_node *ann = NULL;
-		while ((ref = avl_iterate_item(&kn->neighRefs_tree, &ann))) {
-			if (ref->descSqn >= cun->k.descContent->descSqn)
-				schedule_tx_task(FRAME_TYPE_CONTENT_REQ, &ref->nn->local_id, ref->nn, ref->nn->best_tp_link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &cn->chash, sizeof(SHA1_T));
-		}
-	}
-
-	if (cn->kn && cn->kn->bookedState->i.c >= KCTracked) {
-
-		if (cn->kn->pktIdTime)
-			schedule_tx_task(FRAME_TYPE_CONTENT_REQ, &cn->kn->kHash, NULL, NULL, SCHEDULE_MIN_MSG_SIZE, &cn->chash, sizeof(SHA1_T));
-
-		struct avl_node *anr = NULL;
-		while ((ref = avl_iterate_item(&cn->kn->neighRefs_tree, &anr)))
-			schedule_tx_task(FRAME_TYPE_CONTENT_REQ, &ref->nn->local_id, ref->nn, ref->nn->best_tp_link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &cn->chash, sizeof(SHA1_T));
 	}
 }
 
@@ -548,23 +513,6 @@ void content_resolve(struct key_node *kn, struct neigh_node *viaNeigh)
 				content_resolve_(kn, cun->k.content, viaNeigh);
 		}
 	}
-}
-
-
-STATIC_FUNC
-void contents_resolve(void)
-{
-	struct key_node *kn;
-	struct avl_node *anc = NULL;
-	static TIME_T next = 0;
-
-	IDM_T TODO_remove_this_function;
-
-	if (content_tree_unresolveds && !doNowOrLater(&next, maintainanceInterval, 0))
-		return;
-
-	while ((kn = avl_iterate_item(&key_tree, &anc)))
-		content_resolve(kn, NULL);
 }
 
 

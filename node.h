@@ -284,7 +284,6 @@ struct content_node {
 	struct key_node *kn;
 	uint8_t *f_body;
 	uint32_t f_body_len;
-	TIME_T last_request;
 	uint8_t nested;
 	uint8_t gzip;
 	uint8_t reserved;
@@ -560,8 +559,8 @@ extern uint32_t content_tree_unresolveds;
 void neighRef_destroy(struct NeighRef_node *ref, IDM_T reAssessState);
 struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn, IID_T neighIID4x, CRYPTSHA1_T *kHash, DESC_SQN_T descSqn, struct InaptChainOgm *chainOgm);
 void neighRefs_update(struct key_node *kn);
-struct NeighRef_node *neighRef_maintain(struct NeighRef_node *ref, IDM_T reassessState);
-void neighRefs_maintain(void);
+struct NeighRef_node *neighRef_resolve_or_destroy(struct NeighRef_node *ref, IDM_T reassessState);
+void neighRefs_resolve_or_destroy(void);
 
 int purge_orig_router(struct orig_node *onlyOrig, struct neigh_node *onlyNeigh, LinkNode *onlyLink, IDM_T onlyUseless);
 void neigh_destroy(struct neigh_node *local);

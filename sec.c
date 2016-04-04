@@ -480,8 +480,8 @@ int process_packet_signature(struct rx_frame_iterator *it)
 		goto_error_return( finish, "outdated descSqn", TLV_RX_DATA_PROCESSED);
 
 	if (!claimedKey->content->f_body) {
-//		schedule_tx_task(FRAME_TYPE_CONTENT_REQ, &claimedKey->kHash, NULL, pb->i.iif, SCHEDULE_MIN_MSG_SIZE, &claimedKey->kHash, sizeof(SHA1_T));
-		content_maintain(claimedKey->content);
+
+		content_resolve(claimedKey, NULL);
 		goto_error_return( finish, "unresolved key", TLV_RX_DATA_PROCESSED);
 	}
 
@@ -499,11 +499,7 @@ int process_packet_signature(struct rx_frame_iterator *it)
 
 	if (dc->unresolvedContentCounter) {
 
-		struct content_usage_node *cun;
-		struct avl_node *an = NULL;
-		while ((cun = avl_iterate_item(&dc->contentRefs_tree, &an)))
-				content_maintain(cun->k.content);
-
+		content_resolve(claimedKey, NULL);
 		goto_error_return( finish, "unresovled desc content", TLV_RX_DATA_PROCESSED);
 	}
 

@@ -139,7 +139,7 @@ struct NeighRef_node *neighRef_create_(struct neigh_node *neigh, AGGREG_SQN_T ag
 }
 
 
-struct NeighRef_node *neighRef_maintain(struct NeighRef_node *ref, IDM_T reassessState)
+struct NeighRef_node *neighRef_resolve_or_destroy(struct NeighRef_node *ref, IDM_T reassessState)
 {
 	IID_T iid;
 
@@ -158,16 +158,9 @@ struct NeighRef_node *neighRef_maintain(struct NeighRef_node *ref, IDM_T reasses
 			struct schedule_dsc_req req = {.iid = iid, .descSqn = ref->descSqn};
 			schedule_tx_task(FRAME_TYPE_DESC_REQ, &nn->local_id, nn, nn->best_tp_link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &req, sizeof(req));
 
-		} else if (kn->bookedState->i.c >= KCTracked && !kn->content->f_body) {
+		} else if (kn->bookedState->i.c >= KCTracked) {
 
-			content_maintain(kn->content);
-
-		} else if (kn->bookedState->i.c >= KCCertified && kn->nextDesc && kn->nextDesc->unresolvedContentCounter) {
-
-			struct content_usage_node *cun;
-			struct avl_node *an = NULL;
-			while ((cun = avl_iterate_item(&kn->nextDesc->contentRefs_tree, &an)) && !cun->k.content->f_body)
-				content_maintain(cun->k.content);
+			content_resolve(kn, ref);
 		}
 
 		return ref;
@@ -182,7 +175,7 @@ struct NeighRef_node *neighRef_maintain(struct NeighRef_node *ref, IDM_T reasses
 
 
 
-void neighRefs_maintain(void)
+void neighRefs_resolve_or_destroy(void)
 {
 	static TIME_T next = 0;
 	GLOBAL_ID_T nid = ZERO_CYRYPSHA1;
@@ -199,7 +192,7 @@ void neighRefs_maintain(void)
 		for (iid = 0; iid < nn->neighIID4x_repos.max_free; iid++) {
 
 			if ((ref = iid_get_node_by_neighIID4x(&nn->neighIID4x_repos, iid, NO, NULL)))
-				neighRef_maintain(ref, YES);
+				neighRef_resolve_or_destroy(ref, YES);
 
 		}
 	}
@@ -293,7 +286,7 @@ struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn
 
 			inaptChainOgm_update_(ref, chainOgm, (kHash && descSqn));
 
-			ref = neighRef_maintain(ref, YES);
+			ref = neighRef_resolve_or_destroy(ref, YES);
 			goto_error_return(finish, "Unresolved ogmSqn", NULL);
 		}
 	}

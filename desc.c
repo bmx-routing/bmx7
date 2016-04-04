@@ -862,7 +862,7 @@ void init_desc( void )
         handl.min_msg_size = sizeof (struct msg_iid_request);
         handl.fixed_msg_size = 1;
 	handl.tx_iterations = &resolveIterations;
-	handl.tx_packet_prepare_casuals = neighRefs_maintain;
+	handl.tx_packet_prepare_casuals = neighRefs_resolve_or_destroy;
 	handl.tx_task_interval_min = &resolveInterval;
         handl.tx_msg_handler = tx_msg_iid_request;
         handl.rx_frame_handler = rx_frame_iid_request;

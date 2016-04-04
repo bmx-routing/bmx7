@@ -922,6 +922,8 @@ struct desc_content* descContent_create(uint8_t *dsc, uint32_t dlen, struct key_
 
 	kn->nextDesc = dc;
 
+	keyNode_updCredits(NULL, kn, NULL);
+
 	neighRefs_update(kn);
 
 	if (!dc->unresolvedContentCounter)

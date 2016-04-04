@@ -496,7 +496,7 @@ void content_resolve_(struct key_node *kn, struct content_node *cn, struct Neigh
 	if (viaNRef) {
 		schedule_tx_task(FRAME_TYPE_CONTENT_REQ, &viaNRef->nn->local_id, viaNRef->nn, viaNRef->nn->best_tp_link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &cn->chash, sizeof(SHA1_T));
 	} else if (kn->pktIdTime) {
-		schedule_tx_task(FRAME_TYPE_CONTENT_REQ, &cn->kn->kHash, NULL, NULL, SCHEDULE_MIN_MSG_SIZE, &cn->chash, sizeof(SHA1_T));
+		schedule_tx_task(FRAME_TYPE_CONTENT_REQ, &kn->kHash, NULL, NULL, SCHEDULE_MIN_MSG_SIZE, &cn->chash, sizeof(SHA1_T));
 	}
 	return;
 

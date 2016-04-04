@@ -376,6 +376,7 @@ struct desc_content {
 struct InaptChainOgm {
 	ChainLink_T *chainOgm;
 	FMETRIC_U16_T ogmMtc;
+	uint8_t ogmHopCount;
 	uint8_t confirmed;
 };
 
@@ -393,6 +394,7 @@ struct NeighRef_node {
 	DESC_SQN_T descSqn;
 	OGM_SQN_T ogmSqnMaxRcvd;
 	FMETRIC_U16_T ogmMtcMaxRcvd;
+	uint8_t ogmHopCountMaxRcvd;
 	TIME_T ogmTimeMaxRcvd;
 
 	// set by rx_frame_ogm_aggreg_adv():
@@ -427,9 +429,10 @@ struct orig_node {
 
 	uint32_t *trustedNeighsBitArray;
 
-	IDM_T ogmAggregActive;
 	AGGREG_SQN_T ogmAggregSqn;
+	IDM_T ogmAggregActive;
 
+	uint8_t ogmHopCount;
 	UMETRIC_T ogmMetric;
 	LinkNode *curr_rt_link; // the configured route in the kernel!
 

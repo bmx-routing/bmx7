@@ -719,7 +719,7 @@ int32_t rx_msg_iid_adv(struct rx_frame_iterator *it)
 	struct msg_iid_adv *msg = (struct msg_iid_adv*) (it->f_msg);
 	struct neigh_node *nn = it->pb->i.verifiedLink->k.linkDev->key.local;
 	AGGREG_SQN_T aggSqnInvalidMax = (nn->ogm_aggreg_max - AGGREG_SQN_CACHE_RANGE);
-	struct InaptChainOgm chainOgm = {.chainOgm = &msg->chainOgm, .ogmMtc = {.val = {.u16 = 0}}};
+	struct InaptChainOgm chainOgm = {.chainOgm = &msg->chainOgm, .ogmMtc = {.val = {.u16 = 0}}, .ogmHopCount = 0};
 	IID_T iid = ntohs(msg->transmitterIID4x);
 	DESC_SQN_T descSqn = ntohl(msg->descSqn);
 

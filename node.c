@@ -95,11 +95,13 @@ void inaptChainOgm_update_(struct NeighRef_node *ref, struct InaptChainOgm *inap
 
 	if (ref->inaptChainOgm != inaptChainOgm) {
 		
-		if (memcmp(inaptChainOgm->chainOgm, ref->inaptChainOgm->chainOgm, sizeof(ChainLink_T))) {
+		if (!memcmp(inaptChainOgm->chainOgm, ref->inaptChainOgm->chainOgm, sizeof(ChainLink_T))) {
+			ref->inaptChainOgm->ogmMtc.val.u16 = XMAX(inaptChainOgm->ogmMtc.val.u16, ref->inaptChainOgm->ogmMtc.val.u16);
+			ref->inaptChainOgm->ogmHopCount = XMAX(inaptChainOgm->ogmHopCount, ref->inaptChainOgm->ogmHopCount);
+		} else {
 			ref->inaptChainOgm->ogmMtc = inaptChainOgm->ogmMtc;
 			*ref->inaptChainOgm->chainOgm = *inaptChainOgm->chainOgm;
-		} else {
-			ref->inaptChainOgm->ogmMtc.val.u16 = XMAX(inaptChainOgm->ogmMtc.val.u16, ref->inaptChainOgm->ogmMtc.val.u16);
+			ref->inaptChainOgm->ogmHopCount = inaptChainOgm->ogmHopCount;
 		}
 	}
 
@@ -291,9 +293,14 @@ struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn
 				ref->ogmTimeMaxRcvd = bmx_time;
 
 			ref->ogmSqnMaxRcvd = ogmSqn;
-			ref->ogmMtcMaxRcvd.val.u16 = (ref->inaptChainOgm && !memcmp(ref->inaptChainOgm->chainOgm, chainOgm->chainOgm, sizeof(ChainLink_T))) ?
-				XMAX(ref->inaptChainOgm->ogmMtc.val.u16, chainOgm->ogmMtc.val.u16) :
-				chainOgm->ogmMtc.val.u16;
+			if (ref->inaptChainOgm && !memcmp(ref->inaptChainOgm->chainOgm, chainOgm->chainOgm, sizeof(ChainLink_T))) {
+				ref->ogmMtcMaxRcvd.val.u16 = XMAX(ref->inaptChainOgm->ogmMtc.val.u16, chainOgm->ogmMtc.val.u16);
+				ref->ogmHopCountMaxRcvd = XMAX(ref->inaptChainOgm->ogmHopCount, chainOgm->ogmHopCount);
+			} else {
+				ref->ogmMtcMaxRcvd.val.u16 = chainOgm->ogmMtc.val.u16;
+				ref->ogmHopCountMaxRcvd = chainOgm->ogmHopCount;
+			}
+
 
 			inaptChainOgm_destroy_(ref);
 			content_resolve(kn, ref->nn);

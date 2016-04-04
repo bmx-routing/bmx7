@@ -115,7 +115,7 @@ void schedule_ogm_aggregations(void)
 
 
 STATIC_FUNC
-void schedule_ogm( struct orig_node *on, OGM_SQN_T ogmSqn, UMETRIC_T um )
+void schedule_ogm( struct orig_node *on, OGM_SQN_T ogmSqn, UMETRIC_T um, uint8_t hopCount )
 {
 //	assertion(-502281, (on && ogmSqn && um));
         TRACE_FUNCTION_CALL;
@@ -174,6 +174,7 @@ void schedule_ogm( struct orig_node *on, OGM_SQN_T ogmSqn, UMETRIC_T um )
 
 		on->dc->ogmSqnMaxSend = ogmSqn;
 		on->ogmMetric = um;
+		on->ogmHopCount = hopCount;
 
 		if ((*get_my_ogm_aggreg_origs(ogm_aggreg_sqn_max))->items >= OGMS_DHASH_PER_AGGREG_PREF)
 			schedule_ogm_aggregations();
@@ -195,7 +196,7 @@ void schedule_my_originator_message(void)
 		on->dc->chainLinkMaxRcvd = myChainLinkCache(on->dc->ogmSqnMaxSend + 1, on->dc->descSqn).u.e.link;
 		on->dc->ogmSqnMaxRcvd = on->dc->ogmSqnMaxSend + 1;
 
-		schedule_ogm(on, on->dc->ogmSqnMaxSend + 1, UMETRIC_MAX);
+		schedule_ogm(on, on->dc->ogmSqnMaxSend + 1, UMETRIC_MAX, 0);
 	} else {
 		my_description_changed = YES;
 	}
@@ -398,7 +399,7 @@ int32_t tx_frame_ogm_aggreg_advs(struct tx_frame_iterator *it)
 		FMETRIC_U16_T fm16 = umetric_to_fmetric(on->ogmMetric);
 		msg->u.f.metric_exp = fm16.val.f.exp_fm16;
 		msg->u.f.metric_mantissa = fm16.val.f.mantissa_fm16;
-
+		msg->u.f.hopCount = on->ogmHopCount;
 		msg->u.f.trustedFlag = 0;
 		msg->u.f.transmitterIID4x = iid_get_myIID4x_by_node(on);
 		msg->u.u32 = htonl(msg->u.u32);
@@ -530,7 +531,7 @@ void process_ogm_metric(void *voidRef)
 					cb_route_change_hooks(ADD, on);
 			}
 
-			schedule_ogm(on, ref->ogmSqnMaxRcvd, bestMtcViaNeigh);
+			schedule_ogm(on, ref->ogmSqnMaxRcvd, bestMtcViaNeigh, ref->ogmHopCountMaxRcvd);
 
 			ref->ogmBestSinceSqn = 0;
 
@@ -567,9 +568,9 @@ int32_t rx_frame_ogm_aggreg_advs(struct rx_frame_iterator *it)
 		for (; msg < &(hdr->msg[it->f_msgs_fixed]); msg++) {
 
 			struct msg_ogm_adv tmp = {.u = {.u32 = ntohl(msg->u.u32) } };
-			struct InaptChainOgm chainOgm = { .chainOgm = &msg->chainOgm, .ogmMtc = {.val = {.f = {.exp_fm16 = tmp.u.f.metric_exp, .mantissa_fm16 = tmp.u.f.metric_mantissa}}}};
+			struct InaptChainOgm chainOgm = { .chainOgm = &msg->chainOgm, .ogmHopCount = tmp.u.f.hopCount, .ogmMtc = {.val = {.f = {.exp_fm16 = tmp.u.f.metric_exp, .mantissa_fm16 = tmp.u.f.metric_mantissa}}}};
 
-			dbgf_track(DBGT_INFO, "iid=%d, ogmSqn=%d ogmMtc=%d", tmp.u.f.transmitterIID4x, chainOgm.ogmMtc.val.u16);
+			dbgf_track(DBGT_INFO, "iid=%d, ogmSqn=%d ogmMtc=%d hops=%d", tmp.u.f.transmitterIID4x, chainOgm.ogmMtc.val.u16, tmp.u.f.hopCount);
 
 			neighRef_update(nn, aggSqn, tmp.u.f.transmitterIID4x, NULL, 0, &chainOgm);
 

@@ -234,7 +234,7 @@ struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn
 			struct key_node *oldKn;
 			struct NeighRef_node *oldRef;
 
-			if ((oldKn = keyNode_get(kHash)) && (oldRef = avl_find_item(&kn->neighRefs_tree, &nn)))
+			if ((oldKn = keyNode_get(kHash)) && (oldRef = avl_find_item(&oldKn->neighRefs_tree, &nn)))
 				neighRef_destroy(oldRef, NO);
 
 			if (ref->kn) {

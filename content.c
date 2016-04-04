@@ -500,7 +500,9 @@ void content_resolve_(struct key_node *kn, struct content_node *cn, struct Neigh
 	}
 	return;
 
+	IDM_T TODO_remove_following;
 
+	
 	while ((cun = avl_iterate_item(&cn->usage_tree, &anu))) {
 		struct key_node *kn = cun->k.descContent->kn;
 		struct neigh_node *nn = kn->on ? kn->on->neigh : NULL;

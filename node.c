@@ -282,16 +282,16 @@ struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn
 
 			inaptChainOgm_destroy_(ref);
 
+			goto_error_code = "SUCCESS";
 		} else {
 
 			inaptChainOgm_update_(ref, chainOgm, (kHash && descSqn));
-
-			ref = neighRef_resolve_or_destroy(ref, YES);
-			goto_error_return(finish, "Unresolved ogmSqn", NULL);
+	
+			goto_error_code = "Unresolved ogmSqn";
 		}
 	}
 
-	if (ref)
+	if ((ref = neighRef_resolve_or_destroy(ref, YES)))
 		process_ogm_metric(ref);
 	
 finish: {

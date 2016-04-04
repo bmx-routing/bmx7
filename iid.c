@@ -64,7 +64,7 @@
 struct iid_repos my_iid_repos = {0, 0, 0, 0,
 	{NULL}};
 
-int8_t iid_extend_repos(struct iid_repos *rep)
+void iid_extend_repos(struct iid_repos *rep)
 {
 	TRACE_FUNCTION_CALL;
 
@@ -74,8 +74,7 @@ int8_t iid_extend_repos(struct iid_repos *rep)
 
 		dbgf_sys(DBGT_WARN, "%d", rep->arr_size);
 
-		if (rep->arr_size + IID_REPOS_SIZE_BLOCK >= IID_REPOS_SIZE_MAX)
-			return FAILURE;
+		assertion(-500000, (rep->arr_size + IID_REPOS_SIZE_BLOCK <= IID_REPOS_SIZE_MAX));
 	}
 
 	if (rep->arr_size) {
@@ -93,8 +92,6 @@ int8_t iid_extend_repos(struct iid_repos *rep)
 	memset(&(rep->arr.u8[rep->arr_size * sizeof(struct iid_ref)]), 0, IID_REPOS_SIZE_BLOCK * sizeof(struct iid_ref));
 
 	rep->arr_size += IID_REPOS_SIZE_BLOCK;
-
-	return SUCCESS;
 }
 
 void iid_purge_repos(struct iid_repos *rep)

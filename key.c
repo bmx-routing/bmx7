@@ -449,7 +449,7 @@ struct KeyState keyMatrix[KCSize][KRSize] = {
 		{KS_INIT, "CertifiedAlien", "alien", "certifiedAlien", 1002, NULL, 0, NULL, NULL, NULL, NULL, NULL},
 	},
 	{
-		{KS_INIT, "Promoted", "qualifying", "promotedQualifying", 4003, NULL, 1000, kSetInAction_promoted, kSetOutAction_promoted, kColMaintain_promoted, kColCond_promoted, NULL},
+		{KS_INIT, "Promoted", "qualifying", "promotedQualifying", 4003, NULL, XMIN(1000, IID_REPOS_SIZE_MAX), kSetInAction_promoted, kSetOutAction_promoted, kColMaintain_promoted, kColCond_promoted, NULL},
 		{KS_INIT, "PromotedQualified", "friend", "promotedFriend", 3003, NULL, 0, NULL, NULL, NULL, NULL, NULL},
 		{KS_INIT, "PromotedStranger", "recommended", "promotedRecommended", 2003, NULL, 0, NULL, NULL, NULL, NULL, NULL},
 		{KS_INIT, "PromotedAlien", "alien", "promotedAlien", 1003, NULL, 0, NULL, NULL, NULL, NULL, NULL},

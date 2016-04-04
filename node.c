@@ -218,6 +218,9 @@ struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn
 	OGM_SQN_T ogmSqn = 0;
 	struct InaptChainOgm *chainOgm = NULL;
 
+	if (neighIID4x > IID_REPOS_SIZE_MAX || neighIID4x > keyMatrix[KCListed][KRQualifying].maxSet)
+		goto_error_return(finish, "oversized IID", NULL);
+
 	if (!(ref = iid_get_node_by_neighIID4x(&nn->neighIID4x_repos, neighIID4x, !!inChainOgm)) && !(ref = neighRef_create_(nn, aggSqn, neighIID4x)))
 		goto_error_return( finish, "No neighRef!!!", NULL);
 

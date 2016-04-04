@@ -84,12 +84,10 @@ struct hdr_ogm_aggreg_req {
 
 struct msg_ogm_adv {
 	ChainLink_T chainOgm;
-	IID_T transmitterIID4x;
-	OGM_SQN_T ogmSqn_remove;
 	union {
 
 		struct {
-			unsigned int TODO_consider_iid_here : 14;
+			unsigned int transmitterIID4x : IID_BIT_SIZE;
 			unsigned int trustedFlag : 1;
 			unsigned int hopCount : 6;
 			unsigned int metric_exp : OGM_EXPONENT_BIT_SIZE; // 5

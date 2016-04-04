@@ -122,10 +122,9 @@ int32_t evil_tx_frame_ogm_aggreg_advs(struct tx_frame_iterator *it)
 			hdr->msg[o].u.f.metric_mantissa = fm16.val.f.mantissa_fm16;
 			hdr->msg[o].u.f.hopCount = 0;
 			hdr->msg[o].u.f.trustedFlag = 0;
+			hdr->msg[o].u.f.transmitterIID4x = iid_get_myIID4x_by_node(on);
 			hdr->msg[o].u.u32 = htonl(hdr->msg[o].u.u32);
 			hdr->msg[o].chainOgm = chainOgmCalc(on->dc, on->dc->ogmSqnMaxSend);
-
-			hdr->msg[o].transmitterIID4x = htons(iid_get_myIID4x_by_node(on));
 
 			o++;
 		}

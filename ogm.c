@@ -63,7 +63,6 @@ AGGREG_SQN_T ogm_aggreg_sqn_send = 0;
 int32_t sendRevisedOgms = DEF_SEND_REVISED_OGMS;
 
 
-
 struct avl_tree **get_my_ogm_aggreg_origs(AGGREG_SQN_T aggSqn)
 {
 	static struct avl_tree *my_ogm_aggreg_orig_trees[AGGREG_SQN_CACHE_RANGE] = {NULL};

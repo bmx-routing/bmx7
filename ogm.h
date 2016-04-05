@@ -46,6 +46,7 @@ extern uint32_t ogms_pending;
 #define ARG_SEND_REVISED_OGMS "sendRevisedOgms"
 extern int32_t sendRevisedOgms;
 
+
 #define OGM_JUMPS_PER_AGGREGATION 10
 
 

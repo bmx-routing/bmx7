@@ -230,9 +230,13 @@ struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn
 
 	if (kHash) {
 
-		if (ref->kn && cryptShasEqual(&ref->kn->kHash, kHash)) {
+		if (ref->kn && cryptShasEqual(&ref->kn->kHash, kHash) && ref->descSqn <= descSqn) {
 
 			kn = ref->kn;
+
+		} else if (ref->kn && cryptShasEqual(&ref->kn->kHash, kHash)) {
+
+			goto_error_return(finish, "outdated descSqn", NULL);
 
 		} else {
 
@@ -269,8 +273,8 @@ struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn
 
 	if ((chainOgm = inChainOgm ? inChainOgm : ref->inaptChainOgm)) {
 
-		if ((kn && kn->on && (dc = kn->on->dc) && dc->descSqn == ref->descSqn && (ogmSqn = chainOgmFind(chainOgm->chainOgm, dc))) ||
-			(kn && (dc = kn->nextDesc) && dc->descSqn >= ref->descSqn && (ogmSqn = chainOgmFind(chainOgm->chainOgm, dc)))) {
+		if ((kn && kn->on && (dc = kn->on->dc) && ref->descSqn == dc->descSqn && (ogmSqn = chainOgmFind(chainOgm->chainOgm, dc, (descSqn ? dc->ogmSqnRange : ogmSqnDeviationMax)))) ||
+			(kn && (dc = kn->nextDesc) && ref->descSqn <= dc->descSqn && (ogmSqn = chainOgmFind(chainOgm->chainOgm, dc, (descSqn ? dc->ogmSqnRange : ogmSqnDeviationMax))))) {
 
 			assertion(-500000, (ogmSqn <= dc->ogmSqnRange));
 			assertion(-500000, (dc->ogmSqnMaxRcvd <= dc->ogmSqnRange));
@@ -278,7 +282,7 @@ struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn
 			assertion(-500000, (ref->descSqn <= dc->descSqn));
 
 			if (ref->descSqn < dc->descSqn) {
-				ref->descSqn = descSqn;
+				ref->descSqn = dc->descSqn;
 				ref->ogmBestSinceSqn = 0;
 				ref->ogmSqnMaxRcvd = 0;
 				ref->ogmMtcMaxRcvd.val.u16 = 0;
@@ -308,7 +312,7 @@ struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn
 			goto_error_code = "SUCCESS";
 		} else {
 
-			inaptChainOgm_update_(ref, chainOgm, (kHash && descSqn));
+			inaptChainOgm_update_(ref, chainOgm, (!!descSqn));
 			ref = neighRef_resolve_or_destroy(ref, YES);
 
 			goto_error_return(finish, "Unresolved ogmSqn", NULL);

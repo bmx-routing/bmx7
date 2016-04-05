@@ -81,6 +81,7 @@ static struct DirWatch *trustedDirWatch = NULL;
 
 
 static int32_t ogmSqnRange = DEF_OGM_SQN_RANGE;
+int32_t ogmSqnDeviationMax = DEF_OGM_SQN_DEVIATION;
 
 
 
@@ -184,23 +185,22 @@ ChainLink_T chainOgmCalc(struct desc_content *dc, OGM_SQN_T ogmSqn)
 	return chainOgm;
 }
 
-OGM_SQN_T chainOgmFind(ChainLink_T *chainOgm, struct desc_content *dc)
+OGM_SQN_T chainOgmFind(ChainLink_T *chainOgm, struct desc_content *dc, OGM_SQN_T maxDeviation)
 {
 
 	assertion(-500000, (chainOgm && dc));
 	bit_xor(&dc->chainCache.elem.u.e.link, chainOgm, &dc->chainOgmConstInputHash, sizeof(ChainLink_T));
 
-	dbgf_track(DBGT_INFO, "chainOgm=%s -> chainLink=%s maxRcvd=%d range=%d",
-		memAsHexString(chainOgm, sizeof(ChainLink_T)),
-		memAsHexString(&dc->chainCache.elem.u.e.link,
-		sizeof(ChainLink_T)), dc->ogmSqnMaxRcvd, dc->ogmSqnRange);
+	dbgf_track(DBGT_INFO, "chainOgm=%s -> chainLink=%s maxRcvd=%d range=%d maxDeviation=%d",
+		memAsHexString(chainOgm, sizeof(ChainLink_T)), memAsHexString(&dc->chainCache.elem.u.e.link,
+		sizeof(ChainLink_T)), dc->ogmSqnMaxRcvd, dc->ogmSqnRange, maxDeviation);
 
 	OGM_SQN_T sqnReturn = 0;
 	OGM_SQN_T sqnOffset = 0;
 	ChainLink_T chainLink;
 	ChainInputs_T downTest;
 
-	while (1) {
+	while (sqnOffset <= maxDeviation) {
 
 		dbgf_track(DBGT_INFO, "testing chainLink-%d=%s against maxRcvd-0=%s anchor-0=%s", sqnOffset,
 			memAsHexString(&dc->chainCache.elem.u.e.link, sizeof(ChainLink_T)),
@@ -1924,6 +1924,8 @@ struct opt_type sec_options[]=
 			0,		"list trusted and supported nodes\n"},
         {ODI, 0, ARG_OGM_SQN_RANGE,        0,  9,0, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY,&ogmSqnRange,    MIN_OGM_SQN_RANGE,  MAX_OGM_SQN_RANGE, DEF_OGM_SQN_RANGE,0,  opt_update_dext_method,
 			ARG_VALUE_FORM,	"set average OGM sequence number range (affects frequency of bmx7 description updates)"},
+        {ODI, 0, ARG_OGM_SQN_DEVIATION,    0,  9,0, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY,&ogmSqnDeviationMax, MIN_OGM_SQN_DEVIATION,MAX_OGM_SQN_DEVIATION,DEF_OGM_SQN_DEVIATION,0,NULL,
+			ARG_VALUE_FORM,	"limit tries to find matching ogmSqnHash for unconfirmed IIDs"},
 	{ODI,0,ARG_NODE_SIGN_LEN,         0,  4,1,A_PS1N,A_ADM,A_INI,A_CFA,A_ANY,       0,MIN_NODE_SIGN_LEN,MAX_NODE_SIGN_LEN,DEF_NODE_SIGN_LEN,0, opt_key_path,
 			ARG_VALUE_FORM, HLP_NODE_SIGN_LEN},
 	{ODI,ARG_NODE_SIGN_LEN,ARG_KEY_PATH,0,4,1,A_CS1, A_ADM,A_INI,A_CFA,A_ANY,	0,0,    	    0,		      0,     DEF_KEY_PATH, opt_key_path,

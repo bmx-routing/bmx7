@@ -185,7 +185,6 @@ extern int32_t dad_to;
 // deprecated:
 typedef uint16_t SQN_T;
 #define SQN_MAX ((SQN_T)-1)
-#define MAX_SQN_RANGE 8192 // the maxumim of all .._SQN_RANGE ranges, should never be more than SQN_MAX/4
 
 typedef uint32_t PKT_SQN_T;
 #define PKT_SQN_MAX ((PKT_SQN_T)-1)

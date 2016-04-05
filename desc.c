@@ -234,7 +234,7 @@ void update_orig_dhash(struct desc_content *dcNew)
 
 	if (unsolicitedDescAdvs) {
 		schedule_tx_task(FRAME_TYPE_DESC_ADVS, NULL, NULL, NULL, dcNew->desc_frame_len, &dcNew->dHash, sizeof(DHASH_T));
-		schedule_tx_task(FRAME_TYPE_IID_ADV, NULL, NULL, NULL, SCHEDULE_MIN_MSG_SIZE, &iid, sizeof(iid));
+		//schedule_tx_task(FRAME_TYPE_IID_ADV, NULL, NULL, NULL, SCHEDULE_MIN_MSG_SIZE, &iid, sizeof(iid));
 	}
 
 	neighRefs_update(on->kn);

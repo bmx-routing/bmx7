@@ -395,19 +395,21 @@ int32_t tx_frame_ogm_aggreg_advs(struct tx_frame_iterator *it)
 
 	for (msg = hdr->msg; (origs && (on = avl_iterate_item(origs, &an))); msg++) {
 
+		msg->chainOgm = chainOgmCalc(on->dc, on->dc->ogmSqnMaxSend);
+
 		FMETRIC_U16_T fm16 = umetric_to_fmetric(on->ogmMetric);
 		msg->u.f.metric_exp = fm16.val.f.exp_fm16;
 		msg->u.f.metric_mantissa = fm16.val.f.mantissa_fm16;
 		msg->u.f.hopCount = on->ogmHopCount;
 		msg->u.f.trustedFlag = 0;
 		msg->u.f.transmitterIID4x = iid_get_myIID4x_by_node(on);
-		msg->u.u32 = htonl(msg->u.u32);
-		msg->chainOgm = chainOgmCalc(on->dc, on->dc->ogmSqnMaxSend);
 
-		dbgf_track(DBGT_INFO, "name=%s dhash=%s sqn=%d metric=%ju cih=%s chainOgm=%s",
-			on->k.hostname, cryptShaAsShortStr(&on->dc->dHash), on->dc->ogmSqnMaxSend, on->ogmMetric,
+		dbgf_track(DBGT_INFO, "name=%s nodeId=%s sqn=%d metric=%ju hops=%d trusted=%d cih=%s chainOgm=%s",
+			on->k.hostname, cryptShaAsShortStr(&on->kn->kHash), on->dc->ogmSqnMaxSend, on->ogmMetric, on->ogmHopCount, msg->u.f.trustedFlag,
 			memAsHexString(&on->dc->chainOgmConstInputHash, sizeof(msg->chainOgm)),
 			memAsHexString(&msg->chainOgm, sizeof(msg->chainOgm)));
+
+		msg->u.u32 = htonl(msg->u.u32);
 	}
 
 	dbgf_all(DBGT_INFO, "aggSqn=%d aggSqnMax=%d ogms=%d", *sqn, ogm_aggreg_sqn_max, ogms);

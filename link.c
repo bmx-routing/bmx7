@@ -703,7 +703,8 @@ struct link_status {
 	uint8_t bestRxLink;
 	uint8_t txRate;
 	uint8_t bestTxLink;
-	uint8_t routes;
+	uint16_t routes;
+	IID_T iidMax;
 	AGGREG_SQN_T aggSqnSize;
 	AGGREG_SQN_T aggSqnMax;
 	uint8_t aggSqnRcvd;
@@ -728,6 +729,7 @@ static const struct field_format link_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, txRate,           1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, bestTxLink,       1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, routes,           1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, iidMax,           1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, aggSqnSize,       1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, aggSqnMax,        1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, aggSqnRcvd,       1, FIELD_RELEVANCE_MEDI),
@@ -792,6 +794,7 @@ static int32_t link_status_creator(struct status_handl *handl, void *data)
 				status[i].txRate = ((link->timeaware_tx_probe * 100) / UMETRIC_MAX);
 				status[i].bestTxLink = (link == local->best_tp_link);
 				status[i].routes = link->orig_routes;
+				status[i].iidMax = linkDev->key.local->neighIID4x_repos.max_free - 1;
 				status[i].aggSqnSize = local->ogm_aggreg_size;
 				status[i].aggSqnMax = local->ogm_aggreg_max;
 				status[i].aggSqnRcvd = bit_get(local->ogm_aggreg_sqns, AGGREG_SQN_CACHE_RANGE, local->ogm_aggreg_max);

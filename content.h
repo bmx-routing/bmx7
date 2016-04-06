@@ -132,7 +132,7 @@ struct desc_content {
 	ChainLink_T chainLinkMaxRcvd;
 	ChainInputs_T chainCache;
 	CRYPTSHA1_T chainOgmConstInputHash;
-	ChainLink_T chainAnchor;
+	ChainLink_T *chainAnchor;
 
 	struct desc_tlv_body final[BMX_DSC_TLV_ARRSZ];
 };

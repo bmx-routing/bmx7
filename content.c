@@ -844,14 +844,16 @@ struct desc_content* descContent_create(uint8_t *dsc, uint32_t dlen, struct key_
 
 	dc->desc_frame  = debugMalloc(dlen, -300105);
 	memcpy(dc->desc_frame, dsc, dlen);
+	get_desc_id(dc->desc_frame, dlen, NULL, &versMsg);
+
 	dc->desc_frame_len = dlen;
 	dc->descSqn = descSqn;
-
 	dc->ogmSqnRange = ntohs(versMsg->ogmSqnRange);
 	dc->ogmSqnMaxSend = 0;
 	dc->ogmSqnMaxRcvd = 0;
+
 	dc->chainLinkMaxRcvd = versMsg->ogmHChainAnchor.u.e.link;
-	dc->chainAnchor = versMsg->ogmHChainAnchor.u.e.link;
+	dc->chainAnchor = &versMsg->ogmHChainAnchor.u.e.link;
 	dc->chainCache.elem = versMsg->ogmHChainAnchor;
 	dc->chainCache.nodeId = kn->kHash;
 	dc->chainCache.descSqnNetOrder = versMsg->descSqn;

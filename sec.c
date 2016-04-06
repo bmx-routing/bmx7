@@ -205,7 +205,7 @@ OGM_SQN_T chainOgmFind(ChainLink_T *chainOgm, struct desc_content *dc, OGM_SQN_T
 		dbgf_track(DBGT_INFO, "testing chainLink-%d=%s against maxRcvd-0=%s anchor-0=%s", sqnOffset,
 			memAsHexString(&dc->chainCache.elem.u.e.link, sizeof(ChainLink_T)),
 			memAsHexString(&dc->chainLinkMaxRcvd, sizeof(ChainLink_T)),
-			memAsHexString(&dc->chainAnchor, sizeof(ChainLink_T))
+			memAsHexString(dc->chainAnchor, sizeof(ChainLink_T))
 			);
 
 		if (sqnOffset + dc->ogmSqnMaxRcvd <= dc->ogmSqnRange) {
@@ -247,7 +247,7 @@ OGM_SQN_T chainOgmFind(ChainLink_T *chainOgm, struct desc_content *dc, OGM_SQN_T
 			}
 
 			// Testing below maxRcvd and lower half between anchor and maxRcvd:
-			if (memcmp(&dc->chainCache.elem.u.e.link, &dc->chainAnchor, sizeof(ChainLink_T)) == 0) {
+			if (memcmp(&dc->chainCache.elem.u.e.link, dc->chainAnchor, sizeof(ChainLink_T)) == 0) {
 
 				assertion(-500000, ((OGM_SQN_T)(dc->ogmSqnMaxRcvd - sqnOffset)) <= dc->ogmSqnRange);
 

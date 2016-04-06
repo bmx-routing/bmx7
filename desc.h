@@ -150,8 +150,6 @@ FIELD_FORMAT_END }
 
 
 
-
-
 void process_description_tlvs_del(struct orig_node *on, struct desc_content *dcOld, uint8_t ft_start, uint8_t ft_end);
 IDM_T process_description_tlvs(struct packet_buff *pb, struct orig_node *on, struct desc_content *dcOld, struct desc_content *dcNew, uint8_t op, uint8_t filter);
 void update_my_description(void);

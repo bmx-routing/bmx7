@@ -110,6 +110,33 @@ struct hdr_content_req { // 20 bytes
 	struct msg_content_req msg[];
 } __attribute__((packed));
 
+struct desc_content {
+	DHASH_T dHash;
+
+	IDM_T cntr;
+	struct key_node *kn;
+	struct orig_node *on;
+	uint8_t *desc_frame;
+	uint16_t desc_frame_len;
+	int32_t ref_content_len;
+	DESC_SQN_T descSqn;
+	TIME_T referred_by_others_timestamp;
+
+	struct avl_tree contentRefs_tree;
+	uint32_t unresolvedContentCounter;
+	uint8_t max_nesting;
+
+	uint16_t ogmSqnRange;
+	OGM_SQN_T ogmSqnMaxSend;
+	OGM_SQN_T ogmSqnMaxRcvd;
+	ChainLink_T chainLinkMaxRcvd;
+	ChainInputs_T chainCache;
+	CRYPTSHA1_T chainOgmConstInputHash;
+	ChainLink_T chainAnchor;
+
+	struct desc_tlv_body final[BMX_DSC_TLV_ARRSZ];
+};
+
 
 int8_t descContent_assemble(struct desc_content *dc, IDM_T init_not_finalize);
 struct desc_content* descContent_create(uint8_t *dsc, uint32_t dlen, struct key_node *kn);

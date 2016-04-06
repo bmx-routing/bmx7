@@ -45,6 +45,8 @@
 #include "metrics.h"
 #include "ogm.h"
 #include "msg.h"
+#include "desc.h"
+#include "content.h"
 #include "plugin.h"
 #include "schedule.h"
 #include "tools.h"

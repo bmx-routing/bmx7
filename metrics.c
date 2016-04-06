@@ -39,6 +39,7 @@
 #include "metrics.h"
 #include "ogm.h"
 #include "msg.h"
+#include "content.h"
 #include "ip.h"
 #include "plugin.h"
 #include "schedule.h"

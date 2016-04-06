@@ -36,6 +36,8 @@
 #include "crypt.h"
 #include "avl.h"
 #include "node.h"
+#include "key.h"
+#include "sec.h"
 #include "msg.h"
 #include "content.h"
 #include "desc.h"

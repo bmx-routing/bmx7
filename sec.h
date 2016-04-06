@@ -135,6 +135,61 @@ extern int32_t linkSignLen;
 #define ARG_OGM_SQN_DEVIATION "ogmSqnDeviation"
 extern int32_t ogmSqnDeviationMax;
 
+extern CRYPTKEY_T *my_NodeKey;
+extern CRYPTKEY_T *my_LinkKey;
+
+
+#define OGM_HASH_CHAIN_LINK_BITSIZE 112
+
+typedef struct {
+	uint8_t u8[OGM_HASH_CHAIN_LINK_BITSIZE / 8];
+} __attribute__((packed)) ChainLink_T;
+
+typedef struct {
+	uint8_t u8[sizeof(CRYPTSHA1_T) - (OGM_HASH_CHAIN_LINK_BITSIZE / 8)];
+} __attribute__((packed)) ChainSeed_T;
+
+typedef struct {
+
+	union {
+
+		struct {
+			ChainLink_T link;
+			ChainSeed_T seed;
+		} e;
+		CRYPTSHA1_T sha;
+	} u;
+} __attribute__((packed)) ChainElem_T;
+
+typedef struct {
+	ChainElem_T elem;
+	CRYPTSHA1_T nodeId;
+	DESC_SQN_T descSqnNetOrder;
+} __attribute__((packed)) ChainInputs_T;
+
+typedef struct {
+	DHASH_T dHash;
+	ChainInputs_T anchor;
+} __attribute__((packed)) ChainOgmConstInput_T;
+
+typedef struct {
+	ChainOgmConstInput_T c;
+	ChainLink_T l;
+} __attribute__((packed)) ChainOgmInput_T;
+
+struct ChainAnchorKey {
+	DHASH_T dHash;
+	ChainElem_T anchor;
+	struct key_node *kn;
+	DESC_SQN_T descSqnNetOrder;
+} __attribute__((packed));
+struct InaptChainOgm {
+	ChainLink_T *chainOgm;
+	FMETRIC_U16_T ogmMtc;
+	uint8_t ogmHopCount;
+	uint8_t confirmed;
+};
+
 struct KeyWatchNode {
 	// persistent id:
 	GLOBAL_ID_T global_id;
@@ -164,9 +219,6 @@ struct DirWatch {
 };
 
 
-
-extern CRYPTKEY_T *my_NodeKey;
-extern CRYPTKEY_T *my_LinkKey;
 
 
 

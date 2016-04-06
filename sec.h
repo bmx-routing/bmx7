@@ -140,6 +140,12 @@ extern CRYPTKEY_T *my_LinkKey;
 
 
 #define OGM_HASH_CHAIN_LINK_BITSIZE 112
+// 2^112=5.2e33!
+// As of april 2016 total cummulative number of bitcoin double-sha256 hashes is < 1e26 < 2^89 (source http://bitcoin.sipa.be/ ).
+// Work for 2^89 double-sha256 == work for 2^90 single-sha256 (and single-sha224)
+// Assuming a doubling of hash power per year I assume that 112 bits remains unfeasible for 112-90=22 more years!
+// Note that HashChainAnchors are invalidated every OGM_SQN_RANGE ogm intervals (every hour)
+
 
 typedef struct {
 	uint8_t u8[OGM_HASH_CHAIN_LINK_BITSIZE / 8];

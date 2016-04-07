@@ -3,7 +3,7 @@
  * from iid.h:
  */
 typedef uint16_t IID_T;
-#define IID_BIT_SIZE (14)
+#define IID_BIT_SIZE (15)
 #define IID_MASK     ((1<<IID_BIT_SIZE)-1)
 
 

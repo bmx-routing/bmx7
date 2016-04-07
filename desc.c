@@ -497,7 +497,7 @@ int32_t tx_msg_description_request(struct tx_frame_iterator *it)
 
 	if ( ( req && kn && (req->descSqn > (kn->nextDesc ? kn->nextDesc->descSqn : 0)) && (req->descSqn > (kn->on? kn->on->dc->descSqn : 0)) ) && (
 		((!req->iid) && kn->bookedState->i.c >= KCTracked && kn->content->f_body && (kn->bookedState->i.r <= KRQualifying || kn->bookedState->i.c >= KCNeighbor)) ||
-		(req->iid && ref && iid_get_neighIID4x_timeout_by_node(ref) && kn->bookedState->i.c >= KCTracked && kn->content->f_body && ref->inaptChainOgm && ref->inaptChainOgm->confirmed && ref->descSqn == req->descSqn)
+		(req->iid && ref && iid_get_neighIID4x_timeout_by_node(ref) && kn->bookedState->i.c >= KCTracked && kn->content->f_body && ref->inaptChainOgm && ref->inaptChainOgm->claimedChain && ref->descSqn == req->descSqn)
 		)) {
 
 		assertion(-500855, (tx_iterator_cache_data_space_pref(it, 0, 0) >= ((int) (sizeof(struct msg_description_request)))));
@@ -641,7 +641,7 @@ int32_t tx_msg_iid_request(struct tx_frame_iterator *it)
 	IID_T *iid = ((IID_T*) it->ttn->key.data);
 	struct NeighRef_node *ref = iid_get_node_by_neighIID4x(&it->ttn->neigh->neighIID4x_repos, *iid, NO);
 
-	if (ref && iid_get_neighIID4x_timeout_by_node(ref) && (!ref->kn || (ref->inaptChainOgm && !ref->inaptChainOgm->confirmed))) {
+	if (ref && iid_get_neighIID4x_timeout_by_node(ref) && (!ref->kn || (ref->inaptChainOgm && !ref->inaptChainOgm->claimedChain))) {
 
 		if (hdr->msg == msg) {
 			assertion(-502287, (is_zero(hdr, sizeof(*hdr))));
@@ -719,7 +719,7 @@ int32_t rx_msg_iid_adv(struct rx_frame_iterator *it)
 	struct msg_iid_adv *msg = (struct msg_iid_adv*) (it->f_msg);
 	struct neigh_node *nn = it->pb->i.verifiedLink->k.linkDev->key.local;
 	AGGREG_SQN_T aggSqnInvalidMax = (nn->ogm_aggreg_max - AGGREG_SQN_CACHE_RANGE);
-	struct InaptChainOgm chainOgm = {.chainOgm = &msg->chainOgm, .ogmMtc = {.val = {.u16 = 0}}, .ogmHopCount = 0};
+	struct InaptChainOgm chainOgm = {.chainOgm = msg->chainOgm, .claimedMetric = {.val = {.u16 = 0}}, .claimedHops = 0, .claimedChain = 1};
 	IID_T iid = ntohs(msg->transmitterIID4x);
 	DESC_SQN_T descSqn = ntohl(msg->descSqn);
 

@@ -92,11 +92,9 @@ struct msg_ogm_adv {
 			unsigned int metric_mantissa : OGM_MANTISSA_BIT_SIZE; // 6
 			unsigned int metric_exp : OGM_EXPONENT_BIT_SIZE; // 5
 			unsigned int hopCount : 6;
-			unsigned int trustedFlag : 1;
 			unsigned int transmitterIID4x : IID_BIT_SIZE;
 #elif __BYTE_ORDER == __BIG_ENDIAN
 			unsigned int transmitterIID4x : IID_BIT_SIZE;
-			unsigned int trustedFlag : 1;
 			unsigned int hopCount : 6;
 			unsigned int metric_exp : OGM_EXPONENT_BIT_SIZE; // 5
 			unsigned int metric_mantissa : OGM_MANTISSA_BIT_SIZE; // 6

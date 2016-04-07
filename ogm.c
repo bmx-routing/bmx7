@@ -115,14 +115,14 @@ void schedule_ogm_aggregations(void)
 
 
 STATIC_FUNC
-void schedule_ogm( struct orig_node *on, OGM_SQN_T ogmSqn, UMETRIC_T um, uint8_t hopCount )
+void schedule_ogm( struct orig_node *on, OGM_SQN_T ogmSqn, UMETRIC_T um, uint8_t hopCount)
 {
 //	assertion(-502281, (on && ogmSqn && um));
         TRACE_FUNCTION_CALL;
 	assertion(-502281, (on && um));
 
-	dbgf_track(DBGT_INFO, "ogmSqn=%d maxRcvd=%d maxSend=%d range=%d metric=%s %ju",
-		ogmSqn, on->dc->ogmSqnMaxRcvd, on->dc->ogmSqnMaxSend, on->dc->ogmSqnRange, umetric_to_human(um), um);
+	dbgf_track(DBGT_INFO, "ogmSqn=%d maxRcvd=%d maxSend=%d range=%d metric=%s %ju hops=%d",
+		ogmSqn, on->dc->ogmSqnMaxRcvd, on->dc->ogmSqnMaxSend, on->dc->ogmSqnRange, umetric_to_human(um), um, hopCount);
 
 	assertion_dbg(-500000, ((um & ~UMETRIC_MASK) == 0), "um=%ju mask=%ju max=%ju",um, UMETRIC_MASK, UMETRIC_MAX);
 
@@ -402,11 +402,10 @@ int32_t tx_frame_ogm_aggreg_advs(struct tx_frame_iterator *it)
 		msg->u.f.metric_exp = fm16.val.f.exp_fm16;
 		msg->u.f.metric_mantissa = fm16.val.f.mantissa_fm16;
 		msg->u.f.hopCount = on->ogmHopCount;
-		msg->u.f.trustedFlag = 0;
 		msg->u.f.transmitterIID4x = iid_get_myIID4x_by_node(on);
 
-		dbgf_track(DBGT_INFO, "name=%s nodeId=%s sqn=%d metric=%ju hops=%d trusted=%d cih=%s chainOgm=%s",
-			on->k.hostname, cryptShaAsShortStr(&on->kn->kHash), on->dc->ogmSqnMaxSend, on->ogmMetric, on->ogmHopCount, msg->u.f.trustedFlag,
+		dbgf_track(DBGT_INFO, "name=%s nodeId=%s sqn=%d metric=%ju hops=%d cih=%s chainOgm=%s",
+			on->k.hostname, cryptShaAsShortStr(&on->kn->kHash), on->dc->ogmSqnMaxSend, on->ogmMetric, on->ogmHopCount,
 			memAsHexString(&on->dc->chainOgmConstInputHash, sizeof(msg->chainOgm)),
 			memAsHexString(&msg->chainOgm, sizeof(msg->chainOgm)));
 
@@ -419,7 +418,7 @@ int32_t tx_frame_ogm_aggreg_advs(struct tx_frame_iterator *it)
 }
 
 STATIC_FUNC
-UMETRIC_T lndev_best_via_router(struct neigh_node *local, struct orig_node *on, UMETRIC_T *ogm_metric, LinkNode **bestPathLink)
+UMETRIC_T lndev_best_via_router(struct neigh_node *local, struct orig_node *on, UMETRIC_T *ogm_metric, LinkNode **bestPathLink, IDM_T trusted)
 {
 	assertion(-502474, (local->linkDev_tree.items));
 	assertion(-500000, (!(*bestPathLink)));
@@ -477,26 +476,26 @@ void process_ogm_metric(void *voidRef)
 	assertion(-500000, (dc->ogmSqnMaxRcvd <= dc->ogmSqnRange));
 	assertion(-500000, (dc->ogmSqnMaxRcvd >= dc->ogmSqnMaxSend));
 	
-	assertion(-500000, (ref->ogmSqnMaxRcvd <= dc->ogmSqnRange));
-	assertion(-500000, (ref->ogmSqnMaxRcvd <= dc->ogmSqnMaxRcvd));
+	assertion(-500000, (ref->ogmSqnMax <= dc->ogmSqnRange));
+	assertion(-500000, (ref->ogmSqnMax <= dc->ogmSqnMaxRcvd));
 
 
 
 	IDM_T neighTrust = verify_neighTrust(on, nn);
-	IDM_T valid_metric = is_fmetric_valid(ref->ogmMtcMaxRcvd);
-	UMETRIC_T ogmMetric = valid_metric ? (neighTrust ? fmetric_to_umetric(ref->ogmMtcMaxRcvd) : UMETRIC_MIN__NOT_ROUTABLE) : 0;
+	IDM_T valid_metric = is_fmetric_valid(ref->ogmSqnMaxClaimedMetric);
+	UMETRIC_T ogmMetric = valid_metric ? (neighTrust ? fmetric_to_umetric(ref->ogmSqnMaxClaimedMetric) : UMETRIC_MIN__NOT_ROUTABLE) : 0;
 	IDM_T discard = (!valid_metric || (ogmMetric < on->mtcAlgo->umetric_min && ogmMetric != UMETRIC_MIN__NOT_ROUTABLE));
 
 	dbgf_track(discard ? DBGT_WARN : DBGT_INFO,
 		"orig=%s via neigh=%s nbTrust=%d validMetric=%d ogmMtc=%ju minMtc=%ju ogmSqnRcvd=%d ogmSqnMaxSend=%d",
 		cryptShaAsShortStr(&on->k.nodeId), cryptShaAsShortStr(&nn->local_id),
-		neighTrust, valid_metric, ogmMetric, on->mtcAlgo->umetric_min, ref->ogmSqnMaxRcvd, on->dc->ogmSqnMaxSend);
+		neighTrust, ref->ogmSqnMaxClaimedTrust, valid_metric, ogmMetric, on->mtcAlgo->umetric_min, ref->ogmSqnMax, on->dc->ogmSqnMaxSend);
 
 	assertion_dbg(-500000, ((ogmMetric & ~UMETRIC_MASK) == 0), "um=%ju mask=%ju max=%ju",ogmMetric, UMETRIC_MASK, UMETRIC_MAX);
 
-	if (kn == myKey && ((ref->ogmSqnMaxRcvd > dc->ogmSqnMaxSend) || (ref->ogmSqnMaxRcvd == dc->ogmSqnMaxSend && ogmMetric >= on->ogmMetric))) {
+	if (kn == myKey && ((ref->ogmSqnMax > dc->ogmSqnMaxSend) || (ref->ogmSqnMax == dc->ogmSqnMaxSend && ogmMetric >= on->ogmMetric))) {
 		dbgf_mute(70, DBGL_SYS, DBGT_WARN, "OGM SQN or metric attack on myself, rcvd via trusted=%d neigh=%s, rcvdSqn=%d sendSqn=%d rcvdMetric=%ju sendMetric=%ju",
-			neighTrust, cryptShaAsShortStr(&nn->local_id), ref->ogmSqnMaxRcvd, dc->ogmSqnMaxSend, ogmMetric, on->ogmMetric);
+			neighTrust, cryptShaAsShortStr(&nn->local_id), ref->ogmSqnMax, dc->ogmSqnMaxSend, ogmMetric, on->ogmMetric);
 		return;
 	}
 
@@ -505,21 +504,21 @@ void process_ogm_metric(void *voidRef)
 		return;
 	}
 
-	if (ref->ogmSqnMaxRcvd >= (dc->ogmSqnMaxSend + 0)) {
+	if (ref->ogmSqnMax >= (dc->ogmSqnMaxSend + 0)) {
 
 		LinkNode *bestLinkViaNeigh = NULL;
-		UMETRIC_T bestMtcViaNeigh = lndev_best_via_router(nn, on, &ogmMetric, &bestLinkViaNeigh);
+		UMETRIC_T bestMtcViaNeigh = lndev_best_via_router(nn, on, &ogmMetric, &bestLinkViaNeigh, (neighTrust && ref->ogmSqnMaxClaimedTrust));
 		assertion(-502478, (bestMtcViaNeigh));
 		assertion_dbg(-500000, ((bestMtcViaNeigh & ~UMETRIC_MASK) == 0), "um=%ju mask=%ju max=%ju", bestMtcViaNeigh, UMETRIC_MASK, UMETRIC_MAX);
 
 		if (
-			((ref->ogmSqnMaxRcvd >= (dc->ogmSqnMaxSend + 2))) ||
-			((ref->ogmSqnMaxRcvd >= (dc->ogmSqnMaxSend + 1)) && (((TIME_T)(bmx_time - ref->ogmTimeMaxRcvd)) >= on->mtcAlgo->ogm_sqn_late_hystere)) ||
-			((ref->ogmSqnMaxRcvd >= (dc->ogmSqnMaxSend + 1)) && (bestLinkViaNeigh == on->curr_rt_link)) ||
+			((ref->ogmSqnMax >= (dc->ogmSqnMaxSend + 2))) ||
+			((ref->ogmSqnMax >= (dc->ogmSqnMaxSend + 1)) && (((TIME_T)(bmx_time - ref->ogmSqnMaxTime)) >= on->mtcAlgo->ogm_sqn_late_hystere)) ||
+			((ref->ogmSqnMax >= (dc->ogmSqnMaxSend + 1)) && (bestLinkViaNeigh == on->curr_rt_link)) ||
 			(sendRevisedOgms && (
-			((ref->ogmSqnMaxRcvd >= (dc->ogmSqnMaxSend + 0)) && (bestMtcViaNeigh > (((100 + sendRevisedOgms) * on->ogmMetric) / 100)) && (bestLinkViaNeigh == on->curr_rt_link)) ||
-			((ref->ogmSqnMaxRcvd >= (dc->ogmSqnMaxSend + 0)) && ref->ogmBestSinceSqn && (ref->ogmSqnMaxRcvd >= on->mtcAlgo->ogm_sqn_best_hystere + ref->ogmBestSinceSqn)) ||
-			((ref->ogmSqnMaxRcvd >= (dc->ogmSqnMaxSend + 0)) && (bestMtcViaNeigh > ((on->ogmMetric * (100 + on->mtcAlgo->ogm_metric_hystere))/100)))))
+			((ref->ogmSqnMax >= (dc->ogmSqnMaxSend + 0)) && (bestMtcViaNeigh > (((100 + sendRevisedOgms) * on->ogmMetric) / 100)) && (bestLinkViaNeigh == on->curr_rt_link)) ||
+			((ref->ogmSqnMax >= (dc->ogmSqnMaxSend + 0)) && ref->ogmBestSinceSqn && (ref->ogmSqnMax >= on->mtcAlgo->ogm_sqn_best_hystere + ref->ogmBestSinceSqn)) ||
+			((ref->ogmSqnMax >= (dc->ogmSqnMaxSend + 0)) && (bestMtcViaNeigh > ((on->ogmMetric * (100 + on->mtcAlgo->ogm_metric_hystere))/100)))))
 			) {
 
 			if (bestLinkViaNeigh != on->curr_rt_link) {
@@ -533,18 +532,18 @@ void process_ogm_metric(void *voidRef)
 					cb_route_change_hooks(ADD, on);
 			}
 
-			schedule_ogm(on, ref->ogmSqnMaxRcvd, bestMtcViaNeigh, ref->ogmHopCountMaxRcvd);
+			schedule_ogm(on, ref->ogmSqnMax, bestMtcViaNeigh, ref->ogmSqnMaxClaimedHops);
 
 			ref->ogmBestSinceSqn = 0;
 
 		} else {
-			if ((ref->ogmSqnMaxRcvd >= (dc->ogmSqnMaxSend + 1)) && (((TIME_T)(bmx_time - ref->ogmTimeMaxRcvd)) < on->mtcAlgo->ogm_sqn_late_hystere)) {
+			if ((ref->ogmSqnMax >= (dc->ogmSqnMaxSend + 1)) && (((TIME_T)(bmx_time - ref->ogmSqnMaxTime)) < on->mtcAlgo->ogm_sqn_late_hystere)) {
 				ref->scheduled_ogm_processing++;
-				task_register((on->mtcAlgo->ogm_sqn_late_hystere - ((TIME_T) (bmx_time - ref->ogmTimeMaxRcvd))), process_ogm_metric, ref, -300764);
+				task_register((on->mtcAlgo->ogm_sqn_late_hystere - ((TIME_T) (bmx_time - ref->ogmSqnMaxTime))), process_ogm_metric, ref, -300764);
 			}
 
 			if ((bestMtcViaNeigh > on->ogmMetric) && !ref->ogmBestSinceSqn)
-				ref->ogmBestSinceSqn = ref->ogmSqnMaxRcvd;
+				ref->ogmBestSinceSqn = ref->ogmSqnMax;
 			else if (bestMtcViaNeigh <= on->ogmMetric)
 				ref->ogmBestSinceSqn = 0;
 		}
@@ -570,9 +569,9 @@ int32_t rx_frame_ogm_aggreg_advs(struct rx_frame_iterator *it)
 		for (; msg < &(hdr->msg[it->f_msgs_fixed]); msg++) {
 
 			struct msg_ogm_adv tmp = {.u = {.u32 = ntohl(msg->u.u32) } };
-			struct InaptChainOgm chainOgm = { .chainOgm = &msg->chainOgm, .ogmHopCount = (tmp.u.f.hopCount+1), .ogmMtc = {.val = {.f = {.exp_fm16 = tmp.u.f.metric_exp, .mantissa_fm16 = tmp.u.f.metric_mantissa}}}};
+			struct InaptChainOgm chainOgm = { .chainOgm = msg->chainOgm, .claimedHops = (tmp.u.f.hopCount+1), .claimedChain = 0, .claimedMetric = {.val = {.f = {.exp_fm16 = tmp.u.f.metric_exp, .mantissa_fm16 = tmp.u.f.metric_mantissa}}}};
 
-			dbgf_track(DBGT_INFO, "iid=%d, ogmSqn=%d ogmMtc=%d hops=%d", tmp.u.f.transmitterIID4x, chainOgm.ogmMtc.val.u16, tmp.u.f.hopCount+1);
+			dbgf_track(DBGT_INFO, "iid=%d, ogmSqn=%d ogmMtc=%d hops=%d", tmp.u.f.transmitterIID4x, chainOgm.claimedMetric.val.u16, tmp.u.f.hopCount+1);
 
 			neighRef_update(nn, aggSqn, tmp.u.f.transmitterIID4x, NULL, 0, &chainOgm);
 

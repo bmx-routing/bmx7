@@ -189,11 +189,13 @@ struct ChainAnchorKey {
 	struct key_node *kn;
 	DESC_SQN_T descSqnNetOrder;
 } __attribute__((packed));
+
+
 struct InaptChainOgm {
-	ChainLink_T *chainOgm;
-	FMETRIC_U16_T ogmMtc;
-	uint8_t ogmHopCount;
-	uint8_t confirmed;
+	ChainLink_T chainOgm;
+	FMETRIC_U16_T claimedMetric;
+	uint8_t claimedHops;
+	uint8_t claimedChain;
 };
 
 struct KeyWatchNode {

@@ -315,10 +315,12 @@ struct NeighRef_node {
 	struct neigh_node *nn;
 	struct key_node *kn;
 	DESC_SQN_T descSqn;
-	OGM_SQN_T ogmSqnMaxRcvd;
-	FMETRIC_U16_T ogmMtcMaxRcvd;
-	uint8_t ogmHopCountMaxRcvd;
-	TIME_T ogmTimeMaxRcvd;
+
+	OGM_SQN_T ogmSqnMax;
+	FMETRIC_U16_T ogmSqnMaxClaimedMetric;
+	uint8_t ogmSqnMaxClaimedHops;
+	uint8_t ogmSqnMaxClaimedTrust;
+	TIME_T ogmSqnMaxTime;
 
 	// set by rx_frame_ogm_aggreg_adv():
 	TIME_T ogmBestSinceSqn;

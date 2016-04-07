@@ -78,7 +78,6 @@ STATIC_FUNC
 void inaptChainOgm_destroy_(struct NeighRef_node *ref)
 {
 	if (ref->inaptChainOgm) {
-		debugFree(ref->inaptChainOgm->chainOgm, -300000);
 		debugFree(ref->inaptChainOgm, -300000);
 		ref->inaptChainOgm = NULL;
 	}
@@ -86,26 +85,24 @@ void inaptChainOgm_destroy_(struct NeighRef_node *ref)
 
 
 STATIC_FUNC
-void inaptChainOgm_update_(struct NeighRef_node *ref, struct InaptChainOgm *inaptChainOgm, uint8_t confirmed)
+void inaptChainOgm_update_(struct NeighRef_node *ref, struct InaptChainOgm *inaptChainOgm, uint8_t claimedChain)
 {
-	if (!ref->inaptChainOgm) {
-		ref->inaptChainOgm = debugMalloc(sizeof(struct InaptChainOgm), -300000);
-		ref->inaptChainOgm->chainOgm = debugMalloc(sizeof(ChainLink_T), -300000);
-	}
+
+	if (!ref->inaptChainOgm)
+		ref->inaptChainOgm = debugMalloc(sizeof(struct msg_ogm_adv), -300000);
+
 
 	if (ref->inaptChainOgm != inaptChainOgm) {
 		
-		if (!memcmp(inaptChainOgm->chainOgm, ref->inaptChainOgm->chainOgm, sizeof(ChainLink_T))) {
-			ref->inaptChainOgm->ogmMtc.val.u16 = XMAX(inaptChainOgm->ogmMtc.val.u16, ref->inaptChainOgm->ogmMtc.val.u16);
-			ref->inaptChainOgm->ogmHopCount = XMAX(inaptChainOgm->ogmHopCount, ref->inaptChainOgm->ogmHopCount);
+		if (memcmp(&inaptChainOgm->chainOgm, &ref->inaptChainOgm->chainOgm, sizeof(ChainLink_T)) == 0) {
+			ref->inaptChainOgm->claimedMetric.val.u16 = XMAX(inaptChainOgm->claimedMetric.val.u16, ref->inaptChainOgm->claimedMetric.val.u16);
+			ref->inaptChainOgm->claimedHops = XMAX(inaptChainOgm->claimedHops, ref->inaptChainOgm->claimedHops);
 		} else {
-			ref->inaptChainOgm->ogmMtc = inaptChainOgm->ogmMtc;
-			*ref->inaptChainOgm->chainOgm = *inaptChainOgm->chainOgm;
-			ref->inaptChainOgm->ogmHopCount = inaptChainOgm->ogmHopCount;
+			*ref->inaptChainOgm = *inaptChainOgm;
 		}
 	}
 
-	ref->inaptChainOgm->confirmed = confirmed;
+	ref->inaptChainOgm->claimedChain = claimedChain;
 }
 
 void neighRef_destroy(struct NeighRef_node *ref, IDM_T reAssessState)
@@ -155,11 +152,11 @@ struct NeighRef_node *neighRef_resolve_or_destroy(struct NeighRef_node *ref, IDM
 		struct key_node *kn = ref->kn;
 		struct neigh_node *nn = ref->nn;
 
-		if (!kn || (ref->inaptChainOgm && !ref->inaptChainOgm->confirmed)) {
+		if (!kn || (ref->inaptChainOgm && !ref->inaptChainOgm->claimedChain)) {
 
 			schedule_tx_task(FRAME_TYPE_IID_REQ, &nn->local_id, nn, nn->best_tp_link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &iid, sizeof(iid));
 
-		} else if (kn->bookedState->i.c >= KCTracked && kn->content->f_body && ref->inaptChainOgm && ref->inaptChainOgm->confirmed &&
+		} else if (kn->bookedState->i.c >= KCTracked && kn->content->f_body && ref->inaptChainOgm && ref->inaptChainOgm->claimedChain &&
 			(ref->descSqn > (kn->nextDesc ? kn->nextDesc->descSqn : 0)) && (ref->descSqn > (kn->on ? kn->on->dc->descSqn : 0))) {
 
 			struct schedule_dsc_req req = {.iid = iid, .descSqn = ref->descSqn};
@@ -262,8 +259,9 @@ struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn
 		if (ref->descSqn < descSqn) {
 			ref->descSqn = descSqn;
 			ref->ogmBestSinceSqn = 0;
-			ref->ogmSqnMaxRcvd = 0;
-			ref->ogmMtcMaxRcvd.val.u16 = 0;
+			ref->ogmSqnMax = 0;
+			ref->ogmSqnMaxClaimedMetric.val.u16 = 0;
+			ref->ogmSqnMaxClaimedHops = 0;
 		}
 
 	} else {
@@ -273,8 +271,8 @@ struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn
 
 	if ((chainOgm = inChainOgm ? inChainOgm : ref->inaptChainOgm)) {
 
-		if ((kn && kn->on && (dc = kn->on->dc) && ref->descSqn == dc->descSqn && (ogmSqn = chainOgmFind(chainOgm->chainOgm, dc, (descSqn ? dc->ogmSqnRange : ogmSqnDeviationMax)))) ||
-			(kn && (dc = kn->nextDesc) && ref->descSqn <= dc->descSqn && (ogmSqn = chainOgmFind(chainOgm->chainOgm, dc, ((descSqn || ref->descSqn < dc->descSqn) ? dc->ogmSqnRange : ogmSqnDeviationMax))))) {
+		if ((kn && kn->on && (dc = kn->on->dc) && ref->descSqn == dc->descSqn && (ogmSqn = chainOgmFind(&chainOgm->chainOgm, dc, (descSqn ? dc->ogmSqnRange : ogmSqnDeviationMax)))) ||
+			(kn && (dc = kn->nextDesc) && ref->descSqn <= dc->descSqn && (ogmSqn = chainOgmFind(&chainOgm->chainOgm, dc, ((descSqn || ref->descSqn < dc->descSqn) ? dc->ogmSqnRange : ogmSqnDeviationMax))))) {
 
 			assertion(-500000, (ogmSqn <= dc->ogmSqnRange));
 			assertion(-500000, (dc->ogmSqnMaxRcvd <= dc->ogmSqnRange));
@@ -284,25 +282,29 @@ struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn
 			if (ref->descSqn < dc->descSqn) {
 				ref->descSqn = dc->descSqn;
 				ref->ogmBestSinceSqn = 0;
-				ref->ogmSqnMaxRcvd = 0;
-				ref->ogmMtcMaxRcvd.val.u16 = 0;
+				ref->ogmSqnMax = 0;
+				ref->ogmSqnMaxClaimedMetric.val.u16 = 0;
+				ref->ogmSqnMaxClaimedHops = 0;
 			}
 
-			if (ref->ogmSqnMaxRcvd > ogmSqn)
+			if (ref->ogmSqnMax > ogmSqn)
 				goto_error_return(finish, "Outdated ogmSqn", NULL);
 
 			dc->referred_by_others_timestamp = bmx_time;
 
-			if (ref->ogmSqnMaxRcvd != ogmSqn)
-				ref->ogmTimeMaxRcvd = bmx_time;
+			if (ref->ogmSqnMax < ogmSqn) {
+				ref->ogmSqnMaxTime = bmx_time;
+				ref->ogmSqnMax = ogmSqn;
+				ref->ogmSqnMaxClaimedMetric.val.u16 = 0;
+				ref->ogmSqnMaxClaimedHops = 0;
+			}
 
-			ref->ogmSqnMaxRcvd = ogmSqn;
-			if (ref->inaptChainOgm && !memcmp(ref->inaptChainOgm->chainOgm, chainOgm->chainOgm, sizeof(ChainLink_T))) {
-				ref->ogmMtcMaxRcvd.val.u16 = XMAX(ref->inaptChainOgm->ogmMtc.val.u16, chainOgm->ogmMtc.val.u16);
-				ref->ogmHopCountMaxRcvd = XMAX(ref->inaptChainOgm->ogmHopCount, chainOgm->ogmHopCount);
-			} else {
-				ref->ogmMtcMaxRcvd.val.u16 = chainOgm->ogmMtc.val.u16;
-				ref->ogmHopCountMaxRcvd = chainOgm->ogmHopCount;
+			ref->ogmSqnMaxClaimedMetric.val.u16 = XMAX(chainOgm->claimedMetric.val.u16, ref->ogmSqnMaxClaimedMetric.val.u16);
+			ref->ogmSqnMaxClaimedHops = XMAX(chainOgm->claimedHops, ref->ogmSqnMaxClaimedHops);
+
+			if (ref->inaptChainOgm && memcmp(&ref->inaptChainOgm->chainOgm, &chainOgm->chainOgm, sizeof(ChainLink_T)) == 0) {
+				ref->ogmSqnMaxClaimedMetric.val.u16 = XMAX(ref->inaptChainOgm->claimedMetric.val.u16, ref->ogmSqnMaxClaimedMetric.val.u16);
+				ref->ogmSqnMaxClaimedHops = XMAX(ref->inaptChainOgm->claimedHops, ref->ogmSqnMaxClaimedHops);
 			}
 
 
@@ -330,15 +332,15 @@ finish: {
 		"DC: ogmSqnRange=%d  ogmSqnMaxRcvd=%d \n"
 		"OUT: ogmSqn=%d ",
 		goto_error_code, ((nn && nn->on) ? nn->on->k.hostname : NULL), aggSqn, neighIID4x, cryptShaAsShortStr(kHash), descSqn,
-		memAsHexString(inChainOgm ? inChainOgm->chainOgm : NULL, sizeof(ChainLink_T)), (inChainOgm ? (int)inChainOgm->ogmMtc.val.u16 : -1),
+		memAsHexString(inChainOgm ? &inChainOgm->chainOgm : NULL, sizeof(ChainLink_T)), (inChainOgm ? (int)inChainOgm->claimedMetric.val.u16 : -1),
 
 		cryptShaAsShortStr(ref && ref->kn ? &ref->kn->kHash : NULL),
 		(ref ? (int)ref->descSqn : -1 ),
 		(ref && ref->kn && ref->kn->on ? ref->kn->on->k.hostname : NULL),
-		(ref ? (int)ref->ogmSqnMaxRcvd : -1),
-		(ref ? (int)ref->ogmMtcMaxRcvd.val.u16 : -1),
-		(ref && ref->inaptChainOgm ? memAsHexString(ref->inaptChainOgm->chainOgm, sizeof(ChainLink_T)): NULL),
-		(ref && ref->inaptChainOgm ? (int)ref->inaptChainOgm->ogmMtc.val.u16 : -1),
+		(ref ? (int)ref->ogmSqnMax : -1),
+		(ref ? (int)ref->ogmSqnMaxClaimedMetric.val.u16 : -1),
+		(ref && ref->inaptChainOgm ? memAsHexString(&ref->inaptChainOgm->chainOgm, sizeof(ChainLink_T)): NULL),
+		(ref && ref->inaptChainOgm? (int)ref->inaptChainOgm->claimedMetric.val.u16 : -1),
 
 		(dc ? (int)dc->ogmSqnRange : -1), (dc ? (int)dc->ogmSqnMaxRcvd : -1),
 		ogmSqn);

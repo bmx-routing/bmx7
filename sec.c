@@ -1745,6 +1745,7 @@ void cleanup_dir_watch(struct DirWatch **dw)
 	while ((*dw)->node_tree.items)
 		(*(*dw)->idChanged)(DEL, ((struct KeyWatchNode *) avl_first_item(&(*dw)->node_tree)), *dw);
 
+	debugFree((*dw)->pathp, -300000);
 	debugFree(*dw, -300000);
 	*dw = NULL;
 
@@ -1816,7 +1817,8 @@ IDM_T init_dir_watch(struct DirWatch **dw, char *path, void (* idChangedTask) (I
 
 	(*dw) = debugMallocReset(sizeof(struct DirWatch), -300000);
 
-	(*dw)->pathp = path;
+	(*dw)->pathp = debugMalloc(strlen(path) + 1, -300000);
+	strcpy((*dw)->pathp, path);
 	(*dw)->idChanged = idChangedTask;
 	(*dw)->retryCnt = 5;
 	AVL_INIT_TREE((*dw)->node_tree, struct KeyWatchNode, global_id);
@@ -1863,14 +1865,12 @@ int32_t opt_trust_watch(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
 
 		my_description_changed = YES;
 
-		struct DirWatch **dw = &trustedDirWatch;
-
 		if (patch->diff == DEL || patch->diff == ADD)
-			cleanup_dir_watch(dw);
+			cleanup_dir_watch(&trustedDirWatch);
 
 		if (patch->diff == ADD) {
 			assertion(-501286, (patch->val));
-			return init_dir_watch(dw, patch->val, idChanged_Trusted);
+			return init_dir_watch(&trustedDirWatch, patch->val, idChanged_Trusted);
 		}
         }
 

@@ -59,7 +59,7 @@ struct key_node *keyNode_updCredits(GLOBAL_ID_T *kHash, struct key_node *kn, str
 void keyNode_delCredits_(const char *f, GLOBAL_ID_T *kHash, struct key_node *kn, struct key_credits *kc);
 #define KEYNODES_BLOCKING_ID 10
 
-#define keyNodes_block_and_sync( a, b ) keyNodes_block_and_sync_( __FUNCTION__, (a), (b) )
+#define keyNodes_block_and_sync( id, force ) keyNodes_block_and_sync_( __FUNCTION__, (id), (force) )
 uint32_t keyNodes_block_and_sync_(const char *f, uint32_t id, IDM_T force);
 void keyNode_fixTimeouts();
 struct key_node *keyNode_get(GLOBAL_ID_T *kHask);

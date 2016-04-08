@@ -1132,19 +1132,28 @@ uint32_t keyNodes_block_and_sync_(const char *f, uint32_t id, IDM_T force)
 
 	if ( force || id ) {
 
-		if (id)
-			keyNodes_next_block_id--;
+		if (force || (keyNodes_next_block_id - 1) == KEYNODES_BLOCKING_ID) {
 
-		if (force || keyNodes_next_block_id == KEYNODES_BLOCKING_ID) {
 			uint32_t changes = 0;
+
 			changes += keyNodes_setDecreasedStates_(f);
 			changes += keyNodes_fixLimits();
+
+			if (id)
+				keyNodes_next_block_id--;
+
 			return YES + changes;
+
+		} else {
+
+			if (id)
+				keyNodes_next_block_id--;
+
+			return NO;
 		}
 
-		return NO;
-
 	} else {
+
 		keyNodes_next_block_id++;
 		return (keyNodes_next_block_id-1);
 	}

@@ -258,17 +258,28 @@ struct dsc_msg_signature {
 {FIELD_TYPE_UINT,          -1, 8*sizeof(uint16_t),                   1, FIELD_RELEVANCE_HIGH,  "reserved"}, \
 FIELD_FORMAT_END }
 
-struct dsc_msg_trust {
-	CRYPTSHA1_T nodeId;
+struct desc_msg_trust_fields {
+
+	union {
+
+		struct {
 #if __BYTE_ORDER == __LITTLE_ENDIAN         // 2 bytes
-	unsigned int reserved : 14;
-	unsigned int trustLevel : 2;
+			unsigned int reserved : 14;
+			unsigned int trustLevel : 2;
 #elif __BYTE_ORDER == __BIG_ENDIAN
-	unsigned int trustLevel : 2;
-	unsigned int reserved : 14;
+			unsigned int trustLevel : 2;
+			unsigned int reserved : 14;
 #else
 #error "Please fix <bits/endian.h>"
 #endif
+		} f;
+		uint16_t u16;
+	} u;
+};
+
+struct dsc_msg_trust {
+	CRYPTSHA1_T nodeId;
+	struct desc_msg_trust_fields f;
 
 } __attribute__((packed));
 

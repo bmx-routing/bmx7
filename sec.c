@@ -1259,8 +1259,9 @@ IDM_T setted_pubkey(struct desc_content *dc, uint8_t type, GLOBAL_ID_T *globalId
 
 	for (m = 0; m < msgs; m++) {
 
-		if (msg[m].trustLevel >= TYP_TRUST_LEVEL_DIRECT && cryptShasEqual(&msg[m].nodeId, globalId))
-			return msg[m].trustLevel;
+		struct desc_msg_trust_fields f = {.u = {.u16 = ntohs(msg[m].f.u.u16)}};
+		if (f.u.f.trustLevel >= TYP_TRUST_LEVEL_DIRECT && cryptShasEqual(&msg[m].nodeId, globalId))
+			return f.u.f.trustLevel;
 	}
 
 	if (isRecommendedDc)
@@ -1268,8 +1269,10 @@ IDM_T setted_pubkey(struct desc_content *dc, uint8_t type, GLOBAL_ID_T *globalId
 
 	for (m = 0; m < msgs; m++) {
 
+		struct desc_msg_trust_fields f = {.u = {.u16 = ntohs(msg[m].f.u.u16)}};
+
 		if (
-			(msg[m].trustLevel >= TYP_TRUST_LEVEL_IMPORT) &&
+			(f.u.f.trustLevel >= TYP_TRUST_LEVEL_IMPORT) &&
 			(on = avl_find_item(&orig_tree, &msg[m].nodeId)) &&
 			(setted_pubkey(on->dc, type, globalId, 1) >= TYP_TRUST_LEVEL_DIRECT)
 			) {
@@ -1399,13 +1402,15 @@ int test_dsc_tlv_trust(uint8_t type, struct desc_content *dc)
 		CRYPTSHA1_T sha = ZERO_CYRYPSHA1;
 		for (m = 0; m < msgs; m++) {
 
+			struct desc_msg_trust_fields f = {.u = {.u16 = ntohs(trustList[m].f.u.u16)}};
+
 			if (memcmp(&trustList[m].nodeId, &sha, sizeof(sha)) <= 0) {
 				dbgf_sys(DBGT_ERR, "dscTlvType=%s msg=%d nodeId=%s is less or equal than previous nodeId=%s",
 					description_tlv_db->handls[type].name, m, cryptShaAsString(&trustList[m].nodeId), cryptShaAsString(&sha));
 				return FAILURE;
 			}
 
-			if (trustList[m].trustLevel > MAX_TRUST_LEVEL)
+			if (f.u.f.trustLevel > MAX_TRUST_LEVEL)
 				return FAILURE;
 	
 			sha = trustList[m].nodeId;
@@ -1435,7 +1440,9 @@ void apply_trust_changes(int8_t f_type, struct orig_node *on, struct desc_conten
 
 	for (m = 0; m < oldMsgs; m++) {
 
-		if (f_type == BMX_DSC_TLV_TRUSTS && oldMsg[m].trustLevel < TYP_TRUST_LEVEL_IMPORT)
+		struct desc_msg_trust_fields f = {.u = {.u16 = ntohs(oldMsg[m].f.u.u16)}};
+
+		if (f_type == BMX_DSC_TLV_TRUSTS && f.u.f.trustLevel < TYP_TRUST_LEVEL_IMPORT)
 			continue;
 
 		if (cryptShasEqual(&on->kn->kHash, &oldMsg[m].nodeId))
@@ -1447,7 +1454,9 @@ void apply_trust_changes(int8_t f_type, struct orig_node *on, struct desc_conten
 
 	for (m = 0; m < newMsgs; m++) {
 
-		if (f_type == BMX_DSC_TLV_TRUSTS && newMsg[m].trustLevel < TYP_TRUST_LEVEL_IMPORT)
+		struct desc_msg_trust_fields f = {.u = {.u16 = ntohs(newMsg[m].f.u.u16)}};
+
+		if (f_type == BMX_DSC_TLV_TRUSTS && f.u.f.trustLevel < TYP_TRUST_LEVEL_IMPORT)
 			continue;
 //			if(cryptShasEqual(&opMsg[m].nodeId, &myKey->kHash) || cryptShasEqual(&opMsg[m].nodeId, &it->on->key->kHash))
 //				continue;
@@ -1510,7 +1519,8 @@ int create_dsc_tlv_trusts(struct tx_frame_iterator *it)
 				}
 
 				msg->nodeId = tn->global_id;
-				msg->trustLevel = configTrust;
+				msg->f.u.f.trustLevel = configTrust;
+				msg->f.u.u16 = htons(msg->f.u.u16);
 				msg++;
 				pos += sizeof(struct dsc_msg_trust);
 

@@ -272,7 +272,7 @@ struct desc_msg_trust_fields {
 #else
 #error "Please fix <bits/endian.h>"
 #endif
-		} f;
+		} __attribute__((packed)) f;
 		uint16_t u16;
 	} u;
 };

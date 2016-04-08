@@ -1066,7 +1066,7 @@ int32_t opt_set_trusted (uint8_t cmd, uint8_t _save, struct opt_type *opt, struc
 			}
 		}
 
-		if (!dirName || check_dir(dirName, (!strcmp(dirName, DEF_TRUSTED_NODES_DIR) ? YES : NO), YES, NO) != SUCCESS)
+		if (!dirName || check_dir(dirName, ((strcmp(dirName, DEF_TRUSTED_NODES_DIR) == 0) ? YES : NO), YES, NO) != SUCCESS)
 			goto_error(opt_set_trusted_error, "Failed checking trustedNodesDir");
 
 		if (!(dir = opendir(dirName)))
@@ -1123,7 +1123,7 @@ int32_t opt_set_trusted (uint8_t cmd, uint8_t _save, struct opt_type *opt, struc
 
 opt_set_trusted_error:
 
-	dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "%s error=%s oldTrustFile=%s newTrustFile=%s", goto_error_code, strerror(errno), oldFullPath, newFullPath);
+	dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "%s error=%s oldTrustFile=%s newTrustFile=%s dirName=%s", goto_error_code, strerror(errno), oldFullPath, newFullPath, dirName);
 
 	return FAILURE;
 }

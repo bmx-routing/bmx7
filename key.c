@@ -804,8 +804,8 @@ void keyNode_delCredits_(const char* f, GLOBAL_ID_T *kHash, struct key_node *kn,
 	if (kc) {
 
 		if (kc->dFriend || kc->recom || kc->trusteeRef || kc->pktId || kc->pktSign || kc->nQualifying) {
-			dbgf_sys(DBGT_INFO, "%s now=%d id=%s bookedState=%s friend=%d/%d recom=%d/%d trustees=%d/%d pktId=%d/%d pktSing=%d/%d nQ=%d/%d",
-				f, bmx_time, cryptShaAsShortStr(&kn->kHash), kn->bookedState->secName,
+			dbgf_sys(DBGT_INFO, "%s id=%s bookedState=%s friend=%d/%d recom=%d/%d trustees=%d/%d pktId=%d/%d pktSing=%d/%d nQ=%d/%d",
+				f, cryptShaAsShortStr(&kn->kHash), kn->bookedState->secName,
 				kc->dFriend, kn->dFriend, !!kc->recom, kn->recommendations_tree.items, !!kc->trusteeRef, kn->trustees_tree.items,
 				kc->pktId, kn->pktIdTime, kc->pktSign, kn->pktSignTime, kc->nQualifying, kn->nQTime);
 		}

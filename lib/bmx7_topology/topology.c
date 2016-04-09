@@ -162,16 +162,16 @@ int process_description_topology(struct rx_frame_iterator *it)
 
 
 STATIC_FUNC
-UMETRIC_T * umetric_multiply_normalized(UMETRIC_T *a, UMETRIC_T *b)
+UMETRIC_T umetric_multiply_normalized(UMETRIC_T *a, UMETRIC_T *b)
 {
-	static UMETRIC_T um;
+	UMETRIC_T um;
 
         if (*b < UMETRIC_MULTIPLY_MAX)
                 um = (*a * *b) / UMETRIC_MAX;
         else
                 um = (*a * ((*b << UMETRIC_SHIFT_MAX) / UMETRIC_MAX)) >> UMETRIC_SHIFT_MAX;
 
-	return &um;
+	return um;
 }
 
 
@@ -196,8 +196,8 @@ void set_local_topology_node(struct local_topology_node *ltn, struct neigh_node 
 	assertion(-500000, (&local->best_tp_link->timeaware_tx_probe));
 	assertion(-500000, (&local->best_tp_link->timeaware_rx_probe));
 
-	ltn->txBw = *umetric_multiply_normalized(&local->best_tp_link->k.myDev->umetric_max, &local->best_tp_link->timeaware_tx_probe);
-	ltn->rxBw = *umetric_multiply_normalized(&local->best_tp_link->k.myDev->umetric_max, &local->best_tp_link->timeaware_rx_probe);
+	ltn->txBw = umetric_multiply_normalized(&local->best_tp_link->k.myDev->umetric_max, &local->best_tp_link->timeaware_tx_probe);
+	ltn->rxBw = umetric_multiply_normalized(&local->best_tp_link->k.myDev->umetric_max, &local->best_tp_link->timeaware_rx_probe);
 	ltn->txRate = ((local->best_tp_link->timeaware_tx_probe * 100) / UMETRIC_MAX);
 	ltn->rxRate = ((local->best_tp_link->timeaware_rx_probe * 100) / UMETRIC_MAX);
 }

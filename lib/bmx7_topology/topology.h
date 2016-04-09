@@ -37,7 +37,7 @@ struct description_msg_topology {
 	FMETRIC_U8_T rxBw;
 	uint8_t txRate;
 	uint8_t rxRate;
-	PKID_T pkid;
+	GLOBAL_ID_T pkid;
 } __attribute__((packed));
 
 #define DESCRIPTION_MSG_TOPOLOGY_FORMAT { \
@@ -47,11 +47,11 @@ struct description_msg_topology {
 {FIELD_TYPE_UINT,             -1, (8*sizeof(uint8_t)),     1, FIELD_RELEVANCE_HIGH, "rxBw"}, \
 {FIELD_TYPE_UINT,             -1, (8*sizeof(uint8_t)),     1, FIELD_RELEVANCE_HIGH, "txRate"}, \
 {FIELD_TYPE_UINT,             -1, (8*sizeof(uint8_t)),     1, FIELD_RELEVANCE_HIGH, "rxRate"}, \
-{FIELD_TYPE_STRING_BINARY,    -1, (8*sizeof(PKID_T)),      1, FIELD_RELEVANCE_HIGH, "neighId"},  \
+{FIELD_TYPE_GLOBAL_ID,        -1, (8*sizeof(GLOBAL_ID_T)), 1, FIELD_RELEVANCE_HIGH, "neighId"},  \
 FIELD_FORMAT_END }
 
 struct local_topology_node {
-	PKID_T pkid;
+	GLOBAL_ID_T pkid;
 	UMETRIC_T txBw;
 	UMETRIC_T rxBw;
 	uint8_t txRate;

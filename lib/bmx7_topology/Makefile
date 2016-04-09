@@ -3,7 +3,7 @@ CFLAGS +=	$(CORE_CFLAGS) -fpic -I../../
 LDFLAGS +=	-shared
 #-Wl,-soname,bmxd_config 
 
-PLUGIN_NAME =   bmx6_topology
+PLUGIN_NAME =   bmx7_topology
 
 SRC_C = topology.c
 SRC_H = topology.h

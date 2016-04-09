@@ -30,12 +30,27 @@
 #include <dirent.h>
 #include <sys/inotify.h>
 
+
+
+#include "list.h"
+#include "control.h"
 #include "bmx.h"
+#include "crypt.h"
+#include "avl.h"
+#include "node.h"
+#include "key.h"
+#include "sec.h"
+#include "metrics.h"
+#include "ogm.h"
 #include "msg.h"
+#include "desc.h"
+#include "content.h"
 #include "plugin.h"
 #include "schedule.h"
-#include "metrics.h"
+#include "tools.h"
+#include "iptools.h"
 #include "ip.h"
+#include "allocate.h"
 #include "topology.h"
 
 
@@ -58,7 +73,6 @@ struct topology_status {
         char* neighName;
         GLOBAL_ID_T *neighId;
         IPX_T neighIp;
-        uint8_t blocked;
 	uint32_t lastDesc;
         UMETRIC_T txBw;
         UMETRIC_T rxBw;
@@ -73,7 +87,6 @@ static const struct field_format topology_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      topology_status, neighName,     1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, topology_status, neighId,       1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_IPX,               topology_status, neighIp,       1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              topology_status, blocked,       1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              topology_status, lastDesc,      1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           topology_status, txBw,          1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           topology_status, rxBw,          1, FIELD_RELEVANCE_HIGH),
@@ -97,30 +110,29 @@ static int32_t topology_status_creator(struct status_handl *handl, void *data)
 		topology_msgs = 0;
 		topology_msg = NULL;
 		uint32_t m = 0;
-		process_description_tlvs(NULL, on, on->desc, TLV_OP_CUSTOM_TOPOLOGY, BMX_DSC_TLV_TOPOLOGY, NULL, NULL);
+		process_description_tlvs(NULL, on, on->dc, NULL, TLV_OP_CUSTOM_TOPOLOGY, BMX_DSC_TLV_TOPOLOGY);
 
 		for (m=0; topology_msg && m < topology_msgs; m++) {
 
 			struct orig_node *non;
 			struct avl_node *nan = NULL;
-			while ((non = avl_iterate_item(&orig_tree, &nan)) && memcmp(&non->global_id.pkid, &topology_msg[m].pkid, sizeof(PKID_T)));
+			while ((non = avl_iterate_item(&orig_tree, &nan)) && memcmp(&non->k.nodeId, &topology_msg[m].pkid, sizeof(GLOBAL_ID_T)));
 
 			if (non) {
 				stsize += sizeof(struct topology_status);
 				status = ((struct topology_status*) (handl->data = debugRealloc(handl->data, stsize, -300366)));
 
 				memset(&status[i], 0, sizeof(struct topology_status));
-				status[i].name = on->global_id.name;
-				status[i].id = &on->global_id;
+				status[i].name = on->k.hostname;
+				status[i].id = &on->k.nodeId;
 				status[i].primaryIp = on->primary_ip;
-				status[i].blocked = on->blocked || non->blocked;
 				status[i].lastDesc = (bmx_time - on->updated_timestamp) / 1000;
 				status[i].txBw = fmetric_u8_to_umetric(topology_msg[m].txBw);
 				status[i].rxBw = fmetric_u8_to_umetric(topology_msg[m].rxBw);
 				status[i].txRate = topology_msg[m].txRate;
 				status[i].rxRate = topology_msg[m].rxRate;
-				status[i].neighName = non->global_id.name;
-				status[i].neighId = &non->global_id;
+				status[i].neighName = non->k.hostname;
+				status[i].neighId = &non->k.nodeId;
 				status[i].neighIp = non->primary_ip;
 
 				i++;
@@ -141,11 +153,11 @@ int process_description_topology(struct rx_frame_iterator *it)
 {
 
 	if (it->op == TLV_OP_CUSTOM_TOPOLOGY) {
-		topology_msgs = it->frame_msgs_length / it->handl->min_msg_size;
-		topology_msg = (struct description_msg_topology*)it->frame_data;
+		topology_msgs = it->f_msgs_len / it->f_handl->min_msg_size;
+		topology_msg = (struct description_msg_topology*)it->f_data;
 	}
 
-	return it->frame_msgs_length;
+	return it->f_msgs_len;
 }
 
 
@@ -173,14 +185,14 @@ int check_value_deviation(UMETRIC_T a, UMETRIC_T b, UMETRIC_T percent)
 }
 
 STATIC_FUNC
-void set_local_topology_node(struct local_topology_node *ltn, struct local_node *local)
+void set_local_topology_node(struct local_topology_node *ltn, struct neigh_node *local)
 {
-	assertion(-500000, (ltn && local && local->neigh && local->neigh->dhn->on && local->best_tp_lndev));
+	assertion(-500000, (ltn && local && local->on && local->best_tp_link));
 
-	ltn->txBw = *umetric_multiply_normalized(&local->best_tp_lndev->key.dev->umetric_max, &local->best_tp_lndev->timeaware_tx_probe);
-	ltn->rxBw = *umetric_multiply_normalized(&local->best_tp_lndev->key.dev->umetric_max, &local->best_tp_lndev->timeaware_rx_probe);
-	ltn->txRate = ((local->best_tp_lndev->timeaware_tx_probe * 100) / UMETRIC_MAX);
-	ltn->rxRate = ((local->best_tp_lndev->timeaware_rx_probe * 100) / UMETRIC_MAX);
+	ltn->txBw = *umetric_multiply_normalized(&local->best_tp_link->k.myDev->umetric_max, &local->best_tp_link->timeaware_tx_probe);
+	ltn->rxBw = *umetric_multiply_normalized(&local->best_tp_link->k.myDev->umetric_max, &local->best_tp_link->timeaware_rx_probe);
+	ltn->txRate = ((local->best_tp_link->timeaware_tx_probe * 100) / UMETRIC_MAX);
+	ltn->rxRate = ((local->best_tp_link->timeaware_rx_probe * 100) / UMETRIC_MAX);
 }
 
 STATIC_FUNC
@@ -189,14 +201,14 @@ void check_local_topology_cache(void *nothing)
 	assertion(-500000, (my_topology_period < MAX_TOPOLOGY_PERIOD));
 
         struct avl_node *local_it;
-        struct local_node *local;
+        struct neigh_node *local;
 	uint32_t m = 0;
 
 	for (local_it = NULL; (local = avl_iterate_item(&local_tree, &local_it));) {
 
-		if (local->neigh && local->neigh->dhn->on && local->best_tp_lndev) {
+		if (local && local->best_tp_link) {
 
-			struct local_topology_node *ltn = avl_find_item(&local_topology_tree, &local->neigh->dhn->on->global_id.pkid);
+			struct local_topology_node *ltn = avl_find_item(&local_topology_tree, &local->local_id);
 			struct local_topology_node tmp;
 
 			if (!ltn) {
@@ -206,7 +218,7 @@ void check_local_topology_cache(void *nothing)
 
 			set_local_topology_node(&tmp, local);
 
-			if ( (bmx_time - self->updated_timestamp) > ((uint32_t)my_topology_period * 10) && (
+			if ( (bmx_time - myKey->on->updated_timestamp) > ((uint32_t)my_topology_period * 10) && (
 				check_value_deviation(ltn->txBw, tmp.txBw, 0) ||
 				check_value_deviation(ltn->rxBw, tmp.rxBw, 0) ||
 				check_value_deviation(ltn->txRate, tmp.txRate, 0) ||
@@ -253,7 +265,7 @@ STATIC_FUNC
 int create_description_topology(struct tx_frame_iterator *it)
 {
         struct avl_node *local_it = NULL;
-        struct local_node *local;
+        struct neigh_node *local;
         int32_t m = 0;
 
 	struct description_msg_topology *msg = (struct description_msg_topology *) tx_iterator_cache_msg_ptr(it);
@@ -267,14 +279,14 @@ int create_description_topology(struct tx_frame_iterator *it)
 	task_register(my_topology_period, check_local_topology_cache, NULL, -300000);
 
 
-        while ((local = avl_iterate_item(&local_tree, &local_it)) && m < tx_iterator_cache_msg_space_max(it)) {
+	while ((local = avl_iterate_item(&local_tree, &local_it)) && tx_iterator_cache_data_space_pref(it, ((m + 1) * sizeof(struct description_msg_topology)), 0)) {
 
-		if (local->neigh && local->neigh->dhn->on && local->best_tp_lndev) {
+		if (local->best_tp_link) {
 
 			struct local_topology_node *ltn = debugMallocReset(sizeof(struct local_topology_node), -300000);
 
 			set_local_topology_node(ltn, local);
-			ltn->pkid = local->neigh->dhn->on->global_id.pkid;
+			ltn->pkid = local->local_id;
 			avl_insert(&local_topology_tree, ltn, -300000);
 
 			msg[m].pkid = ltn->pkid;
@@ -353,12 +365,11 @@ static int32_t topology_init( void ) {
         memset( &tlv_handl, 0, sizeof(tlv_handl));
         tlv_handl.min_msg_size = sizeof (struct description_msg_topology);
         tlv_handl.fixed_msg_size = 1;
-        tlv_handl.is_relevant = 0;
         tlv_handl.name = "TOPOLOGY_EXTENSION";
         tlv_handl.tx_frame_handler = create_description_topology;
         tlv_handl.rx_frame_handler = process_description_topology;
         tlv_handl.msg_format = topology_format;
-        register_frame_handler(description_tlv_handl, BMX_DSC_TLV_TOPOLOGY, &tlv_handl);
+        register_frame_handler(description_tlv_db, BMX_DSC_TLV_TOPOLOGY, &tlv_handl);
 	register_status_handl(sizeof (struct topology_status), 1, topology_status_format, ARG_TOPOLOGY, topology_status_creator);
         register_options_array(topology_options, sizeof ( topology_options), CODE_CATEGORY_NAME);
 

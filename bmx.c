@@ -977,7 +977,28 @@ uint8_t *key_status_page(uint8_t *sOut, uint32_t i, struct orig_node *on, struct
 	return sOut;
 }
 
-static int32_t orig_status_creator(struct status_handl *handl, void *data)
+static int32_t origs_status_creator(struct status_handl *handl, void *data)
+{
+	uint32_t i = 0;
+
+	if (data) {
+		struct key_node *kn = data;
+		handl->data = key_status_page(handl->data, 0, kn->on, (!kn->on ? kn->nextDesc : NULL), ((!kn->on && !kn->nextDesc) ? kn : NULL));
+	} else {
+		struct avl_node *it;
+		struct orig_node *on;
+		AVL_TREE(orig_name_tree, struct orig_node, k);
+
+		for (it = NULL; (on = avl_iterate_item(&orig_tree, &it));)
+			avl_insert(&orig_name_tree, on, -300744);
+
+		while ((on = avl_remove_first_item(&orig_name_tree, -300745)))
+			handl->data = key_status_page(handl->data, i++, on, NULL, NULL);
+	}
+	return((i) * sizeof(struct orig_status));
+}
+
+static int32_t keys_status_creator(struct status_handl *handl, void *data)
 {
 	uint32_t i = 0;
 
@@ -1005,6 +1026,7 @@ static int32_t orig_status_creator(struct status_handl *handl, void *data)
 	}
 	return((i) * sizeof(struct orig_status));
 }
+
 
 struct ref_status {
 	GLOBAL_ID_T *shortId;
@@ -1444,6 +1466,9 @@ static struct opt_type bmx_options[]=
 	{ODI,0,ARG_ORIGINATORS,	        0,  9,1,A_PS0N,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
 			0,		"show originators\n"}
         ,
+	{ODI,0,ARG_KEYS,	        0,  9,1,A_PS0N,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
+			0,		"show keys and their description references\n"}
+        ,
 	{ODI,0,ARG_DESCREFS,	        0,  9,1,A_PS0N,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
 			0,		"show description references\n"}
         ,
@@ -1601,7 +1626,8 @@ int main(int argc, char *argv[])
 	register_options_array(bmx_options, sizeof( bmx_options), CODE_CATEGORY_NAME);
 
 	register_status_handl(sizeof(struct bmx_status), 0, bmx_status_format, ARG_STATUS, bmx_status_creator);
-	register_status_handl(sizeof(struct orig_status), 1, orig_status_format, ARG_ORIGINATORS, orig_status_creator);
+	register_status_handl(sizeof(struct orig_status), 1, orig_status_format, ARG_ORIGINATORS, origs_status_creator);
+	register_status_handl(sizeof(struct orig_status), 1, orig_status_format, ARG_KEYS, keys_status_creator);
 	register_status_handl(sizeof(struct ref_status), 1, ref_status_format, ARG_DESCREFS, ref_status_creator);
 
 

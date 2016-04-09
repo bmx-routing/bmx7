@@ -772,7 +772,7 @@ void keyNodes_cleanup(int8_t targetStateColumn, struct key_node *except)
 				keyNode_schedLowerWeight(kn, (
 					(!terminating && (kn->dFriend != TYP_TRUST_LEVEL_NONE) && next < KCTracked) ?
 					KCTracked :
-					targetStateColumn));
+					next));
 			}
 		}
 	}

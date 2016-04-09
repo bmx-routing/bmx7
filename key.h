@@ -30,6 +30,8 @@ extern int32_t neigh_qualifying_to;
 
 
 // Key Weight:
+#define KCNull (-1)
+
 enum KColumns {
 	KCListed,
 	KCTracked,

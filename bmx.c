@@ -266,7 +266,7 @@ void cleanup_all(int32_t status)
 		
 
 //              purge_link_route_orig_nodes(NULL);
-		keyNodes_cleanup(-1, NULL);
+		keyNodes_cleanup(KCNull, NULL);
 
 
 		while (status_tree.items) {
@@ -1309,7 +1309,7 @@ int32_t opt_flush_all(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct o
 
 	if (cmd == OPT_APPLY) {
 		purge_tx_task_tree(NULL, NULL, NULL, YES);
-		keyNodes_cleanup(-1, myKey);
+		keyNodes_cleanup(KCNull, myKey);
 	}
 
 	return SUCCESS;

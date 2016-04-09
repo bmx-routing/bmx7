@@ -745,28 +745,35 @@ void keyNode_schedLowerState(struct key_node *kn, struct KeyState *s)
 void keyNode_schedLowerWeight(struct key_node *kn, int8_t weight)
 {
 	assertion(-502384, (kn && kn->bookedState));
-	assertion(-502385, (weight >= -1 && weight < KCSize));
-	keyNode_schedLowerState(kn, weight>=0 ? &(keyMatrix[weight][kn->bookedState->i.r]) : NULL );
+	assertion(-502385, (weight >= KCNull && weight < KCSize));
+	keyNode_schedLowerState(kn, weight > KCNull ? &(keyMatrix[weight][kn->bookedState->i.r]) : NULL);
 }
 
 
-void keyNodes_cleanup(int8_t keyStateColumn, struct key_node *except)
+void keyNodes_cleanup(int8_t targetStateColumn, struct key_node *except)
 {
-	assertion(-502386, (keyStateColumn >= -1 && keyStateColumn < KCSize));
+	assertion(-502386, (targetStateColumn >= KCNull && targetStateColumn < KCSize));
 
-	struct key_node *kn = NULL;
-	GLOBAL_ID_T curr = ZERO_CYRYPSHA1;
+	int8_t next;
 
-	while((kn = avl_next_item(&key_tree, &curr))) {
+	// ensure all nodes remain KCListed before purged:
+	for (next = XMAX(targetStateColumn, KCListed); next >= targetStateColumn; next--) {
 
-		curr = kn->kHash;
-		assertion(-502387, (kn->bookedState));
-		if (kn != except && kn->bookedState->i.c > keyStateColumn) {
+		struct key_node *kn = NULL;
+		GLOBAL_ID_T curr = ZERO_CYRYPSHA1;
 
-			keyNode_schedLowerWeight(kn,
-				(!terminating && kn == myKey && keyStateColumn < KCPromoted) ? KCPromoted : (
-					(!terminating && (kn->dFriend != TYP_TRUST_LEVEL_NONE) && keyStateColumn < KCTracked) ? KCTracked :
-						keyStateColumn ) );
+		while ((kn = avl_next_item(&key_tree, &curr))) {
+
+			curr = kn->kHash;
+			assertion(-502387, (kn->bookedState));
+
+			if (kn->bookedState->i.c > next && kn != except) {
+
+				keyNode_schedLowerWeight(kn, (
+					(!terminating && (kn->dFriend != TYP_TRUST_LEVEL_NONE) && next < KCTracked) ?
+					KCTracked :
+					targetStateColumn));
+			}
 		}
 	}
 }

@@ -152,12 +152,19 @@ STATIC_FUNC
 int process_description_topology(struct rx_frame_iterator *it)
 {
 
-	if (it->op == TLV_OP_CUSTOM_TOPOLOGY) {
+	struct description_hdr_topology *hdr = (struct description_hdr_topology *)it->f_data;
+
+	if (it->op == TLV_OP_CUSTOM_TOPOLOGY && 
+		it->f_dlen > (int)sizeof(struct description_hdr_topology) &&
+		hdr->type == 0 &&
+		it->f_msgs_len && 
+		(it->f_msgs_len % sizeof(struct description_msg_topology)) == 0) {
+
 		topology_msgs = it->f_msgs_len / it->f_handl->min_msg_size;
-		topology_msg = (struct description_msg_topology*)it->f_data;
+		topology_msg = &hdr->msg[0];
 	}
 
-	return it->f_msgs_len;
+	return it->f_dlen;
 }
 
 
@@ -277,6 +284,7 @@ int create_description_topology(struct tx_frame_iterator *it)
         struct neigh_node *local;
         int32_t m = 0;
 
+	struct description_hdr_topology *hdr = (struct description_hdr_topology *) tx_iterator_cache_hdr_ptr(it);
 	struct description_msg_topology *msg = (struct description_msg_topology *) tx_iterator_cache_msg_ptr(it);
 
 	destroy_local_topology_cache();
@@ -287,6 +295,8 @@ int create_description_topology(struct tx_frame_iterator *it)
 	task_remove(check_local_topology_cache, NULL);
 	task_register(((bmx_time < ((TIME_T)my_topology_period/10)) ? (my_topology_period/10) : my_topology_hysteresis), check_local_topology_cache, NULL, -300000);
 
+	hdr->reserved = 0;
+	hdr->type = 0;
 
 	while ((local = avl_iterate_item(&local_tree, &local_it)) && tx_iterator_cache_data_space_pref(it, ((m + 1) * sizeof(struct description_msg_topology)), 0)) {
 
@@ -303,10 +313,6 @@ int create_description_topology(struct tx_frame_iterator *it)
 			msg[m].rxBw = umetric_to_fmu8(&ltn->rxBw);
 			msg[m].txRate = ltn->txRate;
 			msg[m].rxRate = ltn->rxRate;
-
-			msg[m].type = 0;
-			msg[m].reserved = 0;
-
 
 			m++;
 		}
@@ -372,8 +378,9 @@ static int32_t topology_init( void ) {
         struct frame_handl tlv_handl;
 
         memset( &tlv_handl, 0, sizeof(tlv_handl));
+	tlv_handl.data_header_size = sizeof (struct description_hdr_topology);
         tlv_handl.min_msg_size = sizeof (struct description_msg_topology);
-        tlv_handl.fixed_msg_size = 1;
+        tlv_handl.fixed_msg_size = 0;
         tlv_handl.name = "TOPOLOGY_EXTENSION";
         tlv_handl.tx_frame_handler = create_description_topology;
         tlv_handl.rx_frame_handler = process_description_topology;

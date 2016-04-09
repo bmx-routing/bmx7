@@ -31,18 +31,22 @@
 
 
 struct description_msg_topology {
-	uint8_t type;
-	uint8_t reserved;
 	FMETRIC_U8_T txBw;
 	FMETRIC_U8_T rxBw;
 	uint8_t txRate;
 	uint8_t rxRate;
+
 	GLOBAL_ID_T pkid;
 } __attribute__((packed));
 
+struct description_hdr_topology {
+	uint8_t type;
+	uint8_t reserved;
+	struct description_msg_topology msg[];
+} __attribute__((packed));
+
+
 #define DESCRIPTION_MSG_TOPOLOGY_FORMAT { \
-{FIELD_TYPE_UINT,             -1, (8*sizeof(uint8_t)),     1, FIELD_RELEVANCE_LOW,  "type"}, \
-{FIELD_TYPE_UINT,             -1, (8*sizeof(uint8_t)),     1, FIELD_RELEVANCE_LOW,  "reserved"}, \
 {FIELD_TYPE_UINT,             -1, (8*sizeof(uint8_t)),     1, FIELD_RELEVANCE_HIGH, "txBw"}, \
 {FIELD_TYPE_UINT,             -1, (8*sizeof(uint8_t)),     1, FIELD_RELEVANCE_HIGH, "rxBw"}, \
 {FIELD_TYPE_UINT,             -1, (8*sizeof(uint8_t)),     1, FIELD_RELEVANCE_HIGH, "txRate"}, \

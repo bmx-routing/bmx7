@@ -110,7 +110,7 @@ static int32_t topology_status_creator(struct status_handl *handl, void *data)
 		topology_msgs = 0;
 		topology_msg = NULL;
 		uint32_t m = 0;
-		process_description_tlvs(NULL, on, on->dc, NULL, TLV_OP_CUSTOM_TOPOLOGY, BMX_DSC_TLV_TOPOLOGY);
+		process_description_tlvs(NULL, on, NULL, on->dc, TLV_OP_CUSTOM_TOPOLOGY, BMX_DSC_TLV_TOPOLOGY);
 
 		for (m=0; topology_msg && m < topology_msgs; m++) {
 

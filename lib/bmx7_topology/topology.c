@@ -187,7 +187,14 @@ int check_value_deviation(UMETRIC_T a, UMETRIC_T b, UMETRIC_T percent)
 STATIC_FUNC
 void set_local_topology_node(struct local_topology_node *ltn, struct neigh_node *local)
 {
-	assertion(-500000, (ltn && local && local->on && local->best_tp_link));
+	assertion(-500000, (ltn));
+	assertion(-500000, (local));
+	assertion(-500000, (local->best_tp_link));
+	assertion(-500000, (&local->best_tp_link->k));
+	assertion(-500000, (local->best_tp_link->k.myDev));
+	assertion(-500000, (&local->best_tp_link->k.myDev->umetric_max));
+	assertion(-500000, (&local->best_tp_link->timeaware_tx_probe));
+	assertion(-500000, (&local->best_tp_link->timeaware_rx_probe));
 
 	ltn->txBw = *umetric_multiply_normalized(&local->best_tp_link->k.myDev->umetric_max, &local->best_tp_link->timeaware_tx_probe);
 	ltn->rxBw = *umetric_multiply_normalized(&local->best_tp_link->k.myDev->umetric_max, &local->best_tp_link->timeaware_rx_probe);

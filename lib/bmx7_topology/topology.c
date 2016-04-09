@@ -227,7 +227,7 @@ void check_local_topology_cache(void *nothing)
 
 			set_local_topology_node(&tmp, local);
 
-			if ( (bmx_time - myKey->on->updated_timestamp) > ((uint32_t)my_topology_period * 10) && (
+			if ( (bmx_time - myKey->on->updated_timestamp) > ((uint32_t)my_topology_period * 100) && (
 				check_value_deviation(ltn->txBw, tmp.txBw, 0) ||
 				check_value_deviation(ltn->rxBw, tmp.rxBw, 0) ||
 				check_value_deviation(ltn->txRate, tmp.txRate, 0) ||
@@ -256,7 +256,7 @@ void check_local_topology_cache(void *nothing)
 		return;
 	}
 
-	task_register(my_topology_period/10, check_local_topology_cache, NULL, -300000);
+	task_register(my_topology_period, check_local_topology_cache, NULL, -300000);
 }
 
 STATIC_FUNC
@@ -285,7 +285,7 @@ int create_description_topology(struct tx_frame_iterator *it)
 		return TLV_TX_DATA_IGNORED;
 
 	task_remove(check_local_topology_cache, NULL);
-	task_register(my_topology_period, check_local_topology_cache, NULL, -300000);
+	task_register(((bmx_time < ((TIME_T)my_topology_period/10)) ? (my_topology_period/10) : my_topology_hysteresis), check_local_topology_cache, NULL, -300000);
 
 
 	while ((local = avl_iterate_item(&local_tree, &local_it)) && tx_iterator_cache_data_space_pref(it, ((m + 1) * sizeof(struct description_msg_topology)), 0)) {
@@ -330,7 +330,7 @@ int32_t opt_topology(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct op
 		task_remove(check_local_topology_cache, NULL);
 
 		if (my_topology_period < MAX_TOPOLOGY_PERIOD)
-			task_register(my_topology_period, check_local_topology_cache, NULL, -300000);
+			task_register(my_topology_period/10, check_local_topology_cache, NULL, -300000);
 
 		scheduled_period = my_topology_period;
 	}

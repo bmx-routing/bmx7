@@ -164,7 +164,7 @@ int process_description_topology(struct rx_frame_iterator *it)
 		topology_msg = &hdr->msg[0];
 	}
 
-	return it->f_dlen;
+	return it->f_msgs_len;
 }
 
 

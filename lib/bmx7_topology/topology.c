@@ -74,10 +74,10 @@ struct topology_status {
         GLOBAL_ID_T *neighId;
         IPX_T neighIp;
 	uint32_t lastDesc;
-        UMETRIC_T txBw;
-        UMETRIC_T rxBw;
-	uint8_t txRate;
 	uint8_t rxRate;
+	uint8_t txRate;
+        UMETRIC_T rxBw;
+        UMETRIC_T txBw;
 };
 
 static const struct field_format topology_status_format[] = {
@@ -88,10 +88,10 @@ static const struct field_format topology_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, topology_status, neighId,       1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_IPX,               topology_status, neighIp,       1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              topology_status, lastDesc,      1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           topology_status, txBw,          1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           topology_status, rxBw,          1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              topology_status, txRate,        1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              topology_status, rxRate,        1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              topology_status, txRate,        1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           topology_status, rxBw,          1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           topology_status, txBw,          1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_END
 };
 
@@ -170,6 +170,8 @@ UMETRIC_T umetric_multiply_normalized(UMETRIC_T *a, UMETRIC_T *b)
                 um = (*a * *b) / UMETRIC_MAX;
         else
                 um = (*a * ((*b << UMETRIC_SHIFT_MAX) / UMETRIC_MAX)) >> UMETRIC_SHIFT_MAX;
+
+	dbgf_track(DBGT_INFO, "a=%ju b=%ju ab=%ju magicAB=%ju", *a, *b, ((*a * *b) / UMETRIC_MAX), ((*a * ((*b << UMETRIC_SHIFT_MAX) / UMETRIC_MAX)) >> UMETRIC_SHIFT_MAX));
 
 	return um;
 }

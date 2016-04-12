@@ -427,8 +427,8 @@ void neigh_destroy(struct neigh_node *local)
 		purge_linkDevs(&linkDev->key, NULL, NO);
 
 
-	assertion(-501135, (!local->linkDev_tree.items));
-	assertion(-501135, (!local->orig_routes));
+	assertion(-502639, (!local->linkDev_tree.items));
+	assertion(-502640, (!local->orig_routes));
 	assertion(-502465, (!local->best_rp_link));
 	assertion(-502466, (!local->best_tp_link));
 

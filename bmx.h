@@ -554,12 +554,12 @@ enum {
 /*
  * ASSERTION / PARANOIA ERROR CODES:
  * Negative numbers are used as SIGSEV error codes !
- * Currently used numbers are: -500000 -500001 ... -502637
+ * Currently used numbers are: -500000 -500001 ... -502638
  */
 
 //#define paranoia( code , problem ) do { if ( (problem) ) { cleanup_all( code ); } }while(0)
-#define assertion( code , condition ) do { if ( code <= -600000 || code >= -500000 || !(condition) ) { cleanup_all( code ); } }while(0)
-#define assertion_dbg( code , condition, ... ) do { if ( code <= -600000 || code >= -500000 || !(condition) ) { dbgf_sys(DBGT_ERR, __VA_ARGS__ ); cleanup_all( code ); } }while(0)
+#define assertion( code , condition ) do { if ( code <= -600000 || code > -500000 || !(condition) ) { cleanup_all( code ); } }while(0)
+#define assertion_dbg( code , condition, ... ) do { if ( code <= -600000 || code > -500000 || !(condition) ) { dbgf_sys(DBGT_ERR, __VA_ARGS__ ); cleanup_all( code ); } }while(0)
 
 #ifdef EXTREME_PARANOIA
 #define ASSERTION( code , condition ) assertion(code, condition)

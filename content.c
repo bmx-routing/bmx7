@@ -849,7 +849,7 @@ struct desc_content* descContent_create(uint8_t *dsc, uint32_t dlen, struct key_
 	dc->desc_frame_len = dlen;
 	dc->descSqn = descSqn;
 	dc->ogmSqnRange = ntohs(versMsg->ogmSqnRange);
-	dc->ogmSqnMaxSend = (dc->ogmSqnMaxRcvd = ((kn == myKey && ogmSqnRandom) ? (rand_num(ogmSqnRandom)) : 0));
+	dc->ogmSqnMaxSend = (dc->ogmSqnMaxRcvd = ((kn == myKey && ogmSqnRandom) ? (rand_num(XMIN(dc->ogmSqnRange, ogmSqnRandom))) : 0));
 
 	dc->chainLinkMaxRcvd = versMsg->ogmHChainAnchor.u.e.link;
 	dc->chainAnchor = &versMsg->ogmHChainAnchor.u.e.link;

@@ -126,7 +126,7 @@ extern int32_t linkSignLen;
 
 #define MIN_OGM_SQN_RANGE 10
 #define MAX_OGM_SQN_RANGE 8192 // changing this will cause compatibility trouble
-#define DEF_OGM_SQN_RANGE 600
+#define DEF_OGM_SQN_RANGE 6000
 #define ARG_OGM_SQN_RANGE "ogmSqnRange"
 
 #define MIN_OGM_SQN_DEVIATION 1

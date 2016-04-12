@@ -214,8 +214,7 @@ void revise_ogm_aggregations(void)
 	TIME_T myGuaranteedInterval = ((minMyOgmInterval * maxMyOgmIFactor) / 100);
 	IDM_T myNextNow = !my_description_changed && doNowOrLater(&myNextGuarantee, myGuaranteedInterval, (myKey->on->dc->ogmSqnMaxSend == 0));
 
-	if (myNextNow ||
-		(ogm_aggreg_sqn_max > ogm_aggreg_sqn_send && *get_my_ogm_aggreg_origs(ogm_aggreg_sqn_max) && (*get_my_ogm_aggreg_origs(ogm_aggreg_sqn_max))->items)) {
+	if (myNextNow || (ogm_aggreg_sqn_max > ogm_aggreg_sqn_send && *get_my_ogm_aggreg_origs(ogm_aggreg_sqn_max))) {
 
 		if (doNowOrLater(&myNextHitchhike, minMyOgmInterval, myNextNow)) {
 			doNowOrLater(&myNextGuarantee, myGuaranteedInterval, YES); //sync the two timeouts!
@@ -223,12 +222,13 @@ void revise_ogm_aggregations(void)
 		}
 
 
-		dbgf(myNextNow ? DBGL_CHANGES : DBGL_ALL, DBGT_INFO, "myNextNow=%d myGuaranteedInterval=%d sqnMax=%d sqnSend=%d size=%d max=%d ogmSqnMaxSend=%d",
+		dbgf(myNextNow ? DBGL_CHANGES : DBGL_ALL, DBGT_INFO, "myNextNow=%d myGuaranteedInterval=%d aggSqnMax=%d aggSqnSend=%d size=%d max=%d ogmSqnMaxSend=%d",
 			myNextNow, myGuaranteedInterval, ogm_aggreg_sqn_max, ogm_aggreg_sqn_send,
 			(*get_my_ogm_aggreg_origs(ogm_aggreg_sqn_max)) ? (*get_my_ogm_aggreg_origs(ogm_aggreg_sqn_max))->items : 0,
 			OGMS_DHASH_PER_AGGREG_PREF, myKey->on->dc->ogmSqnMaxSend);
 
-		schedule_ogm_aggregations();
+		if (*get_my_ogm_aggreg_origs(ogm_aggreg_sqn_max))
+			schedule_ogm_aggregations();
 	}
 }
 

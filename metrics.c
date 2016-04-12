@@ -185,18 +185,19 @@ FMETRIC_U16_T umetric_to_fmetric(UMETRIC_T val)
         } else {
 
                 uint8_t exp_sum = 0;
-                UMETRIC_T tmp = 0;
-                tmp = val + (val/UMETRIC_TO_FMETRIC_INPUT_FIX);
 
-                LOG2(exp_sum, tmp, UMETRIC_T);
+                LOG2(exp_sum, val, UMETRIC_T);
+
 
                 fm.val.f.exp_fm16 = (exp_sum - OGM_EXPONENT_OFFSET);
-                fm.val.f.mantissa_fm16 = ( (tmp>>(exp_sum-OGM_MANTISSA_BIT_SIZE)) - (1<<OGM_MANTISSA_BIT_SIZE) );
+                fm.val.f.mantissa_fm16 = ( (val>>(fm.val.f.exp_fm16)) & OGM_MANTISSA_MASK );
 
-                assertion(-501025, (tmp >= val));
                 assertion(-501026, (val > (1<<OGM_EXPONENT_OFFSET)));
+		assertion(-500000, ((val >> exp_sum) == 1)); //ensure log2 works fine
                 assertion(-501027, (exp_sum >= OGM_EXPONENT_OFFSET));
-                assertion(-501028, ((tmp>>(exp_sum-OGM_MANTISSA_BIT_SIZE)) >= (1<<OGM_EXPONENT_OFFSET)));
+		assertion(-501028, ((val >> (exp_sum - OGM_MANTISSA_BIT_SIZE)) >= (1 << OGM_EXPONENT_OFFSET)));
+		assertion_dbg(-500000, ((val >= fmetric_to_umetric(fm)) && (val < (((65*64)*fmetric_to_umetric(fm))/(64*64)))), "in=%ju outExp=%d outMant=%d outU16=%d check=%ju ! Otherwise OGM metrics may return larger than send",
+			val, fm.val.f.exp_fm16, fm.val.f.mantissa_fm16, fm.val.u16, fmetric_to_umetric(fm));
         }
 
 /*

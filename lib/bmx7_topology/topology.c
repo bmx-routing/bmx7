@@ -196,14 +196,14 @@ int check_value_deviation(UMETRIC_T a, UMETRIC_T b, UMETRIC_T percent)
 STATIC_FUNC
 void set_local_topology_node(struct local_topology_node *ltn, struct neigh_node *local)
 {
-	assertion(-500000, (ltn));
-	assertion(-500000, (local));
-	assertion(-500000, (local->best_tp_link));
-	assertion(-500000, (&local->best_tp_link->k));
-	assertion(-500000, (local->best_tp_link->k.myDev));
-	assertion(-500000, (&local->best_tp_link->k.myDev->umetric_max));
-	assertion(-500000, (&local->best_tp_link->timeaware_tx_probe));
-	assertion(-500000, (&local->best_tp_link->timeaware_rx_probe));
+	assertion(-502523, (ltn));
+	assertion(-502524, (local));
+	assertion(-502526, (local->best_tp_link));
+	assertion(-502527, (&local->best_tp_link->k));
+	assertion(-502528, (local->best_tp_link->k.myDev));
+	assertion(-502529, (&local->best_tp_link->k.myDev->umetric_max));
+	assertion(-502530, (&local->best_tp_link->timeaware_tx_probe));
+	assertion(-502531, (&local->best_tp_link->timeaware_rx_probe));
 
 	ltn->txBw = tp_umetric_multiply_normalized(&local->best_tp_link->k.myDev->umetric_max, &local->best_tp_link->timeaware_tx_probe);
 	ltn->rxBw = tp_umetric_multiply_normalized(&local->best_tp_link->k.myDev->umetric_max, &local->best_tp_link->timeaware_rx_probe);
@@ -214,7 +214,7 @@ void set_local_topology_node(struct local_topology_node *ltn, struct neigh_node 
 STATIC_FUNC
 void check_local_topology_cache(void *nothing)
 {
-	assertion(-500000, (my_topology_period < MAX_TOPOLOGY_PERIOD));
+	assertion(-502532, (my_topology_period < MAX_TOPOLOGY_PERIOD));
 
         struct avl_node *local_it;
         struct neigh_node *local;

@@ -492,7 +492,7 @@ void bit_xor(void *out, void *a, void *b, uint32_t size)
 			p += sizeof(uint8_t);
 		}
 	}
-	assertion(-500000, (p == size));
+	assertion(-502609, (p == size));
 }
 
 

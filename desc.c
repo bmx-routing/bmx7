@@ -219,9 +219,9 @@ void update_orig_dhash(struct desc_content *dcNew)
 	kn->nextDescSqnMin = dcNew->descSqn + 1;
 	kn->nextDesc = NULL;
 
-	assertion_dbg(-500000, ((on->ogmMetric & ~UMETRIC_MASK) == 0), "um=%ju mask=%ju max=%ju",on->ogmMetric, UMETRIC_MASK, UMETRIC_MAX);
+	assertion_dbg(-502536, ((on->ogmMetric & ~UMETRIC_MASK) == 0), "um=%ju mask=%ju max=%ju",on->ogmMetric, UMETRIC_MASK, UMETRIC_MAX);
 
-	assertion(-500000, IMPLIES(myKey == on->kn, iid == IID_MIN_USED_FOR_SELF)); // Not strictly necessary yet but maybe this requirement can be useful later.
+	assertion(-502537, IMPLIES(myKey == on->kn, iid == IID_MIN_USED_FOR_SELF)); // Not strictly necessary yet but maybe this requirement can be useful later.
 
 	process_description_tlvs(NULL, on, dcOld, dcNew, TLV_OP_NEW, FRAME_TYPE_PROCESS_ALL);
 

@@ -125,8 +125,8 @@ void schedule_ogm( struct orig_node *on, OGM_SQN_T ogmSqn, UMETRIC_T um, uint8_t
 		ogmSqn, on->dc->ogmSqnMaxRcvd, on->dc->ogmSqnMaxSend, on->dc->ogmSqnRange, hopCount, umetric_to_human(um), um,
 		umetric_to_fmetric(um).val.u16, fmetric_to_umetric(umetric_to_fmetric(um)));
 
-	assertion_dbg(-500000, ((um & ~UMETRIC_MASK) == 0), "um=%ju mask=%ju max=%ju",um, UMETRIC_MASK, UMETRIC_MAX);
-	assertion_dbg(-500000, (um >= fmetric_to_umetric(umetric_to_fmetric(um))), "um=%ju um16=%d -> um=%ju",um, umetric_to_fmetric(um).val.u16, fmetric_to_umetric(umetric_to_fmetric(um)));
+	assertion_dbg(-502574, ((um & ~UMETRIC_MASK) == 0), "um=%ju mask=%ju max=%ju",um, UMETRIC_MASK, UMETRIC_MAX);
+	assertion_dbg(-502575, (um >= fmetric_to_umetric(umetric_to_fmetric(um))), "um=%ju um16=%d -> um=%ju",um, umetric_to_fmetric(um).val.u16, fmetric_to_umetric(umetric_to_fmetric(um)));
 
 	if ((ogmSqn > on->dc->ogmSqnMaxSend) || (ogmSqn == on->dc->ogmSqnMaxSend && um > on->ogmMetric)) {
 
@@ -170,9 +170,9 @@ void schedule_ogm( struct orig_node *on, OGM_SQN_T ogmSqn, UMETRIC_T um, uint8_t
 
 		struct desc_content *dc = on->dc;
 		assertion(-502284, ((ogm_aggreg_sqn_max - ogm_aggreg_sqn_send) == 1));
-		assertion(-500000, (dc->ogmSqnMaxRcvd <= dc->ogmSqnRange));
-		assertion(-500000, (ogmSqn <= dc->ogmSqnRange));
-		assertion(-500000, (dc->ogmSqnMaxRcvd >= ogmSqn));
+		assertion(-502576, (dc->ogmSqnMaxRcvd <= dc->ogmSqnRange));
+		assertion(-502577, (ogmSqn <= dc->ogmSqnRange));
+		assertion(-502578, (dc->ogmSqnMaxRcvd >= ogmSqn));
 
 		on->dc->ogmSqnMaxSend = ogmSqn;
 		on->ogmMetric = um;
@@ -423,8 +423,8 @@ STATIC_FUNC
 UMETRIC_T lndev_best_via_router(struct neigh_node *local, struct orig_node *on, UMETRIC_T *ogm_metric, LinkNode **bestPathLink)
 {
 	assertion(-502474, (local->linkDev_tree.items));
-	assertion(-500000, (!(*bestPathLink)));
-	assertion_dbg(-500000, ((*ogm_metric & ~UMETRIC_MASK) == 0), "um=%ju mask=%ju max=%ju",*ogm_metric, UMETRIC_MASK, UMETRIC_MAX);
+	assertion(-502579, (!(*bestPathLink)));
+	assertion_dbg(-502580, ((*ogm_metric & ~UMETRIC_MASK) == 0), "um=%ju mask=%ju max=%ju",*ogm_metric, UMETRIC_MASK, UMETRIC_MAX);
 
         UMETRIC_T metric_best = 0;
 
@@ -463,8 +463,8 @@ void process_ogm_metric(void *voidRef)
 	struct orig_node *on = NULL;
 	struct desc_content *dc = NULL;
 	assertion(-502475, (ref));
-	assertion(-500000, (ref->nn));
-	assertion(-500000, (ref->kn));
+	assertion(-502581, (ref->nn));
+	assertion(-502582, (ref->kn));
 
 	if (ref->scheduled_ogm_processing) {
 		ref->scheduled_ogm_processing = 0;
@@ -474,12 +474,12 @@ void process_ogm_metric(void *voidRef)
 	if (!(kn = ref->kn) || !(on = kn->on) || !(dc = on->dc) || (ref->descSqn != dc->descSqn))
 		return;
 	
-	assertion(-500000, (dc->ogmSqnMaxSend <= dc->ogmSqnRange));
-	assertion(-500000, (dc->ogmSqnMaxRcvd <= dc->ogmSqnRange));
-	assertion(-500000, (dc->ogmSqnMaxRcvd >= dc->ogmSqnMaxSend));
+	assertion(-502583, (dc->ogmSqnMaxSend <= dc->ogmSqnRange));
+	assertion(-502584, (dc->ogmSqnMaxRcvd <= dc->ogmSqnRange));
+	assertion(-502585, (dc->ogmSqnMaxRcvd >= dc->ogmSqnMaxSend));
 	
-	assertion(-500000, (ref->ogmSqnMax <= dc->ogmSqnRange));
-	assertion(-500000, (ref->ogmSqnMax <= dc->ogmSqnMaxRcvd));
+	assertion(-502586, (ref->ogmSqnMax <= dc->ogmSqnRange));
+	assertion(-502587, (ref->ogmSqnMax <= dc->ogmSqnMaxRcvd));
 
 
 
@@ -493,7 +493,7 @@ void process_ogm_metric(void *voidRef)
 		cryptShaAsShortStr(&on->k.nodeId), dc->descSqn, cryptShaAsShortStr(&nn->local_id),
 		neighTrust, valid_metric, ogmMetric, on->mtcAlgo->umetric_min, ref->ogmSqnMax, dc->ogmSqnMaxSend, on->ogmMetric, on->mtcAlgo->ogm_sqn_late_hystere, on->mtcAlgo->ogm_metric_hystere, ref->ogmBestSinceSqn);
 
-	assertion_dbg(-500000, ((ogmMetric & ~UMETRIC_MASK) == 0), "um=%ju mask=%ju max=%ju",ogmMetric, UMETRIC_MASK, UMETRIC_MAX);
+	assertion_dbg(-502588, ((ogmMetric & ~UMETRIC_MASK) == 0), "um=%ju mask=%ju max=%ju",ogmMetric, UMETRIC_MASK, UMETRIC_MAX);
 
 	if (kn == myKey && ((ref->ogmSqnMax > dc->ogmSqnMaxSend) || (ref->ogmSqnMax == dc->ogmSqnMaxSend && ogmMetric >= on->ogmMetric))) {
 		dbgf_mute(70, DBGL_SYS, DBGT_WARN, "OGM SQN or metric attack on myself, rcvd via trusted=%d neigh=%s, rcvdSqn=%d sendSqn=%d rcvdMetric=%ju sendMetric=%ju",
@@ -511,7 +511,7 @@ void process_ogm_metric(void *voidRef)
 		LinkNode *bestLinkViaNeigh = NULL;
 		UMETRIC_T bestMtcViaNeigh = lndev_best_via_router(nn, on, &ogmMetric, &bestLinkViaNeigh);
 		assertion(-502478, (bestMtcViaNeigh));
-		assertion_dbg(-500000, ((bestMtcViaNeigh & ~UMETRIC_MASK) == 0), "um=%ju mask=%ju max=%ju", bestMtcViaNeigh, UMETRIC_MASK, UMETRIC_MAX);
+		assertion_dbg(-502589, ((bestMtcViaNeigh & ~UMETRIC_MASK) == 0), "um=%ju mask=%ju max=%ju", bestMtcViaNeigh, UMETRIC_MASK, UMETRIC_MAX);
 
 		dbgf_track(DBGT_INFO, "bestMtcViaNeigh=%ju neigh=%s", bestMtcViaNeigh, bestLinkViaNeigh ? bestLinkViaNeigh->k.linkDev->key.local->on->k.hostname : NULL);
 
@@ -606,7 +606,7 @@ int32_t init_ogm( void )
 {
 	register_options_array(ogm_options, sizeof(ogm_options), CODE_CATEGORY_NAME);
 
-	assertion(-500000, (sizeof( ((struct msg_ogm_adv*)NULL)->u) == sizeof( ((struct msg_ogm_adv*)NULL)->u.u32)));
+	assertion(-502590, (sizeof( ((struct msg_ogm_adv*)NULL)->u) == sizeof( ((struct msg_ogm_adv*)NULL)->u.u32)));
 
         struct frame_handl handl;
         memset(&handl, 0, sizeof ( handl));

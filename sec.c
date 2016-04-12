@@ -90,7 +90,7 @@ void chainLinkCalc(ChainInputs_T *i,  OGM_SQN_T diff)
 
 	ChainElem_T chainElem;
 
-	assertion(-500000, (sizeof(ChainInputs_T) ==
+	assertion(-502591, (sizeof(ChainInputs_T) ==
 		sizeof(ChainLink_T) + sizeof(ChainSeed_T) + sizeof(DESC_SQN_T) + sizeof(GLOBAL_ID_T)));
 
 	while (diff) {
@@ -122,7 +122,7 @@ ChainElem_T myChainLinkCache(OGM_SQN_T sqn, DESC_SQN_T descSqn)
 	static OGM_SQN_T ogmSqnMod = 0;
 
 	if (!descSqn) {
-		assertion(-500000, (terminating));
+		assertion(-502592, (terminating));
 
 		if (chainLinks)
 			debugFree(chainLinks, -300000);
@@ -131,8 +131,8 @@ ChainElem_T myChainLinkCache(OGM_SQN_T sqn, DESC_SQN_T descSqn)
 
 	} else if (descSqn != lastDescSqn) {
 
-		assertion(-500000, (sqn == (OGM_SQN_T)ogmSqnRange));
-		assertion(-500000, (descSqn > lastDescSqn));
+		assertion(-502593, (sqn == (OGM_SQN_T)ogmSqnRange));
+		assertion(-502594, (descSqn > lastDescSqn));
 
 		if (chainLinks)
 			debugFree(chainLinks, -300000);
@@ -160,7 +160,7 @@ ChainElem_T myChainLinkCache(OGM_SQN_T sqn, DESC_SQN_T descSqn)
 
 
 	} else {
-		assertion(-500000, (sqn <= lastOgmRange));
+		assertion(-502595, (sqn <= lastOgmRange));
 
 		stack.nodeId = myKey->kHash;
 		stack.descSqnNetOrder = htonl(descSqn);
@@ -174,7 +174,7 @@ ChainElem_T myChainLinkCache(OGM_SQN_T sqn, DESC_SQN_T descSqn)
 
 ChainLink_T chainOgmCalc(struct desc_content *dc, OGM_SQN_T ogmSqn)
 {
-	assertion(-500000, (dc->ogmSqnMaxRcvd >= ogmSqn));
+	assertion(-502596, (dc->ogmSqnMaxRcvd >= ogmSqn));
 
 	ChainLink_T chainOgm;
 
@@ -188,7 +188,7 @@ ChainLink_T chainOgmCalc(struct desc_content *dc, OGM_SQN_T ogmSqn)
 OGM_SQN_T chainOgmFind(ChainLink_T *chainOgm, struct desc_content *dc, OGM_SQN_T maxDeviation)
 {
 
-	assertion(-500000, (chainOgm && dc));
+	assertion(-502597, (chainOgm && dc));
 	bit_xor(&dc->chainCache.elem.u.e.link, chainOgm, &dc->chainOgmConstInputHash, sizeof(ChainLink_T));
 
 	dbgf_track(DBGT_INFO, "chainOgm=%s -> chainLink=%s maxRcvd=%d range=%d maxDeviation=%d",
@@ -249,7 +249,7 @@ OGM_SQN_T chainOgmFind(ChainLink_T *chainOgm, struct desc_content *dc, OGM_SQN_T
 			// Testing below maxRcvd and lower half between anchor and maxRcvd:
 			if (memcmp(&dc->chainCache.elem.u.e.link, dc->chainAnchor, sizeof(ChainLink_T)) == 0) {
 
-				assertion(-500000, ((OGM_SQN_T)(dc->ogmSqnMaxRcvd - sqnOffset)) <= dc->ogmSqnRange);
+				assertion(-502598, ((OGM_SQN_T)(dc->ogmSqnMaxRcvd - sqnOffset)) <= dc->ogmSqnRange);
 
 				sqnReturn = sqnOffset;
 				break;
@@ -263,9 +263,9 @@ OGM_SQN_T chainOgmFind(ChainLink_T *chainOgm, struct desc_content *dc, OGM_SQN_T
 			break;
 	}
 
-	assertion(-500000, (sqnReturn <= dc->ogmSqnRange));
-	assertion(-500000, (dc->ogmSqnMaxRcvd <= dc->ogmSqnRange));
-	assertion(-500000, (dc->ogmSqnMaxRcvd >= sqnReturn));
+	assertion(-502599, (sqnReturn <= dc->ogmSqnRange));
+	assertion(-502600, (dc->ogmSqnMaxRcvd <= dc->ogmSqnRange));
+	assertion(-502601, (dc->ogmSqnMaxRcvd >= sqnReturn));
 
 	return sqnReturn;
 }
@@ -976,7 +976,7 @@ int32_t rsa_load( char *tmp_path ) {
 STATIC_FUNC
 IDM_T getTrustStringParameter(struct KeyWatchNode *tn, GLOBAL_ID_T *id, char *fileName, char *misc, struct ctrl_node *cn)
 {
-	assertion(-500000, (fileName));
+	assertion(-502602, (fileName));
 	char *goto_error_code = NULL;
 	GLOBAL_ID_T foundId;
 
@@ -1248,7 +1248,7 @@ static uint16_t internalNeighId_u32s = 0;
 
 IDM_T setted_pubkey(struct desc_content *dc, uint8_t type, GLOBAL_ID_T *globalId, uint8_t isRecommendedDc)
 {
-	assertion(-500000, (type == BMX_DSC_TLV_TRUSTS || type == BMX_DSC_TLV_SUPPORTS));
+	assertion(-502603, (type == BMX_DSC_TLV_TRUSTS || type == BMX_DSC_TLV_SUPPORTS));
 	struct dsc_msg_trust *msg = contents_data(dc, type);
 	uint32_t msgs = contents_dlen(dc, type) / sizeof(struct dsc_msg_trust);
 	uint32_t m =0;
@@ -1396,7 +1396,7 @@ int test_dsc_tlv_trust(uint8_t type, struct desc_content *dc)
 	assertion(-502484, (description_tlv_db->handls[type].fixed_msg_size));
 	assertion(-502485, (description_tlv_db->handls[type].data_header_size == 0));
 	assertion(-502486, (description_tlv_db->handls[type].min_msg_size == sizeof(struct dsc_msg_trust)));
-	assertion(-500000, (!(contents_dlen(dc, type) % sizeof(struct dsc_msg_trust))));
+	assertion(-502604, (!(contents_dlen(dc, type) % sizeof(struct dsc_msg_trust))));
 
 	if (trustList) {
 		CRYPTSHA1_T sha = ZERO_CYRYPSHA1;
@@ -1422,9 +1422,9 @@ int test_dsc_tlv_trust(uint8_t type, struct desc_content *dc)
 
 void apply_trust_changes(int8_t f_type, struct orig_node *on, struct desc_content* dcOld, struct desc_content *dcNew )
 {
-	assertion(-500000, (desc_frame_changed(dcOld, dcNew, f_type)));
-	assertion(-500000, (f_type == BMX_DSC_TLV_TRUSTS || f_type == BMX_DSC_TLV_SUPPORTS));
-	assertion(-500000, (on && on->kn));
+	assertion(-502605, (desc_frame_changed(dcOld, dcNew, f_type)));
+	assertion(-502606, (f_type == BMX_DSC_TLV_TRUSTS || f_type == BMX_DSC_TLV_SUPPORTS));
+	assertion(-502607, (on && on->kn));
 
 	struct dsc_msg_trust *newMsg = contents_data(dcNew, f_type);
 	uint32_t newMsgs = contents_dlen(dcNew, f_type) / sizeof(struct dsc_msg_trust);
@@ -1718,7 +1718,7 @@ void inotify_event_hook(int fd)
 
 void cleanup_dir_watch(struct DirWatch **dw)
 {
-	assertion(-500000, (dw));
+	assertion(-502607, (dw));
 
 	if (!(*dw))
 		return;
@@ -1811,7 +1811,7 @@ void idChanged_Trusted(IDM_T del, struct KeyWatchNode *kwn, struct DirWatch *dw)
 
 IDM_T init_dir_watch(struct DirWatch **dw, char *path, void (* idChangedTask) (IDM_T del, struct KeyWatchNode *kwn, struct DirWatch *dw))
 {
-	assertion(-500000, (dw && path && idChangedTask));
+	assertion(-502608, (dw && path && idChangedTask));
 
 	cleanup_dir_watch(dw);
 

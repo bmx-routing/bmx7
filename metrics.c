@@ -193,7 +193,7 @@ FMETRIC_U16_T umetric_to_fmetric(UMETRIC_T val)
                 fm.val.f.mantissa_fm16 = ( (val>>(fm.val.f.exp_fm16)) & OGM_MANTISSA_MASK );
 
                 assertion(-501026, (val > (1<<OGM_EXPONENT_OFFSET)));
-		assertion(-500000, ((val >> exp_sum) == 1)); //ensure log2 works fine
+		assertion(-502563, ((val >> exp_sum) == 1)); //ensure log2 works fine
                 assertion(-501027, (exp_sum >= OGM_EXPONENT_OFFSET));
 		assertion(-501028, ((val >> (exp_sum - OGM_MANTISSA_BIT_SIZE)) >= (1 << OGM_EXPONENT_OFFSET)));
 		assertion_dbg(-500000, ((val >= fmetric_to_umetric(fm)) && (val < (((65*64)*fmetric_to_umetric(fm))/(64*64)))), "in=%ju outExp=%d outMant=%d outU16=%d check=%ju ! Otherwise OGM metrics may return larger than send",
@@ -525,7 +525,7 @@ UMETRIC_T apply_lq_threshold_curve(UMETRIC_T lm, struct host_metricalgo *algo)
 UMETRIC_T apply_lndev_metric_algo(LinkNode *link, const UMETRIC_T *path, struct host_metricalgo *algo)
 {
         TRACE_FUNCTION_CALL;
-        assertion_dbg(-500000, ((*path & ~UMETRIC_MASK) == 0), "um=%ju mask=%ju max=%ju",*path, UMETRIC_MASK, UMETRIC_MAX);
+        assertion_dbg(-502564, ((*path & ~UMETRIC_MASK) == 0), "um=%ju mask=%ju max=%ju",*path, UMETRIC_MASK, UMETRIC_MAX);
         assertion(-500823, (link->k.myDev->umetric_max));
 
         UMETRIC_T tq = umetric_to_the_power_of_n(link->timeaware_tx_probe, algo->algo_tp_exp_numerator, algo->algo_tp_exp_divisor);

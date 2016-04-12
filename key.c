@@ -817,11 +817,11 @@ void keyNode_delCredits_(const char* f, GLOBAL_ID_T *kHash, struct key_node *kn,
 				kc->pktId, kn->pktIdTime, kc->pktSign, kn->pktSignTime, kc->nQualifying, kn->nQTime);
 		}
 
-		assertion(-500000, (kc->dFriend == TYP_TRUST_LEVEL_NONE || (kc->dFriend >= TYP_TRUST_LEVEL_DIRECT && kc->dFriend <= MAX_TRUST_LEVEL)));
-		assertion(-500000, (kn->dFriend == TYP_TRUST_LEVEL_NONE || (kn->dFriend >= TYP_TRUST_LEVEL_DIRECT && kn->dFriend <= MAX_TRUST_LEVEL)));
+		assertion(-502555, (kc->dFriend == TYP_TRUST_LEVEL_NONE || (kc->dFriend >= TYP_TRUST_LEVEL_DIRECT && kc->dFriend <= MAX_TRUST_LEVEL)));
+		assertion(-502556, (kn->dFriend == TYP_TRUST_LEVEL_NONE || (kn->dFriend >= TYP_TRUST_LEVEL_DIRECT && kn->dFriend <= MAX_TRUST_LEVEL)));
 		assertion(-502392, IMPLIES(kc->dFriend, kn->dFriend));
 		assertion(-502393, IMPLIES(kc->recom, avl_find(&kn->recommendations_tree, &kc->recom->kn)));
-		assertion(-500000, IMPLIES(kc->trusteeRef, avl_find(&kn->trustees_tree, &kc->trusteeRef->kn)));
+		assertion(-502557, IMPLIES(kc->trusteeRef, avl_find(&kn->trustees_tree, &kc->trusteeRef->kn)));
 		assertion(-502394, (!kc->neighRef)); // this function is called from refNode_destroy()! Not the other way around!
 		assertion(-502395, IMPLIES(kc->pktId, (kn->pktIdTime)));
 		assertion(-502396, IMPLIES(kc->pktSign, (kn->pktSignTime)));
@@ -864,7 +864,7 @@ STATIC_FUNC
 void keyNode_addCredits_(struct key_node *kn, struct key_credits *kc)
 {
 	assertion(-502398, (kn && kc));
-	assertion(-500000, (kc->dFriend == TYP_TRUST_LEVEL_NONE || (kc->dFriend >= TYP_TRUST_LEVEL_DIRECT && kc->dFriend <= MAX_TRUST_LEVEL)));
+	assertion(-502558, (kc->dFriend == TYP_TRUST_LEVEL_NONE || (kc->dFriend >= TYP_TRUST_LEVEL_DIRECT && kc->dFriend <= MAX_TRUST_LEVEL)));
 
 	if (kc->dFriend && (kc->dFriend != kn->dFriend)) {
 
@@ -887,7 +887,7 @@ void keyNode_addCredits_(struct key_node *kn, struct key_credits *kc)
 	}
 
 	if (kc->trusteeRef) {
-		assertion(-500000, (!avl_find(&kn->trustees_tree, &kc->trusteeRef->kn)));
+		assertion(-502559, (!avl_find(&kn->trustees_tree, &kc->trusteeRef->kn)));
 		avl_insert(&kn->trustees_tree, kc->trusteeRef, -300000);
 	}
 
@@ -925,7 +925,7 @@ struct key_node *keyNode_updCredits(GLOBAL_ID_T *kHash, struct key_node *kn, str
 		kn && kn->decreasedEffectiveState ? kn->decreasedEffectiveState->secName : NULL);
 
 	assertion(-502404, (kHash));
-	assertion(-500000, IMPLIES(kc, kc->dFriend == TYP_TRUST_LEVEL_NONE || (kc->dFriend >= TYP_TRUST_LEVEL_DIRECT && kc->dFriend <= MAX_TRUST_LEVEL)));
+	assertion(-502560, IMPLIES(kc, kc->dFriend == TYP_TRUST_LEVEL_NONE || (kc->dFriend >= TYP_TRUST_LEVEL_DIRECT && kc->dFriend <= MAX_TRUST_LEVEL)));
 	assertion(-502405, IMPLIES(kc && kc->pktSign, kc->pktId));
 	assertion(-502406, IMPLIES(kc && kc->neighRef, kc->neighRef->nn));
 	assertion(-502407, IMPLIES(kn, cryptShasEqual(kHash, &kn->kHash)));

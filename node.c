@@ -131,7 +131,7 @@ STATIC_FUNC
 struct NeighRef_node *neighRef_create_(struct neigh_node *neigh, AGGREG_SQN_T aggSqn, IID_T neighIID4x)
 {
 	assertion(-502455, (neigh));
-	assertion(-500000, (!iid_get_node_by_neighIID4x(&neigh->neighIID4x_repos, neighIID4x, NO)));
+	assertion(-502565, (!iid_get_node_by_neighIID4x(&neigh->neighIID4x_repos, neighIID4x, NO)));
 
 	struct NeighRef_node *ref = debugMallocReset(sizeof(struct NeighRef_node), -300000);
 
@@ -206,8 +206,8 @@ void neighRefs_resolve_or_destroy(void)
 struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn, IID_T neighIID4x, CRYPTSHA1_T *kHash, DESC_SQN_T descSqn, struct InaptChainOgm *inChainOgm)
 {
 	assertion(-502459, (nn));
-	assertion(-500000, (neighIID4x));
-	assertion(-500000, IMPLIES((kHash || descSqn), (kHash && descSqn)));
+	assertion(-502566, (neighIID4x));
+	assertion(-502567, IMPLIES((kHash || descSqn), (kHash && descSqn)));
 
 	char *goto_error_code = NULL;
 	struct NeighRef_node *goto_error_ret = NULL;
@@ -274,10 +274,10 @@ struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn
 		if ((kn && kn->on && (dc = kn->on->dc) && ref->descSqn == dc->descSqn && (ogmSqn = chainOgmFind(&chainOgm->chainOgm, dc, (descSqn ? dc->ogmSqnRange : ogmSqnDeviationMax)))) ||
 			(kn && (dc = kn->nextDesc) && ref->descSqn <= dc->descSqn && (ogmSqn = chainOgmFind(&chainOgm->chainOgm, dc, ((descSqn || ref->descSqn < dc->descSqn) ? dc->ogmSqnRange : ogmSqnDeviationMax))))) {
 
-			assertion(-500000, (ogmSqn <= dc->ogmSqnRange));
-			assertion(-500000, (dc->ogmSqnMaxRcvd <= dc->ogmSqnRange));
-			assertion(-500000, (dc->ogmSqnMaxRcvd >= ogmSqn));
-			assertion(-500000, (ref->descSqn <= dc->descSqn));
+			assertion(-502568, (ogmSqn <= dc->ogmSqnRange));
+			assertion(-502569, (dc->ogmSqnMaxRcvd <= dc->ogmSqnRange));
+			assertion(-502570, (dc->ogmSqnMaxRcvd >= ogmSqn));
+			assertion(-502571, (ref->descSqn <= dc->descSqn));
 
 			if (ref->descSqn < dc->descSqn) {
 				ref->descSqn = dc->descSqn;
@@ -352,7 +352,7 @@ finish: {
 
 void neighRefs_update(struct key_node *kn) {
 
-	assertion(-500000, (kn && (kn->nextDesc || kn->on)));
+	assertion(-502572, (kn && (kn->nextDesc || kn->on)));
 
 	dbgf_track(DBGT_INFO, "id=%s name=%s", cryptShaAsShortStr(&kn->kHash), kn->on ? kn->on->k.hostname : NULL);
 	struct NeighRef_node *nref;
@@ -361,7 +361,7 @@ void neighRefs_update(struct key_node *kn) {
 	uint32_t c = 0;
 	for (nn = NULL; (nref = avl_next_item(&kn->neighRefs_tree, &nn)); c++) {
 		nn = nref->nn;
-		assertion(-500000, (c <= kn->neighRefs_tree.items));
+		assertion(-502573, (c <= kn->neighRefs_tree.items));
 		if ((iid = iid_get_neighIID4x_by_node(nref)) && iid_get_neighIID4x_timeout_by_node(nref))
 			neighRef_update(nn, nref->aggSqn, iid, NULL, 0, NULL);
 		else

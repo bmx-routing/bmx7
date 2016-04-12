@@ -636,7 +636,7 @@ int32_t tx_msg_hello_reply(struct tx_frame_iterator *it)
 	LinkKey lk = {.linkDev = ldn, .myDev = it->ttn->key.f.p.dev};
 	LinkNode *link = ldn ? avl_find_item(&link_tree, &lk) : NULL;
 
-	assertion(-500000, (it->frame_type == FRAME_TYPE_HELLO_REPLY_DHASH));
+	assertion(-502561, (it->frame_type == FRAME_TYPE_HELLO_REPLY_DHASH));
 
 	if (!link || !ldn || ldn->key.devIdx < DEVIDX_MIN) {
 
@@ -667,7 +667,7 @@ int32_t rx_msg_hello_reply(struct rx_frame_iterator *it)
 	struct packet_buff *pb = it->pb;
 	assertion(-502431, (pb->i.verifiedLink));
 	struct msg_hello_reply_dhash msg;
-	assertion(-500000, (it->f_type == FRAME_TYPE_HELLO_REPLY_DHASH));
+	assertion(-502562, (it->f_type == FRAME_TYPE_HELLO_REPLY_DHASH));
 
 	if (!cryptShasEqual(&(((struct msg_hello_reply_dhash *) it->f_msg)->dest_dhash), &myKey->on->dc->dHash))
 		return TLV_RX_DATA_PROCESSED;

@@ -820,7 +820,7 @@ void descContent_destroy(struct desc_content *dc)
 struct desc_content* descContent_create(uint8_t *dsc, uint32_t dlen, struct key_node *kn)
 {
 	assertion(-502265, (dsc && dlen && kn && kn->content && kn->content->f_body && kn->bookedState->i.c >= KCTracked));
-	ASSERTION(-500000, (test_description_signature(dsc, dlen)));
+	ASSERTION(-502534, (test_description_signature(dsc, dlen)));
 
 	struct dsc_msg_version *versMsg;
 	GLOBAL_ID_T *id = get_desc_id(dsc, dlen, NULL, &versMsg);
@@ -829,7 +829,7 @@ struct desc_content* descContent_create(uint8_t *dsc, uint32_t dlen, struct key_
 	AVL_INIT_TREE(dc->contentRefs_tree, struct content_usage_node, k);
 	cryptShaAtomic(dsc, dlen, &dc->dHash);
 
-	assertion(-500000, !avl_find(&descContent_tree, &dc->dHash));
+	assertion(-502535, !avl_find(&descContent_tree, &dc->dHash));
 	assertion(-502267, (id && cryptShasEqual(&kn->kHash, id)));
 	assertion(-502268, (!kn->on || kn->on->dc->descSqn < descSqn));
 	assertion(-502269, (!kn->nextDesc || kn->nextDesc->descSqn < descSqn));

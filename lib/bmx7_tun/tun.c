@@ -1028,7 +1028,7 @@ IDM_T _recalc_tun_bit_tree(void)
 
 		struct orig_node *on = tnn->tunNetKey.ton->tunOutKey.on;
 
-		assertion_dbg(-500000, ((on->ogmMetric & ~UMETRIC_MASK) == 0), "um=%ju mask=%ju max=%ju",on->ogmMetric, UMETRIC_MASK, UMETRIC_MAX);
+		assertion_dbg(-502533, ((on->ogmMetric & ~UMETRIC_MASK) == 0), "um=%ju mask=%ju max=%ju",on->ogmMetric, UMETRIC_MASK, UMETRIC_MAX);
 
 		UMETRIC_T linkMax = UMETRIC_MAX;
 		UMETRIC_T tnnBandwidth = fmetric_u8_to_umetric(tnn->bandwidth);

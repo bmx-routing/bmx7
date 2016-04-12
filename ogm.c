@@ -418,7 +418,7 @@ int32_t tx_frame_ogm_aggreg_advs(struct tx_frame_iterator *it)
 }
 
 STATIC_FUNC
-UMETRIC_T lndev_best_via_router(struct neigh_node *local, struct orig_node *on, UMETRIC_T *ogm_metric, LinkNode **bestPathLink, IDM_T trusted)
+UMETRIC_T lndev_best_via_router(struct neigh_node *local, struct orig_node *on, UMETRIC_T *ogm_metric, LinkNode **bestPathLink)
 {
 	assertion(-502474, (local->linkDev_tree.items));
 	assertion(-500000, (!(*bestPathLink)));
@@ -487,9 +487,9 @@ void process_ogm_metric(void *voidRef)
 	IDM_T discard = (!valid_metric || (ogmMetric < on->mtcAlgo->umetric_min && ogmMetric != UMETRIC_MIN__NOT_ROUTABLE));
 
 	dbgf_track(discard ? DBGT_WARN : DBGT_INFO,
-		"orig=%s via neigh=%s nbTrust=%d validMetric=%d ogmMtc=%ju minMtc=%ju ogmSqnRcvd=%d ogmSqnMaxSend=%d",
+		"orig=%s via neigh=%s nbTrust=%d validMetric=%d ogmMtc=%ju minMtc=%ju ogmSqnRcvd=%d ogmSqnMaxSend=%d onSendMtc=%ju onSqnHystere=%d onMtcHystere=%d RefSqnBestSince=%d",
 		cryptShaAsShortStr(&on->k.nodeId), cryptShaAsShortStr(&nn->local_id),
-		neighTrust, ref->ogmSqnMaxClaimedTrust, valid_metric, ogmMetric, on->mtcAlgo->umetric_min, ref->ogmSqnMax, on->dc->ogmSqnMaxSend);
+		neighTrust, valid_metric, ogmMetric, on->mtcAlgo->umetric_min, ref->ogmSqnMax, dc->ogmSqnMaxSend, on->ogmMetric, on->mtcAlgo->ogm_sqn_late_hystere, on->mtcAlgo->ogm_metric_hystere, ref->ogmBestSinceSqn);
 
 	assertion_dbg(-500000, ((ogmMetric & ~UMETRIC_MASK) == 0), "um=%ju mask=%ju max=%ju",ogmMetric, UMETRIC_MASK, UMETRIC_MAX);
 
@@ -507,17 +507,19 @@ void process_ogm_metric(void *voidRef)
 	if (ref->ogmSqnMax >= (dc->ogmSqnMaxSend + 0)) {
 
 		LinkNode *bestLinkViaNeigh = NULL;
-		UMETRIC_T bestMtcViaNeigh = lndev_best_via_router(nn, on, &ogmMetric, &bestLinkViaNeigh, (neighTrust && ref->ogmSqnMaxClaimedTrust));
+		UMETRIC_T bestMtcViaNeigh = lndev_best_via_router(nn, on, &ogmMetric, &bestLinkViaNeigh);
 		assertion(-502478, (bestMtcViaNeigh));
 		assertion_dbg(-500000, ((bestMtcViaNeigh & ~UMETRIC_MASK) == 0), "um=%ju mask=%ju max=%ju", bestMtcViaNeigh, UMETRIC_MASK, UMETRIC_MAX);
+
+		dbgf_track(DBGT_INFO, "bestMtcViaNeigh=%ju neigh=%s", bestMtcViaNeigh, bestLinkViaNeigh ? bestLinkViaNeigh->k.linkDev->key.local->on->k.hostname : NULL);
 
 		if (
 			((ref->ogmSqnMax >= (dc->ogmSqnMaxSend + 2))) ||
 			((ref->ogmSqnMax >= (dc->ogmSqnMaxSend + 1)) && (((TIME_T)(bmx_time - ref->ogmSqnMaxTime)) >= on->mtcAlgo->ogm_sqn_late_hystere)) ||
 			((ref->ogmSqnMax >= (dc->ogmSqnMaxSend + 1)) && (bestLinkViaNeigh == on->curr_rt_link)) ||
 			(sendRevisedOgms && (
-			((ref->ogmSqnMax >= (dc->ogmSqnMaxSend + 0)) && (bestMtcViaNeigh > (((100 + sendRevisedOgms) * on->ogmMetric) / 100)) && (bestLinkViaNeigh == on->curr_rt_link)) ||
-			((ref->ogmSqnMax >= (dc->ogmSqnMaxSend + 0)) && ref->ogmBestSinceSqn && (ref->ogmSqnMax >= on->mtcAlgo->ogm_sqn_best_hystere + ref->ogmBestSinceSqn)) ||
+			((ref->ogmSqnMax >= (dc->ogmSqnMaxSend + 0)) && (bestMtcViaNeigh > ((on->ogmMetric * (100 + sendRevisedOgms)) / 100)) && (bestLinkViaNeigh == on->curr_rt_link)) ||
+			((ref->ogmSqnMax >= (dc->ogmSqnMaxSend + 0)) && (bestMtcViaNeigh > ((on->ogmMetric))) && ref->ogmBestSinceSqn && (ref->ogmSqnMax >= on->mtcAlgo->ogm_sqn_best_hystere + ref->ogmBestSinceSqn)) ||
 			((ref->ogmSqnMax >= (dc->ogmSqnMaxSend + 0)) && (bestMtcViaNeigh > ((on->ogmMetric * (100 + on->mtcAlgo->ogm_metric_hystere))/100)))))
 			) {
 

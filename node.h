@@ -319,7 +319,6 @@ struct NeighRef_node {
 	OGM_SQN_T ogmSqnMax;
 	FMETRIC_U16_T ogmSqnMaxClaimedMetric;
 	uint8_t ogmSqnMaxClaimedHops;
-	uint8_t ogmSqnMaxClaimedTrust;
 	TIME_T ogmSqnMaxTime;
 
 	// set by rx_frame_ogm_aggreg_adv():

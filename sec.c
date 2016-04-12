@@ -82,7 +82,7 @@ static struct DirWatch *trustedDirWatch = NULL;
 
 static int32_t ogmSqnRange = DEF_OGM_SQN_RANGE;
 int32_t ogmSqnDeviationMax = DEF_OGM_SQN_DEVIATION;
-
+int32_t ogmSqnRandom = DEF_OGM_SQN_RANDOM;
 
 
 void chainLinkCalc(ChainInputs_T *i,  OGM_SQN_T diff)
@@ -1936,6 +1936,8 @@ struct opt_type sec_options[]=
 			ARG_VALUE_FORM,	"set average OGM sequence number range (affects frequency of bmx7 description updates)"},
         {ODI, 0, ARG_OGM_SQN_DEVIATION,    0,  9,0, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY,&ogmSqnDeviationMax, MIN_OGM_SQN_DEVIATION,MAX_OGM_SQN_DEVIATION,DEF_OGM_SQN_DEVIATION,0,NULL,
 			ARG_VALUE_FORM,	"limit tries to find matching ogmSqnHash for unconfirmed IIDs"},
+        {ODI, 0, ARG_OGM_SQN_RANDOM,    0,  9,0, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY,&ogmSqnRandom, MIN_OGM_SQN_RANDOM,MAX_OGM_SQN_RANDOM,DEF_OGM_SQN_RANDOM,0,NULL,
+			ARG_VALUE_FORM,	"randomize initial ogm sqn after description updates up to given value"},
 	{ODI,0,ARG_NODE_SIGN_LEN,         0,  4,1,A_PS1N,A_ADM,A_INI,A_CFA,A_ANY,       0,MIN_NODE_SIGN_LEN,MAX_NODE_SIGN_LEN,DEF_NODE_SIGN_LEN,0, opt_key_path,
 			ARG_VALUE_FORM, HLP_NODE_SIGN_LEN},
 	{ODI,ARG_NODE_SIGN_LEN,ARG_KEY_PATH,0,4,1,A_CS1, A_ADM,A_INI,A_CFA,A_ANY,	0,0,    	    0,		      0,     DEF_KEY_PATH, opt_key_path,

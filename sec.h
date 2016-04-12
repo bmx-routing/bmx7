@@ -135,6 +135,13 @@ extern int32_t linkSignLen;
 #define ARG_OGM_SQN_DEVIATION "ogmSqnDeviation"
 extern int32_t ogmSqnDeviationMax;
 
+#define MIN_OGM_SQN_RANDOM 0
+#define MAX_OGM_SQN_RANDOM (MAX_OGM_SQN_RANGE - 1)
+#define DEF_OGM_SQN_RANDOM 0
+#define ARG_OGM_SQN_RANDOM "ogmSqnRandom"
+extern int32_t ogmSqnRandom;
+
+
 extern CRYPTKEY_T *my_NodeKey;
 extern CRYPTKEY_T *my_LinkKey;
 

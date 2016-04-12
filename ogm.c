@@ -487,8 +487,8 @@ void process_ogm_metric(void *voidRef)
 	IDM_T discard = (!valid_metric || (ogmMetric < on->mtcAlgo->umetric_min && ogmMetric != UMETRIC_MIN__NOT_ROUTABLE));
 
 	dbgf_track(discard ? DBGT_WARN : DBGT_INFO,
-		"orig=%s via neigh=%s nbTrust=%d validMetric=%d ogmMtc=%ju minMtc=%ju ogmSqnRcvd=%d ogmSqnMaxSend=%d onSendMtc=%ju onSqnHystere=%d onMtcHystere=%d RefSqnBestSince=%d",
-		cryptShaAsShortStr(&on->k.nodeId), cryptShaAsShortStr(&nn->local_id),
+		"orig=%s descSqn=%d via neigh=%s nbTrust=%d validMetric=%d ogmMtc=%ju minMtc=%ju ogmSqnRcvd=%d ogmSqnMaxSend=%d onSendMtc=%ju onSqnHystere=%d onMtcHystere=%d RefSqnBestSince=%d",
+		cryptShaAsShortStr(&on->k.nodeId), dc->descSqn, cryptShaAsShortStr(&nn->local_id),
 		neighTrust, valid_metric, ogmMetric, on->mtcAlgo->umetric_min, ref->ogmSqnMax, dc->ogmSqnMaxSend, on->ogmMetric, on->mtcAlgo->ogm_sqn_late_hystere, on->mtcAlgo->ogm_metric_hystere, ref->ogmBestSinceSqn);
 
 	assertion_dbg(-500000, ((ogmMetric & ~UMETRIC_MASK) == 0), "um=%ju mask=%ju max=%ju",ogmMetric, UMETRIC_MASK, UMETRIC_MAX);

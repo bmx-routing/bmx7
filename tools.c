@@ -75,7 +75,7 @@ char* memAsHexString( const void* mem, uint32_t len)
 char* rmStrKeyValue(char* str, char* key)
 {
 	char *needleBegin = NULL, *needleVal = NULL, *needleEnd = NULL, *ret = NULL;
-	char *haystack = debugMallocReset(strlen(str)+1, -300000);
+	char *haystack = debugMallocReset(strlen(str)+1, -300810);
 
 	if (
 		(strcpy(haystack, str)) &&
@@ -103,7 +103,7 @@ char* rmStrKeyValue(char* str, char* key)
 
 
 	dbgf_all(DBGT_INFO, "in=%s key=%s beg=%s val=%s end=%s ret=%s, out=%s", haystack, key, needleBegin, needleVal, needleEnd, ret, str);
-	debugFree(haystack, -300000);
+	debugFree(haystack, -300811);
 	return ret;
 }
 

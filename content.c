@@ -811,7 +811,7 @@ void descContent_destroy(struct desc_content *dc)
 	while ((cun = avl_first_item(&dc->contentRefs_tree)))
 		contentUse_del_(cun);
 
-	avl_remove(&descContent_tree, &dc->dHash, -300000);
+	avl_remove(&descContent_tree, &dc->dHash, -300782);
 
 	debugFree(dc, -300730);
 }
@@ -835,7 +835,7 @@ struct desc_content* descContent_create(uint8_t *dsc, uint32_t dlen, struct key_
 	assertion(-502269, (!kn->nextDesc || kn->nextDesc->descSqn < descSqn));
 	assertion(-502270, (kn->content == test_description_signature(dsc, dlen)));
 
-	avl_insert(&descContent_tree, dc, -300000);
+	avl_insert(&descContent_tree, dc, -300783);
 
 	if (kn->nextDesc)
 		descContent_destroy(kn->nextDesc);

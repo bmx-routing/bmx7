@@ -125,7 +125,7 @@ ChainElem_T myChainLinkCache(OGM_SQN_T sqn, DESC_SQN_T descSqn)
 		assertion(-502592, (terminating));
 
 		if (chainLinks)
-			debugFree(chainLinks, -300000);
+			debugFree(chainLinks, -300791);
 
 		chainLinks = NULL;
 
@@ -135,9 +135,9 @@ ChainElem_T myChainLinkCache(OGM_SQN_T sqn, DESC_SQN_T descSqn)
 		assertion(-502594, (descSqn > lastDescSqn));
 
 		if (chainLinks)
-			debugFree(chainLinks, -300000);
+			debugFree(chainLinks, -300792);
 
-		chainLinks = debugMalloc(((ogmSqnRange / CacheInterspace) + 1) * sizeof(ChainLink_T), -300000);
+		chainLinks = debugMalloc(((ogmSqnRange / CacheInterspace) + 1) * sizeof(ChainLink_T), -300793);
 
 		ogmSqnMod = ogmSqnRange % CacheInterspace;
 
@@ -1449,7 +1449,7 @@ void apply_trust_changes(int8_t f_type, struct orig_node *on, struct desc_conten
 			continue;
 
 //			if(!cryptShasEqual(&oldMsg[m].nodeId, &myKey->kHash) && !cryptShasEqual(&oldMsg[m].nodeId, &it->on->key->kHash))
-		avl_insert(&tmp_tree, &oldMsg[m], -300000);
+		avl_insert(&tmp_tree, &oldMsg[m], -300794);
 	}
 
 	for (m = 0; m < newMsgs; m++) {
@@ -1464,12 +1464,12 @@ void apply_trust_changes(int8_t f_type, struct orig_node *on, struct desc_conten
 		if (cryptShasEqual(&on->kn->kHash, &newMsg[m].nodeId))
 			continue;
 
-		if (!(oldMsg = avl_remove(&tmp_tree, &newMsg[m].nodeId, -300000)))
+		if (!(oldMsg = avl_remove(&tmp_tree, &newMsg[m].nodeId, -300795)))
 			keyNode_updCredits(&newMsg[m].nodeId, NULL, &vkc);
 
 	}
 
-	while ((oldMsg = avl_remove_first_item(&tmp_tree, -300000))) {
+	while ((oldMsg = avl_remove_first_item(&tmp_tree, -300796))) {
 
 		keyNode_delCredits(&oldMsg->nodeId, NULL, &vkc);
 	}
@@ -1725,7 +1725,7 @@ void cleanup_dir_watch(struct DirWatch **dw)
 
 	if ((*dw)->ifd > -1) {
 
-		avl_remove(&dirWatch_tree, &(*dw)->ifd, -300000);
+		avl_remove(&dirWatch_tree, &(*dw)->ifd, -300797);
 
 		if ((*dw)->iwd > -1) {
 			inotify_rm_watch((*dw)->ifd, (*dw)->iwd);
@@ -1745,8 +1745,8 @@ void cleanup_dir_watch(struct DirWatch **dw)
 	while ((*dw)->node_tree.items)
 		(*(*dw)->idChanged)(DEL, ((struct KeyWatchNode *) avl_first_item(&(*dw)->node_tree)), *dw);
 
-	debugFree((*dw)->pathp, -300000);
-	debugFree(*dw, -300000);
+	debugFree((*dw)->pathp, -300798);
+	debugFree(*dw, -300799);
 	*dw = NULL;
 
 }
@@ -1756,14 +1756,14 @@ void idChanged_Trusted(IDM_T del, struct KeyWatchNode *kwn, struct DirWatch *dw)
 {
 	if (!kwn) {
 		if (!del){
-			kwn = debugMallocReset(sizeof(struct KeyWatchNode), -300000);
+			kwn = debugMallocReset(sizeof(struct KeyWatchNode), -300800);
 			kwn->global_id = myKey->kHash;
 			kwn->trust = DEF_TRUST_LEVEL;
 			kwn->support = DEF_TRUST_LEVEL;
-			avl_insert(&dw->node_tree, kwn, -300000);
+			avl_insert(&dw->node_tree, kwn, -300801);
 		} else {
-			kwn = avl_remove(&dw->node_tree, &myKey->kHash, -300000);
-			debugFree(kwn, -300000);
+			kwn = avl_remove(&dw->node_tree, &myKey->kHash, -300802);
+			debugFree(kwn, -300803);
 		}
 		return;
 	}
@@ -1804,8 +1804,8 @@ void idChanged_Trusted(IDM_T del, struct KeyWatchNode *kwn, struct DirWatch *dw)
 	}
 
 	if (del) {
-		avl_remove(&dw->node_tree, &kwn->global_id, -300000);
-		debugFree(kwn, -300000);
+		avl_remove(&dw->node_tree, &kwn->global_id, -300804);
+		debugFree(kwn, -300805);
 	}
 }
 
@@ -1815,9 +1815,9 @@ IDM_T init_dir_watch(struct DirWatch **dw, char *path, void (* idChangedTask) (I
 
 	cleanup_dir_watch(dw);
 
-	(*dw) = debugMallocReset(sizeof(struct DirWatch), -300000);
+	(*dw) = debugMallocReset(sizeof(struct DirWatch), -300806);
 
-	(*dw)->pathp = debugMalloc(strlen(path) + 1, -300000);
+	(*dw)->pathp = debugMalloc(strlen(path) + 1, -300807);
 	strcpy((*dw)->pathp, path);
 	(*dw)->idChanged = idChangedTask;
 	(*dw)->retryCnt = 5;
@@ -1843,7 +1843,7 @@ IDM_T init_dir_watch(struct DirWatch **dw, char *path, void (* idChangedTask) (I
 	} else {
 
 		set_fd_hook((*dw)->ifd, inotify_event_hook, ADD);
-		avl_insert(&dirWatch_tree, (*dw), -300000);
+		avl_insert(&dirWatch_tree, (*dw), -300808);
 	}
 
 	(*((*dw)->idChanged))(ADD, NULL, *dw);
@@ -1908,7 +1908,7 @@ static int32_t trust_status_creator(struct status_handl *handl, void *data)
 	struct KeyWatchNode *kwn;
 	struct orig_node *on;
 
-	struct trust_status *status = ((struct trust_status*) (handl->data = debugRealloc(handl->data, max_size, -300000)));
+	struct trust_status *status = ((struct trust_status*) (handl->data = debugRealloc(handl->data, max_size, -300809)));
 	memset(status, 0, max_size);
 
 	while((kwn = avl_iterate_item(&trustedDirWatch->node_tree, &an))) {

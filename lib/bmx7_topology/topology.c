@@ -263,7 +263,7 @@ void check_local_topology_cache(void *nothing)
 		return;
 	}
 
-	task_register(my_topology_period, check_local_topology_cache, NULL, -300000);
+	task_register(my_topology_period, check_local_topology_cache, NULL, -300782);
 }
 
 STATIC_FUNC
@@ -272,8 +272,8 @@ void destroy_local_topology_cache(void)
 
 	struct local_topology_node *ltn;
 
-	while ((ltn = avl_remove_first_item(&local_topology_tree, -300000)))
-		debugFree(ltn, -300000);
+	while ((ltn = avl_remove_first_item(&local_topology_tree, -300783)))
+		debugFree(ltn, -300784);
 
 }
 
@@ -293,7 +293,7 @@ int create_description_topology(struct tx_frame_iterator *it)
 		return TLV_TX_DATA_IGNORED;
 
 	task_remove(check_local_topology_cache, NULL);
-	task_register(((bmx_time < ((TIME_T)my_topology_period/10)) ? (my_topology_period/10) : my_topology_hysteresis), check_local_topology_cache, NULL, -300000);
+	task_register(((bmx_time < ((TIME_T)my_topology_period/10)) ? (my_topology_period/10) : my_topology_hysteresis), check_local_topology_cache, NULL, -300785);
 
 	hdr->reserved = 0;
 	hdr->type = 0;
@@ -302,11 +302,11 @@ int create_description_topology(struct tx_frame_iterator *it)
 
 		if (local->best_tp_link) {
 
-			struct local_topology_node *ltn = debugMallocReset(sizeof(struct local_topology_node), -300000);
+			struct local_topology_node *ltn = debugMallocReset(sizeof(struct local_topology_node), -300786);
 
 			set_local_topology_node(ltn, local);
 			ltn->pkid = local->local_id;
-			avl_insert(&local_topology_tree, ltn, -300000);
+			avl_insert(&local_topology_tree, ltn, -300787);
 
 			msg[m].pkid = ltn->pkid;
 			msg[m].txBw = umetric_to_fmu8( &ltn->txBw);
@@ -336,7 +336,7 @@ int32_t opt_topology(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct op
 		task_remove(check_local_topology_cache, NULL);
 
 		if (my_topology_period < MAX_TOPOLOGY_PERIOD)
-			task_register(my_topology_period/10, check_local_topology_cache, NULL, -300000);
+			task_register(my_topology_period/10, check_local_topology_cache, NULL, -300788);
 
 		scheduled_period = my_topology_period;
 	}

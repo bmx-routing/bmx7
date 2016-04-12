@@ -157,8 +157,8 @@ void idChanged_Evil(IDM_T del, struct KeyWatchNode *kwn, struct DirWatch *dw)
 	}
 
 	if (del) {
-		avl_remove(&dw->node_tree, &kwn->global_id, -300000);
-		debugFree(kwn, -300000);
+		avl_remove(&dw->node_tree, &kwn->global_id, -300770);
+		debugFree(kwn, -300771);
 	}
 }
 

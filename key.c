@@ -255,7 +255,7 @@ void kSetOutAction_listed(struct key_node **knp, struct KeyState *next)
 	while ((on = avl_remove_first_item(&(*knp)->recommendations_tree, -300708)))
 		keyNode_schedLowerWeight(on->kn, KCListed);
 
-	while ((on = avl_remove_first_item(&(*knp)->trustees_tree, -300000)))
+	while ((on = avl_remove_first_item(&(*knp)->trustees_tree, -300784)))
 		keyNode_schedLowerWeight(on->kn, KCListed);
 
 	keyNode_destroy_(*knp);
@@ -839,7 +839,7 @@ void keyNode_delCredits_(const char* f, GLOBAL_ID_T *kHash, struct key_node *kn,
 			avl_remove(&kn->recommendations_tree, &kc->recom->kn, -300710);
 
 		if (kc->trusteeRef)
-			avl_remove(&kn->trustees_tree, &kc->trusteeRef->kn, -300000);
+			avl_remove(&kn->trustees_tree, &kc->trusteeRef->kn, -300785);
 /*
 		if (kc->ref)
 			refNode_destroy(kc->ref);
@@ -888,7 +888,7 @@ void keyNode_addCredits_(struct key_node *kn, struct key_credits *kc)
 
 	if (kc->trusteeRef) {
 		assertion(-502559, (!avl_find(&kn->trustees_tree, &kc->trusteeRef->kn)));
-		avl_insert(&kn->trustees_tree, kc->trusteeRef, -300000);
+		avl_insert(&kn->trustees_tree, kc->trusteeRef, -300786);
 	}
 
 	if (kc->neighRef) {

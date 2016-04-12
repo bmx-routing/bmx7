@@ -373,7 +373,7 @@ void avl_insert(struct avl_tree *tree, void *node, int32_t tag)
 void *avl_remove(struct avl_tree *tree, void *key, int32_t tag)
 {
 	assertion_dbg(-501570, (key), "key=NULL, tag=%d", tag);
-	assertion(-501571, (tag <=-300000 && tag > -400000));
+	assertion(-501571, (tag <=-300781 && tag > -400000));
 
         struct avl_node *it = tree->root;
         struct avl_node *up[AVL_MAX_HEIGHT];

@@ -78,7 +78,7 @@ STATIC_FUNC
 void inaptChainOgm_destroy_(struct NeighRef_node *ref)
 {
 	if (ref->inaptChainOgm) {
-		debugFree(ref->inaptChainOgm, -300000);
+		debugFree(ref->inaptChainOgm, -300787);
 		ref->inaptChainOgm = NULL;
 	}
 }
@@ -89,7 +89,7 @@ void inaptChainOgm_update_(struct NeighRef_node *ref, struct InaptChainOgm *inap
 {
 
 	if (!ref->inaptChainOgm)
-		ref->inaptChainOgm = debugMalloc(sizeof(struct msg_ogm_adv), -300000);
+		ref->inaptChainOgm = debugMalloc(sizeof(struct msg_ogm_adv), -300788);
 
 
 	if (ref->inaptChainOgm != inaptChainOgm) {
@@ -133,7 +133,7 @@ struct NeighRef_node *neighRef_create_(struct neigh_node *neigh, AGGREG_SQN_T ag
 	assertion(-502455, (neigh));
 	assertion(-502565, (!iid_get_node_by_neighIID4x(&neigh->neighIID4x_repos, neighIID4x, NO)));
 
-	struct NeighRef_node *ref = debugMallocReset(sizeof(struct NeighRef_node), -300000);
+	struct NeighRef_node *ref = debugMallocReset(sizeof(struct NeighRef_node), -300789);
 
 	ref->nn = neigh;
 	ref->aggSqn = aggSqn;

@@ -268,7 +268,7 @@ void add_rtattr(struct nlmsghdr *nlh, int rta_type, char *data, uint16_t data_le
 
         nlh->nlmsg_len = NLMSG_ALIGN(nlh->nlmsg_len) + RTA_ALIGN(len);
 
-        assertion(-50173, (NLMSG_ALIGN(nlh->nlmsg_len) < RT_REQ_BUFFSIZE));
+        assertion(-501730, (NLMSG_ALIGN(nlh->nlmsg_len) < RT_REQ_BUFFSIZE));
         // if this fails then double req buff size !!
 
         rta->rta_type = rta_type;

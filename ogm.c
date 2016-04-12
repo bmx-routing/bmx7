@@ -121,10 +121,12 @@ void schedule_ogm( struct orig_node *on, OGM_SQN_T ogmSqn, UMETRIC_T um, uint8_t
         TRACE_FUNCTION_CALL;
 	assertion(-502281, (on && um));
 
-	dbgf_track(DBGT_INFO, "ogmSqn=%d maxRcvd=%d maxSend=%d range=%d metric=%s %ju hops=%d",
-		ogmSqn, on->dc->ogmSqnMaxRcvd, on->dc->ogmSqnMaxSend, on->dc->ogmSqnRange, umetric_to_human(um), um, hopCount);
+	dbgf_track(DBGT_INFO, "ogmSqn=%d maxRcvd=%d maxSend=%d range=%d hops=%d metric=%s um=%ju um16=%d -> um=%ju ",
+		ogmSqn, on->dc->ogmSqnMaxRcvd, on->dc->ogmSqnMaxSend, on->dc->ogmSqnRange, hopCount, umetric_to_human(um), um,
+		umetric_to_fmetric(um).val.u16, fmetric_to_umetric(umetric_to_fmetric(um)));
 
 	assertion_dbg(-500000, ((um & ~UMETRIC_MASK) == 0), "um=%ju mask=%ju max=%ju",um, UMETRIC_MASK, UMETRIC_MAX);
+	assertion_dbg(-500000, (um >= fmetric_to_umetric(umetric_to_fmetric(um))), "um=%ju um16=%d -> um=%ju",um, umetric_to_fmetric(um).val.u16, fmetric_to_umetric(umetric_to_fmetric(um)));
 
 	if ((ogmSqn > on->dc->ogmSqnMaxSend) || (ogmSqn == on->dc->ogmSqnMaxSend && um > on->ogmMetric)) {
 
@@ -404,10 +406,10 @@ int32_t tx_frame_ogm_aggreg_advs(struct tx_frame_iterator *it)
 		msg->u.f.hopCount = on->ogmHopCount;
 		msg->u.f.transmitterIID4x = iid_get_myIID4x_by_node(on);
 
-		dbgf_track(DBGT_INFO, "name=%s nodeId=%s sqn=%d metric=%ju hops=%d cih=%s chainOgm=%s",
+		dbgf_track(DBGT_INFO, "name=%s nodeId=%s sqn=%d metric=%ju hops=%d cih=%s chainOgm=%s viaDev=%s",
 			on->k.hostname, cryptShaAsShortStr(&on->kn->kHash), on->dc->ogmSqnMaxSend, on->ogmMetric, on->ogmHopCount,
 			memAsHexString(&on->dc->chainOgmConstInputHash, sizeof(msg->chainOgm)),
-			memAsHexString(&msg->chainOgm, sizeof(msg->chainOgm)));
+			memAsHexString(&msg->chainOgm, sizeof(msg->chainOgm)), it->ttn->key.f.p.dev->label_cfg.str);
 
 		msg->u.u32 = htonl(msg->u.u32);
 	}

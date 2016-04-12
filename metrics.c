@@ -196,7 +196,7 @@ FMETRIC_U16_T umetric_to_fmetric(UMETRIC_T val)
 		assertion(-502563, ((val >> exp_sum) == 1)); //ensure log2 works fine
                 assertion(-501027, (exp_sum >= OGM_EXPONENT_OFFSET));
 		assertion(-501028, ((val >> (exp_sum - OGM_MANTISSA_BIT_SIZE)) >= (1 << OGM_EXPONENT_OFFSET)));
-		assertion_dbg(-500000, ((val >= fmetric_to_umetric(fm)) && (val < (((65*64)*fmetric_to_umetric(fm))/(64*64)))), "in=%ju outExp=%d outMant=%d outU16=%d check=%ju ! Otherwise OGM metrics may return larger than send",
+		assertion_dbg(-502637, ((val >= fmetric_to_umetric(fm)) && (val < (((65*64)*fmetric_to_umetric(fm))/(64*64)))), "in=%ju outExp=%d outMant=%d outU16=%d check=%ju ! Otherwise OGM metrics may return larger than send",
 			val, fm.val.f.exp_fm16, fm.val.f.mantissa_fm16, fm.val.u16, fmetric_to_umetric(fm));
         }
 

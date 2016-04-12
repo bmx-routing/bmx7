@@ -543,7 +543,7 @@ IDM_T rtnl_talk(struct rtnl_handle *iprth, struct nlmsghdr *nlh, uint16_t cmd, u
 
 	int result = rtnl_rcv( iprth->fd, iprth->local.nl_pid, iprth->seq, cmd, quiet, func, data );
 
-	ASSERTION(result >= FAILURE ? -502638 : result, (result >= FAILURE));
+	ASSERTION((result >= FAILURE ? -502638 : result), (result >= FAILURE));
 
 	iprth->busy = 0;
 	return result;

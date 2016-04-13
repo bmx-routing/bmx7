@@ -118,7 +118,8 @@ int32_t opt_capacity(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct op
 							float tpt = 0;
 
 							dbg_printf(cn, "Retrieved len=%3zu %3zu: %s", read, len, line);
-							if (read >= ATH_RC_STATS_FILE_TXT_LEN && len > ATH_RC_STATS_FILE_TXT_LEN && line[ATH_RC_STATS_FILE_TXT_POS_P] == 'P' ) {
+							if (read >= ATH_RC_STATS_FILE_TXT_LEN && len > ATH_RC_STATS_FILE_TXT_LEN && line[ATH_RC_STATS_FILE_TXT_POS_P] == 'P' && line[ATH_RC_STATS_FILE_TXT_POS_OE] == '(' ) {
+								line[ATH_RC_STATS_FILE_TXT_POS_OE] = 0;
 								sscanf(&line[ATH_RC_STATS_FILE_TXT_POS_O], "%d", &okTx);
 								sscanf(&line[ATH_RC_STATS_FILE_TXT_POS_T], "%f", &tpt);
 								dbg_printf(cn, "above ok=%d tpt=%f\n", okTx, tpt);

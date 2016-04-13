@@ -94,14 +94,14 @@ int32_t opt_capacity(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct op
 					char txtFileNameB[MAX_PATH_SIZE];
 					uint8_t *m = &link->k.linkDev->key.llocal_ip.s6_addr[0];
 
-					sprintf(txtFileNameA, "%s/%s/%s%s/%s/%2x:%2x:%2x:%2x:%2x:%2x/%s",
+					sprintf(txtFileNameA, "%s/%s/%s%s/%s/%.2x:%.2x:%.2x:%.2x:%.2x:%.2x/%s",
 						baseDirName, baseDirEnt->d_name, ATH_RC_STATS_DEVS_DIR, link->k.myDev->label_cfg.str, ATH_RC_STATS_MACS_DIR,
-						m[8], m[9],m[10],m[13],m[14],m[15],
+						m[8], m[9], m[10], m[13], m[14], m[15],
 						ATH_RC_STATS_FILE_TXT);
 
-					sprintf(txtFileNameB, "%s/%s/%s%s/%s/%2x:%2x:%2x:%2x:%2x:%2x/%s",
+					sprintf(txtFileNameB, "%s/%s/%s%s/%s/%.2x:%.2x:%.2x:%.2x:%.2x:%.2x/%s",
 						baseDirName, baseDirEnt->d_name, ATH_RC_STATS_DEVS_DIR, link->k.myDev->label_cfg.str, ATH_RC_STATS_MACS_DIR,
-						m[8], m[9] & 0xFD,m[10],m[13],m[14],m[15],
+						m[8], (m[9] | 0x02), m[10], m[13], m[14], m[15],
 						ATH_RC_STATS_FILE_TXT);
 
 					dbg_printf(cn, "trying fopen A=%s B=%s\n", txtFileNameA, txtFileNameB);

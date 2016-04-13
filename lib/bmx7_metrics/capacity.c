@@ -75,6 +75,10 @@ int32_t opt_capacity(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct op
 		struct dirent *baseDirEnt;
 		DIR *baseDirDIR;
 		char *baseDirName = ATH_RC_STATS_BASE_DIR;
+		int okTx = 0;
+		float tptfM = 0;
+		uint32_t tptib = 0;
+
 
 		dbg_printf(cn, "trying opendir=%s\n", baseDirName);
 
@@ -114,15 +118,17 @@ int32_t opt_capacity(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct op
 
 						while ((read = getline(&line, &len, fp)) != -1) {
 
-							int okTx = 0;
-							float tpt = 0;
+							dbgf_cn(cn, DBGL_ALL, DBGT_INFO, "Retrieved len=%3zu %3zu: %s", read, len, line);
+							if ((read >= ATH_RC_STATS_FILE_TXT_LEN) && (len > ATH_RC_STATS_FILE_TXT_LEN) &&
+								(line[ATH_RC_STATS_FILE_TXT_POS_P] == 'P') && (line[ATH_RC_STATS_FILE_TXT_POS_OE] == '(') &&
+								((line[ATH_RC_STATS_FILE_TXT_POS_OE] = 0) || 1) &&
+								(sscanf(&line[ATH_RC_STATS_FILE_TXT_POS_O], "%d", &okTx)) &&
+								(sscanf(&line[ATH_RC_STATS_FILE_TXT_POS_T], "%f", &tptfM)) &&
+								(tptib = 1000*1000*((uint32_t)tptfM))
+								) {
 
-							dbg_printf(cn, "Retrieved len=%3zu %3zu: %s", read, len, line);
-							if (read >= ATH_RC_STATS_FILE_TXT_LEN && len > ATH_RC_STATS_FILE_TXT_LEN && line[ATH_RC_STATS_FILE_TXT_POS_P] == 'P' && line[ATH_RC_STATS_FILE_TXT_POS_OE] == '(' ) {
-								line[ATH_RC_STATS_FILE_TXT_POS_OE] = 0;
-								sscanf(&line[ATH_RC_STATS_FILE_TXT_POS_O], "%d", &okTx);
-								sscanf(&line[ATH_RC_STATS_FILE_TXT_POS_T], "%f", &tpt);
-								dbg_printf(cn, "above ok=%d tpt=%f\n", okTx, tpt);
+								dbg_printf(cn, "above ok=%d tptfM=%f tptib=%d\n", okTx, tptfM, tptib);
+								break;
 							}
 						}
 

@@ -113,8 +113,19 @@ int32_t opt_capacity(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct op
 						dbg_printf(cn, "succeeded file=%s\n", fpA ? txtFileNameA : txtFileNameB);
 
 						while ((read = getline(&line, &len, fp)) != -1) {
-							dbg_printf(cn, "Retrieved len=%3zu: %s \n", read, line);
+
+							int okTx = 0;
+							float tpt = 0;
+
+							dbg_printf(cn, "Retrieved len=%3zu %3z: %s", read, len, line);
+							if (read >= ATH_RC_STATS_FILE_TXT_LEN && len > ATH_RC_STATS_FILE_TXT_LEN && line[ATH_RC_STATS_FILE_TXT_POS_P] == 'P' ) {
+								sscanf(&line[ATH_RC_STATS_FILE_TXT_POS_O], "%d", &okTx);
+								sscanf(&line[ATH_RC_STATS_FILE_TXT_POS_T], "%f", &tpt);
+								dbg_printf(cn, "above ok=%d tpt=%f\n", okTx, tpt);
+							}
 						}
+
+						dbg_printf(cn, "\n");
 
 						fclose(fp);
 						if (line)

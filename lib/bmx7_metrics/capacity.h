@@ -21,6 +21,11 @@
 #define ATH_RC_STATS_MACS_DIR "stations" // -> "stations/12:34:56:78:9A:BC"
 #define ATH_RC_STATS_FILE_CSV "rc_stats_csv"
 #define ATH_RC_STATS_FILE_TXT "rc_stats"
+#define ATH_RC_STATS_FILE_TXT_LEN 77
+#define ATH_RC_STATS_FILE_TXT_POS_P 14
+#define ATH_RC_STATS_FILE_TXT_POS_T 22
+#define ATH_RC_STATS_FILE_TXT_POS_O 55
+
 
 #define ARG_LINK_PROBE_IVAL "linkProbeInterval"
 #define HLP_LINK_PROBE_IVAL "interval for unicast link probing. Needed for accurate link capacity estimation"

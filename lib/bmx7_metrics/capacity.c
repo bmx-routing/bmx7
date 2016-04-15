@@ -41,8 +41,13 @@
 #include "crypt.h"
 #include "avl.h"
 #include "node.h"
+#include "key.h"
+#include "sec.h"
 #include "metrics.h"
+#include "ogm.h"
 #include "msg.h"
+#include "desc.h"
+#include "content.h"
 #include "plugin.h"
 #include "schedule.h"
 #include "tools.h"
@@ -57,6 +62,148 @@
 
 int32_t linkProbeInterval = DEF_LINK_PROBE_IVAL;
 
+void upd_ath_capacity(LinkNode *link, struct ctrl_node *cn)
+{
+
+	struct dirent *baseDirEnt;
+	DIR *baseDirDIR;
+	char *baseDirName = ATH_RC_STATS_BASE_DIR;
+	uint32_t okTx = 0;
+	float tptfM = 0;
+	UMETRIC_T tptib = 0;
+
+	dbg_printf(cn, "trying opendir=%s\n", baseDirName);
+
+	if ((baseDirDIR = opendir(baseDirName))) {
+
+		while ((baseDirEnt = readdir(baseDirDIR))) {
+
+			dbg_printf(cn, "trying dirent=%s\n", baseDirEnt->d_name);
+
+			if (!strncmp(baseDirEnt->d_name, ATH_RC_STATS_PHY_PREFIX, strlen(ATH_RC_STATS_PHY_PREFIX))) {
+
+				FILE *fpA = NULL, *fpB = NULL;
+				char *line = NULL;
+				size_t len = 0;
+				ssize_t read;
+				char txtFileNameA[MAX_PATH_SIZE];
+				char txtFileNameB[MAX_PATH_SIZE];
+				uint8_t *m = &link->k.linkDev->key.llocal_ip.s6_addr[0];
+				IFNAME_T phy_name = link->k.myDev->name_phy_cfg;
+				char *dotPtr;
+
+				if ((dotPtr = strchr(phy_name.str, '.')) != NULL)
+					*dotPtr = '\0';
+
+
+				sprintf(txtFileNameA, "%s/%s/%s%s/%s/%.2x:%.2x:%.2x:%.2x:%.2x:%.2x/%s",
+					baseDirName, baseDirEnt->d_name, ATH_RC_STATS_DEVS_DIR, phy_name.str, ATH_RC_STATS_MACS_DIR,
+					m[8], m[9], m[10], m[13], m[14], m[15],
+					ATH_RC_STATS_FILE_TXT);
+
+				sprintf(txtFileNameB, "%s/%s/%s%s/%s/%.2x:%.2x:%.2x:%.2x:%.2x:%.2x/%s",
+					baseDirName, baseDirEnt->d_name, ATH_RC_STATS_DEVS_DIR, phy_name.str, ATH_RC_STATS_MACS_DIR,
+					(m[8] & 0xFD), m[9], m[10], m[13], m[14], m[15],
+					ATH_RC_STATS_FILE_TXT);
+
+				dbg_printf(cn, "trying fopen A=%s B=%s\n", txtFileNameA, txtFileNameB);
+
+
+				if ((fpA = fopen(txtFileNameA, "r")) || (fpB = fopen(txtFileNameB, "r"))) {
+
+					FILE *fp = fpA ? fpA : fpB;
+					dbg_printf(cn, "succeeded file=%s\n", fpA ? txtFileNameA : txtFileNameB);
+
+					while ((read = getline(&line, &len, fp)) != -1) {
+
+						dbgf_all(DBGT_INFO, "Retrieved len=%3zu %3zu: %s", read, len, line);
+						if ((read >= ATH_RC_STATS_FILE_TXT_LEN) && (len > ATH_RC_STATS_FILE_TXT_LEN) &&
+							(line[ATH_RC_STATS_FILE_TXT_POS_P] == 'P') && (line[ATH_RC_STATS_FILE_TXT_POS_OE] == '(') &&
+							((line[ATH_RC_STATS_FILE_TXT_POS_OE] = 0) || 1) &&
+							(sscanf(&line[ATH_RC_STATS_FILE_TXT_POS_O], "%u", &okTx)) &&
+							(sscanf(&line[ATH_RC_STATS_FILE_TXT_POS_T], "%f", &tptfM)) &&
+							(tptib = ((UMETRIC_T) (1000 * 1000 * tptfM)))
+							) {
+
+							dbg_printf(cn, "above ok=%u tptfM=%f tptib=%ju\n", okTx, tptfM, tptib);
+
+							if (link->macTxPackets != okTx) {
+
+								link->macTxTP = tptib;
+								link->macTxPackets = okTx;
+								link->macUpdated = bmx_time;
+
+							} else if (((TIME_T) (bmx_time - link->macTxTriggered)) >= (TIME_T) linkProbeInterval) {
+
+								link->macTxTriggered = bmx_time;
+
+								schedule_tx_task(FRAME_TYPE_DESC_ADVS, link, &link->k.linkDev->key.local->local_id, link->k.linkDev->key.local, link->k.myDev,
+									myKey->on->dc->desc_frame_len, &myKey->on->dc->dHash, sizeof(DHASH_T));
+
+							}
+							break;
+						}
+					}
+
+					dbg_printf(cn, "\n");
+
+					fclose(fp);
+					if (line)
+						free(line);
+
+					break;
+				}
+			}
+		}
+		closedir(baseDirDIR);
+	}
+	return;
+}
+
+STATIC_FUNC
+void init_ath_capacity_handler(int32_t cb_id, void* devp)
+{
+        struct dev_node *dev;
+        struct avl_node *an;
+
+        for (an = NULL; (dev = avl_iterate_item(&dev_name_tree, &an));) {
+
+		if (dev->active && !dev->upd_link_capacity) {
+
+			struct dirent *baseDirEnt;
+			DIR *baseDirDIR;
+			char *baseDirName = ATH_RC_STATS_BASE_DIR;
+			dbgf_track(DBGT_INFO, "trying opendir=%s\n", baseDirName);
+
+			if ((baseDirDIR = opendir(baseDirName))) {
+
+				while ((baseDirEnt = readdir(baseDirDIR))) {
+
+					dbgf_track(DBGT_INFO, "trying dirent=%s\n", baseDirEnt->d_name);
+
+					if (!strncmp(baseDirEnt->d_name, ATH_RC_STATS_PHY_PREFIX, strlen(ATH_RC_STATS_PHY_PREFIX))) {
+
+						char statsDirName[MAX_PATH_SIZE];
+						IFNAME_T phy_name = dev->name_phy_cfg;
+						char *dotPtr;
+
+						if ((dotPtr = strchr(phy_name.str, '.')) != NULL)
+							*dotPtr = '\0';
+
+						sprintf(statsDirName, "%s/%s/%s%s/", baseDirName, baseDirEnt->d_name, ATH_RC_STATS_DEVS_DIR, phy_name.str);
+
+						if (check_dir(statsDirName, NO, NO, NO)) {
+							dev->upd_link_capacity = upd_ath_capacity;
+							dbgf_sys(DBGT_INFO, "found driver statistics directory=%s", statsDirName);
+							break;
+						}
+					}
+				}
+				closedir(baseDirDIR);
+			}
+                }
+        }
+}
 
 
 STATIC_FUNC
@@ -72,77 +219,9 @@ int32_t opt_capacity(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct op
 
 	while ((link = avl_iterate_item(&link_tree, &an))) {
 
-		struct dirent *baseDirEnt;
-		DIR *baseDirDIR;
-		char *baseDirName = ATH_RC_STATS_BASE_DIR;
-		int okTx = 0;
-		float tptfM = 0;
-		UMETRIC_T tptib = 0;
-
-
-		dbg_printf(cn, "trying opendir=%s\n", baseDirName);
-
-		if ((baseDirDIR = opendir(baseDirName))) {
-
-			while ((baseDirEnt = readdir(baseDirDIR))) {
-
-				dbg_printf(cn, "trying dirent=%s\n", baseDirEnt->d_name);
-
-				if (!strncmp(baseDirEnt->d_name, ATH_RC_STATS_PHY_PREFIX, strlen(ATH_RC_STATS_PHY_PREFIX))) {
-
-					FILE *fpA = NULL, *fpB = NULL;
-					char *line = NULL;
-					size_t len = 0;
-					ssize_t read;
-					char txtFileNameA[MAX_PATH_SIZE];
-					char txtFileNameB[MAX_PATH_SIZE];
-					uint8_t *m = &link->k.linkDev->key.llocal_ip.s6_addr[0];
-
-					sprintf(txtFileNameA, "%s/%s/%s%s/%s/%.2x:%.2x:%.2x:%.2x:%.2x:%.2x/%s",
-						baseDirName, baseDirEnt->d_name, ATH_RC_STATS_DEVS_DIR, link->k.myDev->label_cfg.str, ATH_RC_STATS_MACS_DIR,
-						m[8], m[9], m[10], m[13], m[14], m[15],
-						ATH_RC_STATS_FILE_TXT);
-
-					sprintf(txtFileNameB, "%s/%s/%s%s/%s/%.2x:%.2x:%.2x:%.2x:%.2x:%.2x/%s",
-						baseDirName, baseDirEnt->d_name, ATH_RC_STATS_DEVS_DIR, link->k.myDev->label_cfg.str, ATH_RC_STATS_MACS_DIR,
-						(m[8] & 0xFD), m[9], m[10], m[13], m[14], m[15],
-						ATH_RC_STATS_FILE_TXT);
-
-					dbg_printf(cn, "trying fopen A=%s B=%s\n", txtFileNameA, txtFileNameB);
-
-
-					if ((fpA = fopen(txtFileNameA, "r")) || (fpB = fopen(txtFileNameB, "r"))) {
-
-						FILE *fp = fpA ? fpA : fpB;
-						dbg_printf(cn, "succeeded file=%s\n", fpA ? txtFileNameA : txtFileNameB);
-
-						while ((read = getline(&line, &len, fp)) != -1) {
-
-							dbgf_all(DBGT_INFO, "Retrieved len=%3zu %3zu: %s", read, len, line);
-							if ((read >= ATH_RC_STATS_FILE_TXT_LEN) && (len > ATH_RC_STATS_FILE_TXT_LEN) &&
-								(line[ATH_RC_STATS_FILE_TXT_POS_P] == 'P') && (line[ATH_RC_STATS_FILE_TXT_POS_OE] == '(') &&
-								((line[ATH_RC_STATS_FILE_TXT_POS_OE] = 0) || 1) &&
-								(sscanf(&line[ATH_RC_STATS_FILE_TXT_POS_O], "%d", &okTx)) &&
-								(sscanf(&line[ATH_RC_STATS_FILE_TXT_POS_T], "%f", &tptfM)) &&
-								(tptib = 1000*1000*((UMETRIC_T)tptfM))
-								) {
-
-								dbg_printf(cn, "above ok=%d tptfM=%f tptib=%d\n", okTx, tptfM, tptib);
-								break;
-							}
-						}
-
-						dbg_printf(cn, "\n");
-
-						fclose(fp);
-						if (line)
-							free(line);
-
-					}
-				}
-			}
-			closedir(baseDirDIR);
-		}
+		if (link->k.myDev->upd_link_capacity)
+			(*(link->k.myDev->upd_link_capacity))(link, cn);
+		
 	}
 
         return SUCCESS;
@@ -175,6 +254,7 @@ static int32_t capacity_init( void )
 }
 
 
+
 struct plugin* get_plugin( void ) {
 	
 	static struct plugin capacity_plugin;
@@ -186,6 +266,7 @@ struct plugin* get_plugin( void ) {
 	capacity_plugin.plugin_size = sizeof ( struct plugin );
 	capacity_plugin.cb_init = capacity_init;
 	capacity_plugin.cb_cleanup = capacity_cleanup;
+	capacity_plugin.cb_plugin_handler[PLUGIN_CB_BMX_DEV_EVENT] = init_ath_capacity_handler;
 
 	return &capacity_plugin;
 }

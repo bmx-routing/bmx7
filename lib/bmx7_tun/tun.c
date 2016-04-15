@@ -1030,16 +1030,10 @@ IDM_T _recalc_tun_bit_tree(void)
 
 		assertion_dbg(-502533, ((on->ogmMetric & ~UMETRIC_MASK) == 0), "um=%ju mask=%ju max=%ju",on->ogmMetric, UMETRIC_MASK, UMETRIC_MAX);
 
-		UMETRIC_T linkMax = UMETRIC_MAX;
 		UMETRIC_T tnnBandwidth = fmetric_u8_to_umetric(tnn->bandwidth);
-		UMETRIC_T linkQuality = tnnBandwidth >= tsn->minBW ? UMETRIC_MAX : tnnBandwidth;
+		UMETRIC_T tnnQuality = tnnBandwidth >= tsn->minBW ? UMETRIC_MAX : tnnBandwidth;
 		UMETRIC_T pathMetric = on->curr_rt_link ? on->ogmMetric : 0;
-		UMETRIC_T e2eMetric;
-
-		if (linkQuality <= UMETRIC_MIN__NOT_ROUTABLE || pathMetric <= UMETRIC_MIN__NOT_ROUTABLE)
-			e2eMetric = UMETRIC_MIN__NOT_ROUTABLE;
-		else
-			e2eMetric = apply_metric_algo(&linkQuality, &linkMax, &pathMetric, on->mtcAlgo);
+		UMETRIC_T e2eMetric = XMIN(tnnQuality, pathMetric);
 
 		dbgf_all(DBGT_INFO, "acceptable e2eMetric=%s,", umetric_to_human(e2eMetric));
 

@@ -1330,7 +1330,7 @@ int32_t opt_flush_all(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct o
 	TRACE_FUNCTION_CALL;
 
 	if (cmd == OPT_APPLY) {
-		purge_tx_task_tree(NULL, NULL, NULL, YES);
+		purge_tx_task_tree(NULL, NULL, NULL, NULL, YES);
 		keyNodes_cleanup(KCNull, myKey);
 	}
 

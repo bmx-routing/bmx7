@@ -84,7 +84,7 @@ int32_t ip_policy_rt_cfg = DEF_IP_POLICY_ROUTING;
 
 int32_t policy_routing = POLICY_RT_UNSET;
 
-static int32_t base_port = DEF_BASE_PORT;
+int32_t base_port = DEF_BASE_PORT;
 
 int32_t netlinkBuffSize = DEF_NETLINK_BUFFSZ;
 
@@ -2013,7 +2013,7 @@ void dev_deactivate( struct dev_node *dev )
 
 
 
-		purge_tx_task_tree(NULL, dev, NULL, YES);
+		purge_tx_task_tree(NULL, NULL, dev, NULL, YES);
 
 
 		if (dev->unicast_sock) {

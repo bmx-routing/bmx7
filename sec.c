@@ -489,7 +489,7 @@ int process_packet_signature(struct rx_frame_iterator *it)
 		((claimedKey->on && claimedKey->on->dc->descSqn == descSqn) ? claimedKey->on->dc : NULL)))) {
 
 		struct schedule_dsc_req req = {.iid = 0, .descSqn = descSqn};
-		schedule_tx_task(FRAME_TYPE_DESC_REQ, &claimedKey->kHash, NULL, pb->i.iif, SCHEDULE_MIN_MSG_SIZE, &req, sizeof(req));
+		schedule_tx_task(FRAME_TYPE_DESC_REQ, NULL, &claimedKey->kHash, NULL, pb->i.iif, SCHEDULE_MIN_MSG_SIZE, &req, sizeof(req));
 		goto_error_return( finish, "unknown desc", TLV_RX_DATA_PROCESSED);
 	}
 

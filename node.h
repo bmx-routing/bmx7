@@ -228,14 +228,21 @@ typedef struct {
 	struct list_node list;
 	LinkKey k;
 
+	struct lndev_probe_record rx_probe_record;
+	TIME_T rp_time_max;
 	UMETRIC_T tx_probe_umetric;
 	UMETRIC_T timeaware_tx_probe;
-	struct lndev_probe_record rx_probe_record;
 	UMETRIC_T timeaware_rx_probe;
+	UMETRIC_T timeaware_tp_probe;
+
+	UMETRIC_T macTxTP;
+	uint32_t macTxPackets;
+	TIME_T macTxTriggered;
+	TIME_T macUpdated;
+
 	int32_t orig_routes;
 
 
-	TIME_T rp_time_max;
 } LinkNode;
 
 struct neigh_node {

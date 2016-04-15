@@ -491,9 +491,9 @@ void content_resolve_(struct key_node *kn, struct content_node *cn, struct neigh
 		return;
 
 	if (viaNeigh) {
-		schedule_tx_task(FRAME_TYPE_CONTENT_REQ, &viaNeigh->local_id, viaNeigh, viaNeigh->best_tp_link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &cn->chash, sizeof(SHA1_T));
+		schedule_tx_task(FRAME_TYPE_CONTENT_REQ, NULL, &viaNeigh->local_id, viaNeigh, viaNeigh->best_tp_link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &cn->chash, sizeof(SHA1_T));
 	} else if (kn->pktIdTime) {
-		schedule_tx_task(FRAME_TYPE_CONTENT_REQ, &kn->kHash, NULL, NULL, SCHEDULE_MIN_MSG_SIZE, &cn->chash, sizeof(SHA1_T));
+		schedule_tx_task(FRAME_TYPE_CONTENT_REQ, NULL, &kn->kHash, NULL, NULL, SCHEDULE_MIN_MSG_SIZE, &cn->chash, sizeof(SHA1_T));
 	}
 }
 
@@ -963,7 +963,7 @@ int32_t rx_msg_content_request(struct rx_frame_iterator *it)
 		 struct content_usage_node *cun;
 
 		 if ((pb->i.verifiedLink || ((cun = avl_next_item(&cn->usage_tree, &cunKey.k)) && cun->k.descContent == myKey->on->dc))) {
-			 schedule_tx_task(FRAME_TYPE_CONTENT_ADV, NULL, NULL, pb->i.iif, cn->f_body_len, &cn->chash, sizeof(SHA1_T));
+			 schedule_tx_task(FRAME_TYPE_CONTENT_ADV, NULL, NULL, NULL, pb->i.iif, cn->f_body_len, &cn->chash, sizeof(SHA1_T));
 		 } else {
 			dbgf_sys(DBGT_WARN, "UNVERIFIED neigh=%s llip=%s or UNKNOWN chash=%s refn=%p refn_usage=%d",
 				 pb->i.verifiedLink ? cryptShaAsString(&pb->i.verifiedLink->k.linkDev->key.local->local_id) : NULL,

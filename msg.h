@@ -425,9 +425,12 @@ struct tx_task_key {
 	struct {
 
 		struct {
+			LinkNode *unicast; // ensure broadcasted (non-unicast) packets are queued first;
 			uint8_t sign; //ensure unsigned tx_tasks are queued first
+			uint8_t reservedA;
+			uint16_t reservedB;
 			struct dev_node *dev; // the outgoing interface to be used for transmitting
-		} p; // ensure individual packets for each (in order of pref): sing, dev, type, id
+		} __attribute__((packed)) p; // ensure individual packets for each (in order of pref): sing, dev, type, id
 		uint8_t type;
 		CRYPTSHA1_T groupId;
 	} f;
@@ -475,7 +478,7 @@ int32_t _tx_iterator_cache_data_space(struct tx_frame_iterator *it, IDM_T max, i
 #define tx_iterator_cache_data_space_pref( it, len, rsvd ) _tx_iterator_cache_data_space(it, 0, len, rsvd)
 
 
-IDM_T purge_tx_task_tree(struct neigh_node *onlyNeigh, struct dev_node *onlyDev, struct tx_task_node *onlyTtn, IDM_T force);
+IDM_T purge_tx_task_tree(LinkNode *onlyUnicast, struct neigh_node *onlyNeigh, struct dev_node *onlyDev, struct tx_task_node *onlyTtn, IDM_T force);
 void tx_packets(void *unused);
 int32_t tx_frame_iterate(IDM_T iterate_msg, struct tx_frame_iterator *it);
 int32_t rx_frame_iterate(struct rx_frame_iterator* it);
@@ -485,7 +488,7 @@ void rx_packet(struct packet_buff *pb);
 #define SCHEDULE_UNKNOWN_MSGS_SIZE 0
 #define SCHEDULE_MIN_MSG_SIZE -1
 
-void schedule_tx_task(uint8_t f_type, CRYPTSHA1_T *someId, struct neigh_node *neighId, struct dev_node *dev, int16_t f_msgs_len, void *keyData, uint32_t keyLen);
+void schedule_tx_task(uint8_t f_type, LinkNode *unicast, CRYPTSHA1_T *groupId, struct neigh_node *neigh, struct dev_node *dev, int16_t f_msgs_len, void *keyData, uint32_t keyLen);
 
 void register_frame_handler(struct frame_db *db, int pos, struct frame_handl *handl);
 

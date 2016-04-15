@@ -221,11 +221,11 @@ extern int32_t devStatRegression;
 #define MAX_IP_TABLE_TUN MAX_IP_TABLE
 
 
-//extern int32_t base_port;
 #define ARG_BASE_PORT "basePort"
 #define DEF_BASE_PORT 6270
 #define MIN_BASE_PORT 1025
 #define MAX_BASE_PORT 60000
+extern int32_t base_port;
 
 
 #define SYSCTL_IP6_FORWARD 1
@@ -499,6 +499,9 @@ struct dev_node {
 	UMETRIC_T umetric_max_conf;
 //	UMETRIC_T umetric_max_configured;
 	UMETRIC_T umetric_max;
+
+	void(*upd_link_capacity) (LinkNode *link, struct ctrl_node *cn);
+
 
         struct net_key llocal_prefix_conf_;
 

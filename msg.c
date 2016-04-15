@@ -499,7 +499,7 @@ rx_frame_iterate_error:{
 
 
 STATIC_FUNC
-int8_t send_bmx_packet(struct packet_buff *pb, struct dev_node *dev, int len)
+int8_t send_bmx_packet(LinkNode *unicast, struct packet_buff *pb, struct dev_node *dev, int len)
 {
 	TRACE_FUNCTION_CALL;
 
@@ -507,7 +507,12 @@ int8_t send_bmx_packet(struct packet_buff *pb, struct dev_node *dev, int len)
 		return 0;
 
 	int status;
-	struct sockaddr_storage *dst = &dev->tx_netwbrc_addr;
+	struct sockaddr_storage unicast_dst;
+
+	if (unicast)
+		unicast_dst = set_sockaddr_storage(AF_INET6, &unicast->k.linkDev->key.llocal_ip, base_port);
+
+	struct sockaddr_storage *dst = unicast ? & unicast_dst : &dev->tx_netwbrc_addr;
 	int32_t send_sock = dev->unicast_sock;
 
 	pb->i.length = len;
@@ -765,16 +770,20 @@ int32_t tx_frame_iterate(IDM_T iterate_msg, struct tx_frame_iterator *it)
 
 
 
-IDM_T purge_tx_task_tree(struct neigh_node *onlyNeigh, struct dev_node *onlyDev, struct tx_task_node *onlyTtn, IDM_T force)
+IDM_T purge_tx_task_tree(LinkNode *onlyUnicast, struct neigh_node *onlyNeigh, struct dev_node *onlyDev, struct tx_task_node *onlyTtn, IDM_T force)
 {
 	TRACE_FUNCTION_CALL;
+
+	assertion(-500000, ((!!onlyUnicast + !!onlyNeigh + !!onlyDev + !!onlyTtn) <= 1));
+
+
 	IDM_T removed = 0;
 	struct tx_task_node *curr, *next = onlyTtn ? onlyTtn : avl_first_item(&txTask_tree);
 
 	while ((curr = next)) {
 		next = onlyTtn ? NULL : avl_next_item(&txTask_tree, &curr->key);
 
-		if ((onlyNeigh && onlyNeigh != curr->neigh) || (onlyDev && onlyDev != curr->key.f.p.dev) || (onlyTtn && onlyTtn != curr))
+		if ((onlyUnicast && onlyUnicast != curr->key.f.p.unicast) || (onlyNeigh && onlyNeigh != curr->neigh) || (onlyDev && onlyDev != curr->key.f.p.dev) || (onlyTtn && onlyTtn != curr))
 			continue;
 
 		if (force || (curr->tx_iterations <= 0 && ((TIME_T) (bmx_time - curr->send_ts) > (TIME_T)*(packet_frame_db->handls[curr->key.f.type].tx_task_interval_min)))) {
@@ -810,7 +819,7 @@ struct tx_task_node *get_next_ttn( struct tx_task_node *curr) {
 
 		nextp = avl_next_item(&txTask_tree, &next->key);
 
-		if ((purge_tx_task_tree(NULL, NULL, next, NO) == NO) &&
+		if ((purge_tx_task_tree(NULL, NULL, NULL, next, NO) == NO) &&
 			 (next->tx_iterations > 0) &&
 			 ((TIME_T) (bmx_time - next->send_ts) >= (TIME_T)*(packet_frame_db->handls[next->key.f.type].tx_task_interval_min))) {
 
@@ -894,7 +903,7 @@ void tx_packets( void *unused ) {
 	while ((nextTask)) {
 
 		if (nextTask->key.f.type > FRAME_TYPE_OGM_AGG_SQN_ADV && it.frames_out_pos==0) {
-			struct tx_task_node ttn = {.key = {.f = {.p = {.dev = nextTask->key.f.p.dev}}}};
+			struct tx_task_node ttn = {.key = {.f = {.p = {.dev = nextTask->key.f.p.dev, .unicast = nextTask->key.f.p.unicast}}}};
 			it.ttn = &ttn;
 			
 			ttn.key.f.type = FRAME_TYPE_SIGNATURE_ADV;
@@ -958,7 +967,7 @@ void tx_packets( void *unused ) {
 
 				assertion(-502446, (it.frames_out_pos <= it.frames_out_max));
 
-				send_bmx_packet(&pb, it.ttn->key.f.p.dev, it.frames_out_pos + sizeof( struct packet_header));
+				send_bmx_packet(it.ttn->key.f.p.unicast, &pb, it.ttn->key.f.p.dev, it.frames_out_pos + sizeof( struct packet_header));
 			}
 
 			memset(&pb.i, 0, sizeof(pb.i));
@@ -976,7 +985,7 @@ void tx_packets( void *unused ) {
 }
 
 
-void schedule_tx_task(uint8_t f_type, CRYPTSHA1_T *groupId, struct neigh_node *neigh, struct dev_node *dev, int16_t f_msgs_len, void *keyData, uint32_t keyLen)
+void schedule_tx_task(uint8_t f_type, LinkNode *unicast, CRYPTSHA1_T *groupId, struct neigh_node *neigh, struct dev_node *dev, int16_t f_msgs_len, void *keyData, uint32_t keyLen)
 {
 	TRACE_FUNCTION_CALL;
 
@@ -989,12 +998,14 @@ void schedule_tx_task(uint8_t f_type, CRYPTSHA1_T *groupId, struct neigh_node *n
 	struct frame_handl *handl = &packet_frame_db->handls[f_type];
 	assertion(-502450, (handl && handl->name));
 	assertion(-502451, IMPLIES(handl->tx_iterations, *handl->tx_iterations > 0));
+	assertion(-500000, IMPLIES(unicast, (dev && dev == unicast->k.myDev)));
+	assertion(-500000, IMPLIES(unicast, (neigh && neigh == unicast->k.linkDev->key.local)));
 
 	if (!dev) {
 		struct avl_node *an = NULL;
 		while ((dev = avl_iterate_item(&dev_ip_tree, &an))) {
 			if (dev->active && dev->linklayer != TYP_DEV_LL_LO)
-				schedule_tx_task(f_type, groupId, neigh, dev, f_msgs_len, keyData, keyLen);
+				schedule_tx_task(f_type, NULL, groupId, neigh, dev, f_msgs_len, keyData, keyLen);
 		}
 		return;
 	}
@@ -1011,7 +1022,7 @@ void schedule_tx_task(uint8_t f_type, CRYPTSHA1_T *groupId, struct neigh_node *n
 	}
 
 	struct tx_task_node test = {
-		.key =	{ .f = { .p = { .sign = (f_type >= FRAME_TYPE_SIGNATURE_ADV), .dev = dev}, .type = f_type, .groupId = groupId ? *groupId : ZERO_CYRYPSHA1} },
+		.key =	{ .f = { .p = { .sign = (f_type >= FRAME_TYPE_SIGNATURE_ADV), .dev = dev, .unicast = unicast}, .type = f_type, .groupId = groupId ? *groupId : ZERO_CYRYPSHA1} },
 		.neigh = neigh, .tx_iterations = *(handl->tx_iterations),
 		.send_ts = ((TIME_T) (bmx_time - *handl->tx_task_interval_min)),
 		.frame_msgs_length = (f_msgs_len == SCHEDULE_MIN_MSG_SIZE ? handl->min_msg_size : f_msgs_len)

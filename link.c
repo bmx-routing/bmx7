@@ -60,32 +60,57 @@ static int32_t my_link_window = DEF_HELLO_SQN_WINDOW;
 
 
 STATIC_FUNC
-UMETRIC_T timeaware_rx_probe(LinkNode *link)
+void upd_timeaware_rx_probe(LinkNode *link)
 {
-        if (((TIME_T) (bmx_time - link->rx_probe_record.hello_time_max)) < RP_ADV_DELAY_TOLERANCE)
-                return link->rx_probe_record.hello_umetric;
+        if (((TIME_T) (bmx_time - link->rx_probe_record.hello_time_max)) < RP_ADV_DELAY_TOLERANCE) {
 
-        if (((TIME_T) (bmx_time - link->rx_probe_record.hello_time_max)) < RP_ADV_DELAY_RANGE) {
-                return (link->rx_probe_record.hello_umetric *
-                        ((UMETRIC_T) (RP_ADV_DELAY_RANGE - (bmx_time - link->rx_probe_record.hello_time_max)))) /
-                        RP_ADV_DELAY_RANGE;
-        }
+                link->timeaware_rx_probe = link->rx_probe_record.hello_umetric;
 
-        return 0;
+        } else if (((TIME_T) (bmx_time - link->rx_probe_record.hello_time_max)) < RP_ADV_DELAY_RANGE) {
+
+		link->timeaware_rx_probe =
+			(link->rx_probe_record.hello_umetric * ((UMETRIC_T) (RP_ADV_DELAY_RANGE - (bmx_time - link->rx_probe_record.hello_time_max)))) / RP_ADV_DELAY_RANGE;
+
+	}
 }
 
 STATIC_FUNC
-UMETRIC_T timeaware_tx_probe(LinkNode *link)
+void upd_timeaware_tx_probe(LinkNode *link)
 {
-        if (((TIME_T) (bmx_time - link->rp_time_max)) < TP_ADV_DELAY_TOLERANCE)
-                return link->tx_probe_umetric;
+	if (link->k.myDev->upd_link_capacity ) {
 
-        if (((TIME_T) (bmx_time - link->rp_time_max)) < TP_ADV_DELAY_RANGE) {
+		IDM_T TODO_WARNING_mac_probes_are_unsigned_messages;
 
-		return ((link->tx_probe_umetric * ((UMETRIC_T) (TP_ADV_DELAY_RANGE - (bmx_time - link->rp_time_max)))) / TP_ADV_DELAY_RANGE);
-        }
+		(*(link->k.myDev->upd_link_capacity)) (link, NULL);
 
-        return 0;
+
+		if (((TIME_T) (bmx_time - link->macUpdated)) < TP_ADV_DELAY_TOLERANCE) {
+
+			link->timeaware_tp_probe = link->macTxTP;
+
+		} else if (((TIME_T) (bmx_time - link->macUpdated)) < TP_ADV_DELAY_RANGE) {
+
+			link->timeaware_tp_probe = ((link->macTxTP * ((UMETRIC_T) (TP_ADV_DELAY_RANGE - (bmx_time - link->macUpdated)))) / TP_ADV_DELAY_RANGE);
+
+		} else {
+
+			link->timeaware_tx_probe = 0;
+		}
+	}
+
+
+	if (((TIME_T) (bmx_time - link->rp_time_max)) < TP_ADV_DELAY_TOLERANCE) {
+
+		link->timeaware_tx_probe = link->tx_probe_umetric;
+
+	} else if (((TIME_T) (bmx_time - link->rp_time_max)) < TP_ADV_DELAY_RANGE) {
+
+		link->timeaware_tx_probe = ((link->tx_probe_umetric * ((UMETRIC_T) (TP_ADV_DELAY_RANGE - (bmx_time - link->rp_time_max)))) / TP_ADV_DELAY_RANGE);
+
+	} else {
+
+		link->timeaware_tx_probe = 0;
+	}
 }
 
 STATIC_FUNC
@@ -113,10 +138,10 @@ void lndev_assign_best(struct neigh_node *onlyLocal, LinkNode *onlyLink )
                 struct avl_node *link_an = NULL;
 
                 if (local->best_rp_link)
-                        local->best_rp_link->timeaware_rx_probe = timeaware_rx_probe(local->best_rp_link);
+                        upd_timeaware_rx_probe(local->best_rp_link);
 
                 if (local->best_tp_link)
-                        local->best_tp_link->timeaware_tx_probe = timeaware_tx_probe(local->best_tp_link);
+                        upd_timeaware_tx_probe(local->best_tp_link);
 
 
                 dbgf_all(DBGT_INFO, "local_id=%s", cryptShaAsString(&local->local_id));
@@ -133,14 +158,14 @@ void lndev_assign_best(struct neigh_node *onlyLocal, LinkNode *onlyLink )
                                         currLink->k.myDev->label_cfg.str, linkDev->link_tree.items);
 
 				if (local->best_rp_link != currLink) {
-					currLink->timeaware_rx_probe = timeaware_rx_probe(currLink);
+					upd_timeaware_rx_probe(currLink);
 
 					if (!local->best_rp_link || local->best_rp_link->timeaware_rx_probe < currLink->timeaware_rx_probe)
 						local->best_rp_link = currLink;
 				}
 
 				if (local->best_tp_link != currLink) {
-					currLink->timeaware_tx_probe = timeaware_tx_probe(currLink);
+					upd_timeaware_tx_probe(currLink);
 
 					if (!local->best_tp_link || local->best_tp_link->timeaware_tx_probe < currLink->timeaware_tx_probe)
 						local->best_tp_link = currLink;
@@ -224,6 +249,8 @@ void purge_linkDevs(LinkDevKey *onlyLinkDev, struct dev_node *only_dev, IDM_T pu
 					ip6AsStr(&linkDev->key.llocal_ip), linkDev->key.devIdx, link->k.myDev->label_cfg.str);
 
 				purge_orig_router(NULL, NULL, link, NO);
+
+				purge_tx_task_tree(link, NULL, NULL, NULL, YES);
 
 				if (link == local->best_rp_link)
 					local->best_rp_link = NULL;
@@ -582,7 +609,7 @@ void schedule_hello_adv(void)
 	static TIME_T next = 0;
 
 	if (doNowOrLater(&next, txCasualInterval, 0))
-		schedule_tx_task(FRAME_TYPE_HELLO_ADV, NULL, NULL, NULL, SCHEDULE_MIN_MSG_SIZE, 0, 0);
+		schedule_tx_task(FRAME_TYPE_HELLO_ADV, NULL, NULL, NULL, NULL, SCHEDULE_MIN_MSG_SIZE, 0, 0);
 }
 
 STATIC_FUNC
@@ -620,7 +647,7 @@ void schedule_hello_reply(void)
 
 	while ((link = avl_iterate_item(&link_tree, &an))) {
 
-		schedule_tx_task(FRAME_TYPE_HELLO_REPLY_DHASH, &link->k.linkDev->key.local->local_id,
+		schedule_tx_task(FRAME_TYPE_HELLO_REPLY_DHASH, NULL, &link->k.linkDev->key.local->local_id,
 			link->k.linkDev->key.local, link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &link->k.linkDev->key.devIdx, sizeof(DEVIDX_T));
 	}
 }

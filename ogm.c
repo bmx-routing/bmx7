@@ -108,7 +108,7 @@ void schedule_ogm_aggregations(void)
 
 		ogm_aggreg_sqn_send = ogm_aggreg_sqn_max;
 		uint16_t sz = (*get_my_ogm_aggreg_origs(ogm_aggreg_sqn_max))->items * sizeof(struct msg_ogm_adv);
-		schedule_tx_task(FRAME_TYPE_OGM_ADV, NULL, NULL, NULL, sz, &ogm_aggreg_sqn_max, sizeof(ogm_aggreg_sqn_max));
+		schedule_tx_task(FRAME_TYPE_OGM_ADV, NULL, NULL, NULL, NULL, sz, &ogm_aggreg_sqn_max, sizeof(ogm_aggreg_sqn_max));
 	}
 }
 
@@ -319,7 +319,7 @@ void schedule_ogm_req(void)
 
 				if (!bit_get(nn->ogm_aggreg_sqns, AGGREG_SQN_CACHE_RANGE, sqn)) {
 					struct dev_node *dev = nn->best_tp_link->k.myDev;
-					schedule_tx_task(FRAME_TYPE_OGM_REQ, &nn->local_id, nn, dev, SCHEDULE_MIN_MSG_SIZE, &sqn, sizeof(sqn));
+					schedule_tx_task(FRAME_TYPE_OGM_REQ, NULL, &nn->local_id, nn, dev, SCHEDULE_MIN_MSG_SIZE, &sqn, sizeof(sqn));
 				}
 			}
 		}
@@ -372,7 +372,7 @@ int32_t rx_msg_ogm_aggreg_request(struct rx_frame_iterator *it)
 		struct neigh_node *nn = it->pb->i.verifiedLink->k.linkDev->key.local;
 		uint16_t ogms = (*get_my_ogm_aggreg_origs(sqn)) ? (*get_my_ogm_aggreg_origs(sqn))->items : 0;
 
-		schedule_tx_task(FRAME_TYPE_OGM_ADV, NULL, NULL, nn->best_tp_link->k.myDev, (ogms * sizeof(struct msg_ogm_adv)), &sqn, sizeof(sqn));
+		schedule_tx_task(FRAME_TYPE_OGM_ADV, NULL, NULL, NULL, nn->best_tp_link->k.myDev, (ogms * sizeof(struct msg_ogm_adv)), &sqn, sizeof(sqn));
 
 		dbgf_track(DBGT_INFO, "sqn=%d ogms=%d", sqn, ogms);
 	}
@@ -437,7 +437,7 @@ UMETRIC_T lndev_best_via_router(struct neigh_node *local, struct orig_node *on, 
 
 		while ((link = avl_next_item(&linkDev->link_tree, (link ? &link->k : NULL)))) {
 
-			UMETRIC_T um = apply_lndev_metric_algo(link, ogm_metric, on->mtcAlgo);
+			UMETRIC_T um = apply_metric_algo(ogm_metric, link, on->mtcAlgo);
 
 			if (metric_best < um) {
 				metric_best = um;

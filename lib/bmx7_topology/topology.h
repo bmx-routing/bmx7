@@ -38,8 +38,8 @@ struct description_msg_topology {
 
 	FMETRIC_U8_T txBw;
 	FMETRIC_U8_T rxBw;
-	uint8_t txRate;
-	uint8_t rxRate;
+	LQ_T tq;
+	LQ_T rq;
 
 } __attribute__((packed));
 
@@ -62,7 +62,7 @@ struct local_topology_node {
 	GLOBAL_ID_T pkid;
 	UMETRIC_T txBw;
 	UMETRIC_T rxBw;
-	uint8_t txRate;
-	uint8_t rxRate;
+	LQ_T tq;
+	LQ_T rq;
 	uint8_t updated;
 };

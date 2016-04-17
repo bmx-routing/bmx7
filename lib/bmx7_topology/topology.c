@@ -129,8 +129,8 @@ static int32_t topology_status_creator(struct status_handl *handl, void *data)
 				status[i].lastDesc = (bmx_time - on->updated_timestamp) / 1000;
 				status[i].txBw = fmetric_u8_to_umetric(topology_msg[m].txBw);
 				status[i].rxBw = fmetric_u8_to_umetric(topology_msg[m].rxBw);
-				status[i].txRate = topology_msg[m].txRate;
-				status[i].rxRate = topology_msg[m].rxRate;
+				status[i].txRate = ((((uint32_t) topology_msg[m].tq) * 100) / LQ_MAX);
+				status[i].rxRate = ((((uint32_t) topology_msg[m].rq) * 100) / LQ_MAX);
 				status[i].neighName = non->k.hostname;
 				status[i].neighId = &non->k.nodeId;
 				status[i].neighIp = non->primary_ip;
@@ -202,13 +202,13 @@ void set_local_topology_node(struct local_topology_node *ltn, struct neigh_node 
 	assertion(-502527, (&local->best_tp_link->k));
 	assertion(-502528, (local->best_tp_link->k.myDev));
 	assertion(-502529, (&local->best_tp_link->k.myDev->umetric_max));
-	assertion(-502530, (&local->best_tp_link->timeaware_tx_probe));
-	assertion(-502531, (&local->best_tp_link->timeaware_rx_probe));
+	assertion(-502530, (&local->best_tp_link->timeaware_tq_probe));
+	assertion(-502531, (&local->best_tp_link->timeaware_rq_probe));
 
-	ltn->txBw = tp_umetric_multiply_normalized(&local->best_tp_link->k.myDev->umetric_max, &local->best_tp_link->timeaware_tx_probe);
-	ltn->rxBw = tp_umetric_multiply_normalized(&local->best_tp_link->k.myDev->umetric_max, &local->best_tp_link->timeaware_rx_probe);
-	ltn->txRate = ((local->best_tp_link->timeaware_tx_probe * 100) / UMETRIC_MAX);
-	ltn->rxRate = ((local->best_tp_link->timeaware_rx_probe * 100) / UMETRIC_MAX);
+	ltn->txBw = (local->best_tp_link->k.myDev->umetric_max * ((UMETRIC_T)local->best_tp_link->timeaware_tq_probe))/LQ_MAX;
+	ltn->rxBw = (local->best_tp_link->k.myDev->umetric_max * ((UMETRIC_T)local->best_tp_link->timeaware_rq_probe))/LQ_MAX;
+	ltn->tq = local->best_tp_link->timeaware_tq_probe;
+	ltn->rq = local->best_tp_link->timeaware_rq_probe;
 }
 
 STATIC_FUNC
@@ -237,8 +237,8 @@ void check_local_topology_cache(void *nothing)
 			if ( (bmx_time - myKey->on->updated_timestamp) > ((uint32_t)my_topology_period * 100) && (
 				check_value_deviation(ltn->txBw, tmp.txBw, 0) ||
 				check_value_deviation(ltn->rxBw, tmp.rxBw, 0) ||
-				check_value_deviation(ltn->txRate, tmp.txRate, 0) ||
-				check_value_deviation(ltn->rxRate, tmp.rxRate, 0) )
+				check_value_deviation(ltn->tq, tmp.tq, 0) ||
+				check_value_deviation(ltn->rq, tmp.rq, 0) )
 				) {
 
 				my_description_changed = YES;
@@ -247,8 +247,8 @@ void check_local_topology_cache(void *nothing)
 			} else if (
 				check_value_deviation(ltn->txBw, tmp.txBw, my_topology_hysteresis) ||
 				check_value_deviation(ltn->rxBw, tmp.rxBw, my_topology_hysteresis) ||
-				check_value_deviation(ltn->txRate, tmp.txRate, my_topology_hysteresis) ||
-				check_value_deviation(ltn->rxRate, tmp.rxRate, my_topology_hysteresis)
+				check_value_deviation(ltn->tq, tmp.tq, my_topology_hysteresis) ||
+				check_value_deviation(ltn->rq, tmp.rq, my_topology_hysteresis)
 				) {
 				my_description_changed = YES;
 				return;
@@ -311,8 +311,8 @@ int create_description_topology(struct tx_frame_iterator *it)
 			msg[m].neighId = ltn->pkid;
 			msg[m].txBw = umetric_to_fmu8( &ltn->txBw);
 			msg[m].rxBw = umetric_to_fmu8(&ltn->rxBw);
-			msg[m].txRate = ltn->txRate;
-			msg[m].rxRate = ltn->rxRate;
+			msg[m].tq = ltn->tq;
+			msg[m].rq = ltn->rq;
 
 			m++;
 		}

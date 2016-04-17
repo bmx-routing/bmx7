@@ -31,10 +31,10 @@
 
 
 struct description_msg_topology {
-	GLOBAL_ID_T neighId;
-	DEVIDX_T neighIdx;
-	DEVIDX_T myIdx;
-
+	GLOBAL_ID_T nbId;
+	DESC_SQN_T nbDescSqn;
+	DEVIDX_T nbIdx;
+	DEVIDX_T idx;
 
 	FMETRIC_U8_T txBw;
 	FMETRIC_U8_T rxBw;
@@ -51,15 +51,23 @@ struct description_hdr_topology {
 
 
 #define DESCRIPTION_MSG_TOPOLOGY_FORMAT { \
+{FIELD_TYPE_GLOBAL_ID,        -1, (8*sizeof(GLOBAL_ID_T)), 1, FIELD_RELEVANCE_HIGH, "nbId"},  \
+{FIELD_TYPE_UINT,             -1, (8*sizeof(uint8_t)),     1, FIELD_RELEVANCE_HIGH, "nbIdx"}, \
+{FIELD_TYPE_UINT,             -1, (8*sizeof(uint8_t)),     1, FIELD_RELEVANCE_HIGH, "myIdx"}, \
 {FIELD_TYPE_UINT,             -1, (8*sizeof(uint8_t)),     1, FIELD_RELEVANCE_HIGH, "txBw"}, \
 {FIELD_TYPE_UINT,             -1, (8*sizeof(uint8_t)),     1, FIELD_RELEVANCE_HIGH, "rxBw"}, \
-{FIELD_TYPE_UINT,             -1, (8*sizeof(uint8_t)),     1, FIELD_RELEVANCE_HIGH, "txRate"}, \
-{FIELD_TYPE_UINT,             -1, (8*sizeof(uint8_t)),     1, FIELD_RELEVANCE_HIGH, "rxRate"}, \
-{FIELD_TYPE_GLOBAL_ID,        -1, (8*sizeof(GLOBAL_ID_T)), 1, FIELD_RELEVANCE_HIGH, "neighId"},  \
+{FIELD_TYPE_UINT,             -1, (8*sizeof(uint8_t)),     1, FIELD_RELEVANCE_HIGH, "tq"}, \
+{FIELD_TYPE_UINT,             -1, (8*sizeof(uint8_t)),     1, FIELD_RELEVANCE_HIGH, "rq"}, \
 FIELD_FORMAT_END }
 
+struct local_topology_key {
+	GLOBAL_ID_T nbId;
+	DEVIDX_T nbIdx;
+	DEVIDX_T myIdx;
+} __attribute__((packed));
+
 struct local_topology_node {
-	GLOBAL_ID_T pkid;
+	struct local_topology_key k;
 	UMETRIC_T txBw;
 	UMETRIC_T rxBw;
 	LQ_T tq;

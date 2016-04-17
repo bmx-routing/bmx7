@@ -18,25 +18,10 @@ struct msg_hello_adv { // 2 bytes
 	HELLO_SQN_T hello_sqn;
 } __attribute__((packed));
 
-struct msg_hello_reply_data {
-#if __BYTE_ORDER == __LITTLE_ENDIAN
-	unsigned int rxLq_63range : 6;
-	unsigned int receiverDevIdx : DEVIDX_BITS;
-#elif __BYTE_ORDER == __BIG_ENDIAN
-	unsigned int receiverDevIdx : DEVIDX_BITS;
-	unsigned int rxLq_63range : 6;
-#else
-#error "Please fix <bits/endian.h>"
-#endif
-} __attribute__((packed));
-
 struct msg_hello_reply_dhash {
 	DHASH_T dest_dhash;
-
-	union {
-		struct msg_hello_reply_data d;
-		uint16_t u16;
-	} u;
+	uint8_t rxLq_63range;
+	DEVIDX_T receiverDevIdx;
 } __attribute__((packed));
 
 

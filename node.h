@@ -188,10 +188,10 @@ typedef CRYPTSHA1_T RHASH_T;
 
 typedef CRYPTSHA1_T GLOBAL_ID_T;
 
-typedef uint16_t DEVIDX_T;
+typedef uint8_t DEVIDX_T;
 #define DEVIDX_INVALID 0
 #define DEVIDX_MIN 1
-#define DEVIDX_BITS 10
+#define DEVIDX_BITS 8
 #define DEVIDX_MASK ((1<<DEVIDX_BITS)-1)
 #define DEVIDX_MAX DEVIDX_MASK
 

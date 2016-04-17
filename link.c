@@ -601,22 +601,13 @@ int32_t rx_msg_hello_adv(struct rx_frame_iterator *it)
 	LinkNode *link = pb->i.verifiedLink;
         struct msg_hello_adv *msg = (struct msg_hello_adv*) (it->f_msg);
         HELLO_SQN_T hello_sqn = ntohs(msg->hello_sqn);
-	DEVIDX_T devIdx = link->k.linkDev->key.devIdx;
-	char *goto_error_code = NULL;
-	int goto_error_ret = TLV_RX_DATA_PROCESSED;
-
-	if (devIdx < DEVIDX_MIN || devIdx > DEVIDX_MAX) {
-		goto_error_return( finish, "Invalid LinkDevIdx!", TLV_RX_DATA_FAILURE);
-	}
 
         update_link_probe_record(link, hello_sqn, 1);
 
-finish:
-	dbgf_mute(10, goto_error_code ? DBGL_SYS : DBGL_ALL, goto_error_code ? DBGT_ERR : DBGT_INFO,
-	"NB=%s via llip=%s dev=%s SQN=%d linkDevIdx=%d problem=%s",
-                cryptShaAsShortStr(&pb->p.hdr.keyHash), pb->i.llip_str, pb->i.iif->label_cfg.str, hello_sqn, devIdx, goto_error_code);
+	dbgf_all(DBGT_INFO, "NB=%s via llip=%s dev=%s SQN=%d linkDevIdx=%d",
+                cryptShaAsShortStr(&pb->p.hdr.keyHash), pb->i.llip_str, pb->i.iif->label_cfg.str, hello_sqn, link->k.linkDev->key.devIdx);
 
-	return goto_error_ret;
+	return TLV_RX_DATA_PROCESSED;
 }
 
 STATIC_FUNC
@@ -656,9 +647,8 @@ int32_t tx_msg_hello_reply(struct tx_frame_iterator *it)
 
 	struct msg_hello_reply_dhash* msg = ((struct msg_hello_reply_dhash*) tx_iterator_cache_msg_ptr(it));
 	msg->dest_dhash = neigh->on->dc->dHash;
-	msg->u.d.receiverDevIdx = ldn->key.devIdx;
-	msg->u.d.rxLq_63range = (link->timeaware_rx_probe * 63) / UMETRIC_MAX;
-	msg->u.u16 = htons(msg->u.u16);
+	msg->receiverDevIdx = ldn->key.devIdx;
+	msg->rxLq_63range = (link->timeaware_rx_probe * 63) / UMETRIC_MAX;
 
 	iid_get_myIID4x_by_node(neigh->on);
 
@@ -679,16 +669,15 @@ int32_t rx_msg_hello_reply(struct rx_frame_iterator *it)
 	if (!cryptShasEqual(&(((struct msg_hello_reply_dhash *) it->f_msg)->dest_dhash), &myKey->on->dc->dHash))
 		return TLV_RX_DATA_PROCESSED;
 
-	msg.u.u16 = ntohs(((struct msg_hello_reply_dhash *) it->f_msg)->u.u16);
 
 	LinkNode *link = pb->i.verifiedLink;
 	struct neigh_node *neigh = link->k.linkDev->key.local;
 
-	if (msg.u.d.receiverDevIdx != link->k.myDev->llipKey.devIdx)
+	if (msg.receiverDevIdx != link->k.myDev->llipKey.devIdx)
 		return TLV_RX_DATA_PROCESSED;
 
 	link->rp_time_max = bmx_time;
-	link->tx_probe_umetric = (UMETRIC_MAX * ((UMETRIC_T) (msg.u.d.rxLq_63range))) / 63;
+	link->tx_probe_umetric = (UMETRIC_MAX * ((UMETRIC_T) (msg.rxLq_63range))) / 63;
 	lndev_assign_best(neigh, link);
 
 	return TLV_RX_DATA_PROCESSED;

@@ -2165,7 +2165,7 @@ IDM_T dev_init_sockets(struct dev_node *dev)
 STATIC_FUNC
 DEVIDX_T get_free_devidx(void)
 {
-	DEVIDX_T idx;
+	uint16_t idx;
 
 	for (idx = DEVIDX_MIN; idx <= DEVIDX_MAX; idx++) {
 

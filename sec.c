@@ -379,7 +379,7 @@ int create_packet_signature(struct tx_frame_iterator *it)
 		hdr = (struct frame_hdr_signature*) tx_iterator_cache_hdr_ptr(it);
 		hdr->sqn.u32.burstSqn = htonl(myBurstSqn);
 		hdr->sqn.u32.descSqn = htonl(myKey->on->dc->descSqn);
-		hdr->devIdx = htons(it->ttn->key.f.p.dev->llipKey.devIdx);
+		hdr->devIdx = it->ttn->key.f.p.dev->llipKey.devIdx;
 		
 		assertion(-502445, (be64toh(hdr->sqn.u64) == (((uint64_t) myKey->on->dc->descSqn) << 32) + myBurstSqn));
 
@@ -442,7 +442,7 @@ int process_packet_signature(struct rx_frame_iterator *it)
 	struct packet_buff *pb = it->pb;
 	DESC_SQN_T descSqn = ntohl(hdr->sqn.u32.descSqn);
 	BURST_SQN_T burstSqn = ntohl(hdr->sqn.u32.burstSqn);
-	DEVIDX_T devIdx = ntohs(hdr->devIdx);
+	DEVIDX_T devIdx = hdr->devIdx;
 	struct key_node *claimedKey = pb->i.claimedKey;;
 	int32_t sign_len = it->f_msgs_len - sizeof(struct frame_msg_signature);
 	uint8_t *data = it->f_data + it->f_dlen;

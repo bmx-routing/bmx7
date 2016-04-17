@@ -116,7 +116,7 @@ static int32_t topology_status_creator(struct status_handl *handl, void *data)
 
 			struct orig_node *non;
 			struct avl_node *nan = NULL;
-			while ((non = avl_iterate_item(&orig_tree, &nan)) && memcmp(&non->k.nodeId, &topology_msg[m].pkid, sizeof(GLOBAL_ID_T)));
+			while ((non = avl_iterate_item(&orig_tree, &nan)) && memcmp(&non->k.nodeId, &topology_msg[m].neighId, sizeof(GLOBAL_ID_T)));
 
 			if (non) {
 				stsize += sizeof(struct topology_status);
@@ -308,7 +308,7 @@ int create_description_topology(struct tx_frame_iterator *it)
 			ltn->pkid = local->local_id;
 			avl_insert(&local_topology_tree, ltn, -300787);
 
-			msg[m].pkid = ltn->pkid;
+			msg[m].neighId = ltn->pkid;
 			msg[m].txBw = umetric_to_fmu8( &ltn->txBw);
 			msg[m].rxBw = umetric_to_fmu8(&ltn->rxBw);
 			msg[m].txRate = ltn->txRate;

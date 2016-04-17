@@ -31,12 +31,16 @@
 
 
 struct description_msg_topology {
+	GLOBAL_ID_T neighId;
+	DEVIDX_T neighIdx;
+	DEVIDX_T myIdx;
+
+
 	FMETRIC_U8_T txBw;
 	FMETRIC_U8_T rxBw;
 	uint8_t txRate;
 	uint8_t rxRate;
 
-	GLOBAL_ID_T pkid;
 } __attribute__((packed));
 
 struct description_hdr_topology {

@@ -39,7 +39,9 @@
 
 // to be used:
 typedef uint64_t UMETRIC_T;
+typedef uint8_t LQ_T;
 
+#define LQ_MAX 255
 
 #define OGM_MANTISSA_BIT_SIZE  6
 #define OGM_EXPONENT_BIT_SIZE  5
@@ -154,7 +156,7 @@ struct lndev_probe_record {
 
 	uint8_t hello_array[MAX_HELLO_SQN_WINDOW / 8];
 	uint32_t hello_sum;
-	UMETRIC_T hello_umetric;
+	LQ_T hello_lq;
 	TIME_T hello_time_max;
 };
 
@@ -229,9 +231,9 @@ typedef struct {
 
 	struct lndev_probe_record rx_probe_record;
 	TIME_T rp_time_max;
-	UMETRIC_T tx_probe_umetric;
-	UMETRIC_T timeaware_tx_probe;
-	UMETRIC_T timeaware_rx_probe;
+	LQ_T tq_probe;
+	LQ_T timeaware_tq_probe;
+	LQ_T timeaware_rq_probe;
 	UMETRIC_T timeaware_tp_probe;
 
 	UMETRIC_T macTxTP;

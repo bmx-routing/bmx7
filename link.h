@@ -20,7 +20,7 @@ struct msg_hello_adv { // 2 bytes
 
 struct msg_hello_reply_dhash {
 	DHASH_T dest_dhash;
-	uint8_t rxLq_63range;
+	LQ_T rxLq;
 	DEVIDX_T receiverDevIdx;
 } __attribute__((packed));
 

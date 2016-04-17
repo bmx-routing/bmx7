@@ -386,8 +386,8 @@ UMETRIC_T apply_lq_threshold_curve(UMETRIC_T lm, struct host_metricalgo *algo)
 STATIC_FUNC
 void path_metricalgo_MultiplyQuality(UMETRIC_T *path, LinkNode *link, struct host_metricalgo *algo)
 {
-        UMETRIC_T tq = umetric_to_the_power_of_n(link->timeaware_tx_probe, algo->algo_tp_exp_numerator, algo->algo_tp_exp_divisor);
-        UMETRIC_T rq = umetric_to_the_power_of_n(link->timeaware_rx_probe, algo->algo_rp_exp_numerator, algo->algo_rp_exp_divisor);
+	UMETRIC_T tq = umetric_to_the_power_of_n((((UMETRIC_MAX)*((UMETRIC_T) link->timeaware_tq_probe)) / LQ_MAX), algo->algo_tp_exp_numerator, algo->algo_tp_exp_divisor);
+        UMETRIC_T rq = umetric_to_the_power_of_n((((UMETRIC_MAX)*((UMETRIC_T) link->timeaware_rq_probe)) / LQ_MAX), algo->algo_rp_exp_numerator, algo->algo_rp_exp_divisor);
 	UMETRIC_T lq = apply_lq_threshold_curve(umetric_multiply_normalized(tq, rq), algo);
 
         *path = umetric_multiply_normalized(*path, lq);
@@ -396,8 +396,8 @@ void path_metricalgo_MultiplyQuality(UMETRIC_T *path, LinkNode *link, struct hos
 STATIC_FUNC
 void path_metricalgo_ExpectedQuality(UMETRIC_T *path, LinkNode *link, struct host_metricalgo *algo)
 {
-        UMETRIC_T tq = umetric_to_the_power_of_n(link->timeaware_tx_probe, algo->algo_tp_exp_numerator, algo->algo_tp_exp_divisor);
-        UMETRIC_T rq = umetric_to_the_power_of_n(link->timeaware_rx_probe, algo->algo_rp_exp_numerator, algo->algo_rp_exp_divisor);
+	UMETRIC_T tq = umetric_to_the_power_of_n((((UMETRIC_MAX)*((UMETRIC_T) link->timeaware_tq_probe)) / LQ_MAX), algo->algo_tp_exp_numerator, algo->algo_tp_exp_divisor);
+        UMETRIC_T rq = umetric_to_the_power_of_n((((UMETRIC_MAX)*((UMETRIC_T) link->timeaware_rq_probe)) / LQ_MAX), algo->algo_rp_exp_numerator, algo->algo_rp_exp_divisor);
 	UMETRIC_T lq = apply_lq_threshold_curve(umetric_multiply_normalized(tq, rq), algo);
 
         if (*path < 2 || lq < 2)
@@ -410,8 +410,8 @@ STATIC_FUNC
 void path_metricalgo_MultiplyBandwidth(UMETRIC_T *path, LinkNode *link, struct host_metricalgo *algo)
 {
 	UMETRIC_T *lMax = &link->k.myDev->umetric_max;
-        UMETRIC_T tq = umetric_to_the_power_of_n(link->timeaware_tx_probe, algo->algo_tp_exp_numerator, algo->algo_tp_exp_divisor);
-        UMETRIC_T rq = umetric_to_the_power_of_n(link->timeaware_rx_probe, algo->algo_rp_exp_numerator, algo->algo_rp_exp_divisor);
+	UMETRIC_T tq = umetric_to_the_power_of_n((((UMETRIC_MAX)*((UMETRIC_T) link->timeaware_tq_probe)) / LQ_MAX), algo->algo_tp_exp_numerator, algo->algo_tp_exp_divisor);
+        UMETRIC_T rq = umetric_to_the_power_of_n((((UMETRIC_MAX)*((UMETRIC_T) link->timeaware_rq_probe)) / LQ_MAX), algo->algo_rp_exp_numerator, algo->algo_rp_exp_divisor);
 	UMETRIC_T lq = apply_lq_threshold_curve(umetric_multiply_normalized(tq, rq), algo);
 
         UMETRIC_T linkBandwidth = umetric_multiply_normalized(*lMax, lq);
@@ -422,12 +422,11 @@ void path_metricalgo_MultiplyBandwidth(UMETRIC_T *path, LinkNode *link, struct h
 STATIC_FUNC
 void path_metricalgo_ExpectedBandwidth(UMETRIC_T *path, LinkNode *link, struct host_metricalgo *algo)
 {
-	UMETRIC_T *lMax = &link->k.myDev->umetric_max;
-        UMETRIC_T tq = umetric_to_the_power_of_n(link->timeaware_tx_probe, algo->algo_tp_exp_numerator, algo->algo_tp_exp_divisor);
-        UMETRIC_T rq = umetric_to_the_power_of_n(link->timeaware_rx_probe, algo->algo_rp_exp_numerator, algo->algo_rp_exp_divisor);
+	UMETRIC_T tq = umetric_to_the_power_of_n((((UMETRIC_MAX)*((UMETRIC_T) link->timeaware_tq_probe)) / LQ_MAX), algo->algo_tp_exp_numerator, algo->algo_tp_exp_divisor);
+        UMETRIC_T rq = umetric_to_the_power_of_n((((UMETRIC_MAX)*((UMETRIC_T) link->timeaware_rq_probe)) / LQ_MAX), algo->algo_rp_exp_numerator, algo->algo_rp_exp_divisor);
 	UMETRIC_T lq = apply_lq_threshold_curve(umetric_multiply_normalized(tq, rq), algo);
 
-        UMETRIC_T linkBandwidth = umetric_multiply_normalized(*lMax, lq);
+        UMETRIC_T linkBandwidth = umetric_multiply_normalized(link->k.myDev->umetric_max, lq);
 
         if (*path < 2 || linkBandwidth < 2)
                 *path = UMETRIC_MIN__NOT_ROUTABLE;
@@ -439,9 +438,8 @@ STATIC_FUNC
 void path_metricalgo_VectorBandwidth(UMETRIC_T *path, LinkNode *link, struct host_metricalgo *algo)
 {
         assertion(-501085, (*path > UMETRIC_MIN__NOT_ROUTABLE));
-	UMETRIC_T *lMax = &link->k.myDev->umetric_max;
-        UMETRIC_T tq = umetric_to_the_power_of_n(link->timeaware_tx_probe, algo->algo_tp_exp_numerator, algo->algo_tp_exp_divisor);
-        UMETRIC_T rq = umetric_to_the_power_of_n(link->timeaware_rx_probe, algo->algo_rp_exp_numerator, algo->algo_rp_exp_divisor);
+	UMETRIC_T tq = umetric_to_the_power_of_n((((UMETRIC_MAX)*((UMETRIC_T) link->timeaware_tq_probe)) / LQ_MAX), algo->algo_tp_exp_numerator, algo->algo_tp_exp_divisor);
+        UMETRIC_T rq = umetric_to_the_power_of_n((((UMETRIC_MAX)*((UMETRIC_T) link->timeaware_rq_probe)) / LQ_MAX), algo->algo_rp_exp_numerator, algo->algo_rp_exp_divisor);
 	UMETRIC_T lq = apply_lq_threshold_curve(umetric_multiply_normalized(tq, rq), algo);
 
         UMETRIC_T inverseSquaredPathBandwidth = 0;
@@ -449,7 +447,7 @@ void path_metricalgo_VectorBandwidth(UMETRIC_T *path, LinkNode *link, struct hos
         UMETRIC_T rootOfSum = 0;
         UMETRIC_T path_out = UMETRIC_MIN__NOT_ROUTABLE;
 
-        UMETRIC_T linkBandwidth = umetric_multiply_normalized(*lMax, lq);
+        UMETRIC_T linkBandwidth = umetric_multiply_normalized(link->k.myDev->umetric_max, lq);
         
         UMETRIC_T maxPrecisionScaler = XMIN(*path, linkBandwidth) * U64_MAX_HALF_SQRT;
 
@@ -465,7 +463,7 @@ void path_metricalgo_VectorBandwidth(UMETRIC_T *path, LinkNode *link, struct hos
 
         dbgf_all( DBGT_INFO,
                 "pb=%-12ju max_extension=%-19ju (me/pb)^2=%-19ju lp=%-12ju link=%-12ju lb=%-12ju (me/lb)^2=%-19ju ufs=%-12ju UMETRIC_MIN=%ju -> path_out=%ju",
-                *path, maxPrecisionScaler, inverseSquaredPathBandwidth, lq, *lMax,
+                *path, maxPrecisionScaler, inverseSquaredPathBandwidth, lq, link->k.myDev->umetric_max,
                 linkBandwidth, inverseSquaredLinkQuality, rootOfSum, UMETRIC_MIN__NOT_ROUTABLE, path_out);
         
        *path = path_out;

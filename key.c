@@ -390,7 +390,7 @@ int16_t kPref_neighbor_metric(struct key_node *kn)
 
 	if (kn->on && kn->on->neigh && kn->on->neigh->best_tp_link) {
 
-		return ((!!kn->on->neigh->best_tp_link->timeaware_tx_probe)
+		return ((!!kn->on->neigh->best_tp_link->timeaware_tq_probe)
 //		* kn->currOrig->neigh->orig_routes
 		);
 	}

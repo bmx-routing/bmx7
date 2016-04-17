@@ -64,12 +64,13 @@ void upd_timeaware_rx_probe(LinkNode *link)
 {
         if (((TIME_T) (bmx_time - link->rx_probe_record.hello_time_max)) < RP_ADV_DELAY_TOLERANCE) {
 
-                link->timeaware_rx_probe = link->rx_probe_record.hello_umetric;
+                link->timeaware_rq_probe = link->rx_probe_record.hello_lq;
+
 
         } else if (((TIME_T) (bmx_time - link->rx_probe_record.hello_time_max)) < RP_ADV_DELAY_RANGE) {
 
-		link->timeaware_rx_probe =
-			(link->rx_probe_record.hello_umetric * ((UMETRIC_T) (RP_ADV_DELAY_RANGE - (bmx_time - link->rx_probe_record.hello_time_max)))) / RP_ADV_DELAY_RANGE;
+		link->timeaware_rq_probe =
+			(((uint32_t)link->rx_probe_record.hello_lq) * (RP_ADV_DELAY_RANGE - (bmx_time - link->rx_probe_record.hello_time_max))) / RP_ADV_DELAY_RANGE;
 
 	}
 }
@@ -94,22 +95,22 @@ void upd_timeaware_tx_probe(LinkNode *link)
 
 		} else {
 
-			link->timeaware_tx_probe = 0;
+			link->timeaware_tp_probe = 0;
 		}
 	}
 
 
 	if (((TIME_T) (bmx_time - link->rp_time_max)) < TP_ADV_DELAY_TOLERANCE) {
 
-		link->timeaware_tx_probe = link->tx_probe_umetric;
+		link->timeaware_tq_probe = link->tq_probe;
 
 	} else if (((TIME_T) (bmx_time - link->rp_time_max)) < TP_ADV_DELAY_RANGE) {
 
-		link->timeaware_tx_probe = ((link->tx_probe_umetric * ((UMETRIC_T) (TP_ADV_DELAY_RANGE - (bmx_time - link->rp_time_max)))) / TP_ADV_DELAY_RANGE);
+		link->timeaware_tq_probe = ((((uint32_t)link->tq_probe) * ((TP_ADV_DELAY_RANGE - (bmx_time - link->rp_time_max)))) / TP_ADV_DELAY_RANGE);
 
 	} else {
 
-		link->timeaware_tx_probe = 0;
+		link->timeaware_tq_probe = 0;
 	}
 }
 
@@ -160,14 +161,14 @@ void lndev_assign_best(struct neigh_node *onlyLocal, LinkNode *onlyLink )
 				if (local->best_rp_link != currLink) {
 					upd_timeaware_rx_probe(currLink);
 
-					if (!local->best_rp_link || local->best_rp_link->timeaware_rx_probe < currLink->timeaware_rx_probe)
+					if (!local->best_rp_link || local->best_rp_link->timeaware_rq_probe < currLink->timeaware_rq_probe)
 						local->best_rp_link = currLink;
 				}
 
 				if (local->best_tp_link != currLink) {
 					upd_timeaware_tx_probe(currLink);
 
-					if (!local->best_tp_link || local->best_tp_link->timeaware_tx_probe < currLink->timeaware_tx_probe)
+					if (!local->best_tp_link || local->best_tp_link->timeaware_tq_probe < currLink->timeaware_tq_probe)
 						local->best_tp_link = currLink;
 				}
 
@@ -183,7 +184,7 @@ void lndev_assign_best(struct neigh_node *onlyLocal, LinkNode *onlyLink )
 //		assertion(-500406, (local->best_rp_link));
 //		assertion(-501086, (local->best_tp_link));
 
-                if (!local->best_tp_link || local->best_tp_link->timeaware_tx_probe == 0)
+                if (!local->best_tp_link || local->best_tp_link->timeaware_tq_probe == 0)
                         local->best_tp_link = local->best_rp_link;
 
                 if(onlyLocal)
@@ -449,7 +450,7 @@ void update_link_probe_record(LinkNode *link, HELLO_SQN_T sqn, uint8_t probe)
         }
 
         lpr->hello_sqn_max = sqn;
-        lpr->hello_umetric = (UMETRIC_MAX / my_link_window) * lpr->hello_sum;
+	lpr->hello_lq = (LQ_MAX * ((uint32_t)lpr->hello_sum)) / ((uint32_t)my_link_window);
         lpr->hello_time_max = bmx_time;
 
         linkDev->hello_sqn_max = sqn;
@@ -457,7 +458,7 @@ void update_link_probe_record(LinkNode *link, HELLO_SQN_T sqn, uint8_t probe)
 
         lndev_assign_best(linkDev->key.local, link);
 
-        dbgf_all(DBGT_INFO, "%s metric %ju", ip6AsStr(&linkDev->key.llocal_ip), link->timeaware_rx_probe);
+        dbgf_all(DBGT_INFO, "%s metric tq=%d", ip6AsStr(&linkDev->key.llocal_ip), link->timeaware_rq_probe);
 }
 
 
@@ -490,7 +491,8 @@ int32_t opt_link_metric(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
                         assertion(-501053, (bits_get(lpr->hello_array, MAX_HELLO_SQN_WINDOW, 0, MAX_HELLO_SQN_WINDOW - 1, HELLO_SQN_MASK) == lpr->hello_sum));
                         assertion(-501061, (lpr->hello_sum <= ((uint32_t)my_link_window)));
 
-                        lpr->hello_umetric = (UMETRIC_MAX / my_link_window) * lpr->hello_sum;
+			lpr->hello_lq = (LQ_MAX * ((uint32_t)lpr->hello_sum)) / ((uint32_t)my_link_window);
+
                 }
 
 
@@ -648,7 +650,7 @@ int32_t tx_msg_hello_reply(struct tx_frame_iterator *it)
 	struct msg_hello_reply_dhash* msg = ((struct msg_hello_reply_dhash*) tx_iterator_cache_msg_ptr(it));
 	msg->dest_dhash = neigh->on->dc->dHash;
 	msg->receiverDevIdx = ldn->key.devIdx;
-	msg->rxLq_63range = (link->timeaware_rx_probe * 63) / UMETRIC_MAX;
+	msg->rxLq = link->timeaware_rq_probe;
 
 	iid_get_myIID4x_by_node(neigh->on);
 
@@ -677,7 +679,7 @@ int32_t rx_msg_hello_reply(struct rx_frame_iterator *it)
 		return TLV_RX_DATA_PROCESSED;
 
 	link->rp_time_max = bmx_time;
-	link->tx_probe_umetric = (UMETRIC_MAX * ((UMETRIC_T) (msg.rxLq_63range))) / 63;
+	link->tq_probe = msg.rxLq;
 	lndev_assign_best(neigh, link);
 
 	return TLV_RX_DATA_PROCESSED;
@@ -785,9 +787,9 @@ static int32_t link_status_creator(struct status_handl *handl, void *data)
 				status[i].dev = link->k.myDev->label_cfg;
 				status[i].idx = link->k.myDev->llipKey.devIdx;
 				status[i].localIp = link->k.myDev->llipKey.llip;
-				status[i].rxRate = ((link->timeaware_rx_probe * 100) / UMETRIC_MAX);
+				status[i].rxRate = ((link->timeaware_rq_probe * 100) / LQ_MAX);
 				status[i].bestRxLink = (link == local->best_rp_link);
-				status[i].txRate = ((link->timeaware_tx_probe * 100) / UMETRIC_MAX);
+				status[i].txRate = ((link->timeaware_tq_probe * 100) / LQ_MAX);
 				status[i].bestTxLink = (link == local->best_tp_link);
 				status[i].routes = link->orig_routes;
 				status[i].iidMax = linkDev->key.local->neighIID4x_repos.max_free - 1;

@@ -225,7 +225,6 @@ typedef struct {
 } __attribute__((packed)) LinkKey;
 
 typedef struct {
-	struct list_node list;
 	LinkKey k;
 
 	struct lndev_probe_record rx_probe_record;
@@ -242,7 +241,6 @@ typedef struct {
 
 	int32_t orig_routes;
 
-
 } LinkNode;
 
 struct neigh_node {
@@ -250,7 +248,6 @@ struct neigh_node {
 	struct avl_tree linkDev_tree;
 	LinkNode *best_rp_link;
 	LinkNode *best_tp_link;
-	UMETRIC_T old_best_tx_probe;
 
 	BURST_SQN_T burstSqn;
 

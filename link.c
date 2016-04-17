@@ -186,26 +186,6 @@ void lndev_assign_best(struct neigh_node *onlyLocal, LinkNode *onlyLink )
                 if (!local->best_tp_link || local->best_tp_link->timeaware_tx_probe == 0)
                         local->best_tp_link = local->best_rp_link;
 
-
-		if (sendRevisedOgms && local->best_tp_link) {
-			
-			if (local->best_tp_link->timeaware_tx_probe < (((100-sendRevisedOgms) * local->old_best_tx_probe) / 100)) {
-				local->old_best_tx_probe = local->best_tp_link->timeaware_tx_probe;
-			}
-
-			if (local->best_tp_link->timeaware_tx_probe > (((100+sendRevisedOgms) * local->old_best_tx_probe) / 100)) {
-
-				IID_T iid;
-				for (iid = 0; iid < local->neighIID4x_repos.max_free; iid++) {
-					struct NeighRef_node *ref = iid_get_node_by_neighIID4x(&local->neighIID4x_repos, iid, NO);
-					if (ref && iid_get_neighIID4x_timeout_by_node(ref) && ref->kn && ref->kn->on && ref->kn->on->dc->descSqn == ref->descSqn && ref->kn->on->dc->ogmSqnMaxSend == ref->ogmSqnMax)
-						process_ogm_metric(ref);
-				}
-
-				local->old_best_tx_probe = local->best_tp_link->timeaware_tx_probe;
-			}
-		}
-
                 if(onlyLocal)
                         break;
         }

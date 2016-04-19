@@ -87,18 +87,17 @@ void inaptChainOgm_destroy_(struct NeighRef_node *ref)
 STATIC_FUNC
 void inaptChainOgm_update_(struct NeighRef_node *ref, struct InaptChainOgm *inaptChainOgm, uint8_t claimedChain)
 {
-
-	if (!ref->inaptChainOgm)
-		ref->inaptChainOgm = debugMalloc(sizeof(struct msg_ogm_adv), -300788);
-
+	assertion(-500000, (ref && inaptChainOgm));
 
 	if (ref->inaptChainOgm != inaptChainOgm) {
 		
-		if (memcmp(&inaptChainOgm->chainOgm, &ref->inaptChainOgm->chainOgm, sizeof(ChainLink_T)) == 0) {
-			ref->inaptChainOgm->claimedMetric.val.u16 = XMAX(inaptChainOgm->claimedMetric.val.u16, ref->inaptChainOgm->claimedMetric.val.u16);
-			ref->inaptChainOgm->claimedHops = XMAX(inaptChainOgm->claimedHops, ref->inaptChainOgm->claimedHops);
-		} else {
-			*ref->inaptChainOgm = *inaptChainOgm;
+		if (!ref->inaptChainOgm || (
+			memcmp(&ref->inaptChainOgm->chainOgm, &inaptChainOgm->chainOgm, sizeof(ChainLink_T)) == 0 &&
+			(ref->inaptChainOgm->claimedMetric.val.u16 < inaptChainOgm->claimedMetric.val.u16)
+			)) {
+
+			ref->inaptChainOgm = debugRealloc(ref->inaptChainOgm, ((sizeof(struct InaptChainOgm) + inaptChainOgm->pathMetricsByteSize)), -300000);
+			memcpy(ref->inaptChainOgm, inaptChainOgm, ((sizeof(struct InaptChainOgm) + inaptChainOgm->pathMetricsByteSize)));
 		}
 	}
 
@@ -120,6 +119,9 @@ void neighRef_destroy(struct NeighRef_node *ref, IDM_T reAssessState)
 
 	if (reAssessState && kn && kn != ref->nn->on->kn)
 		keyNode_delCredits(NULL, kn, NULL);
+
+	if (ref->ogmSqnMaxPathMetrics)
+		debugFree(ref->ogmSqnMaxPathMetrics, -300000);
 
 	inaptChainOgm_destroy_(ref);
 
@@ -282,9 +284,15 @@ struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn
 			if (ref->descSqn < dc->descSqn) {
 				ref->descSqn = dc->descSqn;
 				ref->ogmBestSinceSqn = 0;
+
 				ref->ogmSqnMax = 0;
 				ref->ogmSqnMaxClaimedMetric.val.u16 = 0;
 				ref->ogmSqnMaxClaimedHops = 0;
+				ref->ogmSqnMaxPathMetricsByteSize = 0;
+				if (ref->ogmSqnMaxPathMetrics) {
+					debugFree(ref->ogmSqnMaxPathMetrics, -300000);
+					ref->ogmSqnMaxPathMetrics = NULL;
+				}
 			}
 
 			if (ref->ogmSqnMax > ogmSqn)
@@ -294,21 +302,55 @@ struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn
 
 			if (ref->ogmSqnMax < ogmSqn) {
 				ref->ogmSqnMaxTime = bmx_time;
+
 				ref->ogmSqnMax = ogmSqn;
 				ref->ogmSqnMaxClaimedMetric.val.u16 = 0;
 				ref->ogmSqnMaxClaimedHops = 0;
+				ref->ogmSqnMaxPathMetricsByteSize = 0;
+				if (ref->ogmSqnMaxPathMetrics) {
+					debugFree(ref->ogmSqnMaxPathMetrics, -300000);
+					ref->ogmSqnMaxPathMetrics = NULL;
+				}
 			}
 
-			ref->ogmSqnMaxClaimedMetric.val.u16 = XMAX(chainOgm->claimedMetric.val.u16, ref->ogmSqnMaxClaimedMetric.val.u16);
-			ref->ogmSqnMaxClaimedHops = XMAX(chainOgm->claimedHops, ref->ogmSqnMaxClaimedHops);
 
-			if (ref->inaptChainOgm && memcmp(&ref->inaptChainOgm->chainOgm, &chainOgm->chainOgm, sizeof(ChainLink_T)) == 0) {
-				ref->ogmSqnMaxClaimedMetric.val.u16 = XMAX(ref->inaptChainOgm->claimedMetric.val.u16, ref->ogmSqnMaxClaimedMetric.val.u16);
-				ref->ogmSqnMaxClaimedHops = XMAX(ref->inaptChainOgm->claimedHops, ref->ogmSqnMaxClaimedHops);
+			if (ref->inaptChainOgm && ref->inaptChainOgm != chainOgm &&
+				memcmp(&ref->inaptChainOgm->chainOgm, &chainOgm->chainOgm, sizeof(ChainLink_T)) == 0 &&
+				ref->inaptChainOgm->claimedMetric.val.u16 > ref->ogmSqnMaxClaimedMetric.val.u16 &&
+				ref->inaptChainOgm->claimedMetric.val.u16 > chainOgm->claimedMetric.val.u16)
+			{
+
+				ref->ogmSqnMaxClaimedMetric.val.u16 = ref->inaptChainOgm->claimedMetric.val.u16;
+				ref->ogmSqnMaxClaimedHops = ref->inaptChainOgm->claimedHops;
+				ref->ogmSqnMaxPathMetricsByteSize = ref->inaptChainOgm->pathMetricsByteSize;
+				ref->ogmSqnMaxPathMetrics = debugRealloc(ref->ogmSqnMaxPathMetrics, ref->inaptChainOgm->pathMetricsByteSize, -300000);
+				memcpy(ref->ogmSqnMaxPathMetrics, &ref->inaptChainOgm->pathMetrics[0], ref->inaptChainOgm->pathMetricsByteSize);
+
+			} else if (chainOgm->claimedMetric.val.u16 > ref->ogmSqnMaxClaimedMetric.val.u16) {
+
+				ref->ogmSqnMaxClaimedMetric.val.u16 = chainOgm->claimedMetric.val.u16;
+				ref->ogmSqnMaxClaimedHops = chainOgm->claimedHops;
+				ref->ogmSqnMaxPathMetricsByteSize = chainOgm->pathMetricsByteSize;
+				ref->ogmSqnMaxPathMetrics = debugRealloc(ref->ogmSqnMaxPathMetrics, chainOgm->pathMetricsByteSize, -300000);
+				memcpy(ref->ogmSqnMaxPathMetrics, &chainOgm->pathMetrics[0], chainOgm->pathMetricsByteSize);
 			}
-
 
 			inaptChainOgm_destroy_(ref);
+
+			if (kn == myKey && ((ref->ogmSqnMax > dc->ogmSqnMaxSend) || (ref->ogmSqnMax == dc->ogmSqnMaxSend && fmetric_to_umetric(ref->ogmSqnMaxClaimedMetric) >= myKey->on->ogmMetric))) {
+				dbgf_mute(70, DBGL_SYS, DBGT_WARN, "OGM SQN or metric attack on myself, rcvd via neigh=%s, rcvdSqn=%d sendSqn=%d rcvdMetric=%ju sendMetric=%ju",
+					cryptShaAsShortStr(&nn->local_id), ref->ogmSqnMax, dc->ogmSqnMaxSend, fmetric_to_umetric(ref->ogmSqnMaxClaimedMetric), myKey->on->ogmMetric);
+
+				keyNode_schedLowerWeight(nn->on->kn, KCListed);
+				kn->descSqnMin++;
+				ref = NULL;
+				nn = NULL;
+				dc = NULL;
+				goto_error_return(finish, "Metric Attack", NULL);
+			}
+
+
+
 			content_resolve(kn, ref->nn);
 
 			goto_error_code = "SUCCESS";

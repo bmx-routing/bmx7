@@ -203,6 +203,8 @@ struct InaptChainOgm {
 	FMETRIC_U16_T claimedMetric;
 	uint8_t claimedHops;
 	uint8_t claimedChain;
+	uint16_t pathMetricsByteSize;
+	uint8_t pathMetrics[];
 };
 
 struct KeyWatchNode {

@@ -33,7 +33,8 @@
 #define BIT_METRIC_ALGO_MB            0x02 // ->   4
 #define BIT_METRIC_ALGO_EB            0x03 // ->   8
 #define BIT_METRIC_ALGO_VB            0x04 // ->  16
-#define BIT_METRIC_ALGO_MAX           0x04
+#define BIT_METRIC_ALGO_CP            0x05 // ->  32
+#define BIT_METRIC_ALGO_MAX           0x05
 #define BIT_METRIC_ALGO_ARRSZ         ((8*sizeof(ALGO_T)))
 
 #define TYP_METRIC_ALGO_MP            (0x01 << BIT_METRIC_ALGO_MP)
@@ -41,15 +42,16 @@
 #define TYP_METRIC_ALGO_MB            (0x01 << BIT_METRIC_ALGO_MB)
 #define TYP_METRIC_ALGO_EB            (0x01 << BIT_METRIC_ALGO_EB)
 #define TYP_METRIC_ALGO_VB            (0x01 << BIT_METRIC_ALGO_VB)
+#define TYP_METRIC_ALGO_CP            (0x01 << BIT_METRIC_ALGO_CP)
 
 #define MIN_METRIC_ALGO               0x00 // hop count
 #define MAX_METRIC_ALGO               (0x01 << BIT_METRIC_ALGO_MAX)
 #define MAX_METRIC_ALGO_RESERVED      ((ALGO_T)-1);
-#define DEF_METRIC_ALGO               TYP_METRIC_ALGO_VB
+#define DEF_METRIC_ALGO               TYP_METRIC_ALGO_CP
 
 #define ARG_PATH_METRIC_ALGO "metricAlgo"
 #define CHR_PATH_METRIC_ALGO 'M'
-#define HELP_PATH_METRIC_ALGO "set metric algo for routing towards myself:\n        0:HopCount  1:MP (M=1 /R=0 /T=1 /t=1 <=> TQ) 2:EP  4:MB  8:EB (M=8 /R=1 /r=1 /T=1 /t=1 <=> ETT)  16:VB"
+#define HELP_PATH_METRIC_ALGO "set metric algo for routing towards myself:\n        0:HopCount  1:MP (M=1 /R=0 /T=1 /t=1 <=> TQ) 2:EP  4:MB  8:EB (M=8 /R=1 /r=1 /T=1 /t=1 <=> ETT)  16:VB  32:CP"
 
 
 #define MIN_PATH_XP_EXP_NUMERATOR     0
@@ -91,15 +93,19 @@
 
 
 
-#define MIN_OGM_METRIC_HYST 0
-#define MAX_OGM_METRIC_HYST 64000
-#define DEF_OGM_METRIC_HYST 20
-#define ARG_OGM_METRIC_HYST "pathMetricHysteresis"
-//extern int32_t my_path_hystere;
+#define MIN_OGM_METRIC_HYST_NEW_PATH 0
+#define MAX_OGM_METRIC_HYST_NEW_PATH 64000
+#define DEF_OGM_METRIC_HYST_NEW_PATH 20
+#define ARG_OGM_METRIC_HYST_NEW_PATH "newPathMetricHysteresis"
+
+#define MIN_OGM_METRIC_HYST_OLD_PATH 0
+#define MAX_OGM_METRIC_HYST_OLD_PATH 64000
+#define DEF_OGM_METRIC_HYST_OLD_PATH 10
+#define ARG_OGM_METRIC_HYST_OLD_PATH "oldPathMetricHysteresis"
 
 #define MIN_OGM_SQN_LATE_HYST 0
-#define MAX_OGM_SQN_LATE_HYST 64000
-#define DEF_OGM_SQN_LATE_HYST 2500
+#define MAX_OGM_SQN_LATE_HYST 255
+#define DEF_OGM_SQN_LATE_HYST 25
 #define ARG_OGM_SQN_LATE_HYST "pathLateHysteresis"
 
 #define MIN_OGM_SQN_BEST_HYST 0
@@ -107,6 +113,14 @@
 #define DEF_OGM_SQN_BEST_HYST 3
 #define ARG_OGM_SQN_BEST_HYST "pathSqnBestHysteresis"
 
+
+
+
+
+#define MIN_OGM_HOPS_MAX 0
+#define MAX_OGM_HOPS_MAX ((1<<OGM_HOP_COUNT_BITSIZE)-1)
+#define DEF_OGM_HOPS_MAX MAX_OGM_HOPS_MAX
+#define ARG_OGM_HOPS_MAX "maxPathHops"
 
 
 #define DEF_OGM_HOP_PENALTY 0 //(U8_MAX/20) <=>  5% penalty on metric per hop
@@ -172,11 +186,12 @@ struct mandatory_tlv_metricalgo { // 16 bytes
 	uint8_t lq_tx_point_r255;
 	uint8_t lq_ty_point_r255;
 	uint8_t lq_t1_point_r255;
-
+	uint8_t hops_max;
 	uint8_t hop_penalty; // 1 byte
 	uint8_t ogm_sqn_best_hystere;
-	uint16_t ogm_sqn_late_hystere;
-	uint16_t ogm_metric_hystere; // 2 byte
+	uint8_t ogm_sqn_late_hystere_100ms;
+	uint16_t ogm_metric_hystere_new_path; // 2 byte
+	uint16_t ogm_metric_hystere_old_path; // 2 byte
 
 } __attribute__((packed));
 
@@ -202,7 +217,7 @@ struct description_tlv_metricalgo {
 {FIELD_TYPE_UINT, -1,  8,  1, FIELD_RELEVANCE_HIGH, ARG_OGM_HOP_PENALTY},  \
 {FIELD_TYPE_UINT, -1,  8,  1, FIELD_RELEVANCE_HIGH, ARG_OGM_SQN_BEST_HYST},  \
 {FIELD_TYPE_UINT, -1, 16,  1, FIELD_RELEVANCE_HIGH, ARG_OGM_SQN_LATE_HYST},  \
-{FIELD_TYPE_UINT, -1, 16,  1, FIELD_RELEVANCE_HIGH, ARG_OGM_METRIC_HYST},  \
+{FIELD_TYPE_UINT, -1, 16,  1, FIELD_RELEVANCE_HIGH, ARG_OGM_METRIC_HYST_NEW_PATH},  \
 FIELD_FORMAT_END }
 
 
@@ -235,8 +250,8 @@ IDM_T fmetric_cmp(FMETRIC_U16_T a, unsigned char cmp, FMETRIC_U16_T b);
 // some core hooks:
 //void apply_metric_algo(UMETRIC_T *out, struct link_dev_node *link, const UMETRIC_T *path, struct host_metricalgo *algo);
 
-UMETRIC_T apply_metric_algo(const UMETRIC_T *path, LinkNode *link, struct host_metricalgo *algo);
-
+UMETRIC_T apply_metric_algo(struct NeighRef_node *ref, LinkNode *link, struct host_metricalgo *algo);
+struct NeighPath *apply_metric_algo2(struct NeighRef_node *ref, LinkNode *link, struct host_metricalgo *algo);
 
 
 // plugin hooks:

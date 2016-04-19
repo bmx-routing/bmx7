@@ -188,6 +188,7 @@ void update_orig_dhash(struct desc_content *dcNew)
 	assertion(-502225, IMPLIES(on, on->dc != dcNew));
 	assertion(-502225, IMPLIES(on, on->dc->on == on));
 	assertion(-502472, IMPLIES(on, on->dc->descSqn < dcNew->descSqn));
+	assertion(-500000, (kn->descSqnMin <= dcNew->descSqn));
 	ASSERTION(-502473, (process_description_tlvs(NULL, on, dcOld, dcNew, TLV_OP_TEST, FRAME_TYPE_PROCESS_ALL) == TLV_RX_DATA_DONE));
 
 	if (on) {
@@ -216,7 +217,7 @@ void update_orig_dhash(struct desc_content *dcNew)
 
 //	memset(&on->anchor, 0, sizeof(on->anchor));
 
-	kn->nextDescSqnMin = dcNew->descSqn + 1;
+	kn->descSqnMin = dcNew->descSqn;
 	kn->nextDesc = NULL;
 
 	assertion_dbg(-502536, ((on->ogmMetric & ~UMETRIC_MASK) == 0), "um=%ju mask=%ju max=%ju",on->ogmMetric, UMETRIC_MASK, UMETRIC_MAX);
@@ -602,7 +603,7 @@ int32_t rx_frame_description_adv(struct rx_frame_iterator *it)
 		goto_error(finish, it->f_dlen);
 
 	if (!(descSqn) ||
-		(kn->nextDescSqnMin > descSqn) ||
+		(kn->descSqnMin > descSqn) ||
 		(kn->nextDesc && kn->nextDesc->descSqn >= descSqn) ||
 		(kn->on && kn->on->dc->descSqn >= descSqn))
 		goto_error(finish, it->f_dlen);

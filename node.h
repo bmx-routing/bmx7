@@ -45,6 +45,7 @@ typedef uint8_t LQ_T;
 
 #define OGM_MANTISSA_BIT_SIZE  6
 #define OGM_EXPONENT_BIT_SIZE  5
+#define OGM_HOP_COUNT_BITSIZE 6
 #define OGM_EXPONENT_OFFSET    OGM_MANTISSA_BIT_SIZE
 
 #define OGM_EXPONENT_MAX       ((1<<OGM_EXPONENT_BIT_SIZE)-1)
@@ -145,10 +146,12 @@ struct host_metricalgo {
 	uint8_t lq_ty_point_r255;
 	uint8_t lq_t1_point_r255;
 
+	uint8_t ogm_hops_max;
 	uint8_t ogm_hop_penalty;
 	uint8_t ogm_sqn_best_hystere;
-	uint16_t ogm_sqn_late_hystere;
-	uint16_t ogm_metric_hystere;
+	uint8_t ogm_sqn_late_hystere_100ms;
+	uint16_t ogm_metric_hystere_new_path;
+	uint16_t ogm_metric_hystere_old_path;
 };
 
 struct lndev_probe_record {
@@ -326,6 +329,8 @@ struct NeighRef_node {
 	FMETRIC_U16_T ogmSqnMaxClaimedMetric;
 	uint8_t ogmSqnMaxClaimedHops;
 	TIME_T ogmSqnMaxTime;
+	uint16_t ogmSqnMaxPathMetricsByteSize;
+	struct msg_ogm_adv_metric_t0 *ogmSqnMaxPathMetrics;
 
 	// set by rx_frame_ogm_aggreg_adv():
 	TIME_T ogmBestSinceSqn;
@@ -396,7 +401,7 @@ struct key_node {
 	struct avl_tree trustees_tree;
 	struct orig_node *on;
 	struct desc_content *nextDesc;
-	DESC_SQN_T nextDescSqnMin;
+	DESC_SQN_T descSqnMin;
 	struct avl_tree recommendations_tree; //ofMyDirect2SupportedKeys
 };
 

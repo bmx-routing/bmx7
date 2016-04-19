@@ -318,7 +318,7 @@ struct content_node * content_add_body( uint8_t *body, uint32_t body_len, uint8_
 				} else {
 					continue;
 				}
-				dc->kn->nextDescSqnMin = dc->descSqn + 1;
+				dc->kn->descSqnMin = dc->descSqn + 1;
 				descContent_destroy(dc);
 			}
 		}
@@ -867,7 +867,7 @@ struct desc_content* descContent_create(uint8_t *dsc, uint32_t dlen, struct key_
 		IDM_T TODO_ifFailingDueToLowConformanceToleranceAndUnknownSmsTlvTypeThisLoopsOnReRequestingTheDesc;
 		EXITERROR(-502271, (NO));
 
-		kn->nextDescSqnMin = descSqn + 1;
+		kn->descSqnMin = descSqn + 1;
 		descContent_destroy(dc);
 		return NULL;
 	}

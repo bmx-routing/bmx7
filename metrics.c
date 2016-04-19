@@ -64,10 +64,12 @@ static int32_t my_path_lq_t1_r255 = DEF_PATH_LQ_T1_R255;
 
 static int32_t my_path_metric_flags = DEF_PATH_METRIC_FLAGS;
 static int32_t my_path_umetric_min = DEF_PATH_UMETRIC_MIN;
-static int32_t my_ogm_metric_hyst = DEF_OGM_METRIC_HYST;
+static int32_t my_ogm_metric_hyst_new_path = DEF_OGM_METRIC_HYST_NEW_PATH;
+static int32_t my_ogm_metric_hyst_old_path = DEF_OGM_METRIC_HYST_OLD_PATH;
 static int32_t my_ogm_sqn_best_hyst = DEF_OGM_SQN_BEST_HYST;
-static int32_t my_ogm_sqn_late_hyst = DEF_OGM_SQN_LATE_HYST;
+static int32_t my_ogm_sqn_late_hyst_100ms = DEF_OGM_SQN_LATE_HYST;
 static int32_t my_hop_penalty = DEF_OGM_HOP_PENALTY;
+static int32_t my_hops_max = DEF_OGM_HOPS_MAX;
 
 static int32_t new_rt_dismissal_div100 = DEF_NEW_RT_DISMISSAL;
 
@@ -79,7 +81,7 @@ static int32_t new_rt_dismissal_div100 = DEF_NEW_RT_DISMISSAL;
 
 static
 void (*path_metric_algos[BIT_METRIC_ALGO_ARRSZ])
-(UMETRIC_T *path_out, LinkNode *link, struct host_metricalgo *algo) = {NULL};
+(UMETRIC_T *path_out, struct NeighRef_node *ref, LinkNode *link, struct host_metricalgo *algo) = {NULL};
 
 static UMETRIC_T UMETRIC_MAX_SQRT;
 static UMETRIC_T U64_MAX_HALF_SQRT;
@@ -384,7 +386,7 @@ UMETRIC_T apply_lq_threshold_curve(UMETRIC_T lm, struct host_metricalgo *algo)
 }
 
 STATIC_FUNC
-void path_metricalgo_MultiplyQuality(UMETRIC_T *path, LinkNode *link, struct host_metricalgo *algo)
+void path_metricalgo_MultiplyQuality(UMETRIC_T *path, struct NeighRef_node *ref, LinkNode *link, struct host_metricalgo *algo)
 {
 	UMETRIC_T tq = umetric_to_the_power_of_n((((UMETRIC_MAX)*((UMETRIC_T) link->timeaware_tq_probe)) / LQ_MAX), algo->algo_tp_exp_numerator, algo->algo_tp_exp_divisor);
         UMETRIC_T rq = umetric_to_the_power_of_n((((UMETRIC_MAX)*((UMETRIC_T) link->timeaware_rq_probe)) / LQ_MAX), algo->algo_rp_exp_numerator, algo->algo_rp_exp_divisor);
@@ -394,7 +396,7 @@ void path_metricalgo_MultiplyQuality(UMETRIC_T *path, LinkNode *link, struct hos
 }
 
 STATIC_FUNC
-void path_metricalgo_ExpectedQuality(UMETRIC_T *path, LinkNode *link, struct host_metricalgo *algo)
+void path_metricalgo_ExpectedQuality(UMETRIC_T *path, struct NeighRef_node *ref, LinkNode *link, struct host_metricalgo *algo)
 {
 	UMETRIC_T tq = umetric_to_the_power_of_n((((UMETRIC_MAX)*((UMETRIC_T) link->timeaware_tq_probe)) / LQ_MAX), algo->algo_tp_exp_numerator, algo->algo_tp_exp_divisor);
         UMETRIC_T rq = umetric_to_the_power_of_n((((UMETRIC_MAX)*((UMETRIC_T) link->timeaware_rq_probe)) / LQ_MAX), algo->algo_rp_exp_numerator, algo->algo_rp_exp_divisor);
@@ -407,7 +409,7 @@ void path_metricalgo_ExpectedQuality(UMETRIC_T *path, LinkNode *link, struct hos
 }
 
 STATIC_FUNC
-void path_metricalgo_MultiplyBandwidth(UMETRIC_T *path, LinkNode *link, struct host_metricalgo *algo)
+void path_metricalgo_MultiplyBandwidth(UMETRIC_T *path, struct NeighRef_node *ref, LinkNode *link, struct host_metricalgo *algo)
 {
 	UMETRIC_T *lMax = &link->k.myDev->umetric_max;
 	UMETRIC_T tq = umetric_to_the_power_of_n((((UMETRIC_MAX)*((UMETRIC_T) link->timeaware_tq_probe)) / LQ_MAX), algo->algo_tp_exp_numerator, algo->algo_tp_exp_divisor);
@@ -420,7 +422,7 @@ void path_metricalgo_MultiplyBandwidth(UMETRIC_T *path, LinkNode *link, struct h
 }
 
 STATIC_FUNC
-void path_metricalgo_ExpectedBandwidth(UMETRIC_T *path, LinkNode *link, struct host_metricalgo *algo)
+void path_metricalgo_ExpectedBandwidth(UMETRIC_T *path, struct NeighRef_node *ref, LinkNode *link, struct host_metricalgo *algo)
 {
 	UMETRIC_T tq = umetric_to_the_power_of_n((((UMETRIC_MAX)*((UMETRIC_T) link->timeaware_tq_probe)) / LQ_MAX), algo->algo_tp_exp_numerator, algo->algo_tp_exp_divisor);
         UMETRIC_T rq = umetric_to_the_power_of_n((((UMETRIC_MAX)*((UMETRIC_T) link->timeaware_rq_probe)) / LQ_MAX), algo->algo_rp_exp_numerator, algo->algo_rp_exp_divisor);
@@ -435,19 +437,19 @@ void path_metricalgo_ExpectedBandwidth(UMETRIC_T *path, LinkNode *link, struct h
 }
 
 STATIC_FUNC
-void path_metricalgo_VectorBandwidth(UMETRIC_T *path, LinkNode *link, struct host_metricalgo *algo)
+void path_metricalgo_VectorBandwidth(UMETRIC_T *path, struct NeighRef_node *ref, LinkNode *link, struct host_metricalgo *algo)
 {
         assertion(-501085, (*path > UMETRIC_MIN__NOT_ROUTABLE));
 	UMETRIC_T tq = umetric_to_the_power_of_n((((UMETRIC_MAX)*((UMETRIC_T) link->timeaware_tq_probe)) / LQ_MAX), algo->algo_tp_exp_numerator, algo->algo_tp_exp_divisor);
         UMETRIC_T rq = umetric_to_the_power_of_n((((UMETRIC_MAX)*((UMETRIC_T) link->timeaware_rq_probe)) / LQ_MAX), algo->algo_rp_exp_numerator, algo->algo_rp_exp_divisor);
 	UMETRIC_T lq = apply_lq_threshold_curve(umetric_multiply_normalized(tq, rq), algo);
+        UMETRIC_T linkBandwidth = umetric_multiply_normalized(link->k.myDev->umetric_max, lq);
 
         UMETRIC_T inverseSquaredPathBandwidth = 0;
         UMETRIC_T inverseSquaredLinkQuality = 0;
         UMETRIC_T rootOfSum = 0;
         UMETRIC_T path_out = UMETRIC_MIN__NOT_ROUTABLE;
 
-        UMETRIC_T linkBandwidth = umetric_multiply_normalized(link->k.myDev->umetric_max, lq);
         
         UMETRIC_T maxPrecisionScaler = XMIN(*path, linkBandwidth) * U64_MAX_HALF_SQRT;
 
@@ -469,32 +471,85 @@ void path_metricalgo_VectorBandwidth(UMETRIC_T *path, LinkNode *link, struct hos
        *path = path_out;
 }
 
+STATIC_FUNC
+void path_metricalgo_Capacity(UMETRIC_T *path, struct NeighRef_node *ref, LinkNode *link, struct host_metricalgo *algo)
+{
+	assertion(-500000, ((ref->ogmSqnMaxPathMetricsByteSize % sizeof(struct msg_ogm_adv_metric_t0))==0));
 
+	UMETRIC_T linkTP;
+
+	if (!ref->ogmSqnMaxClaimedMetric.val.u16 || !ref->ogmSqnMaxClaimedHops) {
+
+		*path = UMETRIC_MIN__NOT_ROUTABLE;
+		return;
+	}
+	
+	if (link->timeaware_tp_probe) {
+		linkTP = link->timeaware_tp_probe;
+	} else {
+		UMETRIC_T tq = umetric_to_the_power_of_n((((UMETRIC_MAX)*((UMETRIC_T) link->timeaware_tq_probe)) / LQ_MAX), algo->algo_tp_exp_numerator, algo->algo_tp_exp_divisor);
+		UMETRIC_T rq = umetric_to_the_power_of_n((((UMETRIC_MAX)*((UMETRIC_T) link->timeaware_rq_probe)) / LQ_MAX), algo->algo_rp_exp_numerator, algo->algo_rp_exp_divisor);
+		UMETRIC_T lq = apply_lq_threshold_curve(umetric_multiply_normalized(tq, rq), algo);
+		linkTP = umetric_multiply_normalized(link->k.myDev->umetric_max, lq);
+	}
+
+	UMETRIC_T pathMaxTP = XMIN(*path, linkTP);
+	UMETRIC_T subPathTime = (UMETRIC_MAX / linkTP);
+
+	uint16_t i, I = (ref->ogmSqnMaxPathMetricsByteSize / sizeof(struct msg_ogm_adv_metric_t0));
+	for (i = 0; i < I; i++) {
+
+		assertion(-500000, (ref->ogmSqnMaxPathMetrics[i].u.f.type == 0));
+
+		FMETRIC_U16_T fm = {.val = {.f = {.exp_fm16 = ref->ogmSqnMaxPathMetrics[i].u.f.metric_exp, .mantissa_fm16 = ref->ogmSqnMaxPathMetrics[i].u.f.metric_mantissa}}};
+
+		linkTP = fmetric_to_umetric(fm);
+		pathMaxTP = XMIN(pathMaxTP, linkTP);
+
+		if (ref->ogmSqnMaxPathMetrics[i].channel != 0)
+			subPathTime += (UMETRIC_MAX / linkTP);
+	}
+
+	UMETRIC_T subPathTP = (subPathTime / UMETRIC_MAX);
+
+       *path = XMIN(pathMaxTP, subPathTP);
+}
 
 STATIC_FUNC
-void register_path_metricalgo(uint8_t algo_type_bit, void (*algo) (UMETRIC_T *path_out, LinkNode *link, struct host_metricalgo *algo))
+void register_path_metricalgo(uint8_t algo_type_bit, void (*algo) (UMETRIC_T *path_out, struct NeighRef_node *ref, LinkNode *link, struct host_metricalgo *algo))
 {
         assertion(-500838, (!path_metric_algos[algo_type_bit]));
         assertion(-500839, (algo_type_bit < BIT_METRIC_ALGO_ARRSZ));
         path_metric_algos[algo_type_bit] = algo;
 }
 
+struct NeighPath *apply_metric_algo2(struct NeighRef_node *ref, LinkNode *link, struct host_metricalgo *algo)
+{
+	static struct NeighPath neighPath;
 
-UMETRIC_T apply_metric_algo(const UMETRIC_T *path, LinkNode *link, struct host_metricalgo *algo)
+	neighPath.link = NULL;
+	neighPath.um = UMETRIC_MIN__NOT_ROUTABLE;
+	neighPath.pathMetricsByteSize = 0;
+
+	IDM_T TODO;
+
+	assertion(-500000, (neighPath.um >= algo->umetric_min || neighPath.um == UMETRIC_MIN__NOT_ROUTABLE));
+	assertion(-500000, IMPLIES(neighPath.link, neighPath.um >= algo->umetric_min && neighPath.um > UMETRIC_MIN__NOT_ROUTABLE));
+
+	return &neighPath;
+}
+
+UMETRIC_T apply_metric_algo(struct NeighRef_node *ref, LinkNode *link, struct host_metricalgo *algo)
 {
         TRACE_FUNCTION_CALL;
+	UMETRIC_T refMetric = fmetric_to_umetric(ref->ogmSqnMaxClaimedMetric);
 
-        assertion_dbg(-502564, ((*path & ~UMETRIC_MASK) == 0), "um=%ju mask=%ju max=%ju",*path, UMETRIC_MASK, UMETRIC_MAX);
         assertion(-500823, (link->k.myDev->umetric_max));
-
-        assertion_dbg(-501037, ((*path & ~UMETRIC_MASK) == 0), "um=%ju mask=%ju max=%ju",*path, UMETRIC_MASK, UMETRIC_MAX);
-        assertion(-501038, (*path <= UMETRIC_MAX));
-        assertion(-501039, (*path >= UMETRIC_MIN__NOT_ROUTABLE));
 
         ALGO_T unsupported_algos = 0;
         ALGO_T algo_type = algo->algo_type;
-        UMETRIC_T max_out = umetric_substract_min(path);
-        UMETRIC_T path_out = *path;
+        UMETRIC_T max_out = umetric_substract_min(&refMetric);
+        UMETRIC_T path_out = refMetric;
 
         if (max_out <= UMETRIC_MIN__NOT_ROUTABLE)
                 return UMETRIC_MIN__NOT_ROUTABLE;
@@ -510,10 +565,10 @@ UMETRIC_T apply_metric_algo(const UMETRIC_T *path, LinkNode *link, struct host_m
 
                         if (path_metric_algos[algo_type_bit]) {
 
-                                (*(path_metric_algos[algo_type_bit])) (&path_out, link, algo);
+                                (*(path_metric_algos[algo_type_bit])) (&path_out, ref, link, algo);
 
                                 dbgf_all(DBGT_INFO, "algo=%d in=%-12ju=%7s  out=%-12ju=%7s",
-                                        algo_type_bit, *path, umetric_to_human(*path), path_out, umetric_to_human(path_out));
+                                        algo_type_bit, refMetric, umetric_to_human(refMetric), path_out, umetric_to_human(path_out));
 
                         } else {
                                 unsupported_algos |= (0x01 << algo_type_bit);
@@ -528,7 +583,7 @@ UMETRIC_T apply_metric_algo(const UMETRIC_T *path, LinkNode *link, struct host_m
                                 ARG_PATH_METRIC_ALGO, unsupported_algos, unsupported_algos, i);
 
                         while (i--)
-                                (*(path_metric_algos[BIT_METRIC_ALGO_EB])) (&path_out, link, algo);
+                                (*(path_metric_algos[BIT_METRIC_ALGO_EB])) (&path_out, ref, link, algo);
                 }
         }
 
@@ -538,15 +593,12 @@ UMETRIC_T apply_metric_algo(const UMETRIC_T *path, LinkNode *link, struct host_m
         if (path_out <= UMETRIC_MIN__NOT_ROUTABLE)
                 return UMETRIC_MIN__NOT_ROUTABLE;
 
-
-
         if (path_out > max_out) {
-                dbgf_all(DBGT_WARN, "out=%ju > out_max=%ju, %s=%d, path=%ju",
-                        path_out, max_out, ARG_PATH_METRIC_ALGO, algo->algo_type, *path);
+		dbgf_track(DBGT_WARN, "out=%ju > out_max=%ju, %s=%d, path=%ju", path_out, max_out, ARG_PATH_METRIC_ALGO, algo->algo_type, refMetric);
+		return max_out;
         }
 
-
-        return XMIN(path_out, max_out); // ensure out always decreases
+	return path_out;
 }
 
 
@@ -563,10 +615,12 @@ IDM_T validate_metricalgo(struct host_metricalgo *ma, struct ctrl_node *cn)
                 validate_param((ma->algo_tp_exp_numerator), MIN_PATH_XP_EXP_NUMERATOR, MAX_PATH_XP_EXP_NUMERATOR, ARG_PATH_TP_EXP_NUMERATOR) ||
                 validate_param((ma->algo_tp_exp_divisor), MIN_PATH_XP_EXP_DIVISOR, MAX_PATH_XP_EXP_DIVISOR, ARG_PATH_TP_EXP_DIVISOR) ||
                 validate_param((ma->flags),      MIN_METRIC_FLAGS, MAX_METRIC_FLAGS, ARG_PATH_METRIC_FLAGS) ||
-                validate_param((ma->ogm_metric_hystere), MIN_OGM_METRIC_HYST, MAX_OGM_METRIC_HYST, ARG_OGM_METRIC_HYST) ||
+                validate_param((ma->ogm_metric_hystere_new_path), MIN_OGM_METRIC_HYST_NEW_PATH, MAX_OGM_METRIC_HYST_NEW_PATH, ARG_OGM_METRIC_HYST_NEW_PATH) ||
+                validate_param((ma->ogm_metric_hystere_old_path), MIN_OGM_METRIC_HYST_OLD_PATH, MAX_OGM_METRIC_HYST_OLD_PATH, ARG_OGM_METRIC_HYST_OLD_PATH) ||
                 validate_param((ma->ogm_sqn_best_hystere), MIN_OGM_SQN_BEST_HYST, MAX_OGM_SQN_BEST_HYST, ARG_OGM_SQN_BEST_HYST) ||
-                validate_param((ma->ogm_sqn_late_hystere), MIN_OGM_SQN_LATE_HYST, MAX_OGM_SQN_LATE_HYST, ARG_OGM_SQN_LATE_HYST) ||
+                validate_param((ma->ogm_sqn_late_hystere_100ms), MIN_OGM_SQN_LATE_HYST, MAX_OGM_SQN_LATE_HYST, ARG_OGM_SQN_LATE_HYST) ||
                 validate_param((ma->ogm_hop_penalty), MIN_OGM_HOP_PENALTY, MAX_OGM_HOP_PENALTY, ARG_OGM_HOP_PENALTY) ||
+                validate_param((ma->ogm_hops_max), MIN_OGM_HOPS_MAX, MAX_OGM_HOPS_MAX, ARG_OGM_HOPS_MAX) ||
 		validate_param((ma->lq_tx_point_r255), MIN_PATH_LQ_TX_R255, MAX_PATH_LQ_TX_R255, ARG_PATH_LQ_TX_R255) ||
 		validate_param((ma->lq_ty_point_r255), MIN_PATH_LQ_TY_R255, MAX_PATH_LQ_TY_R255, ARG_PATH_LQ_TY_R255) ||
 		validate_param((ma->lq_t1_point_r255), MIN_PATH_LQ_T1_R255, MAX_PATH_LQ_T1_R255, ARG_PATH_LQ_T1_R255) ||
@@ -607,9 +661,11 @@ IDM_T metricalgo_tlv_to_host(struct description_tlv_metricalgo *tlv_algo, struct
 	host_algo->lq_ty_point_r255 = tlv_algo->m.lq_ty_point_r255;
 	host_algo->lq_t1_point_r255 = tlv_algo->m.lq_t1_point_r255;
         host_algo->ogm_sqn_best_hystere = tlv_algo->m.ogm_sqn_best_hystere;
-        host_algo->ogm_sqn_late_hystere = ntohs(tlv_algo->m.ogm_sqn_late_hystere);
-        host_algo->ogm_metric_hystere = ntohs(tlv_algo->m.ogm_metric_hystere);
+        host_algo->ogm_sqn_late_hystere_100ms = tlv_algo->m.ogm_sqn_late_hystere_100ms;
+        host_algo->ogm_metric_hystere_new_path = ntohs(tlv_algo->m.ogm_metric_hystere_new_path);
+        host_algo->ogm_metric_hystere_old_path = ntohs(tlv_algo->m.ogm_metric_hystere_old_path);
 	host_algo->ogm_hop_penalty = tlv_algo->m.hop_penalty;
+	host_algo->ogm_hops_max = tlv_algo->m.hops_max;
 
         if (validate_metricalgo(host_algo, NULL) == FAILURE)
                 return FAILURE;
@@ -649,10 +705,12 @@ int create_description_tlv_metricalgo(struct tx_frame_iterator *it)
 	tlv_algo.m.lq_tx_point_r255 = my_path_lq_tx_r255;
 	tlv_algo.m.lq_ty_point_r255 = my_path_lq_ty_r255;
 	tlv_algo.m.lq_t1_point_r255 = my_path_lq_t1_r255;
-        tlv_algo.m.ogm_metric_hystere = htons(my_ogm_metric_hyst);
+        tlv_algo.m.ogm_metric_hystere_new_path = htons(my_ogm_metric_hyst_new_path);
+        tlv_algo.m.ogm_metric_hystere_old_path = htons(my_ogm_metric_hyst_old_path);
         tlv_algo.m.ogm_sqn_best_hystere = my_ogm_sqn_best_hyst;
-        tlv_algo.m.ogm_sqn_late_hystere = htons(my_ogm_sqn_late_hyst);
+        tlv_algo.m.ogm_sqn_late_hystere_100ms = my_ogm_sqn_late_hyst_100ms;
         tlv_algo.m.hop_penalty = my_hop_penalty;
+	tlv_algo.m.hops_max = my_hops_max;
 
         memset(&my_hostmetricalgo, 0, sizeof (struct host_metricalgo));
 
@@ -785,9 +843,11 @@ int32_t opt_path_metricalgo(uint8_t cmd, uint8_t _save, struct opt_type *opt, st
 
                         test_algo.algo_type = my_path_algo;
 			test_algo.ogm_hop_penalty = my_hop_penalty;
-			test_algo.ogm_metric_hystere = my_ogm_metric_hyst;
+			test_algo.ogm_hops_max = my_hops_max;
+			test_algo.ogm_metric_hystere_new_path = my_ogm_metric_hyst_new_path;
+			test_algo.ogm_metric_hystere_old_path = my_ogm_metric_hyst_old_path;
 			test_algo.ogm_sqn_best_hystere = my_ogm_sqn_best_hyst;
-			test_algo.ogm_sqn_late_hystere = my_ogm_sqn_late_hyst;
+			test_algo.ogm_sqn_late_hystere_100ms = my_ogm_sqn_late_hyst_100ms;
                         test_algo.algo_rp_exp_numerator = my_path_rp_exp_numerator;
                         test_algo.algo_rp_exp_divisor = my_path_rp_exp_divisor;
                         test_algo.algo_tp_exp_numerator = my_path_tp_exp_numerator;
@@ -800,9 +860,11 @@ int32_t opt_path_metricalgo(uint8_t cmd, uint8_t _save, struct opt_type *opt, st
 
                         test_algo.algo_type = DEF_METRIC_ALGO;
 			test_algo.ogm_hop_penalty = DEF_OGM_HOP_PENALTY;
-			test_algo.ogm_metric_hystere = DEF_OGM_METRIC_HYST;
+			test_algo.ogm_hops_max = DEF_OGM_HOPS_MAX;
+			test_algo.ogm_metric_hystere_new_path = DEF_OGM_METRIC_HYST_NEW_PATH;
+			test_algo.ogm_metric_hystere_old_path = DEF_OGM_METRIC_HYST_OLD_PATH;
 			test_algo.ogm_sqn_best_hystere = DEF_OGM_SQN_BEST_HYST;
-			test_algo.ogm_sqn_late_hystere = DEF_OGM_SQN_LATE_HYST;
+			test_algo.ogm_sqn_late_hystere_100ms = DEF_OGM_SQN_LATE_HYST;
                         test_algo.algo_rp_exp_numerator = DEF_PATH_RP_EXP_NUMERATOR;
                         test_algo.algo_rp_exp_divisor = DEF_PATH_RP_EXP_DIVISOR;
                         test_algo.algo_tp_exp_numerator = DEF_PATH_TP_EXP_NUMERATOR;
@@ -826,14 +888,20 @@ int32_t opt_path_metricalgo(uint8_t cmd, uint8_t _save, struct opt_type *opt, st
                                         if (!strcmp(c->opt->name, ARG_OGM_HOP_PENALTY))
                                                 test_algo.ogm_hop_penalty = val;
 
-                                        if (!strcmp(c->opt->name, ARG_OGM_METRIC_HYST))
-                                                test_algo.ogm_metric_hystere = val;
+                                        if (!strcmp(c->opt->name, ARG_OGM_HOPS_MAX))
+                                                test_algo.ogm_hops_max = val;
+
+                                        if (!strcmp(c->opt->name, ARG_OGM_METRIC_HYST_NEW_PATH))
+                                                test_algo.ogm_metric_hystere_new_path = val;
+
+                                        if (!strcmp(c->opt->name, ARG_OGM_METRIC_HYST_OLD_PATH))
+                                                test_algo.ogm_metric_hystere_old_path = val;
 
                                         if (!strcmp(c->opt->name, ARG_OGM_SQN_BEST_HYST))
                                                 test_algo.ogm_sqn_best_hystere = val;
 
                                         if (!strcmp(c->opt->name, ARG_OGM_SQN_LATE_HYST))
-                                                test_algo.ogm_sqn_late_hystere = val;
+                                                test_algo.ogm_sqn_late_hystere_100ms = val;
 
                                         if (!strcmp(c->opt->name, ARG_PATH_RP_EXP_NUMERATOR))
                                                 test_algo.algo_rp_exp_numerator = val;
@@ -867,9 +935,11 @@ int32_t opt_path_metricalgo(uint8_t cmd, uint8_t _save, struct opt_type *opt, st
 
                         my_path_algo = test_algo.algo_type;
 			my_hop_penalty = test_algo.ogm_hop_penalty;
-			my_ogm_metric_hyst = test_algo.ogm_metric_hystere;
+			my_hops_max = test_algo.ogm_hops_max;
+			my_ogm_metric_hyst_new_path = test_algo.ogm_metric_hystere_new_path;
+			my_ogm_metric_hyst_old_path = test_algo.ogm_metric_hystere_old_path;
 			my_ogm_sqn_best_hyst = test_algo.ogm_sqn_best_hystere;
-			my_ogm_sqn_late_hyst = test_algo.ogm_sqn_late_hystere;
+			my_ogm_sqn_late_hyst_100ms = test_algo.ogm_sqn_late_hystere_100ms;
                         my_path_rp_exp_numerator = test_algo.algo_rp_exp_numerator;
                         my_path_rp_exp_divisor = test_algo.algo_rp_exp_divisor;
                         my_path_tp_exp_numerator = test_algo.algo_tp_exp_numerator;
@@ -893,14 +963,17 @@ struct opt_type metrics_options[]=
 //       ord parent long_name             shrt Attributes                            *ival              min                 max                default              *func,*syntax,*help
 
 #ifndef LESS_OPTIONS
-	{ODI, 0, ARG_OGM_METRIC_HYST,     0,   9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,    &my_ogm_metric_hyst,MIN_OGM_METRIC_HYST, MAX_OGM_METRIC_HYST,DEF_OGM_METRIC_HYST,0, opt_path_metricalgo,
+	{ODI, 0, ARG_OGM_METRIC_HYST_NEW_PATH,     0,   9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,    &my_ogm_metric_hyst_new_path,MIN_OGM_METRIC_HYST_NEW_PATH, MAX_OGM_METRIC_HYST_NEW_PATH,DEF_OGM_METRIC_HYST_NEW_PATH,0, opt_path_metricalgo,
 			ARG_VALUE_FORM,	"use metric hysteresis in % to delay route switching to alternative next-hop neighbors with better path metric"}
         ,
 	{ODI, 0, ARG_OGM_SQN_BEST_HYST,0,9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,    &my_ogm_sqn_best_hyst,MIN_OGM_SQN_BEST_HYST,MAX_OGM_SQN_BEST_HYST,DEF_OGM_SQN_BEST_HYST,0, opt_path_metricalgo,
 		ARG_VALUE_FORM,	"overcome metric hysteresis to force route switching after successive reception of x new OGM-SQNs with with better path metric"}
         ,
-	{ODI, 0, ARG_OGM_SQN_LATE_HYST,0,9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,    &my_ogm_sqn_late_hyst,MIN_OGM_SQN_LATE_HYST,MAX_OGM_SQN_LATE_HYST,DEF_OGM_SQN_LATE_HYST,0, opt_path_metricalgo,
-		ARG_VALUE_FORM,	"delay route switching in ms to next-hop neighbor due its fast OGM-SQN delivery"}
+	{ODI, 0, ARG_OGM_SQN_LATE_HYST,0,9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,    &my_ogm_sqn_late_hyst_100ms,MIN_OGM_SQN_LATE_HYST,MAX_OGM_SQN_LATE_HYST,DEF_OGM_SQN_LATE_HYST,0, opt_path_metricalgo,
+		ARG_VALUE_FORM,	"delay route switching in 100ms to next-hop neighbor due its fast OGM-SQN delivery"}
+        ,
+	{ODI, 0, ARG_OGM_HOPS_MAX,	   0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&my_hops_max, MIN_OGM_HOPS_MAX, MAX_OGM_HOPS_MAX, DEF_OGM_HOPS_MAX,0, opt_path_metricalgo,
+			ARG_VALUE_FORM,	"set maximum amount of hops my OGMs are allowed to be forwarded"}
         ,
 	{ODI, 0, ARG_OGM_HOP_PENALTY,	   0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&my_hop_penalty, MIN_OGM_HOP_PENALTY, MAX_OGM_HOP_PENALTY, DEF_OGM_HOP_PENALTY,0, opt_path_metricalgo,
 			ARG_VALUE_FORM,	"penalize non-first rcvd OGMs in 1/255 (each hop will substract metric*(VALUE/255) from current path-metric)"}
@@ -1054,6 +1127,7 @@ int32_t init_metrics( void )
         register_path_metricalgo(BIT_METRIC_ALGO_MB, path_metricalgo_MultiplyBandwidth);
         register_path_metricalgo(BIT_METRIC_ALGO_EB, path_metricalgo_ExpectedBandwidth);
         register_path_metricalgo(BIT_METRIC_ALGO_VB, path_metricalgo_VectorBandwidth);
+        register_path_metricalgo(BIT_METRIC_ALGO_CP, path_metricalgo_Capacity);
 
         register_options_array(metrics_options, sizeof (metrics_options), CODE_CATEGORY_NAME);
 

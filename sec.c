@@ -474,8 +474,8 @@ int process_packet_signature(struct rx_frame_iterator *it)
 	assertion(-502480, (claimedKey->content));
 
 	if (
-		((descSqn + 1) < claimedKey->nextDescSqnMin) ||
-		(claimedKey->nextDesc && (descSqn < claimedKey->nextDesc->descSqn || descSqn < claimedKey->nextDescSqnMin)) ||
+		(descSqn < claimedKey->descSqnMin) ||
+		(claimedKey->nextDesc && descSqn < claimedKey->nextDesc->descSqn) ||
 		(claimedKey->on && (descSqn < claimedKey->on->dc->descSqn)))
 		goto_error_return( finish, "outdated descSqn", TLV_RX_DATA_PROCESSED);
 
@@ -573,7 +573,7 @@ finish:{
 		pkey ? cryptKeyTypeAsString(pkey->rawKeyType) : "---", pkey ? memAsHexString(pkey->rawKey, pkey->rawKeyLen) : "---",
 		pb->i.iif->label_cfg.str, pb->i.llip_str, (llip_dlen ? memAsHexStringSep(llip_data, llip_dlen, sizeof(struct dsc_msg_llip), " ") : NULL),
 		burstSqn, (nn ? (int)nn->burstSqn : -1),
-		descSqn, (claimedKey && claimedKey->on ? (int)claimedKey->on->dc->descSqn : -1), (claimedKey && claimedKey->nextDesc ? (int)claimedKey->nextDesc->descSqn : -1), (claimedKey ? (int)claimedKey->nextDescSqnMin : -1),
+		descSqn, (claimedKey && claimedKey->on ? (int)claimedKey->on->dc->descSqn : -1), (claimedKey && claimedKey->nextDesc ? (int)claimedKey->nextDesc->descSqn : -1), (claimedKey ? (int)claimedKey->descSqnMin : -1),
 		goto_error_code);
 
 	if (pkeyTmp)

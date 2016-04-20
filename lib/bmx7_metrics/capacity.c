@@ -82,39 +82,27 @@ void upd_ath_capacity(LinkNode *link, struct ctrl_node *cn)
 
 			if (!strncmp(baseDirEnt->d_name, ATH_RC_STATS_PHY_PREFIX, strlen(ATH_RC_STATS_PHY_PREFIX))) {
 
-				FILE *fpA = NULL, *fpB = NULL;
+				FILE *fpA = NULL;
 				char *line = NULL;
 				size_t len = 0;
 				ssize_t read;
-				char txtFileNameA[MAX_PATH_SIZE];
-				char txtFileNameB[MAX_PATH_SIZE];
-				uint8_t *m = &link->k.linkDev->key.llocal_ip.s6_addr[0];
+				char txtFileName[MAX_PATH_SIZE];
+				char *mac = strToLower(memAsHexStringSep(ip6Eui64ToMac(&link->k.linkDev->key.llocal_ip, NULL), 6, 1, ":"));
 				IFNAME_T phy_name = link->k.myDev->name_phy_cfg;
 				char *dotPtr;
-
 				if ((dotPtr = strchr(phy_name.str, '.')) != NULL)
 					*dotPtr = '\0';
 
+				sprintf(txtFileName, "%s/%s/%s%s/%s/%s/%s",
+					baseDirName, baseDirEnt->d_name, ATH_RC_STATS_DEVS_DIR, phy_name.str, ATH_RC_STATS_MACS_DIR, mac, ATH_RC_STATS_FILE_TXT);
 
-				sprintf(txtFileNameA, "%s/%s/%s%s/%s/%.2x:%.2x:%.2x:%.2x:%.2x:%.2x/%s",
-					baseDirName, baseDirEnt->d_name, ATH_RC_STATS_DEVS_DIR, phy_name.str, ATH_RC_STATS_MACS_DIR,
-					m[8], m[9], m[10], m[13], m[14], m[15],
-					ATH_RC_STATS_FILE_TXT);
+				dbg_printf(cn, "trying fopen A=%s \n", txtFileName);
 
-				sprintf(txtFileNameB, "%s/%s/%s%s/%s/%.2x:%.2x:%.2x:%.2x:%.2x:%.2x/%s",
-					baseDirName, baseDirEnt->d_name, ATH_RC_STATS_DEVS_DIR, phy_name.str, ATH_RC_STATS_MACS_DIR,
-					(m[8] & 0xFD), m[9], m[10], m[13], m[14], m[15],
-					ATH_RC_STATS_FILE_TXT);
+				if (fpA = fopen(txtFileName, "r")) {
 
-				dbg_printf(cn, "trying fopen A=%s B=%s\n", txtFileNameA, txtFileNameB);
+					dbg_printf(cn, "succeeded file=%s\n", txtFileName);
 
-
-				if ((fpA = fopen(txtFileNameA, "r")) || (fpB = fopen(txtFileNameB, "r"))) {
-
-					FILE *fp = fpA ? fpA : fpB;
-					dbg_printf(cn, "succeeded file=%s\n", fpA ? txtFileNameA : txtFileNameB);
-
-					while ((read = getline(&line, &len, fp)) != -1) {
+					while ((read = getline(&line, &len, fpA)) != -1) {
 
 						dbgf_all(DBGT_INFO, "Retrieved len=%3zu %3zu: %s", read, len, line);
 						if ((read >= ATH_RC_STATS_FILE_TXT_LEN) && (len > ATH_RC_STATS_FILE_TXT_LEN) &&
@@ -147,7 +135,7 @@ void upd_ath_capacity(LinkNode *link, struct ctrl_node *cn)
 
 					dbg_printf(cn, "\n");
 
-					fclose(fp);
+					fclose(fpA);
 					if (line)
 						free(line);
 

@@ -80,7 +80,7 @@ void upd_timeaware_tx_probe(LinkNode *link)
 {
 	if (link->k.myDev->upd_link_capacity ) {
 
-		IDM_T TODO_WARNING_mac_probes_are_unsigned_messages;
+//		IDM_T TODO_WARNING_mac_probes_are_unsigned_messages;
 
 		(*(link->k.myDev->upd_link_capacity)) (link, NULL);
 
@@ -528,7 +528,7 @@ int process_dsc_tlv_llip(struct rx_frame_iterator *it)
 			if( !is_ip_net_equal(&(msg[m].ip6), &IP6_LINKLOCAL_UC_PREF, IP6_LINKLOCAL_UC_PLEN, AF_INET6))
 				return TLV_RX_DATA_FAILURE;
 
-			IDM_T TODO_check_for_each_becoming_neighbor_if_llip_is_unused_then_add_linkDev_and_update_neighDevId_otherwise_ignore;
+//			IDM_T TODO_check_for_each_becoming_neighbor_if_llip_is_unused_then_add_linkDev_and_update_neighDevId_otherwise_ignore;
 		}
 	}
 

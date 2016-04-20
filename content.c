@@ -864,7 +864,7 @@ struct desc_content* descContent_create(uint8_t *dsc, uint32_t dlen, struct key_
 
 	if (descContent_assemble(dc, YES) != SUCCESS) {
 		dbgf_track(DBGT_ERR, "Failed resolving descContent");
-		IDM_T TODO_ifFailingDueToLowConformanceToleranceAndUnknownSmsTlvTypeThisLoopsOnReRequestingTheDesc;
+//		IDM_T TODO_ifFailingDueToLowConformanceToleranceAndUnknownSmsTlvTypeThisLoopsOnReRequestingTheDesc;
 		EXITERROR(-502271, (NO));
 
 		kn->descSqnMin = descSqn + 1;

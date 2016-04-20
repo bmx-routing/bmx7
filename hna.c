@@ -168,7 +168,7 @@ int create_dsc_tlv_hna(struct tx_frame_iterator *it)
 
         pos = _create_tlv_hna(data, max_size, pos, setNet(NULL, AF_INET6, 128, &my_primary_ip), 0);
 
-	IDM_T TODO_CheckIfThisShouldBeNeeded;
+//	IDM_T TODO_CheckIfThisShouldBeNeeded;
         struct avl_node *an;
 	struct tun_in_node *tin;
 

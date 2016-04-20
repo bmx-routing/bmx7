@@ -386,7 +386,7 @@ void kSetOutAction_promoted(struct key_node **kn, struct KeyState *next)
 STATIC_FUNC
 int16_t kPref_neighbor_metric(struct key_node *kn)
 {
-	IDM_T TODO_returnTrustedRoutesToFriendsAndRecommendeds;
+//	IDM_T TODO_returnTrustedRoutesToFriendsAndRecommendeds;
 
 	if (kn->on && kn->on->neigh && kn->on->neigh->best_tp_link) {
 

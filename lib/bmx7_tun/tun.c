@@ -2889,7 +2889,7 @@ void tun_dev_event_hook(int32_t cb_id, void* unused)
 {
         TRACE_FUNCTION_CALL;
 
-	IDM_T TODO_CheckIfThisFunctionIsneededAsPrimaryIpCanNotChangeAnymore;
+//	IDM_T TODO_CheckIfThisFunctionIsneededAsPrimaryIpCanNotChangeAnymore;
 
         struct tun_in_node *tun;
         struct avl_node *an = NULL;

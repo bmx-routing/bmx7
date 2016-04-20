@@ -2460,7 +2460,7 @@ void ip_flush_tracked( uint16_t cmd )
 STATIC_FUNC
 int update_interface_rules(void)
 {
-	IDM_T TODO_instead_of_throwing_my_nets_only_announced_nets_are_hna_allowed_or_discarded;
+//	IDM_T TODO_instead_of_throwing_my_nets_only_announced_nets_are_hna_allowed_or_discarded;
 
 	TRACE_FUNCTION_CALL;
         assertion(-501130, (policy_routing != POLICY_RT_UNSET));

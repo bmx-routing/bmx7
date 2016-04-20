@@ -190,21 +190,6 @@ int process_description_topology(struct rx_frame_iterator *it)
 }
 
 
-STATIC_FUNC
-UMETRIC_T tp_umetric_multiply_normalized(UMETRIC_T *a, UMETRIC_T *b)
-{
-	UMETRIC_T um;
-
-        if (*b < UMETRIC_MULTIPLY_MAX)
-                um = (*a * *b) / UMETRIC_MAX;
-        else
-                um = (*a * ((*b << UMETRIC_SHIFT_MAX) / UMETRIC_MAX)) >> UMETRIC_SHIFT_MAX;
-
-	dbgf_track(DBGT_INFO, "a=%ju b=%ju ab=%ju magicAB=%ju", *a, *b, ((*a * *b) / UMETRIC_MAX), ((*a * ((*b << UMETRIC_SHIFT_MAX) / UMETRIC_MAX)) >> UMETRIC_SHIFT_MAX));
-
-	return um;
-}
-
 
 STATIC_FUNC
 int check_value_deviation(UMETRIC_T a, UMETRIC_T b, UMETRIC_T percent)
@@ -221,8 +206,8 @@ void set_local_topology_node(struct local_topology_node *ltn, LinkNode *link)
 	assertion(-502523, (ltn));
 	assertion(-502524, (link));
 
-	ltn->txBw = (link->k.myDev->umetric_max * ((UMETRIC_T)link->timeaware_tq_probe))/LQ_MAX;
-	ltn->rxBw = (link->k.myDev->umetric_max * ((UMETRIC_T)link->timeaware_rq_probe))/LQ_MAX;
+	ltn->txBw = link->timeaware_tp_probe ? link->timeaware_tp_probe : ((link->k.myDev->umetric_max * ((UMETRIC_T)link->timeaware_tq_probe))/LQ_MAX);
+	ltn->rxBw = ((link->k.myDev->umetric_max * ((UMETRIC_T)link->timeaware_rq_probe))/LQ_MAX);
 	ltn->tq = link->timeaware_tq_probe;
 	ltn->rq = link->timeaware_rq_probe;
 }

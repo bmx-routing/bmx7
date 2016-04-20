@@ -40,6 +40,12 @@ extern uint32_t ogms_pending;
 #define ARG_OGM_AGGREG_HISTORY "ogmAggregHistory"
 
 
+#define MIN_OGM_HOP_HISTORY 0
+#define MAX_OGM_HOP_HISTORY 10
+#define DEF_OGM_HOP_HISTORY 6
+#define ARG_OGM_HOP_HISTORY "ogmHopHistory"
+
+
 
 #define OGM_JUMPS_PER_AGGREGATION 10
 
@@ -127,15 +133,14 @@ struct msg_ogm_adv_metric_t0 {
 	uint8_t channel; // 0)wired, 0xFF)wlanUnknown, 1-14)2.4GHz, 36-..)5GHz,
 } __attribute__((packed));
 
-
-#define OGM_HOP_HISTORY_MAX 10
-
 struct NeighPath {
 	LinkNode *link;
 	UMETRIC_T um;
 	uint16_t pathMetricsByteSize;
-	struct msg_ogm_adv_metric_t0 pathMetrics[OGM_HOP_HISTORY_MAX];
+	struct msg_ogm_adv_metric_t0 pathMetrics[MAX_OGM_HOP_HISTORY];
 };
+
+
 
 
 struct msg_ogm_adv {

@@ -31,7 +31,6 @@ $(BINARY_NAME):	$(OBJS) Makefile Common.mk
 %.o:	%.c %.h Makefile Common.mk $(SRC_H)
 	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) -c $< -o $@
 
-
 strip:	all
 	strip $(BINARY_NAME)
 

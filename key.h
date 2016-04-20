@@ -63,7 +63,7 @@ void keyNode_delCredits_(const char *f, GLOBAL_ID_T *kHash, struct key_node *kn,
 
 #define keyNodes_block_and_sync( id, force ) keyNodes_block_and_sync_( __FUNCTION__, (id), (force) )
 uint32_t keyNodes_block_and_sync_(const char *f, uint32_t id, IDM_T force);
-void keyNode_fixTimeouts();
+void keyNode_fixTimeouts(void);
 struct key_node *keyNode_get(GLOBAL_ID_T *kHask);
 void keyNodes_cleanup(int8_t keyStateColumn, struct key_node *except);
 void init_key(void);

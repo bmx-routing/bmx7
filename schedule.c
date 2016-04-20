@@ -23,8 +23,6 @@
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
-#include <linux/if.h>     // ifr_if, ifr_tun
-#include <linux/rtnetlink.h>
 
 
 #include "list.h"

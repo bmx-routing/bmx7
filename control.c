@@ -144,7 +144,7 @@ void add_dbgl_node(struct ctrl_node *cn, int dbgl)
 	
 }
 
-static int daemonize()
+static int daemonize(void)
 {
 
 	int fd;

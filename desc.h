@@ -18,7 +18,6 @@
 #include <stdint.h>
 #include <sys/types.h>
 #include <netinet/in.h>
-#include <linux/if.h>
 
 #define ARG_DESC_ROOT_SIZE         "descRootSizeOut"
 extern int32_t desc_root_size_out;

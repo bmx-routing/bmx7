@@ -21,7 +21,7 @@
 #include <stdint.h>
 #include <sys/types.h>
 #include <netinet/in.h>
-#include <linux/if.h>
+//#include <linux/if.h>
 #include <linux/rtnetlink.h>
 #include <netinet/ip.h>
 #include <netinet/ip6.h>
@@ -74,6 +74,7 @@ typedef uint8_t LQ_T;
 #define UMETRIC_FM8_MAX            ((((UMETRIC_T) 1) << (OGM_EXPONENT_OFFSET+OGM_EXPONENT_MAX)) + (((UMETRIC_T) FM8_MANTISSA_MASK) << ((OGM_EXPONENT_OFFSET+OGM_EXPONENT_MAX)-FM8_MANTISSA_BIT_SIZE)))
 #define UMETRIC_FM8_MIN            ((((UMETRIC_T) 1) << OGM_EXPONENT_OFFSET) + (((UMETRIC_T) FM8_MANTISSA_MIN) << (OGM_EXPONENT_OFFSET-FM8_MANTISSA_BIT_SIZE)))
 #define UMETRIC_MAX                UMETRIC_FM8_MAX
+#define UMETRIC_MAX_MAX            ((UMETRIC_T)-1)
 //#define UMETRIC_MAX       ((((UMETRIC_T) 1) << (OGM_EXPONENT_OFFSET+OGM_EXPONENT_MAX)) + (((UMETRIC_T) OGM_MANTISSA_MAX) << ((OGM_EXPONENT_OFFSET+OGM_EXPONENT_MAX)-OGM_MANTISSA_BIT_SIZE)))
 
 // these fixes are used to improove (average) rounding errors in umetric_to_fmetric()
@@ -147,6 +148,7 @@ struct host_metricalgo {
 	uint8_t lq_t1_point_r255;
 
 	uint8_t ogm_hops_max;
+	uint8_t ogm_hop_history;
 	uint8_t ogm_hop_penalty;
 	uint8_t ogm_sqn_best_hystere;
 	uint8_t ogm_sqn_late_hystere_100ms;

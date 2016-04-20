@@ -23,7 +23,7 @@
 #include <stdint.h>
 #include <sys/types.h>
 #include <netinet/in.h>
-#include <linux/if.h>
+#include <net/if.h>
 #include <linux/rtnetlink.h>
 
 

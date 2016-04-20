@@ -104,6 +104,7 @@ int32_t evil_tx_frame_ogm_aggreg_advs(struct tx_frame_iterator *it)
 	if (evilDirWatch && (evilOgmDropping || evilOgmMetrics || evilOgmSqns)) {
 
 		struct hdr_ogm_adv *hdr = ((struct hdr_ogm_adv*) tx_iterator_cache_hdr_ptr(it));
+		struct msg_ogm_adv *msg = ((struct msg_ogm_adv*) tx_iterator_cache_msg_ptr(it));
 		AGGREG_SQN_T *sqn = ((AGGREG_SQN_T *)it->ttn->key.data);
 		struct avl_tree *origs = (*get_my_ogm_aggreg_origs(*sqn));
 		uint16_t o = 0;
@@ -120,12 +121,12 @@ int32_t evil_tx_frame_ogm_aggreg_advs(struct tx_frame_iterator *it)
 				continue;
 
 			FMETRIC_U16_T fm16 = umetric_to_fmetric((tn && evilOgmMetrics) ? UMETRIC_MAX : on->ogmMetric);
-			hdr->msg[o].u.f.metric_exp = fm16.val.f.exp_fm16;
-			hdr->msg[o].u.f.metric_mantissa = fm16.val.f.mantissa_fm16;
-			hdr->msg[o].u.f.hopCount = on->ogmHopCount;
-			hdr->msg[o].u.f.transmitterIID4x = iid_get_myIID4x_by_node(on);
-			hdr->msg[o].u.u32 = htonl(hdr->msg[o].u.u32);
-			hdr->msg[o].chainOgm = chainOgmCalc(on->dc, on->dc->ogmSqnMaxSend);
+			msg[o].u.f.metric_exp = fm16.val.f.exp_fm16;
+			msg[o].u.f.metric_mantissa = fm16.val.f.mantissa_fm16;
+			msg[o].u.f.hopCount = on->ogmHopCount;
+			msg[o].u.f.transmitterIID4x = iid_get_myIID4x_by_node(on);
+			msg[o].u.u32 = htonl(msg[o].u.u32);
+			msg[o].chainOgm = chainOgmCalc(on->dc, on->dc->ogmSqnMaxSend);
 
 			o++;
 		}

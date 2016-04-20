@@ -35,6 +35,10 @@
 #define SIOCGIWNAME    0x8B01          /* get name == wireless protocol */
 #endif
 
+#ifndef SIOCGIWFREQ
+#define SIOCGIWFREQ     0x8B05          /* get channel/frequency (Hz) */
+#endif
+
 // from <linux/rtnetlink.h>:
 #define RTMGRP_IPV4_RULE	0x80
 #define RTMGRP_IPV6_IFINFO	0x800
@@ -134,25 +138,20 @@ extern int32_t devStatRegression;
 #define HLP_DEV_LL              "manually set device type for linklayer specific optimization (1=lan, 2=wlan)"
 
 #define ARG_DEV_CHANNEL		  "channel"
-#define DEF_DEV_CHANNEL           0
 #define MIN_DEV_CHANNEL           0
-#define TYP_DEV_CHANNEL_SHARED    0
-#define TYP_DEV_CHANNEL_WLAN001	  1
-#define TYP_DEV_CHANNEL_WLAN150	  150
-#define TYP_DEV_CHANNEL_EXCLUSIVE 255
+#define TYP_DEV_CHANNEL_EXCLUSIVE 0
+#define TYP_DEV_CHANNEL_SHARED    255
 #define MAX_DEV_CHANNEL           255
+#define DEF_DEV_CHANNEL           255
+#define HLP_DEV_CHANNEL           "set channel of interface 0) exclusive access such as wired lans, 1-254) for wireless, 255 for unknown"
 
 #define ARG_DEV_BITRATE_MAX       "rateMax"
+#define MIN_DEV_BITRATE_MAX          6000000
 #define DEF_DEV_BITRATE_MAX         56000000
-#define DEF_DEV_BITRATE_MAX_LAN   1000000000
 #define DEF_DEV_BITRATE_MAX_WIFI    56000000
+#define DEF_DEV_BITRATE_MAX_LAN   1000000000
+#define MAX_DEV_BITRATE_MAX      UMETRIC_MAX
 #define HLP_DEV_BITRATE_MAX       "set maximum bandwidth as bits/sec of dev"
-
-#define ARG_DEV_BITRATE_MIN       "rateMin"
-#define DEF_DEV_BITRATE_MIN          6000000
-#define DEF_DEV_BITRATE_MIN_LAN   1000000000
-#define DEF_DEV_BITRATE_MIN_WIFI     6000000
-#define HLP_DEV_BITRATE_MIN       "set minimum bandwidth as bits/sec of dev"
 
 
 
@@ -371,36 +370,29 @@ struct rtnl_handle {
 	uint8_t                 busy;
 };
 
-#define IPV6_DEFAULT_TNL_ENCAP_LIMIT 4
-#define DEFAULT_TNL_HOP_LIMIT	(64)
+
+/*
 
 #define SIOCGETTUNNEL   (SIOCDEVPRIVATE + 0)
 #define SIOCADDTUNNEL   (SIOCDEVPRIVATE + 1)
 #define SIOCDELTUNNEL   (SIOCDEVPRIVATE + 2)
 
-/* don't add encapsulation limit if one isn't present in inner packet */
+// don't add encapsulation limit if one isn't present in inner packet
 #define IP6_TNL_F_IGN_ENCAP_LIMIT 0x1
-/* copy the traffic class field from the inner packet */
+// copy the traffic class field from the inner packet
 #define IP6_TNL_F_USE_ORIG_TCLASS 0x2
-/* copy the flowlabel from the inner packet */
+// copy the flowlabel from the inner packet
 #define IP6_TNL_F_USE_ORIG_FLOWLABEL 0x4
-/* being used for Mobile IPv6 */
+// being used for Mobile IPv6
 #define IP6_TNL_F_MIP6_DEV 0x8
-/* copy DSCP from the outer packet */
+// copy DSCP from the outer packet
 #define IP6_TNL_F_RCV_DSCP_COPY 0x10
 
+#define IPV6_DEFAULT_TNL_ENCAP_LIMIT 4
 
-struct ip6_tnl_parm {
-        char name[IFNAMSIZ]; /* name of tunnel device */
-        int link; /* ifindex of underlying L2 interface */
-        __u8 proto; /* tunnel protocol */
-        __u8 encap_limit; /* encapsulation limit for tunnel */
-        __u8 hop_limit; /* hop limit for tunnel */
-        __be32 flowinfo; /* traffic class and flowlabel for tunnel */
-        __u32 flags; /* tunnel flags */
-        struct in6_addr laddr; /* local tunnel end-point address */
-        struct in6_addr raddr; /* remote tunnel end-point address */
-};
+ */
+
+#define DEFAULT_TNL_HOP_LIMIT	(64)
 
 
 
@@ -491,10 +483,6 @@ struct dev_node {
 
 	int16_t channel_conf;
 	int16_t channel;
-
-	UMETRIC_T umetric_min_conf;
-//	UMETRIC_T umetric_min_configured;
-	UMETRIC_T umetric_min;
 
 	UMETRIC_T umetric_max_conf;
 //	UMETRIC_T umetric_max_configured;

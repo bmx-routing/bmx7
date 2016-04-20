@@ -57,6 +57,7 @@
 static int32_t minMyOgmInterval = DEF_OGM_INTERVAL;   /* orginator message interval in miliseconds */
 static int32_t maxMyOgmIFactor = DEF_OGM_IFACTOR;
 
+
 AGGREG_SQN_T ogm_aggreg_sqn_max = 0;
 AGGREG_SQN_T ogm_aggreg_sqn_max_window_size = 0;
 AGGREG_SQN_T ogm_aggreg_sqn_send = 0;
@@ -461,7 +462,7 @@ struct NeighPath *lndev_best_via_router(struct NeighRef_node *ref)
 
 		while ((link = avl_next_item(&linkDev->link_tree, (link ? &link->k : NULL)))) {
 
-			struct NeighPath *tmpNeighPath = apply_metric_algo2(ref, link, on->mtcAlgo);
+			struct NeighPath *tmpNeighPath = apply_metric_algo(ref, link, on->mtcAlgo);
 
 			if (tmpNeighPath->um > bestNeighPath.um)
 				bestNeighPath = *tmpNeighPath;
@@ -566,7 +567,7 @@ int32_t iterate_msg_ogm_adv(uint8_t *msgs, int32_t msgs_len, int32_t pos, IDM_T 
 
 			struct msg_ogm_adv_metric_tAny *ta;
 
-			while (more && moreCnt <= OGM_HOP_HISTORY_MAX &&
+			while (more && moreCnt <= MAX_OGM_HOP_HISTORY &&
 				(pos + (int) sizeof(struct msg_ogm_adv_metric_tAny)) <= msgs_len &&
 				(ta = (struct msg_ogm_adv_metric_tAny *) (msgs + pos))) {
 
@@ -624,7 +625,7 @@ int32_t rx_frame_ogm_aggreg_advs(struct rx_frame_iterator *it)
 		int32_t nxt = 0;
 		uint8_t moreCnt = 0;
 
-		uint8_t chainOgmBuff[sizeof(struct InaptChainOgm) + (OGM_HOP_HISTORY_MAX * sizeof(struct msg_ogm_adv_metric_t0))];
+		uint8_t chainOgmBuff[sizeof(struct InaptChainOgm) + (MAX_OGM_HOP_HISTORY * sizeof(struct msg_ogm_adv_metric_t0))];
 		struct InaptChainOgm *chainOgm = (struct InaptChainOgm*) &chainOgmBuff[0];
 		struct msg_ogm_adv_metric_t0 *hm = (struct msg_ogm_adv_metric_t0 *) &chainOgm->pathMetrics[0];
 

@@ -32,14 +32,25 @@
 #include <arpa/inet.h>
 #include <sys/ioctl.h>
 #include <fcntl.h>
-#include <linux/if_tun.h> /* TUNSETPERSIST, ... */
-#include <linux/if.h>     /* ifr_if, ifr_tun */
 
 #include <sys/types.h>
 #include <asm/types.h>
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
 
+#include <netinet/ip.h>
+#include <net/if.h>
+#include <net/if_arp.h>
+#include <linux/if_tunnel.h>
+
+#include <linux/if_tun.h> /* TUNSETPERSIST, ... */
+#include <linux/ip6_tunnel.h>
+
+
+#include <iwlib.h>
+// apt-get install libiw-dev
+//#include <math.h>
+//#include <linux/wireless.h>
 
 #include "list.h"
 #include "control.h"
@@ -225,11 +236,16 @@ void parse_rtattr(struct rtattr *tb[], int max, struct rtattr *rta, int len)
 STATIC_FUNC
 IDM_T get_if_req(IFNAME_T *dev_name, struct ifreq *if_req, int siocgi_req)
 {
-
 	memset( if_req, 0, sizeof (struct ifreq) );
 
-        if (dev_name)
+        if (dev_name) {
                 strncpy(if_req->ifr_name, dev_name->str, IFNAMSIZ - 1);
+		char *dot_ptr;
+
+		// if given interface is a vlan then truncate to physical interface name:
+		if ((dot_ptr = strchr(if_req->ifr_name, '.')) != NULL)
+			*dot_ptr = '\0';
+	}
 
         errno = 0;
         if ( ioctl( io_sock, siocgi_req, if_req ) < 0 ) {
@@ -243,6 +259,83 @@ IDM_T get_if_req(IFNAME_T *dev_name, struct ifreq *if_req, int siocgi_req)
 
 	return SUCCESS;
 }
+
+
+STATIC_FUNC
+IDM_T get_iw_req(IFNAME_T *dev_name, struct iwreq *wrq, int siocgi_req)
+{
+
+	memset( wrq, 0, sizeof (struct iwreq) );
+
+        if (dev_name) {
+                strncpy(wrq->ifr_name, dev_name->str, IFNAMSIZ - 1);
+		char *dot_ptr;
+
+		// if given interface is a vlan then truncate to physical interface name:
+		if ((dot_ptr = strchr(wrq->ifr_name, '.')) != NULL)
+			*dot_ptr = '\0';
+	}
+
+        errno = 0;
+        if ( ioctl( io_sock, siocgi_req, wrq ) < 0 ) {
+
+		dbgf_sys(DBGT_ERR, "can't get wireless req SIOCGI %d of interface %s: %s",
+			siocgi_req, dev_name->str, strerror(errno));
+                return FAILURE;
+	}
+
+	return SUCCESS;
+}
+
+
+STATIC_FUNC
+uint16_t get_iw_freq(IFNAME_T *dev_name)
+{
+	IFNAME_T ifname = ZERO_IFNAME;
+	strncpy(ifname.str, dev_name->str, IFNAMSIZ - 1);
+	char *dot_ptr;
+
+	// if given interface is a vlan then truncate to physical interface name:
+	if ((dot_ptr = strchr(ifname.str, '.')) != NULL)
+		*dot_ptr = '\0';
+
+	struct iwreq wrq;
+	struct iw_range range;
+	double freq;
+	int channel;
+
+	/* Get list of frequencies / channels */
+	if (iw_get_range_info(io_sock, ifname.str, &range) < 0) {
+		dbgf_sys(DBGT_WARN, "No frequency information for dev=%s", ifname.str);
+	} else {
+
+		/* Get current frequency / channel and display it */
+		if (iw_get_ext(io_sock, ifname.str, SIOCGIWFREQ, &wrq) >= 0) {
+			freq = iw_freq2float(&(wrq.u.freq));
+			if ((channel = iw_freq_to_channel(freq, &range)) < MAX_DEV_CHANNEL)
+				return channel;
+		}
+	}
+
+	return 0;
+}
+
+
+STATIC_FUNC
+int my_iw_freq_to_channel(struct iw_freq *f, const struct iw_range * range)
+{
+	int k;
+
+	for (k = 0; k < range->num_frequency; k++) {
+
+		if (f->m == range->freq[k].m && f->e == range->freq[k].e)
+			return (range->freq[k].i);
+
+	}
+	/* Not found */
+	return 0;
+}
+
 
 extern unsigned int if_nametoindex (const char *);
 
@@ -1259,7 +1352,8 @@ int32_t kernel_tun_add(char *name, uint8_t proto, IPX_T *local, IPX_T *remote)
 		p.raddr = *remote;
 	if(local)
 		p.laddr = *local;
-	req.ifr_ifru.ifru_data = &p;
+
+	req.ifr_ifru.ifru_data = (void*)&p;
 
         if ((ioctl(io_sock, SIOCADDTUNNEL, &req))) {
                 dbgf_sys(DBGT_ERR, "Failed adding tunnel dev=%s %s", name, strerror(errno));
@@ -1921,8 +2015,6 @@ void dev_reconfigure_soft(struct dev_node *dev)
         }
 
         assertion(-501029, (dev->linklayer == TYP_DEV_LL_WIFI || dev->linklayer == TYP_DEV_LL_LAN || dev->linklayer == TYP_DEV_LL_LO));
-        assertion(-501030, (DEF_DEV_BITRATE_MAX_WIFI > DEF_DEV_BITRATE_MIN_WIFI));
-        assertion(-501031, (DEF_DEV_BITRATE_MAX_LAN >= DEF_DEV_BITRATE_MIN_LAN));
 
         // STRANGE! But  if (dev->umetric_max_conf != ((UMETRIC_T)-1)) does not work! !!!!
         static const UMETRIC_T UMETRIC_UNDEFINED  = OPT_CHILD_UNDEFINED;
@@ -1939,39 +2031,38 @@ void dev_reconfigure_soft(struct dev_node *dev)
                 }
         }
 
-        if (dev->umetric_min_conf != UMETRIC_UNDEFINED && dev->umetric_min_conf < dev->umetric_max) {
-                dev->umetric_min = dev->umetric_min_conf;
-        } else {
-                if (dev->linklayer == TYP_DEV_LL_WIFI) {
-                        dev->umetric_min = (dev->umetric_max / (DEF_DEV_BITRATE_MAX_WIFI / DEF_DEV_BITRATE_MIN_WIFI));
-                } else if (dev->linklayer == TYP_DEV_LL_LAN) {
-                        dev->umetric_min = (dev->umetric_max / (DEF_DEV_BITRATE_MAX_LAN / DEF_DEV_BITRATE_MIN_LAN));
-                } else if (dev->linklayer == TYP_DEV_LL_LO) {
-                        dev->umetric_min = UMETRIC_MAX;//umetric(0, 0);
-                }
-        }
-
-
-
-
         if (dev->channel_conf != OPT_CHILD_UNDEFINED) {
                 dev->channel = dev->channel_conf;
         } else {
                 if (dev->linklayer == TYP_DEV_LL_WIFI) {
-                        dev->channel = TYP_DEV_CHANNEL_SHARED;
+
+			if (!(dev->channel = get_iw_freq(&dev->name_phy_cfg)))
+				dev->channel = TYP_DEV_CHANNEL_SHARED;
+
+/*
+			struct iwreq iwq;
+
+                        if (get_iw_req(&dev->name_phy_cfg, &iwq, SIOCGIWFREQ) == SUCCESS) {
+				
+				dev->channel = my_iw_freq_to_channel(&iwq.u.freq, NULL);
+                        } else {
+				dev->channel = TYP_DEV_CHANNEL_SHARED;
+			}
+*/
+
                 } else if (dev->linklayer == TYP_DEV_LL_LAN) {
                         dev->channel = TYP_DEV_CHANNEL_EXCLUSIVE;
                 } else if (dev->linklayer == TYP_DEV_LL_LO) {
-                        dev->channel = DEF_DEV_CHANNEL;
+                        dev->channel = TYP_DEV_CHANNEL_EXCLUSIVE;
                 }
         }
 
         dbgf(initializing ? DBGL_SYS : DBGL_CHANGES, DBGT_INFO,
-                "enabled %s umin=%s umax=%s umax=%ju umax_conf=%ju undef=%ju %s=%s MAC: %s link-local %s/%d global %s/%d brc %s",
+                "enabled %s umax=%s umax=%ju umax_conf=%ju undef=%ju %s=%s MAC: %s link-local %s/%d global %s/%d brc %s",
                 dev->linklayer == TYP_DEV_LL_LO ? "loopback" : (
                 dev->linklayer == TYP_DEV_LL_WIFI ? "wireless" : (
                 dev->linklayer == TYP_DEV_LL_LAN ? "ethernet" : ("ILLEGAL"))),
-                umetric_to_human(dev->umetric_min), umetric_to_human(dev->umetric_max), dev->umetric_max, dev->umetric_max_conf, ((UMETRIC_T) OPT_CHILD_UNDEFINED),
+                umetric_to_human(dev->umetric_max), dev->umetric_max, dev->umetric_max_conf, ((UMETRIC_T) OPT_CHILD_UNDEFINED),
                 ARG_DEV,
                 dev->label_cfg.str, macAsStr(&dev->mac),
                 dev->ip_llocal_str, dev->if_llocal_addr->ifa.ifa_prefixlen,
@@ -2218,19 +2309,12 @@ void dev_activate( struct dev_node *dev )
                 } else /* check if interface is a wireless interface */ {
 
                         struct ifreq int_req;
-                        char *dot_ptr;
-
-                        // if given interface is a vlan then truncate to physical interface name:
-                        if ((dot_ptr = strchr(dev->name_phy_cfg.str, '.')) != NULL)
-                                *dot_ptr = '\0';
 
                         if (get_if_req(&dev->name_phy_cfg, &int_req, SIOCGIWNAME) == SUCCESS)
                                 dev->linklayer = TYP_DEV_LL_WIFI;
                         else
                                 dev->linklayer = TYP_DEV_LL_LAN;
 
-                        if (dot_ptr)
-                                *dot_ptr = '.';
                 }
 	}
 
@@ -3098,7 +3182,6 @@ struct dev_status {
         char *dev;
         char *state;
         char *type;
-        UMETRIC_T rateMin;
         UMETRIC_T rateMax;
 	uint16_t idx;
         char localIp[IPX_PREFIX_STR_LEN];
@@ -3114,7 +3197,6 @@ static const struct field_format dev_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,              dev_status, dev,         1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,              dev_status, state,       1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,              dev_status, type,        1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,                   dev_status, rateMin,     1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,                   dev_status, rateMax,     1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,                      dev_status, idx,         1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,               dev_status, localIp,     1, FIELD_RELEVANCE_HIGH),
@@ -3147,7 +3229,6 @@ static int32_t dev_status_creator(struct status_handl *handl, void* data)
                         (dev->linklayer == TYP_DEV_LL_LO ? "loopback" :
                         (dev->linklayer == TYP_DEV_LL_LAN ? "ethernet" :
                         (dev->linklayer == TYP_DEV_LL_WIFI ? "wireless" : "???")));
-                status[i].rateMin = dev->umetric_min;
                 status[i].rateMax = dev->umetric_max;
 		status[i].idx = dev->llipKey.devIdx;
                 sprintf(status[i].localIp, "%s/%d", dev->ip_llocal_str, dev->if_llocal_addr ? dev->if_llocal_addr->ifa.ifa_prefixlen : -1);
@@ -3372,7 +3453,6 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
 			dev->strictSignatures = DEF_DEV_SIGNATURES;
                         dev->channel_conf = OPT_CHILD_UNDEFINED;
                         dev->umetric_max_conf = (UMETRIC_T) OPT_CHILD_UNDEFINED;
-                        dev->umetric_min_conf = (UMETRIC_T) OPT_CHILD_UNDEFINED;
                         dev->llocal_prefix_conf_ = ZERO_NETCFG_KEY;
 
                         //dev->umetric_max = DEF_DEV_BITRATE_MAX;
@@ -3463,26 +3543,6 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
                                 } else {
                                         dev->umetric_max_conf = (UMETRIC_T) OPT_CHILD_UNDEFINED;
                                 }
-
-
-                        } else if (!strcmp(c->opt->name, ARG_DEV_BITRATE_MIN) && cmd == OPT_APPLY) {
-
-                                if (c->val) {
-                                        char *endptr;
-                                        unsigned long long int ull = strtoull(c->val, &endptr, 10);
-
-                                        if (ull > UMETRIC_MAX || ull < UMETRIC_FM8_MIN || *endptr != '\0') {
-
-                                                dbgf_sys(DBGT_ERR, "%s %c%s given with illegal value",
-                                                        dev->label_cfg.str, LONG_OPT_ARG_DELIMITER_CHAR, c->opt->name);
-
-                                                return FAILURE;
-                                        }
-
-                                        dev->umetric_min_conf = ull;
-                                } else {
-                                        dev->umetric_min_conf = OPT_CHILD_UNDEFINED;
-                                }
                         }
                 }
 
@@ -3557,8 +3617,8 @@ static struct opt_type ip_options[]=
 	{ODI,ARG_DEV,ARG_DEV_BITRATE_MAX,'r',9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,              0,              0,0,              opt_dev,
 			ARG_VALUE_FORM,	HLP_DEV_BITRATE_MAX},
 
-	{ODI,ARG_DEV,ARG_DEV_BITRATE_MIN, 0, 9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,              0,              0,0,              opt_dev,
-			ARG_VALUE_FORM,	HLP_DEV_BITRATE_MIN},
+	{ODI,ARG_DEV,ARG_DEV_CHANNEL,    'c',9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		MIN_DEV_CHANNEL,MAX_DEV_CHANNEL,DEF_DEV_CHANNEL,0, opt_dev,
+			ARG_VALUE_FORM,	HLP_DEV_CHANNEL},
 
 	{ODI,ARG_DEV,ARG_DEV_SIGNATURES, 0, 9,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		MIN_DEV_SIGNATURES,MAX_DEV_SIGNATURES,DEF_DEV_SIGNATURES,0, opt_dev,
 			ARG_VALUE_FORM,	HLP_DEV_SIGNATURES},

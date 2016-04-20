@@ -28,8 +28,6 @@
 #include <sys/time.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <linux/if.h>     /* ifr_if, ifr_tun */
-#include <linux/rtnetlink.h>
 #include <time.h>
 
 

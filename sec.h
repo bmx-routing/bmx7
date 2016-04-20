@@ -23,7 +23,6 @@
 #include <stdint.h>
 #include <sys/types.h>
 #include <netinet/in.h>
-#include <linux/if.h>
 
 //#define DEF_PERSISTENT_PATH "/etc/bmx7"
 #define DEF_TRUST_DIR_POLLING_INTERVAL 5000

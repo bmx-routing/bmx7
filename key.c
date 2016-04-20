@@ -1088,7 +1088,7 @@ uint32_t keyNodes_setDecreasedStates_(const char *f)
 }
 
 STATIC_FUNC
-uint32_t keyNodes_fixLimits()
+uint32_t keyNodes_fixLimits(void)
 {
 	uint32_t changes = 0;
 	dbgf_all(DBGT_INFO, "exceptions=%d", key_tree_exceptions);

@@ -131,6 +131,7 @@
 //extern int32_t my_hop_penalty;
 
 
+
 #define DEF_NEW_RT_DISMISSAL 99
 #define MIN_NEW_RT_DISMISSAL 0
 #define MAX_NEW_RT_DISMISSAL 200
@@ -186,6 +187,7 @@ struct mandatory_tlv_metricalgo { // 16 bytes
 	uint8_t lq_tx_point_r255;
 	uint8_t lq_ty_point_r255;
 	uint8_t lq_t1_point_r255;
+	uint8_t hops_history;
 	uint8_t hops_max;
 	uint8_t hop_penalty; // 1 byte
 	uint8_t ogm_sqn_best_hystere;
@@ -250,8 +252,7 @@ IDM_T fmetric_cmp(FMETRIC_U16_T a, unsigned char cmp, FMETRIC_U16_T b);
 // some core hooks:
 //void apply_metric_algo(UMETRIC_T *out, struct link_dev_node *link, const UMETRIC_T *path, struct host_metricalgo *algo);
 
-UMETRIC_T apply_metric_algo(struct NeighRef_node *ref, LinkNode *link, struct host_metricalgo *algo);
-struct NeighPath *apply_metric_algo2(struct NeighRef_node *ref, LinkNode *link, struct host_metricalgo *algo);
+struct NeighPath *apply_metric_algo(struct NeighRef_node *ref, LinkNode *link, struct host_metricalgo *algo);
 
 
 // plugin hooks:

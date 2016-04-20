@@ -83,10 +83,10 @@ struct topology_status {
 
 	uint32_t lastDesc;
 
-	uint8_t rxRate;
-	uint8_t txRate;
-        UMETRIC_T rxBw;
-        UMETRIC_T txBw;
+	uint8_t rq;
+	uint8_t tq;
+        UMETRIC_T rxRate;
+        UMETRIC_T txRate;
 };
 
 static const struct field_format topology_status_format[] = {
@@ -102,10 +102,10 @@ static const struct field_format topology_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_IPX6P,             topology_status, neighLlIp,     1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              topology_status, neighIdx,      1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              topology_status, lastDesc,      1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              topology_status, rxRate,        1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              topology_status, txRate,        1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           topology_status, rxBw,          1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           topology_status, txBw,          1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              topology_status, rq,            1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              topology_status, tq,            1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           topology_status, rxRate,        1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           topology_status, txRate,        1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_END
 };
 
@@ -145,10 +145,10 @@ static int32_t topology_status_creator(struct status_handl *handl, void *data)
 					&((((struct dsc_msg_llip*) contents_data(on->dc, BMX_DSC_TLV_LLIP))[topology_msg[m].idx]).ip6) : NULL;
 
 				status[i].lastDesc = (bmx_time - on->updated_timestamp) / 1000;
-				status[i].txBw = fmetric_u8_to_umetric(topology_msg[m].txBw);
-				status[i].rxBw = fmetric_u8_to_umetric(topology_msg[m].rxBw);
-				status[i].txRate = ((((uint32_t) topology_msg[m].tq) * 100) / LQ_MAX);
-				status[i].rxRate = ((((uint32_t) topology_msg[m].rq) * 100) / LQ_MAX);
+				status[i].txRate = fmetric_u8_to_umetric(topology_msg[m].txBw);
+				status[i].rxRate = fmetric_u8_to_umetric(topology_msg[m].rxBw);
+				status[i].tq = ((((uint32_t) topology_msg[m].tq) * 100) / LQ_MAX);
+				status[i].rq = ((((uint32_t) topology_msg[m].rq) * 100) / LQ_MAX);
 				status[i].neighId = &non->k.nodeId;
 				status[i].neighDescSqnDiff = non->dc->descSqn - ntohl(topology_msg[m].nbDescSqn);
 				status[i].neighName = non->k.hostname;

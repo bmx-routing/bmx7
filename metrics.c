@@ -1047,8 +1047,8 @@ STATIC_FUNC
 void init_metrics_assertions( void ) {
 
 #ifndef NO_ASSERTIONS
-        dbgf_all(DBGT_INFO, "um_fm8_min=%ju um_max=%ju um_mask=%ju um_shift_max=%zu um_multiply_max=%ju um_max_sqrt=%ju u32_max=%u u64_max=%ju u64_max_half_sqrt=%ju ",
-                UMETRIC_FM8_MIN, UMETRIC_MAX, UMETRIC_MASK, UMETRIC_SHIFT_MAX, UMETRIC_MULTIPLY_MAX, UMETRIC_MAX_SQRT, U32_MAX, U64_MAX, U64_MAX_HALF_SQRT);
+        dbgf_all(DBGT_INFO, "um_fm8_min=%ju um_max=%ju um_mask=%ju um_shift_max=%zu um_multiply_max=%ju um_max_sqrt_square=%ju um_max_sqrt=%ju u32_max=%u u64_max=%ju u64_max_half=%ju u64_max_half_sqrt_square=%ju u64_max_half_sqrt=%ju ",
+                UMETRIC_FM8_MIN, UMETRIC_MAX, UMETRIC_MASK, UMETRIC_SHIFT_MAX, UMETRIC_MULTIPLY_MAX, UMETRIC_MAX_SQRT_SQUARE, UMETRIC_MAX_SQRT, U32_MAX, U64_MAX, U64_MAX_HALF, U64_MAX_HALF_SQRT_SQUARE, U64_MAX_HALF_SQRT);
 
         FMETRIC_U16_T a = {.val.f= {.mantissa_fm16 = 5, .exp_fm16 = 2}}, b = {.val.f = {.mantissa_fm16 = 2, .exp_fm16 = 5}};
         assertion(-500930, (a.val.u16 < b.val.u16));

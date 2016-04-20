@@ -595,7 +595,7 @@ struct rtnl_get_node {
 
 //usefult IP tools:
 
-
+MAC_T *ip6Eui64ToMac(IPX_T *ll, MAC_T *mp);
 
 // core:
 

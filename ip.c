@@ -261,35 +261,9 @@ IDM_T get_if_req(IFNAME_T *dev_name, struct ifreq *if_req, int siocgi_req)
 }
 
 
-STATIC_FUNC
-IDM_T get_iw_req(IFNAME_T *dev_name, struct iwreq *wrq, int siocgi_req)
-{
-
-	memset( wrq, 0, sizeof (struct iwreq) );
-
-        if (dev_name) {
-                strncpy(wrq->ifr_name, dev_name->str, IFNAMSIZ - 1);
-		char *dot_ptr;
-
-		// if given interface is a vlan then truncate to physical interface name:
-		if ((dot_ptr = strchr(wrq->ifr_name, '.')) != NULL)
-			*dot_ptr = '\0';
-	}
-
-        errno = 0;
-        if ( ioctl( io_sock, siocgi_req, wrq ) < 0 ) {
-
-		dbgf_sys(DBGT_ERR, "can't get wireless req SIOCGI %d of interface %s: %s",
-			siocgi_req, dev_name->str, strerror(errno));
-                return FAILURE;
-	}
-
-	return SUCCESS;
-}
-
 
 STATIC_FUNC
-uint16_t get_iw_freq(IFNAME_T *dev_name)
+uint16_t get_iw_channel(IFNAME_T *dev_name)
 {
 	IFNAME_T ifname = ZERO_IFNAME;
 	strncpy(ifname.str, dev_name->str, IFNAMSIZ - 1);
@@ -320,21 +294,6 @@ uint16_t get_iw_freq(IFNAME_T *dev_name)
 	return 0;
 }
 
-
-STATIC_FUNC
-int my_iw_freq_to_channel(struct iw_freq *f, const struct iw_range * range)
-{
-	int k;
-
-	for (k = 0; k < range->num_frequency; k++) {
-
-		if (f->m == range->freq[k].m && f->e == range->freq[k].e)
-			return (range->freq[k].i);
-
-	}
-	/* Not found */
-	return 0;
-}
 
 
 extern unsigned int if_nametoindex (const char *);
@@ -504,6 +463,25 @@ char *trackt2str(uint16_t cmd)
 	} 
 
         return "TRACK_ILLEGAL";
+}
+
+
+MAC_T *ip6Eui64ToMac(IPX_T *ll, MAC_T *mp)
+{
+	static MAC_T mac;
+
+	mac.u8[0] = ll->s6_addr[8]^(0x1 << 1);
+	mac.u8[1] = ll->s6_addr[9];
+	mac.u8[2] = ll->s6_addr[10];
+	mac.u8[3] = ll->s6_addr[13];
+	mac.u8[4] = ll->s6_addr[14];
+	mac.u8[5] = ll->s6_addr[15];
+
+	if (!mp)
+		return &mac;
+
+	*mp = mac;
+	return mp;
 }
 
 
@@ -2036,19 +2014,8 @@ void dev_reconfigure_soft(struct dev_node *dev)
         } else {
                 if (dev->linklayer == TYP_DEV_LL_WIFI) {
 
-			if (!(dev->channel = get_iw_freq(&dev->name_phy_cfg)))
+			if (!(dev->channel = get_iw_channel(&dev->name_phy_cfg)))
 				dev->channel = TYP_DEV_CHANNEL_SHARED;
-
-/*
-			struct iwreq iwq;
-
-                        if (get_iw_req(&dev->name_phy_cfg, &iwq, SIOCGIWFREQ) == SUCCESS) {
-				
-				dev->channel = my_iw_freq_to_channel(&iwq.u.freq, NULL);
-                        } else {
-				dev->channel = TYP_DEV_CHANNEL_SHARED;
-			}
-*/
 
                 } else if (dev->linklayer == TYP_DEV_LL_LAN) {
                         dev->channel = TYP_DEV_CHANNEL_EXCLUSIVE;
@@ -3182,6 +3149,7 @@ struct dev_status {
         char *dev;
         char *state;
         char *type;
+	uint8_t channel;
         UMETRIC_T rateMax;
 	uint16_t idx;
         char localIp[IPX_PREFIX_STR_LEN];
@@ -3197,6 +3165,7 @@ static const struct field_format dev_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,              dev_status, dev,         1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,              dev_status, state,       1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,              dev_status, type,        1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,                      dev_status, channel,     1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,                   dev_status, rateMax,     1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,                      dev_status, idx,         1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,               dev_status, localIp,     1, FIELD_RELEVANCE_HIGH),
@@ -3229,6 +3198,7 @@ static int32_t dev_status_creator(struct status_handl *handl, void* data)
                         (dev->linklayer == TYP_DEV_LL_LO ? "loopback" :
                         (dev->linklayer == TYP_DEV_LL_LAN ? "ethernet" :
                         (dev->linklayer == TYP_DEV_LL_WIFI ? "wireless" : "???")));
+		status[i].channel = dev->channel;
                 status[i].rateMax = dev->umetric_max;
 		status[i].idx = dev->llipKey.devIdx;
                 sprintf(status[i].localIp, "%s/%d", dev->ip_llocal_str, dev->if_llocal_addr ? dev->if_llocal_addr->ifa.ifa_prefixlen : -1);

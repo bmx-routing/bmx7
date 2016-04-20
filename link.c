@@ -697,10 +697,12 @@ struct link_status {
 	IPX_T localIp;
 	IFNAME_T dev;
 	uint16_t idx;
-	uint8_t rxRate;
-	uint8_t bestRxLink;
-	uint8_t txRate;
-	uint8_t bestTxLink;
+	uint8_t rq;
+	uint8_t bestRq;
+	uint8_t tq;
+	uint8_t bestTq;
+	UMETRIC_T rxRate;
+	UMETRIC_T txRate;
 	uint16_t routes;
 	IID_T iidMax;
 	AGGREG_SQN_T aggSqnSize;
@@ -722,10 +724,12 @@ static const struct field_format link_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_IPX,               link_status, localIp,          1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       link_status, dev,              1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, idx,              1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, rxRate,           1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, bestRxLink,       1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, txRate,           1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, bestTxLink,       1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, rq,               1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, bestRq,           1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, tq,               1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, bestTq,           1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           link_status, txRate,           1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           link_status, rxRate,           1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, routes,           1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, iidMax,           1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, aggSqnSize,       1, FIELD_RELEVANCE_MEDI),
@@ -735,24 +739,6 @@ static const struct field_format link_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, lastHelloAdv,     1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_END
 };
-
-MAC_T *ip6Eui64ToMac(IPX_T *ll, MAC_T *mp)
-{
-	static MAC_T mac;
-
-	mac.u8[0] = ll->s6_addr[8]^(0x1 << 1);
-	mac.u8[1] = ll->s6_addr[9];
-	mac.u8[2] = ll->s6_addr[10];
-	mac.u8[3] = ll->s6_addr[13];
-	mac.u8[4] = ll->s6_addr[14];
-	mac.u8[5] = ll->s6_addr[15];
-
-	if (!mp)
-		return &mac;
-
-	*mp = mac;
-	return mp;
-}
 
 
 static int32_t link_status_creator(struct status_handl *handl, void *data)
@@ -782,15 +768,17 @@ static int32_t link_status_creator(struct status_handl *handl, void *data)
 				status[i].nodeKey = cryptKeyTypeAsString(((struct dsc_msg_pubkey*) on->kn->content->f_body)->type);
 				status[i].linkKey = (pkm = contents_data(on->dc, BMX_DSC_TLV_LINK_PUBKEY)) ? cryptKeyTypeAsString(pkm->type) : DBG_NIL;
 				status[i].nbLocalIp = linkDev->key.llocal_ip;
-				strcpy(status[i].nbMac, memAsHexStringSep(ip6Eui64ToMac(&linkDev->key.llocal_ip, NULL), 6, 1, ":"));
+				strcpy(status[i].nbMac, strToLower(memAsHexStringSep(ip6Eui64ToMac(&linkDev->key.llocal_ip, NULL), 6, 1, ":")));
 				status[i].nbIdx = linkDev->key.devIdx;
 				status[i].dev = link->k.myDev->label_cfg;
 				status[i].idx = link->k.myDev->llipKey.devIdx;
 				status[i].localIp = link->k.myDev->llipKey.llip;
-				status[i].rxRate = ((link->timeaware_rq_probe * 100) / LQ_MAX);
-				status[i].bestRxLink = (link == local->best_rp_link);
-				status[i].txRate = ((link->timeaware_tq_probe * 100) / LQ_MAX);
-				status[i].bestTxLink = (link == local->best_tp_link);
+				status[i].rq = ((link->timeaware_rq_probe * 100) / LQ_MAX);
+				status[i].bestRq = (link == local->best_rp_link);
+				status[i].tq = ((link->timeaware_tq_probe * 100) / LQ_MAX);
+				status[i].bestTq = (link == local->best_tp_link);
+				status[i].txRate = link->timeaware_tp_probe ? link->timeaware_tp_probe : ((link->timeaware_tq_probe * link->k.myDev->umetric_max) / LQ_MAX);
+				status[i].rxRate = ((link->timeaware_rq_probe * link->k.myDev->umetric_max) / LQ_MAX);
 				status[i].routes = link->orig_routes;
 				status[i].iidMax = linkDev->key.local->neighIID4x_repos.max_free - 1;
 				status[i].aggSqnSize = local->ogm_aggreg_size;

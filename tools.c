@@ -37,6 +37,15 @@
 #include "tools.h"
 #include "allocate.h"
 
+char *strToLower(char *s)
+{
+	uint32_t i;
+	for (i = 0; s[i]; i++)
+		s[i] = tolower(s[i]);
+
+	return s;
+}
+
 char* memAsHexStringSep( const void* mem, uint32_t len, uint16_t seperationLen, char *seperator)
 {
 #define MEMASSTR_BUFF_SIZE 2048

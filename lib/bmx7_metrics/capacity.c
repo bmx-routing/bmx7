@@ -98,7 +98,7 @@ void upd_ath_capacity(LinkNode *link, struct ctrl_node *cn)
 
 				dbg_printf(cn, "trying fopen A=%s \n", txtFileName);
 
-				if (fpA = fopen(txtFileName, "r")) {
+				if ((fpA = fopen(txtFileName, "r"))) {
 
 					dbg_printf(cn, "succeeded file=%s\n", txtFileName);
 

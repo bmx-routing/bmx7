@@ -1133,6 +1133,8 @@ int32_t init_metrics( void )
         UMETRIC_MAX_SQRT = umetric_fast_sqrt(UMETRIC_MAX);
         U64_MAX_HALF_SQRT = umetric_fast_sqrt(U64_MAX_HALF);
 
+	init_metrics_assertions();
+
 
         static const struct field_format metric_format[] = DESCRIPTION_MSG_METRICALGO_FORMAT;
 

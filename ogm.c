@@ -410,8 +410,8 @@ int32_t tx_frame_ogm_aggreg_advs(struct tx_frame_iterator *it)
 		msg->u.f.transmitterIID4x = iid_get_myIID4x_by_node(on);
 		msg->u.f.more = 0;
 
-		dbgf_track(DBGT_INFO, "name=%s nodeId=%s sqn=%d metric=%ju hops=%d cih=%s chainOgm=%s viaDev=%s",
-			on->k.hostname, cryptShaAsShortStr(&on->kn->kHash), on->dc->ogmSqnMaxSend, on->ogmMetric, on->ogmHopCount,
+		dbgf_track(DBGT_INFO, "name=%s nodeId=%s iid=%d more=%d sqn=%d metric=%ju hops=%d cih=%s chainOgm=%s viaDev=%s",
+			on->k.hostname, cryptShaAsShortStr(&on->kn->kHash), msg->u.f.transmitterIID4x, msg->u.f.more, on->dc->ogmSqnMaxSend, on->ogmMetric, on->ogmHopCount,
 			memAsHexString(&on->dc->chainOgmConstInputHash, sizeof(msg->chainOgm)),
 			memAsHexString(&msg->chainOgm, sizeof(msg->chainOgm)), it->ttn->key.f.p.dev->label_cfg.str);
 
@@ -419,7 +419,7 @@ int32_t tx_frame_ogm_aggreg_advs(struct tx_frame_iterator *it)
 		msg++;
 	}
 
-	dbgf_all(DBGT_INFO, "aggSqn=%d aggSqnMax=%d ogms=%d", *sqn, ogm_aggreg_sqn_max, ogms);
+	dbgf_track(DBGT_INFO, "aggSqn=%d aggSqnMax=%d ogms=%d", *sqn, ogm_aggreg_sqn_max, ogms);
 
 	return (ogms * sizeof(struct msg_ogm_adv));
 }
@@ -630,7 +630,7 @@ int32_t rx_frame_ogm_aggreg_advs(struct rx_frame_iterator *it)
 		struct InaptChainOgm *chainOgm = (struct InaptChainOgm*) &chainOgmBuff[0];
 		struct msg_ogm_adv_metric_t0 *hm = (struct msg_ogm_adv_metric_t0 *) &chainOgm->pathMetrics[0];
 
-		while ((nxt = iterate_msg_ogm_adv(it->f_msg, it->f_msgs_len, pos, NO, hm, &moreCnt)) <= it->f_msgs_len) {
+		while ((nxt = iterate_msg_ogm_adv(it->f_msg, it->f_msgs_len, pos, NO, hm, &moreCnt)) < it->f_msgs_len) {
 
 			struct msg_ogm_adv *msg = (struct msg_ogm_adv*) (it->f_msg + pos);
 			struct msg_ogm_adv tmp = {.u = {.u32 = ntohl(msg->u.u32) } };
@@ -642,7 +642,7 @@ int32_t rx_frame_ogm_aggreg_advs(struct rx_frame_iterator *it)
 			chainOgm->claimedMetric.val.f.mantissa_fm16 = tmp.u.f.metric_mantissa;
 			chainOgm->pathMetricsByteSize = moreCnt * sizeof(struct msg_ogm_adv_metric_t0);
 
-			dbgf_track(DBGT_INFO, "iid=%d, ogmSqn=%d ogmMtc=%d hops=%d", tmp.u.f.transmitterIID4x, chainOgm[0].claimedMetric.val.u16, tmp.u.f.hopCount+1);
+			dbgf_track(DBGT_INFO, "iid=%d ogmMtc=%d hops=%d", tmp.u.f.transmitterIID4x, chainOgm[0].claimedMetric.val.u16, tmp.u.f.hopCount+1);
 
 			neighRef_update(nn, aggSqn, tmp.u.f.transmitterIID4x, NULL, 0, chainOgm);
 			pos = nxt;

@@ -152,7 +152,7 @@ struct msg_ogm_adv {
 #if __BYTE_ORDER == __LITTLE_ENDIAN
 			unsigned int metric_mantissa : OGM_MANTISSA_BIT_SIZE; // 6
 			unsigned int metric_exp : OGM_EXPONENT_BIT_SIZE; // 5
-			unsigned int hopCount : OGM_HOP_COUNT_BITSIZE;
+			unsigned int hopCount : OGM_HOP_COUNT_BITSIZE; //6
 			unsigned int transmitterIID4x : IID_BIT_SIZE; // 14
 			unsigned int more : 1;
 #elif __BYTE_ORDER == __BIG_ENDIAN

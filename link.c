@@ -782,7 +782,7 @@ static int32_t link_status_creator(struct status_handl *handl, void *data)
 				status[i].txRate = link->timeaware_tp_probe ? link->timeaware_tp_probe : ((link->timeaware_tq_probe * link->k.myDev->umetric_max) / LQ_MAX);
 				status[i].rxRate = ((link->timeaware_rq_probe * link->k.myDev->umetric_max) / LQ_MAX);
 				status[i].routes = link->orig_routes;
-				status[i].iidMax = linkDev->key.local->neighIID4x_repos.max_free - 1;
+				status[i].iidMax = linkDev->key.local->neighIID4x_repos.max_free;
 				status[i].aggSqnSize = local->ogm_aggreg_size;
 				status[i].aggSqnMax = local->ogm_aggreg_max;
 				status[i].aggSqnRcvd = bit_get(local->ogm_aggreg_sqns, AGGREG_SQN_CACHE_RANGE, local->ogm_aggreg_max);

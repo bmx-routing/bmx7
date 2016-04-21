@@ -408,6 +408,7 @@ int32_t tx_frame_ogm_aggreg_advs(struct tx_frame_iterator *it)
 		msg->u.f.metric_mantissa = fm16.val.f.mantissa_fm16;
 		msg->u.f.hopCount = on->ogmHopCount;
 		msg->u.f.transmitterIID4x = iid_get_myIID4x_by_node(on);
+		msg->u.f.more = 0;
 
 		dbgf_track(DBGT_INFO, "name=%s nodeId=%s sqn=%d metric=%ju hops=%d cih=%s chainOgm=%s viaDev=%s",
 			on->k.hostname, cryptShaAsShortStr(&on->kn->kHash), on->dc->ogmSqnMaxSend, on->ogmMetric, on->ogmHopCount,
@@ -558,24 +559,24 @@ int32_t iterate_msg_ogm_adv(uint8_t *msgs, int32_t msgs_len, int32_t pos, IDM_T 
 
 	while ((pos + (int) sizeof(struct msg_ogm_adv)) <= msgs_len) {
 
-		struct msg_ogm_adv *msg = (struct msg_ogm_adv*) (msgs + pos);
+		struct msg_ogm_adv_metric_tAny *tMain = ((struct msg_ogm_adv_metric_tAny *) &(((struct msg_ogm_adv*) (msgs + pos))->u.u32));
 		uint8_t more = 0;
 		uint8_t moreCnt = 0;
 
 		pos += sizeof(struct msg_ogm_adv);
-		if ((moreCnt = moreCnt + (more = (msg->u.f.more)))) {
+		if ((moreCnt = moreCnt + (more = (tMain->u.f.more)))) {
 
-			struct msg_ogm_adv_metric_tAny *ta;
 
 			while (more && moreCnt <= MAX_OGM_HOP_HISTORY &&
-				(pos + (int) sizeof(struct msg_ogm_adv_metric_tAny)) <= msgs_len &&
-				(ta = (struct msg_ogm_adv_metric_tAny *) (msgs + pos))) {
+				(pos + (int) sizeof(struct msg_ogm_adv_metric_tAny)) <= msgs_len) {
 
-				if (ta->u.f.type == 0 && (pos + (int) sizeof(struct msg_ogm_adv_metric_t0)) <= msgs_len) {
+				struct msg_ogm_adv_metric_tAny *tMore = ((struct msg_ogm_adv_metric_tAny *) (msgs + pos));
+
+				if (tMore->u.f.type == 0 && (pos + (int) sizeof(struct msg_ogm_adv_metric_t0)) <= msgs_len) {
 
 					if (hm) {
-						hm[moreCnt - 1].u.u16 = ntohs(((struct msg_ogm_adv_metric_t0*) ta)->u.u16);
-						hm[moreCnt - 1].channel = ((struct msg_ogm_adv_metric_t0*) ta)->channel;
+						hm[moreCnt - 1].u.u16 = ntohs(((struct msg_ogm_adv_metric_t0*) tMore)->u.u16);
+						hm[moreCnt - 1].channel = ((struct msg_ogm_adv_metric_t0*) tMore)->channel;
 					}
 
 					pos += sizeof(struct msg_ogm_adv_metric_t0);
@@ -583,7 +584,7 @@ int32_t iterate_msg_ogm_adv(uint8_t *msgs, int32_t msgs_len, int32_t pos, IDM_T 
 					return FAILURE;
 				}
 
-				moreCnt = moreCnt + (more = ta->u.f.more);
+				moreCnt = moreCnt + (more = tMore->u.f.more);
 			}
 
 			if (more)

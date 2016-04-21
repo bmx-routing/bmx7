@@ -45,9 +45,9 @@
 #define TYP_METRIC_ALGO_VB            (0x01 << BIT_METRIC_ALGO_VB)
 
 #define MIN_METRIC_ALGO               0x00 // hop count
-#define MAX_METRIC_ALGO               (0x01 << BIT_METRIC_ALGO_MAX)
-#define MAX_METRIC_ALGO_RESERVED      ((ALGO_T)-1);
-#define DEF_METRIC_ALGO               TYP_METRIC_ALGO_CP | TYP_METRIC_ALGO_VB
+#define MAX_METRIC_ALGO               ((0x01 << (BIT_METRIC_ALGO_MAX+1))-1)
+#define MAX_METRIC_ALGO_RESERVED      ((ALGO_T)-1)
+#define DEF_METRIC_ALGO               (TYP_METRIC_ALGO_CP | TYP_METRIC_ALGO_VB)
 
 #define ARG_PATH_METRIC_ALGO "metricAlgo"
 #define CHR_PATH_METRIC_ALGO 'M'

@@ -615,9 +615,9 @@ int32_t rx_frame_ogm_aggreg_advs(struct rx_frame_iterator *it)
 	if (new) {
 		
 		bit_set(nn->ogm_aggreg_sqns, AGGREG_SQN_CACHE_RANGE, aggSqn, 1);
-
-		if (iterate_msg_ogm_adv(it->f_msg, it->f_msgs_len, 0, YES, NULL, NULL) != it->f_msgs_len) {
-			dbgf_track(DBGT_INFO, "Ignoreing ogm with non-matching hop-metrics history");
+		int32_t processed;
+		if ((processed = iterate_msg_ogm_adv(it->f_msg, it->f_msgs_len, 0, YES, NULL, NULL)) != it->f_msgs_len) {
+			dbgf_track(DBGT_INFO, "Ignoreing ogm with non-matching hop-metrics history (processed=%d f_msgs_len=%d", processed, it->f_msgs_len);
 			return TLV_RX_DATA_PROCESSED;
 		}
 

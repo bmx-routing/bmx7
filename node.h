@@ -234,8 +234,8 @@ typedef struct {
 typedef struct {
 	LinkKey k;
 
-	struct lndev_probe_record rx_probe_record;
-	TIME_T rp_time_max;
+	struct lndev_probe_record rq_probe_record;
+	TIME_T tq_probe_time;
 	LQ_T tq_probe;
 	LQ_T timeaware_tq_probe;
 	LQ_T timeaware_rq_probe;

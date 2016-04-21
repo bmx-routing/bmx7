@@ -62,15 +62,15 @@ static int32_t my_link_window = DEF_HELLO_SQN_WINDOW;
 STATIC_FUNC
 void upd_timeaware_rx_probe(LinkNode *link)
 {
-        if (((TIME_T) (bmx_time - link->rx_probe_record.hello_time_max)) < RP_ADV_DELAY_TOLERANCE) {
+        if (((TIME_T) (bmx_time - link->rq_probe_record.hello_time_max)) < RP_ADV_DELAY_TOLERANCE) {
 
-                link->timeaware_rq_probe = link->rx_probe_record.hello_lq;
+                link->timeaware_rq_probe = link->rq_probe_record.hello_lq;
 
 
-        } else if (((TIME_T) (bmx_time - link->rx_probe_record.hello_time_max)) < RP_ADV_DELAY_RANGE) {
+        } else if (((TIME_T) (bmx_time - link->rq_probe_record.hello_time_max)) < RP_ADV_DELAY_RANGE) {
 
 		link->timeaware_rq_probe =
-			(((uint32_t)link->rx_probe_record.hello_lq) * (RP_ADV_DELAY_RANGE - (bmx_time - link->rx_probe_record.hello_time_max))) / RP_ADV_DELAY_RANGE;
+			(((uint32_t)link->rq_probe_record.hello_lq) * (RP_ADV_DELAY_RANGE - (bmx_time - link->rq_probe_record.hello_time_max))) / RP_ADV_DELAY_RANGE;
 
 	}
 }
@@ -100,13 +100,13 @@ void upd_timeaware_tx_probe(LinkNode *link)
 	}
 
 
-	if (((TIME_T) (bmx_time - link->rp_time_max)) < TP_ADV_DELAY_TOLERANCE) {
+	if (((TIME_T) (bmx_time - link->tq_probe_time)) < TP_ADV_DELAY_TOLERANCE) {
 
 		link->timeaware_tq_probe = link->tq_probe;
 
-	} else if (((TIME_T) (bmx_time - link->rp_time_max)) < TP_ADV_DELAY_RANGE) {
+	} else if (((TIME_T) (bmx_time - link->tq_probe_time)) < TP_ADV_DELAY_RANGE) {
 
-		link->timeaware_tq_probe = ((((uint32_t)link->tq_probe) * ((TP_ADV_DELAY_RANGE - (bmx_time - link->rp_time_max)))) / TP_ADV_DELAY_RANGE);
+		link->timeaware_tq_probe = ((((uint32_t)link->tq_probe) * ((TP_ADV_DELAY_RANGE - (bmx_time - link->tq_probe_time)))) / TP_ADV_DELAY_RANGE);
 
 	} else {
 
@@ -387,7 +387,7 @@ void update_link_probe_record(LinkNode *link, HELLO_SQN_T sqn, uint8_t probe)
 
         TRACE_FUNCTION_CALL;
 	LinkDevNode *linkDev = link->k.linkDev;
-        struct lndev_probe_record *lpr = &link->rx_probe_record;
+        struct lndev_probe_record *lpr = &link->rq_probe_record;
 
         ASSERTION(-501049, ((sizeof (((struct lndev_probe_record*) NULL)->hello_array)) * 8 == MAX_HELLO_SQN_WINDOW));
         assertion(-501050, (probe <= 1));
@@ -477,7 +477,7 @@ int32_t opt_link_metric(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
 
                 for (an = NULL; (link = avl_iterate_item(&link_tree, &an));) {
 
-                        struct lndev_probe_record *lpr = &link->rx_probe_record;
+                        struct lndev_probe_record *lpr = &link->rq_probe_record;
 
                         if (my_link_window < my_link_window_prev) {
 
@@ -665,21 +665,23 @@ int32_t rx_msg_hello_reply(struct rx_frame_iterator *it)
 	TRACE_FUNCTION_CALL;
 	struct packet_buff *pb = it->pb;
 	assertion(-502431, (pb->i.verifiedLink));
-	struct msg_hello_reply_dhash msg;
+	struct msg_hello_reply_dhash *msg = (struct msg_hello_reply_dhash *) it->f_msg;
 	assertion(-502562, (it->f_type == FRAME_TYPE_HELLO_REPLY_DHASH));
-
-	if (!cryptShasEqual(&(((struct msg_hello_reply_dhash *) it->f_msg)->dest_dhash), &myKey->on->dc->dHash))
-		return TLV_RX_DATA_PROCESSED;
-
-
 	LinkNode *link = pb->i.verifiedLink;
 	struct neigh_node *neigh = link->k.linkDev->key.local;
 
-	if (msg.receiverDevIdx != link->k.myDev->llipKey.devIdx)
+	dbgf_all(DBGT_INFO, "dstDHash=%s myDHash=%s rcvDevIdx=%d myDevIdx=%d lastProbeTime=%d lastTqProbe=%d new tqProbe=%d",
+		cryptShaAsShortStr(&msg->dest_dhash), cryptShaAsShortStr(&myKey->on->dc->dHash),
+		msg->receiverDevIdx, link->k.myDev->llipKey.devIdx, link->tq_probe_time, link->tq_probe, msg->rxLq);
+
+	if (!cryptShasEqual(&msg->dest_dhash, &myKey->on->dc->dHash))
 		return TLV_RX_DATA_PROCESSED;
 
-	link->rp_time_max = bmx_time;
-	link->tq_probe = msg.rxLq;
+	if (msg->receiverDevIdx != link->k.myDev->llipKey.devIdx)
+		return TLV_RX_DATA_PROCESSED;
+
+	link->tq_probe_time = bmx_time;
+	link->tq_probe = msg->rxLq;
 	lndev_assign_best(neigh, link);
 
 	return TLV_RX_DATA_PROCESSED;

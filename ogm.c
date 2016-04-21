@@ -630,7 +630,7 @@ int32_t rx_frame_ogm_aggreg_advs(struct rx_frame_iterator *it)
 		struct InaptChainOgm *chainOgm = (struct InaptChainOgm*) &chainOgmBuff[0];
 		struct msg_ogm_adv_metric_t0 *hm = (struct msg_ogm_adv_metric_t0 *) &chainOgm->pathMetrics[0];
 
-		while ((nxt = iterate_msg_ogm_adv(it->f_msg, it->f_msgs_len, pos, NO, hm, &moreCnt)) < it->f_msgs_len) {
+		while ((nxt = iterate_msg_ogm_adv(it->f_msg, it->f_msgs_len, pos, NO, hm, &moreCnt)) <= it->f_msgs_len) {
 
 			struct msg_ogm_adv *msg = (struct msg_ogm_adv*) (it->f_msg + pos);
 			struct msg_ogm_adv tmp = {.u = {.u32 = ntohl(msg->u.u32) } };
@@ -645,7 +645,9 @@ int32_t rx_frame_ogm_aggreg_advs(struct rx_frame_iterator *it)
 			dbgf_track(DBGT_INFO, "iid=%d ogmMtc=%d hops=%d", tmp.u.f.transmitterIID4x, chainOgm[0].claimedMetric.val.u16, tmp.u.f.hopCount+1);
 
 			neighRef_update(nn, aggSqn, tmp.u.f.transmitterIID4x, NULL, 0, chainOgm);
-			pos = nxt;
+
+			if ((pos = nxt) == it->f_msgs_len)
+				break;
 		}
 	}
 

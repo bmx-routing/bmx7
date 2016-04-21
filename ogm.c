@@ -611,6 +611,7 @@ int32_t rx_frame_ogm_aggreg_advs(struct rx_frame_iterator *it)
 	AGGREG_SQN_T aggSqn = ntohs(hdr->aggregation_sqn);
 	struct neigh_node *nn = it->pb->i.verifiedLink->k.linkDev->key.local;
 	IDM_T new = ((AGGREG_SQN_T) (nn->ogm_aggreg_max - aggSqn)) < nn->ogm_aggreg_size && !bit_get(nn->ogm_aggreg_sqns, AGGREG_SQN_CACHE_RANGE, aggSqn);
+	int32_t processed;
 
 	dbgf_track(DBGT_INFO, "new=%d neigh=%s aggSqn=%d/%d/%d msgs=%d",
 		new, nn->on->k.hostname, aggSqn, nn->ogm_aggreg_max, nn->ogm_aggreg_size, it->f_msgs_fixed);
@@ -618,7 +619,10 @@ int32_t rx_frame_ogm_aggreg_advs(struct rx_frame_iterator *it)
 	if (new) {
 		
 		bit_set(nn->ogm_aggreg_sqns, AGGREG_SQN_CACHE_RANGE, aggSqn, 1);
-		int32_t processed;
+
+		if (!it->f_msg || !it->f_msgs_len)
+			return TLV_RX_DATA_PROCESSED;
+
 		if ((processed = iterate_msg_ogm_adv(it->f_msg, it->f_msgs_len, 0, YES, NULL, NULL)) != it->f_msgs_len) {
 			dbgf_track(DBGT_INFO, "Ignoreing ogm with non-matching hop-metrics history (processed=%d f_msgs_len=%d", processed, it->f_msgs_len);
 			return TLV_RX_DATA_PROCESSED;

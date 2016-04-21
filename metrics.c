@@ -479,7 +479,7 @@ void path_metricalgo_Capacity(struct NeighPath *neighPath, struct NeighRef_node 
 
 	UMETRIC_T linkTP;
 	UMETRIC_T pathMaxTP = neighPath->um;
-	UMETRIC_T subPathTime = 0;
+	UMETRIC_T subPathTime = 1;
 
 	if (!ref->ogmSqnMaxClaimedMetric.val.u16 || !ref->ogmSqnMaxClaimedHops) {
 

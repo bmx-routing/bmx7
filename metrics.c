@@ -567,7 +567,7 @@ struct NeighPath *apply_metric_algo(struct NeighRef_node *ref, LinkNode *link, s
 
         if (algo_type) {
 
-                while (algo_type) {
+                while (algo_type && neighPath.um > UMETRIC_MIN__NOT_ROUTABLE) {
 
                         uint8_t algo_type_bit;
                         LOG2(algo_type_bit, algo_type, ALGO_T);
@@ -593,7 +593,7 @@ struct NeighPath *apply_metric_algo(struct NeighRef_node *ref, LinkNode *link, s
                                 "unsupported %s=%d (0x%X) - Need an update?! - applying pessimistic ETTv0 %d times",
                                 ARG_PATH_METRIC_ALGO, unsupported_algos, unsupported_algos, i);
 
-                        while (i--)
+                        while (i-- && neighPath.um > UMETRIC_MIN__NOT_ROUTABLE)
                                 (*(path_metric_algos[BIT_METRIC_ALGO_EB])) (&neighPath, ref, algo);
                 }
         }
@@ -611,6 +611,8 @@ struct NeighPath *apply_metric_algo(struct NeighRef_node *ref, LinkNode *link, s
 		neighPath.pathMetricsByteSize = 0;
 		neighPath.link = NULL;
 	}
+
+	assertion(-500000, IMPLIES(neighPath.um != UMETRIC_MIN__NOT_ROUTABLE, umetric_to_fmetric(neighPath.um).val.u16 < umetric_to_fmetric(refMetric).val.u16));
 
 	return &neighPath;
 }
@@ -1067,6 +1069,14 @@ void init_metrics_assertions( void ) {
 	// validate precision: deviation less than 0.001%
         assertion(-501082, ((XMAX(UMETRIC_MAX_SQRT_SQUARE, UMETRIC_MAX) - XMIN(UMETRIC_MAX_SQRT_SQUARE, UMETRIC_MAX))     < (UMETRIC_MAX    / 100000)));
         assertion(-501083, ((XMAX(U64_MAX_HALF_SQRT_SQUARE, U64_MAX_HALF) - XMIN(U64_MAX_HALF_SQRT_SQUARE, U64_MAX_HALF)) < ((U64_MAX_HALF) / 100000)));
+
+	UMETRIC_T test = 1000000000;
+	while (test >=   10000000) {
+		dbgf_all(DBGT_INFO, "um=%ju fm=%d %s",test, umetric_to_fmetric(test).val.u16, umetric_to_human(test));
+		assertion(-500000, (umetric_to_fmetric(test).val.u16 > umetric_to_fmetric(umetric_substract_min(&test)).val.u16));
+		test = umetric_substract_min(&test);
+	}
+
 #endif
 
 #ifdef  TEST_UMETRIC_TO_FMETRIC

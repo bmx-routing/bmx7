@@ -28,30 +28,30 @@
 #define ARG_DESC_METRICALGO           "descMetricAlgo"
 
 #define BIT_METRIC_ALGO_MIN           0x00
-#define BIT_METRIC_ALGO_MP            0x00 // ->   1
-#define BIT_METRIC_ALGO_EP            0x01 // ->   2
-#define BIT_METRIC_ALGO_MB            0x02 // ->   4
-#define BIT_METRIC_ALGO_EB            0x03 // ->   8
-#define BIT_METRIC_ALGO_VB            0x04 // ->  16
-#define BIT_METRIC_ALGO_CP            0x05 // ->  32
-#define BIT_METRIC_ALGO_MAX           0x05
+#define BIT_METRIC_ALGO_CP            0x00 // ->   0
+#define BIT_METRIC_ALGO_MP            0x08 // -> 256
+#define BIT_METRIC_ALGO_EP            0x09 // ->
+#define BIT_METRIC_ALGO_MB            0x0A // ->
+#define BIT_METRIC_ALGO_EB            0x0B // ->
+#define BIT_METRIC_ALGO_VB            0x0C // ->
+#define BIT_METRIC_ALGO_MAX           0x0C
 #define BIT_METRIC_ALGO_ARRSZ         ((8*sizeof(ALGO_T)))
 
+#define TYP_METRIC_ALGO_CP            (0x01 << BIT_METRIC_ALGO_CP)
 #define TYP_METRIC_ALGO_MP            (0x01 << BIT_METRIC_ALGO_MP)
 #define TYP_METRIC_ALGO_EP            (0x01 << BIT_METRIC_ALGO_EP)
 #define TYP_METRIC_ALGO_MB            (0x01 << BIT_METRIC_ALGO_MB)
 #define TYP_METRIC_ALGO_EB            (0x01 << BIT_METRIC_ALGO_EB)
 #define TYP_METRIC_ALGO_VB            (0x01 << BIT_METRIC_ALGO_VB)
-#define TYP_METRIC_ALGO_CP            (0x01 << BIT_METRIC_ALGO_CP)
 
 #define MIN_METRIC_ALGO               0x00 // hop count
 #define MAX_METRIC_ALGO               (0x01 << BIT_METRIC_ALGO_MAX)
 #define MAX_METRIC_ALGO_RESERVED      ((ALGO_T)-1);
-#define DEF_METRIC_ALGO               TYP_METRIC_ALGO_CP
+#define DEF_METRIC_ALGO               TYP_METRIC_ALGO_CP | TYP_METRIC_ALGO_VB
 
 #define ARG_PATH_METRIC_ALGO "metricAlgo"
 #define CHR_PATH_METRIC_ALGO 'M'
-#define HELP_PATH_METRIC_ALGO "set metric algo for routing towards myself:\n        0:HopCount  1:MP (M=1 /R=0 /T=1 /t=1 <=> TQ) 2:EP  4:MB  8:EB (M=8 /R=1 /r=1 /T=1 /t=1 <=> ETT)  16:VB  32:CP"
+#define HELP_PATH_METRIC_ALGO "set metric algo for routing towards myself:\n         0 :HopCount 1:CP  256:MP (M=1 /R=0 /T=1 /t=1 <=> TQ) 512:EP  1024:MB  2048:EB (M=8 /R=1 /r=1 /T=1 /t=1 <=> ETT)  4096:VB "
 
 
 #define MIN_PATH_XP_EXP_NUMERATOR     0

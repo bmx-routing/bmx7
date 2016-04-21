@@ -503,14 +503,16 @@ void process_ogm_metric(void *voidRef)
 
 	struct NeighPath *bestNeighPath = lndev_best_via_router(ref);
 
+	dbgf_track(DBGT_INFO, "bestMtcViaNeigh=%ju neigh=%s", bestNeighPath->um, bestNeighPath->link ? bestNeighPath->link->k.linkDev->key.local->on->k.hostname : NULL);
+
 	assertion_dbg(-502589, (
 		((bestNeighPath->um & ~UMETRIC_MASK) == 0) && bestNeighPath->um &&
 		(bestNeighPath->um == UMETRIC_MIN__NOT_ROUTABLE || bestNeighPath->um >= on->mtcAlgo->umetric_min) &&
 		IMPLIES(bestNeighPath->link, bestNeighPath->um >= on->mtcAlgo->umetric_min) &&
-		IMPLIES(!bestNeighPath->link, bestNeighPath->um == UMETRIC_MIN__NOT_ROUTABLE)
-		), "um=%ju mask=%ju max=%ju minRoutable=%ju mitAlgo=%ju", bestNeighPath->um, UMETRIC_MASK, UMETRIC_MAX, UMETRIC_MIN__NOT_ROUTABLE, on->mtcAlgo->umetric_min);
+		IMPLIES(!bestNeighPath->link, bestNeighPath->um == UMETRIC_MIN__NOT_ROUTABLE)), 
+		"um=%ju mask=%ju max=%ju minRoutable=%ju mitAlgo=%ju link=%d",
+		bestNeighPath->um, UMETRIC_MASK, UMETRIC_MAX, UMETRIC_MIN__NOT_ROUTABLE, on->mtcAlgo->umetric_min, !!bestNeighPath->link);
 
-	dbgf_track(DBGT_INFO, "bestMtcViaNeigh=%ju neigh=%s", bestNeighPath->um, bestNeighPath->link ? bestNeighPath->link->k.linkDev->key.local->on->k.hostname : NULL);
 
 	if (
 		((ref->ogmSqnMax >= (dc->ogmSqnMaxSend + 2))) ||

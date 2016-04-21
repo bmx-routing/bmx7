@@ -82,7 +82,7 @@ static int32_t new_rt_dismissal_div100 = DEF_NEW_RT_DISMISSAL;
 
 static
 void (*path_metric_algos[BIT_METRIC_ALGO_ARRSZ])
-(struct NeighPath *neighPath, struct NeighRef_node *ref, LinkNode *link, struct host_metricalgo *algo) = {NULL};
+(struct NeighPath *neighPath, struct NeighRef_node *ref, struct host_metricalgo *algo) = {NULL};
 
 static UMETRIC_T UMETRIC_MAX_SQRT;
 static UMETRIC_T U64_MAX_HALF_SQRT;
@@ -387,64 +387,64 @@ UMETRIC_T apply_lq_threshold_curve(UMETRIC_T lm, struct host_metricalgo *algo)
 }
 
 STATIC_FUNC
-void path_metricalgo_MultiplyQuality(struct NeighPath *neighPath, struct NeighRef_node *ref, LinkNode *link, struct host_metricalgo *algo)
+void path_metricalgo_MultiplyQuality(struct NeighPath *np, struct NeighRef_node *ref, struct host_metricalgo *algo)
 {
-	UMETRIC_T tq = umetric_to_the_power_of_n((((UMETRIC_MAX)*((UMETRIC_T) link->timeaware_tq_probe)) / LQ_MAX), algo->algo_tp_exp_numerator, algo->algo_tp_exp_divisor);
-        UMETRIC_T rq = umetric_to_the_power_of_n((((UMETRIC_MAX)*((UMETRIC_T) link->timeaware_rq_probe)) / LQ_MAX), algo->algo_rp_exp_numerator, algo->algo_rp_exp_divisor);
+	UMETRIC_T tq = umetric_to_the_power_of_n((((UMETRIC_MAX)*((UMETRIC_T) np->link->timeaware_tq_probe)) / LQ_MAX), algo->algo_tp_exp_numerator, algo->algo_tp_exp_divisor);
+        UMETRIC_T rq = umetric_to_the_power_of_n((((UMETRIC_MAX)*((UMETRIC_T) np->link->timeaware_rq_probe)) / LQ_MAX), algo->algo_rp_exp_numerator, algo->algo_rp_exp_divisor);
 	UMETRIC_T lq = apply_lq_threshold_curve(umetric_multiply_normalized(tq, rq), algo);
 
-        neighPath->um = umetric_multiply_normalized(neighPath->um, lq);
+        np->um = umetric_multiply_normalized(np->um, lq);
 }
 
 STATIC_FUNC
-void path_metricalgo_ExpectedQuality(struct NeighPath *neighPath, struct NeighRef_node *ref, LinkNode *link, struct host_metricalgo *algo)
+void path_metricalgo_ExpectedQuality(struct NeighPath *np, struct NeighRef_node *ref, struct host_metricalgo *algo)
 {
-	UMETRIC_T tq = umetric_to_the_power_of_n((((UMETRIC_MAX)*((UMETRIC_T) link->timeaware_tq_probe)) / LQ_MAX), algo->algo_tp_exp_numerator, algo->algo_tp_exp_divisor);
-        UMETRIC_T rq = umetric_to_the_power_of_n((((UMETRIC_MAX)*((UMETRIC_T) link->timeaware_rq_probe)) / LQ_MAX), algo->algo_rp_exp_numerator, algo->algo_rp_exp_divisor);
+	UMETRIC_T tq = umetric_to_the_power_of_n((((UMETRIC_MAX)*((UMETRIC_T) np->link->timeaware_tq_probe)) / LQ_MAX), algo->algo_tp_exp_numerator, algo->algo_tp_exp_divisor);
+        UMETRIC_T rq = umetric_to_the_power_of_n((((UMETRIC_MAX)*((UMETRIC_T) np->link->timeaware_rq_probe)) / LQ_MAX), algo->algo_rp_exp_numerator, algo->algo_rp_exp_divisor);
 	UMETRIC_T lq = apply_lq_threshold_curve(umetric_multiply_normalized(tq, rq), algo);
 
-        if (neighPath->um < 2 || lq < 2)
-                neighPath->um = UMETRIC_MIN__NOT_ROUTABLE;
+        if (np->um < 2 || lq < 2)
+                np->um = UMETRIC_MIN__NOT_ROUTABLE;
         else
-                neighPath->um = (U64_MAX / ((U64_MAX / neighPath->um) + (U64_MAX / lq)));
+                np->um = (U64_MAX / ((U64_MAX / np->um) + (U64_MAX / lq)));
 }
 
 STATIC_FUNC
-void path_metricalgo_MultiplyBandwidth(struct NeighPath *neighPath, struct NeighRef_node *ref, LinkNode *link, struct host_metricalgo *algo)
+void path_metricalgo_MultiplyBandwidth(struct NeighPath *np, struct NeighRef_node *ref, struct host_metricalgo *algo)
 {
-	UMETRIC_T *lMax = &link->k.myDev->umetric_max;
-	UMETRIC_T tq = umetric_to_the_power_of_n((((UMETRIC_MAX)*((UMETRIC_T) link->timeaware_tq_probe)) / LQ_MAX), algo->algo_tp_exp_numerator, algo->algo_tp_exp_divisor);
-        UMETRIC_T rq = umetric_to_the_power_of_n((((UMETRIC_MAX)*((UMETRIC_T) link->timeaware_rq_probe)) / LQ_MAX), algo->algo_rp_exp_numerator, algo->algo_rp_exp_divisor);
+	UMETRIC_T *lMax = &np->link->k.myDev->umetric_max;
+	UMETRIC_T tq = umetric_to_the_power_of_n((((UMETRIC_MAX)*((UMETRIC_T) np->link->timeaware_tq_probe)) / LQ_MAX), algo->algo_tp_exp_numerator, algo->algo_tp_exp_divisor);
+        UMETRIC_T rq = umetric_to_the_power_of_n((((UMETRIC_MAX)*((UMETRIC_T) np->link->timeaware_rq_probe)) / LQ_MAX), algo->algo_rp_exp_numerator, algo->algo_rp_exp_divisor);
 	UMETRIC_T lq = apply_lq_threshold_curve(umetric_multiply_normalized(tq, rq), algo);
 
         UMETRIC_T linkBandwidth = umetric_multiply_normalized(*lMax, lq);
 
-        neighPath->um = umetric_multiply_normalized(neighPath->um, linkBandwidth);
+        np->um = umetric_multiply_normalized(np->um, linkBandwidth);
 }
 
 STATIC_FUNC
-void path_metricalgo_ExpectedBandwidth(struct NeighPath *neighPath, struct NeighRef_node *ref, LinkNode *link, struct host_metricalgo *algo)
+void path_metricalgo_ExpectedBandwidth(struct NeighPath *np, struct NeighRef_node *ref, struct host_metricalgo *algo)
 {
-	UMETRIC_T tq = umetric_to_the_power_of_n((((UMETRIC_MAX)*((UMETRIC_T) link->timeaware_tq_probe)) / LQ_MAX), algo->algo_tp_exp_numerator, algo->algo_tp_exp_divisor);
-        UMETRIC_T rq = umetric_to_the_power_of_n((((UMETRIC_MAX)*((UMETRIC_T) link->timeaware_rq_probe)) / LQ_MAX), algo->algo_rp_exp_numerator, algo->algo_rp_exp_divisor);
+	UMETRIC_T tq = umetric_to_the_power_of_n((((UMETRIC_MAX)*((UMETRIC_T) np->link->timeaware_tq_probe)) / LQ_MAX), algo->algo_tp_exp_numerator, algo->algo_tp_exp_divisor);
+        UMETRIC_T rq = umetric_to_the_power_of_n((((UMETRIC_MAX)*((UMETRIC_T) np->link->timeaware_rq_probe)) / LQ_MAX), algo->algo_rp_exp_numerator, algo->algo_rp_exp_divisor);
 	UMETRIC_T lq = apply_lq_threshold_curve(umetric_multiply_normalized(tq, rq), algo);
 
-        UMETRIC_T linkBandwidth = umetric_multiply_normalized(link->k.myDev->umetric_max, lq);
+        UMETRIC_T linkBandwidth = umetric_multiply_normalized(np->link->k.myDev->umetric_max, lq);
 
-        if (neighPath->um < 2 || linkBandwidth < 2)
-                neighPath->um = UMETRIC_MIN__NOT_ROUTABLE;
+        if (np->um < 2 || linkBandwidth < 2)
+                np->um = UMETRIC_MIN__NOT_ROUTABLE;
         else
-                neighPath->um = (U64_MAX / ((U64_MAX / neighPath->um) + (U64_MAX / linkBandwidth)));
+                np->um = (U64_MAX / ((U64_MAX / np->um) + (U64_MAX / linkBandwidth)));
 }
 
 STATIC_FUNC
-void path_metricalgo_VectorBandwidth(struct NeighPath *neighPath, struct NeighRef_node *ref, LinkNode *link, struct host_metricalgo *algo)
+void path_metricalgo_VectorBandwidth(struct NeighPath *np, struct NeighRef_node *ref, struct host_metricalgo *algo)
 {
-        assertion(-501085, (neighPath->um > UMETRIC_MIN__NOT_ROUTABLE));
-	UMETRIC_T tq = umetric_to_the_power_of_n((((UMETRIC_MAX)*((UMETRIC_T) link->timeaware_tq_probe)) / LQ_MAX), algo->algo_tp_exp_numerator, algo->algo_tp_exp_divisor);
-        UMETRIC_T rq = umetric_to_the_power_of_n((((UMETRIC_MAX)*((UMETRIC_T) link->timeaware_rq_probe)) / LQ_MAX), algo->algo_rp_exp_numerator, algo->algo_rp_exp_divisor);
+        assertion(-501085, (np->um > UMETRIC_MIN__NOT_ROUTABLE));
+	UMETRIC_T tq = umetric_to_the_power_of_n((((UMETRIC_MAX)*((UMETRIC_T) np->link->timeaware_tq_probe)) / LQ_MAX), algo->algo_tp_exp_numerator, algo->algo_tp_exp_divisor);
+        UMETRIC_T rq = umetric_to_the_power_of_n((((UMETRIC_MAX)*((UMETRIC_T) np->link->timeaware_rq_probe)) / LQ_MAX), algo->algo_rp_exp_numerator, algo->algo_rp_exp_divisor);
 	UMETRIC_T lq = apply_lq_threshold_curve(umetric_multiply_normalized(tq, rq), algo);
-        UMETRIC_T linkBandwidth = umetric_multiply_normalized(link->k.myDev->umetric_max, lq);
+        UMETRIC_T linkBandwidth = umetric_multiply_normalized(np->link->k.myDev->umetric_max, lq);
 
         UMETRIC_T inverseSquaredPathBandwidth = 0;
         UMETRIC_T inverseSquaredLinkQuality = 0;
@@ -452,12 +452,12 @@ void path_metricalgo_VectorBandwidth(struct NeighPath *neighPath, struct NeighRe
         UMETRIC_T path_out = UMETRIC_MIN__NOT_ROUTABLE;
 
         
-        UMETRIC_T maxPrecisionScaler = XMIN(neighPath->um, linkBandwidth) * U64_MAX_HALF_SQRT;
+        UMETRIC_T maxPrecisionScaler = XMIN(np->um, linkBandwidth) * U64_MAX_HALF_SQRT;
 
 
         if (linkBandwidth > UMETRIC_MIN__NOT_ROUTABLE) {
 
-                inverseSquaredPathBandwidth = ((maxPrecisionScaler / neighPath->um) * (maxPrecisionScaler / neighPath->um));
+                inverseSquaredPathBandwidth = ((maxPrecisionScaler / np->um) * (maxPrecisionScaler / np->um));
                 inverseSquaredLinkQuality = ((maxPrecisionScaler / linkBandwidth) * (maxPrecisionScaler / linkBandwidth));
 
                 rootOfSum = umetric_fast_sqrt(inverseSquaredPathBandwidth + inverseSquaredLinkQuality);
@@ -466,49 +466,49 @@ void path_metricalgo_VectorBandwidth(struct NeighPath *neighPath, struct NeighRe
 
         dbgf_all( DBGT_INFO,
                 "pb=%-12ju max_extension=%-19ju (me/pb)^2=%-19ju lp=%-12ju link=%-12ju lb=%-12ju (me/lb)^2=%-19ju ufs=%-12ju UMETRIC_MIN=%ju -> path_out=%ju",
-                neighPath->um, maxPrecisionScaler, inverseSquaredPathBandwidth, lq, link->k.myDev->umetric_max,
+                np->um, maxPrecisionScaler, inverseSquaredPathBandwidth, lq, np->link->k.myDev->umetric_max,
                 linkBandwidth, inverseSquaredLinkQuality, rootOfSum, UMETRIC_MIN__NOT_ROUTABLE, path_out);
         
-       neighPath->um = path_out;
+       np->um = path_out;
 }
 
 STATIC_FUNC
-void path_metricalgo_Capacity(struct NeighPath *neighPath, struct NeighRef_node *ref, LinkNode *link, struct host_metricalgo *algo)
+void path_metricalgo_Capacity(struct NeighPath *np, struct NeighRef_node *ref, struct host_metricalgo *algo)
 {
 	assertion(-500000, ((ref->ogmSqnMaxPathMetricsByteSize % sizeof(struct msg_ogm_adv_metric_t0))==0));
 
 	UMETRIC_T linkTP;
-	UMETRIC_T pathMaxTP = neighPath->um;
+	UMETRIC_T pathMaxTP = np->um;
 	UMETRIC_T subPathTime = 1;
 
 	if (!ref->ogmSqnMaxClaimedMetric.val.u16 || !ref->ogmSqnMaxClaimedHops) {
 
-		neighPath->um = UMETRIC_MIN__NOT_ROUTABLE;
+		np->um = UMETRIC_MIN__NOT_ROUTABLE;
 		return;
 	}
 	
-	if (link->timeaware_tp_probe) {
-		linkTP = link->timeaware_tp_probe;
+	if (np->link->timeaware_tp_probe) {
+		linkTP = np->link->timeaware_tp_probe;
 	} else {
-		UMETRIC_T tq = umetric_to_the_power_of_n((((UMETRIC_MAX)*((UMETRIC_T) link->timeaware_tq_probe)) / LQ_MAX), algo->algo_tp_exp_numerator, algo->algo_tp_exp_divisor);
-		UMETRIC_T rq = umetric_to_the_power_of_n((((UMETRIC_MAX)*((UMETRIC_T) link->timeaware_rq_probe)) / LQ_MAX), algo->algo_rp_exp_numerator, algo->algo_rp_exp_divisor);
+		UMETRIC_T tq = umetric_to_the_power_of_n((((UMETRIC_MAX)*((UMETRIC_T) np->link->timeaware_tq_probe)) / LQ_MAX), algo->algo_tp_exp_numerator, algo->algo_tp_exp_divisor);
+		UMETRIC_T rq = umetric_to_the_power_of_n((((UMETRIC_MAX)*((UMETRIC_T) np->link->timeaware_rq_probe)) / LQ_MAX), algo->algo_rp_exp_numerator, algo->algo_rp_exp_divisor);
 		UMETRIC_T lq = apply_lq_threshold_curve(umetric_multiply_normalized(tq, rq), algo);
-		linkTP = umetric_multiply_normalized(link->k.myDev->umetric_max, lq);
+		linkTP = umetric_multiply_normalized(np->link->k.myDev->umetric_max, lq);
 	}
 	linkTP = XMAX(linkTP, UMETRIC_MIN__NOT_ROUTABLE);
 	pathMaxTP = XMIN(pathMaxTP, linkTP);
 
-	if (link->k.myDev->channel != 0) {
+	if (np->link->k.myDev->channel != 0) {
 		subPathTime += (UMETRIC_MAX_MAX / linkTP);
 
 		if (algo->ogm_hop_history > 0) {
 			FMETRIC_U16_T linkFm = umetric_to_fmetric(linkTP);
-			neighPath->pathMetrics[0].u.f.type = 0;
-			neighPath->pathMetrics[0].u.f.directional = 0;
-			neighPath->pathMetrics[0].channel = link->k.myDev->channel;
-			neighPath->pathMetrics[0].u.f.metric_exp = linkFm.val.f.exp_fm16;
-			neighPath->pathMetrics[0].u.f.metric_mantissa = linkFm.val.f.mantissa_fm16;
-			neighPath->pathMetricsByteSize += sizeof(struct msg_ogm_adv_metric_t0);
+			np->pathMetrics[0].u.f.type = 0;
+			np->pathMetrics[0].u.f.directional = 0;
+			np->pathMetrics[0].channel = np->link->k.myDev->channel;
+			np->pathMetrics[0].u.f.metric_exp = linkFm.val.f.exp_fm16;
+			np->pathMetrics[0].u.f.metric_mantissa = linkFm.val.f.mantissa_fm16;
+			np->pathMetricsByteSize += sizeof(struct msg_ogm_adv_metric_t0);
 		}
 	}
 
@@ -526,22 +526,22 @@ void path_metricalgo_Capacity(struct NeighPath *neighPath, struct NeighRef_node 
 		if (ref->ogmSqnMaxPathMetrics[inHPos].channel != 0) {
 			subPathTime += (UMETRIC_MAX_MAX / linkTP);
 
-			uint16_t outHPos = (neighPath->pathMetricsByteSize / sizeof(struct msg_ogm_adv_metric_t0));
+			uint16_t outHPos = (np->pathMetricsByteSize / sizeof(struct msg_ogm_adv_metric_t0));
 			
 			if (algo->ogm_hop_history > outHPos) {
-				neighPath->pathMetrics[outHPos] = ref->ogmSqnMaxPathMetrics[inHPos];
-				neighPath->pathMetricsByteSize += sizeof(struct msg_ogm_adv_metric_t0);
+				np->pathMetrics[outHPos] = ref->ogmSqnMaxPathMetrics[inHPos];
+				np->pathMetricsByteSize += sizeof(struct msg_ogm_adv_metric_t0);
 			}
 		}
 	}
 
 	UMETRIC_T subPathTP = (UMETRIC_MAX_MAX / subPathTime);
 
-       neighPath->um = XMIN(pathMaxTP, subPathTP);
+       np->um = XMIN(pathMaxTP, subPathTP);
 }
 
 STATIC_FUNC
-void register_path_metricalgo(uint8_t algo_type_bit, void (*algo) (struct NeighPath *neighPath, struct NeighRef_node *ref, LinkNode *link, struct host_metricalgo *algo))
+void register_path_metricalgo(uint8_t algo_type_bit, void (*algo) (struct NeighPath *neighPath, struct NeighRef_node *ref, struct host_metricalgo *algo))
 {
         assertion(-500838, (!path_metric_algos[algo_type_bit]));
         assertion(-500839, (algo_type_bit < BIT_METRIC_ALGO_ARRSZ));
@@ -561,7 +561,7 @@ struct NeighPath *apply_metric_algo(struct NeighRef_node *ref, LinkNode *link, s
 
 	static struct NeighPath neighPath;
 
-	neighPath.link = NULL;
+	neighPath.link = link;
 	neighPath.um = refMetric;
 	neighPath.pathMetricsByteSize = 0;
 
@@ -576,7 +576,7 @@ struct NeighPath *apply_metric_algo(struct NeighRef_node *ref, LinkNode *link, s
 
                         if (path_metric_algos[algo_type_bit]) {
 
-                                (*(path_metric_algos[algo_type_bit])) (&neighPath, ref, link, algo);
+                                (*(path_metric_algos[algo_type_bit])) (&neighPath, ref, algo);
 
                                 dbgf_all(DBGT_INFO, "algo=%d in=%-12ju=%7s  out=%-12ju=%7s",
                                         algo_type_bit, refMetric, umetric_to_human(refMetric), neighPath.um, umetric_to_human(neighPath.um));
@@ -594,7 +594,7 @@ struct NeighPath *apply_metric_algo(struct NeighRef_node *ref, LinkNode *link, s
                                 ARG_PATH_METRIC_ALGO, unsupported_algos, unsupported_algos, i);
 
                         while (i--)
-                                (*(path_metric_algos[BIT_METRIC_ALGO_EB])) (&neighPath, ref, link, algo);
+                                (*(path_metric_algos[BIT_METRIC_ALGO_EB])) (&neighPath, ref, algo);
                 }
         }
 

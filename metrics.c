@@ -1047,8 +1047,8 @@ STATIC_FUNC
 void init_metrics_assertions( void ) {
 
 #ifndef NO_ASSERTIONS
-        dbgf_all(DBGT_INFO, "um_fm8_min=%ju um_max=%ju um_mask=%ju um_shift_max=%zu um_multiply_max=%ju um_max_sqrt_square=%ju um_max_sqrt=%ju u32_max=%u u64_max=%ju u64_max_half=%ju u64_max_half_sqrt_square=%ju u64_max_half_sqrt=%ju ",
-                UMETRIC_FM8_MIN, UMETRIC_MAX, UMETRIC_MASK, UMETRIC_SHIFT_MAX, UMETRIC_MULTIPLY_MAX, UMETRIC_MAX_SQRT_SQUARE, UMETRIC_MAX_SQRT, U32_MAX, U64_MAX, U64_MAX_HALF, U64_MAX_HALF_SQRT_SQUARE, U64_MAX_HALF_SQRT);
+        printf( "um_fm8_min=%ju um_max=%ju um_mask=%ju um_shift_max=%zu um_multiply_max=%ju um_max_sqrt_square=%ju um_max_sqrt=%ju u32_max=%u u64_max=%ju u64_max_half=%ju u64_max_half_sqrt_square=%ju u64_max_half_sqrt=%ju precision_max=%ju precision_half=%ju\n",
+		UMETRIC_FM8_MIN, UMETRIC_MAX, UMETRIC_MASK, UMETRIC_SHIFT_MAX, UMETRIC_MULTIPLY_MAX, UMETRIC_MAX_SQRT_SQUARE, UMETRIC_MAX_SQRT, U32_MAX, U64_MAX, U64_MAX_HALF, U64_MAX_HALF_SQRT_SQUARE, U64_MAX_HALF_SQRT, (UMETRIC_MAX / 300000), ((U64_MAX_HALF) / 3000000));
 
         FMETRIC_U16_T a = {.val.f= {.mantissa_fm16 = 5, .exp_fm16 = 2}}, b = {.val.f = {.mantissa_fm16 = 2, .exp_fm16 = 5}};
         assertion(-500930, (a.val.u16 < b.val.u16));
@@ -1064,9 +1064,9 @@ void init_metrics_assertions( void ) {
         assertion(-501080, (((UMETRIC_T) (UMETRIC_MAX * UMETRIC_MULTIPLY_MAX)) / UMETRIC_MAX == UMETRIC_MULTIPLY_MAX)); //verify: NO overflow
 
         // is this fast-inverse-sqrt hack working on this plattform and are constants correct?:
-
-        assertion(-501082, ((XMAX(UMETRIC_MAX_SQRT_SQUARE, UMETRIC_MAX) - XMIN(UMETRIC_MAX_SQRT_SQUARE, UMETRIC_MAX))     < (UMETRIC_MAX    / 300000))); // validate precision
-        assertion(-501083, ((XMAX(U64_MAX_HALF_SQRT_SQUARE, U64_MAX_HALF) - XMIN(U64_MAX_HALF_SQRT_SQUARE, U64_MAX_HALF)) < ((U64_MAX_HALF) / 3000000))); // validate precision
+	// validate precision: deviation less than 0.001%
+        assertion(-501082, ((XMAX(UMETRIC_MAX_SQRT_SQUARE, UMETRIC_MAX) - XMIN(UMETRIC_MAX_SQRT_SQUARE, UMETRIC_MAX))     < (UMETRIC_MAX    / 100000)));
+        assertion(-501083, ((XMAX(U64_MAX_HALF_SQRT_SQUARE, U64_MAX_HALF) - XMIN(U64_MAX_HALF_SQRT_SQUARE, U64_MAX_HALF)) < ((U64_MAX_HALF) / 100000)));
 #endif
 
 #ifdef  TEST_UMETRIC_TO_FMETRIC

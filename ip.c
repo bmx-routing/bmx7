@@ -2704,9 +2704,8 @@ static void dev_check(void *kernel_ip_config_changed)
                         struct dev_node *tmpDev;
 			DevKey devIpKey = {.llip = dev->if_llocal_addr->ip_addr, .devIdx = 0};
 			if ((tmpDev = avl_closest_item(&dev_ip_tree, &devIpKey)) && is_ip_equal(&tmpDev->llipKey.llip, &dev->if_llocal_addr->ip_addr)) {
-				dbgf_sys(DBGT_WARN, "%s=%s llocal=%s already used for dev=%s",
-					ARG_DEV, dev->label_cfg.str, ip6AsStr(&dev->if_llocal_addr->ip_addr),
-					tmpDev->label_cfg.str);
+				dbgf_track(DBGT_INFO, "%s=%s llocal=%s also used for dev=%s",
+					ARG_DEV, dev->label_cfg.str, ip6AsStr(&dev->if_llocal_addr->ip_addr), tmpDev->label_cfg.str);
 			}
 
 			if (dev->activate_cancelled) {
@@ -2876,7 +2875,7 @@ int register_netlink_event_hook(uint32_t nlgroups, int buffsize, void (*cb_fd_ha
 		getsockopt(rtevent_sk, SOL_SOCKET, SO_RCVBUF, &newBuff, &newSize) < 0 ||
 		newBuff != buffsize) {
 
-		dbgf_sys(DBGT_WARN, "can't setsockopts buffsize from=%d to=%d now=%d %s", oldBuff, buffsize, newBuff, strerror(errno));
+		dbgf_track(DBGT_WARN, "can't setsockopts buffsize from=%d to=%d now=%d %s", oldBuff, buffsize, newBuff, strerror(errno));
 	}
 
 	dbgf_track(DBGT_INFO, "setsockopts buffsize from=%d to=%d now=%d", oldBuff, buffsize, newBuff);

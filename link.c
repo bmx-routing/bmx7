@@ -290,7 +290,7 @@ IDM_T updateNeighDevId(struct neigh_node *nn, struct desc_content *contents)
 	DEVIDX_T idx = 0;
 	struct avl_node *an = NULL;
 
-	if (!contents || (msgs = contents_dlen(contents, BMX_DSC_TLV_LLIP) / sizeof(struct dsc_msg_llip))) {
+	if (!contents || (msgs = (contents_dlen(contents, BMX_DSC_TLV_LLIP) / sizeof(struct dsc_msg_llip)))) {
 
 		for (an = NULL; (ldn = avl_iterate_item(&nn->linkDev_tree, &an));)
 			ldn->purge = YES;

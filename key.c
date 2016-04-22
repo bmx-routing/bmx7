@@ -522,7 +522,7 @@ struct key_node * keyNode_setState(GLOBAL_ID_T *kHash, struct key_node *kn, stru
 	int8_t nc = new ? new->i.c : 0;
 	int8_t nr = new ? new->i.r : 0;
 
-	dbgf_sys(DBGT_INFO, "nodeId=%s old=%s or=%d oc=%d new=%s nr=%d nc=%d",
+	dbgf_track(DBGT_INFO, "nodeId=%s old=%s or=%d oc=%d new=%s nr=%d nc=%d",
 		cryptShaAsShortStr(kHash), old ? old->secName : NULL, or, oc, new ? new->secName : NULL, nr, nc);
 
 	if (old != new) {
@@ -811,7 +811,7 @@ void keyNode_delCredits_(const char* f, GLOBAL_ID_T *kHash, struct key_node *kn,
 	if (kc) {
 
 		if (kc->dFriend || kc->recom || kc->trusteeRef || kc->pktId || kc->pktSign || kc->nQualifying) {
-			dbgf_sys(DBGT_INFO, "%s id=%s bookedState=%s friend=%d/%d recom=%d/%d trustees=%d/%d pktId=%d/%d pktSing=%d/%d nQ=%d/%d",
+			dbgf_track(DBGT_INFO, "%s id=%s bookedState=%s friend=%d/%d recom=%d/%d trustees=%d/%d pktId=%d/%d pktSing=%d/%d nQ=%d/%d",
 				f, cryptShaAsShortStr(&kn->kHash), kn->bookedState->secName,
 				kc->dFriend, kn->dFriend, !!kc->recom, kn->recommendations_tree.items, !!kc->trusteeRef, kn->trustees_tree.items,
 				kc->pktId, kn->pktIdTime, kc->pktSign, kn->pktSignTime, kc->nQualifying, kn->nQTime);
@@ -1075,7 +1075,7 @@ uint32_t keyNodes_setDecreasedStates_(const char *f)
 
 	while ((kn = avl_remove_first_item(&schedDecreasedEffectiveState_tree, -300714))) {
 
-		dbgf_sys(DBGT_INFO, "f=%s id=%s bookedSec=%s schedSec=%s", f, cryptShaAsShortStr(&kn->kHash), kn->bookedState->secName,
+		dbgf_track(DBGT_INFO, "f=%s id=%s bookedSec=%s schedSec=%s", f, cryptShaAsShortStr(&kn->kHash), kn->bookedState->secName,
 			kn->decreasedEffectiveState ? kn->decreasedEffectiveState->secName : NULL);
 
 		assertion(-502415, (kn->decreasedEffectiveState != kn->bookedState));

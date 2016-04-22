@@ -220,7 +220,7 @@ void update_orig_dhash(struct desc_content *dcNew)
 	kn->descSqnMin = dcNew->descSqn;
 	kn->nextDesc = NULL;
 
-	assertion_dbg(-502536, ((on->ogmMetric & ~UMETRIC_MASK) == 0), "um=%ju mask=%ju max=%ju",on->ogmMetric, UMETRIC_MASK, UMETRIC_MAX);
+	assertion_dbg(-502536, ((on->neighPath.um & ~UMETRIC_MASK) == 0), "um=%ju mask=%ju max=%ju",on->neighPath.um, UMETRIC_MASK, UMETRIC_MAX);
 
 	assertion(-502537, IMPLIES(myKey == on->kn, iid == IID_MIN_USED_FOR_SELF)); // Not strictly necessary yet but maybe this requirement can be useful later.
 

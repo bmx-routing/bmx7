@@ -311,6 +311,67 @@ struct desc_tlv_body {
 	uint16_t desc_tlv_body_len;
 };
 
+#define MIN_OGM_HOP_HISTORY 0
+#define MAX_OGM_HOP_HISTORY 10
+#define DEF_OGM_HOP_HISTORY 6
+#define ARG_OGM_HOP_HISTORY "ogmHopHistory"
+
+struct msg_ogm_adv_metric_tAny {
+
+	union {
+
+		struct {
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+			unsigned int reserved : 4;
+			unsigned int type : 3;
+			unsigned int more : 1;
+#elif __BYTE_ORDER == __BIG_ENDIAN
+			unsigned int more : 1;
+			unsigned int type : 3;
+			unsigned int reserved : 4;
+#else
+#error "Please fix <bits/endian.h>"
+#endif
+		} __attribute__((packed)) f;
+		uint8_t u8[1];
+	} u;
+} __attribute__((packed));
+
+struct msg_ogm_adv_metric_t0 {
+
+	union {
+
+		struct {
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+			unsigned int metric_mantissa : OGM_MANTISSA_BIT_SIZE; // 6
+			unsigned int metric_exp : OGM_EXPONENT_BIT_SIZE; // 5
+			unsigned int directional : 1;
+			unsigned int type : 3;
+			unsigned int more : 1;
+#elif __BYTE_ORDER == __BIG_ENDIAN
+			unsigned int more : 1;
+			unsigned int type : 3;
+			unsigned int directional : 1;
+			unsigned int metric_exp : OGM_EXPONENT_BIT_SIZE; // 5
+			unsigned int metric_mantissa : OGM_MANTISSA_BIT_SIZE; // 6
+#else
+#error "Please fix <bits/endian.h>"
+#endif
+		} __attribute__((packed)) f;
+		uint16_t u16;
+		uint8_t u8[2];
+	} u;
+
+	uint8_t channel; // 0)wired, 0xFF)wlanUnknown, 1-14)2.4GHz, 36-..)5GHz,
+} __attribute__((packed));
+
+struct NeighPath {
+	LinkNode *link;
+	UMETRIC_T um;
+	uint16_t pathMetricsByteSize;
+	struct msg_ogm_adv_metric_t0 pathMetrics[MAX_OGM_HOP_HISTORY];
+};
+
 
 
 
@@ -367,11 +428,13 @@ struct orig_node {
 	uint32_t *trustedNeighsBitArray;
 
 	AGGREG_SQN_T ogmAggregSqn;
-	IDM_T ogmAggregActive;
+	int16_t ogmAggregActiveMsgLen;
 
 	uint8_t ogmHopCount;
-	UMETRIC_T ogmMetric;
-	LinkNode *curr_rt_link; // the configured route in the kernel!
+
+	struct NeighPath neighPath;
+	//	UMETRIC_T ogmMetric;
+	//	LinkNode *curr_rt_link; // the configured route in the kernel!
 
 	//size of plugin data is defined during intialization and depends on registered PLUGIN_DATA_ORIG hooks
 	void *plugin_data[];

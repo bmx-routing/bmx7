@@ -1028,11 +1028,11 @@ IDM_T _recalc_tun_bit_tree(void)
 
 		struct orig_node *on = tnn->tunNetKey.ton->tunOutKey.on;
 
-		assertion_dbg(-502533, ((on->ogmMetric & ~UMETRIC_MASK) == 0), "um=%ju mask=%ju max=%ju",on->ogmMetric, UMETRIC_MASK, UMETRIC_MAX);
+		assertion_dbg(-502533, ((on->neighPath.um & ~UMETRIC_MASK) == 0), "um=%ju mask=%ju max=%ju",on->neighPath.um, UMETRIC_MASK, UMETRIC_MAX);
 
 		UMETRIC_T tnnBandwidth = fmetric_u8_to_umetric(tnn->bandwidth);
 		UMETRIC_T tnnQuality = tnnBandwidth >= tsn->minBW ? UMETRIC_MAX : tnnBandwidth;
-		UMETRIC_T pathMetric = on->curr_rt_link ? on->ogmMetric : 0;
+		UMETRIC_T pathMetric = on->neighPath.link ? on->neighPath.um : 0;
 		UMETRIC_T e2eMetric = XMIN(tnnQuality, pathMetric);
 
 		dbgf_all(DBGT_INFO, "acceptable e2eMetric=%s,", umetric_to_human(e2eMetric));
@@ -2019,7 +2019,7 @@ static int32_t tun_out_status_creator(struct status_handl *handl, void *data)
 				strcpy(status->srcIngress, netAsStr(&tun->ingressPrefix[(tnn->tunNetKey.netKey.af == AF_INET)]));
 				status->advBwVal = fmetric_u8_to_umetric(tnn->bandwidth);
 				status->advBw = status->advBwVal ? &status->advBwVal : NULL;
-				status->pathMtc = tun->tunOutKey.on->curr_rt_link ? &tun->tunOutKey.on->ogmMetric : NULL;
+				status->pathMtc = tun->tunOutKey.on->neighPath.link ? &tun->tunOutKey.on->neighPath.um : NULL;
 			} else {
 				strcpy(status->advNet, DBG_NIL);
 				strcpy(status->srcIngress, DBG_NIL);

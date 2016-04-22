@@ -85,7 +85,7 @@ void configure_route(IDM_T del, struct orig_node *on, struct net_key *key)
 
         } else {
 
-		LinkNode *link = on->curr_rt_link;
+		LinkNode *link = on->neighPath.link;
 
                 assertion(-500820, (link));
                 ASSERTION(-500239, (avl_find(&link_tree, &(link->k))));
@@ -277,7 +277,7 @@ void configure_hna_(IDM_T del, struct net_key* key, struct orig_node *on, uint8_
                 }
 		 */
 
-        } else if (on->curr_rt_link && !(flags & DESC_MSG_HNA_FLAG_NO_ROUTE)) {
+        } else if (on->neighPath.link && !(flags & DESC_MSG_HNA_FLAG_NO_ROUTE)) {
 
                 configure_route(del, on, key);
         }

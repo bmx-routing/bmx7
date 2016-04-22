@@ -106,21 +106,21 @@ int32_t evil_tx_frame_ogm_aggreg_advs(struct tx_frame_iterator *it)
 		struct hdr_ogm_adv *hdr = ((struct hdr_ogm_adv*) tx_iterator_cache_hdr_ptr(it));
 		struct msg_ogm_adv *msg = ((struct msg_ogm_adv*) tx_iterator_cache_msg_ptr(it));
 		AGGREG_SQN_T *sqn = ((AGGREG_SQN_T *)it->ttn->key.data);
-		struct avl_tree *origs = (*get_my_ogm_aggreg_origs(*sqn));
+		struct OgmAggreg_node *oan = getOgmAggregNode(*sqn);
 		uint16_t o = 0;
 		struct avl_node *an = NULL;
 		struct orig_node *on;
 
 		hdr->aggregation_sqn = htons(*sqn);
 
-		while (origs && (on = avl_iterate_item(origs, &an))) {
+		while ((on = avl_iterate_item(&oan->tree, &an))) {
 
 			struct KeyWatchNode *tn = avl_find_item(&evilDirWatch->node_tree, &on->kn->kHash);
 
 			if (tn && evilOgmDropping)
 				continue;
 
-			FMETRIC_U16_T fm16 = umetric_to_fmetric((tn && evilOgmMetrics) ? UMETRIC_MAX : on->ogmMetric);
+			FMETRIC_U16_T fm16 = umetric_to_fmetric((tn && evilOgmMetrics) ? UMETRIC_MAX : on->neighPath.um);
 			msg[o].u.f.metric_exp = fm16.val.f.exp_fm16;
 			msg[o].u.f.metric_mantissa = fm16.val.f.mantissa_fm16;
 			msg[o].u.f.hopCount = on->ogmHopCount;

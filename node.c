@@ -335,9 +335,9 @@ struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn
 
 			inaptChainOgm_destroy_(ref);
 
-			if (kn == myKey && ((ref->ogmSqnMax > dc->ogmSqnMaxSend) || (ref->ogmSqnMax == dc->ogmSqnMaxSend && fmetric_to_umetric(ref->ogmSqnMaxClaimedMetric) >= myKey->on->ogmMetric))) {
+			if (kn == myKey && ((ref->ogmSqnMax > dc->ogmSqnMaxSend) || (ref->ogmSqnMax == dc->ogmSqnMaxSend && fmetric_to_umetric(ref->ogmSqnMaxClaimedMetric) >= myKey->on->neighPath.um))) {
 				dbgf_mute(70, DBGL_SYS, DBGT_WARN, "OGM SQN or metric attack on myself, rcvd via neigh=%s, rcvdSqn=%d sendSqn=%d rcvdMetric=%ju sendMetric=%ju",
-					cryptShaAsShortStr(&nn->local_id), ref->ogmSqnMax, dc->ogmSqnMaxSend, fmetric_to_umetric(ref->ogmSqnMaxClaimedMetric), myKey->on->ogmMetric);
+					cryptShaAsShortStr(&nn->local_id), ref->ogmSqnMax, dc->ogmSqnMaxSend, fmetric_to_umetric(ref->ogmSqnMaxClaimedMetric), myKey->on->neighPath.um);
 
 				keyNode_schedLowerWeight(nn->on->kn, KCListed);
 				kn->descSqnMin++;
@@ -419,23 +419,23 @@ int purge_orig_router(struct orig_node *onlyOrig, struct neigh_node *onlyNeigh, 
 	while ((on = onlyOrig) || (on = avl_iterate_item(&orig_tree, &an))) {
 
 		if (
-			(on->curr_rt_link) &&
-			(!onlyUseless || (on->ogmMetric < UMETRIC_ROUTABLE)) &&
-			(!onlyNeigh || on->curr_rt_link->k.linkDev->key.local == onlyNeigh) &&
-			(!onlyLink || on->curr_rt_link == onlyLink)
+			(on->neighPath.link) &&
+			(!onlyUseless || (on->neighPath.um < UMETRIC_ROUTABLE)) &&
+			(!onlyNeigh || on->neighPath.link->k.linkDev->key.local == onlyNeigh) &&
+			(!onlyLink || on->neighPath.link == onlyLink)
 			) {
 
 			dbgf_track(DBGT_INFO, "only_orig=%s only_lndev=%s,%s onlyUseless=%d purging metric=%s neigh=%s link=%s dev=%s",
 				onlyOrig ? cryptShaAsString(&onlyOrig->k.nodeId) : DBG_NIL,
 				onlyLink ? ip6AsStr(&onlyLink->k.linkDev->key.llocal_ip) : DBG_NIL,
 				onlyLink ? onlyLink->k.myDev->label_cfg.str : DBG_NIL,
-				onlyUseless, umetric_to_human(on->ogmMetric),
-				cryptShaAsString(&on->curr_rt_link->k.linkDev->key.local->local_id),
-				ip6AsStr(&on->curr_rt_link->k.linkDev->key.llocal_ip),
-				on->curr_rt_link->k.myDev->label_cfg.str);
+				onlyUseless, umetric_to_human(on->neighPath.um),
+				cryptShaAsString(&on->neighPath.link->k.linkDev->key.local->local_id),
+				ip6AsStr(&on->neighPath.link->k.linkDev->key.llocal_ip),
+				on->neighPath.link->k.myDev->label_cfg.str);
 
 			cb_route_change_hooks(DEL, on);
-			on->curr_rt_link = NULL;
+			on->neighPath.link = NULL;
 
 			removed++;
 		}

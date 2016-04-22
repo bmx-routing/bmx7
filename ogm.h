@@ -40,20 +40,14 @@ extern uint32_t ogms_pending;
 #define ARG_OGM_AGGREG_HISTORY "ogmAggregHistory"
 
 
-#define MIN_OGM_HOP_HISTORY 0
-#define MAX_OGM_HOP_HISTORY 10
-#define DEF_OGM_HOP_HISTORY 6
-#define ARG_OGM_HOP_HISTORY "ogmHopHistory"
 
 
 
 #define OGM_JUMPS_PER_AGGREGATION 10
 
+#define OGMS_DHASH_MSGS_LEN_PER_AGGREG_PREF (SIGNED_FRAMES_SIZE_PREF - (sizeof(struct tlv_hdr) + sizeof (struct hdr_ogm_adv)))
 
-#define OGMS_DHASH_PER_AGGREG_PREF (SIGNED_FRAMES_SIZE_PREF - (\
-                              sizeof(struct tlv_hdr) + \
-                              sizeof (struct hdr_ogm_adv))) \
-                              / sizeof(struct msg_ogm_adv)
+#define OGMS_DHASH_PER_AGGREG_PREF_REMOVE (OGMS_DHASH_MSGS_LEN_PER_AGGREG_PREF / sizeof(struct msg_ogm_adv))
 
 
 
@@ -84,64 +78,6 @@ struct hdr_ogm_aggreg_req {
  *              152  160
  * */
 
-struct msg_ogm_adv_metric_tAny {
-
-	union {
-
-		struct {
-#if __BYTE_ORDER == __LITTLE_ENDIAN
-			unsigned int reserved : 4;
-			unsigned int type : 3;
-			unsigned int more : 1;
-#elif __BYTE_ORDER == __BIG_ENDIAN
-			unsigned int more : 1;
-			unsigned int type : 3;
-			unsigned int reserved : 4;
-#else
-#error "Please fix <bits/endian.h>"
-#endif
-		} __attribute__((packed)) f;
-		uint8_t u8[1];
-	} u;
-} __attribute__((packed));
-
-struct msg_ogm_adv_metric_t0 {
-
-	union {
-
-		struct {
-#if __BYTE_ORDER == __LITTLE_ENDIAN
-			unsigned int metric_mantissa : OGM_MANTISSA_BIT_SIZE; // 6
-			unsigned int metric_exp : OGM_EXPONENT_BIT_SIZE; // 5
-			unsigned int directional : 1;
-			unsigned int type : 3;
-			unsigned int more : 1;
-#elif __BYTE_ORDER == __BIG_ENDIAN
-			unsigned int more : 1;
-			unsigned int type : 3;
-			unsigned int directional : 1;
-			unsigned int metric_exp : OGM_EXPONENT_BIT_SIZE; // 5
-			unsigned int metric_mantissa : OGM_MANTISSA_BIT_SIZE; // 6
-#else
-#error "Please fix <bits/endian.h>"
-#endif
-		} __attribute__((packed)) f;
-		uint16_t u16;
-		uint8_t u8[2];
-	} u;
-
-	uint8_t channel; // 0)wired, 0xFF)wlanUnknown, 1-14)2.4GHz, 36-..)5GHz,
-} __attribute__((packed));
-
-struct NeighPath {
-	LinkNode *link;
-	UMETRIC_T um;
-	uint16_t pathMetricsByteSize;
-	struct msg_ogm_adv_metric_t0 pathMetrics[MAX_OGM_HOP_HISTORY];
-};
-
-
-
 
 struct msg_ogm_adv {
 	ChainLink_T chainOgm;
@@ -168,7 +104,7 @@ struct msg_ogm_adv {
 		uint32_t u32;
 	} u;
 
-	uint8_t m[];
+	struct msg_ogm_adv_metric_t0 mt0[];
 
 } __attribute__((packed));
 
@@ -177,7 +113,14 @@ struct hdr_ogm_adv {
 	//	struct msg_ogm_adv msg[];
 } __attribute__((packed));
 
-struct avl_tree **get_my_ogm_aggreg_origs(AGGREG_SQN_T aggSqn);
+struct OgmAggreg_node {
+	struct avl_tree tree;
+	int16_t msgsLen;
+};
+
+
+struct OgmAggreg_node *getOgmAggregNode(AGGREG_SQN_T aggSqn);
+
 
 void remove_ogm(struct orig_node *on);
 void process_ogm_metric(void *voidRef);

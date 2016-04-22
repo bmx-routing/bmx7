@@ -480,12 +480,6 @@ void path_metricalgo_Capacity(struct NeighPath *np, struct NeighRef_node *ref, s
 	UMETRIC_T linkTP;
 	UMETRIC_T pathMaxTP = np->um;
 	UMETRIC_T subPathTime = 1;
-
-	if (!ref->ogmSqnMaxClaimedMetric.val.u16 || !ref->ogmSqnMaxClaimedHops) {
-
-		np->um = UMETRIC_MIN__NOT_ROUTABLE;
-		return;
-	}
 	
 	if (np->link->timeaware_tp_probe) {
 		linkTP = np->link->timeaware_tp_probe;

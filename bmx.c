@@ -956,17 +956,17 @@ uint8_t *key_status_page(uint8_t *sOut, uint32_t i, struct orig_node *on, struct
 		os->linkKey = (pkm = contents_data(dc, BMX_DSC_TLV_LINK_PUBKEY)) ? cryptKeyTypeAsString(pkm->type) : DBG_NIL;
 		os->name = on->k.hostname;
 		os->primaryIp = on->primary_ip;
-		os->dev = on->curr_rt_link && on->curr_rt_link->k.myDev ? on->curr_rt_link->k.myDev->name_phy_cfg.str : DBG_NIL;
-		os->myIdx = on->curr_rt_link && on->curr_rt_link->k.myDev ? on->curr_rt_link->k.myDev->llipKey.devIdx : 0;
-		os->nbIdx = (on->curr_rt_link ? on->curr_rt_link->k.linkDev->key.devIdx : 0);
-		os->nbLocalIp = (on->curr_rt_link ? on->curr_rt_link->k.linkDev->key.llocal_ip : ZERO_IP);
-		os->nbName = (on->curr_rt_link ? on->curr_rt_link->k.linkDev->key.local->on->k.hostname : DBG_NIL);
-		os->metric = on->ogmMetric;
+		os->dev = on->neighPath.link && on->neighPath.link->k.myDev ? on->neighPath.link->k.myDev->name_phy_cfg.str : DBG_NIL;
+		os->myIdx = on->neighPath.link && on->neighPath.link->k.myDev ? on->neighPath.link->k.myDev->llipKey.devIdx : 0;
+		os->nbIdx = (on->neighPath.link ? on->neighPath.link->k.linkDev->key.devIdx : 0);
+		os->nbLocalIp = (on->neighPath.link ? on->neighPath.link->k.linkDev->key.llocal_ip : ZERO_IP);
+		os->nbName = (on->neighPath.link ? on->neighPath.link->k.linkDev->key.local->on->k.hostname : DBG_NIL);
+		os->metric = on->neighPath.um;
 		os->hops = on->ogmHopCount;
 		os->ogmSqn = on->dc->ogmSqnMaxSend;
 		os->lastDesc = (bmx_time - on->updated_timestamp) / 1000;
 		os->myIid = iid_get_myIID4x_by_node(on);
-		struct NeighRef_node *nref = on->curr_rt_link ? avl_find_item(&kn->neighRefs_tree, &on->curr_rt_link->k.linkDev->key.local) : NULL;
+		struct NeighRef_node *nref = on->neighPath.link ? avl_find_item(&kn->neighRefs_tree, &on->neighPath.link->k.linkDev->key.local) : NULL;
 		os->nbIid = nref ? iid_get_neighIID4x_by_node(nref) : 0;
 	}
 

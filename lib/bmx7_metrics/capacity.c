@@ -180,7 +180,7 @@ void init_ath_capacity_handler(int32_t cb_id, void* devp)
 
 						sprintf(statsDirName, "%s/%s/%s%s/", baseDirName, baseDirEnt->d_name, ATH_RC_STATS_DEVS_DIR, phy_name.str);
 
-						if (check_dir(statsDirName, NO, NO, NO)) {
+						if (check_dir(statsDirName, NO, NO, NO) == SUCCESS) {
 							dev->upd_link_capacity = upd_ath_capacity;
 							dbgf_sys(DBGT_INFO, "found driver statistics directory=%s", statsDirName);
 							break;

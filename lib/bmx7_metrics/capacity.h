@@ -32,7 +32,7 @@
 #define HLP_LINK_PROBE_IVAL "interval for unicast link probing. Needed for accurate link capacity estimation"
 #define MIN_LINK_PROBE_IVAL  100
 #define MAX_LINK_PROBE_IVAL  10000
-#define DEF_LINK_PROBE_IVAL  500
+#define DEF_LINK_PROBE_IVAL  2000
 
 #define ARG_ATH_STATS "athStats"
 

@@ -113,7 +113,7 @@ void upd_ath_capacity(LinkNode *link, struct ctrl_node *cn)
 							(tptib = ((UMETRIC_T) (1000 * 1000 * tptfM)))
 							) {
 
-							dbg_printf(cn, "above ok=%u tptfM=%f tptib=%ju\n", okTx, tptfM, tptib);
+							dbg_printf(cn, "above tx=%u prevTx=%u tptfM=%f tptib=%ju\n", okTx, link->macTxPackets, tptfM, tptib);
 
 							if (link->macTxPackets != okTx) {
 
@@ -121,7 +121,8 @@ void upd_ath_capacity(LinkNode *link, struct ctrl_node *cn)
 								link->macTxPackets = okTx;
 								link->macUpdated = bmx_time;
 
-							} else if (((TIME_T) (bmx_time - link->macTxTriggered)) >= (TIME_T) linkProbeInterval) {
+							} else if (((TIME_T) (bmx_time - link->macTxTriggered)) >= (TIME_T) linkProbeInterval &&
+								((TIME_T) (bmx_time - link->macUpdated)) >= (TIME_T) linkProbeInterval) {
 
 								link->macTxTriggered = bmx_time;
 

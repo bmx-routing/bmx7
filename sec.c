@@ -97,7 +97,7 @@ void chainLinkCalc(ChainInputs_T *i,  OGM_SQN_T diff)
 
 		cryptShaAtomic(i, sizeof(ChainInputs_T), &chainElem.u.sha);
 
-		dbgf_track(DBGT_INFO, "%10d link=%s seed=%s id=%s descSqn=%d -> link=%s ", diff,
+		dbgf_all(DBGT_INFO, "%10d link=%s seed=%s id=%s descSqn=%d -> link=%s ", diff,
 			memAsHexString(&i->elem.u.e.link, sizeof(i->elem.u.e.link)),
 			memAsHexString(&i->elem.u.e.seed, sizeof(i->elem.u.e.seed)),
 			memAsHexString(&i->nodeId, sizeof(i->nodeId)),
@@ -925,7 +925,7 @@ int32_t rsa_load( char *tmp_path ) {
 	// test with: ./bmx7 f=0 d=0 --keyDir=$(pwdd)/rsa-test/key.der
 
 
-	dbgf_sys(DBGT_INFO, "testing %s=%s", ARG_KEY_PATH, tmp_path);
+	dbgf_track(DBGT_INFO, "testing %s=%s", ARG_KEY_PATH, tmp_path);
 
 	if (!(my_NodeKey = cryptKeyFromDer( tmp_path ))) {
 		return FAILURE;

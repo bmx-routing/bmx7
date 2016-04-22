@@ -15,7 +15,7 @@
  * 02110-1301, USA
  */
 
-#define ATH_RC_STATS_BASE_DIR "/root/sys/kernel/debug/ieee80211"
+#define ATH_RC_STATS_BASE_DIR "/sys/kernel/debug/ieee80211"
 #define ATH_RC_STATS_PHY_PREFIX "phy"
 #define ATH_RC_STATS_DEVS_DIR "netdev:" // --> "phy0/netdev:wlan0"
 #define ATH_RC_STATS_MACS_DIR "stations" // -> "stations/12:34:56:78:9A:BC"

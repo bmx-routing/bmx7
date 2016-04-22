@@ -71,7 +71,6 @@ void upd_ath_capacity(LinkNode *link, struct ctrl_node *cn)
 	char *baseDirName = ATH_RC_STATS_BASE_DIR;
 	uint32_t okTx = 0;
 	float tptfM = 0;
-	UMETRIC_T tptib = 0;
 
 	dbgf_cn(cn, DBGL_CHANGES, DBGT_INFO, "trying opendir=%s\n", baseDirName);
 
@@ -110,11 +109,12 @@ void upd_ath_capacity(LinkNode *link, struct ctrl_node *cn)
 							(line[ATH_RC_STATS_FILE_TXT_POS_P] == 'P') && (line[ATH_RC_STATS_FILE_TXT_POS_OE] == '(') &&
 							((line[ATH_RC_STATS_FILE_TXT_POS_OE] = 0) || 1) &&
 							(sscanf(&line[ATH_RC_STATS_FILE_TXT_POS_O], "%u", &okTx)) &&
-							(sscanf(&line[ATH_RC_STATS_FILE_TXT_POS_T], "%f", &tptfM)) &&
-							(tptib = ((UMETRIC_T) (1000 * 1000 * tptfM)))
+							(sscanf(&line[ATH_RC_STATS_FILE_TXT_POS_T], "%f", &tptfM))
 							) {
 
-							dbgf_cn(cn, DBGL_CHANGES, DBGT_INFO, "above tx=%u prevTx=%u tptfM=%f tptib=%ju\n", okTx, link->macTxPackets, tptfM, tptib);
+							UMETRIC_T tptib = ((UMETRIC_T) (1000 * 1000 * tptfM));
+
+								dbgf_cn(cn, DBGL_CHANGES, DBGT_INFO, "above tx=%u prevTx=%u tptfM=%f tptib=%ju\n", okTx, link->macTxPackets, tptfM, tptib);
 
 							if (link->macTxPackets != okTx) {
 

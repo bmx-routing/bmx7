@@ -859,7 +859,7 @@ int cryptVerify(uint8_t *sign, size_t signLen, CRYPTSHA1_T *plainSha, CRYPTKEY_T
 
 void cryptRand( void *out, uint32_t outLen) {
 
-	assertion(-500000, ENTROPY_BLOCK_SIZE > sizeof(CRYPTSHA1_T));
+	assertion(-502139, ENTROPY_BLOCK_SIZE > sizeof(CRYPTSHA1_T));
 
 	if (outLen <= sizeof(CRYPTSHA1_T)) {
 

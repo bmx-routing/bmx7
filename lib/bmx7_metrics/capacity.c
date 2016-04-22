@@ -61,6 +61,7 @@
 
 
 int32_t linkProbeInterval = DEF_LINK_PROBE_IVAL;
+int32_t linkProbeSize = DEF_LINK_PROBE_SIZE;
 
 void upd_ath_capacity(LinkNode *link, struct ctrl_node *cn)
 {
@@ -72,13 +73,13 @@ void upd_ath_capacity(LinkNode *link, struct ctrl_node *cn)
 	float tptfM = 0;
 	UMETRIC_T tptib = 0;
 
-	dbg_printf(cn, "trying opendir=%s\n", baseDirName);
+	dbgf_cn(cn, DBGL_CHANGES, DBGT_INFO, "trying opendir=%s\n", baseDirName);
 
 	if ((baseDirDIR = opendir(baseDirName))) {
 
 		while ((baseDirEnt = readdir(baseDirDIR))) {
 
-			dbg_printf(cn, "trying dirent=%s\n", baseDirEnt->d_name);
+			dbgf_cn(cn, DBGL_CHANGES, DBGT_INFO, "trying dirent=%s\n", baseDirEnt->d_name);
 
 			if (!strncmp(baseDirEnt->d_name, ATH_RC_STATS_PHY_PREFIX, strlen(ATH_RC_STATS_PHY_PREFIX))) {
 
@@ -96,7 +97,7 @@ void upd_ath_capacity(LinkNode *link, struct ctrl_node *cn)
 				sprintf(txtFileName, "%s/%s/%s%s/%s/%s/%s",
 					baseDirName, baseDirEnt->d_name, ATH_RC_STATS_DEVS_DIR, phy_name.str, ATH_RC_STATS_MACS_DIR, mac, ATH_RC_STATS_FILE_TXT);
 
-				dbg_printf(cn, "trying fopen A=%s \n", txtFileName);
+				dbgf_cn(cn, DBGL_CHANGES, DBGT_INFO, "trying fopen A=%s \n", txtFileName);
 
 				if ((fpA = fopen(txtFileName, "r"))) {
 
@@ -113,7 +114,7 @@ void upd_ath_capacity(LinkNode *link, struct ctrl_node *cn)
 							(tptib = ((UMETRIC_T) (1000 * 1000 * tptfM)))
 							) {
 
-							dbg_printf(cn, "above tx=%u prevTx=%u tptfM=%f tptib=%ju\n", okTx, link->macTxPackets, tptfM, tptib);
+							dbgf_cn(cn, DBGL_CHANGES, DBGT_INFO, "above tx=%u prevTx=%u tptfM=%f tptib=%ju\n", okTx, link->macTxPackets, tptfM, tptib);
 
 							if (link->macTxPackets != okTx) {
 
@@ -126,8 +127,8 @@ void upd_ath_capacity(LinkNode *link, struct ctrl_node *cn)
 
 								link->macTxTriggered = bmx_time;
 
-								schedule_tx_task(FRAME_TYPE_DESC_ADVS, link, &link->k.linkDev->key.local->local_id, link->k.linkDev->key.local, link->k.myDev,
-									myKey->on->dc->desc_frame_len, &myKey->on->dc->dHash, sizeof(DHASH_T));
+								schedule_tx_task(FRAME_TYPE_TRASH_ADV, link, &link->k.linkDev->key.local->local_id, link->k.linkDev->key.local, link->k.myDev,
+									linkProbeSize, &linkProbeSize, sizeof(linkProbeSize));
 
 							}
 							break;
@@ -216,11 +217,42 @@ int32_t opt_capacity(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct op
         return SUCCESS;
 }
 
+STATIC_FUNC
+int32_t tx_frame_trash_adv(struct tx_frame_iterator *it)
+{
+        TRACE_FUNCTION_CALL;
+
+	uint32_t *trashSize = (uint32_t*) it->ttn->key.data;
+
+	dbgf_track(DBGT_INFO, "size=%d iterations=%d dev=%s myIdx=%d src=%s unicast=%d, dst=%s nbIdx=%d neigh=%s neighId=%s",
+		*trashSize, it->ttn->tx_iterations, it->ttn->key.f.p.dev->label_cfg.str, it->ttn->key.f.p.dev->llipKey.devIdx, it->ttn->key.f.p.dev->ip_llocal_str, !!it->ttn->key.f.p.unicast,
+		ip6AsStr(it->ttn->key.f.p.unicast ? &it->ttn->key.f.p.unicast->k.linkDev->key.llocal_ip : NULL),
+		(it->ttn->key.f.p.unicast ? it->ttn->key.f.p.unicast->k.linkDev->key.devIdx : -1),
+		(it->ttn->key.f.p.unicast ? &it->ttn->key.f.p.unicast->k.linkDev->key.local->on->k.hostname: NULL),
+		cryptShaAsString(&it->ttn->key.f.groupId));
+
+	cryptRand(tx_iterator_cache_msg_ptr(it), *trashSize);
+	return *trashSize;
+}
+
+
+STATIC_FUNC
+int32_t rx_frame_trash_adv(struct rx_frame_iterator *it)
+{
+        TRACE_FUNCTION_CALL;
+
+	dbgf_track(DBGT_INFO, "size=%d dev=%s unicast=%d src=%s claimedId=%s",
+		it->f_dlen, it->pb->i.iif->label_cfg.str, it->pb->i.unicast, it->pb->i.llip_str, cryptShaAsShortStr(&it->pb->p.hdr.keyHash));
+
+	return it->f_msgs_len;
+}
 
 static struct opt_type capacity_options[]= {
 //        ord parent long_name          shrt Attributes				*ival		min		max		default		*func,*syntax,*help
 	{ODI,0,ARG_LINK_PROBE_IVAL,     0,9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,&linkProbeInterval,MIN_LINK_PROBE_IVAL,MAX_LINK_PROBE_IVAL,DEF_LINK_PROBE_IVAL,0,0,
 			ARG_VALUE_FORM, HLP_LINK_PROBE_IVAL},
+	{ODI,0,ARG_LINK_PROBE_SIZE,     0,9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,&linkProbeSize,MIN_LINK_PROBE_SIZE,MAX_LINK_PROBE_SIZE, DEF_LINK_PROBE_SIZE,0,0,
+			ARG_VALUE_FORM, HLP_LINK_PROBE_SIZE},
 	{ODI,0,ARG_ATH_STATS,		0,9,2,A_PS0,A_USR,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_capacity,
 			0,		"show ath link statistics"},
 
@@ -235,6 +267,17 @@ static void capacity_cleanup( void )
 
 static int32_t capacity_init( void )
 {
+
+        struct frame_handl handl;
+        memset(&handl, 0, sizeof ( handl));
+
+        handl.name = "TRASH_ADV";
+	handl.rx_processUnVerifiedLink = 1;
+        handl.min_msg_size = 1;
+        handl.fixed_msg_size = 0;
+        handl.tx_frame_handler = tx_frame_trash_adv;
+        handl.rx_frame_handler = rx_frame_trash_adv;
+        register_frame_handler(packet_frame_db, FRAME_TYPE_TRASH_ADV, &handl);
 
 
         register_options_array(capacity_options, sizeof ( capacity_options), CODE_CATEGORY_NAME);

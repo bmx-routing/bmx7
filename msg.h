@@ -129,6 +129,7 @@ extern int32_t txTaskTreeSizeMax;
 
 #define FRAME_TYPE_RSVD0            0
 
+#define FRAME_TYPE_TRASH_ADV       1
 #define FRAME_TYPE_DESC_ADVS        2
 #define FRAME_TYPE_CONTENT_ADV      4
 

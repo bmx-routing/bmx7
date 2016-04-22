@@ -257,7 +257,6 @@ int32_t iterate_msg_ogm_adv(uint8_t *msgs, int32_t msgs_len, int32_t pos, IDM_T 
 		pos += sizeof(struct msg_ogm_adv);
 		if ((moreCnt = moreCnt + (more = (tMain->u.f.more)))) {
 
-
 			while (more && moreCnt <= MAX_OGM_HOP_HISTORY &&
 				(pos + (int) sizeof(struct msg_ogm_adv_metric_tAny)) <= msgs_len) {
 
@@ -268,9 +267,14 @@ int32_t iterate_msg_ogm_adv(uint8_t *msgs, int32_t msgs_len, int32_t pos, IDM_T 
 					if (hm) {
 						hm[moreCnt - 1].u.u16 = ntohs(((struct msg_ogm_adv_metric_t0*) tMore)->u.u16);
 						hm[moreCnt - 1].channel = ((struct msg_ogm_adv_metric_t0*) tMore)->channel;
+						hm[moreCnt - 1].u.f.more = 0;
+
+						if (moreCnt >= 2)
+							hm[moreCnt - 2].u.f.more = 1;
 					}
 
 					pos += sizeof(struct msg_ogm_adv_metric_t0);
+
 				} else {
 					return FAILURE;
 				}
@@ -278,10 +282,11 @@ int32_t iterate_msg_ogm_adv(uint8_t *msgs, int32_t msgs_len, int32_t pos, IDM_T 
 				moreCnt = moreCnt + (more = tMore->u.f.more);
 			}
 
-			if (more)
+			if (more) {
 				return FAILURE;
-			else if (hmItems)
+			}else if (hmItems) {
 				*hmItems = moreCnt;
+			}
 		}
 
 		if (!all)

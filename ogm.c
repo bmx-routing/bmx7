@@ -282,12 +282,12 @@ int32_t iterate_msg_ogm_adv(uint8_t *msgs, int32_t msgs_len, int32_t pos, IDM_T 
 				moreCnt = moreCnt + (more = tMore->u.f.more);
 			}
 
-			if (more) {
+			if (more)
 				return FAILURE;
-			}else if (hmItems) {
-				*hmItems = moreCnt;
-			}
 		}
+
+		if (hmItems)
+			*hmItems = moreCnt;
 
 		if (!all)
 			break;

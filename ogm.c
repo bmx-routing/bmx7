@@ -476,7 +476,7 @@ int32_t tx_frame_ogm_aggreg_advs(struct tx_frame_iterator *it)
 
 		msg->u.u32 = htonl(msg->u.u32);
 
-		assertion(-500000, ((on->neighPath.pathMetricsByteSize / sizeof(struct msg_ogm_adv_metric_t0)) == 0));
+		assertion(-500000, ((on->neighPath.pathMetricsByteSize % sizeof(struct msg_ogm_adv_metric_t0)) == 0));
 		uint16_t p;
 		for (p = 0; p < (on->neighPath.pathMetricsByteSize / sizeof(struct msg_ogm_adv_metric_t0)); p++) {
 			assertion(-500000, (on->neighPath.pathMetrics[p].u.f.more == ((p + 1) < (on->neighPath.pathMetricsByteSize / (uint16_t)sizeof(struct msg_ogm_adv_metric_t0)))));

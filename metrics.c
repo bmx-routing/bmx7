@@ -506,7 +506,10 @@ void path_metricalgo_Capacity(struct NeighPath *np, struct NeighRef_node *ref, s
 		}
 	}
 
-	uint16_t inHPos, inHMax = XMIN((ref->ogmSqnMaxPathMetricsByteSize / sizeof(struct msg_ogm_adv_metric_t0)), algo->ogm_hop_history);
+	dbgf_track(DBGT_INFO, "msg: linkTP=%s pathMaxTP=%s subPathTime=%s",
+		umetric_to_human(linkTP), umetric_to_human(pathMaxTP), umetric_to_human(subPathTime));
+
+	uint16_t outHPos = 0, inHPos, inHMax = XMIN((ref->ogmSqnMaxPathMetricsByteSize / sizeof(struct msg_ogm_adv_metric_t0)), algo->ogm_hop_history);
 	for (inHPos = 0; inHPos < inHMax; inHPos++) {
 
 		assertion(-500000, (ref->ogmSqnMaxPathMetrics[inHPos].u.f.type == 0));
@@ -520,13 +523,16 @@ void path_metricalgo_Capacity(struct NeighPath *np, struct NeighRef_node *ref, s
 		if (ref->ogmSqnMaxPathMetrics[inHPos].channel != 0) {
 			subPathTime += (UMETRIC_MAX_MAX / linkTP);
 
-			uint16_t outHPos = (np->pathMetricsByteSize / sizeof(struct msg_ogm_adv_metric_t0));
+			outHPos = (np->pathMetricsByteSize / sizeof(struct msg_ogm_adv_metric_t0));
 			
 			if (algo->ogm_hop_history > outHPos) {
 				np->pathMetrics[outHPos] = ref->ogmSqnMaxPathMetrics[inHPos];
 				np->pathMetricsByteSize += sizeof(struct msg_ogm_adv_metric_t0);
 			}
 		}
+
+		dbgf_track(DBGT_INFO, "hops linkTP=%s pathMaxTP=%s subPathTime=%s i=%d o=%d",
+			umetric_to_human(linkTP), umetric_to_human(pathMaxTP), umetric_to_human(subPathTime), inHPos, outHPos);
 	}
 
 	UMETRIC_T subPathTP = (UMETRIC_MAX_MAX / subPathTime);

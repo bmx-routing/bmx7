@@ -521,9 +521,11 @@ struct NeighPath *lndev_best_via_router(struct NeighRef_node *ref)
 	bestNeighPath.um = UMETRIC_MIN__NOT_ROUTABLE;
 
 	dbgf_track(refMetric <= on->mtcAlgo->umetric_min ? DBGT_WARN : DBGT_INFO,
-		"orig=%s descSqn=%d via neigh=%s nbTrust=%d hops=%d refMtc=%ju minMtc=%ju ogmSqnRcvd=%d ogmSqnMaxSend=%d onSendMtc=%ju onSqnHystere=%d onMtcHystere=%d RefSqnBestSince=%d",
+		"orig=%s descSqn=%d via neigh=%s nbTrust=%d hops=%d refMtc=%ju refOgmHist=%d/%d minMtc=%ju ogmSqnRcvd=%d ogmSqnMaxSend=%d onSendMtc=%ju onSqnHystere=%d onMtcHystere=%d RefSqnBestSince=%d",
 		cryptShaAsShortStr(&on->k.nodeId), dc->descSqn, cryptShaAsShortStr(&nn->local_id),
-		neighTrust, ref->ogmSqnMaxClaimedHops, refMetric, on->mtcAlgo->umetric_min, ref->ogmSqnMax, dc->ogmSqnMaxSend, on->neighPath.um,
+		neighTrust, ref->ogmSqnMaxClaimedHops, refMetric, 
+		(int)(ref->ogmSqnMaxPathMetricsByteSize / sizeof(struct msg_ogm_adv_metric_t0)), on->mtcAlgo->ogm_hop_history,
+		on->mtcAlgo->umetric_min, ref->ogmSqnMax, dc->ogmSqnMaxSend, on->neighPath.um,
 		on->mtcAlgo->ogm_sqn_late_hystere_100ms, on->mtcAlgo->ogm_metric_hystere_new_path, ref->ogmBestSinceSqn);
 
 	if (!neighTrust || refMetric < on->mtcAlgo->umetric_min || refMetric == UMETRIC_MIN__NOT_ROUTABLE || !ref->ogmSqnMaxClaimedHops)

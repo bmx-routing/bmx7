@@ -852,6 +852,7 @@ struct orig_status {
 	IPX_T nbLocalIp;
 	char* nbName;
 	UMETRIC_T metric;
+	char ogmHist[10 + (MAX_OGM_HOP_HISTORY * 8)];
 	uint8_t hops;
 	OGM_SQN_T ogmSqn;
 	IID_T nbIid;
@@ -892,6 +893,7 @@ static const struct field_format orig_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_IPX,               orig_status, nbLocalIp,     1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      orig_status, nbName,        1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           orig_status, metric,        1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       orig_status, ogmHist,       1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, hops,          1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, ogmSqn,        1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, nbIid,         1, FIELD_RELEVANCE_MEDI),
@@ -941,15 +943,15 @@ uint8_t *key_status_page(uint8_t *sOut, uint32_t i, struct orig_node *on, struct
 		os->s[0] = (s = setted_pubkey(dc, BMX_DSC_TLV_SUPPORTS, &myKey->kHash, 0)) == -1 ? 'A' : (s + '0');
 		os->t[0] = (t = setted_pubkey(dc, BMX_DSC_TLV_TRUSTS, &myKey->kHash, 0)) == -1 ? 'A' : (t + '0');
 		os->descSqn = dc->descSqn;
-		snprintf(os->descSize, sizeof(os->descSize), "%d+%d", dc->desc_frame_len, dc->ref_content_len);
-		snprintf(os->contents, sizeof(os->contents), "%d/%d", (dc->contentRefs_tree.items - dc->unresolvedContentCounter), dc->contentRefs_tree.items);
+		snprintf(os->descSize, (sizeof(os->descSize)-1), "%d+%d", dc->desc_frame_len, dc->ref_content_len);
+		snprintf(os->contents, (sizeof(os->contents)-1), "%d/%d", (dc->contentRefs_tree.items - dc->unresolvedContentCounter), dc->contentRefs_tree.items);
 		os->dHash = &dc->dHash;
 		os->shortDHash = &dc->dHash;
 		os->lastRef = (bmx_time - dc->referred_by_others_timestamp) / 1000;
 	} else {
 		os->s[0] = '-';
 		os->t[0] = '-';
-		snprintf(os->contents, sizeof(os->contents), "---");
+		snprintf(os->contents, (sizeof(os->contents)-1), "---");
 	}
 
 	if (on) {
@@ -962,6 +964,13 @@ uint8_t *key_status_page(uint8_t *sOut, uint32_t i, struct orig_node *on, struct
 		os->nbLocalIp = (on->neighPath.link ? on->neighPath.link->k.linkDev->key.llocal_ip : ZERO_IP);
 		os->nbName = (on->neighPath.link ? on->neighPath.link->k.linkDev->key.local->on->k.hostname : DBG_NIL);
 		os->metric = on->neighPath.um;
+		snprintf(os->ogmHist, (sizeof(os->ogmHist)-1), "%d/%d", (int)(on->neighPath.pathMetricsByteSize / sizeof(struct msg_ogm_adv_metric_t0)), on->mtcAlgo->ogm_hop_history);
+		uint16_t i;
+		for (i = 0; i < (on->neighPath.pathMetricsByteSize / sizeof(struct msg_ogm_adv_metric_t0)); i++) {
+			FMETRIC_U16_T fm = {.val = {.f = {.exp_fm16 = on->neighPath.pathMetrics[i].u.f.metric_exp, .mantissa_fm16 = on->neighPath.pathMetrics[i].u.f.metric_mantissa}}};
+			snprintf((os->ogmHist + strlen(os->ogmHist)), (sizeof(os->ogmHist) - (1 + strlen(os->ogmHist))), "%s%s%s",
+				(i ? "" : ":"), umetric_to_human(fmetric_to_umetric(fm)), ((i + 1)<(on->neighPath.pathMetricsByteSize / (uint16_t)sizeof(struct msg_ogm_adv_metric_t0)) ? "," : ""));
+		}
 		os->hops = on->ogmHopCount;
 		os->ogmSqn = on->dc->ogmSqnMaxSend;
 		os->lastDesc = (bmx_time - on->updated_timestamp) / 1000;
@@ -970,7 +979,7 @@ uint8_t *key_status_page(uint8_t *sOut, uint32_t i, struct orig_node *on, struct
 		os->nbIid = nref ? iid_get_neighIID4x_by_node(nref) : 0;
 	}
 
-	snprintf(os->nbs, sizeof(os->nbs), "%d", (kn ? kn->neighRefs_tree.items : 0));
+	snprintf(os->nbs, (sizeof(os->nbs)-1), "%d", (kn ? kn->neighRefs_tree.items : 0));
 
 	return sOut;
 }

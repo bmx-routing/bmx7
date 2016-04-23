@@ -483,7 +483,7 @@ int32_t tx_frame_ogm_aggreg_advs(struct tx_frame_iterator *it)
 			struct msg_ogm_adv_metric_t0 *t0Out = ((struct msg_ogm_adv_metric_t0*) &(msg->mt0[p]));
 			struct msg_ogm_adv_metric_t0 *t0In = &(on->neighPath.pathMetrics[p]);
 			FMETRIC_U16_T fm = {.val = {.f = {.exp_fm16 = t0In->u.f.metric_exp, .mantissa_fm16 = t0In->u.f.metric_mantissa}}};
-			dbgf_track(DBGT_INFO, "ogmHist=%d more=%d channel=%d ",p+1, t0In->u.f.more, t0In->channel, umetric_to_human(fmetric_to_umetric(fm)));
+			dbgf_track(DBGT_INFO, "ogmHist=%d more=%d channel=%d mtc=%s", p + 1, t0In->u.f.more, t0In->channel, umetric_to_human(fmetric_to_umetric(fm)));
 			assertion(-500000, (on->neighPath.pathMetrics[p].u.f.more == ((p + 1) < (on->neighPath.pathMetricsByteSize / (uint16_t)sizeof(struct msg_ogm_adv_metric_t0)))));
 			t0Out->channel = t0In->channel;
 			t0Out->u.u16 = htonl(t0In->u.u16);

@@ -112,11 +112,10 @@ void neighRef_destroy(struct NeighRef_node *ref, IDM_T reAssessState)
 
 	iid_free(&ref->nn->neighIID4x_repos, iid_get_neighIID4x_by_node(ref));
 
-	if (kn)
-		avl_remove(&kn->neighRefs_tree, &ref->nn, -300717);
-
-	if (reAssessState && kn && kn != ref->nn->on->kn)
-		keyNode_delCredits(NULL, kn, NULL);
+	if (kn) {
+		struct key_credits kc = {.neighRef = ref};
+		keyNode_delCredits(NULL, kn, &kc, (reAssessState && kn != ref->nn->on->kn));
+	}
 
 	if (ref->ogmSqnMaxPathMetrics)
 		debugFree(ref->ogmSqnMaxPathMetrics, -300000);

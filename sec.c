@@ -1471,7 +1471,7 @@ void apply_trust_changes(int8_t f_type, struct orig_node *on, struct desc_conten
 
 	while ((oldMsg = avl_remove_first_item(&tmp_tree, -300796))) {
 
-		keyNode_delCredits(&oldMsg->nodeId, NULL, &vkc);
+		keyNode_delCredits(&oldMsg->nodeId, NULL, &vkc, YES);
 	}
 }
 
@@ -1792,7 +1792,7 @@ void idChanged_Trusted(IDM_T del, struct KeyWatchNode *kwn, struct DirWatch *dw)
 			struct key_credits friend_kc = {.dFriend = (del ? TYP_TRUST_LEVEL_DIRECT : kwt.support)};
 
 			if (del)
-				keyNode_delCredits(&kwn->global_id, NULL, &friend_kc);
+				keyNode_delCredits(&kwn->global_id, NULL, &friend_kc, YES);
 
 			else
 				keyNode_updCredits(&kwn->global_id, NULL, &friend_kc);

@@ -447,6 +447,7 @@ struct key_credits {
 	uint8_t dFriend;
 	uint8_t pktId;
 	uint8_t pktSign;
+	uint8_t unReferenced;
 	struct orig_node *recom;
 	struct orig_node *trusteeRef;
 	struct NeighRef_node *neighRef;
@@ -462,6 +463,7 @@ struct key_node {
 	TIME_T pktSignTime;
 	TIME_T nQTime;
 	TIME_T TAPTime;
+	TIME_T unReferencedTime;
 	struct avl_tree neighRefs_tree;
 	struct avl_tree trustees_tree;
 	struct orig_node *on;

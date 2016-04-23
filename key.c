@@ -47,6 +47,8 @@
 int32_t link_purge_to = DEF_LINK_PURGE_TO;
 int32_t tracked_timeout = 20000;
 int32_t neigh_qualifying_to = 30000;
+int32_t id_purge_to = DEF_ID_PURGE_TO;
+
 
 AVL_TREE(schedDecreasedEffectiveState_tree, struct schedDecreasedEffectiveState_node, kn);
 AVL_TREE(key_tree, struct key_node, kHash);
@@ -63,6 +65,19 @@ struct key_credits zeroKeyCredit = {.dFriend = 0};
 
 #define KS_INIT {0,0,0,0,0, NULL, NULL, NULL, NULL}
 
+STATIC_FUNC
+IDM_T keyNode_anyRef (struct key_node *kn)
+{
+	return (kn && (
+		kn->dFriend > TYP_TRUST_LEVEL_NONE ||
+		kn->recommendations_tree.items ||
+		kn->trustees_tree.items ||
+		kn->neighRefs_tree.items ||
+		kn->pktIdTime ||
+		kn->pktSignTime ||
+		kn->nQTime
+		));
+}
 
 
 STATIC_FUNC
@@ -86,7 +101,7 @@ int8_t kRowCond_recommended(struct key_node *kn, struct key_credits *kc)
 STATIC_FUNC
 int8_t kRowCond_alien(struct key_node *kn, struct key_credits *kc)
 {
-	return(kc->pktId || (kn && kn->pktIdTime) || kc->neighRef || (kn && kn->neighRefs_tree.items) || kc->trusteeRef || (kn && kn->trustees_tree.items));
+	return(kc->pktId || (kn && kn->pktIdTime) || kc->neighRef || (kn && kn->neighRefs_tree.items) || kc->trusteeRef || (kn && kn->trustees_tree.items) || (kn && kn->unReferencedTime && id_purge_to));
 }
 
 
@@ -798,7 +813,7 @@ IDM_T keyNode_getNQualifyingCredits(GLOBAL_ID_T *kHash, struct key_node *kn)
 }
 
 
-void keyNode_delCredits_(const char* f, GLOBAL_ID_T *kHash, struct key_node *kn, struct key_credits *kc)
+void keyNode_delCredits_(const char* f, GLOBAL_ID_T *kHash, struct key_node *kn, struct key_credits *kc, IDM_T reAssessState)
 {
 	uint32_t blockId = keyNodes_block_and_sync(0, NO);
 
@@ -810,19 +825,19 @@ void keyNode_delCredits_(const char* f, GLOBAL_ID_T *kHash, struct key_node *kn,
 
 	if (kc) {
 
-		if (kc->dFriend || kc->recom || kc->trusteeRef || kc->pktId || kc->pktSign || kc->nQualifying) {
-			dbgf_track(DBGT_INFO, "%s id=%s bookedState=%s friend=%d/%d recom=%d/%d trustees=%d/%d pktId=%d/%d pktSing=%d/%d nQ=%d/%d",
-				f, cryptShaAsShortStr(&kn->kHash), kn->bookedState->secName,
-				kc->dFriend, kn->dFriend, !!kc->recom, kn->recommendations_tree.items, !!kc->trusteeRef, kn->trustees_tree.items,
-				kc->pktId, kn->pktIdTime, kc->pktSign, kn->pktSignTime, kc->nQualifying, kn->nQTime);
-		}
+		IDM_T oldAnyRef = keyNode_anyRef(kn);
+
+		dbgf_track(DBGT_INFO, "%s id=%s bookedState=%s friend=%d/%d recom=%d/%d trustees=%d/%d neighRef=%d/%d pktId=%d/%d pktSing=%d/%d nQ=%d/%d",
+			f, cryptShaAsShortStr(&kn->kHash), kn->bookedState->secName,
+			kc->dFriend, kn->dFriend, !!kc->recom, kn->recommendations_tree.items, !!kc->trusteeRef, kn->trustees_tree.items, !!kc->neighRef, kn->neighRefs_tree.items,
+			kc->pktId, kn->pktIdTime, kc->pktSign, kn->pktSignTime, kc->nQualifying, kn->nQTime);
 
 		assertion(-502555, (kc->dFriend == TYP_TRUST_LEVEL_NONE || (kc->dFriend >= TYP_TRUST_LEVEL_DIRECT && kc->dFriend <= MAX_TRUST_LEVEL)));
 		assertion(-502556, (kn->dFriend == TYP_TRUST_LEVEL_NONE || (kn->dFriend >= TYP_TRUST_LEVEL_DIRECT && kn->dFriend <= MAX_TRUST_LEVEL)));
 		assertion(-502392, IMPLIES(kc->dFriend, kn->dFriend));
 		assertion(-502393, IMPLIES(kc->recom, avl_find(&kn->recommendations_tree, &kc->recom->kn)));
 		assertion(-502557, IMPLIES(kc->trusteeRef, avl_find(&kn->trustees_tree, &kc->trusteeRef->kn)));
-		assertion(-502394, (!kc->neighRef)); // this function is called from refNode_destroy()! Not the other way around!
+		assertion(-502394, IMPLIES(kc->neighRef, avl_find(&kn->neighRefs_tree, &kc->neighRef->nn)));
 		assertion(-502395, IMPLIES(kc->pktId, (kn->pktIdTime)));
 		assertion(-502396, IMPLIES(kc->pktSign, (kn->pktSignTime)));
 		assertion(-502397, IMPLIES(kc->nQualifying, (kn->nQTime)));
@@ -834,16 +849,15 @@ void keyNode_delCredits_(const char* f, GLOBAL_ID_T *kHash, struct key_node *kn,
 			kn->dFriend = TYP_TRUST_LEVEL_NONE;
 		}
 
-
 		if (kc->recom)
 			avl_remove(&kn->recommendations_tree, &kc->recom->kn, -300710);
 
 		if (kc->trusteeRef)
 			avl_remove(&kn->trustees_tree, &kc->trusteeRef->kn, -300785);
-/*
-		if (kc->ref)
-			refNode_destroy(kc->ref);
-*/
+
+		if (kc->neighRef)
+			avl_remove(&kn->neighRefs_tree, &kc->neighRef->nn, -300000);
+
 		if (kc->pktId)
 			kn->pktIdTime = 0;
 
@@ -853,9 +867,17 @@ void keyNode_delCredits_(const char* f, GLOBAL_ID_T *kHash, struct key_node *kn,
 
 		if (kc->pktId || kc->nQualifying)
 			kn->nQTime = 0;
+
+		if (oldAnyRef && !keyNode_anyRef(kn))
+			kn->unReferencedTime = bmx_time;
+
+		if (kc->unReferenced)
+			kn->unReferencedTime = 0;
 	}
 
-	keyNode_schedLowerState(kn, keyNode_getMinMaxState(kn));
+	if (reAssessState)
+		keyNode_schedLowerState(kn, keyNode_getMinMaxState(kn));
+
 	keyNodes_block_and_sync(blockId, NO);
 }
 
@@ -865,6 +887,8 @@ void keyNode_addCredits_(struct key_node *kn, struct key_credits *kc)
 {
 	assertion(-502398, (kn && kc));
 	assertion(-502558, (kc->dFriend == TYP_TRUST_LEVEL_NONE || (kc->dFriend >= TYP_TRUST_LEVEL_DIRECT && kc->dFriend <= MAX_TRUST_LEVEL)));
+
+	IDM_T oldAnyRef = keyNode_anyRef(kn);
 
 	if (kc->dFriend && (kc->dFriend != kn->dFriend)) {
 
@@ -912,6 +936,9 @@ void keyNode_addCredits_(struct key_node *kn, struct key_credits *kc)
 		assertion(-502403, (kc->pktId && !kn->nQTime));
 		kn->nQTime = bmx_time;
 	}
+
+	if (!oldAnyRef && keyNode_anyRef(kn))
+		kn->unReferencedTime = 0;
 }
 
 
@@ -1037,10 +1064,12 @@ void keyNode_fixTimeouts()
 		struct key_credits kc = {
 			.pktId = (kn->pktIdTime && (((TIME_T) (bmx_time - kn->pktIdTime))>((TIME_T) link_purge_to))),
 			.nQualifying = (kn->nQTime && (((TIME_T) (bmx_time - kn->nQTime))>((TIME_T) neigh_qualifying_to))),
-			.pktSign = (kn->pktSignTime && (((TIME_T) (bmx_time - kn->pktSignTime))>((TIME_T) link_purge_to)))
+			.pktSign = (kn->pktSignTime && (((TIME_T) (bmx_time - kn->pktSignTime))>((TIME_T) link_purge_to))),
+			.unReferenced = (kn->unReferencedTime && (((TIME_T) (bmx_time - kn->unReferencedTime))>((TIME_T) id_purge_to)))
 		};
-		if (kc.pktId || kc.nQualifying || kc.pktSign)
-			keyNode_delCredits(NULL, kn, &kc);
+
+		if (kc.pktId || kc.nQualifying || kc.pktSign || kn->unReferencedTime)
+			keyNode_delCredits(NULL, kn, &kc, YES);
 
 
 		struct neigh_node * neigh = NULL;
@@ -1050,7 +1079,6 @@ void keyNode_fixTimeouts()
 			
 			if (!iid_get_neighIID4x_timeout_by_node(ref))
 				neighRef_destroy(ref, YES);
-
 		}
 
 
@@ -1221,8 +1249,11 @@ static struct opt_type key_options[] = {
 	{ODI,0,ARG_CREDITS,	        0,  9,1,A_PS0N,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
 			0,		"show credits\n"},
 #ifndef LESS_OPTIONS
-	{ODI, 0, ARG_LINK_PURGE_TO, 0, 9, 1, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &link_purge_to, MIN_LINK_PURGE_TO, MAX_LINK_PURGE_TO, DEF_LINK_PURGE_TO, 0, 0,
+	{ODI, 0, ARG_LINK_PURGE_TO,     0, 9, 1, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &link_purge_to, MIN_LINK_PURGE_TO, MAX_LINK_PURGE_TO, DEF_LINK_PURGE_TO, 0, 0,
 		ARG_VALUE_FORM, "timeout in ms for purging stale links"}
+			,
+	{ODI, 0, ARG_ID_PURGE_TO, 0, 9, 1, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &id_purge_to, MIN_ID_PURGE_TO, MAX_ID_PURGE_TO, DEF_ID_PURGE_TO, 0, 0,
+		ARG_VALUE_FORM, "timeout in ms for purging unreferenced (alien) IDs"}
 #endif
 };
 

@@ -19,15 +19,20 @@
 
 
 
-#define DEF_LINK_PURGE_TO  20000
 #define MIN_LINK_PURGE_TO  (MAX_TX_MIN_INTERVAL*2)
 #define MAX_LINK_PURGE_TO  864000000 /*10 days*/
-#define ARG_LINK_PURGE_TO  "linkPurgeTimeout"
+#define DEF_LINK_PURGE_TO  20000
+#define ARG_LINK_PURGE_TO  "linkTimeout"
 
 extern int32_t link_purge_to;
 extern int32_t tracked_timeout;
 extern int32_t neigh_qualifying_to;
 
+
+#define MIN_ID_PURGE_TO 0
+#define MAX_ID_PURGE_TO 864000000 /*10 days*/
+#define DEF_ID_PURGE_TO 20000
+#define ARG_ID_PURGE_TO "idTimeout"
 
 // Key Weight:
 #define KCNull (-1)
@@ -57,8 +62,8 @@ void keyNode_schedLowerWeight(struct key_node *kn, int8_t weight);
 
 struct key_node *keyNode_updCredits(GLOBAL_ID_T *kHash, struct key_node *kn, struct key_credits *kc);
 
-#define keyNode_delCredits( a, b, c ) keyNode_delCredits_(__FUNCTION__, (a), (b), (c) )
-void keyNode_delCredits_(const char *f, GLOBAL_ID_T *kHash, struct key_node *kn, struct key_credits *kc);
+#define keyNode_delCredits( a, b, c, d ) keyNode_delCredits_(__FUNCTION__, (a), (b), (c), (d) )
+void keyNode_delCredits_(const char *f, GLOBAL_ID_T *kHash, struct key_node *kn, struct key_credits *kc, IDM_T reAssessState);
 #define KEYNODES_BLOCKING_ID 10
 
 #define keyNodes_block_and_sync( id, force ) keyNodes_block_and_sync_( __FUNCTION__, (id), (force) )

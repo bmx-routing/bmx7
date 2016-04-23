@@ -733,7 +733,7 @@ int32_t init_ogm( void )
 	handl.name = "OGMS_DHASH_ADV";
 	handl.data_header_size = sizeof(struct hdr_ogm_adv);
 	handl.min_msg_size = sizeof(struct msg_ogm_adv);
-	handl.fixed_msg_size = 1;
+	handl.fixed_msg_size = 0;
 	handl.tx_frame_handler = tx_frame_ogm_aggreg_advs;
 	handl.rx_frame_handler = rx_frame_ogm_aggreg_advs;
 	register_frame_handler(packet_frame_db, FRAME_TYPE_OGM_ADV, &handl);

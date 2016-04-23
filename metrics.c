@@ -572,7 +572,7 @@ struct NeighPath *apply_metric_algo(struct NeighRef_node *ref, LinkNode *link, s
 
                                 (*(path_metric_algos[algo_type_bit])) (&neighPath, ref, algo);
 
-                                dbgf_all(DBGT_INFO, "algo=%d in=%-12ju=%7s  out=%-12ju=%7s",
+                                dbgf_track(DBGT_INFO, "algo=%d in=%-12ju=%7s  out=%-12ju=%7s",
                                         algo_type_bit, refMetric, umetric_to_human(refMetric), neighPath.um, umetric_to_human(neighPath.um));
 
                         } else {

@@ -490,7 +490,7 @@ int32_t tx_frame_ogm_aggreg_advs(struct tx_frame_iterator *it)
 	dbgf_track(DBGT_INFO, "aggSqn=%d aggSqnMax=%d ogms=%d size=%d", *sqn, ogm_aggreg_sqn_max, oan->tree.items, oan->msgsLen);
 
 	assertion(-500000, (((uint32_t) oan->msgsLen) == ((uint32_t) (((uint8_t*) msg) - tx_iterator_cache_msg_ptr(it)))));
-	assertion(-500000, (iterate_msg_ogm_adv(tx_iterator_cache_msg_ptr(it), oan->msgsLen, 0, YES, NULL, NULL) == oan->msgsLen));
+	assertion(-500000, IMPLIES(oan->msgsLen, iterate_msg_ogm_adv(tx_iterator_cache_msg_ptr(it), oan->msgsLen, 0, YES, NULL, NULL) == oan->msgsLen));
 
 	return oan->msgsLen;
 }

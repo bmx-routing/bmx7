@@ -434,7 +434,7 @@ int32_t rx_msg_ogm_aggreg_request(struct rx_frame_iterator *it)
 
 		schedule_tx_task(FRAME_TYPE_OGM_ADV, NULL, NULL, NULL, nn->best_tp_link->k.myDev, oan->msgsLen, &sqn, sizeof(sqn));
 
-		dbgf_track(DBGT_INFO, "sqn=%d ogms=%d size=%s", sqn, oan->tree.items, oan->msgsLen);
+		dbgf_track(DBGT_INFO, "sqn=%d ogms=%d size=%d", sqn, oan->tree.items, oan->msgsLen);
 	}
 	return TLV_RX_DATA_PROCESSED;
 }

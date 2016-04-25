@@ -257,15 +257,11 @@ void cleanup_all(int32_t status)
                 cleaning_up = YES;
                 terminating = YES;
 
-                // first, restore defaults...
-                cb_plugin_hooks(PLUGIN_CB_TERM, NULL);
-
 //		cleanup_schedule();
-		
-
 //              purge_link_route_orig_nodes(NULL);
 		keyNodes_cleanup(KCNull, NULL);
 
+                cb_plugin_hooks(PLUGIN_CB_TERM, NULL);
 
 		while (status_tree.items) {
 			struct status_handl *handl = avl_remove_first_item(&status_tree, -300357);

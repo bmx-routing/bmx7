@@ -236,7 +236,7 @@ OGM_SQN_T chainOgmFind(ChainLink_T *chainOgm, struct desc_content *dc, OGM_SQN_T
 
 				chainLinkCalc(&downTest, 1);
 				dbgf_track(DBGT_INFO, "testing chainLink-0=%s against maxRcvd-%d=%s",
-					memAsHexString(&chainLink, sizeof(ChainLink_T)), 0, sqnOffset - 1, memAsHexString(&downTest.elem.u.e.link, sizeof(ChainLink_T)));
+					memAsHexString(&chainLink, sizeof(ChainLink_T)), sqnOffset - 1, memAsHexString(&downTest.elem.u.e.link, sizeof(ChainLink_T)));
 
 				if (memcmp(&downTest, &chainLink, sizeof(ChainLink_T)) == 0) {
 					sqnReturn = dc->ogmSqnMaxRcvd - (sqnOffset + 1);

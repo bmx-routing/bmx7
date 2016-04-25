@@ -78,32 +78,32 @@ struct hdr_ogm_aggreg_req {
  *              152  160
  * */
 
+union msg_ogm_adv_metric {
+
+	struct {
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+		unsigned int metric_mantissa : OGM_MANTISSA_BIT_SIZE; // 6
+		unsigned int metric_exp : OGM_EXPONENT_BIT_SIZE; // 5
+		unsigned int hopCount : OGM_HOP_COUNT_BITSIZE; //6
+		unsigned int transmitterIID4x : IID_BIT_SIZE; // 14
+		unsigned int more : 1;
+#elif __BYTE_ORDER == __BIG_ENDIAN
+		unsigned int more : 1;
+		unsigned int transmitterIID4x : IID_BIT_SIZE;
+		unsigned int hopCount : OGM_HOP_COUNT_BITSIZE;
+		unsigned int metric_exp : OGM_EXPONENT_BIT_SIZE; // 5
+		unsigned int metric_mantissa : OGM_MANTISSA_BIT_SIZE; // 6
+#else
+#error "Please fix <bits/endian.h>"
+#endif
+	} __attribute__((packed)) f;
+	uint32_t u32;
+};
 
 struct msg_ogm_adv {
 	ChainLink_T chainOgm;
 
-	union {
-
-		struct {
-#if __BYTE_ORDER == __LITTLE_ENDIAN
-			unsigned int metric_mantissa : OGM_MANTISSA_BIT_SIZE; // 6
-			unsigned int metric_exp : OGM_EXPONENT_BIT_SIZE; // 5
-			unsigned int hopCount : OGM_HOP_COUNT_BITSIZE; //6
-			unsigned int transmitterIID4x : IID_BIT_SIZE; // 14
-			unsigned int more : 1;
-#elif __BYTE_ORDER == __BIG_ENDIAN
-			unsigned int more : 1;
-			unsigned int transmitterIID4x : IID_BIT_SIZE;
-			unsigned int hopCount : OGM_HOP_COUNT_BITSIZE;
-			unsigned int metric_exp : OGM_EXPONENT_BIT_SIZE; // 5
-			unsigned int metric_mantissa : OGM_MANTISSA_BIT_SIZE; // 6
-#else
-#error "Please fix <bits/endian.h>"
-#endif
-		} __attribute__((packed)) f;
-		uint32_t u32;
-	} u;
-
+	union msg_ogm_adv_metric u;
 	struct msg_ogm_adv_metric_t0 mt0[];
 
 } __attribute__((packed));

@@ -201,6 +201,35 @@ void neighRefs_resolve_or_destroy(void)
 	}
 }
 
+STATIC_FUNC
+void set_ref_ogmSqnMaxMetric(struct NeighRef_node *ref, DESC_SQN_T descSqn, OGM_SQN_T ogmSqn, struct InaptChainOgm *chainOgm)
+{
+
+	if (chainOgm) {
+
+		ref->ogmSqnMaxClaimedMetric.val.u16 = chainOgm->claimedMetric.val.u16;
+		ref->ogmSqnMaxClaimedHops = chainOgm->claimedHops;
+		ref->ogmSqnMaxPathMetricsByteSize = chainOgm->pathMetricsByteSize;
+		ref->ogmSqnMaxPathMetrics = debugRealloc(ref->ogmSqnMaxPathMetrics, chainOgm->pathMetricsByteSize, -300000);
+		memcpy(ref->ogmSqnMaxPathMetrics, &chainOgm->pathMetrics[0], chainOgm->pathMetricsByteSize);
+
+	} else {
+		ref->descSqn = descSqn;
+		ref->ogmSqnMax = ogmSqn;
+		if (!ogmSqn)
+			ref->ogmBestSinceSqn = 0;
+
+
+
+		ref->ogmSqnMaxClaimedMetric.val.u16 = 0;
+		ref->ogmSqnMaxClaimedHops = 0;
+		ref->ogmSqnMaxPathMetricsByteSize = 0;
+		if (ref->ogmSqnMaxPathMetrics) {
+			debugFree(ref->ogmSqnMaxPathMetrics, -300000);
+			ref->ogmSqnMaxPathMetrics = NULL;
+		}
+	}
+}
 
 struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn, IID_T neighIID4x, CRYPTSHA1_T *kHash, DESC_SQN_T descSqn, struct InaptChainOgm *inChainOgm)
 {
@@ -255,13 +284,8 @@ struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn
 			}
 		}
 
-		if (ref->descSqn < descSqn) {
-			ref->descSqn = descSqn;
-			ref->ogmBestSinceSqn = 0;
-			ref->ogmSqnMax = 0;
-			ref->ogmSqnMaxClaimedMetric.val.u16 = 0;
-			ref->ogmSqnMaxClaimedHops = 0;
-		}
+		if (ref->descSqn < descSqn)
+			set_ref_ogmSqnMaxMetric(ref, descSqn, 0, NULL);
 
 	} else {
 		kn = ref->kn;
@@ -278,37 +302,14 @@ struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn
 			assertion(-502570, (dc->ogmSqnMaxRcvd >= ogmSqn));
 			assertion(-502571, (ref->descSqn <= dc->descSqn));
 
-			if (ref->descSqn < dc->descSqn) {
-				ref->descSqn = dc->descSqn;
-				ref->ogmBestSinceSqn = 0;
+			if (ref->descSqn < dc->descSqn)
+				set_ref_ogmSqnMaxMetric( ref, dc->descSqn, 0, NULL);
 
-				ref->ogmSqnMax = 0;
-				ref->ogmSqnMaxClaimedMetric.val.u16 = 0;
-				ref->ogmSqnMaxClaimedHops = 0;
-				ref->ogmSqnMaxPathMetricsByteSize = 0;
-				if (ref->ogmSqnMaxPathMetrics) {
-					debugFree(ref->ogmSqnMaxPathMetrics, -300000);
-					ref->ogmSqnMaxPathMetrics = NULL;
-				}
-			}
 
-			if (ref->ogmSqnMax > ogmSqn)
+			if (ref->ogmSqnMax < ogmSqn)
+				set_ref_ogmSqnMaxMetric( ref, dc->descSqn, ogmSqn, NULL);
+			else if (ref->ogmSqnMax > ogmSqn)
 				goto_error_return(finish, "Outdated ogmSqn", NULL);
-
-			dc->referred_by_others_timestamp = bmx_time;
-
-			if (ref->ogmSqnMax < ogmSqn) {
-				ref->ogmSqnMaxTime = bmx_time;
-
-				ref->ogmSqnMax = ogmSqn;
-				ref->ogmSqnMaxClaimedMetric.val.u16 = 0;
-				ref->ogmSqnMaxClaimedHops = 0;
-				ref->ogmSqnMaxPathMetricsByteSize = 0;
-				if (ref->ogmSqnMaxPathMetrics) {
-					debugFree(ref->ogmSqnMaxPathMetrics, -300000);
-					ref->ogmSqnMaxPathMetrics = NULL;
-				}
-			}
 
 
 			if (ref->inaptChainOgm && ref->inaptChainOgm != chainOgm &&
@@ -317,20 +318,14 @@ struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn
 				ref->inaptChainOgm->claimedMetric.val.u16 > chainOgm->claimedMetric.val.u16)
 			{
 
-				ref->ogmSqnMaxClaimedMetric.val.u16 = ref->inaptChainOgm->claimedMetric.val.u16;
-				ref->ogmSqnMaxClaimedHops = ref->inaptChainOgm->claimedHops;
-				ref->ogmSqnMaxPathMetricsByteSize = ref->inaptChainOgm->pathMetricsByteSize;
-				ref->ogmSqnMaxPathMetrics = debugRealloc(ref->ogmSqnMaxPathMetrics, ref->inaptChainOgm->pathMetricsByteSize, -300000);
-				memcpy(ref->ogmSqnMaxPathMetrics, &ref->inaptChainOgm->pathMetrics[0], ref->inaptChainOgm->pathMetricsByteSize);
+				set_ref_ogmSqnMaxMetric( ref, dc->descSqn, ogmSqn, ref->inaptChainOgm);
 
 			} else if (chainOgm->claimedMetric.val.u16 > ref->ogmSqnMaxClaimedMetric.val.u16) {
 
-				ref->ogmSqnMaxClaimedMetric.val.u16 = chainOgm->claimedMetric.val.u16;
-				ref->ogmSqnMaxClaimedHops = chainOgm->claimedHops;
-				ref->ogmSqnMaxPathMetricsByteSize = chainOgm->pathMetricsByteSize;
-				ref->ogmSqnMaxPathMetrics = debugRealloc(ref->ogmSqnMaxPathMetrics, chainOgm->pathMetricsByteSize, -300000);
-				memcpy(ref->ogmSqnMaxPathMetrics, &chainOgm->pathMetrics[0], chainOgm->pathMetricsByteSize);
+				set_ref_ogmSqnMaxMetric( ref, dc->descSqn, ogmSqn, chainOgm);
 			}
+
+			dc->referred_by_others_timestamp = bmx_time;
 
 			inaptChainOgm_destroy_(ref);
 

@@ -250,12 +250,16 @@ int32_t iterate_msg_ogm_adv(uint8_t *msgs, int32_t msgs_len, int32_t pos, IDM_T 
 
 	while ((pos + (int) sizeof(struct msg_ogm_adv)) <= msgs_len) {
 
-		struct msg_ogm_adv_metric_tAny *tMain = ((struct msg_ogm_adv_metric_tAny *) &(((struct msg_ogm_adv*) (msgs + pos))->u.u32));
-		uint8_t more = 0;
-		uint8_t moreCnt = 0;
+		union msg_ogm_adv_metric m0 = { .u32 = ntohl(((struct msg_ogm_adv*) (msgs + pos))->u.u32) };
+		FMETRIC_U16_T fmm0 = {.val = {.f = {.exp_fm16 = m0.f.metric_exp, .mantissa_fm16 = m0.f.metric_mantissa}}};
+		uint8_t more = (m0.f.more);
+		uint8_t moreCnt = more;
+
+		dbgf_track(DBGT_INFO, "len=%d pos=%-3d more=%d metric=%-10s hopCount=%-2d iid=%d", msgs_len, pos, more, umetric_to_human(fmetric_to_umetric(fmm0)), m0.f.hopCount, m0.f.transmitterIID4x);
+
 
 		pos += sizeof(struct msg_ogm_adv);
-		if ((moreCnt = moreCnt + (more = (tMain->u.f.more)))) {
+		if (moreCnt) {
 
 			while (more && moreCnt <= MAX_OGM_HOP_HISTORY &&
 				(pos + (int) sizeof(struct msg_ogm_adv_metric_tAny)) <= msgs_len) {
@@ -264,10 +268,13 @@ int32_t iterate_msg_ogm_adv(uint8_t *msgs, int32_t msgs_len, int32_t pos, IDM_T 
 
 				if (tMore->u.f.type == 0 && (pos + (int) sizeof(struct msg_ogm_adv_metric_t0)) <= msgs_len) {
 
+					struct msg_ogm_adv_metric_t0 t0 = {.u = {.u16 = ntohs(((struct msg_ogm_adv_metric_t0*) tMore)->u.u16)}, .channel = ((struct msg_ogm_adv_metric_t0*) tMore)->channel};
+					FMETRIC_U16_T fmt0 = {.val = {.f = {.exp_fm16 = t0.u.f.metric_exp, .mantissa_fm16 = t0.u.f.metric_mantissa}}};
+
+					dbgf_track(DBGT_INFO, "len=%d pos=%-3d more=%d metric=%-10s channel=%d", msgs_len, pos, t0.u.f.more, umetric_to_human(fmetric_to_umetric(fmt0)), t0.channel);
+
 					if (hm) {
-						hm[moreCnt - 1].u.u16 = ntohs(((struct msg_ogm_adv_metric_t0*) tMore)->u.u16);
-						hm[moreCnt - 1].channel = ((struct msg_ogm_adv_metric_t0*) tMore)->channel;
-						hm[moreCnt - 1].u.f.more = 0;
+						hm[moreCnt - 1] = t0;
 
 						if (moreCnt >= 2)
 							hm[moreCnt - 2].u.f.more = 1;
@@ -647,8 +654,8 @@ int32_t rx_frame_ogm_aggreg_advs(struct rx_frame_iterator *it)
 	IDM_T new = ((AGGREG_SQN_T) (nn->ogm_aggreg_max - aggSqn)) < nn->ogm_aggreg_size && !bit_get(nn->ogm_aggreg_sqns, AGGREG_SQN_CACHE_RANGE, aggSqn);
 	int32_t processed;
 
-	dbgf_track(DBGT_INFO, "new=%d neigh=%s aggSqn=%d/%d/%d msgs=%d",
-		new, nn->on->k.hostname, aggSqn, nn->ogm_aggreg_max, nn->ogm_aggreg_size, it->f_msgs_fixed);
+	dbgf_track(DBGT_INFO, "new=%d neigh=%s aggSqn=%d/%d/%d size=%d",
+		new, nn->on->k.hostname, aggSqn, nn->ogm_aggreg_max, nn->ogm_aggreg_size, it->f_msgs_len);
 
 	if (new) {
 		
@@ -682,7 +689,7 @@ int32_t rx_frame_ogm_aggreg_advs(struct rx_frame_iterator *it)
 			chainOgm->claimedMetric.val.f.mantissa_fm16 = tmp.u.f.metric_mantissa;
 			chainOgm->pathMetricsByteSize = moreCnt * sizeof(struct msg_ogm_adv_metric_t0);
 
-			dbgf_track(DBGT_INFO, "iid=%d ogmMtc=%d hops=%d", tmp.u.f.transmitterIID4x, chainOgm[0].claimedMetric.val.u16, tmp.u.f.hopCount+1);
+			dbgf_track(DBGT_INFO, "iid=%d ogmMtc=%d ogmHist=%d hops=%d", tmp.u.f.transmitterIID4x, chainOgm->claimedMetric.val.u16, moreCnt, tmp.u.f.hopCount+1);
 
 			neighRef_update(nn, aggSqn, tmp.u.f.transmitterIID4x, NULL, 0, chainOgm);
 

@@ -480,6 +480,7 @@ void path_metricalgo_Capacity(struct NeighPath *np, struct NeighRef_node *ref, s
 	UMETRIC_T linkTP;
 	UMETRIC_T pathMaxTP = np->um;
 	UMETRIC_T subPathTime = 1;
+	uint16_t outHPos = 0, inHPos, inHMax = XMIN((ref->ogmSqnMaxPathMetricsByteSize / sizeof(struct msg_ogm_adv_metric_t0)), algo->ogm_hop_history);
 	
 	if (np->link->timeaware_tp_probe) {
 		linkTP = np->link->timeaware_tp_probe;
@@ -492,6 +493,8 @@ void path_metricalgo_Capacity(struct NeighPath *np, struct NeighRef_node *ref, s
 	linkTP = XMAX(linkTP, UMETRIC_MIN__NOT_ROUTABLE);
 	pathMaxTP = XMIN(pathMaxTP, linkTP);
 
+	np->pathMetricsByteSize = 0;
+	
 	if (np->link->k.myDev->channel != 0) {
 		subPathTime += (UMETRIC_MAX_MAX / linkTP);
 
@@ -502,6 +505,7 @@ void path_metricalgo_Capacity(struct NeighPath *np, struct NeighRef_node *ref, s
 			np->pathMetrics[0].channel = np->link->k.myDev->channel;
 			np->pathMetrics[0].u.f.metric_exp = linkFm.val.f.exp_fm16;
 			np->pathMetrics[0].u.f.metric_mantissa = linkFm.val.f.mantissa_fm16;
+			np->pathMetrics[0].u.f.more = 0;
 			np->pathMetricsByteSize += sizeof(struct msg_ogm_adv_metric_t0);
 		}
 	}
@@ -509,7 +513,6 @@ void path_metricalgo_Capacity(struct NeighPath *np, struct NeighRef_node *ref, s
 	dbgf_track(DBGT_INFO, "msg: linkTP=%s pathMaxTP=%s subPathTime=%s",
 		umetric_to_human(linkTP), umetric_to_human(pathMaxTP), umetric_to_human(subPathTime));
 
-	uint16_t outHPos = 0, inHPos, inHMax = XMIN((ref->ogmSqnMaxPathMetricsByteSize / sizeof(struct msg_ogm_adv_metric_t0)), algo->ogm_hop_history);
 	for (inHPos = 0; inHPos < inHMax; inHPos++) {
 
 		assertion(-500000, (ref->ogmSqnMaxPathMetrics[inHPos].u.f.type == 0));
@@ -527,6 +530,9 @@ void path_metricalgo_Capacity(struct NeighPath *np, struct NeighRef_node *ref, s
 			
 			if (algo->ogm_hop_history > outHPos) {
 				np->pathMetrics[outHPos] = ref->ogmSqnMaxPathMetrics[inHPos];
+				np->pathMetrics[outHPos].u.f.more = 0;
+				if (outHPos >= 1)
+					np->pathMetrics[outHPos - 1].u.f.more = 1;
 				np->pathMetricsByteSize += sizeof(struct msg_ogm_adv_metric_t0);
 			}
 		}

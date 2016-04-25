@@ -202,11 +202,9 @@ OGM_SQN_T chainOgmFind(ChainLink_T *chainOgm, struct desc_content *dc, OGM_SQN_T
 
 	while (sqnOffset <= maxDeviation) {
 
-		dbgf_track(DBGT_INFO, "testing chainLink-%d=%s against maxRcvd-0=%s anchor-0=%s", sqnOffset,
+		dbgf_track(DBGT_INFO, "testing chainLink-%d=%s against maxRcvd-0=%s", sqnOffset,
 			memAsHexString(&dc->chainCache.elem.u.e.link, sizeof(ChainLink_T)),
-			memAsHexString(&dc->chainLinkMaxRcvd, sizeof(ChainLink_T)),
-			memAsHexString(dc->chainAnchor, sizeof(ChainLink_T))
-			);
+			memAsHexString(&dc->chainLinkMaxRcvd, sizeof(ChainLink_T)));
 
 		if (sqnOffset + dc->ogmSqnMaxRcvd <= dc->ogmSqnRange) {
 
@@ -223,12 +221,12 @@ OGM_SQN_T chainOgmFind(ChainLink_T *chainOgm, struct desc_content *dc, OGM_SQN_T
 			}
 		}
 
+		if (dc->ogmSqnMaxRcvd > 0 ) {
+			
+			if (sqnOffset < dc->ogmSqnMaxRcvd / 2) {
 
-		if (sqnOffset <= dc->ogmSqnMaxRcvd/2 ) {
-
-			// Testing below maxRcvd and upper half between anchor and maxRcvd:
-			if (sqnOffset >=1) {
-				if (sqnOffset==1) {
+				// Testing below maxRcvd and upper half between anchor and maxRcvd:
+				if (sqnOffset == 0) {
 					chainLink = dc->chainCache.elem.u.e.link;
 					downTest.descSqnNetOrder = dc->chainCache.descSqnNetOrder;
 					downTest.nodeId = dc->chainCache.nodeId;
@@ -238,21 +236,26 @@ OGM_SQN_T chainOgmFind(ChainLink_T *chainOgm, struct desc_content *dc, OGM_SQN_T
 
 				chainLinkCalc(&downTest, 1);
 				dbgf_track(DBGT_INFO, "testing chainLink-0=%s against maxRcvd-%d=%s",
-					memAsHexString(&chainLink, sizeof(ChainLink_T)), sqnOffset, memAsHexString(&downTest.elem.u.e.link, sizeof(ChainLink_T)));
+					memAsHexString(&chainLink, sizeof(ChainLink_T)), 0, sqnOffset - 1, memAsHexString(&downTest.elem.u.e.link, sizeof(ChainLink_T)));
 
 				if (memcmp(&downTest, &chainLink, sizeof(ChainLink_T)) == 0) {
-					sqnReturn = dc->ogmSqnMaxRcvd - sqnOffset;
+					sqnReturn = dc->ogmSqnMaxRcvd - (sqnOffset + 1);
 					break;
 				}
 			}
 
-			// Testing below maxRcvd and lower half between anchor and maxRcvd:
-			if (memcmp(&dc->chainCache.elem.u.e.link, dc->chainAnchor, sizeof(ChainLink_T)) == 0) {
+			if (sqnOffset <= dc->ogmSqnMaxRcvd / 2) {
+				// Testing below maxRcvd and lower half between anchor and maxRcvd:
+				dbgf_track(DBGT_INFO, "testing chainLink-%d=%s against anchor-0=%s", sqnOffset,
+					memAsHexString(&dc->chainCache.elem.u.e.link, sizeof(ChainLink_T)),
+					memAsHexString(dc->chainAnchor, sizeof(ChainLink_T)));
+				if (memcmp(&dc->chainCache.elem.u.e.link, dc->chainAnchor, sizeof(ChainLink_T)) == 0) {
 
-				assertion(-502598, ((OGM_SQN_T)(dc->ogmSqnMaxRcvd - sqnOffset)) <= dc->ogmSqnRange);
+					assertion(-502598, ((OGM_SQN_T) (dc->ogmSqnMaxRcvd - sqnOffset)) <= dc->ogmSqnRange);
 
-				sqnReturn = sqnOffset;
-				break;
+					sqnReturn = sqnOffset;
+					break;
+				}
 			}
 		}
 

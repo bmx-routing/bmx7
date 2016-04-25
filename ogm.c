@@ -466,6 +466,7 @@ int32_t tx_frame_ogm_aggreg_advs(struct tx_frame_iterator *it)
 	while ((on = avl_iterate_item(&oan->tree, &an))) {
 
 		assertion(-500000, (on->ogmAggregActiveMsgLen));
+		assertion(-500000, (on->dc->ogmSqnMaxSend)); //otherwise on->neighPath might be from last description, but ogm should have been removed during descupdate
 
 		msg->chainOgm = chainOgmCalc(on->dc, on->dc->ogmSqnMaxSend);
 

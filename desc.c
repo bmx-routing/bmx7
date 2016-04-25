@@ -192,12 +192,18 @@ void update_orig_dhash(struct desc_content *dcNew)
 	ASSERTION(-502473, (process_description_tlvs(NULL, on, dcOld, dcNew, TLV_OP_TEST, FRAME_TYPE_PROCESS_ALL) == TLV_RX_DATA_DONE));
 
 	if (on) {
+
 		cb_plugin_hooks(PLUGIN_CB_DESCRIPTION_DESTROY, on);
 		on->dc = dcNew;
 		dcNew->on = on;
 		dcOld->on = NULL;
 		iid = iid_get_myIID4x_by_node(on);
+		
+		if (on->ogmAggregActiveMsgLen)
+			remove_ogm(on);
+
 	} else {
+
 		on = debugMallocReset(sizeof( struct orig_node) + (sizeof(void*) * plugin_data_registries[PLUGIN_DATA_ORIG]), -300128);
 		on->k.nodeId = dcNew->kn->kHash;
 		on->kn = dcNew->kn;

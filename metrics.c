@@ -800,11 +800,11 @@ void metrics_description_event_hook(int32_t cb_id, struct orig_node *on)
 
 		if (!on->mtcAlgo)
 			metricalgo_assign(on, NULL);
-
+/*
 		struct NeighRef_node *ref = NULL;
 		while ((ref = avl_next_item(&on->dc->kn->neighRefs_tree, ref ? &ref->nn : NULL)))
 			process_ogm_metric(ref);
-
+*/
 	} else {
 
 		metricalgo_remove(on);

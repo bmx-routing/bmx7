@@ -737,7 +737,7 @@ void keyNode_schedLowerState(struct key_node *kn, struct KeyState *s)
 	struct KeyState *min = keyState_getMin(kn->decreasedEffectiveState, s);
 	//min can be different from s, minEffectiveState, and bookedState
 
-	dbgf_all(DBGT_INFO, "id=%s booked=%s decreased=%s min=%s set=%s",
+	dbgf_track(DBGT_INFO, "id=%s booked=%s decreased=%s min=%s set=%s",
 		cryptShaAsShortStr(&kn->kHash),
 		kn->bookedState->secName,
 		kn->decreasedEffectiveState ? kn->decreasedEffectiveState->secName : NULL,
@@ -782,7 +782,7 @@ void keyNodes_cleanup(int8_t targetStateColumn, struct key_node *except)
 			curr = kn->kHash;
 			assertion(-502387, (kn->bookedState));
 
-			if (kn->bookedState->i.c > next && kn != except) {
+			if (((int8_t)kn->bookedState->i.c) > next && kn != except) {
 
 				keyNode_schedLowerWeight(kn, (
 					(!terminating && (kn->dFriend != TYP_TRUST_LEVEL_NONE) && next < KCTracked) ?

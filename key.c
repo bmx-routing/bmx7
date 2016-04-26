@@ -446,34 +446,34 @@ void kSetOutAction_neighbor(struct key_node **kn, struct KeyState *next)
 
 struct KeyState keyMatrix[KCSize][KRSize] = {
 	{
-		{KS_INIT, "Listed", "qualifying", "listedQualifying", 4000, NULL, 10000, kSetInAction_listed, kSetOutAction_listed, kCol_TRUE, kColCond_listed, kRowCond_qualifying},
-		{KS_INIT, "Qualified", "friend", "listedFriend", 3000, NULL, 0, NULL, NULL, NULL, NULL, kRowCond_friend},
-		{KS_INIT, "Stranger", "recommended", "listedRecommended", 2000, NULL, 0, NULL, NULL, NULL, NULL, kRowCond_recommended},
-		{KS_INIT, "Alien", "alien", "listedAlien", 0, kPref_listedAlien, 0, kSetInAction_alien, kSetOutAction_alien, NULL, NULL, kRowCond_alien},
+		{KS_INIT, "Listed", "qualifying", "listedQualifying", "lQ", 4000, NULL, 10000, kSetInAction_listed, kSetOutAction_listed, kCol_TRUE, kColCond_listed, kRowCond_qualifying},
+		{KS_INIT, "Graded", "friend", "listedFriend", "lF", 3000, NULL, 0, NULL, NULL, NULL, NULL, kRowCond_friend},
+		{KS_INIT, "Stranger", "recommended", "listedRecommended", "lR", 2000, NULL, 0, NULL, NULL, NULL, NULL, kRowCond_recommended},
+		{KS_INIT, "Alien", "alien", "listedAlien", "lA", 0, kPref_listedAlien, 0, kSetInAction_alien, kSetOutAction_alien, NULL, NULL, kRowCond_alien},
 	},
 	{
-		{KS_INIT, "Tracked", "qualifying", "trackedQualifying", 4001, NULL, 1100, kSetInAction_tracked, kSetOutAction_tracked, kCol_TRUE, kColCond_tracked, NULL},
-		{KS_INIT, "TrackedQualified", "friend", "trackedFriend", 3001, NULL, 0, NULL, NULL, NULL, NULL, NULL},
-		{KS_INIT, "TrackedStranger", "recommended", "trackedRecommended", 2001, NULL, 0, NULL, NULL, NULL, NULL, NULL},
-		{KS_INIT, "TrackedAlien", "alien", "trackedAlien", 1001, NULL, 0, NULL, NULL, NULL, NULL, NULL},
+		{KS_INIT, "Tracked", "qualifying", "trackedQualifying", "tQ", 4001, NULL, 1100, kSetInAction_tracked, kSetOutAction_tracked, kCol_TRUE, kColCond_tracked, NULL},
+		{KS_INIT, "TrackedGraded", "friend", "trackedFriend", "tF", 3001, NULL, 0, NULL, NULL, NULL, NULL, NULL},
+		{KS_INIT, "TrackedStranger", "recommended", "trackedRecommended", "tR", 2001, NULL, 0, NULL, NULL, NULL, NULL, NULL},
+		{KS_INIT, "TrackedAlien", "alien", "trackedAlien", "tA", 1001, NULL, 0, NULL, NULL, NULL, NULL, NULL},
 	},
 	{
-		{KS_INIT, "Certified", "qualifying", "certifiedQualifying", 4002, NULL, 0, kSetInAction_certified, kSetOutAction_certified, kCol_TRUE, kColCond_certified, NULL},
-		{KS_INIT, "CertifiedQualified", "friend", "certifiedFriend", 3002, NULL, 0, NULL, NULL, NULL, NULL, NULL},
-		{KS_INIT, "CertifiedStranger", "recommended", "certifiedRecommended", 2002, NULL, 0, NULL, NULL, NULL, NULL, NULL},
-		{KS_INIT, "CertifiedAlien", "alien", "certifiedAlien", 1002, NULL, 0, NULL, NULL, NULL, NULL, NULL},
+		{KS_INIT, "Certified", "qualifying", "certifiedQualifying", "cQ", 4002, NULL, 0, kSetInAction_certified, kSetOutAction_certified, kCol_TRUE, kColCond_certified, NULL},
+		{KS_INIT, "CertifiedGraded", "friend", "certifiedFriend", "cF", 3002, NULL, 0, NULL, NULL, NULL, NULL, NULL},
+		{KS_INIT, "CertifiedStranger", "recommended", "certifiedRecommended", "cR", 2002, NULL, 0, NULL, NULL, NULL, NULL, NULL},
+		{KS_INIT, "CertifiedAlien", "alien", "certifiedAlien", "cA", 1002, NULL, 0, NULL, NULL, NULL, NULL, NULL},
 	},
 	{
-		{KS_INIT, "Promoted", "qualifying", "promotedQualifying", 4003, NULL, XMIN(1000, IID_REPOS_SIZE_MAX), kSetInAction_promoted, kSetOutAction_promoted, kColMaintain_promoted, kColCond_promoted, NULL},
-		{KS_INIT, "PromotedQualified", "friend", "promotedFriend", 3003, NULL, 0, NULL, NULL, NULL, NULL, NULL},
-		{KS_INIT, "PromotedStranger", "recommended", "promotedRecommended", 2003, NULL, 0, NULL, NULL, NULL, NULL, NULL},
-		{KS_INIT, "PromotedAlien", "alien", "promotedAlien", 1003, NULL, 0, NULL, NULL, NULL, NULL, NULL},
+		{KS_INIT, "Promoted", "qualifying", "promotedQualifying", "pQ", 4003, NULL, XMIN(1000, IID_REPOS_SIZE_MAX), kSetInAction_promoted, kSetOutAction_promoted, kColMaintain_promoted, kColCond_promoted, NULL},
+		{KS_INIT, "PromotedGraded", "friend", "promotedFriend", "pF", 3003, NULL, 0, NULL, NULL, NULL, NULL, NULL},
+		{KS_INIT, "PromotedStranger", "recommended", "promotedRecommended", "pR", 2003, NULL, 0, NULL, NULL, NULL, NULL, NULL},
+		{KS_INIT, "PromotedAlien", "alien", "promotedAlien", "pA", 1003, NULL, 0, NULL, NULL, NULL, NULL, NULL},
 	},
 	{
-		{KS_INIT, "Neighbor", "qualifying", "neighboringQualifying", 9999, NULL, 100, kSetInAction_neighbor, kSetOutAction_neighbor, kCol_TRUE, kColCond_neighbor, NULL},
-		{KS_INIT, "NeighboringQualified", "friend", "neighboringFriend", 7000, kPref_neighbor, 50, NULL, NULL, NULL, NULL, NULL},
-		{KS_INIT, "NeighboringStranger", "recommended", "neighboringRecommended", 6000, kPref_neighbor, 0, NULL, NULL, NULL, NULL, NULL},
-		{KS_INIT, "NeighboringAlien", "alien", "neighboringAlien", 5000, kPref_neighbor, 25, NULL, NULL, NULL, NULL, NULL},
+		{KS_INIT, "Neighbor", "qualifying", "neighboringQualifying", "nQ", 9999, NULL, 100, kSetInAction_neighbor, kSetOutAction_neighbor, kCol_TRUE, kColCond_neighbor, NULL},
+		{KS_INIT, "NeighboringGraded", "friend", "neighboringFriend", "nF", 7000, kPref_neighbor, 50, NULL, NULL, NULL, NULL, NULL},
+		{KS_INIT, "NeighboringStranger", "recommended", "neighboringRecommended", "nR", 6000, kPref_neighbor, 0, NULL, NULL, NULL, NULL, NULL},
+		{KS_INIT, "NeighboringAlien", "alien", "neighboringAlien", "nA", 5000, kPref_neighbor, 25, NULL, NULL, NULL, NULL, NULL},
 	},
 };
 
@@ -737,7 +737,7 @@ void keyNode_schedLowerState(struct key_node *kn, struct KeyState *s)
 	struct KeyState *min = keyState_getMin(kn->decreasedEffectiveState, s);
 	//min can be different from s, minEffectiveState, and bookedState
 
-	dbgf_track(DBGT_INFO, "id=%s booked=%s decreased=%s min=%s set=%s",
+	dbgf_all(DBGT_INFO, "id=%s booked=%s decreased=%s min=%s set=%s",
 		cryptShaAsShortStr(&kn->kHash),
 		kn->bookedState->secName,
 		kn->decreasedEffectiveState ? kn->decreasedEffectiveState->secName : NULL,

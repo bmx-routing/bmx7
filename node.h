@@ -492,6 +492,7 @@ struct KeyState {
 	char *setName;
 	char *rowName;
 	char *secName;
+	char *secAcro;
 	int16_t prefBase;
 	int16_t(* prefGet) (struct key_node *kn);
 	int16_t maxSet;

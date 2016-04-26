@@ -947,8 +947,7 @@ struct key_node *keyNode_updCredits(GLOBAL_ID_T *kHash, struct key_node *kn, str
 	kHash = kHash ? kHash : (kn ? &kn->kHash : NULL);
 	kn = kn ? kn : (kHash ? avl_find_item(&key_tree, kHash) : NULL);
 	
-	dbgf_all(DBGT_INFO, "id=%s", cryptShaAsShortStr(kHash));
-	dbgf_all(DBGT_INFO, "bookedSec=%s schedSec=%s",	kn ? kn->bookedState->secName : NULL,
+	dbgf_all(DBGT_INFO, "id=%s bookedSec=%s schedSec=%s", cryptShaAsShortStr(kHash), kn ? kn->bookedState->secName : NULL,
 		kn && kn->decreasedEffectiveState ? kn->decreasedEffectiveState->secName : NULL);
 
 	assertion(-502404, (kHash));
@@ -974,7 +973,7 @@ struct key_node *keyNode_updCredits(GLOBAL_ID_T *kHash, struct key_node *kn, str
 	uint32_t blockId = keyNodes_block_and_sync(0, NO);
 	uint8_t r, c;
 
-	dbgf_all(DBGT_INFO, "bookedSec=%s schedSec=%s",	kn ? kn->bookedState->secName : NULL,
+	dbgf_track(DBGT_INFO, "bookedSec=%s schedSec=%s",	kn ? kn->bookedState->secName : NULL,
 		kn && kn->decreasedEffectiveState ? kn->decreasedEffectiveState->secName : NULL);
 
 	IDM_T condSuccess = NO;

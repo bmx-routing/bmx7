@@ -962,8 +962,10 @@ struct key_node *keyNode_updCredits(GLOBAL_ID_T *kHash, struct key_node *kn, str
 		kc->nQualifying = keyNode_getNQualifyingCredits(kHash, kn);
 
 	if (kn) {
-		if (kc)
+		if (kc) {
 			keyNode_addCredits_(kn, kc);
+			kc = NULL;
+		}
 
 		keyNode_schedLowerState(kn, keyNode_getMinMaxState(kn));
 

@@ -440,6 +440,14 @@ int32_t rx_frame_iterate(struct rx_frame_iterator *it)
 
 			return TLV_RX_DATA_PROCESSED;
 
+		} else if (it->db == packet_frame_db && it->f_handl->rx_minNeighCol && (!it->pb->i.claimedKey || it->pb->i.claimedKey->bookedState->i.c < it->f_handl->rx_minNeighCol)) {
+
+			dbgf_track(DBGT_INFO, "%s - Insufficient neigh (llip=%s id=%s state=%s < %s) credits for frame type=%s",
+				it->caller, it->pb->i.llip_str, cryptShaAsShortStr(&it->pb->p.hdr.keyHash), (it->pb->i.claimedKey ? it->pb->i.claimedKey->bookedState->secName : NULL),
+				keyMatrix[it->f_handl->rx_minNeighCol][0].setName , it->f_handl->name);
+
+			return TLV_RX_DATA_PROCESSED;
+
                 } else if (it->op >= TLV_OP_PLUGIN_MIN && it->op <= TLV_OP_PLUGIN_MAX) {
 
                         return TLV_RX_DATA_PROCESSED;

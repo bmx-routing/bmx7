@@ -48,6 +48,7 @@
 #include "iptools.h"
 #include "allocate.h"
 #include "prof.h"
+#include "key.h"
 
 #define CODE_CATEGORY_NAME "ogm"
 
@@ -735,6 +736,7 @@ int32_t init_ogm( void )
 	handl.tx_packet_prepare_casuals = revise_ogm_aggregations;
 	handl.tx_frame_handler = tx_frame_ogm_aggreg_sqn;
 	handl.rx_frame_handler = rx_frame_ogm_aggreg_sqn;
+	handl.rx_minNeighCol = KCNeighbor;
 	register_frame_handler(packet_frame_db, FRAME_TYPE_OGM_AGG_SQN_ADV, &handl);
 
 	handl.name = "OGMS_REQ";
@@ -752,6 +754,7 @@ int32_t init_ogm( void )
 	handl.fixed_msg_size = 0;
 	handl.tx_frame_handler = tx_frame_ogm_aggreg_advs;
 	handl.rx_frame_handler = rx_frame_ogm_aggreg_advs;
+	handl.rx_minNeighCol = KCNeighbor;
 	register_frame_handler(packet_frame_db, FRAME_TYPE_OGM_ADV, &handl);
 
 

@@ -881,6 +881,7 @@ void init_desc( void )
         handl.fixed_msg_size = 1;
         handl.tx_msg_handler = tx_msg_iid_adv;
         handl.rx_msg_handler = rx_msg_iid_adv;
+	handl.rx_minNeighCol = KCNeighbor;
         register_frame_handler(packet_frame_db, FRAME_TYPE_IID_ADV, &handl);
 
 

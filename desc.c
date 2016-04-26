@@ -620,6 +620,14 @@ int32_t rx_frame_description_adv(struct rx_frame_iterator *it)
 	if (!test_description_signature(it->f_data, it->f_dlen))
 		goto_error(finish, TLV_RX_DATA_FAILURE);
 
+	if ((kn->on && (((struct dsc_msg_version*) (contents_data(kn->on->dc, BMX_DSC_TLV_VERSION)))->bootSqn != versMsg->bootSqn)) ||
+		(kn->nextDesc && (((struct dsc_msg_version*) (contents_data(kn->nextDesc, BMX_DSC_TLV_VERSION)))->bootSqn != versMsg->bootSqn))) {
+
+		keyNode_schedLowerWeight(kn, KCListed);
+
+		goto_error(finish, it->f_dlen);
+	}
+
 	dc = descContent_create(it->f_data, it->f_dlen, kn);
 
         goto_error(finish, it->f_dlen);

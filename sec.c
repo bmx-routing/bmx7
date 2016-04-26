@@ -628,8 +628,9 @@ int32_t process_dsc_tlv_version(struct rx_frame_iterator *it)
 
 	struct dsc_msg_version *msg = ((struct dsc_msg_version*)it->f_data);
 
-	if (it->dcOld && msg->bootSqn != ((struct dsc_msg_version*) (contents_data(it->dcOld, BMX_DSC_TLV_VERSION)))->bootSqn)
-		return TLV_RX_DATA_REBOOTED;
+	// already tested during rx_frame_desc_adv:
+	assertion(-500000, IMPLIES(it->dcOld, msg->bootSqn == ((struct dsc_msg_version*) (contents_data(it->dcOld, BMX_DSC_TLV_VERSION)))->bootSqn));
+
 
 	if (it->dcOld && ntohl(msg->descSqn) <= it->dcOld->descSqn)
 		return TLV_RX_DATA_FAILURE;

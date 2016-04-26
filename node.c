@@ -333,8 +333,8 @@ struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn
 				dbgf_mute(70, DBGL_SYS, DBGT_WARN, "OGM SQN or metric attack on myself, rcvd via neigh=%s, rcvdSqn=%d sendSqn=%d rcvdMetric=%ju sendMetric=%ju",
 					cryptShaAsShortStr(&nn->local_id), ref->ogmSqnMax, dc->ogmSqnMaxSend, fmetric_to_umetric(ref->ogmSqnMaxClaimedMetric), myKey->on->neighPath.um);
 
+				nn->on->kn->descSqnMin++;
 				keyNode_schedLowerWeight(nn->on->kn, KCListed);
-				kn->descSqnMin++;
 				ref = NULL;
 				nn = NULL;
 				dc = NULL;

@@ -253,8 +253,8 @@ typedef struct {
 struct neigh_node {
 	GLOBAL_ID_T local_id;
 	struct avl_tree linkDev_tree;
-	LinkNode *best_rp_link;
-	LinkNode *best_tp_link;
+	LinkNode *best_rq_link;
+	LinkNode *best_tq_link;
 
 	BURST_SQN_T burstSqn;
 

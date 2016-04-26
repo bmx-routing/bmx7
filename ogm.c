@@ -376,7 +376,7 @@ void schedule_ogm_req(void)
 
 	while ((nn = avl_next_item(&local_tree, nn ? &nn->local_id : NULL))) {
 
-		if (/*nn->orig_routes &&*/ nn->best_tp_link && (nn->ogm_aggreg_time || nn->ogm_aggreg_max)) { //ever updated:
+		if (/*nn->orig_routes &&*/ nn->best_tq_link && (nn->ogm_aggreg_time || nn->ogm_aggreg_max)) { //ever updated:
 
 			AGGREG_SQN_T cnt = 0;
 
@@ -385,7 +385,7 @@ void schedule_ogm_req(void)
 				AGGREG_SQN_T sqn = (nn->ogm_aggreg_max - cnt);
 
 				if (!bit_get(nn->ogm_aggreg_sqns, AGGREG_SQN_CACHE_RANGE, sqn)) {
-					struct dev_node *dev = nn->best_tp_link->k.myDev;
+					struct dev_node *dev = nn->best_tq_link->k.myDev;
 					schedule_tx_task(FRAME_TYPE_OGM_REQ, NULL, &nn->local_id, nn, dev, SCHEDULE_MIN_MSG_SIZE, &sqn, sizeof(sqn));
 				}
 			}
@@ -439,7 +439,7 @@ int32_t rx_msg_ogm_aggreg_request(struct rx_frame_iterator *it)
 		struct neigh_node *nn = it->pb->i.verifiedLink->k.linkDev->key.local;
 		struct OgmAggreg_node *oan = getOgmAggregNode(sqn);
 
-		schedule_tx_task(FRAME_TYPE_OGM_ADV, NULL, NULL, NULL, nn->best_tp_link->k.myDev, oan->msgsLen, &sqn, sizeof(sqn));
+		schedule_tx_task(FRAME_TYPE_OGM_ADV, NULL, NULL, NULL, nn->best_tq_link->k.myDev, oan->msgsLen, &sqn, sizeof(sqn));
 
 		dbgf_track(DBGT_INFO, "sqn=%d ogms=%d size=%d", sqn, oan->tree.items, oan->msgsLen);
 	}

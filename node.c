@@ -153,13 +153,13 @@ struct NeighRef_node *neighRef_resolve_or_destroy(struct NeighRef_node *ref, IDM
 
 		if (!kn || (ref->inaptChainOgm && !ref->inaptChainOgm->claimedChain)) {
 
-			schedule_tx_task(FRAME_TYPE_IID_REQ, NULL, &nn->local_id, nn, nn->best_tp_link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &iid, sizeof(iid));
+			schedule_tx_task(FRAME_TYPE_IID_REQ, NULL, &nn->local_id, nn, nn->best_tq_link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &iid, sizeof(iid));
 
 		} else if (kn->bookedState->i.c >= KCTracked && kn->content->f_body && ref->inaptChainOgm && ref->inaptChainOgm->claimedChain &&
 			(ref->descSqn > (kn->nextDesc ? kn->nextDesc->descSqn : 0)) && (ref->descSqn > (kn->on ? kn->on->dc->descSqn : 0))) {
 
 			struct schedule_dsc_req req = {.iid = iid, .descSqn = ref->descSqn};
-			schedule_tx_task(FRAME_TYPE_DESC_REQ, NULL, &nn->local_id, nn, nn->best_tp_link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &req, sizeof(req));
+			schedule_tx_task(FRAME_TYPE_DESC_REQ, NULL, &nn->local_id, nn, nn->best_tq_link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &req, sizeof(req));
 
 		} else if (kn->bookedState->i.c >= KCTracked) {
 
@@ -463,8 +463,8 @@ void neigh_destroy(struct neigh_node *local)
 
 	assertion(-502639, (!local->linkDev_tree.items));
 	assertion(-502640, (!local->orig_routes));
-	assertion(-502465, (!local->best_rp_link));
-	assertion(-502466, (!local->best_tp_link));
+	assertion(-502465, (!local->best_rq_link));
+	assertion(-502466, (!local->best_tq_link));
 
 
 	IID_T iid;

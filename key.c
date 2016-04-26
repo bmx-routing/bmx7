@@ -403,9 +403,9 @@ int16_t kPref_neighbor_metric(struct key_node *kn)
 {
 //	IDM_T TODO_returnTrustedRoutesToFriendsAndRecommendeds;
 
-	if (kn->on && kn->on->neigh && kn->on->neigh->best_tp_link) {
+	if (kn->on && kn->on->neigh && kn->on->neigh->best_tq_link) {
 
-		return ((!!kn->on->neigh->best_tp_link->timeaware_tq_probe)
+		return ((!!kn->on->neigh->best_tq_link->timeaware_tq_probe)
 //		* kn->currOrig->neigh->orig_routes
 		);
 	}

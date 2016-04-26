@@ -110,8 +110,8 @@ IDM_T process_description_tlvs(struct packet_buff *pb, struct orig_node *on, str
 
                 assertion(-501355, (op == TLV_OP_TEST));
 
-                dbgf_sys(DBGT_WARN, "problematic description_ltv from %s, near type=%d=%s frame_data_length=%d  pos=%d %s %s",
-                        pb ? pb->i.llip_str : DBG_NIL,
+                dbgf_sys(DBGT_WARN, "problematic description_ltv via %s from id=%s near type=%d=%s frame_data_length=%d  pos=%d %s %s",
+                        pb ? pb->i.llip_str : DBG_NIL, nodeIdAsStringFromDescAdv(dcOp->desc_frame),
 			it.f_type, (((uint8_t)it.f_type) <= description_tlv_db->handl_max) ? description_tlv_db->handls[it.f_type].name : "",
                         it.f_dlen, it._f_pos_next, blocked ? "BLOCKED" : "", tlv_rx_result_str(result));
 
@@ -662,7 +662,9 @@ int32_t tx_msg_iid_request(struct tx_frame_iterator *it)
 		ret = sizeof(struct msg_iid_request);
 	}
 
-	dbgf_track(DBGT_INFO, "iid=%d ref=%d nodeId=%s send=%d", *iid, !!ref, cryptShaAsShortStr(ref && ref->kn ? &ref->kn->kHash : NULL), ret);
+	dbgf_track(DBGT_INFO, "iid=%d ref=%d nodeId=%s to neighId=%s dev=%s send=%d",
+		*iid, !!ref, cryptShaAsShortStr(ref && ref->kn ? &ref->kn->kHash : NULL), cryptShaAsShortStr(&it->ttn->key.f.groupId), it->ttn->key.f.p.dev->label_cfg.str, ret);
+
 	return ret;
 }
 
@@ -683,7 +685,7 @@ int32_t rx_frame_iid_request(struct rx_frame_iterator *it)
 			IID_T iid = ntohs(msg->receiverIID4x);
 			if ((in = iid_get_node_by_myIID4x(iid))) {
 			
-				schedule_tx_task(FRAME_TYPE_IID_ADV, NULL, NULL, NULL, nn->best_tp_link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &iid, sizeof(iid));
+				schedule_tx_task(FRAME_TYPE_IID_ADV, NULL, NULL, NULL, nn->best_tq_link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &iid, sizeof(iid));
 
 				dbgf_track(DBGT_INFO, "neigh=%s iid=%d", nn->on->k.hostname, iid);
 			}

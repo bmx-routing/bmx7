@@ -138,11 +138,11 @@ void lndev_assign_best(struct neigh_node *onlyLocal, LinkNode *onlyLink )
 		LinkDevNode *linkDev = NULL;
                 struct avl_node *link_an = NULL;
 
-                if (local->best_rp_link)
-                        upd_timeaware_rx_probe(local->best_rp_link);
+                if (local->best_rq_link)
+                        upd_timeaware_rx_probe(local->best_rq_link);
 
-                if (local->best_tp_link)
-                        upd_timeaware_tx_probe(local->best_tp_link);
+                if (local->best_tq_link)
+                        upd_timeaware_tx_probe(local->best_tq_link);
 
 
                 dbgf_all(DBGT_INFO, "local_id=%s", cryptShaAsString(&local->local_id));
@@ -158,18 +158,18 @@ void lndev_assign_best(struct neigh_node *onlyLocal, LinkNode *onlyLink )
                                 dbgf_all(DBGT_INFO, "lndev=%s items=%d",
                                         currLink->k.myDev->label_cfg.str, linkDev->link_tree.items);
 
-				if (local->best_rp_link != currLink) {
+				if (local->best_rq_link != currLink) {
 					upd_timeaware_rx_probe(currLink);
 
-					if (!local->best_rp_link || local->best_rp_link->timeaware_rq_probe < currLink->timeaware_rq_probe)
-						local->best_rp_link = currLink;
+					if (!local->best_rq_link || local->best_rq_link->timeaware_rq_probe < currLink->timeaware_rq_probe)
+						local->best_rq_link = currLink;
 				}
 
-				if (local->best_tp_link != currLink) {
+				if (local->best_tq_link != currLink) {
 					upd_timeaware_tx_probe(currLink);
 
-					if (!local->best_tp_link || local->best_tp_link->timeaware_tq_probe < currLink->timeaware_tq_probe)
-						local->best_tp_link = currLink;
+					if (!local->best_tq_link || local->best_tq_link->timeaware_tq_probe < currLink->timeaware_tq_probe)
+						local->best_tq_link = currLink;
 				}
 
                                 if (onlyLink)
@@ -184,8 +184,8 @@ void lndev_assign_best(struct neigh_node *onlyLocal, LinkNode *onlyLink )
 //		assertion(-500406, (local->best_rp_link));
 //		assertion(-501086, (local->best_tp_link));
 
-                if (!local->best_tp_link || local->best_tp_link->timeaware_tq_probe == 0)
-                        local->best_tp_link = local->best_rp_link;
+                if (!local->best_tq_link || local->best_tq_link->timeaware_tq_probe == 0)
+                        local->best_tq_link = local->best_rq_link;
 
                 if(onlyLocal)
                         break;
@@ -233,11 +233,11 @@ void purge_linkDevs(LinkDevKey *onlyLinkDev, struct dev_node *only_dev, IDM_T pu
 
 				purge_tx_task_tree(link, NULL, NULL, NULL, YES);
 
-				if (link == local->best_rp_link)
-					local->best_rp_link = NULL;
+				if (link == local->best_rq_link)
+					local->best_rq_link = NULL;
 
-				if (link == local->best_tp_link)
-					local->best_tp_link = NULL;
+				if (link == local->best_tq_link)
+					local->best_tq_link = NULL;
 
 				avl_remove(&link_tree, &link->k, -300221);
 				avl_remove(&linkDev->link_tree, &link->k, -300749);
@@ -258,8 +258,8 @@ void purge_linkDevs(LinkDevKey *onlyLinkDev, struct dev_node *only_dev, IDM_T pu
 			avl_remove(&link_dev_tree, &linkDev->key, -300193);
 			avl_remove(&local->linkDev_tree, &linkDev->key.devIdx, -300330);
 
-			assertion(-502423, IMPLIES(!local->linkDev_tree.items, !local->best_rp_link));
-			assertion(-502424, IMPLIES(!local->linkDev_tree.items, !local->best_tp_link));
+			assertion(-502423, IMPLIES(!local->linkDev_tree.items, !local->best_rq_link));
+			assertion(-502424, IMPLIES(!local->linkDev_tree.items, !local->best_tq_link));
 
 			debugFree(linkDev, -300045);
 
@@ -776,9 +776,9 @@ static int32_t link_status_creator(struct status_handl *handl, void *data)
 				status[i].idx = link->k.myDev->llipKey.devIdx;
 				status[i].localIp = link->k.myDev->llipKey.llip;
 				status[i].rq = ((link->timeaware_rq_probe * 100) / LQ_MAX);
-				status[i].bestRq = (link == local->best_rp_link);
+				status[i].bestRq = (link == local->best_rq_link);
 				status[i].tq = ((link->timeaware_tq_probe * 100) / LQ_MAX);
-				status[i].bestTq = (link == local->best_tp_link);
+				status[i].bestTq = (link == local->best_tq_link);
 				status[i].txRate = link->timeaware_tp_probe ? link->timeaware_tp_probe : ((link->timeaware_tq_probe * link->k.myDev->umetric_max) / LQ_MAX);
 				status[i].rxRate = ((link->timeaware_rq_probe * link->k.myDev->umetric_max) / LQ_MAX);
 				status[i].routes = link->orig_routes;

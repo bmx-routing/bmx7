@@ -838,6 +838,8 @@ struct orig_status {
 	CRYPTSHA1_T *dHash;
 	IID_T myIid;
 	DESC_SQN_T descSqn;
+	DESC_SQN_T descSqnMin;
+	DESC_SQN_T descSqnNext;
 	uint32_t lastDesc;
 	char descSize[20];
 	char contents[12]; //contentRefs
@@ -880,6 +882,8 @@ static const struct field_format orig_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_SHORT_ID,  orig_status, shortDHash,    1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, orig_status, dHash,         1, FIELD_RELEVANCE_LOW),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, descSqn,       1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, descSqnMin,    1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, descSqnNext,   1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, lastDesc,      1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       orig_status, descSize,      1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       orig_status, contents,      1, FIELD_RELEVANCE_MEDI),
@@ -931,6 +935,8 @@ uint8_t *key_status_page(uint8_t *sOut, uint32_t i, struct orig_node *on, struct
 		os->trustees = kn->trustees_tree.items;
 		os->S[0] = (S = supportedKnownKey(&kn->kHash)) == -1 ? 'A' : (S + '0');
 		os->T[0] = (T = setted_pubkey(myKey->on->dc, BMX_DSC_TLV_TRUSTS, &kn->kHash, 0)) == -1 ? 'A' : (T + '0');
+		os->descSqnMin = kn->descSqnMin;
+		os->descSqnNext = kn->nextDesc ? kn->nextDesc->descSqn : 0;
 		os->nodeKey = (kn->content && (kn->content->f_body_len >= sizeof(struct dsc_msg_pubkey))) ?
 			cryptKeyTypeAsString(((struct dsc_msg_pubkey*) kn->content->f_body)->type) : DBG_NIL;
 	} else {

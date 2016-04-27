@@ -68,6 +68,88 @@
 int32_t linkProbeInterval = DEF_LINK_PROBE_IVAL;
 int32_t linkProbeSize = DEF_LINK_PROBE_SIZE;
 
+void get_link_rate(LinkNode *link, struct ctrl_node *cn)
+{
+	IFNAME_T ifname;
+	strcpy(ifname.str, link->k.myDev->name_phy_cfg.str);
+	char *dot_ptr;
+	// if given interface is a vlan then truncate to physical interface name:
+	if ((dot_ptr = strchr(ifname.str, '.')) != NULL)
+		*dot_ptr = '\0';
+
+	const struct iwinfo_ops *iw;
+
+	if ((iw = iwinfo_backend(ifname.str))) {
+
+		int i, len;
+		char buf[IWINFO_BUFSIZE];
+		struct iwinfo_assoclist_entry *e;
+
+		if ((iw->assoclist(ifname.str, buf, &len))==0 && len > 0 ) {
+
+			MAC_T *mac = ip6Eui64ToMac(&link->k.linkDev->key.llocal_ip, NULL);
+
+			for (i = 0; i < len; i += sizeof(struct iwinfo_assoclist_entry)) {
+				e = (struct iwinfo_assoclist_entry *) &buf[i];
+
+				if (memcmp(e->mac, mac, sizeof(MAC_T))==0) {
+
+					dbgf_cn(cn, DBGL_CHANGES, DBGT_INFO,
+						"mac=%s signal=%d noise=%d snr=%d age=%d rxRate=%d rxCnt=%d txRate=%d txCount=%d",
+						memAsHexStringSep(mac,6,1,":"),
+						e->signal, e->noise, (e->signal - e->noise), e->inactive,
+						e->rx_rate.rate, e->rx_rate.is_short_gi ,e->rx_packets,
+						e->tx_rate.rate, e->tx_packets);
+
+					if (link->linkStats.txPackets != e->tx_packets) {
+
+						link->linkStats.txRate = e->tx_rate.rate * 1000;
+						link->linkStats.txPackets = e->tx_packets;
+						link->linkStats.tx40mhz = e->tx_rate.is_40mhz;
+						link->linkStats.txHt = e->tx_rate.is_ht;
+						link->linkStats.txMcs = e->tx_rate.mcs;
+						link->linkStats.txMhz = e->tx_rate.mhz;
+						link->linkStats.txNss = e->tx_rate.nss;
+						link->linkStats.txShortGi = e->tx_rate.is_short_gi;
+						link->linkStats.txVht = e->tx_rate.is_vht;
+
+						link->linkStats.rxRate = e->rx_rate.rate * 1000;
+						link->linkStats.rxPackets = e->rx_packets;
+						link->linkStats.rx40mhz = e->rx_rate.is_40mhz;
+						link->linkStats.rxHt = e->rx_rate.is_ht;
+						link->linkStats.rxMcs = e->rx_rate.mcs;
+						link->linkStats.rxMhz = e->rx_rate.mhz;
+						link->linkStats.rxNss = e->rx_rate.nss;
+						link->linkStats.rxShortGi = e->rx_rate.is_short_gi;
+						link->linkStats.rxVht = e->rx_rate.is_vht;
+
+						link->linkStats.signal = e->signal;
+						link->linkStats.noise = e->noise;
+
+
+						link->linkStats.updated = bmx_time;
+
+					} else if (((TIME_T) (bmx_time - link->linkStats.txTriggered)) >= (TIME_T) linkProbeInterval &&
+						((TIME_T) (bmx_time - link->linkStats.updated)) >= (TIME_T) linkProbeInterval) {
+
+						link->linkStats.txTriggered = bmx_time;
+
+						schedule_tx_task(FRAME_TYPE_TRASH_ADV, link, &link->k.linkDev->key.local->local_id, link->k.linkDev->key.local, link->k.myDev,
+							linkProbeSize, &linkProbeSize, sizeof(linkProbeSize));
+
+					}
+
+					break;
+				}
+			}
+		}
+
+
+	}
+
+	iwinfo_finish();
+}
+
 uint16_t iwi_get_channel(struct dev_node *dev)
 {
 	uint16_t channel = TYP_DEV_CHANNEL_SHARED;
@@ -105,20 +187,21 @@ void init_iwinfo_handler(int32_t cb_id, void* devp)
 
 		if (dev->active) {
 			
-			if (!dev->upd_link_capacity) {
+			if (!dev->upd_link_capacity)
+				dev->upd_link_capacity = get_link_rate;
 
-			}
 
-			if (!dev->get_iw_channel) {
-
+			if (!dev->get_iw_channel)
 				dev->get_iw_channel = iwi_get_channel;
 
-			}
 
 		} else {
 
 			if (dev->get_iw_channel == iwi_get_channel)
 				dev->get_iw_channel = NULL;
+
+			if (dev->upd_link_capacity == get_link_rate)
+				dev->upd_link_capacity = NULL;
 		}
 //	}
 }

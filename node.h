@@ -252,15 +252,15 @@ struct LinkStats {
 	uint8_t rxMhz;
 	uint8_t rxNss;
 
-	int txShortGi : 1;
-	int tx40mhz : 1;
-	int txHt : 1;
-	int txVht : 1;
+	unsigned int txShortGi : 1;
+	unsigned int tx40mhz : 1;
+	unsigned int txHt : 1;
+	unsigned int txVht : 1;
 
-	int rxShortGi : 1;
-	int rx40mhz : 1;
-	int rxHt : 1;
-	int rxVht : 1;
+	unsigned int rxShortGi : 1;
+	unsigned int rx40mhz : 1;
+	unsigned int rxHt : 1;
+	unsigned int rxVht : 1;
 };
 
 typedef struct {

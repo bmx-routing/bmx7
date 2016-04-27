@@ -266,12 +266,11 @@ IDM_T get_if_req(IFNAME_T *dev_name, struct ifreq *if_req, int siocgi_req)
 
 #ifdef BMX7_LIB_IW
 STATIC_FUNC
-uint16_t get_iwlib_channel(IFNAME_T *dev_name)
+uint16_t get_iwlib_channel(struct dev_node *dev)
 {
 	IFNAME_T ifname = ZERO_IFNAME;
-	strncpy(ifname.str, dev_name->str, IFNAMSIZ - 1);
+	strncpy(ifname.str, dev->name_phy_cfg.str, IFNAMSIZ - 1);
 	char *dot_ptr;
-
 	// if given interface is a vlan then truncate to physical interface name:
 	if ((dot_ptr = strchr(ifname.str, '.')) != NULL)
 		*dot_ptr = '\0';
@@ -2018,10 +2017,11 @@ void dev_reconfigure_soft(struct dev_node *dev)
                 if (dev->linklayer == TYP_DEV_LL_WIFI) {
 
 #ifdef BMX7_LIB_IW
-			dev->get_iw_channel = get_iwlib_channel;
+			if (!dev->get_iw_channel)
+				dev->get_iw_channel = get_iwlib_channel;
 #endif
 
-			if (!(dev->get_iw_channel) ||  !(dev->channel = (*(dev->get_iw_channel))(&dev->name_phy_cfg)))
+			if (!(dev->get_iw_channel) ||  !(dev->channel = (*(dev->get_iw_channel))(dev)))
 				dev->channel = TYP_DEV_CHANNEL_SHARED;
 
                 } else if (dev->linklayer == TYP_DEV_LL_LAN) {

@@ -114,18 +114,18 @@ void upd_ath_capacity(LinkNode *link, struct ctrl_node *cn)
 
 							UMETRIC_T tptib = ((UMETRIC_T) (1000 * 1000 * tptfM));
 
-								dbgf_cn(cn, DBGL_CHANGES, DBGT_INFO, "above tx=%u prevTx=%u tptfM=%f tptib=%ju\n", okTx, link->macTxPackets, tptfM, tptib);
+								dbgf_cn(cn, DBGL_CHANGES, DBGT_INFO, "above tx=%u prevTx=%u tptfM=%f tptib=%ju\n", okTx, link->linkStats.txPackets, tptfM, tptib);
 
-							if (link->macTxPackets != okTx) {
+							if (link->linkStats.txPackets != okTx) {
 
-								link->macTxTP = tptib;
-								link->macTxPackets = okTx;
-								link->macUpdated = bmx_time;
+								link->linkStats.txRate = tptib;
+								link->linkStats.txPackets = okTx;
+								link->linkStats.updated = bmx_time;
 
-							} else if (((TIME_T) (bmx_time - link->macTxTriggered)) >= (TIME_T) linkProbeInterval &&
-								((TIME_T) (bmx_time - link->macUpdated)) >= (TIME_T) linkProbeInterval) {
+							} else if (((TIME_T) (bmx_time - link->linkStats.txTriggered)) >= (TIME_T) linkProbeInterval &&
+								((TIME_T) (bmx_time - link->linkStats.updated)) >= (TIME_T) linkProbeInterval) {
 
-								link->macTxTriggered = bmx_time;
+								link->linkStats.txTriggered = bmx_time;
 
 								schedule_tx_task(FRAME_TYPE_TRASH_ADV, link, &link->k.linkDev->key.local->local_id, link->k.linkDev->key.local, link->k.myDev,
 									linkProbeSize, &linkProbeSize, sizeof(linkProbeSize));

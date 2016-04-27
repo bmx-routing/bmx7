@@ -55,6 +55,8 @@ enum KRows {
 	KRSize,
 };
 
+int16_t kPref_neighbor_metric(struct key_node *kn);
+
 extern struct KeyState keyMatrix[KCSize][KRSize];
 extern uint32_t key_tree_deletions_chk, key_tree_deletions_cntr;
 

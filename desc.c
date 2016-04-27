@@ -882,6 +882,8 @@ void init_desc( void )
 	handl.tx_task_interval_min = &resolveInterval;
         handl.tx_msg_handler = tx_msg_iid_request;
         handl.rx_frame_handler = rx_frame_iid_request;
+	handl.rx_minNeighCol = KCNeighbor;
+	handl.rx_minNeighCond = kPref_neighbor_metric;
         register_frame_handler(packet_frame_db, FRAME_TYPE_IID_REQ, &handl);
 
         handl.name = "IID_ADV";
@@ -890,6 +892,7 @@ void init_desc( void )
         handl.tx_msg_handler = tx_msg_iid_adv;
         handl.rx_msg_handler = rx_msg_iid_adv;
 	handl.rx_minNeighCol = KCNeighbor;
+	handl.rx_minNeighCond = kPref_neighbor_metric;
         register_frame_handler(packet_frame_db, FRAME_TYPE_IID_ADV, &handl);
 
 

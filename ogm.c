@@ -737,6 +737,7 @@ int32_t init_ogm( void )
 	handl.tx_frame_handler = tx_frame_ogm_aggreg_sqn;
 	handl.rx_frame_handler = rx_frame_ogm_aggreg_sqn;
 	handl.rx_minNeighCol = KCNeighbor;
+	handl.rx_minNeighCond = kPref_neighbor_metric;
 	register_frame_handler(packet_frame_db, FRAME_TYPE_OGM_AGG_SQN_ADV, &handl);
 
 	handl.name = "OGMS_REQ";
@@ -746,6 +747,8 @@ int32_t init_ogm( void )
 	handl.tx_packet_prepare_casuals = schedule_ogm_req;
 	handl.tx_msg_handler = tx_msg_ogm_aggreg_request;
 	handl.rx_msg_handler = rx_msg_ogm_aggreg_request;
+	handl.rx_minNeighCol = KCNeighbor;
+	handl.rx_minNeighCond = kPref_neighbor_metric;
 	register_frame_handler(packet_frame_db, FRAME_TYPE_OGM_REQ, &handl);
 
 	handl.name = "OGMS_DHASH_ADV";
@@ -755,6 +758,7 @@ int32_t init_ogm( void )
 	handl.tx_frame_handler = tx_frame_ogm_aggreg_advs;
 	handl.rx_frame_handler = rx_frame_ogm_aggreg_advs;
 	handl.rx_minNeighCol = KCNeighbor;
+	handl.rx_minNeighCond = kPref_neighbor_metric;
 	register_frame_handler(packet_frame_db, FRAME_TYPE_OGM_ADV, &handl);
 
 

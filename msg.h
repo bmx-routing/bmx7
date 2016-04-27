@@ -394,6 +394,7 @@ struct frame_handl {
 	int32_t *dextReferencing;
 	uint8_t rx_processUnVerifiedLink;
 	int8_t rx_minNeighCol;
+	int16_t(* rx_minNeighCond) (struct key_node *kn);
 	uint16_t data_header_size;
 	uint16_t min_msg_size;
 	uint16_t fixed_msg_size;

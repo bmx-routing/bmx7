@@ -381,11 +381,11 @@ char *field_dbg_value(const struct field_format *format, uint32_t min_msg_size, 
 
         uint8_t bytes = bits / 8;
 
-        if (field_type == FIELD_TYPE_UINT || field_type == FIELD_TYPE_HEX || field_type == FIELD_TYPE_STRING_SIZE) {
+	if (field_type == FIELD_TYPE_UINT || field_type == FIELD_TYPE_HEX || field_type == FIELD_TYPE_STRING_SIZE || (field_type == FIELD_TYPE_INT && bits != 8 && bits != 16 && bits != 32)) {
 
 		if (bits == 0) {
 
-			val = "";
+			val = DBG_NIL;
 
 		} else if (bits <= 32) {
 
@@ -405,6 +405,21 @@ char *field_dbg_value(const struct field_format *format, uint32_t min_msg_size, 
                 } else {
                         val = memAsHexString(p, bytes);
                 }
+
+        } else if (field_type == FIELD_TYPE_INT) {
+
+		static char int32_out[ 16 ] = {0};
+		val = int32_out;
+
+		if (bits == 8)
+			snprintf(int32_out, sizeof (int32_out), "%d", *((int8_t*) p));
+		else if (bits == 16)
+			snprintf(int32_out, sizeof (int32_out), "%d", *((int16_t*) p));
+		else if (bits == 32)
+			snprintf(int32_out, sizeof (int32_out), "%d", *((int32_t*) p));
+		else
+			val = DBG_NIL;
+
 
         } else if (field_type == FIELD_TYPE_IP4) {
 

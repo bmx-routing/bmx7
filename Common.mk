@@ -68,6 +68,7 @@ LDFLAGS += -g3
 
 LDFLAGS += $(shell echo "$(CFLAGS) $(EXTRA_CFLAGS)" | grep -q "DNO_DYN_PLUGIN" || echo "-Wl,-export-dynamic -ldl" )
 LDFLAGS += $(shell echo "$(CFLAGS) $(EXTRA_CFLAGS)" | grep -q "DPROFILING" && echo "-pg -lc" )
+LDFLAGS += $(shell echo "$(CFLAGS) $(EXTRA_CFLAGS)" | grep -q "DBMX7_LIB_IWINFO" && echo "-liwinfo" || echo "-liw" )
 
 LDFLAGS += -lz -lm -liw
 LDFLAGS += $(shell echo "$(CFLAGS) $(EXTRA_CFLAGS)" | grep -q "CYASSL" && echo "-lcyassl" || echo "-lpolarssl")

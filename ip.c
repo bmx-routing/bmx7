@@ -46,8 +46,11 @@
 #include <linux/if_tun.h> /* TUNSETPERSIST, ... */
 #include <linux/ip6_tunnel.h>
 
-
+#ifndef BMX7_LIB_IWINFO
+#define BMX7_LIB_IW
 #include <iwlib.h>
+#endif
+//#include <iwlib.h>
 // apt-get install libiw-dev
 //#include <math.h>
 //#include <linux/wireless.h>
@@ -261,9 +264,9 @@ IDM_T get_if_req(IFNAME_T *dev_name, struct ifreq *if_req, int siocgi_req)
 }
 
 
-
+#ifdef BMX7_LIB_IW
 STATIC_FUNC
-uint16_t get_iw_channel(IFNAME_T *dev_name)
+uint16_t get_iwlib_channel(IFNAME_T *dev_name)
 {
 	IFNAME_T ifname = ZERO_IFNAME;
 	strncpy(ifname.str, dev_name->str, IFNAMSIZ - 1);
@@ -293,7 +296,7 @@ uint16_t get_iw_channel(IFNAME_T *dev_name)
 
 	return 0;
 }
-
+#endif
 
 
 extern unsigned int if_nametoindex (const char *);
@@ -2014,7 +2017,11 @@ void dev_reconfigure_soft(struct dev_node *dev)
         } else {
                 if (dev->linklayer == TYP_DEV_LL_WIFI) {
 
-			if (!(dev->channel = get_iw_channel(&dev->name_phy_cfg)))
+#ifdef BMX7_LIB_IW
+			dev->get_iw_channel = get_iwlib_channel;
+#endif
+
+			if (!(dev->get_iw_channel) ||  !(dev->channel = (*(dev->get_iw_channel))(&dev->name_phy_cfg)))
 				dev->channel = TYP_DEV_CHANNEL_SHARED;
 
                 } else if (dev->linklayer == TYP_DEV_LL_LAN) {
@@ -3594,8 +3601,6 @@ static struct opt_type ip_options[]=
 
 
 };
-
-
 
 
 void init_ip(void)

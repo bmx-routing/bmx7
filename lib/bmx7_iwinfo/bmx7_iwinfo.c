@@ -106,22 +106,22 @@ void get_link_rate(LinkNode *link, struct ctrl_node *cn)
 						link->linkStats.txRate = e->tx_rate.rate * 1000;
 						link->linkStats.txPackets = e->tx_packets;
 						link->linkStats.tx40mhz = e->tx_rate.is_40mhz;
-						link->linkStats.txHt = e->tx_rate.is_ht;
+//						link->linkStats.txHt = e->tx_rate.is_ht;
 						link->linkStats.txMcs = e->tx_rate.mcs;
-						link->linkStats.txMhz = e->tx_rate.mhz;
-						link->linkStats.txNss = e->tx_rate.nss;
+//						link->linkStats.txMhz = e->tx_rate.mhz;
+//						link->linkStats.txNss = e->tx_rate.nss;
 						link->linkStats.txShortGi = e->tx_rate.is_short_gi;
-						link->linkStats.txVht = e->tx_rate.is_vht;
+//						link->linkStats.txVht = e->tx_rate.is_vht;
 
 						link->linkStats.rxRate = e->rx_rate.rate * 1000;
 						link->linkStats.rxPackets = e->rx_packets;
 						link->linkStats.rx40mhz = e->rx_rate.is_40mhz;
-						link->linkStats.rxHt = e->rx_rate.is_ht;
+//						link->linkStats.rxHt = e->rx_rate.is_ht;
 						link->linkStats.rxMcs = e->rx_rate.mcs;
-						link->linkStats.rxMhz = e->rx_rate.mhz;
-						link->linkStats.rxNss = e->rx_rate.nss;
+//						link->linkStats.rxMhz = e->rx_rate.mhz;
+//						link->linkStats.rxNss = e->rx_rate.nss;
 						link->linkStats.rxShortGi = e->rx_rate.is_short_gi;
-						link->linkStats.rxVht = e->rx_rate.is_vht;
+//						link->linkStats.rxVht = e->rx_rate.is_vht;
 
 						link->linkStats.signal = e->signal;
 						link->linkStats.noise = e->noise;

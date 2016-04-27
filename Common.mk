@@ -70,7 +70,7 @@ LDFLAGS += $(shell echo "$(CFLAGS) $(EXTRA_CFLAGS)" | grep -q "DNO_DYN_PLUGIN" |
 LDFLAGS += $(shell echo "$(CFLAGS) $(EXTRA_CFLAGS)" | grep -q "DPROFILING" && echo "-pg -lc" )
 LDFLAGS += $(shell echo "$(CFLAGS) $(EXTRA_CFLAGS)" | grep -q "DBMX7_LIB_IWINFO" && echo "-liwinfo" || echo "-liw" )
 
-LDFLAGS += -lz -lm -liw
+LDFLAGS += -lz -lm
 LDFLAGS += $(shell echo "$(CFLAGS) $(EXTRA_CFLAGS)" | grep -q "CYASSL" && echo "-lcyassl" || echo "-lpolarssl")
 
 SBINDIR = $(INSTALL_PREFIX)/usr/sbin

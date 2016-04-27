@@ -432,7 +432,7 @@ enum {
                               (8*sizeof(GLOBAL_ID_T*)),(8*sizeof(GLOBAL_ID_T*)),(8*sizeof(GLOBAL_ID_T)), \
                               (8*sizeof(UMETRIC_T)),(8*sizeof(UMETRIC_T*)),(8*sizeof(FMETRIC_U8_T)), \
                               (8*sizeof(IP4_T)), (8*sizeof(IPX_T)), (8*sizeof(IPX_T)), (8*sizeof(IP6_T)), \
-                              (8*sizeof(IP6_T*)), (8*sizeof(struct net_key*)), (8*sizeof(MAC_T))}
+                              (8*sizeof(IP6_T*)), (8*sizeof(struct net_key*)), (8*sizeof(MAC_T)), -1}
 // negative values mean size must be multiple of negativ value, positive values mean absolute bit sizes
 
 #define FIELD_FORMAT_MAX_ITEMS 100

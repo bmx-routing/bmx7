@@ -231,6 +231,38 @@ typedef struct {
 	struct dev_node *myDev;
 } __attribute__((packed)) LinkKey;
 
+struct LinkStats {
+	UMETRIC_T txRate;
+	uint32_t txPackets;
+
+	UMETRIC_T rxRate;
+	uint32_t rxPackets;
+
+	int8_t signal;
+	int8_t noise;
+
+	TIME_T updated;
+	TIME_T txTriggered;
+
+	int8_t txMcs;
+	uint8_t txMhz;
+	uint8_t txNss;
+
+	int8_t rxMcs;
+	uint8_t rxMhz;
+	uint8_t rxNss;
+
+	int txShortGi : 1;
+	int tx40mhz : 1;
+	int txHt : 1;
+	int txVht : 1;
+
+	int rxShortGi : 1;
+	int rx40mhz : 1;
+	int rxHt : 1;
+	int rxVht : 1;
+};
+
 typedef struct {
 	LinkKey k;
 
@@ -241,11 +273,7 @@ typedef struct {
 	LQ_T timeaware_rq_probe;
 	UMETRIC_T timeaware_tp_probe;
 
-	UMETRIC_T macTxTP;
-	uint32_t macTxPackets;
-	TIME_T macTxTriggered;
-	TIME_T macUpdated;
-
+	struct LinkStats linkStats;
 	int32_t orig_routes;
 
 } LinkNode;

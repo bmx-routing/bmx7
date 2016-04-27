@@ -85,13 +85,13 @@ void upd_timeaware_tx_probe(LinkNode *link)
 		(*(link->k.myDev->upd_link_capacity)) (link, NULL);
 
 
-		if (((TIME_T) (bmx_time - link->macUpdated)) < TP_ADV_DELAY_TOLERANCE) {
+		if (link->linkStats.updated && ((TIME_T) (bmx_time - link->linkStats.updated)) < TP_ADV_DELAY_TOLERANCE) {
 
-			link->timeaware_tp_probe = link->macTxTP;
+			link->timeaware_tp_probe = link->linkStats.txRate;
 
-		} else if (((TIME_T) (bmx_time - link->macUpdated)) < TP_ADV_DELAY_RANGE) {
+		} else if (link->linkStats.updated && ((TIME_T) (bmx_time - link->linkStats.updated)) < TP_ADV_DELAY_RANGE) {
 
-			link->timeaware_tp_probe = ((link->macTxTP * ((UMETRIC_T) (TP_ADV_DELAY_RANGE - (bmx_time - link->macUpdated)))) / TP_ADV_DELAY_RANGE);
+			link->timeaware_tp_probe = ((link->linkStats.txRate * ((UMETRIC_T) (TP_ADV_DELAY_RANGE - (bmx_time - link->linkStats.updated)))) / TP_ADV_DELAY_RANGE);
 
 		} else {
 
@@ -705,6 +705,31 @@ struct link_status {
 	uint8_t bestTq;
 	UMETRIC_T rxRate;
 	UMETRIC_T txRate;
+
+	// link stats:
+	TIME_T wUpdated;
+	TIME_T wTxTriggered;
+	int8_t wSignal;
+	int8_t wNoise;
+	UMETRIC_T wTxRate;
+	uint32_t wTxPackets;
+	int8_t wTxMcs;
+	uint8_t wTxMhz;
+	uint8_t wTxNss;
+	int8_t wTxShortGi;
+	int8_t wTx40mhz;
+	int8_t wTxHt;
+	int8_t wTxVht;
+	UMETRIC_T wRxRate;
+	uint32_t wRxPackets;
+	int8_t wRxMcs;
+	uint8_t wRxMhz;
+	uint8_t wRxNss;
+	int8_t wRxShortGi;
+	int8_t wRx40mhz;
+	int8_t wRxHt;
+	int8_t wRxVht;
+
 	uint16_t routes;
 	IID_T iidMax;
 	AGGREG_SQN_T aggSqnSize;
@@ -732,6 +757,30 @@ static const struct field_format link_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, bestTq,           1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           link_status, txRate,           1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           link_status, rxRate,           1, FIELD_RELEVANCE_HIGH),
+
+	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wUpdated,         1, FIELD_RELEVANCE_MEDI),
+	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wTxTriggered,     1, FIELD_RELEVANCE_MEDI),
+	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wSignal,          1, FIELD_RELEVANCE_MEDI),
+	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wNoise,           1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           link_status, wTxRate,          1, FIELD_RELEVANCE_MEDI),
+	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wTxPackets,       1, FIELD_RELEVANCE_MEDI),
+	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wTxMcs,           1, FIELD_RELEVANCE_MEDI),
+	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wTxMhz,           1, FIELD_RELEVANCE_MEDI),
+	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wTxNss,           1, FIELD_RELEVANCE_MEDI),
+	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wTxShortGi,       1, FIELD_RELEVANCE_MEDI),
+	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wTx40mhz,         1, FIELD_RELEVANCE_MEDI),
+	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wTxHt,            1, FIELD_RELEVANCE_MEDI),
+	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wTxVht,           1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           link_status, wRxRate,          1, FIELD_RELEVANCE_MEDI),
+	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wRxPackets,       1, FIELD_RELEVANCE_MEDI),
+	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wRxMcs,           1, FIELD_RELEVANCE_MEDI),
+	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wRxMhz,           1, FIELD_RELEVANCE_MEDI),
+	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wRxNss,           1, FIELD_RELEVANCE_MEDI),
+	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wRxShortGi,       1, FIELD_RELEVANCE_MEDI),
+	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wRx40mhz,         1, FIELD_RELEVANCE_MEDI),
+	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wRxHt,            1, FIELD_RELEVANCE_MEDI),
+	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wRxVht,           1, FIELD_RELEVANCE_MEDI),
+
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, routes,           1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, iidMax,           1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, aggSqnSize,       1, FIELD_RELEVANCE_MEDI),
@@ -741,7 +790,6 @@ static const struct field_format link_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, lastHelloAdv,     1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_END
 };
-
 
 static int32_t link_status_creator(struct status_handl *handl, void *data)
 {
@@ -781,6 +829,30 @@ static int32_t link_status_creator(struct status_handl *handl, void *data)
 				status[i].bestTq = (link == local->best_tq_link);
 				status[i].txRate = link->timeaware_tp_probe ? link->timeaware_tp_probe : ((link->timeaware_tq_probe * link->k.myDev->umetric_max) / LQ_MAX);
 				status[i].rxRate = ((link->timeaware_rq_probe * link->k.myDev->umetric_max) / LQ_MAX);
+
+				status[i].wUpdated = link->linkStats.updated;
+				status[i].wTxTriggered = link->linkStats.txTriggered;
+				status[i].wSignal = link->linkStats.signal;
+				status[i].wNoise = link->linkStats.noise;
+				status[i].wTxRate = link->linkStats.txRate;
+				status[i].wTxPackets = link->linkStats.txPackets;
+				status[i].wTxMcs = link->linkStats.txMcs;
+				status[i].wTxMhz = link->linkStats.txMhz;
+				status[i].wTxNss = link->linkStats.txNss;
+				status[i].wTxShortGi = link->linkStats.txShortGi;
+				status[i].wTx40mhz = link->linkStats.tx40mhz;
+				status[i].wTxHt = link->linkStats.txHt;
+				status[i].wTxVht = link->linkStats.txVht;
+				status[i].wRxRate = link->linkStats.rxRate;
+				status[i].wRxPackets = link->linkStats.rxPackets;
+				status[i].wRxMcs = link->linkStats.rxMcs;
+				status[i].wRxMhz = link->linkStats.rxMhz;
+				status[i].wRxNss = link->linkStats.rxNss;
+				status[i].wRxShortGi = link->linkStats.rxShortGi;
+				status[i].wRx40mhz = link->linkStats.rx40mhz;
+				status[i].wRxHt = link->linkStats.rxHt;
+				status[i].wRxVht = link->linkStats.rxVht;
+
 				status[i].routes = link->orig_routes;
 				status[i].iidMax = linkDev->key.local->neighIID4x_repos.max_free;
 				status[i].aggSqnSize = local->ogm_aggreg_size;

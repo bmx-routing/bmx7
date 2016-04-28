@@ -218,23 +218,23 @@ int32_t tx_frame_trash_adv(struct tx_frame_iterator *it)
 {
         TRACE_FUNCTION_CALL;
 
+	LinkNode *link = it->ttn->key.f.p.unicast;
 	struct tp_test_key *tk = (struct tp_test_key*) it->ttn->key.data;
 	static struct timeval tmp;
 	upd_time(&tmp);
 	TIME_T now = ( (tmp.tv_sec * 1000) + (tmp.tv_usec / 1000) );
 
-	dbgf_track(DBGT_INFO, "size=%d total=%d duration=%s endTime=%d iterations=%d dev=%s myIdx=%d src=%s unicast=%d, dst=%s nbIdx=%d neigh=%s neighId=%s",
+	dbgf_track(DBGT_INFO, "size=%d total=%d duration=%d endTime=%d   iterations=%d dev=%s myIdx=%d src=%s unicast=%d, dst=%s nbIdx=%d neigh=%s neighId=%s",
 		tk->packetSize, tk->totalSend, tk->duration, (tk->endTime ? (tk->endTime - now) : 0),
-		it->ttn->tx_iterations, it->ttn->key.f.p.dev->label_cfg.str, it->ttn->key.f.p.dev->llipKey.devIdx, it->ttn->key.f.p.dev->ip_llocal_str, !!it->ttn->key.f.p.unicast,
-		ip6AsStr(it->ttn->key.f.p.unicast ? &it->ttn->key.f.p.unicast->k.linkDev->key.llocal_ip : NULL),
-		(it->ttn->key.f.p.unicast ? it->ttn->key.f.p.unicast->k.linkDev->key.devIdx : -1),
-		(it->ttn->key.f.p.unicast ? &it->ttn->key.f.p.unicast->k.linkDev->key.local->on->k.hostname: NULL),
+		it->ttn->tx_iterations, it->ttn->key.f.p.dev->label_cfg.str, it->ttn->key.f.p.dev->llipKey.devIdx, it->ttn->key.f.p.dev->ip_llocal_str, !!link,
+		ip6AsStr(link ? &link->k.linkDev->key.llocal_ip : NULL),
+		(link ? link->k.linkDev->key.devIdx : -1),
+		(link ? &link->k.linkDev->key.local->on->k.hostname: NULL),
 		cryptShaAsString(&it->ttn->key.f.groupId));
 
-	if (tk->duration && ((tk->totalSend + tk->packetSize) <= (uint32_t)linkProbeTotal) && (!tk->endTime || (((TIME_T)(tk->endTime - now)) < tk->duration))) {
+	if (link && tk->duration && ((tk->totalSend + tk->packetSize) <= (uint32_t)linkProbeTotal) && (!tk->endTime || (((TIME_T)(tk->endTime - now)) < tk->duration))) {
 
 		struct tp_test_key TK = *tk;
-		LinkNode *link = it->ttn->key.f.p.unicast;
 
 		if (!TK.endTime)
 			TK.endTime = now + TK.duration;

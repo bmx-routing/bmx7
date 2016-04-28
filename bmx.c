@@ -420,6 +420,15 @@ char *field_dbg_value(const struct field_format *format, uint32_t min_msg_size, 
 		else
 			val = DBG_NIL;
 
+        } else if (field_type == FIELD_TYPE_FLOAT) {
+
+		static char float_out[ 32 ] = {0};
+		val = float_out;
+
+		if (bits == (8*sizeof(float)))
+			snprintf(float_out, sizeof (float_out), "%.2f", *((float*) p));
+		else
+			val = DBG_NIL;
 
         } else if (field_type == FIELD_TYPE_IP4) {
 

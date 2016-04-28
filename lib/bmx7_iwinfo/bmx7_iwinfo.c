@@ -127,12 +127,13 @@ void get_link_rate(LinkNode *link, struct ctrl_node *cn)
 						link->linkStats.noise = e->noise;
 
 
-						link->linkStats.updated = bmx_time;
+						link->linkStats.updatedTime = bmx_time;
 
-					} else if (((TIME_T) (bmx_time - link->linkStats.txTriggered)) >= (TIME_T) linkProbeInterval &&
-						((TIME_T) (bmx_time - link->linkStats.updated)) >= (TIME_T) linkProbeInterval) {
+					} else if (((TIME_T) (bmx_time - link->linkStats.txTriggTime)) >= (TIME_T) linkProbeInterval &&
+						((TIME_T) (bmx_time - link->linkStats.updatedTime)) >= (TIME_T) linkProbeInterval) {
 
-						link->linkStats.txTriggered = bmx_time;
+						link->linkStats.txTriggTime = bmx_time;
+
 
 						schedule_tx_task(FRAME_TYPE_TRASH_ADV, link, &link->k.linkDev->key.local->local_id, link->k.linkDev->key.local, link->k.myDev,
 							linkProbeSize, &linkProbeSize, sizeof(linkProbeSize));

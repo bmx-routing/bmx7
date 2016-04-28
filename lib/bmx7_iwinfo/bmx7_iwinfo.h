@@ -39,16 +39,23 @@
 #define MAX_LINK_PROBE_SIZE  1000
 #define DEF_LINK_PROBE_SIZE  100
 
-#define ARG_ATH_STATS "athStats"
+#define ARG_LINK_PROBE_DURATION "linkProbeDuration"
+#define HLP_LINK_PROBE_DURATION "set duration in ms for unicast link probing. Needed for accurate link capacity estimation"
+#define MIN_LINK_PROBE_DURATION 0
+#define MAX_LINK_PROBE_DURATION 1000
+#define DEF_LINK_PROBE_DURATION 0
 
-//// cd /sys/kernel/debug/ieee80211/phy0/netdev:wlan0/stations/14:cf:92:52:13:a6
-// while true; do clear; bmx7 -cd8; echo; iwinfo wlan0 assoclist; cat rc_stats; echo; cat rc_stats_csv ; sleep 1; done
+#define DEF_LINK_PROBE_TOTAL 1000
+#define MIN_LINK_PROBE_TOTAL 0
+#define MAX_LINK_PROBE_TOTAL 1000000
+#define ARG_LINK_PROBE_TOTAL "linkProbeTotal"
+#define HLP_LINK_PROBE_TOTAL "maximum total amount of data per link probe burst"
 
-struct ath_rc_stats {
-	uint32_t airtime;
-	uint32_t max_tp;
-	uint32_t avg_tp;
-	uint32_t tx_count;
-	TIME_T probe_time;
-	IFNAME_T phyName;
+
+
+struct tp_test_key {
+	uint32_t packetSize;
+	uint32_t totalSend;
+	TIME_T duration;
+	TIME_T endTime;
 };

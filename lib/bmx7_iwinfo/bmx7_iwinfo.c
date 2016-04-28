@@ -67,6 +67,8 @@
 
 int32_t linkProbeInterval = DEF_LINK_PROBE_IVAL;
 int32_t linkProbeSize = DEF_LINK_PROBE_SIZE;
+int32_t linkProbeDuration = DEF_LINK_PROBE_DURATION;
+int32_t linkProbeTotal = DEF_LINK_PROBE_TOTAL;
 
 void get_link_rate(LinkNode *link, struct ctrl_node *cn)
 {
@@ -135,9 +137,10 @@ void get_link_rate(LinkNode *link, struct ctrl_node *cn)
 						link->linkStats.txTriggTime = bmx_time;
 						link->linkStats.txTriggCnt++;
 
+						struct tp_test_key tk = {.duration = linkProbeDuration, .endTime = 0, .packetSize = linkProbeSize, .totalSend = 0};
 
 						schedule_tx_task(FRAME_TYPE_TRASH_ADV, link, &link->k.linkDev->key.local->local_id, link->k.linkDev->key.local, link->k.myDev,
-							linkProbeSize, &linkProbeSize, sizeof(linkProbeSize));
+							tk.packetSize, &tk, sizeof(tk));
 
 					}
 
@@ -209,43 +212,40 @@ void init_iwinfo_handler(int32_t cb_id, void* devp)
 }
 
 
-STATIC_FUNC
-int32_t opt_capacity(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
-{
-        TRACE_FUNCTION_CALL;
-
-	if ( cmd != OPT_APPLY )
-		return SUCCESS;
-
-	LinkNode *link;
-	struct avl_node *an = NULL;
-
-	while ((link = avl_iterate_item(&link_tree, &an))) {
-
-		if (link->k.myDev->upd_link_capacity)
-			(*(link->k.myDev->upd_link_capacity))(link, cn);
-		
-	}
-
-        return SUCCESS;
-}
 
 STATIC_FUNC
 int32_t tx_frame_trash_adv(struct tx_frame_iterator *it)
 {
         TRACE_FUNCTION_CALL;
 
-	uint32_t *trashSize = (uint32_t*) it->ttn->key.data;
+	struct tp_test_key *tk = (struct tp_test_key*) it->ttn->key.data;
+	static struct timeval tmp;
+	upd_time(&tmp);
+	TIME_T now = ( (tmp.tv_sec * 1000) + (tmp.tv_usec / 1000) );
 
-	dbgf_track(DBGT_INFO, "size=%d iterations=%d dev=%s myIdx=%d src=%s unicast=%d, dst=%s nbIdx=%d neigh=%s neighId=%s",
-		*trashSize, it->ttn->tx_iterations, it->ttn->key.f.p.dev->label_cfg.str, it->ttn->key.f.p.dev->llipKey.devIdx, it->ttn->key.f.p.dev->ip_llocal_str, !!it->ttn->key.f.p.unicast,
+	dbgf_track(DBGT_INFO, "size=%d total=%d duration=%s endTime=%d iterations=%d dev=%s myIdx=%d src=%s unicast=%d, dst=%s nbIdx=%d neigh=%s neighId=%s",
+		tk->packetSize, tk->totalSend, tk->duration, (tk->endTime ? (tk->endTime - now) : 0),
+		it->ttn->tx_iterations, it->ttn->key.f.p.dev->label_cfg.str, it->ttn->key.f.p.dev->llipKey.devIdx, it->ttn->key.f.p.dev->ip_llocal_str, !!it->ttn->key.f.p.unicast,
 		ip6AsStr(it->ttn->key.f.p.unicast ? &it->ttn->key.f.p.unicast->k.linkDev->key.llocal_ip : NULL),
 		(it->ttn->key.f.p.unicast ? it->ttn->key.f.p.unicast->k.linkDev->key.devIdx : -1),
 		(it->ttn->key.f.p.unicast ? &it->ttn->key.f.p.unicast->k.linkDev->key.local->on->k.hostname: NULL),
 		cryptShaAsString(&it->ttn->key.f.groupId));
 
-	cryptRand(tx_iterator_cache_msg_ptr(it), *trashSize);
-	return *trashSize;
+	if (tk->duration && ((tk->totalSend + tk->packetSize) <= (uint32_t)linkProbeTotal) && (!tk->endTime || (((TIME_T)(tk->endTime - now)) < tk->duration))) {
+
+		struct tp_test_key TK = *tk;
+		LinkNode *link = it->ttn->key.f.p.unicast;
+
+		if (!TK.endTime)
+			TK.endTime = now + TK.duration;
+
+		TK.totalSend += TK.packetSize;
+
+		schedule_tx_task(FRAME_TYPE_TRASH_ADV, link, &link->k.linkDev->key.local->local_id, link->k.linkDev->key.local, link->k.myDev, TK.packetSize, &TK, sizeof(TK) );
+	}
+
+	cryptRand(tx_iterator_cache_msg_ptr(it), tk->packetSize);
+	return tk->packetSize;
 }
 
 
@@ -266,8 +266,11 @@ static struct opt_type capacity_options[]= {
 			ARG_VALUE_FORM, HLP_LINK_PROBE_IVAL},
 	{ODI,0,ARG_LINK_PROBE_SIZE,     0,9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,&linkProbeSize,MIN_LINK_PROBE_SIZE,MAX_LINK_PROBE_SIZE, DEF_LINK_PROBE_SIZE,0,0,
 			ARG_VALUE_FORM, HLP_LINK_PROBE_SIZE},
-	{ODI,0,ARG_ATH_STATS,		0,9,2,A_PS0,A_USR,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_capacity,
-			0,		"show ath link statistics"},
+	{ODI,0,ARG_LINK_PROBE_DURATION, 0,9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,&linkProbeDuration,MIN_LINK_PROBE_DURATION,MAX_LINK_PROBE_DURATION, DEF_LINK_PROBE_DURATION,0,0,
+			ARG_VALUE_FORM, HLP_LINK_PROBE_DURATION},
+	{ODI,0,ARG_LINK_PROBE_TOTAL, 0,9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,&linkProbeTotal,MIN_LINK_PROBE_TOTAL,MAX_LINK_PROBE_TOTAL, DEF_LINK_PROBE_TOTAL,0,0,
+			ARG_VALUE_FORM, HLP_LINK_PROBE_TOTAL},
+
 
 };
 

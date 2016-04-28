@@ -133,6 +133,7 @@ void get_link_rate(LinkNode *link, struct ctrl_node *cn)
 						((TIME_T) (bmx_time - link->linkStats.updatedTime)) >= (TIME_T) linkProbeInterval) {
 
 						link->linkStats.txTriggTime = bmx_time;
+						link->linkStats.txTriggCnt++;
 
 
 						schedule_tx_task(FRAME_TYPE_TRASH_ADV, link, &link->k.linkDev->key.local->local_id, link->k.linkDev->key.local, link->k.myDev,

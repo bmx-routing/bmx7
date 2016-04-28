@@ -707,7 +707,7 @@ struct link_status {
 	UMETRIC_T txRate;
 
 	// link stats:
-	TIME_T wLastUpd;
+	float wLastUpd;
 
 	UMETRIC_T wRxRate;
 	uint32_t wRxCnt;
@@ -719,7 +719,7 @@ struct link_status {
 	int8_t wRxHt;
 	int8_t wRxVht;
 
-	TIME_T wTxLastProbe;
+	float wTxLastProbe;
 	TIME_T wTxProbes;
 	UMETRIC_T wTxRate;
 	uint32_t wTxCnt;
@@ -763,7 +763,7 @@ static const struct field_format link_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           link_status, rxRate,           1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           link_status, txRate,           1, FIELD_RELEVANCE_HIGH),
 
-	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wLastUpd,         1, FIELD_RELEVANCE_MEDI),
+	FIELD_FORMAT_INIT(FIELD_TYPE_FLOAT,             link_status, wLastUpd,         1, FIELD_RELEVANCE_MEDI),
 
         FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           link_status, wRxRate,          1, FIELD_RELEVANCE_MEDI),
 	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wRxCnt,           1, FIELD_RELEVANCE_MEDI),
@@ -775,7 +775,7 @@ static const struct field_format link_status_format[] = {
 	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wRxHt,            1, FIELD_RELEVANCE_LOW),
 	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wRxVht,           1, FIELD_RELEVANCE_LOW),
 
-	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wTxLastProbe,     1, FIELD_RELEVANCE_MEDI),
+	FIELD_FORMAT_INIT(FIELD_TYPE_FLOAT,             link_status, wTxLastProbe,     1, FIELD_RELEVANCE_MEDI),
 	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wTxProbes,        1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           link_status, wTxRate,          1, FIELD_RELEVANCE_HIGH),
 	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wTxCnt,           1, FIELD_RELEVANCE_MEDI),
@@ -840,8 +840,9 @@ static int32_t link_status_creator(struct status_handl *handl, void *data)
 				status[i].txRate = link->timeaware_txRate ? link->timeaware_txRate : ((link->timeaware_tq_probe * link->k.myDev->umetric_max) / LQ_MAX);
 				status[i].rxRate = ((link->timeaware_rq_probe * link->k.myDev->umetric_max) / LQ_MAX);
 
-				status[i].wLastUpd = (bmx_time - link->linkStats.updatedTime);
-				status[i].wTxLastProbe = (bmx_time - link->linkStats.txTriggTime);
+				status[i].wLastUpd = link->linkStats.updatedTime ? (((float)(bmx_time - link->linkStats.updatedTime))/1000) : -1;
+				status[i].wTxLastProbe = link->linkStats.txTriggTime ? (((float)(bmx_time - link->linkStats.txTriggTime))/1000) : -1;
+				status[i].wTxProbes = link->linkStats.txTriggCnt;
 				status[i].wSignal = link->linkStats.signal;
 				status[i].wNoise = link->linkStats.noise;
 				status[i].wSNR = link->linkStats.signal - link->linkStats.noise;

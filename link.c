@@ -87,7 +87,7 @@ void upd_timeaware_tx_probe(LinkNode *link)
 
 		if (link->linkStats.updatedTime && ((TIME_T) (bmx_time - link->linkStats.updatedTime)) < TP_ADV_DELAY_TOLERANCE) {
 
-			link->timeaware_txRate = link->linkStats.txRate;
+			link->timeaware_txRate = link->linkStats.txRateAvg;
 
 		} else if (link->linkStats.updatedTime && ((TIME_T) (bmx_time - link->linkStats.updatedTime)) < TP_ADV_DELAY_RANGE) {
 
@@ -590,8 +590,17 @@ void schedule_hello_adv(void)
 {
 	static TIME_T next = 0;
 
-	if (doNowOrLater(&next, txCasualInterval, 0))
+	if (doNowOrLater(&next, txCasualInterval, 0)) {
+
+		LinkNode *link;
+		struct avl_node *an = NULL;
+		while((link = avl_iterate_item(&link_tree, &an))){
+			upd_timeaware_rx_probe(link);
+			upd_timeaware_tx_probe(link);
+		}
+
 		schedule_tx_task(FRAME_TYPE_HELLO_ADV, NULL, NULL, NULL, NULL, SCHEDULE_MIN_MSG_SIZE, 0, 0);
+	}
 }
 
 STATIC_FUNC
@@ -722,6 +731,7 @@ struct link_status {
 	float wTxLastProbe;
 	TIME_T wTxProbes;
 	UMETRIC_T wTxRate;
+	UMETRIC_T wTxRateAvg;
 	uint32_t wTxCnt;
 	int8_t wTxMcs;
 	uint8_t wTxMhz;
@@ -778,6 +788,7 @@ static const struct field_format link_status_format[] = {
 	FIELD_FORMAT_INIT(FIELD_TYPE_FLOAT,             link_status, wTxLastProbe,     1, FIELD_RELEVANCE_MEDI),
 	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wTxProbes,        1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           link_status, wTxRate,          1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           link_status, wTxRateAvg,       1, FIELD_RELEVANCE_MEDI),
 	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wTxCnt,           1, FIELD_RELEVANCE_MEDI),
 	FIELD_FORMAT_INIT(FIELD_TYPE_INT,               link_status, wTxMcs,           1, FIELD_RELEVANCE_HIGH),
 	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wTxMhz,           1, FIELD_RELEVANCE_LOW),
@@ -847,6 +858,7 @@ static int32_t link_status_creator(struct status_handl *handl, void *data)
 				status[i].wNoise = link->linkStats.noise;
 				status[i].wSNR = link->linkStats.signal - link->linkStats.noise;
 				status[i].wTxRate = link->linkStats.txRate;
+				status[i].wTxRateAvg = link->linkStats.txRateAvg;
 				status[i].wTxCnt = link->linkStats.txPackets;
 				status[i].wTxMcs = link->linkStats.txMcs;
 				status[i].wTxMhz = link->linkStats.txMhz;

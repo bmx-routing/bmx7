@@ -233,6 +233,7 @@ typedef struct {
 
 struct LinkStats {
 	UMETRIC_T txRate;
+	UMETRIC_T txRateAvg;
 	uint32_t txPackets;
 
 	UMETRIC_T rxRate;

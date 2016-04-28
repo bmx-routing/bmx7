@@ -2149,7 +2149,6 @@ IDM_T dev_init_sockets(struct dev_node *dev)
         assertion(-500618, (dev->linklayer != TYP_DEV_LL_LO));
 
         int set_on = 1;
-        int sock_opts;
         int pf_domain = PF_INET6;
 
         if ((dev->unicast_sock = socket(pf_domain, SOCK_DGRAM, 0)) < 0) {
@@ -2181,8 +2180,8 @@ IDM_T dev_init_sockets(struct dev_node *dev)
         }
 
         // make udp send socket non blocking
-        sock_opts = fcntl(dev->unicast_sock, F_GETFL, 0);
-        fcntl(dev->unicast_sock, F_SETFL, sock_opts | O_NONBLOCK);
+ //       int sock_opts = fcntl(dev->unicast_sock, F_GETFL, 0);
+ //       fcntl(dev->unicast_sock, F_SETFL, sock_opts | O_NONBLOCK);
 
 #ifdef SO_TIMESTAMP
         if (setsockopt(dev->unicast_sock, SOL_SOCKET, SO_TIMESTAMP, &set_on, sizeof (set_on))) {

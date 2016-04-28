@@ -441,10 +441,16 @@ STATIC_FUNC
 void path_metricalgo_VectorBandwidth(struct NeighPath *np, struct NeighRef_node *ref, struct host_metricalgo *algo)
 {
         assertion(-501085, (np->um > UMETRIC_MIN__NOT_ROUTABLE));
-	UMETRIC_T tq = umetric_to_the_power_of_n((((UMETRIC_MAX)*((UMETRIC_T) np->link->timeaware_tq_probe)) / LQ_MAX), algo->algo_tp_exp_numerator, algo->algo_tp_exp_divisor);
-        UMETRIC_T rq = umetric_to_the_power_of_n((((UMETRIC_MAX)*((UMETRIC_T) np->link->timeaware_rq_probe)) / LQ_MAX), algo->algo_rp_exp_numerator, algo->algo_rp_exp_divisor);
-	UMETRIC_T lq = apply_lq_threshold_curve(umetric_multiply_normalized(tq, rq), algo);
-        UMETRIC_T linkBandwidth = umetric_multiply_normalized(np->link->k.myDev->umetric_max, lq);
+        UMETRIC_T linkTP;
+	
+	if (np->link->timeaware_txRate) {
+		linkTP = np->link->timeaware_txRate;
+	} else {
+		UMETRIC_T tq = umetric_to_the_power_of_n((((UMETRIC_MAX)*((UMETRIC_T) np->link->timeaware_tq_probe)) / LQ_MAX), algo->algo_tp_exp_numerator, algo->algo_tp_exp_divisor);
+		UMETRIC_T rq = umetric_to_the_power_of_n((((UMETRIC_MAX)*((UMETRIC_T) np->link->timeaware_rq_probe)) / LQ_MAX), algo->algo_rp_exp_numerator, algo->algo_rp_exp_divisor);
+		UMETRIC_T lq = apply_lq_threshold_curve(umetric_multiply_normalized(tq, rq), algo);
+		linkTP = umetric_multiply_normalized(np->link->k.myDev->umetric_max, lq);
+	}
 
         UMETRIC_T inverseSquaredPathBandwidth = 0;
         UMETRIC_T inverseSquaredLinkQuality = 0;
@@ -452,22 +458,20 @@ void path_metricalgo_VectorBandwidth(struct NeighPath *np, struct NeighRef_node 
         UMETRIC_T path_out = UMETRIC_MIN__NOT_ROUTABLE;
 
         
-        UMETRIC_T maxPrecisionScaler = XMIN(np->um, linkBandwidth) * U64_MAX_HALF_SQRT;
+        UMETRIC_T maxPrecisionScaler = XMIN(np->um, linkTP) * U64_MAX_HALF_SQRT;
 
 
-        if (linkBandwidth > UMETRIC_MIN__NOT_ROUTABLE) {
+        if (linkTP > UMETRIC_MIN__NOT_ROUTABLE) {
 
                 inverseSquaredPathBandwidth = ((maxPrecisionScaler / np->um) * (maxPrecisionScaler / np->um));
-                inverseSquaredLinkQuality = ((maxPrecisionScaler / linkBandwidth) * (maxPrecisionScaler / linkBandwidth));
+                inverseSquaredLinkQuality = ((maxPrecisionScaler / linkTP) * (maxPrecisionScaler / linkTP));
 
                 rootOfSum = umetric_fast_sqrt(inverseSquaredPathBandwidth + inverseSquaredLinkQuality);
                 path_out = maxPrecisionScaler / rootOfSum;
         }
 
-        dbgf_all( DBGT_INFO,
-                "pb=%-12ju max_extension=%-19ju (me/pb)^2=%-19ju lp=%-12ju link=%-12ju lb=%-12ju (me/lb)^2=%-19ju ufs=%-12ju UMETRIC_MIN=%ju -> path_out=%ju",
-                np->um, maxPrecisionScaler, inverseSquaredPathBandwidth, lq, np->link->k.myDev->umetric_max,
-                linkBandwidth, inverseSquaredLinkQuality, rootOfSum, UMETRIC_MIN__NOT_ROUTABLE, path_out);
+        dbgf_all( DBGT_INFO, "in=%12ju scalar=%19ju invSquaredPath=%19ju linkTP=%19ju invSquaredLink=%12ju rootSum=%ju UMETRIC_MIN=%ju -> path_out=%ju",
+		np->um, maxPrecisionScaler, inverseSquaredPathBandwidth, linkTP, inverseSquaredLinkQuality, rootOfSum, UMETRIC_MIN__NOT_ROUTABLE, path_out);
         
        np->um = path_out;
 }
@@ -482,8 +486,8 @@ void path_metricalgo_Capacity(struct NeighPath *np, struct NeighRef_node *ref, s
 	UMETRIC_T subPathTime = 1;
 	uint16_t outHPos = 0, inHPos, inHMax = XMIN((ref->ogmSqnMaxPathMetricsByteSize / sizeof(struct msg_ogm_adv_metric_t0)), algo->ogm_hop_history);
 	
-	if (np->link->timeaware_tp_probe) {
-		linkTP = np->link->timeaware_tp_probe;
+	if (np->link->timeaware_txRate) {
+		linkTP = np->link->timeaware_txRate;
 	} else {
 		UMETRIC_T tq = umetric_to_the_power_of_n((((UMETRIC_MAX)*((UMETRIC_T) np->link->timeaware_tq_probe)) / LQ_MAX), algo->algo_tp_exp_numerator, algo->algo_tp_exp_divisor);
 		UMETRIC_T rq = umetric_to_the_power_of_n((((UMETRIC_MAX)*((UMETRIC_T) np->link->timeaware_rq_probe)) / LQ_MAX), algo->algo_rp_exp_numerator, algo->algo_rp_exp_divisor);

@@ -241,8 +241,9 @@ struct LinkStats {
 	int8_t signal;
 	int8_t noise;
 
-	TIME_T updated;
-	TIME_T txTriggered;
+	TIME_T updatedTime;
+	TIME_T txTriggTime;
+	uint32_t txTriggCnt;
 
 	int8_t txMcs;
 	uint8_t txMhz;
@@ -271,7 +272,7 @@ typedef struct {
 	LQ_T tq_probe;
 	LQ_T timeaware_tq_probe;
 	LQ_T timeaware_rq_probe;
-	UMETRIC_T timeaware_tp_probe;
+	UMETRIC_T timeaware_txRate;
 
 	struct LinkStats linkStats;
 	int32_t orig_routes;

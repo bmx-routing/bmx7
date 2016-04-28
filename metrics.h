@@ -91,6 +91,12 @@
 #define DEF_PATH_LQ_T1_R255  ((255*9)/10)
 #define ARG_PATH_LQ_T1_R255  "pathLq1Threshold"
 
+#define MIN_OGM_LINK_RATE_EFFICIENCY 1
+#define MAX_OGM_LINK_RATE_EFFICIENCY 255
+#define DEF_OGM_LINK_RATE_EFFICIENCY 50
+#define ARG_OGM_LINK_RATE_EFFICIENCY "linkRateEfficiency"
+#define HLP_OGM_LINK_RATE_EFFICIENCY "set to-be considered efficiency in percent of probed wireless layer-2 link rate regarding its expected user (e.g. TCP) throughput"
+
 
 
 #define MIN_OGM_METRIC_HYST_NEW_PATH 0
@@ -187,6 +193,7 @@ struct mandatory_tlv_metricalgo { // 16 bytes
 	uint8_t lq_tx_point_r255;
 	uint8_t lq_ty_point_r255;
 	uint8_t lq_t1_point_r255;
+	uint8_t ogm_link_rate_efficiency;
 	uint8_t hops_history;
 	uint8_t hops_max;
 	uint8_t hop_penalty; // 1 byte
@@ -216,6 +223,7 @@ struct description_tlv_metricalgo {
 {FIELD_TYPE_UINT, -1,  8,  1, FIELD_RELEVANCE_HIGH, ARG_PATH_LQ_TX_R255},  \
 {FIELD_TYPE_UINT, -1,  8,  1, FIELD_RELEVANCE_HIGH, ARG_PATH_LQ_TY_R255},  \
 {FIELD_TYPE_UINT, -1,  8,  1, FIELD_RELEVANCE_HIGH, ARG_PATH_LQ_T1_R255},  \
+{FIELD_TYPE_UINT, -1,  8,  1, FIELD_RELEVANCE_HIGH, ARG_OGM_LINK_RATE_EFFICIENCY},  \
 {FIELD_TYPE_UINT, -1,  8,  1, FIELD_RELEVANCE_HIGH, ARG_OGM_HOP_HISTORY},  \
 {FIELD_TYPE_UINT, -1,  8,  1, FIELD_RELEVANCE_HIGH, ARG_OGM_HOPS_MAX},  \
 {FIELD_TYPE_UINT, -1,  8,  1, FIELD_RELEVANCE_HIGH, ARG_OGM_HOP_PENALTY},  \

@@ -61,7 +61,7 @@ static int32_t my_path_tp_exp_divisor = DEF_PATH_TP_EXP_DIVISOR;
 static int32_t my_path_lq_tx_r255 = DEF_PATH_LQ_TX_R255;
 static int32_t my_path_lq_ty_r255 = DEF_PATH_LQ_TY_R255;
 static int32_t my_path_lq_t1_r255 = DEF_PATH_LQ_T1_R255;
-
+static int32_t my_ogm_link_rate_efficiency = DEF_OGM_LINK_RATE_EFFICIENCY;
 static int32_t my_path_metric_flags = DEF_PATH_METRIC_FLAGS;
 static int32_t my_path_umetric_min = DEF_PATH_UMETRIC_MIN;
 static int32_t my_ogm_metric_hyst_new_path = DEF_OGM_METRIC_HYST_NEW_PATH;
@@ -417,7 +417,7 @@ void path_metricalgo_MultiplyBandwidth(struct NeighPath *np, struct NeighRef_nod
         UMETRIC_T rq = umetric_to_the_power_of_n((((UMETRIC_MAX)*((UMETRIC_T) np->link->timeaware_rq_probe)) / LQ_MAX), algo->algo_rp_exp_numerator, algo->algo_rp_exp_divisor);
 	UMETRIC_T lq = apply_lq_threshold_curve(umetric_multiply_normalized(tq, rq), algo);
 
-        UMETRIC_T linkBandwidth = umetric_multiply_normalized(*lMax, lq);
+	UMETRIC_T linkBandwidth = ((umetric_multiply_normalized(*lMax, lq)* ((UMETRIC_T) (np->link->k.myDev->linklayer == TYP_DEV_LL_WIFI ? algo->ogm_link_rate_efficiency: 100))) / 100);
 
         np->um = umetric_multiply_normalized(np->um, linkBandwidth);
 }
@@ -429,7 +429,7 @@ void path_metricalgo_ExpectedBandwidth(struct NeighPath *np, struct NeighRef_nod
         UMETRIC_T rq = umetric_to_the_power_of_n((((UMETRIC_MAX)*((UMETRIC_T) np->link->timeaware_rq_probe)) / LQ_MAX), algo->algo_rp_exp_numerator, algo->algo_rp_exp_divisor);
 	UMETRIC_T lq = apply_lq_threshold_curve(umetric_multiply_normalized(tq, rq), algo);
 
-        UMETRIC_T linkBandwidth = umetric_multiply_normalized(np->link->k.myDev->umetric_max, lq);
+	UMETRIC_T linkBandwidth = ((umetric_multiply_normalized(np->link->k.myDev->umetric_max, lq)* ((UMETRIC_T) (np->link->k.myDev->linklayer == TYP_DEV_LL_WIFI ? algo->ogm_link_rate_efficiency: 100))) / 100);
 
         if (np->um < 2 || linkBandwidth < 2)
                 np->um = UMETRIC_MIN__NOT_ROUTABLE;
@@ -444,12 +444,12 @@ void path_metricalgo_VectorBandwidth(struct NeighPath *np, struct NeighRef_node 
         UMETRIC_T linkTP;
 	
 	if (np->link->timeaware_txRate) {
-		linkTP = np->link->timeaware_txRate;
+		linkTP = ((np->link->timeaware_txRate * ((UMETRIC_T) (np->link->k.myDev->linklayer == TYP_DEV_LL_WIFI ? algo->ogm_link_rate_efficiency: 100))) / 100);
 	} else {
 		UMETRIC_T tq = umetric_to_the_power_of_n((((UMETRIC_MAX)*((UMETRIC_T) np->link->timeaware_tq_probe)) / LQ_MAX), algo->algo_tp_exp_numerator, algo->algo_tp_exp_divisor);
 		UMETRIC_T rq = umetric_to_the_power_of_n((((UMETRIC_MAX)*((UMETRIC_T) np->link->timeaware_rq_probe)) / LQ_MAX), algo->algo_rp_exp_numerator, algo->algo_rp_exp_divisor);
 		UMETRIC_T lq = apply_lq_threshold_curve(umetric_multiply_normalized(tq, rq), algo);
-		linkTP = umetric_multiply_normalized(np->link->k.myDev->umetric_max, lq);
+		linkTP = ((umetric_multiply_normalized(np->link->k.myDev->umetric_max, lq)* ((UMETRIC_T) (np->link->k.myDev->linklayer == TYP_DEV_LL_WIFI ? algo->ogm_link_rate_efficiency: 100))) / 100);
 	}
 
         UMETRIC_T inverseSquaredPathBandwidth = 0;
@@ -487,12 +487,12 @@ void path_metricalgo_Capacity(struct NeighPath *np, struct NeighRef_node *ref, s
 	uint16_t outHPos = 0, inHPos, inHMax = XMIN((ref->ogmSqnMaxPathMetricsByteSize / sizeof(struct msg_ogm_adv_metric_t0)), algo->ogm_hop_history);
 	
 	if (np->link->timeaware_txRate) {
-		linkTP = np->link->timeaware_txRate;
+		linkTP = ((np->link->timeaware_txRate * ((UMETRIC_T)(np->link->k.myDev->linklayer == TYP_DEV_LL_WIFI ? algo->ogm_link_rate_efficiency: 100))) / 100);
 	} else {
 		UMETRIC_T tq = umetric_to_the_power_of_n((((UMETRIC_MAX)*((UMETRIC_T) np->link->timeaware_tq_probe)) / LQ_MAX), algo->algo_tp_exp_numerator, algo->algo_tp_exp_divisor);
 		UMETRIC_T rq = umetric_to_the_power_of_n((((UMETRIC_MAX)*((UMETRIC_T) np->link->timeaware_rq_probe)) / LQ_MAX), algo->algo_rp_exp_numerator, algo->algo_rp_exp_divisor);
 		UMETRIC_T lq = apply_lq_threshold_curve(umetric_multiply_normalized(tq, rq), algo);
-		linkTP = umetric_multiply_normalized(np->link->k.myDev->umetric_max, lq);
+		linkTP = ((umetric_multiply_normalized(np->link->k.myDev->umetric_max, lq) * ((UMETRIC_T) (np->link->k.myDev->linklayer == TYP_DEV_LL_WIFI ? algo->ogm_link_rate_efficiency: 100))) / 100);
 	}
 	linkTP = XMAX(linkTP, UMETRIC_MIN__NOT_ROUTABLE);
 	pathMaxTP = XMIN(pathMaxTP, linkTP);
@@ -650,6 +650,7 @@ IDM_T validate_metricalgo(struct host_metricalgo *ma, struct ctrl_node *cn)
 		validate_param((ma->lq_tx_point_r255), MIN_PATH_LQ_TX_R255, MAX_PATH_LQ_TX_R255, ARG_PATH_LQ_TX_R255) ||
 		validate_param((ma->lq_ty_point_r255), MIN_PATH_LQ_TY_R255, MAX_PATH_LQ_TY_R255, ARG_PATH_LQ_TY_R255) ||
 		validate_param((ma->lq_t1_point_r255), MIN_PATH_LQ_T1_R255, MAX_PATH_LQ_T1_R255, ARG_PATH_LQ_T1_R255) ||
+		validate_param((ma->ogm_link_rate_efficiency), MIN_OGM_LINK_RATE_EFFICIENCY, MAX_OGM_LINK_RATE_EFFICIENCY, ARG_OGM_LINK_RATE_EFFICIENCY) ||
 		ma->lq_t1_point_r255 <= ma->lq_tx_point_r255 ||
                 !is_umetric_valid(&ma->umetric_min) || !is_fmetric_valid(ma->fmetric_u16_min) ||
                 ma->umetric_min != fmetric_to_umetric(ma->fmetric_u16_min) || ma->umetric_min < UMETRIC_MIN__NOT_ROUTABLE ||
@@ -686,6 +687,7 @@ IDM_T metricalgo_tlv_to_host(struct description_tlv_metricalgo *tlv_algo, struct
 	host_algo->lq_tx_point_r255 = tlv_algo->m.lq_tx_point_r255;
 	host_algo->lq_ty_point_r255 = tlv_algo->m.lq_ty_point_r255;
 	host_algo->lq_t1_point_r255 = tlv_algo->m.lq_t1_point_r255;
+	host_algo->ogm_link_rate_efficiency = tlv_algo->m.ogm_link_rate_efficiency;
         host_algo->ogm_sqn_best_hystere = tlv_algo->m.ogm_sqn_best_hystere;
         host_algo->ogm_sqn_late_hystere_100ms = tlv_algo->m.ogm_sqn_late_hystere_100ms;
         host_algo->ogm_metric_hystere_new_path = ntohs(tlv_algo->m.ogm_metric_hystere_new_path);
@@ -732,6 +734,7 @@ int create_description_tlv_metricalgo(struct tx_frame_iterator *it)
 	tlv_algo.m.lq_tx_point_r255 = my_path_lq_tx_r255;
 	tlv_algo.m.lq_ty_point_r255 = my_path_lq_ty_r255;
 	tlv_algo.m.lq_t1_point_r255 = my_path_lq_t1_r255;
+	tlv_algo.m.ogm_link_rate_efficiency = my_ogm_link_rate_efficiency;
         tlv_algo.m.ogm_metric_hystere_new_path = htons(my_ogm_metric_hyst_new_path);
         tlv_algo.m.ogm_metric_hystere_old_path = htons(my_ogm_metric_hyst_old_path);
         tlv_algo.m.ogm_sqn_best_hystere = my_ogm_sqn_best_hyst;
@@ -884,6 +887,7 @@ int32_t opt_path_metricalgo(uint8_t cmd, uint8_t _save, struct opt_type *opt, st
 			test_algo.lq_tx_point_r255 = my_path_lq_tx_r255;
 			test_algo.lq_ty_point_r255 = my_path_lq_ty_r255;
 			test_algo.lq_t1_point_r255 = my_path_lq_t1_r255;
+			test_algo.ogm_link_rate_efficiency = my_ogm_link_rate_efficiency;
 
                 } else {
 
@@ -902,6 +906,7 @@ int32_t opt_path_metricalgo(uint8_t cmd, uint8_t _save, struct opt_type *opt, st
 			test_algo.lq_tx_point_r255 = DEF_PATH_LQ_TX_R255;
 			test_algo.lq_ty_point_r255 = DEF_PATH_LQ_TY_R255;
 			test_algo.lq_t1_point_r255 = DEF_PATH_LQ_T1_R255;
+			test_algo.ogm_link_rate_efficiency = DEF_OGM_LINK_RATE_EFFICIENCY;
 
                         if (patch->diff != DEL) {
 
@@ -956,6 +961,9 @@ int32_t opt_path_metricalgo(uint8_t cmd, uint8_t _save, struct opt_type *opt, st
 
                                         if (!strcmp(c->opt->name, ARG_PATH_LQ_T1_R255))
                                                 test_algo.lq_t1_point_r255 = val;
+
+                                        if (!strcmp(c->opt->name, ARG_OGM_LINK_RATE_EFFICIENCY))
+                                                test_algo.ogm_link_rate_efficiency = val;
                                 }
                         }
                 }
@@ -981,6 +989,7 @@ int32_t opt_path_metricalgo(uint8_t cmd, uint8_t _save, struct opt_type *opt, st
 			my_path_lq_tx_r255 = test_algo.lq_tx_point_r255;
 			my_path_lq_ty_r255 = test_algo.lq_ty_point_r255;
 			my_path_lq_t1_r255 = test_algo.lq_t1_point_r255;
+			my_ogm_link_rate_efficiency = test_algo.ogm_link_rate_efficiency;
 
                         my_description_changed = YES;
                 }
@@ -1026,6 +1035,9 @@ struct opt_type metrics_options[]=
         ,
 	{ODI, 0, ARG_PATH_LQ_T1_R255,   0, 9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,    &my_path_lq_t1_r255, MIN_PATH_LQ_T1_R255, MAX_PATH_LQ_T1_R255,DEF_PATH_LQ_T1_R255,0, opt_path_metricalgo,
 			ARG_VALUE_FORM,	"specify 100% threshold point for transforming path lq values 255==100%"}
+        ,
+	{ODI, 0, ARG_OGM_LINK_RATE_EFFICIENCY,0, 9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,&my_ogm_link_rate_efficiency,MIN_OGM_LINK_RATE_EFFICIENCY,MAX_OGM_LINK_RATE_EFFICIENCY,DEF_OGM_LINK_RATE_EFFICIENCY,0, opt_path_metricalgo,
+			ARG_VALUE_FORM,	HLP_OGM_LINK_RATE_EFFICIENCY}
         ,
 
         {ODI, 0, ARG_PATH_METRIC_ALGO, CHR_PATH_METRIC_ALGO,  9,1, A_PS1N, A_ADM, A_DYI, A_CFA, A_ANY, &my_ogm_path_algo,MIN_METRIC_ALGO,    MAX_METRIC_ALGO,    DEF_METRIC_ALGO,0,    opt_path_metricalgo,

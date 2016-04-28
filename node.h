@@ -147,6 +147,8 @@ struct host_metricalgo {
 	uint8_t lq_ty_point_r255;
 	uint8_t lq_t1_point_r255;
 
+	uint8_t ogm_link_rate_efficiency;
+
 	uint8_t ogm_hops_max;
 	uint8_t ogm_hop_history;
 	uint8_t ogm_hop_penalty;

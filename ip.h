@@ -128,6 +128,12 @@ extern int32_t devStatRegression;
 #define DEV_LO "lo"
 #define DEV_UNKNOWN "unknown"
 
+#define ARG_DEV_BLSOCK "blockingSocket"
+#define MIN_DEV_BLSOCK 0
+#define MAX_DEV_BLSOCK 1
+#define DEF_DEV_BLSOCK 0
+#define HLP_DEV_BLSOCK "use blocking sockets"
+
 #define ARG_DEV_LL		"linklayer"
 #define DEF_DEV_LL              0
 #define MIN_DEV_LL              0
@@ -444,6 +450,7 @@ struct dev_node {
 	uint8_t active;
 	uint8_t activate_again;
 	uint8_t activate_cancelled;
+	uint8_t blockingSockets;
 
 	uint32_t udpTxPacketsCurr;
 	uint32_t udpTxPacketsMean;

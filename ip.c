@@ -2179,9 +2179,11 @@ IDM_T dev_init_sockets(struct dev_node *dev)
                 return FAILURE;
         }
 
-        // make udp send socket non blocking
- //       int sock_opts = fcntl(dev->unicast_sock, F_GETFL, 0);
- //       fcntl(dev->unicast_sock, F_SETFL, sock_opts | O_NONBLOCK);
+	if (!dev->blockingSockets) {
+		// make udp send socket non blocking
+		int sock_opts = fcntl(dev->unicast_sock, F_GETFL, 0);
+		fcntl(dev->unicast_sock, F_SETFL, sock_opts | O_NONBLOCK);
+	}
 
 #ifdef SO_TIMESTAMP
         if (setsockopt(dev->unicast_sock, SOL_SOCKET, SO_TIMESTAMP, &set_on, sizeof (set_on))) {
@@ -3424,6 +3426,7 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
                         avl_insert(&dev_name_tree, dev, -300144);
 
                         // some configurable interface values - initialized to unspecified:
+			dev->blockingSockets = DEF_DEV_BLSOCK;
                         dev->linklayer_conf = OPT_CHILD_UNDEFINED;
 			dev->strictSignatures = DEF_DEV_SIGNATURES;
                         dev->channel_conf = OPT_CHILD_UNDEFINED;
@@ -3483,6 +3486,12 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
 
                                         dev->hard_conf_changed = YES;
                                 }
+
+                        } else if (!strcmp(c->opt->name, ARG_DEV_BLSOCK) && cmd == OPT_APPLY) {
+
+                                dev->blockingSockets = c->val ? strtol(c->val, NULL, 10) : DEF_DEV_BLSOCK;
+
+                                dev->hard_conf_changed = YES;
 
                         } else if (!strcmp(c->opt->name, ARG_DEV_LL) && cmd == OPT_APPLY) {
 
@@ -3598,6 +3607,8 @@ static struct opt_type ip_options[]=
 	{ODI,ARG_DEV,ARG_DEV_SIGNATURES, 0, 9,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		MIN_DEV_SIGNATURES,MAX_DEV_SIGNATURES,DEF_DEV_SIGNATURES,0, opt_dev,
 			ARG_VALUE_FORM,	HLP_DEV_SIGNATURES},
 
+	{ODI,ARG_DEV,ARG_DEV_BLSOCK,     0, 9,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		MIN_DEV_BLSOCK,MAX_DEV_BLSOCK,DEF_DEV_BLSOCK,0, opt_dev,
+			ARG_VALUE_FORM,	HLP_DEV_BLSOCK},
 
 };
 

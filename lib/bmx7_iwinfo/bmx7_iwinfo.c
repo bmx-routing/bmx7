@@ -69,6 +69,8 @@ int32_t linkProbeInterval = DEF_LINK_PROBE_IVAL;
 int32_t linkProbeSize = DEF_LINK_PROBE_SIZE;
 int32_t linkProbeDuration = DEF_LINK_PROBE_DURATION;
 int32_t linkProbeTotal = DEF_LINK_PROBE_TOTAL;
+int32_t linkAvgRateWeight = DEF_LINK_RATE_AVG_WEIGHT;
+
 
 void get_link_rate(LinkNode *link, struct ctrl_node *cn)
 {
@@ -106,6 +108,7 @@ void get_link_rate(LinkNode *link, struct ctrl_node *cn)
 					if (link->linkStats.txPackets != e->tx_packets) {
 
 						link->linkStats.txRate = e->tx_rate.rate * 1000;
+						link->linkStats.txRateAvg = link->linkStats.txRateAvg + (link->linkStats.txRate / linkAvgRateWeight) - (link->linkStats.txRateAvg / linkAvgRateWeight);
 						link->linkStats.txPackets = e->tx_packets;
 						link->linkStats.tx40mhz = e->tx_rate.is_40mhz;
 //						link->linkStats.txHt = e->tx_rate.is_ht;
@@ -268,8 +271,10 @@ static struct opt_type capacity_options[]= {
 			ARG_VALUE_FORM, HLP_LINK_PROBE_SIZE},
 	{ODI,0,ARG_LINK_PROBE_DURATION, 0,9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,&linkProbeDuration,MIN_LINK_PROBE_DURATION,MAX_LINK_PROBE_DURATION, DEF_LINK_PROBE_DURATION,0,0,
 			ARG_VALUE_FORM, HLP_LINK_PROBE_DURATION},
-	{ODI,0,ARG_LINK_PROBE_TOTAL, 0,9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,&linkProbeTotal,MIN_LINK_PROBE_TOTAL,MAX_LINK_PROBE_TOTAL, DEF_LINK_PROBE_TOTAL,0,0,
+	{ODI,0,ARG_LINK_PROBE_TOTAL,    0,9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,&linkProbeTotal,MIN_LINK_PROBE_TOTAL,MAX_LINK_PROBE_TOTAL, DEF_LINK_PROBE_TOTAL,0,0,
 			ARG_VALUE_FORM, HLP_LINK_PROBE_TOTAL},
+	{ODI,0,ARG_LINK_RATE_AVG_WEIGHT,0,9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,&linkAvgRateWeight,MIN_LINK_RATE_AVG_WEIGHT,MAX_LINK_RATE_AVG_WEIGHT, DEF_LINK_RATE_AVG_WEIGHT,0,0,
+			ARG_VALUE_FORM, HLP_LINK_RATE_AVG_WEIGHT},
 
 
 };

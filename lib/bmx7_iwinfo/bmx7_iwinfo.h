@@ -15,42 +15,36 @@
  * 02110-1301, USA
  */
 
-#define ATH_RC_STATS_BASE_DIR "/sys/kernel/debug/ieee80211"
-#define ATH_RC_STATS_PHY_PREFIX "phy"
-#define ATH_RC_STATS_DEVS_DIR "netdev:" // --> "phy0/netdev:wlan0"
-#define ATH_RC_STATS_MACS_DIR "stations" // -> "stations/12:34:56:78:9A:BC"
-#define ATH_RC_STATS_FILE_CSV "rc_stats_csv"
-#define ATH_RC_STATS_FILE_TXT "rc_stats"
-#define ATH_RC_STATS_FILE_TXT_LEN 77
-#define ATH_RC_STATS_FILE_TXT_POS_P 14
-#define ATH_RC_STATS_FILE_TXT_POS_T 23
-#define ATH_RC_STATS_FILE_TXT_POS_O 57
-#define ATH_RC_STATS_FILE_TXT_POS_OE 66
 
 #define ARG_LINK_PROBE_IVAL "linkProbeInterval"
-#define HLP_LINK_PROBE_IVAL "set interval in ms for unicast link probing. Needed for accurate link capacity estimation"
+#define HLP_LINK_PROBE_IVAL "set interval in ms for unicast link probing to improve link-capacity estimation"
+#define DEF_LINK_PROBE_IVAL  TP_ADV_DELAY_TOLERANCE
 #define MIN_LINK_PROBE_IVAL  100
-#define MAX_LINK_PROBE_IVAL  10000
-#define DEF_LINK_PROBE_IVAL  2000
+#define MAX_LINK_PROBE_IVAL  10000000
 
 #define ARG_LINK_PROBE_SIZE "linkProbeSize"
-#define HLP_LINK_PROBE_SIZE "set byte size of packets for unicast link probing. Needed for accurate link capacity estimation"
-#define MIN_LINK_PROBE_SIZE  0
-#define MAX_LINK_PROBE_SIZE  1000
+#define HLP_LINK_PROBE_SIZE "set byte size of packets for unicast link probing to improve link-capacity estimation"
 #define DEF_LINK_PROBE_SIZE  100
+#define MIN_LINK_PROBE_SIZE  0
+#define MAX_LINK_PROBE_SIZE  SIGNED_FRAMES_SIZE_MAX
 
 #define ARG_LINK_PROBE_DURATION "linkProbeDuration"
-#define HLP_LINK_PROBE_DURATION "set duration in ms for unicast link probing. Needed for accurate link capacity estimation"
+#define HLP_LINK_PROBE_DURATION "set duration in ms for unicast link probing to improve link-capacity estimation"
+#define DEF_LINK_PROBE_DURATION 0
 #define MIN_LINK_PROBE_DURATION 0
 #define MAX_LINK_PROBE_DURATION 1000
-#define DEF_LINK_PROBE_DURATION 0
 
+#define ARG_LINK_PROBE_TOTAL "linkProbeTotal"
+#define HLP_LINK_PROBE_TOTAL "maximum total amount of data per link probe burst to improve link-capacity estimation"
 #define DEF_LINK_PROBE_TOTAL 1000
 #define MIN_LINK_PROBE_TOTAL 0
 #define MAX_LINK_PROBE_TOTAL 1000000
-#define ARG_LINK_PROBE_TOTAL "linkProbeTotal"
-#define HLP_LINK_PROBE_TOTAL "maximum total amount of data per link probe burst"
 
+#define ARG_LINK_RATE_AVG_WEIGHT "linkAvgRate"
+#define HLP_LINK_RATE_AVG_WEIGHT "weight for averaging out old link-rate probes"
+#define DEF_LINK_RATE_AVG_WEIGHT 3
+#define MIN_LINK_RATE_AVG_WEIGHT 1
+#define MAX_LINK_RATE_AVG_WEIGHT 100
 
 
 struct tp_test_key {

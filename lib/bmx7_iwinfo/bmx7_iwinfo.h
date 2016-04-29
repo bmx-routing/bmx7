@@ -52,7 +52,7 @@
 
 #define ARG_LINK_BURST_DURATION "linkBurstDuration"
 #define HLP_LINK_BURST_DURATION "set duration in ms for unicast link probing bursts to improve link-capacity estimation"
-#define DEF_LINK_BURST_DURATION 300
+#define DEF_LINK_BURST_DURATION 150
 #define MIN_LINK_BURST_DURATION 0
 #define MAX_LINK_BURST_DURATION 1000
 

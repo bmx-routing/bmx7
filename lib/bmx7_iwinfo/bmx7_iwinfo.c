@@ -249,7 +249,8 @@ int32_t tx_frame_trash_adv(struct tx_frame_iterator *it)
 	upd_time(&tmp);
 	TIME_T now = ( (tmp.tv_sec * 1000) + (tmp.tv_usec / 1000) );
 
-	dbgf_track(DBGT_INFO, "size=%d total=%d duration=%d endTime=%d   iterations=%d dev=%s myIdx=%d src=%s unicast=%d, dst=%s nbIdx=%d neigh=%s neighId=%s",
+	// WARNING: Using more verbose debuglevel here distorts link-capacity measurements !!!
+	dbgf_all(DBGT_INFO, "size=%d total=%d duration=%d endTime=%d   iterations=%d dev=%s myIdx=%d src=%s unicast=%d, dst=%s nbIdx=%d neigh=%s neighId=%s",
 		tk->packetSize, tk->totalSend, tk->duration, (tk->endTime ? (tk->endTime - now) : 0),
 		it->ttn->tx_iterations, it->ttn->key.f.p.dev->ifname_label.str, it->ttn->key.f.p.dev->llipKey.devIdx, it->ttn->key.f.p.dev->ip_llocal_str, !!link,
 		ip6AsStr(link ? &link->k.linkDev->key.llocal_ip : NULL),
@@ -281,7 +282,8 @@ int32_t rx_frame_trash_adv(struct rx_frame_iterator *it)
 {
         TRACE_FUNCTION_CALL;
 
-	dbgf_track(DBGT_INFO, "size=%d dev=%s unicast=%d src=%s claimedId=%s",
+	// WARNING: Using more verbose debuglevel here distorts link-capacity measurements !!!
+	dbgf_all(DBGT_INFO, "size=%d dev=%s unicast=%d src=%s claimedId=%s",
 		it->f_dlen, it->pb->i.iif->ifname_label.str, it->pb->i.unicast, it->pb->i.llip_str, cryptShaAsShortStr(&it->pb->p.hdr.keyHash));
 
 	return it->f_msgs_len;

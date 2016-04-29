@@ -522,7 +522,7 @@ int32_t tx_msg_description_request(struct tx_frame_iterator *it)
 	}
 
 	dbgf_track(DBGT_INFO, "%s dev=%s to neigh khash=%s iterations=%d requesting kHash=%s iid=%d descSqn=%d credits=%s ret=%d",
-		it->db->handls[ttn->key.f.type].name, ttn->key.f.p.dev->label_cfg.str, cryptShaAsString(&ttn->key.f.groupId),
+		it->db->handls[ttn->key.f.type].name, ttn->key.f.p.dev->ifname_label.str, cryptShaAsString(&ttn->key.f.groupId),
 		ttn->tx_iterations, cryptShaAsString(kn ? &kn->kHash : NULL), req->iid, req->descSqn, kn ? kn->bookedState->secName : NULL, ret);
 
 
@@ -638,7 +638,7 @@ finish:
 
 	dbgf_track(DBGT_INFO, "Finished rcvd dhash=%s nodeId=%s via_dev=%s via_ip=%s dc=%d",
 		memAsHexString(&dHash, sizeof(dHash)), cryptShaAsString(nodeId),
-		it->pb->i.iif->label_cfg.str, it->pb->i.llip_str, !!dc);
+		it->pb->i.iif->ifname_label.str, it->pb->i.llip_str, !!dc);
 
 	return goto_error_code;
 }
@@ -671,7 +671,7 @@ int32_t tx_msg_iid_request(struct tx_frame_iterator *it)
 	}
 
 	dbgf_track(DBGT_INFO, "iid=%d ref=%d nodeId=%s to neighId=%s dev=%s send=%d",
-		*iid, !!ref, cryptShaAsShortStr(ref && ref->kn ? &ref->kn->kHash : NULL), cryptShaAsShortStr(&it->ttn->key.f.groupId), it->ttn->key.f.p.dev->label_cfg.str, ret);
+		*iid, !!ref, cryptShaAsShortStr(ref && ref->kn ? &ref->kn->kHash : NULL), cryptShaAsShortStr(&it->ttn->key.f.groupId), it->ttn->key.f.p.dev->ifname_label.str, ret);
 
 	return ret;
 }

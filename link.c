@@ -109,7 +109,7 @@ void lndev_assign_best(struct neigh_node *onlyLocal, LinkNode *onlyLink )
                 onlyLocal ? cryptShaAsString(&onlyLocal->local_id) : 0,
                 onlyLink ? ip6AsStr(&onlyLink->k.linkDev->key.llocal_ip) : DBG_NIL,
 		onlyLink ? onlyLink->k.linkDev->key.devIdx : 0,
-                onlyLink ? onlyLink->k.myDev->label_cfg.str : DBG_NIL);
+                onlyLink ? onlyLink->k.myDev->ifname_label.str : DBG_NIL);
 
         struct avl_node *local_an = NULL;
         struct neigh_node *local;
@@ -139,7 +139,7 @@ void lndev_assign_best(struct neigh_node *onlyLocal, LinkNode *onlyLink )
 			while ((onlyLink && (currLink = onlyLink)) || (currLink = avl_next_item(&linkDev->link_tree, (currLink ? &currLink->k : NULL)))) {
 
                                 dbgf_all(DBGT_INFO, "lndev=%s items=%d",
-                                        currLink->k.myDev->label_cfg.str, linkDev->link_tree.items);
+                                        currLink->k.myDev->ifname_label.str, linkDev->link_tree.items);
 
 				if (local->best_rq_link != currLink) {
 					upd_timeaware_rq_probe(currLink);
@@ -188,7 +188,7 @@ void purge_linkDevs(LinkDevKey *onlyLinkDev, struct dev_node *only_dev, IDM_T pu
 
 	dbgf_all(DBGT_INFO, "only_link_key=%s llip=%s only_dev=%s purgeLocal=%d",
 		onlyLinkDev ? cryptShaAsString(&onlyLinkDev->local->local_id) : "---", ip6AsStr(onlyLinkDev ? &onlyLinkDev->llocal_ip : NULL),
-		only_dev ? only_dev->label_cfg.str : DBG_NIL, purgeLocal);
+		only_dev ? only_dev->ifname_label.str : DBG_NIL, purgeLocal);
 
 	while ((linkDev = (onlyLinkDev ? avl_find_item(&link_dev_tree, onlyLinkDev) : avl_next_item(&link_dev_tree, &linkDevKey)))) {
 
@@ -210,7 +210,7 @@ void purge_linkDevs(LinkDevKey *onlyLinkDev, struct dev_node *only_dev, IDM_T pu
 				) {
 
 				dbgf_track(DBGT_INFO, "purging nbLlIp=%s nbIdx=%d dev=%s",
-					ip6AsStr(&linkDev->key.llocal_ip), linkDev->key.devIdx, link->k.myDev->label_cfg.str);
+					ip6AsStr(&linkDev->key.llocal_ip), linkDev->key.devIdx, link->k.myDev->ifname_label.str);
 
 				purge_orig_router(NULL, NULL, link, NO);
 
@@ -236,7 +236,7 @@ void purge_linkDevs(LinkDevKey *onlyLinkDev, struct dev_node *only_dev, IDM_T pu
 
 			dbgf_track(DBGT_INFO, "purging: linkDev local_id=%s link_ip=%s only_dev=%s, local->linkDevs=%d",
 				cryptShaAsString(&linkDev->key.local->local_id), ip6AsStr(&linkDev->key.llocal_ip),
-				only_dev ? only_dev->label_cfg.str : "???", local->linkDev_tree.items);
+				only_dev ? only_dev->ifname_label.str : "???", local->linkDev_tree.items);
 
 			avl_remove(&link_dev_tree, &linkDev->key, -300193);
 			avl_remove(&local->linkDev_tree, &linkDev->key.devIdx, -300330);
@@ -344,7 +344,7 @@ LinkNode *getLinkNode(struct dev_node *dev, IPX_T *llip, DEVIDX_T idx, struct ne
 
 		link->k = linkKey;
 
-		dbgf_track(DBGT_INFO, "creating new lndev %16s %s", ip6AsStr(&linkDev->key.llocal_ip), dev->name_phy_cfg.str);
+		dbgf_track(DBGT_INFO, "creating new lndev %16s %s", ip6AsStr(&linkDev->key.llocal_ip), dev->ifname_device.str);
 
 		avl_insert(&linkDev->link_tree, link, -300750);
 
@@ -563,7 +563,7 @@ int32_t tx_msg_hello_adv(struct tx_frame_iterator *it)
 
 	adv->hello_sqn = htons(sqn_in);
 
-	dbgf_all(DBGT_INFO, "%s %s SQN %d", ttn->key.f.p.dev->label_cfg.str, ttn->key.f.p.dev->ip_llocal_str, sqn_in);
+	dbgf_all(DBGT_INFO, "%s %s SQN %d", ttn->key.f.p.dev->ifname_label.str, ttn->key.f.p.dev->ip_llocal_str, sqn_in);
 
 	return sizeof(struct msg_hello_adv);
 }
@@ -605,7 +605,7 @@ int32_t rx_msg_hello_adv(struct rx_frame_iterator *it)
         update_link_probe_record(link, hello_sqn, 1);
 
 	dbgf_all(DBGT_INFO, "NB=%s via llip=%s dev=%s SQN=%d linkDevIdx=%d",
-                cryptShaAsShortStr(&pb->p.hdr.keyHash), pb->i.llip_str, pb->i.iif->label_cfg.str, hello_sqn, link->k.linkDev->key.devIdx);
+                cryptShaAsShortStr(&pb->p.hdr.keyHash), pb->i.llip_str, pb->i.iif->ifname_label.str, hello_sqn, link->k.linkDev->key.devIdx);
 
 	return TLV_RX_DATA_PROCESSED;
 }
@@ -640,7 +640,7 @@ int32_t tx_msg_hello_reply(struct tx_frame_iterator *it)
 
 		dbgf_track(DBGT_INFO, "yet unestablished devIdx=%d link=%p ldn=%p dev=%p neigh=%p for neigh=%s llip=%s dev=%s",
 			(ldn ? ldn->key.devIdx : 0), link, ldn, lk.myDev, neigh, cryptShaAsString(&neigh->local_id),
-			ip6AsStr(&ldn->key.llocal_ip), (lk.myDev ? lk.myDev->label_cfg.str : NULL));
+			ip6AsStr(&ldn->key.llocal_ip), (lk.myDev ? lk.myDev->ifname_label.str : NULL));
 
 		return TLV_TX_DATA_DONE;
 	}
@@ -830,7 +830,7 @@ static int32_t link_status_creator(struct status_handl *handl, void *data)
 				status[i].nbLocalIp = linkDev->key.llocal_ip;
 				strcpy(status[i].nbMac, strToLower(memAsHexStringSep(ip6Eui64ToMac(&linkDev->key.llocal_ip, NULL), 6, 1, ":")));
 				status[i].nbIdx = linkDev->key.devIdx;
-				status[i].dev = link->k.myDev->label_cfg;
+				status[i].dev = link->k.myDev->ifname_label;
 				status[i].idx = link->k.myDev->llipKey.devIdx;
 				status[i].localIp = link->k.myDev->llipKey.llip;
 				status[i].rq = ((link->timeaware_rq_probe * 100) / LQ_MAX);

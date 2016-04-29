@@ -482,7 +482,7 @@ int32_t tx_frame_ogm_aggreg_advs(struct tx_frame_iterator *it)
 			on->k.hostname, cryptShaAsShortStr(&on->kn->kHash), msg->u.f.transmitterIID4x,  on->dc->ogmSqnMaxSend, 
 			on->neighPath.um, msg->u.f.more, (on->neighPath.pathMetricsByteSize / sizeof(struct msg_ogm_adv_metric_t0)), on->ogmHopCount,
 			memAsHexString(&on->dc->chainOgmConstInputHash, sizeof(msg->chainOgm)),
-			memAsHexString(&msg->chainOgm, sizeof(msg->chainOgm)), it->ttn->key.f.p.dev->label_cfg.str);
+			memAsHexString(&msg->chainOgm, sizeof(msg->chainOgm)), it->ttn->key.f.p.dev->ifname_label.str);
 
 		msg->u.u32 = htonl(msg->u.u32);
 

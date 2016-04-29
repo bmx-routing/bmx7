@@ -536,7 +536,7 @@ int8_t send_bmx_packet(LinkNode *unicast, struct packet_buff *pb, struct dev_nod
 	pb->i.oif->udpTxBytesCurr += pb->i.length;
 
 
-	dbgf_all(DBGT_INFO, "len=%d via dev=%s", pb->i.length, pb->i.oif->label_cfg.str);
+	dbgf_all(DBGT_INFO, "len=%d via dev=%s", pb->i.length, pb->i.oif->ifname_label.str);
 
 	if ( send_sock == 0 )
 		return 0;
@@ -562,12 +562,12 @@ int8_t send_bmx_packet(LinkNode *unicast, struct packet_buff *pb, struct dev_nod
 
                         dbg_mute(60, DBGL_SYS, DBGT_ERR, "can't send: %s. Does firewall accept %s dev=%s port=%i ?",
                                 strerror(errno), family2Str(((struct sockaddr_in*) dst)->sin_family),
-                                pb->i.oif->label_cfg.str ,ntohs(((struct sockaddr_in*) dst)->sin_port));
+                                pb->i.oif->ifname_label.str ,ntohs(((struct sockaddr_in*) dst)->sin_port));
 
 		} else {
 
                         dbg_mute(60, DBGL_SYS, DBGT_ERR, "can't send via fd=%d dev=%s : %s",
-                                send_sock, pb->i.oif->label_cfg.str, strerror(errno));
+                                send_sock, pb->i.oif->ifname_label.str, strerror(errno));
 
 		}
 
@@ -1029,10 +1029,10 @@ void schedule_tx_task(uint8_t f_type, LinkNode *unicast, CRYPTSHA1_T *groupId, s
 	dbgf((dbg_frame_types & (1<<f_type) ? DBGL_CHANGES : DBGL_ALL), DBGT_INFO,
 		 "type=%s groupId=%s neigh=%s dev=%s msgs_len=%d data=%s len=%d",
 		 handl->name, cryptShaAsString(groupId), neigh ? cryptShaAsShortStr(&neigh->local_id) : NULL,
-		 dev ? dev->label_cfg.str : NULL, f_msgs_len, memAsHexString(keyData, keyLen), keyLen);
+		 dev ? dev->ifname_label.str : NULL, f_msgs_len, memAsHexString(keyData, keyLen), keyLen);
 
 	if (dev->tx_task_items >= txTaskTreeSizeMax) {
-		dbg_mute(20, DBGL_SYS, DBGT_WARN, "%s txTaskItems=%d reached %s=%d", dev->label_cfg.str, dev->tx_task_items, ARG_TX_TREE_SIZE_MAX, txTaskTreeSizeMax);
+		dbg_mute(20, DBGL_SYS, DBGT_WARN, "%s txTaskItems=%d reached %s=%d", dev->ifname_label.str, dev->tx_task_items, ARG_TX_TREE_SIZE_MAX, txTaskTreeSizeMax);
 		return;
 	}
 
@@ -1152,7 +1152,7 @@ void rx_packet( struct packet_buff *pb )
 	pb->i.claimedKey = keyNode_updCredits(&pb->p.hdr.keyHash, NULL, &kc);
 
         dbgf_all(DBGT_INFO, "via dev=%s devLlIp=%s srcLlIp=%s size=%d version=%i rsvd=%X nodeId=%s kState=%s",
-		pb->i.iif->label_cfg.str, pb->i.iif->ip_llocal_str, pb->i.llip_str, pb->i.length,
+		pb->i.iif->ifname_label.str, pb->i.iif->ip_llocal_str, pb->i.llip_str, pb->i.length,
 		pb->p.hdr.comp_version, pb->p.hdr.reserved, cryptShaAsShortStr(&pb->p.hdr.keyHash),
 		pb->i.claimedKey ? pb->i.claimedKey->bookedState->secName : NULL);
 
@@ -1165,7 +1165,7 @@ process_packet_error:
 
         dbgf_mute(60, DBGL_SYS, DBGT_WARN,
                 "Drop (remaining) problematic packet: from nodeId=%s via srcLlIp=%s dev=%s my_version=%d version=%i capabilities=%d len=%d myTxDev=%d myTxKey=%d problem=%s",
-		cryptShaAsShortStr(&pb->p.hdr.keyHash), pb->i.llip_str, pb->i.iif->label_cfg.str,
+		cryptShaAsShortStr(&pb->p.hdr.keyHash), pb->i.llip_str, pb->i.iif->ifname_label.str,
 		my_compatibility, pb->p.hdr.comp_version, pb->p.hdr.reserved, pb->i.length,
 		!!myTxDev, !!myTxKey, goto_error_code);
 

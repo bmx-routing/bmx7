@@ -422,11 +422,11 @@ int purge_orig_router(struct orig_node *onlyOrig, struct neigh_node *onlyNeigh, 
 			dbgf_track(DBGT_INFO, "only_orig=%s only_lndev=%s,%s onlyUseless=%d purging metric=%s neigh=%s link=%s dev=%s",
 				onlyOrig ? cryptShaAsString(&onlyOrig->k.nodeId) : DBG_NIL,
 				onlyLink ? ip6AsStr(&onlyLink->k.linkDev->key.llocal_ip) : DBG_NIL,
-				onlyLink ? onlyLink->k.myDev->label_cfg.str : DBG_NIL,
+				onlyLink ? onlyLink->k.myDev->ifname_label.str : DBG_NIL,
 				onlyUseless, umetric_to_human(on->neighPath.um),
 				cryptShaAsString(&on->neighPath.link->k.linkDev->key.local->local_id),
 				ip6AsStr(&on->neighPath.link->k.linkDev->key.llocal_ip),
-				on->neighPath.link->k.myDev->label_cfg.str);
+				on->neighPath.link->k.myDev->ifname_label.str);
 
 			cb_route_change_hooks(DEL, on);
 			on->neighPath.link = NULL;

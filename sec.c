@@ -574,7 +574,7 @@ finish:{
 		sign_len, memAsHexString(msg->signature, XMIN(sign_len,8)),
 		pkey_msg ? cryptKeyTypeAsString(pkey_msg->type) : "---", pkey_msg ? cryptKeyLenByType(pkey_msg->type) : 0,
 		pkey ? cryptKeyTypeAsString(pkey->rawKeyType) : "---", pkey ? memAsHexString(pkey->rawKey, pkey->rawKeyLen) : "---",
-		pb->i.iif->label_cfg.str, pb->i.llip_str, (llip_dlen ? memAsHexStringSep(llip_data, llip_dlen, sizeof(struct dsc_msg_llip), " ") : NULL),
+		pb->i.iif->ifname_label.str, pb->i.llip_str, (llip_dlen ? memAsHexStringSep(llip_data, llip_dlen, sizeof(struct dsc_msg_llip), " ") : NULL),
 		burstSqn, (nn ? (int)nn->burstSqn : -1),
 		descSqn, (claimedKey && claimedKey->on ? (int)claimedKey->on->dc->descSqn : -1), (claimedKey && claimedKey->nextDesc ? (int)claimedKey->nextDesc->descSqn : -1), (claimedKey ? (int)claimedKey->descSqnMin : -1),
 		goto_error_code);

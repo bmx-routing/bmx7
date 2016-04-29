@@ -462,9 +462,9 @@ struct dev_node {
 	uint32_t udpRxBytesMean;
 
 
-	IFNAME_T name_phy_cfg;  //key for dev_name_tree
-	IFNAME_T label_cfg;
-	IFNAME_T ifname_device;
+	IFNAME_T ifname_label; // includes alias colons
+	IFNAME_T ifname_device; // includes vlan dots, without colons, key for dev_name_tree
+	IFNAME_T ifname_phy; // without dots and colons
 
         LinkNode dummyLink;
 

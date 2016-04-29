@@ -987,7 +987,7 @@ uint8_t *key_status_page(uint8_t *sOut, uint32_t i, struct orig_node *on, struct
 		os->linkKey = (pkm = contents_data(dc, BMX_DSC_TLV_LINK_PUBKEY)) ? cryptKeyTypeAsString(pkm->type) : DBG_NIL;
 		os->name = on->k.hostname;
 		os->primaryIp = on->primary_ip;
-		os->dev = on->neighPath.link && on->neighPath.link->k.myDev ? on->neighPath.link->k.myDev->name_phy_cfg.str : DBG_NIL;
+		os->dev = on->neighPath.link && on->neighPath.link->k.myDev ? on->neighPath.link->k.myDev->ifname_device.str : DBG_NIL;
 		os->myIdx = on->neighPath.link && on->neighPath.link->k.myDev ? on->neighPath.link->k.myDev->llipKey.devIdx : 0;
 		os->nbIdx = (on->neighPath.link ? on->neighPath.link->k.linkDev->key.devIdx : 0);
 		os->nbLocalIp = (on->neighPath.link ? on->neighPath.link->k.linkDev->key.llocal_ip : ZERO_IP);

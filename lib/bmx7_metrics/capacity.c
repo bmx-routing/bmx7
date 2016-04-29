@@ -88,7 +88,7 @@ void upd_ath_capacity(LinkNode *link, struct ctrl_node *cn)
 				ssize_t read;
 				char txtFileName[MAX_PATH_SIZE];
 				char *mac = strToLower(memAsHexStringSep(ip6Eui64ToMac(&link->k.linkDev->key.llocal_ip, NULL), 6, 1, ":"));
-				IFNAME_T phy_name = link->k.myDev->name_phy_cfg;
+				IFNAME_T phy_name = link->k.myDev->ifname_device;
 				char *dotPtr;
 				if ((dotPtr = strchr(phy_name.str, '.')) != NULL)
 					*dotPtr = '\0';
@@ -174,7 +174,7 @@ void init_ath_capacity_handler(int32_t cb_id, void* devp)
 					if (!strncmp(baseDirEnt->d_name, ATH_RC_STATS_PHY_PREFIX, strlen(ATH_RC_STATS_PHY_PREFIX))) {
 
 						char statsDirName[MAX_PATH_SIZE];
-						IFNAME_T phy_name = dev->name_phy_cfg;
+						IFNAME_T phy_name = dev->ifname_device;
 						char *dotPtr;
 
 						if ((dotPtr = strchr(phy_name.str, '.')) != NULL)
@@ -225,7 +225,7 @@ int32_t tx_frame_trash_adv(struct tx_frame_iterator *it)
 	uint32_t *trashSize = (uint32_t*) it->ttn->key.data;
 
 	dbgf_track(DBGT_INFO, "size=%d iterations=%d dev=%s myIdx=%d src=%s unicast=%d, dst=%s nbIdx=%d neigh=%s neighId=%s",
-		*trashSize, it->ttn->tx_iterations, it->ttn->key.f.p.dev->label_cfg.str, it->ttn->key.f.p.dev->llipKey.devIdx, it->ttn->key.f.p.dev->ip_llocal_str, !!it->ttn->key.f.p.unicast,
+		*trashSize, it->ttn->tx_iterations, it->ttn->key.f.p.dev->ifname_label.str, it->ttn->key.f.p.dev->llipKey.devIdx, it->ttn->key.f.p.dev->ip_llocal_str, !!it->ttn->key.f.p.unicast,
 		ip6AsStr(it->ttn->key.f.p.unicast ? &it->ttn->key.f.p.unicast->k.linkDev->key.llocal_ip : NULL),
 		(it->ttn->key.f.p.unicast ? it->ttn->key.f.p.unicast->k.linkDev->key.devIdx : -1),
 		(it->ttn->key.f.p.unicast ? &it->ttn->key.f.p.unicast->k.linkDev->key.local->on->k.hostname: NULL),
@@ -242,7 +242,7 @@ int32_t rx_frame_trash_adv(struct rx_frame_iterator *it)
         TRACE_FUNCTION_CALL;
 
 	dbgf_track(DBGT_INFO, "size=%d dev=%s unicast=%d src=%s claimedId=%s",
-		it->f_dlen, it->pb->i.iif->label_cfg.str, it->pb->i.unicast, it->pb->i.llip_str, cryptShaAsShortStr(&it->pb->p.hdr.keyHash));
+		it->f_dlen, it->pb->i.iif->ifname_label.str, it->pb->i.unicast, it->pb->i.llip_str, cryptShaAsShortStr(&it->pb->p.hdr.keyHash));
 
 	return it->f_msgs_len;
 }

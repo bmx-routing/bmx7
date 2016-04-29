@@ -245,10 +245,10 @@ uint16_t purge_linkDevs(LinkDevNode *onlyLinkDev, struct dev_node *onlyDev, Link
 				debugFree(link, -300044);
 
 				removed++;
-
-				if (onlyLink)
-					break;
 			}
+
+			if (onlyLink)
+				break;
 		}
 
 

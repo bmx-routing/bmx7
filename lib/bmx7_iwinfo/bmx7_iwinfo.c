@@ -132,16 +132,20 @@ void get_link_rate(LinkNode *link, struct ctrl_node *cn)
 				}
 
 
-				if (((uint32_t)(e->tx_packets - link->wifiStats.txBurstPackets)) >= ((uint32_t)linkBurstThreshold)) {
-					
+				if (link->wifiStats.txBurstTime == 0) {
+						
+					link->wifiStats.txBurstPackets = e->tx_packets;
+					link->wifiStats.txBurstTime = bmx_time - (((TIME_T) linkBurstInterval) - ((TIME_T) (my_ogmInterval / 2)));
+					if (!link->wifiStats.txBurstTime)
+						link->wifiStats.txBurstTime = 1;
+
+
+				} else if (((uint32_t) (e->tx_packets - link->wifiStats.txBurstPackets)) >= ((uint32_t) linkBurstThreshold)) {
+
 					link->wifiStats.txBurstPackets = e->tx_packets;
 					link->wifiStats.txBurstTime = bmx_time;
 					link->wifiStats.txTriggTime = bmx_time;
 
-				} else if (link->wifiStats.txBurstTime == 0) {
-						
-					link->wifiStats.txBurstPackets = e->tx_packets;
-					link->wifiStats.txBurstTime = bmx_time - (((TIME_T) linkBurstInterval) - ((TIME_T) (my_ogmInterval / 2)));
 
 				} else if (((TIME_T) (bmx_time - link->wifiStats.txBurstTime)) >= ((TIME_T) linkBurstInterval)) {
 
@@ -153,6 +157,7 @@ void get_link_rate(LinkNode *link, struct ctrl_node *cn)
 
 					schedule_tx_task(FRAME_TYPE_TRASH_ADV, link, &link->k.linkDev->key.local->local_id, link->k.linkDev->key.local, link->k.myDev,
 						tk.packetSize, &tk, sizeof(tk));
+
 
 				} else if (link->wifiStats.txPackets == e->tx_packets &&
 					((TIME_T) (bmx_time - link->wifiStats.txTriggTime)) >= (TIME_T) linkProbeInterval) {

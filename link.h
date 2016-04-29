@@ -10,6 +10,11 @@
 #define ARG_LINK_PURGE_TO  "linkTimeout"
 extern int32_t link_purge_to;
 
+#define MIN_TIMEAWARE_LQ_MIN 1
+#define MAX_TIMEAWARE_LQ_MIN LQ_MAX
+#define DEF_TIMEAWARE_LQ_MIN (LQ_MAX / 10)
+#define ARG_TIMEAWARE_LQ_MIN "minLinkQuality"
+
 
 
 struct dsc_msg_llip {
@@ -33,7 +38,8 @@ struct msg_hello_reply_dhash {
 
 
 //IDM_T updateNeighDevId(struct neigh_node *nn, struct desc_content *contents);
+IDM_T min_lq_probe(LinkNode *link);
 LinkNode *getLinkNode(struct dev_node *dev, IPX_T *llip, DEVIDX_T idx, struct neigh_node *verifiedNeigh);
-void purge_linkDevs(LinkDevKey *onlyLinkDev, struct dev_node *only_dev, IDM_T purgeLocal);
+uint16_t purge_linkDevs(LinkDevNode *onlyLinkDev, struct dev_node *onlyDev, LinkNode *onlyLink, IDM_T onlyExpired, IDM_T purgeLocal);
 
 struct plugin *link_get_plugin(void);

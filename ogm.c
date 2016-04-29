@@ -49,6 +49,7 @@
 #include "allocate.h"
 #include "prof.h"
 #include "key.h"
+#include "link.h"
 
 #define CODE_CATEGORY_NAME "ogm"
 
@@ -551,13 +552,16 @@ struct NeighPath *lndev_best_via_router(struct NeighRef_node *ref)
 
 		while ((link = avl_next_item(&linkDev->link_tree, (link ? &link->k : NULL)))) {
 
-			struct NeighPath *tmpNeighPath = apply_metric_algo(ref, link, on->mtcAlgo);
+			if (min_lq_probe(link)) {
 
-			if (tmpNeighPath->um > bestNeighPath.um)
-				bestNeighPath = *tmpNeighPath;
+				struct NeighPath *tmpNeighPath = apply_metric_algo(ref, link, on->mtcAlgo);
 
-			assertion(-500000, (bestNeighPath.um >= on->mtcAlgo->umetric_min || bestNeighPath.um == UMETRIC_MIN__NOT_ROUTABLE));
-			assertion(-500000, IMPLIES(bestNeighPath.link, bestNeighPath.um >= on->mtcAlgo->umetric_min && bestNeighPath.um > UMETRIC_MIN__NOT_ROUTABLE));
+				if (tmpNeighPath->um > bestNeighPath.um)
+					bestNeighPath = *tmpNeighPath;
+
+				assertion(-500000, (bestNeighPath.um >= on->mtcAlgo->umetric_min || bestNeighPath.um == UMETRIC_MIN__NOT_ROUTABLE));
+				assertion(-500000, IMPLIES(bestNeighPath.link, bestNeighPath.um >= on->mtcAlgo->umetric_min && bestNeighPath.um > UMETRIC_MIN__NOT_ROUTABLE));
+			}
 		}
 	}
 

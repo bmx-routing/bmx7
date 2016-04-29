@@ -458,7 +458,7 @@ void neigh_destroy(struct neigh_node *local)
 		curr_rx_packet->i.verifiedLink = NULL;
 
 	while ((linkDev = avl_first_item(&local->linkDev_tree)))
-		purge_linkDevs(&linkDev->key, NULL, NO);
+		purge_linkDevs(linkDev, NULL, NULL, NO, NO);
 
 
 	assertion(-502639, (!local->linkDev_tree.items));

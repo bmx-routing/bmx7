@@ -59,8 +59,17 @@ static int32_t my_link_window = DEF_HELLO_SQN_WINDOW;
 //int32_t link_ignore_max = DEF_LINK_IGNORE_MAX;
 
 int32_t link_purge_to = DEF_LINK_PURGE_TO;
+int32_t timeaware_lq_min = DEF_TIMEAWARE_LQ_MIN;
 
 
+IDM_T min_lq_probe(LinkNode *link)
+{
+
+	return (
+		(link->timeaware_tq_probe >= timeaware_lq_min) &&
+		(link->timeaware_rq_probe >= timeaware_lq_min)
+		);
+}
 
 STATIC_FUNC
 void upd_timeaware_rq_probe(LinkNode *link)
@@ -75,6 +84,9 @@ void upd_timeaware_rq_probe(LinkNode *link)
 		link->timeaware_rq_probe =
 			(((uint32_t)link->rq_probe_record.hello_lq) * (((uint32_t)link_purge_to) - (bmx_time - link->rq_probe_record.hello_time_max))) / ((uint32_t)link_purge_to);
 
+	} else {
+
+		link->timeaware_rq_probe = 0;
 	}
 }
 
@@ -177,19 +189,26 @@ void lndev_assign_best(struct neigh_node *onlyLocal, LinkNode *onlyLink )
 
 
 
-void purge_linkDevs(LinkDevKey *onlyLinkDev, struct dev_node *only_dev, IDM_T purgeLocal)
+uint16_t purge_linkDevs(LinkDevNode *onlyLinkDev, struct dev_node *onlyDev, LinkNode *onlyLink, IDM_T onlyExpired, IDM_T purgeLocal)
 {
 	TRACE_FUNCTION_CALL;
 
+	uint16_t removed = 0;
 	LinkDevNode *linkDev;
 	LinkDevKey linkDevKey;
 	memset(&linkDevKey, 0, sizeof(linkDevKey));
 
 	dbgf_all(DBGT_INFO, "only_link_key=%s llip=%s only_dev=%s purgeLocal=%d",
-		onlyLinkDev ? cryptShaAsString(&onlyLinkDev->local->local_id) : "---", ip6AsStr(onlyLinkDev ? &onlyLinkDev->llocal_ip : NULL),
-		only_dev ? only_dev->ifname_label.str : DBG_NIL, purgeLocal);
+		onlyLinkDev ? cryptShaAsString(&onlyLinkDev->key.local->local_id) : "---", ip6AsStr(onlyLinkDev ? &onlyLinkDev->key.llocal_ip : NULL),
+		onlyDev ? onlyDev->ifname_label.str : DBG_NIL, purgeLocal);
 
-	while ((linkDev = (onlyLinkDev ? avl_find_item(&link_dev_tree, onlyLinkDev) : avl_next_item(&link_dev_tree, &linkDevKey)))) {
+	assertion(-500000, IMPLIES(onlyLinkDev, (!onlyLink || onlyLink->k.linkDev == onlyLinkDev)));
+	assertion(-500000, IMPLIES(onlyDev, (!onlyLink || onlyLink->k.myDev == onlyDev)));
+
+	onlyLinkDev = (onlyLink ? onlyLink->k.linkDev : onlyLinkDev);
+	onlyDev = (onlyLink ? onlyLink->k.myDev : onlyDev);
+
+	while ((linkDev = (onlyLinkDev ? onlyLinkDev : avl_next_item(&link_dev_tree, &linkDevKey)))) {
 
 		struct neigh_node *local = linkDev->key.local;
 		LinkKey linkKey = {NULL,NULL};
@@ -201,11 +220,11 @@ void purge_linkDevs(LinkDevKey *onlyLinkDev, struct dev_node *only_dev, IDM_T pu
 
 		linkDevKey = linkDev->key;
 
-		while ((link = avl_next_item(&linkDev->link_tree, &linkKey))) {
+		while ((link = (onlyLink ? onlyLink : avl_next_item(&linkDev->link_tree, &linkKey)))) {
 			linkKey = link->k;
 
-			if ((!only_dev || only_dev == link->k.myDev)
-				//&& (!only_expired || (((TIME_T) (bmx_time - link->pkt_time_max)) > (TIME_T) link_purge_to))
+			if ((!onlyDev || onlyDev == link->k.myDev) &&
+				(!onlyExpired || (((TIME_T) (bmx_time - link->rq_probe_record.hello_time_max)) > (TIME_T) link_purge_to))
 				) {
 
 				dbgf_track(DBGT_INFO, "purging nbLlIp=%s nbIdx=%d dev=%s",
@@ -225,17 +244,21 @@ void purge_linkDevs(LinkDevKey *onlyLinkDev, struct dev_node *only_dev, IDM_T pu
 				avl_remove(&linkDev->link_tree, &link->k, -300749);
 				debugFree(link, -300044);
 
+				removed++;
+
+				if (onlyLink)
+					break;
 			}
 		}
 
 
-		assertion(-500323, (only_dev || !linkDev->link_tree.items));
+		assertion(-500323, (onlyDev || !linkDev->link_tree.items));
 
 		if (!linkDev->link_tree.items) {
 
 			dbgf_track(DBGT_INFO, "purging: linkDev local_id=%s link_ip=%s only_dev=%s, local->linkDevs=%d",
 				cryptShaAsString(&linkDev->key.local->local_id), ip6AsStr(&linkDev->key.llocal_ip),
-				only_dev ? only_dev->ifname_label.str : "???", local->linkDev_tree.items);
+				onlyDev ? onlyDev->ifname_label.str : "???", local->linkDev_tree.items);
 
 			avl_remove(&link_dev_tree, &linkDev->key, -300193);
 			avl_remove(&local->linkDev_tree, &linkDev->key.devIdx, -300330);
@@ -259,8 +282,10 @@ void purge_linkDevs(LinkDevKey *onlyLinkDev, struct dev_node *only_dev, IDM_T pu
 	lndev_assign_best(NULL, NULL);
 	cb_plugin_hooks(PLUGIN_CB_LINKS_EVENT, NULL);
 
-	assertion(-502425, IMPLIES(!only_dev && !onlyLinkDev, !link_tree.items));
-	assertion(-502426, IMPLIES(!only_dev && !onlyLinkDev, !link_dev_tree.items));
+	assertion(-502425, IMPLIES(!onlyDev && !onlyLinkDev, !link_tree.items));
+	assertion(-502426, IMPLIES(!onlyDev && !onlyLinkDev, !link_dev_tree.items));
+
+	return removed;
 }
 
 STATIC_FUNC
@@ -290,7 +315,7 @@ IDM_T updateNeighDevId(struct neigh_node *nn, struct desc_content *contents)
 			idx = ldn->key.devIdx;
 
 			if (ldn->purge)
-				purge_linkDevs(&ldn->key, NULL, YES);
+				purge_linkDevs(ldn, NULL, NULL, NO, YES);
 
 		}
 	}
@@ -329,7 +354,7 @@ LinkNode *getLinkNode(struct dev_node *dev, IPX_T *llip, DEVIDX_T idx, struct ne
 
 		dbgf_mute(25 , DBGL_SYS, DBGT_ERR, "changed NB=%s devIdx=%d llIp: %s->%s",
 			cryptShaAsString(&verifiedNeigh->local_id), idx, ip6AsStr(&linkDev->key.llocal_ip), ip6AsStr(llip));
-		purge_linkDevs(&linkDev->key, NULL, NO);
+		purge_linkDevs(linkDev, NULL, NULL, NO, NO);
 		return NULL;
 	}
 
@@ -575,16 +600,21 @@ void schedule_hello_adv(void)
 	if (doNowOrLater(&next, txCasualInterval, 0)) {
 
 		LinkNode *link;
-		struct avl_node *an = NULL;
-		while((link = avl_iterate_item(&link_tree, &an))) {
+		LinkKey lk = {NULL, NULL};
 
-			if (link->k.myDev->upd_link_capacity) {
-				//IDM_T TODO_WARNING_mac_probes_are_unsigned_messages;
-				(*(link->k.myDev->upd_link_capacity)) (link, NULL);
+		while((link = avl_next_item(&link_tree, &lk))) {
+			lk = link->k;
+
+			if (purge_linkDevs(NULL,NULL,link,YES,YES) == 0) {
+
+				if (link->k.myDev->upd_link_capacity) {
+					//IDM_T TODO_WARNING_mac_probes_are_unsigned_messages;
+					(*(link->k.myDev->upd_link_capacity)) (link, NULL);
+				}
+
+				upd_timeaware_rq_probe(link);
+				upd_timeaware_tq_probe(link);
 			}
-
-			upd_timeaware_rq_probe(link);
-			upd_timeaware_tq_probe(link);
 		}
 
 		schedule_tx_task(FRAME_TYPE_HELLO_ADV, NULL, NULL, NULL, NULL, SCHEDULE_MIN_MSG_SIZE, 0, 0);
@@ -899,6 +929,9 @@ struct opt_type link_options[]=
 			
 	{ODI, 0, ARG_LINK_PURGE_TO,     0, 9, 1, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &link_purge_to, MIN_LINK_PURGE_TO, MAX_LINK_PURGE_TO, DEF_LINK_PURGE_TO, 0, 0,
 		ARG_VALUE_FORM, "timeout in ms for purging stale links"},
+
+	{ODI, 0, ARG_TIMEAWARE_LQ_MIN,     0, 9, 1, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &timeaware_lq_min, MIN_TIMEAWARE_LQ_MIN, MAX_TIMEAWARE_LQ_MIN, DEF_TIMEAWARE_LQ_MIN, 0, 0,
+		ARG_VALUE_FORM, "set minimum required link quality"},
 
         {ODI,0,ARG_HELLO_SQN_WINDOW,       0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&my_link_window,	MIN_HELLO_SQN_WINDOW, 	MAX_HELLO_SQN_WINDOW,DEF_HELLO_SQN_WINDOW,0,    opt_link_metric,
 			ARG_VALUE_FORM,	"set link window size (LWS) for link-quality calculation (link metric)"}

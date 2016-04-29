@@ -105,40 +105,40 @@ void get_link_rate(LinkNode *link, struct ctrl_node *cn)
 						e->rx_rate.rate, e->rx_rate.is_short_gi ,e->rx_packets,
 						e->tx_rate.rate, e->tx_packets);
 
-					if (link->linkStats.txPackets != e->tx_packets) {
+					if (link->wifiStats.txPackets != e->tx_packets) {
 
-						link->linkStats.txRate = e->tx_rate.rate * 1000;
-						link->linkStats.txRateAvg = link->linkStats.txRateAvg + (link->linkStats.txRate / linkAvgRateWeight) - (link->linkStats.txRateAvg / linkAvgRateWeight);
-						link->linkStats.txPackets = e->tx_packets;
-						link->linkStats.tx40mhz = e->tx_rate.is_40mhz;
-//						link->linkStats.txHt = e->tx_rate.is_ht;
-						link->linkStats.txMcs = e->tx_rate.mcs;
-//						link->linkStats.txMhz = e->tx_rate.mhz;
-//						link->linkStats.txNss = e->tx_rate.nss;
-						link->linkStats.txShortGi = e->tx_rate.is_short_gi;
-//						link->linkStats.txVht = e->tx_rate.is_vht;
+						link->wifiStats.txRate = e->tx_rate.rate * 1000;
+						link->wifiStats.txRateAvg = link->wifiStats.txRateAvg + (link->wifiStats.txRate / linkAvgRateWeight) - (link->wifiStats.txRateAvg / linkAvgRateWeight);
+						link->wifiStats.txPackets = e->tx_packets;
+						link->wifiStats.tx40mhz = e->tx_rate.is_40mhz;
+						//						link->linkStats.txHt = e->tx_rate.is_ht;
+						link->wifiStats.txMcs = e->tx_rate.mcs;
+						//						link->linkStats.txMhz = e->tx_rate.mhz;
+						//						link->linkStats.txNss = e->tx_rate.nss;
+						link->wifiStats.txShortGi = e->tx_rate.is_short_gi;
+						//						link->linkStats.txVht = e->tx_rate.is_vht;
 
-						link->linkStats.rxRate = e->rx_rate.rate * 1000;
-						link->linkStats.rxPackets = e->rx_packets;
-						link->linkStats.rx40mhz = e->rx_rate.is_40mhz;
-//						link->linkStats.rxHt = e->rx_rate.is_ht;
-						link->linkStats.rxMcs = e->rx_rate.mcs;
-//						link->linkStats.rxMhz = e->rx_rate.mhz;
-//						link->linkStats.rxNss = e->rx_rate.nss;
-						link->linkStats.rxShortGi = e->rx_rate.is_short_gi;
-//						link->linkStats.rxVht = e->rx_rate.is_vht;
+						link->wifiStats.rxRate = e->rx_rate.rate * 1000;
+						link->wifiStats.rxPackets = e->rx_packets;
+						link->wifiStats.rx40mhz = e->rx_rate.is_40mhz;
+						//						link->linkStats.rxHt = e->rx_rate.is_ht;
+						link->wifiStats.rxMcs = e->rx_rate.mcs;
+						//						link->linkStats.rxMhz = e->rx_rate.mhz;
+						//						link->linkStats.rxNss = e->rx_rate.nss;
+						link->wifiStats.rxShortGi = e->rx_rate.is_short_gi;
+						//						link->linkStats.rxVht = e->rx_rate.is_vht;
 
-						link->linkStats.signal = e->signal;
-						link->linkStats.noise = e->noise;
+						link->wifiStats.signal = e->signal;
+						link->wifiStats.noise = e->noise;
 
 
-						link->linkStats.updatedTime = bmx_time;
+						link->wifiStats.updatedTime = bmx_time;
 
-					} else if (((TIME_T) (bmx_time - link->linkStats.txTriggTime)) >= (TIME_T) linkProbeInterval &&
-						((TIME_T) (bmx_time - link->linkStats.updatedTime)) >= (TIME_T) linkProbeInterval) {
+					} else if (((TIME_T) (bmx_time - link->wifiStats.txTriggTime)) >= (TIME_T) linkProbeInterval &&
+						((TIME_T) (bmx_time - link->wifiStats.updatedTime)) >= (TIME_T) linkProbeInterval) {
 
-						link->linkStats.txTriggTime = bmx_time;
-						link->linkStats.txTriggCnt++;
+						link->wifiStats.txTriggTime = bmx_time;
+						link->wifiStats.txTriggCnt++;
 
 						struct tp_test_key tk = {.duration = linkProbeDuration, .endTime = 0, .packetSize = linkProbeSize, .totalSend = 0};
 
@@ -156,6 +156,22 @@ void get_link_rate(LinkNode *link, struct ctrl_node *cn)
 	}
 
 	iwinfo_finish();
+
+	if (link->wifiStats.updatedTime && ((TIME_T) (bmx_time - link->wifiStats.updatedTime)) < ((uint32_t) link_wrate_to)) {
+
+		link->timeaware_wifiRate = link->wifiStats.txRateAvg;
+
+	} else if (link->wifiStats.updatedTime && ((TIME_T) (bmx_time - link->wifiStats.updatedTime)) < ((uint32_t) link_purge_to)) {
+
+		link->timeaware_wifiRate = ((link->wifiStats.txRate * ((UMETRIC_T) (((uint32_t) link_purge_to) - (bmx_time - link->wifiStats.updatedTime)))) / ((uint32_t) link_purge_to));
+
+	} else {
+
+		link->timeaware_wifiRate = 0;
+	}
+
+
+
 }
 
 uint16_t iwi_get_channel(struct dev_node *dev)

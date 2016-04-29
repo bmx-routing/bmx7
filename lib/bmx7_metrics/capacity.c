@@ -114,18 +114,18 @@ void upd_ath_capacity(LinkNode *link, struct ctrl_node *cn)
 
 							UMETRIC_T tptib = ((UMETRIC_T) (1000 * 1000 * tptfM));
 
-								dbgf_cn(cn, DBGL_CHANGES, DBGT_INFO, "above tx=%u prevTx=%u tptfM=%f tptib=%ju\n", okTx, link->linkStats.txPackets, tptfM, tptib);
+								dbgf_cn(cn, DBGL_CHANGES, DBGT_INFO, "above tx=%u prevTx=%u tptfM=%f tptib=%ju\n", okTx, link->wifiStats.txPackets, tptfM, tptib);
 
-							if (link->linkStats.txPackets != okTx) {
+							if (link->wifiStats.txPackets != okTx) {
 
-								link->linkStats.txRate = tptib;
-								link->linkStats.txPackets = okTx;
-								link->linkStats.updatedTime = bmx_time;
+								link->wifiStats.txRate = tptib;
+								link->wifiStats.txPackets = okTx;
+								link->wifiStats.updatedTime = bmx_time;
 
-							} else if (((TIME_T) (bmx_time - link->linkStats.txTriggTime)) >= (TIME_T) linkProbeInterval &&
-								((TIME_T) (bmx_time - link->linkStats.updatedTime)) >= (TIME_T) linkProbeInterval) {
+							} else if (((TIME_T) (bmx_time - link->wifiStats.txTriggTime)) >= (TIME_T) linkProbeInterval &&
+								((TIME_T) (bmx_time - link->wifiStats.updatedTime)) >= (TIME_T) linkProbeInterval) {
 
-								link->linkStats.txTriggTime = bmx_time;
+								link->wifiStats.txTriggTime = bmx_time;
 
 								schedule_tx_task(FRAME_TYPE_TRASH_ADV, link, &link->k.linkDev->key.local->local_id, link->k.linkDev->key.local, link->k.myDev,
 									linkProbeSize, &linkProbeSize, sizeof(linkProbeSize));

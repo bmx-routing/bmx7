@@ -239,7 +239,7 @@ int32_t tx_frame_trash_adv(struct tx_frame_iterator *it)
 	upd_time(&tmp);
 	TIME_T now = ( (tmp.tv_sec * 1000) + (tmp.tv_usec / 1000) );
 
-	dbgf_track(DBGT_INFO, "size=%d total=%d duration=%d endTime=%d   iterations=%d dev=%s myIdx=%d src=%s unicast=%d, dst=%s nbIdx=%d neigh=%s neighId=%s",
+	dbgf_sys(DBGT_INFO, "size=%d total=%d duration=%d endTime=%d   iterations=%d dev=%s myIdx=%d src=%s unicast=%d, dst=%s nbIdx=%d neigh=%s neighId=%s",
 		tk->packetSize, tk->totalSend, tk->duration, (tk->endTime ? (tk->endTime - now) : 0),
 		it->ttn->tx_iterations, it->ttn->key.f.p.dev->ifname_label.str, it->ttn->key.f.p.dev->llipKey.devIdx, it->ttn->key.f.p.dev->ip_llocal_str, !!link,
 		ip6AsStr(link ? &link->k.linkDev->key.llocal_ip : NULL),

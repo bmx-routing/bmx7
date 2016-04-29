@@ -747,7 +747,8 @@ int32_t tx_frame_iterate(IDM_T iterate_msg, struct tx_frame_iterator *it)
 			(handl->min_msg_size > (cdsp=tx_iterator_cache_data_space_pref(it, 0, 0))) ||
 			(it->ttn && it->ttn->frame_msgs_length > (cdss=tx_iterator_cache_data_space_sched(it))) ) {
 
-			dbgf_track(DBGT_WARN, "ft=%d mms=%d cdsp=%d, fml=%d cdss=%d",
+			// WARNING: Using more verbose debuglevel here distorts link-capacity measurements !!!
+			dbgf_all(DBGT_WARN, "ft=%d mms=%d cdsp=%d, fml=%d cdss=%d",
 				it->frame_type, handl->min_msg_size, cdsp, it->ttn ? it->ttn->frame_msgs_length : 0, cdss);
 			return TLV_TX_DATA_FULL;
 		}

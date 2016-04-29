@@ -93,7 +93,7 @@
 
 #define MIN_OGM_LINK_RATE_EFFICIENCY 1
 #define MAX_OGM_LINK_RATE_EFFICIENCY 255
-#define DEF_OGM_LINK_RATE_EFFICIENCY 50
+#define DEF_OGM_LINK_RATE_EFFICIENCY 40
 #define ARG_OGM_LINK_RATE_EFFICIENCY "linkRateEfficiency"
 #define HLP_OGM_LINK_RATE_EFFICIENCY "set to-be considered efficiency in percent of probed wireless layer-2 link rate regarding its expected user (e.g. TCP) throughput"
 

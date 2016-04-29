@@ -58,55 +58,38 @@ static int32_t my_link_window = DEF_HELLO_SQN_WINDOW;
 
 //int32_t link_ignore_max = DEF_LINK_IGNORE_MAX;
 
+int32_t link_purge_to = DEF_LINK_PURGE_TO;
+
+int32_t link_wrate_to = DEF_LINK_WRATE_TO;
+
 
 STATIC_FUNC
-void upd_timeaware_rx_probe(LinkNode *link)
+void upd_timeaware_rq_probe(LinkNode *link)
 {
-        if (((TIME_T) (bmx_time - link->rq_probe_record.hello_time_max)) < RP_ADV_DELAY_TOLERANCE) {
+        if (((TIME_T) (bmx_time - link->rq_probe_record.hello_time_max)) < ((uint32_t)link_purge_to/10)) {
 
                 link->timeaware_rq_probe = link->rq_probe_record.hello_lq;
 
 
-        } else if (((TIME_T) (bmx_time - link->rq_probe_record.hello_time_max)) < RP_ADV_DELAY_RANGE) {
+        } else if (((TIME_T) (bmx_time - link->rq_probe_record.hello_time_max)) < ((uint32_t)link_purge_to)) {
 
 		link->timeaware_rq_probe =
-			(((uint32_t)link->rq_probe_record.hello_lq) * (RP_ADV_DELAY_RANGE - (bmx_time - link->rq_probe_record.hello_time_max))) / RP_ADV_DELAY_RANGE;
+			(((uint32_t)link->rq_probe_record.hello_lq) * (((uint32_t)link_purge_to) - (bmx_time - link->rq_probe_record.hello_time_max))) / ((uint32_t)link_purge_to);
 
 	}
 }
 
 STATIC_FUNC
-void upd_timeaware_tx_probe(LinkNode *link)
+void upd_timeaware_tq_probe(LinkNode *link)
 {
-	if (link->k.myDev->upd_link_capacity ) {
 
-//		IDM_T TODO_WARNING_mac_probes_are_unsigned_messages;
-
-		(*(link->k.myDev->upd_link_capacity)) (link, NULL);
-
-
-		if (link->linkStats.updatedTime && ((TIME_T) (bmx_time - link->linkStats.updatedTime)) < TP_ADV_DELAY_TOLERANCE) {
-
-			link->timeaware_txRate = link->linkStats.txRateAvg;
-
-		} else if (link->linkStats.updatedTime && ((TIME_T) (bmx_time - link->linkStats.updatedTime)) < TP_ADV_DELAY_RANGE) {
-
-			link->timeaware_txRate = ((link->linkStats.txRate * ((UMETRIC_T) (TP_ADV_DELAY_RANGE - (bmx_time - link->linkStats.updatedTime)))) / TP_ADV_DELAY_RANGE);
-
-		} else {
-
-			link->timeaware_txRate = 0;
-		}
-	}
-
-
-	if (((TIME_T) (bmx_time - link->tq_probe_time)) < TP_ADV_DELAY_TOLERANCE) {
+	if (((TIME_T) (bmx_time - link->tq_probe_time)) < ((uint32_t)link_purge_to/10)) {
 
 		link->timeaware_tq_probe = link->tq_probe;
 
-	} else if (((TIME_T) (bmx_time - link->tq_probe_time)) < TP_ADV_DELAY_RANGE) {
+	} else if (((TIME_T) (bmx_time - link->tq_probe_time)) < ((uint32_t)link_purge_to)) {
 
-		link->timeaware_tq_probe = ((((uint32_t)link->tq_probe) * ((TP_ADV_DELAY_RANGE - (bmx_time - link->tq_probe_time)))) / TP_ADV_DELAY_RANGE);
+		link->timeaware_tq_probe = ((((uint32_t)link->tq_probe) * ((((uint32_t)link_purge_to) - (bmx_time - link->tq_probe_time)))) / ((uint32_t)link_purge_to));
 
 	} else {
 
@@ -139,10 +122,10 @@ void lndev_assign_best(struct neigh_node *onlyLocal, LinkNode *onlyLink )
                 struct avl_node *link_an = NULL;
 
                 if (local->best_rq_link)
-                        upd_timeaware_rx_probe(local->best_rq_link);
+                        upd_timeaware_rq_probe(local->best_rq_link);
 
                 if (local->best_tq_link)
-                        upd_timeaware_tx_probe(local->best_tq_link);
+                        upd_timeaware_tq_probe(local->best_tq_link);
 
 
                 dbgf_all(DBGT_INFO, "local_id=%s", cryptShaAsString(&local->local_id));
@@ -159,14 +142,14 @@ void lndev_assign_best(struct neigh_node *onlyLocal, LinkNode *onlyLink )
                                         currLink->k.myDev->label_cfg.str, linkDev->link_tree.items);
 
 				if (local->best_rq_link != currLink) {
-					upd_timeaware_rx_probe(currLink);
+					upd_timeaware_rq_probe(currLink);
 
 					if (!local->best_rq_link || local->best_rq_link->timeaware_rq_probe < currLink->timeaware_rq_probe)
 						local->best_rq_link = currLink;
 				}
 
 				if (local->best_tq_link != currLink) {
-					upd_timeaware_tx_probe(currLink);
+					upd_timeaware_tq_probe(currLink);
 
 					if (!local->best_tq_link || local->best_tq_link->timeaware_tq_probe < currLink->timeaware_tq_probe)
 						local->best_tq_link = currLink;
@@ -594,9 +577,15 @@ void schedule_hello_adv(void)
 
 		LinkNode *link;
 		struct avl_node *an = NULL;
-		while((link = avl_iterate_item(&link_tree, &an))){
-			upd_timeaware_rx_probe(link);
-			upd_timeaware_tx_probe(link);
+		while((link = avl_iterate_item(&link_tree, &an))) {
+
+			if (link->k.myDev->upd_link_capacity) {
+				//IDM_T TODO_WARNING_mac_probes_are_unsigned_messages;
+				(*(link->k.myDev->upd_link_capacity)) (link, NULL);
+			}
+
+			upd_timeaware_rq_probe(link);
+			upd_timeaware_tq_probe(link);
 		}
 
 		schedule_tx_task(FRAME_TYPE_HELLO_ADV, NULL, NULL, NULL, NULL, SCHEDULE_MIN_MSG_SIZE, 0, 0);
@@ -848,34 +837,34 @@ static int32_t link_status_creator(struct status_handl *handl, void *data)
 				status[i].bestRq = (link == local->best_rq_link);
 				status[i].tq = ((link->timeaware_tq_probe * 100) / LQ_MAX);
 				status[i].bestTq = (link == local->best_tq_link);
-				status[i].txRate = link->timeaware_txRate ? link->timeaware_txRate : ((link->timeaware_tq_probe * link->k.myDev->umetric_max) / LQ_MAX);
+				status[i].txRate = link->timeaware_wifiRate ? link->timeaware_wifiRate : ((link->timeaware_tq_probe * link->k.myDev->umetric_max) / LQ_MAX);
 				status[i].rxRate = ((link->timeaware_rq_probe * link->k.myDev->umetric_max) / LQ_MAX);
 
-				status[i].wLastUpd = link->linkStats.updatedTime ? (((float)(bmx_time - link->linkStats.updatedTime))/1000) : -1;
-				status[i].wTxLastProbe = link->linkStats.txTriggTime ? (((float)(bmx_time - link->linkStats.txTriggTime))/1000) : -1;
-				status[i].wTxProbes = link->linkStats.txTriggCnt;
-				status[i].wSignal = link->linkStats.signal;
-				status[i].wNoise = link->linkStats.noise;
-				status[i].wSNR = link->linkStats.signal - link->linkStats.noise;
-				status[i].wTxRate = link->linkStats.txRate;
-				status[i].wTxRateAvg = link->linkStats.txRateAvg;
-				status[i].wTxCnt = link->linkStats.txPackets;
-				status[i].wTxMcs = link->linkStats.txMcs;
-				status[i].wTxMhz = link->linkStats.txMhz;
-				status[i].wTxNss = link->linkStats.txNss;
-				status[i].wTxSGI = link->linkStats.txShortGi;
-				status[i].wTx40M = link->linkStats.tx40mhz;
-				status[i].wTxHt = link->linkStats.txHt;
-				status[i].wTxVht = link->linkStats.txVht;
-				status[i].wRxRate = link->linkStats.rxRate;
-				status[i].wRxCnt = link->linkStats.rxPackets;
-				status[i].wRxMcs = link->linkStats.rxMcs;
-				status[i].wRxMhz = link->linkStats.rxMhz;
-				status[i].wRxNss = link->linkStats.rxNss;
-				status[i].wRxSGI = link->linkStats.rxShortGi;
-				status[i].wRx40M = link->linkStats.rx40mhz;
-				status[i].wRxHt = link->linkStats.rxHt;
-				status[i].wRxVht = link->linkStats.rxVht;
+				status[i].wLastUpd = link->wifiStats.updatedTime ? (((float)(bmx_time - link->wifiStats.updatedTime))/1000) : -1;
+				status[i].wTxLastProbe = link->wifiStats.txTriggTime ? (((float)(bmx_time - link->wifiStats.txTriggTime))/1000) : -1;
+				status[i].wTxProbes = link->wifiStats.txTriggCnt;
+				status[i].wSignal = link->wifiStats.signal;
+				status[i].wNoise = link->wifiStats.noise;
+				status[i].wSNR = link->wifiStats.signal - link->wifiStats.noise;
+				status[i].wTxRate = link->wifiStats.txRate;
+				status[i].wTxRateAvg = link->wifiStats.txRateAvg;
+				status[i].wTxCnt = link->wifiStats.txPackets;
+				status[i].wTxMcs = link->wifiStats.txMcs;
+				status[i].wTxMhz = link->wifiStats.txMhz;
+				status[i].wTxNss = link->wifiStats.txNss;
+				status[i].wTxSGI = link->wifiStats.txShortGi;
+				status[i].wTx40M = link->wifiStats.tx40mhz;
+				status[i].wTxHt = link->wifiStats.txHt;
+				status[i].wTxVht = link->wifiStats.txVht;
+				status[i].wRxRate = link->wifiStats.rxRate;
+				status[i].wRxCnt = link->wifiStats.rxPackets;
+				status[i].wRxMcs = link->wifiStats.rxMcs;
+				status[i].wRxMhz = link->wifiStats.rxMhz;
+				status[i].wRxNss = link->wifiStats.rxNss;
+				status[i].wRxSGI = link->wifiStats.rxShortGi;
+				status[i].wRx40M = link->wifiStats.rx40mhz;
+				status[i].wRxHt = link->wifiStats.rxHt;
+				status[i].wRxVht = link->wifiStats.rxVht;
 
 				status[i].routes = link->orig_routes;
 				status[i].iidMax = linkDev->key.local->neighIID4x_repos.max_free;
@@ -902,6 +891,13 @@ struct opt_type link_options[]=
 {
 	{ODI,0,ARG_LINKS,		0,  9,1,A_PS0N,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
 			0,		"show links\n"},
+			
+	{ODI, 0, ARG_LINK_PURGE_TO,     0, 9, 1, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &link_purge_to, MIN_LINK_PURGE_TO, MAX_LINK_PURGE_TO, DEF_LINK_PURGE_TO, 0, 0,
+		ARG_VALUE_FORM, "timeout in ms for purging stale links"},
+
+	{ODI, 0, ARG_LINK_WRATE_TO,     0, 9, 1, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &link_wrate_to, MIN_LINK_WRATE_TO, MAX_LINK_WRATE_TO, DEF_LINK_WRATE_TO, 0, 0,
+		ARG_VALUE_FORM, "timeout for accepting stale wireless-link statistics"},
+
         {ODI,0,ARG_HELLO_SQN_WINDOW,       0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&my_link_window,	MIN_HELLO_SQN_WINDOW, 	MAX_HELLO_SQN_WINDOW,DEF_HELLO_SQN_WINDOW,0,    opt_link_metric,
 			ARG_VALUE_FORM,	"set link window size (LWS) for link-quality calculation (link metric)"}
 };

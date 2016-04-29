@@ -275,9 +275,9 @@ typedef struct {
 	LQ_T tq_probe;
 	LQ_T timeaware_tq_probe;
 	LQ_T timeaware_rq_probe;
-	UMETRIC_T timeaware_txRate;
+	UMETRIC_T timeaware_wifiRate;
 
-	struct LinkStats linkStats;
+	struct LinkStats wifiStats;
 	int32_t orig_routes;
 
 } LinkNode;

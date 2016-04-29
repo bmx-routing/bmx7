@@ -34,6 +34,7 @@
 #include "key.h"
 #include "sec.h"
 #include "ogm.h"
+#include "link.h"
 #include "msg.h"
 #include "desc.h"
 #include "content.h"
@@ -44,7 +45,7 @@
 
 #define CODE_CATEGORY_NAME "key"
 
-int32_t link_purge_to = DEF_LINK_PURGE_TO;
+
 int32_t tracked_timeout = 20000;
 int32_t neigh_qualifying_to = 30000;
 int32_t id_purge_to = DEF_ID_PURGE_TO;
@@ -1251,9 +1252,6 @@ static struct opt_type key_options[] = {
 	{ODI,0,ARG_CREDITS,	        0,  9,1,A_PS0N,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
 			0,		"show credits\n"},
 #ifndef LESS_OPTIONS
-	{ODI, 0, ARG_LINK_PURGE_TO,     0, 9, 1, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &link_purge_to, MIN_LINK_PURGE_TO, MAX_LINK_PURGE_TO, DEF_LINK_PURGE_TO, 0, 0,
-		ARG_VALUE_FORM, "timeout in ms for purging stale links"}
-			,
 	{ODI, 0, ARG_ID_PURGE_TO, 0, 9, 1, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &id_purge_to, MIN_ID_PURGE_TO, MAX_ID_PURGE_TO, DEF_ID_PURGE_TO, 0, 0,
 		ARG_VALUE_FORM, "timeout in ms for purging unreferenced (alien) IDs"}
 #endif

@@ -19,12 +19,7 @@
 
 
 
-#define MIN_LINK_PURGE_TO  (MAX_TX_MIN_INTERVAL*2)
-#define MAX_LINK_PURGE_TO  864000000 /*10 days*/
-#define DEF_LINK_PURGE_TO  20000
-#define ARG_LINK_PURGE_TO  "linkTimeout"
 
-extern int32_t link_purge_to;
 extern int32_t tracked_timeout;
 extern int32_t neigh_qualifying_to;
 

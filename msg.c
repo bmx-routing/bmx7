@@ -200,7 +200,7 @@ struct frame_db *description_tlv_db = NULL;
 struct tlv_hdr tlvSetBigEndian(int16_t type, int16_t length)
 {
 	assertion(-502044, (type >= 0 && type <= FRAME_TYPE_MASK));
-	assertion(-502045, (length > 0 && length < (int)(MAX_UDPD_SIZE - sizeof(struct packet_header))));
+	assertion(-502045, (length > 0 && length <= (int)(MAX_UDPD_SIZE - sizeof(struct packet_header))));
 
 	struct tlv_hdr tlv = {.u.tlv = {.type = type, .length = length } };
 	tlv.u.u16 = htons(tlv.u.u16);

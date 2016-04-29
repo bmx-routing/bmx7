@@ -65,107 +65,116 @@
 
 #define CODE_CATEGORY_NAME "bmx7_iwinfo"
 
+static int32_t linkBurstPacketThreshold = DEF_LINK_BURST_THRESHOLD;
+static int32_t linkBurstInterval = DEF_LINK_BURST_IVAL;
+static int32_t linkBurstPacketSize = DEF_LINK_BURST_PACKETSZ;
+static int32_t linkBurstDuration = DEF_LINK_BURST_DURATION;
+static int32_t linkBurstBytes = DEF_LINK_BURST_BYTES;
 
-int32_t linkProbeInterval = DEF_LINK_PROBE_IVAL;
-int32_t linkProbeSize = DEF_LINK_PROBE_SIZE;
-int32_t linkProbeDuration = DEF_LINK_PROBE_DURATION;
-int32_t linkProbeTotal = DEF_LINK_PROBE_TOTAL;
-int32_t linkAvgRateWeight = DEF_LINK_RATE_AVG_WEIGHT;
+static int32_t linkProbeInterval = DEF_LINK_PROBE_IVAL;
+static int32_t linkProbePacketSize = DEF_LINK_PROBE_PACKETSZ;
+
+static int32_t linkAvgRateWeight = DEF_LINK_RATE_AVG_WEIGHT;
 
 
 void get_link_rate(LinkNode *link, struct ctrl_node *cn)
 {
 	const struct iwinfo_ops *iw;
+	int i, len;
+	char buf[IWINFO_BUFSIZE];
+	struct iwinfo_assoclist_entry *e = NULL;
 
-	if ((iw = iwinfo_backend(link->k.myDev->ifname_phy.str))) {
+	if ((iw = iwinfo_backend(link->k.myDev->ifname_phy.str)) && (iw->assoclist(link->k.myDev->ifname_phy.str, buf, &len)) == 0 && len > 0) {
 
-		int i, len;
-		char buf[IWINFO_BUFSIZE];
-		struct iwinfo_assoclist_entry *e;
+		MAC_T *mac = ip6Eui64ToMac(&link->k.linkDev->key.llocal_ip, NULL);
 
-		if ((iw->assoclist(link->k.myDev->ifname_phy.str, buf, &len))==0 && len > 0 ) {
+		for (i = 0; i < len; i += sizeof(struct iwinfo_assoclist_entry)) {
+			e = (struct iwinfo_assoclist_entry *) &buf[i];
 
-			MAC_T *mac = ip6Eui64ToMac(&link->k.linkDev->key.llocal_ip, NULL);
+			if (memcmp(e->mac, mac, sizeof(MAC_T)) == 0) {
 
-			for (i = 0; i < len; i += sizeof(struct iwinfo_assoclist_entry)) {
-				e = (struct iwinfo_assoclist_entry *) &buf[i];
+				dbgf_cn(cn, DBGL_CHANGES, DBGT_INFO,
+					"mac=%s signal=%d noise=%d snr=%d age=%d rxRate=%d rxCnt=%d txRate=%d txCount=%d",
+					memAsHexStringSep(mac, 6, 1, ":"),
+					e->signal, e->noise, (e->signal - e->noise), e->inactive,
+					e->rx_rate.rate, e->rx_rate.is_short_gi, e->rx_packets,
+					e->tx_rate.rate, e->tx_packets);
 
-				if (memcmp(e->mac, mac, sizeof(MAC_T))==0) {
+				if (link->wifiStats.txPackets != e->tx_packets) {
 
-					dbgf_cn(cn, DBGL_CHANGES, DBGT_INFO,
-						"mac=%s signal=%d noise=%d snr=%d age=%d rxRate=%d rxCnt=%d txRate=%d txCount=%d",
-						memAsHexStringSep(mac,6,1,":"),
-						e->signal, e->noise, (e->signal - e->noise), e->inactive,
-						e->rx_rate.rate, e->rx_rate.is_short_gi ,e->rx_packets,
-						e->tx_rate.rate, e->tx_packets);
+					link->wifiStats.txRate = e->tx_rate.rate * 1000;
+					link->wifiStats.txRateAvg = link->wifiStats.txRateAvg + (link->wifiStats.txRate / linkAvgRateWeight) - (link->wifiStats.txRateAvg / linkAvgRateWeight);
+					link->wifiStats.tx40mhz = e->tx_rate.is_40mhz;
+					//link->linkStats.txHt = e->tx_rate.is_ht;
+					link->wifiStats.txMcs = e->tx_rate.mcs;
+					//link->linkStats.txMhz = e->tx_rate.mhz;
+					//link->linkStats.txNss = e->tx_rate.nss;
+					link->wifiStats.txShortGi = e->tx_rate.is_short_gi;
+					//link->linkStats.txVht = e->tx_rate.is_vht;
 
-					if (link->wifiStats.txPackets != e->tx_packets) {
+					link->wifiStats.rxRate = e->rx_rate.rate * 1000;
+					link->wifiStats.rxPackets = e->rx_packets;
+					link->wifiStats.rx40mhz = e->rx_rate.is_40mhz;
+					//link->linkStats.rxHt = e->rx_rate.is_ht;
+					link->wifiStats.rxMcs = e->rx_rate.mcs;
+					//link->linkStats.rxMhz = e->rx_rate.mhz;
+					//link->linkStats.rxNss = e->rx_rate.nss;
+					link->wifiStats.rxShortGi = e->rx_rate.is_short_gi;
+					//link->linkStats.rxVht = e->rx_rate.is_vht;
 
-						link->wifiStats.txRate = e->tx_rate.rate * 1000;
-						link->wifiStats.txRateAvg = link->wifiStats.txRateAvg + (link->wifiStats.txRate / linkAvgRateWeight) - (link->wifiStats.txRateAvg / linkAvgRateWeight);
-						link->wifiStats.txPackets = e->tx_packets;
-						link->wifiStats.tx40mhz = e->tx_rate.is_40mhz;
-						//						link->linkStats.txHt = e->tx_rate.is_ht;
-						link->wifiStats.txMcs = e->tx_rate.mcs;
-						//						link->linkStats.txMhz = e->tx_rate.mhz;
-						//						link->linkStats.txNss = e->tx_rate.nss;
-						link->wifiStats.txShortGi = e->tx_rate.is_short_gi;
-						//						link->linkStats.txVht = e->tx_rate.is_vht;
+					link->wifiStats.signal = e->signal;
+					link->wifiStats.noise = e->noise;
 
-						link->wifiStats.rxRate = e->rx_rate.rate * 1000;
-						link->wifiStats.rxPackets = e->rx_packets;
-						link->wifiStats.rx40mhz = e->rx_rate.is_40mhz;
-						//						link->linkStats.rxHt = e->rx_rate.is_ht;
-						link->wifiStats.rxMcs = e->rx_rate.mcs;
-						//						link->linkStats.rxMhz = e->rx_rate.mhz;
-						//						link->linkStats.rxNss = e->rx_rate.nss;
-						link->wifiStats.rxShortGi = e->rx_rate.is_short_gi;
-						//						link->linkStats.rxVht = e->rx_rate.is_vht;
+					link->wifiStats.updatedTime = bmx_time;
+					link->wifiStats.txTriggTime = bmx_time;
 
-						link->wifiStats.signal = e->signal;
-						link->wifiStats.noise = e->noise;
-
-
-						link->wifiStats.updatedTime = bmx_time;
-
-					} else if (((TIME_T) (bmx_time - link->wifiStats.txTriggTime)) >= (TIME_T) linkProbeInterval &&
-						((TIME_T) (bmx_time - link->wifiStats.updatedTime)) >= (TIME_T) linkProbeInterval) {
-
-						link->wifiStats.txTriggTime = bmx_time;
-						link->wifiStats.txTriggCnt++;
-
-						struct tp_test_key tk = {.duration = linkProbeDuration, .endTime = 0, .packetSize = linkProbeSize, .totalSend = 0};
-
-						schedule_tx_task(FRAME_TYPE_TRASH_ADV, link, &link->k.linkDev->key.local->local_id, link->k.linkDev->key.local, link->k.myDev,
-							tk.packetSize, &tk, sizeof(tk));
-
-					}
-
-					break;
+					link->wifiStats.txPackets = e->tx_packets;
 				}
+
+
+				if (((uint32_t)(e->tx_packets - link->wifiStats.txBurstPackets)) >= ((uint32_t)linkBurstPacketThreshold)) {
+					
+					link->wifiStats.txBurstPackets = e->tx_packets;
+					link->wifiStats.txBurstTime = bmx_time;
+					link->wifiStats.txTriggTime = bmx_time;
+
+				} else if (((TIME_T) (bmx_time - link->wifiStats.txBurstTime)) >= ((TIME_T) linkBurstInterval)) {
+						
+					link->wifiStats.txBurstPackets = e->tx_packets;
+					link->wifiStats.txBurstTime = bmx_time;
+					link->wifiStats.txBurstCnt++;
+					
+					struct tp_test_key tk = {.duration = linkBurstDuration, .endTime = 0, .packetSize = linkBurstPacketSize, .totalSend = 0};
+					
+					schedule_tx_task(FRAME_TYPE_TRASH_ADV, link, &link->k.linkDev->key.local->local_id, link->k.linkDev->key.local, link->k.myDev,
+						tk.packetSize, &tk, sizeof(tk));
+
+				} else if (link->wifiStats.txPackets == e->tx_packets &&
+					((TIME_T) (bmx_time - link->wifiStats.txTriggTime)) >= (TIME_T) linkProbeInterval) {
+
+					link->wifiStats.txTriggTime = bmx_time;
+					link->wifiStats.txTriggCnt++;
+
+
+					struct tp_test_key tk = {.duration = 0, .endTime = 0, .packetSize = linkProbePacketSize, .totalSend = 0};
+
+					schedule_tx_task(FRAME_TYPE_TRASH_ADV, link, &link->k.linkDev->key.local->local_id, link->k.linkDev->key.local, link->k.myDev,
+						tk.packetSize, &tk, sizeof(tk));
+
+				}
+
+				break;
+			} else {
+				e = NULL;
 			}
 		}
+	}
 
-
+	if (!e) {
+		memset(&link->wifiStats, 0, sizeof(link->wifiStats));
 	}
 
 	iwinfo_finish();
-
-	if (link->wifiStats.updatedTime && ((TIME_T) (bmx_time - link->wifiStats.updatedTime)) < ((uint32_t) link_wrate_to)) {
-
-		link->timeaware_wifiRate = link->wifiStats.txRateAvg;
-
-	} else if (link->wifiStats.updatedTime && ((TIME_T) (bmx_time - link->wifiStats.updatedTime)) < ((uint32_t) link_purge_to)) {
-
-		link->timeaware_wifiRate = ((link->wifiStats.txRate * ((UMETRIC_T) (((uint32_t) link_purge_to) - (bmx_time - link->wifiStats.updatedTime)))) / ((uint32_t) link_purge_to));
-
-	} else {
-
-		link->timeaware_wifiRate = 0;
-	}
-
-
-
 }
 
 uint16_t iwi_get_channel(struct dev_node *dev)
@@ -238,7 +247,7 @@ int32_t tx_frame_trash_adv(struct tx_frame_iterator *it)
 		(link ? &link->k.linkDev->key.local->on->k.hostname: NULL),
 		cryptShaAsString(&it->ttn->key.f.groupId));
 
-	if (link && tk->duration && ((tk->totalSend + tk->packetSize) <= (uint32_t)linkProbeTotal) && (!tk->endTime || (((TIME_T)(tk->endTime - now)) < tk->duration))) {
+	if (link && tk->duration && ((tk->totalSend + tk->packetSize) <= (uint32_t)linkBurstBytes) && (!tk->endTime || (((TIME_T)(tk->endTime - now)) < tk->duration))) {
 
 		struct tp_test_key TK = *tk;
 
@@ -249,6 +258,8 @@ int32_t tx_frame_trash_adv(struct tx_frame_iterator *it)
 
 		schedule_tx_task(FRAME_TYPE_TRASH_ADV, link, &link->k.linkDev->key.local->local_id, link->k.linkDev->key.local, link->k.myDev, TK.packetSize, &TK, sizeof(TK) );
 	}
+
+	link->wifiStats.txBurstPackets++;
 
 	cryptRand(tx_iterator_cache_msg_ptr(it), tk->packetSize);
 	return tk->packetSize;
@@ -268,14 +279,15 @@ int32_t rx_frame_trash_adv(struct rx_frame_iterator *it)
 
 static struct opt_type capacity_options[]= {
 //        ord parent long_name          shrt Attributes				*ival		min		max		default		*func,*syntax,*help
+
 	{ODI,0,ARG_LINK_PROBE_IVAL,     0,9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,&linkProbeInterval,MIN_LINK_PROBE_IVAL,MAX_LINK_PROBE_IVAL,DEF_LINK_PROBE_IVAL,0,0,
 			ARG_VALUE_FORM, HLP_LINK_PROBE_IVAL},
-	{ODI,0,ARG_LINK_PROBE_SIZE,     0,9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,&linkProbeSize,MIN_LINK_PROBE_SIZE,MAX_LINK_PROBE_SIZE, DEF_LINK_PROBE_SIZE,0,0,
-			ARG_VALUE_FORM, HLP_LINK_PROBE_SIZE},
-	{ODI,0,ARG_LINK_PROBE_DURATION, 0,9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,&linkProbeDuration,MIN_LINK_PROBE_DURATION,MAX_LINK_PROBE_DURATION, DEF_LINK_PROBE_DURATION,0,0,
-			ARG_VALUE_FORM, HLP_LINK_PROBE_DURATION},
-	{ODI,0,ARG_LINK_PROBE_TOTAL,    0,9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,&linkProbeTotal,MIN_LINK_PROBE_TOTAL,MAX_LINK_PROBE_TOTAL, DEF_LINK_PROBE_TOTAL,0,0,
-			ARG_VALUE_FORM, HLP_LINK_PROBE_TOTAL},
+	{ODI,0,ARG_LINK_PROBE_PACKETSZ,     0,9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,&linkProbePacketSize,MIN_LINK_PROBE_PACKETSZ,MAX_LINK_PROBE_PACKETSZ, DEF_LINK_PROBE_PACKETSZ,0,0,
+			ARG_VALUE_FORM, HLP_LINK_PROBE_PACKETSZ},
+	{ODI,0,ARG_LINK_BURST_DURATION, 0,9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,&linkBurstDuration,MIN_LINK_BURST_DURATION,MAX_LINK_BURST_DURATION, DEF_LINK_BURST_DURATION,0,0,
+			ARG_VALUE_FORM, HLP_LINK_BURST_DURATION},
+	{ODI,0,ARG_LINK_BURST_BYTES,    0,9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,&linkBurstBytes,MIN_LINK_BURST_BYTES,MAX_LINK_BURST_BYTES, DEF_LINK_BURST_BYTES,0,0,
+			ARG_VALUE_FORM, HLP_LINK_BURST_BYTES},
 	{ODI,0,ARG_LINK_RATE_AVG_WEIGHT,0,9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,&linkAvgRateWeight,MIN_LINK_RATE_AVG_WEIGHT,MAX_LINK_RATE_AVG_WEIGHT, DEF_LINK_RATE_AVG_WEIGHT,0,0,
 			ARG_VALUE_FORM, HLP_LINK_RATE_AVG_WEIGHT},
 

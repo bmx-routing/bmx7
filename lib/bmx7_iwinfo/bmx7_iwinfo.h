@@ -18,27 +18,49 @@
 
 #define ARG_LINK_PROBE_IVAL "linkProbeInterval"
 #define HLP_LINK_PROBE_IVAL "set interval in ms for unicast link probing to improve link-capacity estimation"
-#define DEF_LINK_PROBE_IVAL  3000
-#define MIN_LINK_PROBE_IVAL  100
-#define MAX_LINK_PROBE_IVAL  10000000
+#define DEF_LINK_PROBE_IVAL 3000
+#define MIN_LINK_PROBE_IVAL 100
+#define MAX_LINK_PROBE_IVAL 10000000
 
-#define ARG_LINK_PROBE_SIZE "linkProbeSize"
-#define HLP_LINK_PROBE_SIZE "set byte size of packets for unicast link probing to improve link-capacity estimation"
-#define DEF_LINK_PROBE_SIZE  100
-#define MIN_LINK_PROBE_SIZE  0
-#define MAX_LINK_PROBE_SIZE  SIGNED_FRAMES_SIZE_MAX
+#define ARG_LINK_PROBE_PACKETSZ "linkProbeSize"
+#define HLP_LINK_PROBE_PACKETSZ "set byte size of packets for unicast link probing to improve link-capacity estimation"
+#define DEF_LINK_PROBE_PACKETSZ 100
+#define MIN_LINK_PROBE_PACKETSZ 0
+#define MAX_LINK_PROBE_PACKETSZ SIGNED_FRAMES_SIZE_MAX
 
-#define ARG_LINK_PROBE_DURATION "linkProbeDuration"
-#define HLP_LINK_PROBE_DURATION "set duration in ms for unicast link probing to improve link-capacity estimation"
-#define DEF_LINK_PROBE_DURATION 0
-#define MIN_LINK_PROBE_DURATION 0
-#define MAX_LINK_PROBE_DURATION 1000
 
-#define ARG_LINK_PROBE_TOTAL "linkProbeTotal"
-#define HLP_LINK_PROBE_TOTAL "maximum total amount of data per link probe burst to improve link-capacity estimation"
-#define DEF_LINK_PROBE_TOTAL 1000
-#define MIN_LINK_PROBE_TOTAL 0
-#define MAX_LINK_PROBE_TOTAL 1000000
+
+
+#define ARG_LINK_BURST_IVAL "linkBurstInterval"
+#define HLP_LINK_BURST_IVAL "set interval in ms for unicast link probing bursts to improve link-capacity estimation"
+#define DEF_LINK_BURST_IVAL 60000
+#define MIN_LINK_BURST_IVAL 1000
+#define MAX_LINK_BURST_IVAL 10000000
+
+#define ARG_LINK_BURST_THRESHOLD "linkBurstThreshold"
+#define HLP_LINK_BURST_THRESHOLD "set number of packets for discarding current linkBurstInterval"
+#define DEF_LINK_BURST_THRESHOLD 100
+#define MIN_LINK_BURST_THRESHOLD 0
+#define MAX_LINK_BURST_THRESHOLD 1000000
+
+#define ARG_LINK_BURST_PACKETSZ "linkBurstSize"
+#define HLP_LINK_BURST_PACKETSZ "set byte size of packets for unicast link probing bursts to improve link-capacity estimation"
+#define DEF_LINK_BURST_PACKETSZ 1000
+#define MIN_LINK_BURST_PACKETSZ 0
+#define MAX_LINK_BURST_PACKETSZ SIGNED_FRAMES_SIZE_MAX
+
+
+#define ARG_LINK_BURST_DURATION "linkBurstDuration"
+#define HLP_LINK_BURST_DURATION "set duration in ms for unicast link probing bursts to improve link-capacity estimation"
+#define DEF_LINK_BURST_DURATION 50
+#define MIN_LINK_BURST_DURATION 0
+#define MAX_LINK_BURST_DURATION 1000
+
+#define ARG_LINK_BURST_BYTES "linkBurstData"
+#define HLP_LINK_BURST_BYTES "maximum total amount of data per link probe burst to improve link-capacity estimation"
+#define DEF_LINK_BURST_BYTES 1000000
+#define MIN_LINK_BURST_BYTES 0
+#define MAX_LINK_BURST_BYTES 1000000
 
 #define ARG_LINK_RATE_AVG_WEIGHT "linkAvgRate"
 #define HLP_LINK_RATE_AVG_WEIGHT "weight for averaging out old link-rate probes"

@@ -3423,6 +3423,13 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
                         strcpy(dev->label_cfg.str, patch->val);
                         strcpy(dev->name_phy_cfg.str, phy_name);
 
+			strcpy(dev->ifname_device.str, phy_name);
+			char *dot_ptr;
+			// if given interface is a vlan then truncate to physical interface name:
+			if ((dot_ptr = strchr(dev->ifname_device.str, '.')) != NULL)
+				*dot_ptr = '\0';
+
+
                         avl_insert(&dev_name_tree, dev, -300144);
 
                         // some configurable interface values - initialized to unspecified:

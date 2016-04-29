@@ -464,6 +464,7 @@ struct dev_node {
 
 	IFNAME_T name_phy_cfg;  //key for dev_name_tree
 	IFNAME_T label_cfg;
+	IFNAME_T ifname_device;
 
         LinkNode dummyLink;
 

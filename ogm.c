@@ -55,7 +55,7 @@
 
 
 
-static int32_t minMyOgmInterval = DEF_OGM_INTERVAL;   /* orginator message interval in miliseconds */
+int32_t my_ogmInterval = DEF_OGM_INTERVAL;   /* orginator message interval in miliseconds */
 static int32_t maxMyOgmIFactor = DEF_OGM_IFACTOR;
 
 
@@ -219,12 +219,12 @@ void revise_ogm_aggregations(void)
 	static TIME_T myNextHitchhike = 0;
 	static TIME_T myNextGuarantee = 0;
 
-	TIME_T myGuaranteedInterval = ((minMyOgmInterval * maxMyOgmIFactor) / 100);
+	TIME_T myGuaranteedInterval = ((my_ogmInterval * maxMyOgmIFactor) / 100);
 	IDM_T myNextNow = !my_description_changed && doNowOrLater(&myNextGuarantee, myGuaranteedInterval, (myKey->on->dc->ogmSqnMaxSend == 0));
 
 	if (myNextNow || (ogm_aggreg_sqn_max > ogm_aggreg_sqn_send && getOgmAggregNode(ogm_aggreg_sqn_max)->tree.items)) {
 
-		if (doNowOrLater(&myNextHitchhike, minMyOgmInterval, myNextNow)) {
+		if (doNowOrLater(&myNextHitchhike, my_ogmInterval, myNextNow)) {
 			doNowOrLater(&myNextGuarantee, myGuaranteedInterval, YES); //sync the two timeouts!
 			schedule_my_originator_message();
 		}
@@ -709,7 +709,7 @@ int32_t rx_frame_ogm_aggreg_advs(struct rx_frame_iterator *it)
 STATIC_FUNC
 struct opt_type ogm_options[]=
 {
-        {ODI,0,ARG_OGM_INTERVAL,        0,9,1, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &minMyOgmInterval,  MIN_OGM_INTERVAL,   MAX_OGM_INTERVAL,   DEF_OGM_INTERVAL,0,   0,
+        {ODI,0,ARG_OGM_INTERVAL,        0,9,1, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &my_ogmInterval,  MIN_OGM_INTERVAL,   MAX_OGM_INTERVAL,   DEF_OGM_INTERVAL,0,   0,
 			ARG_VALUE_FORM,	"set interval in ms with which new originator message (OGM) are send"},
         {ODI,0,ARG_OGM_IFACTOR,         0,9,1, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &maxMyOgmIFactor,  MIN_OGM_IFACTOR,   MAX_OGM_IFACTOR,   DEF_OGM_IFACTOR, 0,   0,
 			ARG_VALUE_FORM,	"set factor (relative to ogmInterval) for max delay of own ogms"},

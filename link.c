@@ -717,7 +717,9 @@ struct link_status {
 	int8_t wRxVht;
 
 	float wTxLastProbe;
-	TIME_T wTxProbes;
+	uint32_t wTxProbe;
+	float wTxLastBurst;
+	uint32_t wTxBurst;
 	UMETRIC_T wTxRate;
 	UMETRIC_T wTxRateAvg;
 	uint32_t wTxCnt;
@@ -774,7 +776,9 @@ static const struct field_format link_status_format[] = {
 	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wRxVht,           1, FIELD_RELEVANCE_LOW),
 
 	FIELD_FORMAT_INIT(FIELD_TYPE_FLOAT,             link_status, wTxLastProbe,     1, FIELD_RELEVANCE_MEDI),
-	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wTxProbes,        1, FIELD_RELEVANCE_MEDI),
+	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wTxProbe,         1, FIELD_RELEVANCE_MEDI),
+	FIELD_FORMAT_INIT(FIELD_TYPE_FLOAT,             link_status, wTxLastBurst,     1, FIELD_RELEVANCE_MEDI),
+	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wTxBurst,         1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           link_status, wTxRate,          1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           link_status, wTxRateAvg,       1, FIELD_RELEVANCE_MEDI),
 	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wTxCnt,           1, FIELD_RELEVANCE_MEDI),
@@ -839,9 +843,11 @@ static int32_t link_status_creator(struct status_handl *handl, void *data)
 				status[i].txRate = link->wifiStats.txRateAvg ? link->wifiStats.txRateAvg : ((link->timeaware_tq_probe * link->k.myDev->umetric_max) / LQ_MAX);
 				status[i].rxRate = ((link->timeaware_rq_probe * link->k.myDev->umetric_max) / LQ_MAX);
 
-				status[i].wLastUpd = link->wifiStats.updatedTime ? (((float)(bmx_time - link->wifiStats.updatedTime))/1000) : -1;
-				status[i].wTxLastProbe = link->wifiStats.txTriggTime ? (((float)(bmx_time - link->wifiStats.txTriggTime))/1000) : -1;
-				status[i].wTxProbes = link->wifiStats.txTriggCnt;
+				status[i].wLastUpd = link->wifiStats.updatedTime ? ((float)(((TIME_T)(bmx_time - link->wifiStats.updatedTime))/1000)) : -1;
+				status[i].wTxLastProbe = link->wifiStats.txTriggTime ? ((float)(((TIME_T)(bmx_time - link->wifiStats.txTriggTime))/1000)) : -1;
+				status[i].wTxProbe = link->wifiStats.txTriggCnt;
+				status[i].wTxLastBurst = link->wifiStats.txBurstTime ? ((float)(((TIME_T)(bmx_time - link->wifiStats.txBurstTime))/1000)) : -1;
+				status[i].wTxBurst = link->wifiStats.txBurstCnt;
 				status[i].wSignal = link->wifiStats.signal;
 				status[i].wNoise = link->wifiStats.noise;
 				status[i].wSNR = link->wifiStats.signal - link->wifiStats.noise;

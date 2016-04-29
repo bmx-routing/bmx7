@@ -32,7 +32,7 @@ extern uint32_t ogms_pending;
 #define DEF_OGM_INTERVAL 6000
 #define MIN_OGM_INTERVAL 200
 #define MAX_OGM_INTERVAL 60000 // 60000 = 1 minutes
-
+extern int32_t my_ogmInterval;
 
 #define MIN_OGM_AGGREG_HISTORY 2
 #define MAX_OGM_AGGREG_HISTORY AGGREG_SQN_CACHE_RANGE

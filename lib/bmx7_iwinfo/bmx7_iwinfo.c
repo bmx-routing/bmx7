@@ -141,7 +141,7 @@ void get_link_rate(LinkNode *link, struct ctrl_node *cn)
 				} else if (link->wifiStats.txBurstTime == 0) {
 						
 					link->wifiStats.txBurstPackets = e->tx_packets;
-					link->wifiStats.txBurstTime = bmx_time + ((TIME_T)(linkBurstInterval - (my_ogmInterval/2)));
+					link->wifiStats.txBurstTime = bmx_time + ((TIME_T)(my_ogmInterval/2));
 					
 				} else if (((TIME_T) (bmx_time - link->wifiStats.txBurstTime)) >= ((TIME_T) linkBurstInterval)) {
 

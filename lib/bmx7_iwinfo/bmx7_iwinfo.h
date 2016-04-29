@@ -33,7 +33,7 @@
 
 #define ARG_LINK_BURST_IVAL "linkBurstInterval"
 #define HLP_LINK_BURST_IVAL "set interval in ms for unicast link probing bursts to improve link-capacity estimation"
-#define DEF_LINK_BURST_IVAL 60000
+#define DEF_LINK_BURST_IVAL 100000
 #define MIN_LINK_BURST_IVAL 1000
 #define MAX_LINK_BURST_IVAL 10000000
 
@@ -52,11 +52,11 @@
 
 #define ARG_LINK_BURST_DURATION "linkBurstDuration"
 #define HLP_LINK_BURST_DURATION "set duration in ms for unicast link probing bursts to improve link-capacity estimation"
-#define DEF_LINK_BURST_DURATION 200
+#define DEF_LINK_BURST_DURATION 250
 #define MIN_LINK_BURST_DURATION 0
 #define MAX_LINK_BURST_DURATION 1000
 
-#define ARG_LINK_BURST_BYTES "linkBurstData"
+#define ARG_LINK_BURST_BYTES "linkBurstBytes"
 #define HLP_LINK_BURST_BYTES "maximum total amount of data per link probe burst to improve link-capacity estimation"
 #define DEF_LINK_BURST_BYTES 1000000
 #define MIN_LINK_BURST_BYTES 0

@@ -10,11 +10,6 @@
 #define ARG_LINK_PURGE_TO  "linkTimeout"
 extern int32_t link_purge_to;
 
-#define MIN_LINK_WRATE_TO MAX_TX_MIN_INTERVAL
-#define MAX_LINK_WRATE_TO 864000000 /*10 days*/
-#define DEF_LINK_WRATE_TO 20000
-#define ARG_LINK_WRATE_TO  "linkRateTimeout"
-extern int32_t link_wrate_to;
 
 
 struct dsc_msg_llip {

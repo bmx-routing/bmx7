@@ -237,6 +237,7 @@ struct LinkStats {
 	UMETRIC_T txRate;
 	UMETRIC_T txRateAvg;
 	uint32_t txPackets;
+	uint32_t txBurstPackets;
 
 	UMETRIC_T rxRate;
 	uint32_t rxPackets;
@@ -246,7 +247,9 @@ struct LinkStats {
 
 	TIME_T updatedTime;
 	TIME_T txTriggTime;
+	TIME_T txBurstTime;
 	uint32_t txTriggCnt;
+	uint32_t txBurstCnt;
 
 	int8_t txMcs;
 	uint8_t txMhz;

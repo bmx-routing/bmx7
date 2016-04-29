@@ -60,7 +60,6 @@ static int32_t my_link_window = DEF_HELLO_SQN_WINDOW;
 
 int32_t link_purge_to = DEF_LINK_PURGE_TO;
 
-int32_t link_wrate_to = DEF_LINK_WRATE_TO;
 
 
 STATIC_FUNC
@@ -837,7 +836,7 @@ static int32_t link_status_creator(struct status_handl *handl, void *data)
 				status[i].bestRq = (link == local->best_rq_link);
 				status[i].tq = ((link->timeaware_tq_probe * 100) / LQ_MAX);
 				status[i].bestTq = (link == local->best_tq_link);
-				status[i].txRate = link->timeaware_wifiRate ? link->timeaware_wifiRate : ((link->timeaware_tq_probe * link->k.myDev->umetric_max) / LQ_MAX);
+				status[i].txRate = link->wifiStats.txRateAvg ? link->wifiStats.txRateAvg : ((link->timeaware_tq_probe * link->k.myDev->umetric_max) / LQ_MAX);
 				status[i].rxRate = ((link->timeaware_rq_probe * link->k.myDev->umetric_max) / LQ_MAX);
 
 				status[i].wLastUpd = link->wifiStats.updatedTime ? (((float)(bmx_time - link->wifiStats.updatedTime))/1000) : -1;
@@ -894,9 +893,6 @@ struct opt_type link_options[]=
 			
 	{ODI, 0, ARG_LINK_PURGE_TO,     0, 9, 1, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &link_purge_to, MIN_LINK_PURGE_TO, MAX_LINK_PURGE_TO, DEF_LINK_PURGE_TO, 0, 0,
 		ARG_VALUE_FORM, "timeout in ms for purging stale links"},
-
-	{ODI, 0, ARG_LINK_WRATE_TO,     0, 9, 1, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &link_wrate_to, MIN_LINK_WRATE_TO, MAX_LINK_WRATE_TO, DEF_LINK_WRATE_TO, 0, 0,
-		ARG_VALUE_FORM, "timeout for accepting stale wireless-link statistics"},
 
         {ODI,0,ARG_HELLO_SQN_WINDOW,       0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&my_link_window,	MIN_HELLO_SQN_WINDOW, 	MAX_HELLO_SQN_WINDOW,DEF_HELLO_SQN_WINDOW,0,    opt_link_metric,
 			ARG_VALUE_FORM,	"set link window size (LWS) for link-quality calculation (link metric)"}

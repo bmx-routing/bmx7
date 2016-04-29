@@ -65,7 +65,7 @@
 
 #define CODE_CATEGORY_NAME "bmx7_iwinfo"
 
-static int32_t linkBurstPacketThreshold = DEF_LINK_BURST_THRESHOLD;
+static int32_t linkBurstThreshold = DEF_LINK_BURST_THRESHOLD;
 static int32_t linkBurstInterval = DEF_LINK_BURST_IVAL;
 static int32_t linkBurstPacketSize = DEF_LINK_BURST_PACKETSZ;
 static int32_t linkBurstDuration = DEF_LINK_BURST_DURATION;
@@ -132,20 +132,25 @@ void get_link_rate(LinkNode *link, struct ctrl_node *cn)
 				}
 
 
-				if (((uint32_t)(e->tx_packets - link->wifiStats.txBurstPackets)) >= ((uint32_t)linkBurstPacketThreshold)) {
+				if (((uint32_t)(e->tx_packets - link->wifiStats.txBurstPackets)) >= ((uint32_t)linkBurstThreshold)) {
 					
 					link->wifiStats.txBurstPackets = e->tx_packets;
 					link->wifiStats.txBurstTime = bmx_time;
 					link->wifiStats.txTriggTime = bmx_time;
 
-				} else if (((TIME_T) (bmx_time - link->wifiStats.txBurstTime)) >= ((TIME_T) linkBurstInterval)) {
+				} else if (link->wifiStats.txBurstTime == 0) {
 						
+					link->wifiStats.txBurstPackets = e->tx_packets;
+					link->wifiStats.txBurstTime = bmx_time - (my_ogmInterval/2);
+					
+				} else if (((TIME_T) (bmx_time - link->wifiStats.txBurstTime)) >= ((TIME_T) linkBurstInterval)) {
+
 					link->wifiStats.txBurstPackets = e->tx_packets;
 					link->wifiStats.txBurstTime = bmx_time;
 					link->wifiStats.txBurstCnt++;
-					
+
 					struct tp_test_key tk = {.duration = linkBurstDuration, .endTime = 0, .packetSize = linkBurstPacketSize, .totalSend = 0};
-					
+
 					schedule_tx_task(FRAME_TYPE_TRASH_ADV, link, &link->k.linkDev->key.local->local_id, link->k.linkDev->key.local, link->k.myDev,
 						tk.packetSize, &tk, sizeof(tk));
 
@@ -284,10 +289,18 @@ static struct opt_type capacity_options[]= {
 			ARG_VALUE_FORM, HLP_LINK_PROBE_IVAL},
 	{ODI,0,ARG_LINK_PROBE_PACKETSZ,     0,9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,&linkProbePacketSize,MIN_LINK_PROBE_PACKETSZ,MAX_LINK_PROBE_PACKETSZ, DEF_LINK_PROBE_PACKETSZ,0,0,
 			ARG_VALUE_FORM, HLP_LINK_PROBE_PACKETSZ},
+
+	{ODI,0,ARG_LINK_BURST_IVAL, 0,9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,&linkBurstInterval,MIN_LINK_BURST_IVAL,MAX_LINK_BURST_IVAL, DEF_LINK_BURST_IVAL,0,0,
+			ARG_VALUE_FORM, HLP_LINK_BURST_IVAL},
+	{ODI,0,ARG_LINK_BURST_THRESHOLD, 0,9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,&linkBurstThreshold,MIN_LINK_BURST_THRESHOLD,MAX_LINK_BURST_THRESHOLD, DEF_LINK_BURST_THRESHOLD,0,0,
+			ARG_VALUE_FORM, HLP_LINK_BURST_THRESHOLD},
+	{ODI,0,ARG_LINK_BURST_PACKETSZ, 0,9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,&linkBurstPacketSize,MIN_LINK_BURST_PACKETSZ,MAX_LINK_BURST_PACKETSZ, DEF_LINK_BURST_PACKETSZ,0,0,
+			ARG_VALUE_FORM, HLP_LINK_BURST_PACKETSZ},
 	{ODI,0,ARG_LINK_BURST_DURATION, 0,9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,&linkBurstDuration,MIN_LINK_BURST_DURATION,MAX_LINK_BURST_DURATION, DEF_LINK_BURST_DURATION,0,0,
 			ARG_VALUE_FORM, HLP_LINK_BURST_DURATION},
 	{ODI,0,ARG_LINK_BURST_BYTES,    0,9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,&linkBurstBytes,MIN_LINK_BURST_BYTES,MAX_LINK_BURST_BYTES, DEF_LINK_BURST_BYTES,0,0,
 			ARG_VALUE_FORM, HLP_LINK_BURST_BYTES},
+
 	{ODI,0,ARG_LINK_RATE_AVG_WEIGHT,0,9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,&linkAvgRateWeight,MIN_LINK_RATE_AVG_WEIGHT,MAX_LINK_RATE_AVG_WEIGHT, DEF_LINK_RATE_AVG_WEIGHT,0,0,
 			ARG_VALUE_FORM, HLP_LINK_RATE_AVG_WEIGHT},
 

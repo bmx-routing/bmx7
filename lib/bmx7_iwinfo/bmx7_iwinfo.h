@@ -26,7 +26,7 @@
 #define HLP_LINK_PROBE_PACKETSZ "set byte size of packets for unicast link probing to improve link-capacity estimation"
 #define DEF_LINK_PROBE_PACKETSZ 100
 #define MIN_LINK_PROBE_PACKETSZ 0
-#define MAX_LINK_PROBE_PACKETSZ SIGNED_FRAMES_SIZE_MAX
+#define MAX_LINK_PROBE_PACKETSZ PKT_MSGS_SIZE_MAX
 
 
 
@@ -45,14 +45,14 @@
 
 #define ARG_LINK_BURST_PACKETSZ "linkBurstSize"
 #define HLP_LINK_BURST_PACKETSZ "set byte size of packets for unicast link probing bursts to improve link-capacity estimation"
-#define DEF_LINK_BURST_PACKETSZ 1000
+#define DEF_LINK_BURST_PACKETSZ PKT_MSGS_SIZE_MAX
 #define MIN_LINK_BURST_PACKETSZ 0
-#define MAX_LINK_BURST_PACKETSZ SIGNED_FRAMES_SIZE_MAX
+#define MAX_LINK_BURST_PACKETSZ PKT_MSGS_SIZE_MAX
 
 
 #define ARG_LINK_BURST_DURATION "linkBurstDuration"
 #define HLP_LINK_BURST_DURATION "set duration in ms for unicast link probing bursts to improve link-capacity estimation"
-#define DEF_LINK_BURST_DURATION 50
+#define DEF_LINK_BURST_DURATION 200
 #define MIN_LINK_BURST_DURATION 0
 #define MAX_LINK_BURST_DURATION 1000
 

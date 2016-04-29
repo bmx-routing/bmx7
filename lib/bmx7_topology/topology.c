@@ -206,7 +206,7 @@ void set_local_topology_node(struct local_topology_node *ltn, LinkNode *link)
 	assertion(-502523, (ltn));
 	assertion(-502524, (link));
 
-	ltn->txBw = link->timeaware_wifiRate ? link->timeaware_wifiRate : ((link->k.myDev->umetric_max * ((UMETRIC_T)link->timeaware_tq_probe))/LQ_MAX);
+	ltn->txBw = link->wifiStats.txRateAvg ? link->wifiStats.txRateAvg : ((link->k.myDev->umetric_max * ((UMETRIC_T)link->timeaware_tq_probe))/LQ_MAX);
 	ltn->rxBw = ((link->k.myDev->umetric_max * ((UMETRIC_T)link->timeaware_rq_probe))/LQ_MAX);
 	ltn->tq = link->timeaware_tq_probe;
 	ltn->rq = link->timeaware_rq_probe;

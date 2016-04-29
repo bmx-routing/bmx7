@@ -84,7 +84,9 @@ void get_link_rate(LinkNode *link, struct ctrl_node *cn)
 	char buf[IWINFO_BUFSIZE];
 	struct iwinfo_assoclist_entry *e = NULL;
 
-	if ((iw = iwinfo_backend(link->k.myDev->ifname_phy.str)) && (iw->assoclist(link->k.myDev->ifname_phy.str, buf, &len)) == 0 && len > 0) {
+	if ((min_lq_probe(link)) &&
+		(iw = iwinfo_backend(link->k.myDev->ifname_phy.str)) &&
+		((iw->assoclist(link->k.myDev->ifname_phy.str, buf, &len)) == 0 && len > 0)) {
 
 		MAC_T *mac = ip6Eui64ToMac(&link->k.linkDev->key.llocal_ip, NULL);
 

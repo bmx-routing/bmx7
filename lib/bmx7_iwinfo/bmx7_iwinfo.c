@@ -48,6 +48,7 @@
 #include "sec.h"
 #include "metrics.h"
 #include "ogm.h"
+#include "link.h"
 #include "msg.h"
 #include "desc.h"
 #include "content.h"
@@ -74,22 +75,15 @@ int32_t linkAvgRateWeight = DEF_LINK_RATE_AVG_WEIGHT;
 
 void get_link_rate(LinkNode *link, struct ctrl_node *cn)
 {
-	IFNAME_T ifname;
-	strcpy(ifname.str, link->k.myDev->name_phy_cfg.str);
-	char *dot_ptr;
-	// if given interface is a vlan then truncate to physical interface name:
-	if ((dot_ptr = strchr(ifname.str, '.')) != NULL)
-		*dot_ptr = '\0';
-
 	const struct iwinfo_ops *iw;
 
-	if ((iw = iwinfo_backend(ifname.str))) {
+	if ((iw = iwinfo_backend(link->k.myDev->ifname_phy.str))) {
 
 		int i, len;
 		char buf[IWINFO_BUFSIZE];
 		struct iwinfo_assoclist_entry *e;
 
-		if ((iw->assoclist(ifname.str, buf, &len))==0 && len > 0 ) {
+		if ((iw->assoclist(link->k.myDev->ifname_phy.str, buf, &len))==0 && len > 0 ) {
 
 			MAC_T *mac = ip6Eui64ToMac(&link->k.linkDev->key.llocal_ip, NULL);
 
@@ -178,22 +172,15 @@ uint16_t iwi_get_channel(struct dev_node *dev)
 {
 	uint16_t channel = TYP_DEV_CHANNEL_SHARED;
 
-	IFNAME_T ifname;
-	strcpy(ifname.str, dev->name_phy_cfg.str);
-	char *dot_ptr;
-	// if given interface is a vlan then truncate to physical interface name:
-	if ((dot_ptr = strchr(ifname.str, '.')) != NULL)
-		*dot_ptr = '\0';
-
 	const struct iwinfo_ops *iw;
 
-	if ((iw = iwinfo_backend(ifname.str))) {
+	if ((iw = iwinfo_backend(dev->ifname_phy.str))) {
 
 		int ch;
-		if ((iw->channel(ifname.str, &ch)) == 0 && ch > 0 && ch < TYP_DEV_CHANNEL_SHARED) {
+		if ((iw->channel(dev->ifname_phy.str, &ch)) == 0 && ch > 0 && ch < TYP_DEV_CHANNEL_SHARED) {
 			channel = ch;
 		} else {
-			dbgf_sys(DBGT_ERR, "Failed accessing channel?=%d for dev=%s", ch, ifname.str);
+			dbgf_sys(DBGT_ERR, "Failed accessing channel?=%d for dev=%s", ch, dev->ifname_phy.str);
 		}
 	}
 
@@ -245,7 +232,7 @@ int32_t tx_frame_trash_adv(struct tx_frame_iterator *it)
 
 	dbgf_track(DBGT_INFO, "size=%d total=%d duration=%d endTime=%d   iterations=%d dev=%s myIdx=%d src=%s unicast=%d, dst=%s nbIdx=%d neigh=%s neighId=%s",
 		tk->packetSize, tk->totalSend, tk->duration, (tk->endTime ? (tk->endTime - now) : 0),
-		it->ttn->tx_iterations, it->ttn->key.f.p.dev->label_cfg.str, it->ttn->key.f.p.dev->llipKey.devIdx, it->ttn->key.f.p.dev->ip_llocal_str, !!link,
+		it->ttn->tx_iterations, it->ttn->key.f.p.dev->ifname_label.str, it->ttn->key.f.p.dev->llipKey.devIdx, it->ttn->key.f.p.dev->ip_llocal_str, !!link,
 		ip6AsStr(link ? &link->k.linkDev->key.llocal_ip : NULL),
 		(link ? link->k.linkDev->key.devIdx : -1),
 		(link ? &link->k.linkDev->key.local->on->k.hostname: NULL),
@@ -274,7 +261,7 @@ int32_t rx_frame_trash_adv(struct rx_frame_iterator *it)
         TRACE_FUNCTION_CALL;
 
 	dbgf_track(DBGT_INFO, "size=%d dev=%s unicast=%d src=%s claimedId=%s",
-		it->f_dlen, it->pb->i.iif->label_cfg.str, it->pb->i.unicast, it->pb->i.llip_str, cryptShaAsShortStr(&it->pb->p.hdr.keyHash));
+		it->f_dlen, it->pb->i.iif->ifname_label.str, it->pb->i.unicast, it->pb->i.llip_str, cryptShaAsShortStr(&it->pb->p.hdr.keyHash));
 
 	return it->f_msgs_len;
 }

@@ -18,7 +18,7 @@
 
 #define ARG_LINK_PROBE_IVAL "linkProbeInterval"
 #define HLP_LINK_PROBE_IVAL "set interval in ms for unicast link probing to improve link-capacity estimation"
-#define DEF_LINK_PROBE_IVAL  TP_ADV_DELAY_TOLERANCE
+#define DEF_LINK_PROBE_IVAL  3000
 #define MIN_LINK_PROBE_IVAL  100
 #define MAX_LINK_PROBE_IVAL  10000000
 

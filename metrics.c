@@ -533,32 +533,37 @@ UMETRIC_T subPathArrMinTP (struct sub_path_metric *a, uint16_t arrMax, struct ho
 
 		a[t].pathTime = a[t].linkTime;
 
-		for (i = 0; i <= arrMax; i++) {
+		if (a[t].channel != TYP_DEV_CHANNEL_EXCLUSIVE) {
 
-			if (t != i) {
-				
-				uint8_t channelDistance = XMAX(a[t].channel, a[i].channel) - XMIN(a[t].channel, a[i].channel);
-				uint8_t hopDistance = XMAX(a[t].hop, a[i].hop) - XMIN(a[t].hop, a[i].hop);
+			for (i = 0; i <= arrMax; i++) {
 
-				uint8_t p;
-				uint8_t maxIndependence = MIN_PATH_IFR_INDEPENDENCE;
+				if (t != i) {
+					uint8_t maxIndependence = MIN_PATH_IFR_INDEPENDENCE;
 
-				for (p = 0; p < MAX_PATH_IFR_PARAMETERS; p++) {
+					if (a[t].channel != TYP_DEV_CHANNEL_SHARED ) {
 
-					struct path_interference_parameter *pip = &algo->pip[p];
+						uint8_t channelDistance = XMAX(a[t].channel, a[i].channel) - XMIN(a[t].channel, a[i].channel);
+						uint8_t hopDistance = XMAX(a[t].hop, a[i].hop) - XMIN(a[t].hop, a[i].hop);
 
-					if (pip->channelDistance) {
+						uint8_t p;
 
-						if (channelDistance >= pip->channelDistance && hopDistance >= pip->hopDistance)
-							maxIndependence = XMAX(maxIndependence, pip->independence);
-					} else {
-						break;
+						for (p = 0; p < MAX_PATH_IFR_PARAMETERS; p++) {
+
+							struct path_interference_parameter *pip = &algo->pip[p];
+
+							if (pip->channelDistance) {
+
+								if (channelDistance >= pip->channelDistance && hopDistance >= pip->hopDistance)
+									maxIndependence = XMAX(maxIndependence, pip->independence);
+							} else {
+								break;
+							}
+						}
 					}
+					uint8_t interference = MAX_PATH_IFR_INDEPENDENCE - maxIndependence;
+
+					a[t].pathTime += (a[i].linkTime * ((UMETRIC_T) interference)) / MAX_PATH_IFR_INDEPENDENCE;
 				}
-
-				uint8_t interference = MAX_PATH_IFR_INDEPENDENCE - maxIndependence;
-
-				a[t].pathTime += (a[i].linkTime * ((UMETRIC_T)interference)) / MAX_PATH_IFR_INDEPENDENCE;
 			}
 		}
 
@@ -651,7 +656,7 @@ void path_metricalgo_Capacity(struct NeighPath *np, struct NeighRef_node *ref, s
 
 	UMETRIC_T subTreeTP = subPathArrMinTP(subPathArr, outHPos, algo);
 
-	assertion(-500000, (subTreeTP <= (UMETRIC_MAX_MAX / subPathTime)));
+	assertion(-500000, (subTreeTP >= (UMETRIC_MAX_MAX / subPathTime)));
 
 	np->um = XMIN(pathMaxTP, subTreeTP);
 

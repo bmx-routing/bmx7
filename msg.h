@@ -212,7 +212,7 @@ struct tlv_hdr { // 2 bytes
 #define TLV_FORMAT { \
 {FIELD_TYPE_UINT,          -1,  5,  0, FIELD_RELEVANCE_HIGH, "type"},  \
 {FIELD_TYPE_UINT,          -1, 11,  0, FIELD_RELEVANCE_HIGH, "length"},\
-{FIELD_TYPE_STRING_BINARY, -1,  0,  1, FIELD_RELEVANCE_HIGH, "data" }, \
+{FIELD_TYPE_STRING_BINARY, -1,  0,  0, FIELD_RELEVANCE_HIGH, "data" }, \
 FIELD_FORMAT_END }
 
 
@@ -292,8 +292,8 @@ struct tlv_hdr tlvSetBigEndian(int16_t type, int16_t length);
 #define BMX_DSC_TLV_SIGNATURE_DUMMY 0x1F
 
 #define FRAME_MSG_SIGNATURE_FORMAT { \
-{FIELD_TYPE_UINT,          -1, 8*sizeof(uint8_t),                   1, FIELD_RELEVANCE_HIGH,  "type"}, \
-{FIELD_TYPE_STRING_BINARY, -1, 0,                                   1, FIELD_RELEVANCE_HIGH,  "signature" }, \
+{FIELD_TYPE_UINT,          -1, 8*sizeof(uint8_t),                   0, FIELD_RELEVANCE_HIGH,  "type"}, \
+{FIELD_TYPE_STRING_BINARY, -1, 0,                                   0, FIELD_RELEVANCE_HIGH,  "signature" }, \
 FIELD_FORMAT_END }
 
 struct frame_msg_signature {

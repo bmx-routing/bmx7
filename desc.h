@@ -141,9 +141,9 @@ struct description_msg_name {
 } __attribute__((packed));
 
 #define DESCRIPTION_MSG_NAME_FORMAT { \
-{FIELD_TYPE_UINT,           -1, 8, 1, FIELD_RELEVANCE_HIGH, "type"}, \
+{FIELD_TYPE_UINT,          -1, 8, 0, FIELD_RELEVANCE_HIGH, "type"}, \
 {FIELD_TYPE_STRING_SIZE,   -1, 8, 0, FIELD_RELEVANCE_LOW,  "len"},  \
-{FIELD_TYPE_STRING_BINARY, -1, 0, 1, FIELD_RELEVANCE_LOW,  "name" },  \
+{FIELD_TYPE_STRING_BINARY, -1, 0, 0, FIELD_RELEVANCE_LOW,  "name" },  \
 FIELD_FORMAT_END }
 
 

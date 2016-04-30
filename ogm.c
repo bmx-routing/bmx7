@@ -263,7 +263,7 @@ int32_t iterate_msg_ogm_adv(uint8_t *msgs, int32_t msgs_len, int32_t pos, IDM_T 
 		pos += sizeof(struct msg_ogm_adv);
 		if (moreCnt) {
 
-			while (more && moreCnt <= MAX_OGM_HOP_HISTORY &&
+			while (more && moreCnt <= MAX_OGM_HOP_HISTORY_SZ &&
 				(pos + (int) sizeof(struct msg_ogm_adv_metric_tAny)) <= msgs_len) {
 
 				struct msg_ogm_adv_metric_tAny *tMore = ((struct msg_ogm_adv_metric_tAny *) (msgs + pos));
@@ -679,7 +679,7 @@ int32_t rx_frame_ogm_aggreg_advs(struct rx_frame_iterator *it)
 		int32_t nxt = 0;
 		uint8_t moreCnt = 0;
 
-		uint8_t chainOgmBuff[sizeof(struct InaptChainOgm) + (MAX_OGM_HOP_HISTORY * sizeof(struct msg_ogm_adv_metric_t0))];
+		uint8_t chainOgmBuff[sizeof(struct InaptChainOgm) + (MAX_OGM_HOP_HISTORY_SZ * sizeof(struct msg_ogm_adv_metric_t0))];
 		struct InaptChainOgm *chainOgm = (struct InaptChainOgm*) &chainOgmBuff[0];
 		struct msg_ogm_adv_metric_t0 *hm = (struct msg_ogm_adv_metric_t0 *) &chainOgm->pathMetrics[0];
 

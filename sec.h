@@ -239,8 +239,8 @@ struct DirWatch {
 
 
 #define DESCRIPTION_MSG_PUBKEY_FORMAT { \
-{FIELD_TYPE_UINT,          -1, 8*sizeof(struct dsc_msg_pubkey),     1, FIELD_RELEVANCE_HIGH,  "type"}, \
-{FIELD_TYPE_STRING_BINARY, -1, 0,                                   1, FIELD_RELEVANCE_HIGH,  "key" }, \
+{FIELD_TYPE_UINT,          -1, 8*sizeof(struct dsc_msg_pubkey),     0, FIELD_RELEVANCE_HIGH,  "type"}, \
+{FIELD_TYPE_STRING_BINARY, -1, 0,                                   0, FIELD_RELEVANCE_HIGH,  "key" }, \
 FIELD_FORMAT_END }
 
 struct dsc_msg_pubkey {
@@ -250,8 +250,8 @@ struct dsc_msg_pubkey {
 
 
 #define DESCRIPTION_MSG_SIGNATURE_FORMAT { \
-{FIELD_TYPE_UINT,          -1, 8*sizeof(uint8_t),                   1, FIELD_RELEVANCE_HIGH,  "type"}, \
-{FIELD_TYPE_STRING_BINARY, -1, 0,                                   1, FIELD_RELEVANCE_HIGH,  "signature" }, \
+{FIELD_TYPE_UINT,          -1, 8*sizeof(uint8_t),                   0, FIELD_RELEVANCE_HIGH,  "type"}, \
+{FIELD_TYPE_STRING_BINARY, -1, 0,                                   0, FIELD_RELEVANCE_HIGH,  "signature" }, \
 FIELD_FORMAT_END }
 
 struct dsc_msg_signature {
@@ -262,8 +262,8 @@ struct dsc_msg_signature {
 
 
 #define DESCRIPTION_MSG_TRUST_FORMAT { \
-{FIELD_TYPE_STRING_BINARY, -1, 8*sizeof(CRYPTSHA1_T),               1, FIELD_RELEVANCE_HIGH,  "nodeId"},  \
-{FIELD_TYPE_UINT,          -1, 8*sizeof(uint16_t),                   1, FIELD_RELEVANCE_HIGH,  "reserved"}, \
+{FIELD_TYPE_STRING_BINARY, -1, 8*sizeof(CRYPTSHA1_T),               0, FIELD_RELEVANCE_HIGH,  "nodeId"},  \
+{FIELD_TYPE_UINT,          -1, 8*sizeof(uint16_t),                  0, FIELD_RELEVANCE_HIGH,  "reserved"}, \
 FIELD_FORMAT_END }
 
 struct desc_msg_trust_fields {
@@ -296,8 +296,8 @@ struct dsc_msg_trust {
 
 
 #define VERSION_MSG_FORMAT { \
-{FIELD_TYPE_UINT,          -1, 8,                              1, FIELD_RELEVANCE_HIGH, "comp_version" }, \
-{FIELD_TYPE_HEX,           -1, 8,                              1, FIELD_RELEVANCE_MEDI, "capabilities" }, \
+{FIELD_TYPE_UINT,          -1, 8,                              0, FIELD_RELEVANCE_HIGH, "comp_version" }, \
+{FIELD_TYPE_HEX,           -1, 8,                              0, FIELD_RELEVANCE_MEDI, "capabilities" }, \
 {FIELD_TYPE_UINT,          -1, (8*sizeof(DESC_SQN_T)),         0, FIELD_RELEVANCE_HIGH, "bootSqn" }, \
 {FIELD_TYPE_UINT,          -1, (8*sizeof(DESC_SQN_T)),         0, FIELD_RELEVANCE_HIGH, "descSqn" }, \
 {FIELD_TYPE_UINT,          -1, (8*sizeof(uint16_t)),           0, FIELD_RELEVANCE_HIGH, "ogmSqnRange" }, \

@@ -335,22 +335,20 @@ int64_t field_get_value(const struct field_format *format, uint32_t min_msg_size
 
                 } else if (bits == 16) {
 
-                        if(host_order)
+			if (host_order)
                                 return *((uint16_t*) & data[pos_bit / 8]);
                         else
                                 return ntohs(*((uint16_t*) & data[pos_bit / 8]));
 
                 } else if (bits == 32) {
 
-                        if(host_order)
+			if (host_order)
                                 return *((uint32_t*) & data[pos_bit / 8]);
                         else
                                 return ntohl(*((uint32_t*) & data[pos_bit / 8]));
                 }
 
         } else if (bits <= 16) {
-
-		assertion(-502013, (bits<=8 || !host_order));
 
                 uint8_t bit = 0;
                 uint16_t result = 0;
@@ -360,10 +358,7 @@ int64_t field_get_value(const struct field_format *format, uint32_t min_msg_size
                         bit_set((uint8_t*)&result, 16, (16-bits)+bit, val);
                 }
 
-		if (host_order)
-			return result;
-		else
-			return ntohs(result);
+		return ntohs(result);
         }
 
         return FAILURE;
@@ -779,7 +774,7 @@ struct bmx_status {
 
 static const struct field_format bmx_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_SHORT_ID,  bmx_status, shortId,       1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, bmx_status, nodeId,      1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, bmx_status, nodeId,        1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      bmx_status, name,          1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      bmx_status, nodeKey,       1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      bmx_status, linkKey,       1, FIELD_RELEVANCE_HIGH),
@@ -875,7 +870,7 @@ struct orig_status {
 	IPX_T nbLocalIp;
 	char* nbName;
 	UMETRIC_T metric;
-	char ogmHist[10 + (MAX_OGM_HOP_HISTORY * 8)];
+	char ogmHist[10 + (MAX_OGM_HOP_HISTORY_SZ * 8)];
 	uint8_t hops;
 	OGM_SQN_T ogmSqn;
 	IID_T nbIid;
@@ -1086,7 +1081,7 @@ struct ref_status {
 
 static const struct field_format ref_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_SHORT_ID,  ref_status, shortId,       1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, ref_status, nodeId,      1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, ref_status, nodeId,        1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      ref_status, name,          1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      ref_status, state,         1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              ref_status, descSqn,       1, FIELD_RELEVANCE_HIGH),

@@ -56,9 +56,9 @@ struct dsc_msg_hna6 {
 } __attribute__((packed));
 
 #define DESCRIPTION_MSG_HNA6_FORMAT { \
-{FIELD_TYPE_UINT, -1,   8, 1, FIELD_RELEVANCE_HIGH, "prefixLen"}, \
-{FIELD_TYPE_UINT, -1,   8, 1, FIELD_RELEVANCE_LOW,  "flags"},  \
-{FIELD_TYPE_IPX6, -1, 128, 1, FIELD_RELEVANCE_HIGH, "address" },  \
+{FIELD_TYPE_UINT, -1,   8, 0, FIELD_RELEVANCE_HIGH, "prefixLen"}, \
+{FIELD_TYPE_UINT, -1,   8, 0, FIELD_RELEVANCE_LOW,  "flags"},  \
+{FIELD_TYPE_IPX6, -1, 128, 0, FIELD_RELEVANCE_HIGH, "address" },  \
 FIELD_FORMAT_END }
 
 

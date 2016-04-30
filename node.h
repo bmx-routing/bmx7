@@ -31,7 +31,8 @@
 
 
 
-
+#define MAX_OGM_HOP_HISTORY_SZ 8
+#define ARG_OGM_HOP_HISTORY_SZ "ogmHistory"
 
 /*
  * from metrics.h:

@@ -139,8 +139,11 @@ void schedule_ogm( struct orig_node *on)
 	assertion_dbg(-502574, ((um & ~UMETRIC_MASK) == 0), "um=%ju mask=%ju max=%ju",um, UMETRIC_MASK, UMETRIC_MAX);
 	assertion_dbg(-502575, (um >= fmetric_to_umetric(umetric_to_fmetric(um))), "um=%ju um16=%d -> um=%ju",um, umetric_to_fmetric(um).val.u16, fmetric_to_umetric(umetric_to_fmetric(um)));
 
-	if (on->ogmHopCount >= on->mtcAlgo->ogm_hops_max)
+	if (on->ogmHopCount >= on->mtcAlgo->ogm_hops_max) {
+		remove_ogm(on);
 		return;
+	}
+
 
 	struct OgmAggreg_node *oan = getOgmAggregNode(ogm_aggreg_sqn_max);
 
@@ -177,8 +180,8 @@ void schedule_ogm( struct orig_node *on)
 		avl_insert(&(oan->tree), on, -300763);
 	}
 
-	oan->msgsLen += (sizeof(struct msg_ogm_adv) +on->neighPath.pathMetricsByteSize) - on->ogmAggregActiveMsgLen;
-	on->ogmAggregActiveMsgLen = (sizeof(struct msg_ogm_adv) +on->neighPath.pathMetricsByteSize);
+	oan->msgsLen += (sizeof(struct msg_ogm_adv) + on->neighPath.pathMetricsByteSize) - on->ogmAggregActiveMsgLen;
+	on->ogmAggregActiveMsgLen = (sizeof(struct msg_ogm_adv) + on->neighPath.pathMetricsByteSize);
 
 	assertion(-502284, ((ogm_aggreg_sqn_max - ogm_aggreg_sqn_send) == 1));
 
@@ -490,14 +493,19 @@ int32_t tx_frame_ogm_aggreg_advs(struct tx_frame_iterator *it)
 		assertion(-500000, ((on->neighPath.pathMetricsByteSize % sizeof(struct msg_ogm_adv_metric_t0)) == 0));
 		uint16_t p;
 		for (p = 0; p < (on->neighPath.pathMetricsByteSize / sizeof(struct msg_ogm_adv_metric_t0)); p++) {
+
 			struct msg_ogm_adv_metric_t0 *t0Out = ((struct msg_ogm_adv_metric_t0*) &(msg->mt0[p]));
 			struct msg_ogm_adv_metric_t0 *t0In = &(on->neighPath.pathMetrics[p]);
 			FMETRIC_U16_T fm = {.val = {.f = {.exp_fm16 = t0In->u.f.metric_exp, .mantissa_fm16 = t0In->u.f.metric_mantissa}}};
+
 			dbgf_track(DBGT_INFO, "ogmHist=%d more=%d channel=%d mtc=%s", p + 1, t0In->u.f.more, t0In->channel, umetric_to_human(fmetric_to_umetric(fm)));
+
 			assertion(-500000, (on->neighPath.pathMetrics[p].u.f.more == ((p + 1) < (on->neighPath.pathMetricsByteSize / (uint16_t)sizeof(struct msg_ogm_adv_metric_t0)))));
 			t0Out->channel = t0In->channel;
 			t0Out->u.u16 = htons(t0In->u.u16);
 		}
+
+		assertion(-500000, (on->ogmAggregActiveMsgLen == ((int)(sizeof(struct msg_ogm_adv) + (p * sizeof(struct msg_ogm_adv_metric_t0))))));
 
 		msg = (struct msg_ogm_adv*) (((uint8_t*) msg) + on->ogmAggregActiveMsgLen);
 	}

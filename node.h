@@ -133,6 +133,25 @@ typedef struct float_u8 FMETRIC_U8_T;
 
 typedef uint16_t ALGO_T;
 
+
+#define MAX_PATH_INTERFERENCE_PARAMETERS 4
+#define MAX_PATH_INTERFERENCE_INDEPENDENCE ((2^5)-1)
+
+struct path_interference_parameter {
+	uint8_t channelDistance;
+#if __BYTE_ORDER == __LITTLE_ENDIAN         // 1 byte
+	unsigned int independence : 5;
+	unsigned int hopDistance : 3;
+#elif __BYTE_ORDER == __BIG_ENDIAN
+	unsigned int hopDistance : 3;
+	unsigned int independence : 5;
+#else
+#error "Please fix <bits/endian.h>"
+#endif
+} __attribute__((packed));
+
+
+
 struct host_metricalgo {
 	FMETRIC_U16_T fmetric_u16_min;
 
@@ -157,6 +176,7 @@ struct host_metricalgo {
 	uint8_t ogm_sqn_late_hystere_100ms;
 	uint16_t ogm_metric_hystere_new_path;
 	uint16_t ogm_metric_hystere_old_path;
+	struct path_interference_parameter pip[MAX_PATH_INTERFERENCE_PARAMETERS];
 };
 
 struct lndev_probe_record {
@@ -347,10 +367,10 @@ struct desc_tlv_body {
 	uint16_t desc_tlv_body_len;
 };
 
-#define MIN_OGM_HOP_HISTORY 0
-#define MAX_OGM_HOP_HISTORY 10
-#define DEF_OGM_HOP_HISTORY 6
-#define ARG_OGM_HOP_HISTORY "ogmHopHistory"
+#define MIN_OGM_HOP_HISTORY_SZ 0
+#define MAX_OGM_HOP_HISTORY_SZ 10
+#define DEF_OGM_HOP_HISTORY_SZ 6
+#define ARG_OGM_HOP_HISTORY_SZ "ogmHopHistorySize"
 
 struct msg_ogm_adv_metric_tAny {
 
@@ -405,7 +425,7 @@ struct NeighPath {
 	LinkNode *link;
 	UMETRIC_T um;
 	uint16_t pathMetricsByteSize;
-	struct msg_ogm_adv_metric_t0 pathMetrics[MAX_OGM_HOP_HISTORY];
+	struct msg_ogm_adv_metric_t0 pathMetrics[MAX_OGM_HOP_HISTORY_SZ];
 };
 
 

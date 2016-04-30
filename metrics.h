@@ -196,6 +196,8 @@ struct mandatory_tlv_metricalgo { // 16 bytes
 	uint8_t ogm_sqn_late_hystere_100ms;
 	uint16_t ogm_metric_hystere_new_path; // 2 byte
 	uint16_t ogm_metric_hystere_old_path; // 2 byte
+	uint16_t reserved1;
+	struct path_interference_parameter pip[MAX_PATH_INTERFERENCE_PARAMETERS];
 } __attribute__((packed));
 
 
@@ -225,6 +227,19 @@ struct description_tlv_metricalgo {
 {FIELD_TYPE_UINT, -1,  8,  0, FIELD_RELEVANCE_HIGH, ARG_OGM_SQN_LATE_HYST},  \
 {FIELD_TYPE_UINT, -1, 16,  0, FIELD_RELEVANCE_HIGH, ARG_OGM_METRIC_HYST_NEW_PATH},  \
 {FIELD_TYPE_UINT, -1, 16,  0, FIELD_RELEVANCE_HIGH, ARG_OGM_METRIC_HYST_OLD_PATH},  \
+{FIELD_TYPE_UINT, -1, 16,  0, FIELD_RELEVANCE_LOW,  "reserved1"},  \
+{FIELD_TYPE_UINT, -1,  8,  0, FIELD_RELEVANCE_HIGH, "ifChannelDistance" },   \
+{FIELD_TYPE_UINT, -1,  3,  0, FIELD_RELEVANCE_HIGH, "ifHopDistance" },   \
+{FIELD_TYPE_UINT, -1,  5,  0, FIELD_RELEVANCE_HIGH, "ifFactor" },   \
+{FIELD_TYPE_UINT, -1,  8,  0, FIELD_RELEVANCE_HIGH, "ifChannelDistance" },   \
+{FIELD_TYPE_UINT, -1,  3,  0, FIELD_RELEVANCE_HIGH, "ifHopDistance" },   \
+{FIELD_TYPE_UINT, -1,  5,  0, FIELD_RELEVANCE_HIGH, "ifFactor" },   \
+{FIELD_TYPE_UINT, -1,  8,  0, FIELD_RELEVANCE_HIGH, "ifChannelDistance" },   \
+{FIELD_TYPE_UINT, -1,  3,  0, FIELD_RELEVANCE_HIGH, "ifHopDistance" },   \
+{FIELD_TYPE_UINT, -1,  5,  0, FIELD_RELEVANCE_HIGH, "ifFactor" },   \
+{FIELD_TYPE_UINT, -1,  8,  0, FIELD_RELEVANCE_HIGH, "ifChannelDistance" },   \
+{FIELD_TYPE_UINT, -1,  3,  0, FIELD_RELEVANCE_HIGH, "ifHopDistance" },   \
+{FIELD_TYPE_UINT, -1,  5,  0, FIELD_RELEVANCE_HIGH, "ifFactor" },   \
 FIELD_FORMAT_END }
 
 

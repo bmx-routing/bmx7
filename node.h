@@ -31,8 +31,6 @@
 
 
 
-#define MAX_OGM_HOP_HISTORY_SZ 8
-#define ARG_OGM_HOP_HISTORY_SZ "ogmHistory"
 
 /*
  * from metrics.h:
@@ -134,17 +132,21 @@ typedef struct float_u8 FMETRIC_U8_T;
 typedef uint16_t ALGO_T;
 
 
-#define MAX_PATH_INTERFERENCE_PARAMETERS 4
-#define MAX_PATH_INTERFERENCE_INDEPENDENCE ((2^5)-1)
+#define MAX_PATH_IFR_PARAMETERS 4
+#define TYP_PATH_IFR_CHA_DISTANCE_BITS 8
+#define TYP_PATH_IFR_INDEPENDENCE_BITS 5
+#define TYP_PATH_IFR_HOP_DISTANCE_BITS 3
+
+
 
 struct path_interference_parameter {
 	uint8_t channelDistance;
 #if __BYTE_ORDER == __LITTLE_ENDIAN         // 1 byte
-	unsigned int independence : 5;
-	unsigned int hopDistance : 3;
+	unsigned int independence : TYP_PATH_IFR_INDEPENDENCE_BITS;
+	unsigned int hopDistance : TYP_PATH_IFR_HOP_DISTANCE_BITS;
 #elif __BYTE_ORDER == __BIG_ENDIAN
-	unsigned int hopDistance : 3;
-	unsigned int independence : 5;
+	unsigned int hopDistance : TYP_PATH_IFR_HOP_DISTANCE_BITS;
+	unsigned int independence : TYP_PATH_IFR_INDEPENDENCE_BITS;
 #else
 #error "Please fix <bits/endian.h>"
 #endif
@@ -176,7 +178,7 @@ struct host_metricalgo {
 	uint8_t ogm_sqn_late_hystere_100ms;
 	uint16_t ogm_metric_hystere_new_path;
 	uint16_t ogm_metric_hystere_old_path;
-	struct path_interference_parameter pip[MAX_PATH_INTERFERENCE_PARAMETERS];
+	struct path_interference_parameter pip[MAX_PATH_IFR_PARAMETERS];
 };
 
 struct lndev_probe_record {
@@ -369,8 +371,8 @@ struct desc_tlv_body {
 
 #define MIN_OGM_HOP_HISTORY_SZ 0
 #define MAX_OGM_HOP_HISTORY_SZ 10
-#define DEF_OGM_HOP_HISTORY_SZ 6
-#define ARG_OGM_HOP_HISTORY_SZ "ogmHopHistorySize"
+#define DEF_OGM_HOP_HISTORY_SZ 5
+#define ARG_OGM_HOP_HISTORY_SZ "ogmHistorySize"
 
 struct msg_ogm_adv_metric_tAny {
 

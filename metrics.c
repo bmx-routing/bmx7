@@ -76,7 +76,34 @@ static int32_t new_rt_dismissal_div100 = DEF_NEW_RT_DISMISSAL;
 
 struct host_metricalgo my_hostmetricalgo;
 
-struct path_interference_parameter my_path_interference_parameter[MAX_PATH_INTERFERENCE_PARAMETERS];
+
+#define ARG_PATH_IFR_PARAMETER "pathInterference"
+#define MIN_PATH_IFR_PARAMETER 0
+#define MAX_PATH_IFR_PARAMETER (MAX_PATH_IFR_PARAMETERS -1)
+
+#define ARG_PATH_IFR_INDEPENDENCE "independence"
+#define MIN_PATH_IFR_INDEPENDENCE 0
+#define MAX_PATH_IFR_INDEPENDENCE ((1<<TYP_PATH_IFR_INDEPENDENCE_BITS)-1)
+#define DEF_PATH_IFR_INDEPENDENCE 0
+
+#define ARG_PATH_IFR_CHA_DISTANCE "channelDistance"
+#define MIN_PATH_IFR_CHA_DISTANCE 0
+#define MAX_PATH_IFR_CHA_DISTANCE ((1<<TYP_PATH_IFR_CHA_DISTANCE_BITS)-1)
+#define DEF_PATH_IFR_CHA_DISTANCE 0
+
+#define ARG_PATH_IFR_HOP_DISTANCE "hopDistance"
+#define MIN_PATH_IFR_HOP_DISTANCE 0
+#define MAX_PATH_IFR_HOP_DISTANCE ((1<<TYP_PATH_IFR_HOP_DISTANCE_BITS)-1)
+#define DEF_PATH_IFR_HOP_DISTANCE 0
+
+
+
+static const struct path_interference_parameter DEF_OGM_PATH_INTERFERENCE_PARAMETER[MAX_PATH_IFR_PARAMETERS] = {
+	{.channelDistance = 6, .hopDistance = 3, .independence = MAX_PATH_IFR_INDEPENDENCE},
+	{.channelDistance = 100, .hopDistance = 1, .independence = MAX_PATH_IFR_INDEPENDENCE}
+};
+
+struct path_interference_parameter my_path_interference_parameter[MAX_PATH_IFR_PARAMETERS];
 
 //TODO: evaluate my_fmetric_exp_offset based on max configured dev_metric_max:
 //static int32_t my_fmetric_exp_offset = DEF_FMETRIC_EXP_OFFSET;
@@ -496,13 +523,15 @@ void spmSet( struct sub_path_metric *spmArr, uint8_t channel, uint8_t hopPos, UM
 
 
 STATIC_FUNC
-UMETRIC_T subPathArrTP (struct sub_path_metric *a, uint16_t arrMax, struct host_metricalgo *algo)
+UMETRIC_T subPathArrMinTP (struct sub_path_metric *a, uint16_t arrMax, struct host_metricalgo *algo)
 {
-	UMETRIC_T TP;
+	UMETRIC_T maxPathTime = 1;
 	
 	uint8_t t,i;
 
 	for (t = 0; t <= arrMax; t++) {
+
+		a[t].pathTime = a[t].linkTime;
 
 		for (i = 0; i <= arrMax; i++) {
 
@@ -510,14 +539,34 @@ UMETRIC_T subPathArrTP (struct sub_path_metric *a, uint16_t arrMax, struct host_
 				
 				uint8_t channelDistance = XMAX(a[t].channel, a[i].channel) - XMIN(a[t].channel, a[i].channel);
 				uint8_t hopDistance = XMAX(a[t].hop, a[i].hop) - XMIN(a[t].hop, a[i].hop);
-				
-			}
 
+				uint8_t p;
+				uint8_t maxIndependence = MIN_PATH_IFR_INDEPENDENCE;
+
+				for (p = 0; p < MAX_PATH_IFR_PARAMETERS; p++) {
+
+					struct path_interference_parameter *pip = &algo->pip[p];
+
+					if (pip->channelDistance) {
+
+						if (channelDistance >= pip->channelDistance && hopDistance >= pip->hopDistance)
+							maxIndependence = XMAX(maxIndependence, pip->independence);
+					} else {
+						break;
+					}
+				}
+
+				uint8_t interference = MAX_PATH_IFR_INDEPENDENCE - maxIndependence;
+
+				a[t].pathTime += (a[i].linkTime * ((UMETRIC_T)interference)) / MAX_PATH_IFR_INDEPENDENCE;
+			}
 		}
+
+		maxPathTime = XMAX(maxPathTime, a[t].pathTime);
 	}
 
 
-	return TP;
+	return (UMETRIC_MAX_MAX / maxPathTime);
 }
 
 STATIC_FUNC
@@ -600,7 +649,7 @@ void path_metricalgo_Capacity(struct NeighPath *np, struct NeighRef_node *ref, s
 			umetric_to_human(linkTP), umetric_to_human(pathMaxTP), umetric_to_human(subPathTime), inHPos, outHPos);
 	}
 
-	UMETRIC_T subTreeTP = subPathArrTP(subPathArr, outHPos, algo);
+	UMETRIC_T subTreeTP = subPathArrMinTP(subPathArr, outHPos, algo);
 
 	assertion(-500000, (subTreeTP <= (UMETRIC_MAX_MAX / subPathTime)));
 
@@ -726,11 +775,6 @@ IDM_T validate_metricalgo(struct host_metricalgo *ma, struct ctrl_node *cn)
 }
 
 
-static const struct path_interference_parameter DEF_OGM_PATH_INTERFERENCE_PARAMETER[MAX_PATH_INTERFERENCE_PARAMETERS] = {
-	{.channelDistance = 6, .hopDistance = 3, .independence = MAX_PATH_INTERFERENCE_INDEPENDENCE},
-	{.channelDistance = 100, .hopDistance = 1, .independence = MAX_PATH_INTERFERENCE_INDEPENDENCE}
-};
-
 STATIC_FUNC
 IDM_T metricalgo_tlv_to_host(struct description_tlv_metricalgo *tlv_algo, struct host_metricalgo *host_algo, uint16_t size)
 {
@@ -761,10 +805,10 @@ IDM_T metricalgo_tlv_to_host(struct description_tlv_metricalgo *tlv_algo, struct
 	host_algo->ogm_hop_history = tlv_algo->m.hops_history;
 	memcpy(host_algo->pip, tlv_algo->m.pip, sizeof(tlv_algo->m.pip));
 
-	assertion(-500000, ((MAX_PATH_INTERFERENCE_PARAMETERS * sizeof(struct path_interference_parameter)) == sizeof(my_path_interference_parameter)));
-	assertion(-500000, ((MAX_PATH_INTERFERENCE_PARAMETERS * sizeof(struct path_interference_parameter)) == sizeof(host_algo->pip)));
-	assertion(-500000, ((MAX_PATH_INTERFERENCE_PARAMETERS * sizeof(struct path_interference_parameter)) == sizeof(tlv_algo->m.pip)));
-	assertion(-500000, ((MAX_PATH_INTERFERENCE_PARAMETERS * sizeof(struct path_interference_parameter)) == sizeof(DEF_OGM_PATH_INTERFERENCE_PARAMETER)));
+	assertion(-500000, ((MAX_PATH_IFR_PARAMETERS * sizeof(struct path_interference_parameter)) == sizeof(my_path_interference_parameter)));
+	assertion(-500000, ((MAX_PATH_IFR_PARAMETERS * sizeof(struct path_interference_parameter)) == sizeof(host_algo->pip)));
+	assertion(-500000, ((MAX_PATH_IFR_PARAMETERS * sizeof(struct path_interference_parameter)) == sizeof(tlv_algo->m.pip)));
+	assertion(-500000, ((MAX_PATH_IFR_PARAMETERS * sizeof(struct path_interference_parameter)) == sizeof(DEF_OGM_PATH_INTERFERENCE_PARAMETER)));
 
 
         if (validate_metricalgo(host_algo, NULL) == FAILURE)
@@ -948,8 +992,8 @@ int32_t opt_path_metricalgo(uint8_t cmd, uint8_t _save, struct opt_type *opt, st
 		test_algo.ogm_hops_max = (cmd == OPT_REGISTER || strcmp(opt->name, ARG_OGM_HOPS_MAX)) ?
 			my_ogm_hops_max : ((patch->diff != DEL) ? strtol(patch->val, NULL, 10) : DEF_OGM_HOPS_MAX);
 
-		test_algo.ogm_hop_history = (cmd == OPT_REGISTER || strcmp(opt->name, ARG_OGM_HOP_HISTORY)) ?
-			my_ogm_hop_hisotry : ((patch->diff != DEL) ? strtol(patch->val, NULL, 10) : DEF_OGM_HOP_HISTORY);
+		test_algo.ogm_hop_history = (cmd == OPT_REGISTER || strcmp(opt->name, ARG_OGM_HOP_HISTORY_SZ)) ?
+			my_ogm_hop_hisotry_size : ((patch->diff != DEL) ? strtol(patch->val, NULL, 10) : DEF_OGM_HOP_HISTORY_SZ);
 
 		test_algo.ogm_metric_hystere_new_path = (cmd == OPT_REGISTER || strcmp(opt->name, ARG_OGM_METRIC_HYST_NEW_PATH)) ?
 			my_ogm_metric_hyst_new_path : ((patch->diff != DEL) ? strtol(patch->val, NULL, 10) : DEF_OGM_METRIC_HYST_NEW_PATH);
@@ -976,6 +1020,8 @@ int32_t opt_path_metricalgo(uint8_t cmd, uint8_t _save, struct opt_type *opt, st
 			my_ogm_link_rate_efficiency : ((patch->diff != DEL) ? strtol(patch->val, NULL, 10) : DEF_OGM_LINK_RATE_EFFICIENCY);
 
 
+		memcpy(test_algo.pip, my_path_interference_parameter, sizeof(my_path_interference_parameter));
+
 
                 if (cmd == OPT_REGISTER || strcmp(opt->name, ARG_PATH_METRIC_ALGO)) {
 
@@ -997,7 +1043,6 @@ int32_t opt_path_metricalgo(uint8_t cmd, uint8_t _save, struct opt_type *opt, st
 			test_algo.lq_t1_point_r255 = my_path_lq_t1_r255;
 			test_algo.ogm_link_rate_efficiency = my_ogm_link_rate_efficiency;
 */
-			memcpy(test_algo.pip, my_path_interference_parameter, sizeof(my_path_interference_parameter));
 
                 } else {
 
@@ -1019,7 +1064,6 @@ int32_t opt_path_metricalgo(uint8_t cmd, uint8_t _save, struct opt_type *opt, st
 			test_algo.lq_t1_point_r255 = DEF_PATH_LQ_T1_R255;
 			test_algo.ogm_link_rate_efficiency = DEF_OGM_LINK_RATE_EFFICIENCY;
 */
-			memcpy(test_algo.pip, DEF_OGM_PATH_INTERFERENCE_PARAMETER, sizeof(DEF_OGM_PATH_INTERFERENCE_PARAMETER));
 
                         if (patch->diff != DEL) {
 
@@ -1282,6 +1326,9 @@ int32_t init_metrics( void )
 
         UMETRIC_MAX_SQRT = umetric_fast_sqrt(UMETRIC_MAX);
         U64_MAX_HALF_SQRT = umetric_fast_sqrt(U64_MAX_HALF);
+
+	memcpy(my_path_interference_parameter, DEF_OGM_PATH_INTERFERENCE_PARAMETER, sizeof(DEF_OGM_PATH_INTERFERENCE_PARAMETER));
+
 
 	init_metrics_assertions();
 

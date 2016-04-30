@@ -197,7 +197,7 @@ struct mandatory_tlv_metricalgo { // 16 bytes
 	uint16_t ogm_metric_hystere_new_path; // 2 byte
 	uint16_t ogm_metric_hystere_old_path; // 2 byte
 	uint16_t reserved1;
-	struct path_interference_parameter pip[MAX_PATH_INTERFERENCE_PARAMETERS];
+	struct path_interference_parameter pip[MAX_PATH_IFR_PARAMETERS];
 } __attribute__((packed));
 
 

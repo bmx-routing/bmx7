@@ -873,9 +873,49 @@ int32_t opt_path_metricalgo(uint8_t cmd, uint8_t _save, struct opt_type *opt, st
                 test_algo.fmetric_u16_min = umetric_to_fmetric(test_algo.umetric_min);
 
 
+		test_algo.ogm_hop_penalty = (cmd == OPT_REGISTER || strcmp(opt->name, ARG_OGM_HOP_PENALTY)) ?
+			my_ogm_hop_penalty : ((patch->diff != DEL) ? strtol(patch->val, NULL, 10) : DEF_OGM_HOP_PENALTY);
+
+		test_algo.ogm_hops_max = (cmd == OPT_REGISTER || strcmp(opt->name, ARG_OGM_HOPS_MAX)) ?
+			my_ogm_hops_max : ((patch->diff != DEL) ? strtol(patch->val, NULL, 10) : DEF_OGM_HOPS_MAX);
+
+		test_algo.ogm_hop_history = (cmd == OPT_REGISTER || strcmp(opt->name, ARG_OGM_HOP_HISTORY)) ?
+			my_ogm_hop_hisotry : ((patch->diff != DEL) ? strtol(patch->val, NULL, 10) : DEF_OGM_HOP_HISTORY);
+
+		test_algo.ogm_metric_hystere_new_path = (cmd == OPT_REGISTER || strcmp(opt->name, ARG_OGM_METRIC_HYST_NEW_PATH)) ?
+			my_ogm_metric_hyst_new_path : ((patch->diff != DEL) ? strtol(patch->val, NULL, 10) : DEF_OGM_METRIC_HYST_NEW_PATH);
+
+		test_algo.ogm_metric_hystere_old_path = (cmd == OPT_REGISTER || strcmp(opt->name, ARG_OGM_METRIC_HYST_OLD_PATH)) ?
+			my_ogm_metric_hyst_old_path : ((patch->diff != DEL) ? strtol(patch->val, NULL, 10) : DEF_OGM_METRIC_HYST_OLD_PATH);
+
+		test_algo.ogm_sqn_best_hystere = (cmd == OPT_REGISTER || strcmp(opt->name, ARG_OGM_SQN_BEST_HYST)) ?
+			my_ogm_sqn_best_hyst : ((patch->diff != DEL) ? strtol(patch->val, NULL, 10) : DEF_OGM_SQN_BEST_HYST);
+
+		test_algo.ogm_sqn_late_hystere_100ms = (cmd == OPT_REGISTER || strcmp(opt->name, ARG_OGM_SQN_LATE_HYST)) ?
+			my_ogm_sqn_late_hyst_100ms : ((patch->diff != DEL) ? strtol(patch->val, NULL, 10) : DEF_OGM_SQN_LATE_HYST);
+
+		test_algo.lq_tx_point_r255 = (cmd == OPT_REGISTER || strcmp(opt->name, ARG_PATH_LQ_TX_R255)) ?
+			my_path_lq_tx_r255 : ((patch->diff != DEL) ? strtol(patch->val, NULL, 10) : DEF_PATH_LQ_TX_R255);
+
+		test_algo.lq_ty_point_r255 = (cmd == OPT_REGISTER || strcmp(opt->name, ARG_PATH_LQ_TY_R255)) ?
+			my_path_lq_ty_r255 : ((patch->diff != DEL) ? strtol(patch->val, NULL, 10) : DEF_PATH_LQ_TY_R255);
+
+		test_algo.lq_t1_point_r255 = (cmd == OPT_REGISTER || strcmp(opt->name, ARG_PATH_LQ_T1_R255)) ?
+			my_path_lq_t1_r255 : ((patch->diff != DEL) ? strtol(patch->val, NULL, 10) : DEF_PATH_LQ_T1_R255);
+
+		test_algo.ogm_link_rate_efficiency = (cmd == OPT_REGISTER || strcmp(opt->name, ARG_OGM_LINK_RATE_EFFICIENCY)) ?
+			my_ogm_link_rate_efficiency : ((patch->diff != DEL) ? strtol(patch->val, NULL, 10) : DEF_OGM_LINK_RATE_EFFICIENCY);
+
+
+
                 if (cmd == OPT_REGISTER || strcmp(opt->name, ARG_PATH_METRIC_ALGO)) {
 
-                        test_algo.algo_type = my_ogm_path_algo;
+			test_algo.algo_type = my_ogm_path_algo;
+			test_algo.algo_rp_exp_numerator = my_path_rp_exp_numerator;
+			test_algo.algo_rp_exp_divisor = my_path_rp_exp_divisor;
+			test_algo.algo_tp_exp_numerator = my_path_tp_exp_numerator;
+			test_algo.algo_tp_exp_divisor = my_path_tp_exp_divisor;
+/*
 			test_algo.ogm_hop_penalty = my_ogm_hop_penalty;
 			test_algo.ogm_hops_max = my_ogm_hops_max;
 			test_algo.ogm_hop_history = my_ogm_hop_hisotry;
@@ -883,18 +923,19 @@ int32_t opt_path_metricalgo(uint8_t cmd, uint8_t _save, struct opt_type *opt, st
 			test_algo.ogm_metric_hystere_old_path = my_ogm_metric_hyst_old_path;
 			test_algo.ogm_sqn_best_hystere = my_ogm_sqn_best_hyst;
 			test_algo.ogm_sqn_late_hystere_100ms = my_ogm_sqn_late_hyst_100ms;
-                        test_algo.algo_rp_exp_numerator = my_path_rp_exp_numerator;
-                        test_algo.algo_rp_exp_divisor = my_path_rp_exp_divisor;
-                        test_algo.algo_tp_exp_numerator = my_path_tp_exp_numerator;
-                        test_algo.algo_tp_exp_divisor = my_path_tp_exp_divisor;
 			test_algo.lq_tx_point_r255 = my_path_lq_tx_r255;
 			test_algo.lq_ty_point_r255 = my_path_lq_ty_r255;
 			test_algo.lq_t1_point_r255 = my_path_lq_t1_r255;
 			test_algo.ogm_link_rate_efficiency = my_ogm_link_rate_efficiency;
-
+*/
                 } else {
 
-                        test_algo.algo_type = DEF_METRIC_ALGO;
+			test_algo.algo_type = DEF_METRIC_ALGO;
+			test_algo.algo_rp_exp_numerator = DEF_PATH_RP_EXP_NUMERATOR;
+			test_algo.algo_rp_exp_divisor = DEF_PATH_RP_EXP_DIVISOR;
+			test_algo.algo_tp_exp_numerator = DEF_PATH_TP_EXP_NUMERATOR;
+			test_algo.algo_tp_exp_divisor = DEF_PATH_TP_EXP_DIVISOR;
+/*
 			test_algo.ogm_hop_penalty = DEF_OGM_HOP_PENALTY;
 			test_algo.ogm_hops_max = DEF_OGM_HOPS_MAX;
 			test_algo.ogm_hop_history = DEF_OGM_HOP_HISTORY;
@@ -902,15 +943,11 @@ int32_t opt_path_metricalgo(uint8_t cmd, uint8_t _save, struct opt_type *opt, st
 			test_algo.ogm_metric_hystere_old_path = DEF_OGM_METRIC_HYST_OLD_PATH;
 			test_algo.ogm_sqn_best_hystere = DEF_OGM_SQN_BEST_HYST;
 			test_algo.ogm_sqn_late_hystere_100ms = DEF_OGM_SQN_LATE_HYST;
-                        test_algo.algo_rp_exp_numerator = DEF_PATH_RP_EXP_NUMERATOR;
-                        test_algo.algo_rp_exp_divisor = DEF_PATH_RP_EXP_DIVISOR;
-                        test_algo.algo_tp_exp_numerator = DEF_PATH_TP_EXP_NUMERATOR;
-                        test_algo.algo_tp_exp_divisor = DEF_PATH_TP_EXP_DIVISOR;
 			test_algo.lq_tx_point_r255 = DEF_PATH_LQ_TX_R255;
 			test_algo.lq_ty_point_r255 = DEF_PATH_LQ_TY_R255;
 			test_algo.lq_t1_point_r255 = DEF_PATH_LQ_T1_R255;
 			test_algo.ogm_link_rate_efficiency = DEF_OGM_LINK_RATE_EFFICIENCY;
-
+*/
                         if (patch->diff != DEL) {
 
                                 test_algo.algo_type = strtol(patch->val, NULL, 10);
@@ -923,6 +960,18 @@ int32_t opt_path_metricalgo(uint8_t cmd, uint8_t _save, struct opt_type *opt, st
 
                                         int32_t val = strtol(c->val, NULL, 10);
 
+                                        if (!strcmp(c->opt->name, ARG_PATH_RP_EXP_NUMERATOR))
+                                                test_algo.algo_rp_exp_numerator = val;
+
+                                        if (!strcmp(c->opt->name, ARG_PATH_RP_EXP_DIVISOR))
+                                                test_algo.algo_rp_exp_divisor = val;
+
+                                        if (!strcmp(c->opt->name, ARG_PATH_TP_EXP_NUMERATOR))
+                                                test_algo.algo_tp_exp_numerator = val;
+
+                                        if (!strcmp(c->opt->name, ARG_PATH_TP_EXP_DIVISOR))
+                                                test_algo.algo_tp_exp_divisor = val;
+/*
                                         if (!strcmp(c->opt->name, ARG_OGM_HOP_PENALTY))
                                                 test_algo.ogm_hop_penalty = val;
 
@@ -944,18 +993,6 @@ int32_t opt_path_metricalgo(uint8_t cmd, uint8_t _save, struct opt_type *opt, st
                                         if (!strcmp(c->opt->name, ARG_OGM_SQN_LATE_HYST))
                                                 test_algo.ogm_sqn_late_hystere_100ms = val;
 
-                                        if (!strcmp(c->opt->name, ARG_PATH_RP_EXP_NUMERATOR))
-                                                test_algo.algo_rp_exp_numerator = val;
-
-                                        if (!strcmp(c->opt->name, ARG_PATH_RP_EXP_DIVISOR))
-                                                test_algo.algo_rp_exp_divisor = val;
-
-                                        if (!strcmp(c->opt->name, ARG_PATH_TP_EXP_NUMERATOR))
-                                                test_algo.algo_tp_exp_numerator = val;
-
-                                        if (!strcmp(c->opt->name, ARG_PATH_TP_EXP_DIVISOR))
-                                                test_algo.algo_tp_exp_divisor = val;
-
                                         if (!strcmp(c->opt->name, ARG_PATH_LQ_TX_R255))
                                                 test_algo.lq_tx_point_r255 = val;
 
@@ -967,6 +1004,7 @@ int32_t opt_path_metricalgo(uint8_t cmd, uint8_t _save, struct opt_type *opt, st
 
                                         if (!strcmp(c->opt->name, ARG_OGM_LINK_RATE_EFFICIENCY))
                                                 test_algo.ogm_link_rate_efficiency = val;
+*/
                                 }
                         }
                 }
@@ -978,6 +1016,11 @@ int32_t opt_path_metricalgo(uint8_t cmd, uint8_t _save, struct opt_type *opt, st
                         my_path_umetric_min = test_algo.umetric_min;
 
                         my_ogm_path_algo = test_algo.algo_type;
+                        my_path_rp_exp_numerator = test_algo.algo_rp_exp_numerator;
+                        my_path_rp_exp_divisor = test_algo.algo_rp_exp_divisor;
+                        my_path_tp_exp_numerator = test_algo.algo_tp_exp_numerator;
+                        my_path_tp_exp_divisor = test_algo.algo_tp_exp_divisor;
+/*
 			my_ogm_hop_penalty = test_algo.ogm_hop_penalty;
 			my_ogm_hops_max = test_algo.ogm_hops_max;
 			my_ogm_hop_hisotry = test_algo.ogm_hop_history;
@@ -985,15 +1028,11 @@ int32_t opt_path_metricalgo(uint8_t cmd, uint8_t _save, struct opt_type *opt, st
 			my_ogm_metric_hyst_old_path = test_algo.ogm_metric_hystere_old_path;
 			my_ogm_sqn_best_hyst = test_algo.ogm_sqn_best_hystere;
 			my_ogm_sqn_late_hyst_100ms = test_algo.ogm_sqn_late_hystere_100ms;
-                        my_path_rp_exp_numerator = test_algo.algo_rp_exp_numerator;
-                        my_path_rp_exp_divisor = test_algo.algo_rp_exp_divisor;
-                        my_path_tp_exp_numerator = test_algo.algo_tp_exp_numerator;
-                        my_path_tp_exp_divisor = test_algo.algo_tp_exp_divisor;
 			my_path_lq_tx_r255 = test_algo.lq_tx_point_r255;
 			my_path_lq_ty_r255 = test_algo.lq_ty_point_r255;
 			my_path_lq_t1_r255 = test_algo.lq_t1_point_r255;
 			my_ogm_link_rate_efficiency = test_algo.ogm_link_rate_efficiency;
-
+*/
                         my_description_changed = YES;
                 }
         }
@@ -1009,8 +1048,26 @@ struct opt_type metrics_options[]=
 //       ord parent long_name             shrt Attributes                            *ival              min                 max                default              *func,*syntax,*help
 
 #ifndef LESS_OPTIONS
+        {ODI, 0, ARG_PATH_METRIC_ALGO, CHR_PATH_METRIC_ALGO,  9,1, A_PS1N, A_ADM, A_DYI, A_CFA, A_ANY, &my_ogm_path_algo,MIN_METRIC_ALGO,    MAX_METRIC_ALGO,    DEF_METRIC_ALGO,0,    opt_path_metricalgo,
+                ARG_VALUE_FORM, HELP_PATH_METRIC_ALGO}
+        ,
+        {ODI, ARG_PATH_METRIC_ALGO, ARG_PATH_RP_EXP_NUMERATOR, CHR_PATH_RP_EXP_NUMERATOR, 9,1, A_CS1, A_ADM, A_DYI, A_CFA, A_ANY, &my_path_rp_exp_numerator, MIN_PATH_XP_EXP_NUMERATOR, MAX_PATH_XP_EXP_NUMERATOR, DEF_PATH_RP_EXP_NUMERATOR,0, opt_path_metricalgo,
+                ARG_VALUE_FORM, " "}
+        ,
+        {ODI, ARG_PATH_METRIC_ALGO, ARG_PATH_RP_EXP_DIVISOR, CHR_PATH_RP_EXP_DIVISOR, 9,1, A_CS1, A_ADM, A_DYI, A_CFA, A_ANY, &my_path_rp_exp_divisor, MIN_PATH_XP_EXP_DIVISOR, MAX_PATH_XP_EXP_DIVISOR, DEF_PATH_RP_EXP_DIVISOR,0, opt_path_metricalgo,
+                ARG_VALUE_FORM, " "}
+        ,
+        {ODI, ARG_PATH_METRIC_ALGO, ARG_PATH_TP_EXP_NUMERATOR, CHR_PATH_TP_EXP_NUMERATOR, 9,1, A_CS1, A_ADM, A_DYI, A_CFA, A_ANY, &my_path_tp_exp_numerator, MIN_PATH_XP_EXP_NUMERATOR, MAX_PATH_XP_EXP_NUMERATOR, DEF_PATH_TP_EXP_NUMERATOR,0, opt_path_metricalgo,
+                ARG_VALUE_FORM, " "}
+        ,
+        {ODI, ARG_PATH_METRIC_ALGO, ARG_PATH_TP_EXP_DIVISOR, CHR_PATH_TP_EXP_DIVISOR, 9,1, A_CS1, A_ADM, A_DYI, A_CFA, A_ANY, &my_path_tp_exp_divisor, MIN_PATH_XP_EXP_DIVISOR, MAX_PATH_XP_EXP_DIVISOR, DEF_PATH_TP_EXP_DIVISOR,0, opt_path_metricalgo,
+                ARG_VALUE_FORM, " "}
+        ,
 	{ODI, 0, ARG_OGM_METRIC_HYST_NEW_PATH,     0,   9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,    &my_ogm_metric_hyst_new_path,MIN_OGM_METRIC_HYST_NEW_PATH, MAX_OGM_METRIC_HYST_NEW_PATH,DEF_OGM_METRIC_HYST_NEW_PATH,0, opt_path_metricalgo,
 			ARG_VALUE_FORM,	"use metric hysteresis in % to delay route switching to alternative next-hop neighbors with better path metric"}
+        ,
+	{ODI, 0, ARG_OGM_METRIC_HYST_OLD_PATH,     0,   9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,    &my_ogm_metric_hyst_old_path,MIN_OGM_METRIC_HYST_OLD_PATH, MAX_OGM_METRIC_HYST_OLD_PATH,DEF_OGM_METRIC_HYST_OLD_PATH,0, opt_path_metricalgo,
+			ARG_VALUE_FORM,	"use metric hysteresis in % to delay ogm updates due to better path metric via old path"}
         ,
 	{ODI, 0, ARG_OGM_SQN_BEST_HYST,0,9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,    &my_ogm_sqn_best_hyst,MIN_OGM_SQN_BEST_HYST,MAX_OGM_SQN_BEST_HYST,DEF_OGM_SQN_BEST_HYST,0, opt_path_metricalgo,
 		ARG_VALUE_FORM,	"overcome metric hysteresis to force route switching after successive reception of x new OGM-SQNs with with better path metric"}
@@ -1043,21 +1100,6 @@ struct opt_type metrics_options[]=
 			ARG_VALUE_FORM,	HLP_OGM_LINK_RATE_EFFICIENCY}
         ,
 
-        {ODI, 0, ARG_PATH_METRIC_ALGO, CHR_PATH_METRIC_ALGO,  9,1, A_PS1N, A_ADM, A_DYI, A_CFA, A_ANY, &my_ogm_path_algo,MIN_METRIC_ALGO,    MAX_METRIC_ALGO,    DEF_METRIC_ALGO,0,    opt_path_metricalgo,
-                ARG_VALUE_FORM, HELP_PATH_METRIC_ALGO}
-        ,
-        {ODI, ARG_PATH_METRIC_ALGO, ARG_PATH_RP_EXP_NUMERATOR, CHR_PATH_RP_EXP_NUMERATOR, 9,1, A_CS1, A_ADM, A_DYI, A_CFA, A_ANY, &my_path_rp_exp_numerator, MIN_PATH_XP_EXP_NUMERATOR, MAX_PATH_XP_EXP_NUMERATOR, DEF_PATH_RP_EXP_NUMERATOR,0, opt_path_metricalgo,
-                ARG_VALUE_FORM, " "}
-        ,
-        {ODI, ARG_PATH_METRIC_ALGO, ARG_PATH_RP_EXP_DIVISOR, CHR_PATH_RP_EXP_DIVISOR, 9,1, A_CS1, A_ADM, A_DYI, A_CFA, A_ANY, &my_path_rp_exp_divisor, MIN_PATH_XP_EXP_DIVISOR, MAX_PATH_XP_EXP_DIVISOR, DEF_PATH_RP_EXP_DIVISOR,0, opt_path_metricalgo,
-                ARG_VALUE_FORM, " "}
-        ,
-        {ODI, ARG_PATH_METRIC_ALGO, ARG_PATH_TP_EXP_NUMERATOR, CHR_PATH_TP_EXP_NUMERATOR, 9,1, A_CS1, A_ADM, A_DYI, A_CFA, A_ANY, &my_path_tp_exp_numerator, MIN_PATH_XP_EXP_NUMERATOR, MAX_PATH_XP_EXP_NUMERATOR, DEF_PATH_TP_EXP_NUMERATOR,0, opt_path_metricalgo,
-                ARG_VALUE_FORM, " "}
-        ,
-        {ODI, ARG_PATH_METRIC_ALGO, ARG_PATH_TP_EXP_DIVISOR, CHR_PATH_TP_EXP_DIVISOR, 9,1, A_CS1, A_ADM, A_DYI, A_CFA, A_ANY, &my_path_tp_exp_divisor, MIN_PATH_XP_EXP_DIVISOR, MAX_PATH_XP_EXP_DIVISOR, DEF_PATH_TP_EXP_DIVISOR,0, opt_path_metricalgo,
-                ARG_VALUE_FORM, " "}
-        ,
         {ODI, 0, ARG_PATH_UMETRIC_MIN, 0,  9,1, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &my_path_umetric_min,MIN_PATH_UMETRIC_MIN,MAX_PATH_UMETRIC_MIN,DEF_PATH_UMETRIC_MIN,0,    opt_path_metricalgo,
                 ARG_VALUE_FORM, " "}
         ,

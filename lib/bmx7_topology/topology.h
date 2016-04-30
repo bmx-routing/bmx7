@@ -51,13 +51,13 @@ struct description_hdr_topology {
 
 
 #define DESCRIPTION_MSG_TOPOLOGY_FORMAT { \
-{FIELD_TYPE_GLOBAL_ID,        -1, (8*sizeof(GLOBAL_ID_T)), 1, FIELD_RELEVANCE_HIGH, "nbId"},  \
-{FIELD_TYPE_UINT,             -1, (8*sizeof(uint8_t)),     1, FIELD_RELEVANCE_HIGH, "nbIdx"}, \
-{FIELD_TYPE_UINT,             -1, (8*sizeof(uint8_t)),     1, FIELD_RELEVANCE_HIGH, "myIdx"}, \
-{FIELD_TYPE_UINT,             -1, (8*sizeof(uint8_t)),     1, FIELD_RELEVANCE_HIGH, "txBw"}, \
-{FIELD_TYPE_UINT,             -1, (8*sizeof(uint8_t)),     1, FIELD_RELEVANCE_HIGH, "rxBw"}, \
-{FIELD_TYPE_UINT,             -1, (8*sizeof(uint8_t)),     1, FIELD_RELEVANCE_HIGH, "tq"}, \
-{FIELD_TYPE_UINT,             -1, (8*sizeof(uint8_t)),     1, FIELD_RELEVANCE_HIGH, "rq"}, \
+{FIELD_TYPE_GLOBAL_ID,        -1, (8*sizeof(GLOBAL_ID_T)), 0, FIELD_RELEVANCE_HIGH, "nbId"},  \
+{FIELD_TYPE_UINT,             -1, (8*sizeof(uint8_t)),     0, FIELD_RELEVANCE_HIGH, "nbIdx"}, \
+{FIELD_TYPE_UINT,             -1, (8*sizeof(uint8_t)),     0, FIELD_RELEVANCE_HIGH, "myIdx"}, \
+{FIELD_TYPE_UINT,             -1, (8*sizeof(uint8_t)),     0, FIELD_RELEVANCE_HIGH, "txBw"}, \
+{FIELD_TYPE_UINT,             -1, (8*sizeof(uint8_t)),     0, FIELD_RELEVANCE_HIGH, "rxBw"}, \
+{FIELD_TYPE_UINT,             -1, (8*sizeof(uint8_t)),     0, FIELD_RELEVANCE_HIGH, "tq"}, \
+{FIELD_TYPE_UINT,             -1, (8*sizeof(uint8_t)),     0, FIELD_RELEVANCE_HIGH, "rq"}, \
 FIELD_FORMAT_END }
 
 struct local_topology_key {

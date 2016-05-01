@@ -498,6 +498,7 @@ void spmSet( struct sub_path_metric *spmArr, uint8_t channel, uint8_t hopPos, UM
 	spmArr[hopPos].channel = channel;
 	spmArr[hopPos].hop = hopPos;
 	spmArr[hopPos].linkTime = (UMETRIC_MAX_MAX / *linkTP);
+	spmArr[hopPos].pathTime = 1;
 }
 
 
@@ -562,8 +563,7 @@ void path_metricalgo_Capacity(struct NeighPath *np, struct NeighRef_node *ref, s
 	uint16_t inHPos, outHPos = 0, outIfrPos = 0;
 	uint16_t inHSz = ref->ogmSqnMaxPathMetricsByteSize / sizeof(struct msg_ogm_adv_metric_t0);
 	uint16_t inHMax = XMIN(inHSz, algo->ogm_hop_history);
-	uint16_t addHSz = (np->link->k.myDev->channel != 0);
-	struct sub_path_metric * subPathArr = debugMallocReset( ((addHSz + inHSz) * sizeof(struct sub_path_metric)), -300000);
+	static struct sub_path_metric subPathArr[MAX_OGM_HOP_HISTORY_SZ + 1];
 	UMETRIC_T linkTP;
 	UMETRIC_T pathMaxTP = np->um;
 	UMETRIC_T maxPathTime = 1;
@@ -584,7 +584,7 @@ void path_metricalgo_Capacity(struct NeighPath *np, struct NeighRef_node *ref, s
 
 	np->pathMetricsByteSize = 0;
 	
-	if (addHSz) {
+	if (np->link->k.myDev->channel != TYP_DEV_CHANNEL_EXCLUSIVE) {
 
 		spmSet(subPathArr, np->link->k.myDev->channel, outIfrPos++, &linkTP);
 		maxPathTime += (UMETRIC_MAX_MAX / linkTP);
@@ -602,8 +602,8 @@ void path_metricalgo_Capacity(struct NeighPath *np, struct NeighRef_node *ref, s
 		}
 	}
 
-	dbgf_track(DBGT_INFO, "msg: linkTP=%s pathMaxTP=%s subPathTime=%s inHMax=%d",
-		umetric_to_human(linkTP), umetric_to_human(pathMaxTP), umetric_to_human(maxPathTime), inHMax);
+	dbgf_track(DBGT_INFO, "msg: linkTP=%ju pathMaxTP=%ju maxPathTime=%ju inHMax=%d o=%d p=%d",
+		linkTP, pathMaxTP, maxPathTime, inHMax, outHPos, outIfrPos);
 
 	for (inHPos = 0; inHPos < inHMax; inHPos++) {
 
@@ -615,7 +615,7 @@ void path_metricalgo_Capacity(struct NeighPath *np, struct NeighRef_node *ref, s
 		linkTP = XMAX(linkTP, UMETRIC_MIN__NOT_ROUTABLE);
 		pathMaxTP = XMIN(pathMaxTP, linkTP);
 
-		if (ref->ogmSqnMaxPathMetrics[inHPos].channel != 0) {
+		if (ref->ogmSqnMaxPathMetrics[inHPos].channel != TYP_DEV_CHANNEL_EXCLUSIVE) {
 
 			spmSet(subPathArr, ref->ogmSqnMaxPathMetrics[inHPos].channel, outIfrPos++, &linkTP);
 			maxPathTime += (UMETRIC_MAX_MAX / linkTP);
@@ -642,8 +642,6 @@ void path_metricalgo_Capacity(struct NeighPath *np, struct NeighRef_node *ref, s
 	assertion_dbg(-500000, (subTreeTime <= maxPathTime), "subTreeTime=%ju !<= maxPathTime=%ju", subTreeTime, maxPathTime);
 
 	np->um = XMIN(pathMaxTP, (UMETRIC_MAX_MAX / subTreeTime));
-
-	debugFree(subPathArr, -300000);
 }
 
 STATIC_FUNC

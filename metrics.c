@@ -246,7 +246,7 @@ char *umetric_to_human(UMETRIC_T val) {
                         sprintf(out[p], "%juK", val/1000);
                 } else if (val < 100000000000) {
                         sprintf(out[p], "%juM", val/1000000);
-                } else if (val < 100000000000000) {
+                } else {
                         sprintf(out[p], "%juG", val/1000000000);
                 }
 
@@ -502,7 +502,7 @@ void spmSet( struct sub_path_metric *spmArr, uint8_t channel, uint8_t hopPos, UM
 
 
 STATIC_FUNC
-UMETRIC_T subPathArrMinTP (struct sub_path_metric *a, uint16_t arrMax, struct host_metricalgo *algo)
+UMETRIC_T subPathArrMaxTime (struct sub_path_metric *a, uint16_t arrMax, struct host_metricalgo *algo)
 {
 	UMETRIC_T maxPathTime = 1;
 	
@@ -551,7 +551,7 @@ UMETRIC_T subPathArrMinTP (struct sub_path_metric *a, uint16_t arrMax, struct ho
 	}
 
 
-	return (UMETRIC_MAX_MAX / maxPathTime);
+	return maxPathTime;
 }
 
 STATIC_FUNC
@@ -601,8 +601,8 @@ void path_metricalgo_Capacity(struct NeighPath *np, struct NeighRef_node *ref, s
 		}
 	}
 
-	dbgf_track(DBGT_INFO, "msg: linkTP=%s pathMaxTP=%s subPathTime=%s",
-		umetric_to_human(linkTP), umetric_to_human(pathMaxTP), umetric_to_human(maxPathTime));
+	dbgf_track(DBGT_INFO, "msg: linkTP=%s pathMaxTP=%s subPathTime=%s inHMax=%d",
+		umetric_to_human(linkTP), umetric_to_human(pathMaxTP), umetric_to_human(maxPathTime), inHMax);
 
 	for (inHPos = 0; inHPos < inHMax; inHPos++) {
 
@@ -633,16 +633,15 @@ void path_metricalgo_Capacity(struct NeighPath *np, struct NeighRef_node *ref, s
 			}
 		}
 
-		dbgf_track(DBGT_INFO, "hops linkTP=%s pathMaxTP=%s subPathTime=%s i=%d o=%d",
-			umetric_to_human(linkTP), umetric_to_human(pathMaxTP), umetric_to_human(maxPathTime), inHPos, outHPos);
+		dbgf_track(DBGT_INFO, "hops linkTP=%ju pathMaxTP=%ju maxPathTime=%ju subTreeTime=%ju i=%d o=%d",
+			linkTP, pathMaxTP, maxPathTime, subPathArrMaxTime(subPathArr, outHPos, algo), inHPos, outHPos);
 	}
 
-	UMETRIC_T subTreeTP = subPathArrMinTP(subPathArr, outHPos, algo);
+	UMETRIC_T subTreeTime = subPathArrMaxTime(subPathArr, outHPos, algo);
 
-	assertion_dbg(-500000, (subTreeTP >= (UMETRIC_MAX_MAX / maxPathTime)), "subTreeTP=%ju !>= minPathTP=%ju, subTreeTime=%ju !<= maxPathTime=%ju",
-		subTreeTP, (UMETRIC_MAX_MAX / maxPathTime), (UMETRIC_MAX_MAX / subTreeTP), maxPathTime);
+	assertion_dbg(-500000, (subTreeTime <= maxPathTime), "subTreeTime=%ju !<= maxPathTime=%ju", subTreeTime, maxPathTime);
 
-	np->um = XMIN(pathMaxTP, subTreeTP);
+	np->um = XMIN(pathMaxTP, (UMETRIC_MAX_MAX / subTreeTime));
 
 	debugFree(subPathArr, -300000);
 }

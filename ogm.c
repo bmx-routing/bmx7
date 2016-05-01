@@ -626,7 +626,7 @@ void process_ogm_metric(void *voidRef)
 
 		if (bestNeighPath->link != on->neighPath.link) {
 
-			dbgf_track(DBGT_INFO, "changed route to id=%s why=%d %ju %d %ju %d,   %d %d %d %d,   %d %d %d %d", cryptShaAsShortStr(&ref->kn->kHash), why, 
+			dbgf_track(DBGT_INFO, "changed route to id=%s why=%d,  %ju %d %ju %d,   %d %d %d %d,   %d %d %d %d", cryptShaAsShortStr(&ref->kn->kHash), why,
 				bestNeighPath->um, !!bestNeighPath->link, on->neighPath.um, !!on->neighPath.link,
 				ref->ogmSqnMax, dc->ogmSqnMaxSend, ref->ogmSqnMaxTime, ref->ogmBestSinceSqn,
 				on->mtcAlgo->ogm_sqn_late_hystere_100ms, on->mtcAlgo->ogm_metric_hystere_old_path, on->mtcAlgo->ogm_metric_hystere_new_path, on->mtcAlgo->ogm_sqn_best_hystere);

@@ -966,49 +966,51 @@ int32_t opt_path_metricalgo(uint8_t cmd, uint8_t _save, struct opt_type *opt, st
                 // only options with a non-zero MIN value and those with illegal compinations must be tested
                 // other illegal option configurations will be cached by their MIN_... MAX_.. control.c architecture
 
+		int32_t val = patch->diff != DEL && patch->val ? strtol(patch->val, NULL, 10) : -1;
+
                 test_algo.umetric_min = (cmd == OPT_REGISTER || strcmp(opt->name, ARG_PATH_UMETRIC_MIN)) ?
-                        my_path_umetric_min : (patch->diff != DEL ? strtol(patch->val, NULL, 10) : (int)DEF_PATH_UMETRIC_MIN);
+                        my_path_umetric_min : (val >= 0 ? val : (int)DEF_PATH_UMETRIC_MIN);
 
                 test_algo.fmetric_u16_min = umetric_to_fmetric(test_algo.umetric_min);
 
 
 		test_algo.ogm_hop_penalty = (cmd == OPT_REGISTER || strcmp(opt->name, ARG_OGM_HOP_PENALTY)) ?
-			my_ogm_hop_penalty : ((patch->diff != DEL) ? strtol(patch->val, NULL, 10) : DEF_OGM_HOP_PENALTY);
+			my_ogm_hop_penalty : (val >= 0 ? val : DEF_OGM_HOP_PENALTY);
 
 		test_algo.ogm_hops_max = (cmd == OPT_REGISTER || strcmp(opt->name, ARG_OGM_HOPS_MAX)) ?
-			my_ogm_hops_max : ((patch->diff != DEL) ? strtol(patch->val, NULL, 10) : DEF_OGM_HOPS_MAX);
+			my_ogm_hops_max : (val >= 0 ? val : DEF_OGM_HOPS_MAX);
 
 		test_algo.ogm_hop_history = (cmd == OPT_REGISTER || strcmp(opt->name, ARG_OGM_HOP_HISTORY_SZ)) ?
-			my_ogm_hop_hisotry_size : ((patch->diff != DEL) ? strtol(patch->val, NULL, 10) : DEF_OGM_HOP_HISTORY_SZ);
+			my_ogm_hop_hisotry_size : (val >= 0 ? val : DEF_OGM_HOP_HISTORY_SZ);
 
 		test_algo.ogm_metric_hystere_new_path = (cmd == OPT_REGISTER || strcmp(opt->name, ARG_OGM_METRIC_HYST_NEW_PATH)) ?
-			my_ogm_metric_hyst_new_path : ((patch->diff != DEL) ? strtol(patch->val, NULL, 10) : DEF_OGM_METRIC_HYST_NEW_PATH);
+			my_ogm_metric_hyst_new_path : (val >= 0 ? val : DEF_OGM_METRIC_HYST_NEW_PATH);
 
 		test_algo.ogm_metric_hystere_old_path = (cmd == OPT_REGISTER || strcmp(opt->name, ARG_OGM_METRIC_HYST_OLD_PATH)) ?
-			my_ogm_metric_hyst_old_path : ((patch->diff != DEL) ? strtol(patch->val, NULL, 10) : DEF_OGM_METRIC_HYST_OLD_PATH);
+			my_ogm_metric_hyst_old_path : (val >= 0 ? val : DEF_OGM_METRIC_HYST_OLD_PATH);
 
 		test_algo.ogm_sqn_best_hystere = (cmd == OPT_REGISTER || strcmp(opt->name, ARG_OGM_SQN_BEST_HYST)) ?
-			my_ogm_sqn_best_hyst : ((patch->diff != DEL) ? strtol(patch->val, NULL, 10) : DEF_OGM_SQN_BEST_HYST);
+			my_ogm_sqn_best_hyst : (val >= 0 ? val : DEF_OGM_SQN_BEST_HYST);
 
 		test_algo.ogm_sqn_late_hystere_100ms = (cmd == OPT_REGISTER || strcmp(opt->name, ARG_OGM_SQN_LATE_HYST)) ?
-			my_ogm_sqn_late_hyst_100ms : ((patch->diff != DEL) ? strtol(patch->val, NULL, 10) : DEF_OGM_SQN_LATE_HYST);
+			my_ogm_sqn_late_hyst_100ms : (val >= 0 ? val : DEF_OGM_SQN_LATE_HYST);
 
 		test_algo.lq_tx_point_r255 = (cmd == OPT_REGISTER || strcmp(opt->name, ARG_PATH_LQ_TX_R255)) ?
-			my_path_lq_tx_r255 : ((patch->diff != DEL) ? strtol(patch->val, NULL, 10) : DEF_PATH_LQ_TX_R255);
+			my_path_lq_tx_r255 : (val >= 0 ? val : DEF_PATH_LQ_TX_R255);
 
 		test_algo.lq_ty_point_r255 = (cmd == OPT_REGISTER || strcmp(opt->name, ARG_PATH_LQ_TY_R255)) ?
-			my_path_lq_ty_r255 : ((patch->diff != DEL) ? strtol(patch->val, NULL, 10) : DEF_PATH_LQ_TY_R255);
+			my_path_lq_ty_r255 : (val >= 0 ? val : DEF_PATH_LQ_TY_R255);
 
 		test_algo.lq_t1_point_r255 = (cmd == OPT_REGISTER || strcmp(opt->name, ARG_PATH_LQ_T1_R255)) ?
-			my_path_lq_t1_r255 : ((patch->diff != DEL) ? strtol(patch->val, NULL, 10) : DEF_PATH_LQ_T1_R255);
+			my_path_lq_t1_r255 : (val >= 0 ? val : DEF_PATH_LQ_T1_R255);
 
 		test_algo.ogm_link_rate_efficiency = (cmd == OPT_REGISTER || strcmp(opt->name, ARG_OGM_LINK_RATE_EFFICIENCY)) ?
-			my_ogm_link_rate_efficiency : ((patch->diff != DEL) ? strtol(patch->val, NULL, 10) : DEF_OGM_LINK_RATE_EFFICIENCY);
+			my_ogm_link_rate_efficiency : (val >= 0 ? val : DEF_OGM_LINK_RATE_EFFICIENCY);
 
 
 		if (cmd == OPT_APPLY && strcmp(opt->name, ARG_PATH_IFR_PARAMETER) == 0) {
 
-			int param = strtol(patch->val, NULL, 10);
+			int param = (patch->val) ? strtol(patch->val, NULL, 10) : 0;
 
 			if (patch->diff == DEL) {
 
@@ -1020,19 +1022,16 @@ int32_t opt_path_metricalgo(uint8_t cmd, uint8_t _save, struct opt_type *opt, st
 
 				while ((c = list_iterate(&patch->childs_instance_list, c))) {
 
-                                        if (!c->val)
-                                                continue;
-
-                                        int32_t val = strtol(c->val, NULL, 10);
+					int32_t val = (c->val) ? strtol(c->val, NULL, 10) : 0;
 
                                         if (!strcmp(c->opt->name, ARG_PATH_IFR_CHA_DISTANCE))
-                                                my_path_interference_parameter[param].channelDistance = val;
+						my_path_interference_parameter[param].channelDistance = c->val ? val : DEF_OGM_PATH_INTERFERENCE_PARAMETER[param].channelDistance;
 
                                         if (!strcmp(c->opt->name, ARG_PATH_IFR_HOP_DISTANCE))
-						my_path_interference_parameter[param].hopDistance = val;
+						my_path_interference_parameter[param].hopDistance = val ? val : DEF_OGM_PATH_INTERFERENCE_PARAMETER[param].hopDistance;
 
                                         if (!strcmp(c->opt->name, ARG_PATH_IFR_INDEPENDENCE))
-						my_path_interference_parameter[param].independence = val;
+						my_path_interference_parameter[param].independence = val ? val : DEF_OGM_PATH_INTERFERENCE_PARAMETER[param].independence;
 				}
 			}
 		}

@@ -77,31 +77,10 @@ static int32_t new_rt_dismissal_div100 = DEF_NEW_RT_DISMISSAL;
 struct host_metricalgo my_hostmetricalgo;
 
 
-#define ARG_PATH_IFR_PARAMETER "pathInterference"
-#define MIN_PATH_IFR_PARAMETER 0
-#define MAX_PATH_IFR_PARAMETER (MAX_PATH_IFR_PARAMETERS -1)
-
-#define ARG_PATH_IFR_INDEPENDENCE "independence"
-#define MIN_PATH_IFR_INDEPENDENCE 0
-#define MAX_PATH_IFR_INDEPENDENCE ((1<<TYP_PATH_IFR_INDEPENDENCE_BITS)-1)
-#define DEF_PATH_IFR_INDEPENDENCE 0
-
-#define ARG_PATH_IFR_CHA_DISTANCE "channelDistance"
-#define MIN_PATH_IFR_CHA_DISTANCE 0
-#define MAX_PATH_IFR_CHA_DISTANCE ((1<<TYP_PATH_IFR_CHA_DISTANCE_BITS)-1)
-#define DEF_PATH_IFR_CHA_DISTANCE 0
-
-#define ARG_PATH_IFR_HOP_DISTANCE "hopDistance"
-#define MIN_PATH_IFR_HOP_DISTANCE 0
-#define MAX_PATH_IFR_HOP_DISTANCE ((1<<TYP_PATH_IFR_HOP_DISTANCE_BITS)-1)
-#define DEF_PATH_IFR_HOP_DISTANCE 0
 
 
 
-static const struct path_interference_parameter DEF_OGM_PATH_INTERFERENCE_PARAMETER[MAX_PATH_IFR_PARAMETERS] = {
-	{.channelDistance = 6, .hopDistance = 3, .independence = MAX_PATH_IFR_INDEPENDENCE},
-	{.channelDistance = 100, .hopDistance = 1, .independence = MAX_PATH_IFR_INDEPENDENCE}
-};
+static const struct path_interference_parameter DEF_OGM_PATH_INTERFERENCE_PARAMETER[MAX_PATH_IFR_PARAMETERS] = DEF_PATH_IFR_PARAMETER;
 
 struct path_interference_parameter my_path_interference_parameter[MAX_PATH_IFR_PARAMETERS];
 
@@ -537,10 +516,11 @@ UMETRIC_T subPathArrMinTP (struct sub_path_metric *a, uint16_t arrMax, struct ho
 
 			for (i = 0; i <= arrMax; i++) {
 
-				if (t != i) {
+				if (t != i && a[i].channel != TYP_DEV_CHANNEL_EXCLUSIVE) {
+
 					uint8_t maxIndependence = MIN_PATH_IFR_INDEPENDENCE;
 
-					if (a[t].channel != TYP_DEV_CHANNEL_SHARED ) {
+					if (a[t].channel != TYP_DEV_CHANNEL_SHARED && a[i].channel != TYP_DEV_CHANNEL_SHARED ) {
 
 						uint8_t channelDistance = XMAX(a[t].channel, a[i].channel) - XMIN(a[t].channel, a[i].channel);
 						uint8_t hopDistance = XMAX(a[t].hop, a[i].hop) - XMIN(a[t].hop, a[i].hop);
@@ -586,7 +566,7 @@ void path_metricalgo_Capacity(struct NeighPath *np, struct NeighRef_node *ref, s
 	struct sub_path_metric * subPathArr = debugMallocReset( ((addHSz + inHSz) * sizeof(struct sub_path_metric)), -300000);
 	UMETRIC_T linkTP;
 	UMETRIC_T pathMaxTP = np->um;
-	UMETRIC_T subPathTime = 1;
+	UMETRIC_T maxPathTime = 1;
 	UMETRIC_T tq = umetric_to_the_power_of_n((((UMETRIC_MAX)*((UMETRIC_T) np->link->timeaware_tq_probe)) / LQ_MAX), algo->algo_tp_exp_numerator, algo->algo_tp_exp_divisor);
 	UMETRIC_T rq = umetric_to_the_power_of_n((((UMETRIC_MAX)*((UMETRIC_T) np->link->timeaware_rq_probe)) / LQ_MAX), algo->algo_rp_exp_numerator, algo->algo_rp_exp_divisor);
 	UMETRIC_T lq = apply_lq_threshold_curve(umetric_multiply_normalized(tq, rq), algo);
@@ -607,7 +587,7 @@ void path_metricalgo_Capacity(struct NeighPath *np, struct NeighRef_node *ref, s
 	if (addHSz) {
 
 		spmSet(subPathArr, np->link->k.myDev->channel, outHPos, &linkTP);
-		subPathTime += (UMETRIC_MAX_MAX / linkTP);
+		maxPathTime += (UMETRIC_MAX_MAX / linkTP);
 
 		if (algo->ogm_hop_history > 0) {
 			FMETRIC_U16_T linkFm = umetric_to_fmetric(linkTP);
@@ -622,7 +602,7 @@ void path_metricalgo_Capacity(struct NeighPath *np, struct NeighRef_node *ref, s
 	}
 
 	dbgf_track(DBGT_INFO, "msg: linkTP=%s pathMaxTP=%s subPathTime=%s",
-		umetric_to_human(linkTP), umetric_to_human(pathMaxTP), umetric_to_human(subPathTime));
+		umetric_to_human(linkTP), umetric_to_human(pathMaxTP), umetric_to_human(maxPathTime));
 
 	for (inHPos = 0; inHPos < inHMax; inHPos++) {
 
@@ -636,27 +616,31 @@ void path_metricalgo_Capacity(struct NeighPath *np, struct NeighRef_node *ref, s
 
 		if (ref->ogmSqnMaxPathMetrics[inHPos].channel != 0) {
 
-			outHPos = (np->pathMetricsByteSize / sizeof(struct msg_ogm_adv_metric_t0));
+			outHPos++;
 
 			spmSet(subPathArr, ref->ogmSqnMaxPathMetrics[inHPos].channel, outHPos, &linkTP);
-			subPathTime += (UMETRIC_MAX_MAX / linkTP);
+			maxPathTime += (UMETRIC_MAX_MAX / linkTP);
 			
 			if (algo->ogm_hop_history > outHPos) {
+
 				np->pathMetrics[outHPos] = ref->ogmSqnMaxPathMetrics[inHPos];
 				np->pathMetrics[outHPos].u.f.more = 0;
+
 				if (outHPos >= 1)
 					np->pathMetrics[outHPos - 1].u.f.more = 1;
+
 				np->pathMetricsByteSize += sizeof(struct msg_ogm_adv_metric_t0);
 			}
 		}
 
 		dbgf_track(DBGT_INFO, "hops linkTP=%s pathMaxTP=%s subPathTime=%s i=%d o=%d",
-			umetric_to_human(linkTP), umetric_to_human(pathMaxTP), umetric_to_human(subPathTime), inHPos, outHPos);
+			umetric_to_human(linkTP), umetric_to_human(pathMaxTP), umetric_to_human(maxPathTime), inHPos, outHPos);
 	}
 
 	UMETRIC_T subTreeTP = subPathArrMinTP(subPathArr, outHPos, algo);
 
-	assertion(-500000, (subTreeTP >= (UMETRIC_MAX_MAX / subPathTime)));
+	assertion_dbg(-500000, (subTreeTP >= (UMETRIC_MAX_MAX / maxPathTime)), "subTreeTP=%ju !>= minPathTP=%ju, subTreeTime=%ju !<= maxPathTime=%ju",
+		subTreeTP, (UMETRIC_MAX_MAX / maxPathTime), (UMETRIC_MAX_MAX / subTreeTP), maxPathTime);
 
 	np->um = XMIN(pathMaxTP, subTreeTP);
 

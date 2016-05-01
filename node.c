@@ -216,10 +216,10 @@ void set_ref_ogmSqnMaxMetric(struct NeighRef_node *ref, DESC_SQN_T descSqn, OGM_
 	} else {
 		ref->descSqn = descSqn;
 		ref->ogmSqnMax = ogmSqn;
+		ref->ogmSqnMaxTime = bmx_time;
+
 		if (!ogmSqn)
 			ref->ogmBestSinceSqn = 0;
-
-
 
 		ref->ogmSqnMaxClaimedMetric.val.u16 = 0;
 		ref->ogmSqnMaxClaimedHops = 0;

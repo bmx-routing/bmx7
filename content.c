@@ -56,9 +56,6 @@ uint32_t content_tree_unresolveds = 0;
 
 int32_t unsolicitedContentAdvs = DEF_UNSOLICITED_CONTENT_ADVS;
 
-STATIC_FUNC int8_t descContent_resolve(struct desc_content *dc, IDM_T init_not_finalize);
-
-
 
 struct content_node * content_get(SHA1_T *chash)
 {
@@ -75,7 +72,6 @@ struct content_status {
 	uint16_t lastDesc;
 	CRYPTSHA1_T *shortDHash;
 	CRYPTSHA1_T *dHash;
-	uint16_t rej;
 	uint16_t lastRef;
 	char nbs[12]; //neighRefs
 	CRYPTSHA1_T *shortCHash;
@@ -97,7 +93,7 @@ struct content_status {
 
 static const struct field_format content_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_SHORT_ID,  content_status, shortId,       1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, content_status, nodeId,      1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, content_status, nodeId,        1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      content_status, name,          1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      content_status, state,         1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              content_status, descSqn,       1, FIELD_RELEVANCE_HIGH),
@@ -105,7 +101,6 @@ static const struct field_format content_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              content_status, lastDesc,      1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_SHORT_ID,  content_status, shortDHash,    1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, content_status, dHash,         1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              content_status, rej,           1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              content_status, lastRef,       1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       content_status, nbs,           1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_SHORT_ID,  content_status, shortCHash,    1, FIELD_RELEVANCE_HIGH),
@@ -130,8 +125,8 @@ STATIC_FUNC
 uint8_t *content_status_page(uint8_t *sOut, uint32_t i, struct content_usage_node *cun, struct content_node *cn)
 {
 	struct desc_content *dc = cun->k.descContent;
-	struct key_node *kn = dc ? dc->key : cn->key;
-	struct orig_node *on = kn ? kn->currOrig : NULL;
+	struct key_node *kn = dc ? dc->kn : cn->kn;
+	struct orig_node *on = kn ? kn->on : NULL;
 
 	struct content_status *cs = &(((struct content_status*) (sOut = debugRealloc(sOut, ((i + 1) * sizeof(struct content_status)), -300366)))[i]);
 	memset(cs, 0, sizeof(struct content_status));
@@ -147,17 +142,15 @@ uint8_t *content_status_page(uint8_t *sOut, uint32_t i, struct content_usage_nod
 	}
 
 	if (dc) {
-		cs->dHash = &dc->dhn->dhash;
-		cs->shortDHash = &dc->dhn->dhash;
+		cs->dHash = &dc->dHash;
+		cs->shortDHash = &dc->dHash;
 		cs->descSqn = dc->descSqn;
-		cs->rej = dc->dhn->rejected;
-		cs->lastRef = ((bmx_time - dc->dhn->referred_by_others_timestamp) / 1000);
+		cs->lastRef = ((bmx_time - dc->referred_by_others_timestamp) / 1000);
 		snprintf(cs->contents, sizeof(cs->contents), "%d/%d", (dc->contentRefs_tree.items - dc->unresolvedContentCounter), dc->contentRefs_tree.items);
 	}
 
-	if (kn || dc) {
-		snprintf(cs->nbs, sizeof(cs->nbs), "%d/%d", (kn ? kn->neighRefs_tree.items : 0), (dc ? dc->dhn->neighRefs_tree.items : 0));
-	}
+	snprintf(cs->nbs, sizeof(cs->nbs), "%d", (kn ? kn->neighRefs_tree.items : 0));
+	
 
 	if (on) {
 		cs->name = on->k.hostname;
@@ -209,20 +202,20 @@ static int32_t content_status_creator(struct status_handl *handl, void *data)
 
 	while ((on = avl_remove_first_item(&orig_name_tree, -300747))) {
 
-		for (an = NULL; (cun = avl_iterate_item(&on->descContent->contentRefs_tree, &an));)
+		for (an = NULL; (cun = avl_iterate_item(&on->dc->contentRefs_tree, &an));)
 			handl->data = content_status_page(handl->data, i++, cun, cun->k.content);
 
-		for (an = NULL; on->key->nextDesc && (cun = avl_iterate_item(&on->key->nextDesc->contentRefs_tree, &an));)
+		for (an = NULL; on->kn->nextDesc && (cun = avl_iterate_item(&on->kn->nextDesc->contentRefs_tree, &an));)
 			handl->data = content_status_page(handl->data, i++, cun, cun->k.content);
 	}
 
 	for (it = NULL; (kn = avl_iterate_item(&key_tree, &it));) {
-		for (an = NULL; kn->nextDesc && !kn->currOrig && (cun = avl_iterate_item(&kn->nextDesc->contentRefs_tree, &an));)
+		for (an = NULL; kn->nextDesc && !kn->on && (cun = avl_iterate_item(&kn->nextDesc->contentRefs_tree, &an));)
 			handl->data = content_status_page(handl->data, i++, cun, cun->k.content);
 	}
 
 	for (it = NULL; (cn = avl_iterate_item(&content_tree, &it));) {
-		if (!cn->key && !cn->usage_tree.items)
+		if (!cn->kn && !cn->usage_tree.items)
 			handl->data = content_status_page(handl->data, i++, NULL, cn);
 	}
 
@@ -287,9 +280,9 @@ struct content_node * content_add_body( uint8_t *body, uint32_t body_len, uint8_
 	dbgf_track(DBGT_INFO, "recursion=%d unresolveds=%d cHash=%s gzip=%d maxNested=%d force=%d",
 		recursion, content_tree_unresolveds, cryptShaAsShortStr(chash), gzip, nested, force);
 
-	if (cn && !cn->f_body && (force || cn->usage_tree.items || cn->key)) {
+	if (cn && !cn->f_body && (force || cn->usage_tree.items || cn->kn)) {
 
-		assertion(-502303, IMPLIES(cn->key, cn->key->bookedState->i.c >= KCTracked));
+		assertion(-502303, IMPLIES(cn->kn, cn->kn->bookedState->i.c >= KCTracked));
 
 
 		cn->f_body = debugMalloc(body_len, -300733);
@@ -304,9 +297,9 @@ struct content_node * content_add_body( uint8_t *body, uint32_t body_len, uint8_
 			cit.k = cun->k;
 
 			dbgf_track(DBGT_INFO, "updating usage of key=%s unresolvedCCnt=%d cLevel=%d cMaxLevel=%d",
-				cryptShaAsShortStr(&dc->key->kHash), dc->unresolvedContentCounter, cun->maxUsedLevel, cun->maxAllowedLevel);
+				cryptShaAsShortStr(&dc->kn->kHash), dc->unresolvedContentCounter, cun->maxUsedLevel, cun->maxAllowedLevel);
 
-			assertion(-502243, (dc->key));
+			assertion(-502243, (dc->kn));
 
 			if (dc->unresolvedContentCounter) {
 
@@ -318,24 +311,29 @@ struct content_node * content_add_body( uint8_t *body, uint32_t body_len, uint8_
 
 					dbgf_sys(DBGT_ERR, "FAILED B: nested=%d", nested);
 
-				} else if (!(--dc->unresolvedContentCounter) && descContent_resolve(dc, NO) != SUCCESS) {
+				} else if (!(--dc->unresolvedContentCounter) && descContent_assemble(dc, NO) != SUCCESS) {
 
 					dbgf_sys(DBGT_ERR, "FAILED C: dc->unresolved=%d", dc->unresolvedContentCounter);
 
 				} else {
 					continue;
 				}
-
-				dhash_node_reject(dc->dhn);
+				dc->kn->descSqnMin = dc->descSqn + 1;
+				descContent_destroy(dc);
 			}
 		}
 
-		if (cn->key)
-			keyNode_updCredits(NULL, cn->key, NULL);
+		if (cn->kn) {
+			keyNode_updCredits(NULL, cn->kn, NULL);
+			
+			struct NeighRef_node *nref = NULL;
+			for (an = NULL; (nref = avl_iterate_item(&cn->kn->neighRefs_tree, &an));)
+				neighRef_resolve_or_destroy(nref, NO);
+		}
 
-		while ((cun = avl_iterate_item(&cn->usage_tree, &an))&& (dc = cun->k.descContent)) {
-			if (!dc->unresolvedContentCounter && dc->key != cn->key)
-				keyNode_updCredits(NULL, dc->key, NULL);
+		for (an=NULL; (cun = avl_iterate_item(&cn->usage_tree, &an))&& (dc = cun->k.descContent);) {
+			if (!dc->unresolvedContentCounter && dc->kn != cn->kn)
+				keyNode_updCredits(NULL, dc->kn, NULL);
 		}
 	}
 
@@ -356,7 +354,7 @@ void content_purge_unused(struct content_node *onlyCn)
 	while((cn = onlyCn ? onlyCn : avl_next_item(&content_tree, &chash))) {
 		chash = cn->chash;
 
-		if (!cn->key && !cn->usage_tree.items) {
+		if (!cn->kn && !cn->usage_tree.items) {
 
 			if (cn->f_body)
 				debugFree(cn->f_body, -300734);
@@ -483,49 +481,36 @@ int32_t create_chash_tlv(struct tlv_hdr *tlv, uint8_t *f_data, uint32_t f_len, u
 	return tlv_len;
 }
 
-
 STATIC_FUNC
-void content_schedule_requests(void)
+void content_resolve_(struct key_node *kn, struct content_node *cn, struct neigh_node *viaNeigh)
 {
-	struct content_node *cn;
-	struct avl_node *anc = NULL;
+	dbgf_track(DBGT_INFO, "cHash=%s body=%d interval=%d usages=%d kn=%s",
+		cryptShaAsShortStr(&cn->chash), cn->f_body_len, resolveInterval, cn->usage_tree.items, cn->kn ? cn->kn->bookedState->secName : NULL);
 
-	while (content_tree_unresolveds && (cn = avl_iterate_item(&content_tree, &anc))) {
+	if (cn->f_body)
+		return;
 
-		if (cn->f_body)
-			continue;
+	if (viaNeigh) {
+		schedule_tx_task(FRAME_TYPE_CONTENT_REQ, NULL, &viaNeigh->local_id, viaNeigh, viaNeigh->best_tq_link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &cn->chash, sizeof(SHA1_T));
+	} else if (kn->pktIdTime) {
+		schedule_tx_task(FRAME_TYPE_CONTENT_REQ, NULL, &kn->kHash, NULL, NULL, SCHEDULE_MIN_MSG_SIZE, &cn->chash, sizeof(SHA1_T));
+	}
+}
+
+void content_resolve(struct key_node *kn, struct neigh_node *viaNeigh)
+{
+
+	if (kn->bookedState->i.c >= KCTracked && !kn->content->f_body) {
+
+		content_resolve_(kn, kn->content, viaNeigh);
+
+	} else if (kn->bookedState->i.c >= KCCertified && kn->nextDesc && kn->nextDesc->unresolvedContentCounter) {
 
 		struct content_usage_node *cun;
-		struct reference_node *ref;
-		struct avl_node *anu = NULL;
-
-		while ((cun = avl_iterate_item(&cn->usage_tree, &anu))) {
-
-			assertion(-502309, (cun->k.descContent->key->bookedState->i.c >= KCTracked));
-
-			if (!cun->k.descContent->dhn->neighRefs_tree.items && cun->k.descContent->key->content != cn && cun->k.descContent->key->pktIdTime) {
-				schedule_tx_task(FRAME_TYPE_CONTENT_REQ, &cun->k.descContent->key->kHash, NULL, NULL, SCHEDULE_MIN_MSG_SIZE, &cn->chash, sizeof(SHA1_T));
-			}
-
-			struct avl_node *ann = NULL;
-			while ((ref = avl_iterate_item(&cun->k.descContent->dhn->neighRefs_tree, &ann)))
-				schedule_tx_task(FRAME_TYPE_CONTENT_REQ, &ref->neigh->local_id, ref->neigh, ref->neigh->best_tp_link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &cn->chash, sizeof(SHA1_T));
-		}
-
-		if (cn->key) {
-
-			assertion(-502310, (cn->key->bookedState->i.c >= KCTracked));
-
-			if (cn->key->pktIdTime)
-				schedule_tx_task(FRAME_TYPE_CONTENT_REQ, &cn->key->kHash, NULL, NULL, SCHEDULE_MIN_MSG_SIZE, &cn->chash, sizeof(SHA1_T));
-
-			struct avl_node *anr = NULL;
-			while ((ref = avl_iterate_item(&cn->key->neighRefs_tree, &anr))) {
-				
-				if (!ref->dhn->descContent)
-					schedule_tx_task(FRAME_TYPE_CONTENT_REQ, &ref->neigh->local_id, ref->neigh, ref->neigh->best_tp_link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &cn->chash, sizeof(SHA1_T));
-
-			}
+		struct avl_node *an = NULL;
+		while ((cun = avl_iterate_item(&kn->nextDesc->contentRefs_tree, &an))) {
+			if (!cun->k.content->f_body)
+				content_resolve_(kn, cun->k.content, viaNeigh);
 		}
 	}
 }
@@ -680,10 +665,9 @@ IDM_T content_attach_references(uint8_t *outData, uint32_t *outLen, SHA1_T *f_bo
 }
 
 
-STATIC_FUNC
-int8_t descContent_resolve(struct desc_content *dc, IDM_T init_not_finalize)
+int8_t descContent_assemble(struct desc_content *dc, IDM_T init_not_finalize)
 {
-	assertion(-502253, (dc && dc->key && dc->desc_frame && dc->desc_frame_len));
+	assertion(-502253, (dc && dc->kn && dc->desc_frame && dc->desc_frame_len));
 	assertion(-502254, (!dc->unresolvedContentCounter)); //always zero during finalize or init
 	assertion(-502255, IMPLIES(!init_not_finalize, dc->contentRefs_tree.items));
 	assertion(-502256, IMPLIES(init_not_finalize, !dc->contentRefs_tree.items));
@@ -698,7 +682,7 @@ int8_t descContent_resolve(struct desc_content *dc, IDM_T init_not_finalize)
 	};
 
 	dbgf_track(DBGT_INFO, "init=%d dc->key=%s desc_frame_len=%d unresolveds=%d descSqn=%d",
-		init_not_finalize, cryptShaAsShortStr(&dc->key->kHash), dc->desc_frame_len, dc->unresolvedContentCounter, dc->descSqn);
+		init_not_finalize, cryptShaAsShortStr(&dc->kn->kHash), dc->desc_frame_len, dc->unresolvedContentCounter, dc->descSqn);
 
         while ((result = rx_frame_iterate(&it)) > TLV_RX_DATA_DONE) {
 
@@ -797,7 +781,7 @@ int8_t descContent_resolve(struct desc_content *dc, IDM_T init_not_finalize)
 	}
 
 	if (init_not_finalize && !dc->unresolvedContentCounter)
-		return descContent_resolve(dc, NO);
+		return descContent_assemble(dc, NO);
 
 	dbgf_all(DBGT_INFO, "done");
 	return SUCCESS;
@@ -808,79 +792,95 @@ finish: {
 }
 }
 
-
-
 void descContent_destroy(struct desc_content *dc)
 {
 	assertion(-502260, (dc));
 	assertion(-502261, (dc->desc_frame));
-	assertion(-502262, (dc->key));
-	assertion(-502263, (dc->dhn));
-	assertion(-502264, (!dc->orig));
-
-	dc->dhn->descContent = NULL;
-	dc->dhn = NULL;
+	assertion(-502262, (dc->kn));
+	assertion(-502264, (!dc->on));
 
 	debugFree(dc->desc_frame, -300738);
 	dc->desc_frame = NULL;
 	dc->desc_frame_len = 0;
 
 
-	if (dc->key->nextDesc == dc)
-		dc->key->nextDesc = NULL;
+	if (dc->kn->nextDesc == dc)
+		dc->kn->nextDesc = NULL;
 
 	struct content_usage_node *cun;
 	while ((cun = avl_first_item(&dc->contentRefs_tree)))
 		contentUse_del_(cun);
 
+	avl_remove(&descContent_tree, &dc->dHash, -300782);
+
 	debugFree(dc, -300730);
 }
 
 
-struct desc_content* descContent_create(uint8_t *dsc, uint32_t dlen, struct key_node *key)
+struct desc_content* descContent_create(uint8_t *dsc, uint32_t dlen, struct key_node *kn)
 {
-	assertion(-502265, (dsc && dlen && key && key->content && key->content->f_body && key->bookedState->i.c >= KCTracked));
-
-        DHASH_T dhash;
-	cryptShaAtomic(dsc, dlen, &dhash);
-
-	struct dhash_node *dhn = dhash_node_create( &dhash, NULL);
+	assertion(-502265, (dsc && dlen && kn && kn->content && kn->content->f_body && kn->bookedState->i.c >= KCTracked));
+	ASSERTION(-502534, (test_description_signature(dsc, dlen)));
 
 	struct dsc_msg_version *versMsg;
 	GLOBAL_ID_T *id = get_desc_id(dsc, dlen, NULL, &versMsg);
-
-	assertion(-502266, (!dhn->descContent && !dhn->rejected));
-	assertion(-502267, (id && cryptShasEqual(&key->kHash, id)));
-	assertion(-502268, (!key->currOrig || key->currOrig->descContent->descSqn < ntohl(versMsg->descSqn)));
-	assertion(-502269, (!key->nextDesc || key->nextDesc->descSqn < ntohl(versMsg->descSqn)));
-	assertion(-502270, (key->content == test_description_signature(dsc, dlen)));
-
-	if (key->nextDesc)
-		dhash_node_reject(key->nextDesc->dhn);
-
+	DESC_SQN_T descSqn = ntohl(versMsg->descSqn);
 	struct desc_content *dc = debugMallocReset(sizeof(struct desc_content), -300572);
 	AVL_INIT_TREE(dc->contentRefs_tree, struct content_usage_node, k);
+	cryptShaAtomic(dsc, dlen, &dc->dHash);
 
-	dhn->descContent = dc;
-	dc->dhn = dhn;
+	assertion(-502535, !avl_find(&descContent_tree, &dc->dHash));
+	assertion(-502267, (id && cryptShasEqual(&kn->kHash, id)));
+	assertion(-502268, (!kn->on || kn->on->dc->descSqn < descSqn));
+	assertion(-502269, (!kn->nextDesc || kn->nextDesc->descSqn < descSqn));
+	assertion(-502270, (kn->content == test_description_signature(dsc, dlen)));
+
+	avl_insert(&descContent_tree, dc, -300783);
+
+	if (kn->nextDesc)
+		descContent_destroy(kn->nextDesc);
+
+	dc->kn = kn;
 
 	dc->desc_frame  = debugMalloc(dlen, -300105);
 	memcpy(dc->desc_frame, dsc, dlen);
+	get_desc_id(dc->desc_frame, dlen, NULL, &versMsg);
 
 	dc->desc_frame_len = dlen;
-	dc->descSqn = ntohl(versMsg->descSqn);
-	dc->key = key;
+	dc->descSqn = descSqn;
+	dc->ogmSqnRange = ntohs(versMsg->ogmSqnRange);
+	dc->ogmSqnMaxSend = (dc->ogmSqnMaxRcvd = ((kn == myKey && ogmSqnRandom) ? (rand_num(XMIN(dc->ogmSqnRange, ogmSqnRandom))) : 0));
 
-	if (descContent_resolve(dc, YES) != SUCCESS) {
+	dc->chainLinkMaxRcvd = versMsg->ogmHChainAnchor.u.e.link;
+	dc->chainAnchor = &versMsg->ogmHChainAnchor.u.e.link;
+	dc->chainCache.elem = versMsg->ogmHChainAnchor;
+	dc->chainCache.nodeId = kn->kHash;
+	dc->chainCache.descSqnNetOrder = versMsg->descSqn;
+	ChainOgmConstInput_T coci = {.dHash = dc->dHash, .anchor = dc->chainCache};
+	cryptShaAtomic(&coci, sizeof(coci), &dc->chainOgmConstInputHash);
+
+	dc->referred_by_others_timestamp = bmx_time;
+
+
+	if (descContent_assemble(dc, YES) != SUCCESS) {
 		dbgf_track(DBGT_ERR, "Failed resolving descContent");
-		IDM_T TODO_ifFailingDueToLowConformanceToleranceAndUnknownSmsTlvTypeThisLoopsOnReRequestingTheDesc;
+//		IDM_T TODO_ifFailingDueToLowConformanceToleranceAndUnknownSmsTlvTypeThisLoopsOnReRequestingTheDesc;
 		EXITERROR(-502271, (NO));
+
+		kn->descSqnMin = descSqn + 1;
 		descContent_destroy(dc);
-		dhash_node_reject(dhn);
 		return NULL;
 	}
 
-	key->nextDesc = dc;
+	kn->nextDesc = dc;
+
+	keyNode_updCredits(NULL, kn, NULL);
+
+	neighRefs_update(kn);
+
+	if (!dc->unresolvedContentCounter)
+		keyNode_updCredits(NULL, kn, NULL);
+
 
 	return dc;
 }
@@ -943,6 +943,8 @@ int32_t tx_msg_content_request(struct tx_frame_iterator *it)
 
 	msg->chash = *cHash;
 
+	dbgf_track(DBGT_INFO, "send to neigh kHash=%s cHash=%s", cryptShaAsShortStr(&hdr->dest_kHash), cryptShaAsShortStr(&msg->chash))
+
 	return sizeof (struct msg_content_req);
 }
 
@@ -957,11 +959,11 @@ int32_t rx_msg_content_request(struct rx_frame_iterator *it)
 
         if (cryptShasEqual(&hdr->dest_kHash, &myKey->kHash) && (cn = content_get(&msg->chash)) && cn->f_body && cn->f_body_len <= REF_CONTENT_BODY_SIZE_MAX && cn->usage_tree.items) {
 
-		 struct content_usage_node cunKey = {.k = {.descContent = myKey->currOrig->descContent}};
+		 struct content_usage_node cunKey = {.k = {.descContent = myKey->on->dc}};
 		 struct content_usage_node *cun;
 
-		 if ((pb->i.verifiedLink || ((cun = avl_next_item(&cn->usage_tree, &cunKey.k)) && cun->k.descContent == myKey->currOrig->descContent))) {
-			 schedule_tx_task(FRAME_TYPE_CONTENT_ADV, NULL, NULL, pb->i.iif, cn->f_body_len, &cn->chash, sizeof(SHA1_T));
+		 if ((pb->i.verifiedLink || ((cun = avl_next_item(&cn->usage_tree, &cunKey.k)) && cun->k.descContent == myKey->on->dc))) {
+			 schedule_tx_task(FRAME_TYPE_CONTENT_ADV, NULL, NULL, NULL, pb->i.iif, cn->f_body_len, &cn->chash, sizeof(SHA1_T));
 		 } else {
 			dbgf_sys(DBGT_WARN, "UNVERIFIED neigh=%s llip=%s or UNKNOWN chash=%s refn=%p refn_usage=%d",
 				 pb->i.verifiedLink ? cryptShaAsString(&pb->i.verifiedLink->k.linkDev->key.local->local_id) : NULL,
@@ -1063,7 +1065,9 @@ void init_content( void )
 	handl.data_header_size = sizeof(struct hdr_content_req);
 	handl.min_msg_size = sizeof(struct msg_content_req);
         handl.fixed_msg_size = 1;
-	handl.tx_packet_prepare_always = content_schedule_requests;
+//	handl.tx_packet_prepare_always = contents_maintain;
+	handl.tx_iterations = &resolveIterations;
+	handl.tx_task_interval_min = &resolveInterval;
         handl.tx_msg_handler = tx_msg_content_request;
         handl.rx_msg_handler = rx_msg_content_request;
         register_frame_handler(packet_frame_db, FRAME_TYPE_CONTENT_REQ, &handl);

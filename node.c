@@ -28,8 +28,6 @@
 #include <sys/time.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <linux/if.h>     /* ifr_if, ifr_tun */
-#include <linux/rtnetlink.h>
 #include <time.h>
 
 
@@ -69,134 +67,341 @@ AVL_TREE(link_dev_tree, LinkDevNode, key);
 
 AVL_TREE(local_tree, struct neigh_node, local_id);
 
-AVL_TREE(dhash_tree, struct dhash_node, dhash);
+AVL_TREE(descContent_tree, struct desc_content, dHash);
+
 
 AVL_TREE(orig_tree, struct orig_node, k.nodeId);
 
-
-void refNode_destroy(struct reference_node *ref, IDM_T reAssessState)
+STATIC_FUNC
+void inaptChainOgm_destroy_(struct NeighRef_node *ref)
 {
-	assertion(-502454, (ref && ref->neigh));
+	if (ref->inaptChainOgm) {
+		debugFree(ref->inaptChainOgm, -300787);
+		ref->inaptChainOgm = NULL;
+	}
+}
 
-	if (ref->claimedKey) {
-		avl_remove(&ref->claimedKey->neighRefs_tree, &ref->neigh, -300717);
-		avl_remove(&ref->neigh->refsByKhash_tree, &ref->claimedKey, -300718);
+
+STATIC_FUNC
+void inaptChainOgm_update_(struct NeighRef_node *ref, struct InaptChainOgm *inaptChainOgm, uint8_t claimedChain)
+{
+	assertion(-502657, (ref && inaptChainOgm));
+
+	if (ref->inaptChainOgm != inaptChainOgm) {
+		
+		if (!ref->inaptChainOgm || (
+			memcmp(&ref->inaptChainOgm->chainOgm, &inaptChainOgm->chainOgm, sizeof(ChainLink_T)) == 0 &&
+			(ref->inaptChainOgm->claimedMetric.val.u16 < inaptChainOgm->claimedMetric.val.u16)
+			)) {
+
+			ref->inaptChainOgm = debugRealloc(ref->inaptChainOgm, ((sizeof(struct InaptChainOgm) + inaptChainOgm->pathMetricsByteSize)), -300824);
+			memcpy(ref->inaptChainOgm, inaptChainOgm, ((sizeof(struct InaptChainOgm) + inaptChainOgm->pathMetricsByteSize)));
+		}
 	}
 
-	if (ref->dhn) {
-		avl_remove(&ref->neigh->refsByDhash_tree, &ref->dhn, -300719);
-		avl_remove(&ref->dhn->neighRefs_tree, &ref->neigh, -300720);
-		if (!ref->dhn->descContent && !ref->dhn->neighRefs_tree.items)
-			dhash_clean_data(ref->dhn);
-	}
+	ref->inaptChainOgm->claimedChain = claimedChain;
+}
 
-	if (reAssessState && ref->claimedKey && ref->claimedKey != ref->neigh->on->key) {
-		keyNode_delCredits(NULL, ref->claimedKey, NULL);
-	}
+void neighRef_destroy(struct NeighRef_node *ref, IDM_T reAssessState)
+{
+	assertion(-502454, (ref && ref->nn));
+	struct key_node *kn = ref->kn;
 
 	if (ref->scheduled_ogm_processing)
 		task_remove(process_ogm_metric, (void*)ref);
 
+	iid_free(&ref->nn->neighIID4x_repos, iid_get_neighIID4x_by_node(ref));
+
+	if (kn) {
+		struct key_credits kc = {.neighRef = ref};
+		keyNode_delCredits(NULL, kn, &kc, (reAssessState && kn != ref->nn->on->kn));
+	}
+
+	if (ref->ogmSqnMaxPathMetrics)
+		debugFree(ref->ogmSqnMaxPathMetrics, -300825);
+
+	inaptChainOgm_destroy_(ref);
 
 	debugFree(ref, -300721);
 }
 
 
 STATIC_FUNC
-struct reference_node *refNode_create_(struct neigh_node *neigh, AGGREG_SQN_T aggSqn, struct dhash_node *dhn, DESC_SQN_T claimedSqn)
+struct NeighRef_node *neighRef_create_(struct neigh_node *neigh, AGGREG_SQN_T aggSqn, IID_T neighIID4x)
 {
 	assertion(-502455, (neigh));
-	assertion(-502456, (dhn));
-	assertion(-502457, (!avl_find_item(&neigh->refsByDhash_tree, &dhn)));
-	assertion(-502458, (!avl_find_item(&dhn->neighRefs_tree, &neigh)));
+	assertion(-502565, (!iid_get_node_by_neighIID4x(&neigh->neighIID4x_repos, neighIID4x, NO)));
 
-	struct reference_node *ref= debugMallocReset(sizeof(struct reference_node), -300722);
-	ref->dhn = dhn;
-	ref->neigh = neigh;
+	struct NeighRef_node *ref = debugMallocReset(sizeof(struct NeighRef_node), -300789);
+
+	ref->nn = neigh;
 	ref->aggSqn = aggSqn;
-	ref->claimedDescSqn = dhn->descContent ? dhn->descContent->descSqn : claimedSqn;
-	avl_insert(&neigh->refsByDhash_tree, ref, -300723);
-	avl_insert(&dhn->neighRefs_tree, ref, -300724);
+	iid_set_neighIID4x(&neigh->neighIID4x_repos, neighIID4x, ref);
+
 	return ref;
 }
 
 
-/*
- * returns NULL on failure. Then given neigh must be removed
- * */
-struct reference_node *refNode_update(struct neigh_node *neigh, AGGREG_SQN_T aggSqn, DHASH_T *descHash, struct CRYPTSHA1_T *claimedKey, DESC_SQN_T claimedSqn )
+struct NeighRef_node *neighRef_resolve_or_destroy(struct NeighRef_node *ref, IDM_T reassessState)
 {
-	assertion(-502459, (neigh));
-	assertion(-502460, (descHash));
-	assertion(-502461, (curr_rx_packet->i.verifiedLink->k.linkDev->key.local == neigh));
-	assertion(-502462, IMPLIES(claimedKey || claimedSqn, descHash  && claimedKey && claimedSqn));
+	IID_T iid;
 
-	struct dhash_node *oDhn = NULL, *nDhn = NULL;
-	struct reference_node *oRef = NULL, *nRef = NULL;
+	if ((iid = iid_get_neighIID4x_by_node(ref)) && iid_get_neighIID4x_timeout_by_node(ref)) {
 
-	if ((oDhn = avl_find_item(&dhash_tree, descHash)) || (oDhn = (nDhn = dhash_node_create(descHash, neigh)))) {
+		struct key_node *kn = ref->kn;
+		struct neigh_node *nn = ref->nn;
 
-		if (claimedKey && oDhn->descContent &&
-			(!cryptShasEqual(claimedKey, &oDhn->descContent->key->kHash) || claimedSqn != oDhn->descContent->descSqn))
-			goto error;
+		if (!kn || (ref->inaptChainOgm && !ref->inaptChainOgm->claimedChain)) {
 
-		if ((oRef = avl_find_item(&oDhn->neighRefs_tree, &neigh))) {
+			schedule_tx_task(FRAME_TYPE_IID_REQ, NULL, &nn->local_id, nn, nn->best_tq_link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &iid, sizeof(iid));
 
-			if (!IMPLIES(claimedKey && oRef->claimedKey, (cryptShasEqual(claimedKey, &oRef->claimedKey->kHash))))
-				goto error;
+		} else if (kn->bookedState->i.c >= KCTracked && kn->content->f_body && ref->inaptChainOgm && ref->inaptChainOgm->claimedChain &&
+			(ref->descSqn > (kn->nextDesc ? kn->nextDesc->descSqn : 0)) && (ref->descSqn > (kn->on ? kn->on->dc->descSqn : 0))) {
 
-			if (!IMPLIES(claimedKey && (oRef->claimedKey || oRef->claimedDescSqn), (claimedSqn == oRef->claimedDescSqn)))
-				goto error;
+			struct schedule_dsc_req req = {.iid = iid, .descSqn = ref->descSqn};
+			schedule_tx_task(FRAME_TYPE_DESC_REQ, NULL, &nn->local_id, nn, nn->best_tq_link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &req, sizeof(req));
 
-			if (!IMPLIES(oDhn->descContent && oRef->claimedKey, (oDhn->descContent->key == oRef->claimedKey)))
-				goto error;
+		} else if (kn->bookedState->i.c >= KCTracked) {
 
-			if (!IMPLIES(oDhn->descContent && (oRef->claimedKey || oRef->claimedDescSqn), (oDhn->descContent->descSqn == oRef->claimedDescSqn)))
-				goto error;
-
-			oRef->aggSqn = (((AGGREG_SQN_T) (oRef->aggSqn - aggSqn)) < AGGREG_SQN_CACHE_RANGE) ? oRef->aggSqn : aggSqn;
-
-			if (!oRef->claimedDescSqn)
-				oRef->claimedDescSqn = oDhn->descContent ? oDhn->descContent->descSqn : claimedSqn;
-
-		} else {
-			oRef = (nRef = refNode_create_(neigh, aggSqn, oDhn, claimedSqn));
+			content_resolve(kn, ref->nn);
 		}
 
-		struct key_node *kn = NULL;
+		return ref;
 
-		if (!oRef->claimedKey && ((kn = (oDhn->descContent ? oDhn->descContent->key : NULL)) || claimedKey)) {
 
-			assertion(-502464, IMPLIES(claimedKey && kn, cryptShasEqual(claimedKey, &kn->kHash)));
-
-			struct key_credits ref_kc = {.ref = oRef};
-
-			if (!keyNode_updCredits(claimedKey, kn, &ref_kc))
-				goto error;
-		}
-
-		oRef->mentionedRefTime = bmx_time;
-		oDhn->referred_by_others_timestamp = bmx_time;
-
-		ref_resolve(oRef);
-
-		return oRef;
+	} else {
+		neighRef_destroy(ref, reassessState);
+		return NULL;
 	}
-
-
-error:
-	dbgf_sys(DBGT_ERR, "neigh=%s nRef=%d nDhn=%d", neigh->on->k.hostname, !!nRef, !!nDhn);
-
-	if (nRef)
-		refNode_destroy(nRef, NO);
-
-	if (nDhn)
-		dhash_clean_data(nDhn);
-
-	return NULL;
 }
 
 
+
+
+void neighRefs_resolve_or_destroy(void)
+{
+	static TIME_T next = 0;
+	GLOBAL_ID_T nid = ZERO_CYRYPSHA1;
+	struct neigh_node *nn;
+	IID_T iid;
+	struct NeighRef_node *ref;
+
+	if (!doNowOrLater(&next, maintainanceInterval, 0))
+		return;
+
+	while ((nn = avl_next_item(&local_tree, &nid))) {
+		nid = nn->local_id;
+
+		for (iid = 0; iid < nn->neighIID4x_repos.max_free; iid++) {
+
+			if ((ref = iid_get_node_by_neighIID4x(&nn->neighIID4x_repos, iid, NO)))
+				neighRef_resolve_or_destroy(ref, YES);
+
+		}
+	}
+}
+
+STATIC_FUNC
+void set_ref_ogmSqnMaxMetric(struct NeighRef_node *ref, DESC_SQN_T descSqn, OGM_SQN_T ogmSqn, struct InaptChainOgm *chainOgm)
+{
+
+	if (chainOgm) {
+
+		ref->ogmSqnMaxClaimedMetric.val.u16 = chainOgm->claimedMetric.val.u16;
+		ref->ogmSqnMaxClaimedHops = chainOgm->claimedHops;
+		ref->ogmSqnMaxPathMetricsByteSize = chainOgm->pathMetricsByteSize;
+		ref->ogmSqnMaxPathMetrics = debugRealloc(ref->ogmSqnMaxPathMetrics, chainOgm->pathMetricsByteSize, -300826);
+		memcpy(ref->ogmSqnMaxPathMetrics, &chainOgm->pathMetrics[0], chainOgm->pathMetricsByteSize);
+
+	} else {
+		ref->descSqn = descSqn;
+		ref->ogmSqnMax = ogmSqn;
+		ref->ogmSqnMaxTime = bmx_time;
+
+		if (!ogmSqn)
+			ref->ogmBestSinceSqn = 0;
+
+		ref->ogmSqnMaxClaimedMetric.val.u16 = 0;
+		ref->ogmSqnMaxClaimedHops = 0;
+		ref->ogmSqnMaxPathMetricsByteSize = 0;
+		if (ref->ogmSqnMaxPathMetrics) {
+			debugFree(ref->ogmSqnMaxPathMetrics, -300827);
+			ref->ogmSqnMaxPathMetrics = NULL;
+		}
+	}
+}
+
+struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn, IID_T neighIID4x, CRYPTSHA1_T *kHash, DESC_SQN_T descSqn, struct InaptChainOgm *inChainOgm)
+{
+	assertion(-502459, (nn));
+	assertion(-502566, (neighIID4x));
+	assertion(-502567, IMPLIES((kHash || descSqn), (kHash && descSqn)));
+
+	char *goto_error_code = NULL;
+	struct NeighRef_node *goto_error_ret = NULL;
+	struct NeighRef_node *ref = NULL;
+	struct key_node *kn = NULL;
+	struct desc_content *dc = NULL;
+	OGM_SQN_T ogmSqn = 0;
+	struct InaptChainOgm *chainOgm = NULL;
+
+	if (neighIID4x > IID_REPOS_SIZE_MAX || neighIID4x > keyMatrix[KCListed][KRQualifying].maxSet)
+		goto_error_return(finish, "oversized IID", NULL);
+
+	if (!(ref = iid_get_node_by_neighIID4x(&nn->neighIID4x_repos, neighIID4x, !!inChainOgm)) && !(ref = neighRef_create_(nn, aggSqn, neighIID4x)))
+		goto_error_return( finish, "No neighRef!!!", NULL);
+
+	ref->aggSqn = (((AGGREG_SQN_T) (ref->aggSqn - aggSqn)) < AGGREG_SQN_CACHE_RANGE) ? ref->aggSqn : aggSqn;
+
+	if (kHash) {
+
+		if (ref->kn && cryptShasEqual(&ref->kn->kHash, kHash) && ref->descSqn <= descSqn) {
+
+			kn = ref->kn;
+
+		} else if (ref->kn && cryptShasEqual(&ref->kn->kHash, kHash)) {
+
+			goto_error_return(finish, "outdated descSqn", NULL);
+
+		} else {
+
+			struct key_node *oldKn;
+			struct NeighRef_node *oldRef;
+
+			if ((oldKn = keyNode_get(kHash)) && (oldRef = avl_find_item(&oldKn->neighRefs_tree, &nn)))
+				neighRef_destroy(oldRef, NO);
+
+			if (ref->kn) {
+				neighRef_destroy(ref, YES);
+				ref = neighRef_create_(nn, aggSqn, neighIID4x);
+			}
+
+			struct key_credits kc = {.neighRef = ref};
+			if (!(kn = keyNode_updCredits(kHash, NULL, &kc))) {
+				neighRef_destroy(ref, YES);
+				ref = NULL;
+				goto_error_return( finish, "Insufficient credits", NULL);
+			}
+		}
+
+		if (ref->descSqn < descSqn)
+			set_ref_ogmSqnMaxMetric(ref, descSqn, 0, NULL);
+
+	} else {
+		kn = ref->kn;
+	}
+
+
+	if ((chainOgm = inChainOgm ? inChainOgm : ref->inaptChainOgm)) {
+
+		if ((kn && kn->on && (dc = kn->on->dc) && ref->descSqn == dc->descSqn && (ogmSqn = chainOgmFind(&chainOgm->chainOgm, dc, (descSqn ? dc->ogmSqnRange : ogmSqnDeviationMax)))) ||
+			(kn && (dc = kn->nextDesc) && ref->descSqn <= dc->descSqn && (ogmSqn = chainOgmFind(&chainOgm->chainOgm, dc, ((descSqn || ref->descSqn < dc->descSqn) ? dc->ogmSqnRange : ogmSqnDeviationMax))))) {
+
+			assertion(-502568, (ogmSqn <= dc->ogmSqnRange));
+			assertion(-502569, (dc->ogmSqnMaxRcvd <= dc->ogmSqnRange));
+			assertion(-502570, (dc->ogmSqnMaxRcvd >= ogmSqn));
+			assertion(-502571, (ref->descSqn <= dc->descSqn));
+
+			if (ref->descSqn < dc->descSqn)
+				set_ref_ogmSqnMaxMetric( ref, dc->descSqn, 0, NULL);
+
+
+			if (ref->ogmSqnMax < ogmSqn)
+				set_ref_ogmSqnMaxMetric( ref, dc->descSqn, ogmSqn, NULL);
+			else if (ref->ogmSqnMax > ogmSqn)
+				goto_error_return(finish, "Outdated ogmSqn", NULL);
+
+
+			if (ref->inaptChainOgm && ref->inaptChainOgm != chainOgm &&
+				memcmp(&ref->inaptChainOgm->chainOgm, &chainOgm->chainOgm, sizeof(ChainLink_T)) == 0 &&
+				ref->inaptChainOgm->claimedMetric.val.u16 > ref->ogmSqnMaxClaimedMetric.val.u16 &&
+				ref->inaptChainOgm->claimedMetric.val.u16 > chainOgm->claimedMetric.val.u16)
+			{
+
+				set_ref_ogmSqnMaxMetric( ref, dc->descSqn, ogmSqn, ref->inaptChainOgm);
+
+			} else if (chainOgm->claimedMetric.val.u16 > ref->ogmSqnMaxClaimedMetric.val.u16) {
+
+				set_ref_ogmSqnMaxMetric( ref, dc->descSqn, ogmSqn, chainOgm);
+			}
+
+			dc->referred_by_others_timestamp = bmx_time;
+
+			inaptChainOgm_destroy_(ref);
+
+			if (kn == myKey && ((ref->ogmSqnMax > dc->ogmSqnMaxSend) || (ref->ogmSqnMax == dc->ogmSqnMaxSend && fmetric_to_umetric(ref->ogmSqnMaxClaimedMetric) >= myKey->on->neighPath.um))) {
+				dbgf_mute(70, DBGL_SYS, DBGT_WARN, "OGM SQN or metric attack on myself, rcvd via neigh=%s, rcvdSqn=%d sendSqn=%d rcvdMetric=%ju sendMetric=%ju",
+					cryptShaAsShortStr(&nn->local_id), ref->ogmSqnMax, dc->ogmSqnMaxSend, fmetric_to_umetric(ref->ogmSqnMaxClaimedMetric), myKey->on->neighPath.um);
+
+				nn->on->kn->descSqnMin++;
+				keyNode_schedLowerWeight(nn->on->kn, KCListed);
+				ref = NULL;
+				nn = NULL;
+				dc = NULL;
+				goto_error_return(finish, "Metric Attack", NULL);
+			}
+
+
+
+			content_resolve(kn, ref->nn);
+
+			goto_error_code = "SUCCESS";
+		} else {
+
+			inaptChainOgm_update_(ref, chainOgm, (!!descSqn));
+			ref = neighRef_resolve_or_destroy(ref, YES);
+
+			goto_error_return(finish, "Unresolved ogmSqn", NULL);
+		}
+	}
+
+	if (ref)
+		process_ogm_metric(ref);
+	
+finish: {
+
+	dbgf_track(DBGT_INFO, 
+		"problem=%s neigh=%s aggSqn=%d IID=%d kHash=%s descSqn=%d chainOgm=%s ogmMtc=%d \n"
+		"REF: nodeId=%s descSqn=%d hostname=%s ogmSqnMaxRcvd=%d ogmMtcMaxRcvd=%d inaptChainOgmRcvd=%s inaptMtcRcvd=%d\n"
+		"DC: ogmSqnRange=%d  ogmSqnMaxRcvd=%d \n"
+		"OUT: ogmSqn=%d ",
+		goto_error_code, ((nn && nn->on) ? nn->on->k.hostname : NULL), aggSqn, neighIID4x, cryptShaAsShortStr(kHash), descSqn,
+		memAsHexString(inChainOgm ? &inChainOgm->chainOgm : NULL, sizeof(ChainLink_T)), (inChainOgm ? (int)inChainOgm->claimedMetric.val.u16 : -1),
+
+		cryptShaAsShortStr(ref && ref->kn ? &ref->kn->kHash : NULL),
+		(ref ? (int)ref->descSqn : -1 ),
+		(ref && ref->kn && ref->kn->on ? ref->kn->on->k.hostname : NULL),
+		(ref ? (int)ref->ogmSqnMax : -1),
+		(ref ? (int)ref->ogmSqnMaxClaimedMetric.val.u16 : -1),
+		(ref && ref->inaptChainOgm ? memAsHexString(&ref->inaptChainOgm->chainOgm, sizeof(ChainLink_T)): NULL),
+		(ref && ref->inaptChainOgm? (int)ref->inaptChainOgm->claimedMetric.val.u16 : -1),
+
+		(dc ? (int)dc->ogmSqnRange : -1), (dc ? (int)dc->ogmSqnMaxRcvd : -1),
+		ogmSqn);
+
+
+	return goto_error_ret;
+}
+}
+
+void neighRefs_update(struct key_node *kn) {
+
+	assertion(-502572, (kn && (kn->nextDesc || kn->on)));
+
+	dbgf_track(DBGT_INFO, "id=%s name=%s", cryptShaAsShortStr(&kn->kHash), kn->on ? kn->on->k.hostname : NULL);
+	struct NeighRef_node *nref;
+	struct neigh_node *nn;
+	IID_T iid;
+	uint32_t c = 0;
+	for (nn = NULL; (nref = avl_next_item(&kn->neighRefs_tree, &nn)); c++) {
+		nn = nref->nn;
+		assertion(-502573, (c <= kn->neighRefs_tree.items));
+		if ((iid = iid_get_neighIID4x_by_node(nref)) && iid_get_neighIID4x_timeout_by_node(nref))
+			neighRef_update(nn, nref->aggSqn, iid, NULL, 0, NULL);
+		else
+			neighRef_destroy(nref, YES);
+	}
+}
 
 
 int purge_orig_router(struct orig_node *onlyOrig, struct neigh_node *onlyNeigh, LinkNode *onlyLink, IDM_T onlyUseless)
@@ -208,23 +413,23 @@ int purge_orig_router(struct orig_node *onlyOrig, struct neigh_node *onlyNeigh, 
 	while ((on = onlyOrig) || (on = avl_iterate_item(&orig_tree, &an))) {
 
 		if (
-			(on->curr_rt_link) &&
-			(!onlyUseless || (on->ogmMetric < UMETRIC_ROUTABLE)) &&
-			(!onlyNeigh || on->curr_rt_link->k.linkDev->key.local == onlyNeigh) &&
-			(!onlyLink || on->curr_rt_link == onlyLink)
+			(on->neighPath.link) &&
+			(!onlyUseless || (on->neighPath.um < UMETRIC_ROUTABLE)) &&
+			(!onlyNeigh || on->neighPath.link->k.linkDev->key.local == onlyNeigh) &&
+			(!onlyLink || on->neighPath.link == onlyLink)
 			) {
 
 			dbgf_track(DBGT_INFO, "only_orig=%s only_lndev=%s,%s onlyUseless=%d purging metric=%s neigh=%s link=%s dev=%s",
 				onlyOrig ? cryptShaAsString(&onlyOrig->k.nodeId) : DBG_NIL,
 				onlyLink ? ip6AsStr(&onlyLink->k.linkDev->key.llocal_ip) : DBG_NIL,
-				onlyLink ? onlyLink->k.myDev->label_cfg.str : DBG_NIL,
-				onlyUseless, umetric_to_human(on->ogmMetric),
-				cryptShaAsString(&on->curr_rt_link->k.linkDev->key.local->local_id),
-				ip6AsStr(&on->curr_rt_link->k.linkDev->key.llocal_ip),
-				on->curr_rt_link->k.myDev->label_cfg.str);
+				onlyLink ? onlyLink->k.myDev->ifname_label.str : DBG_NIL,
+				onlyUseless, umetric_to_human(on->neighPath.um),
+				cryptShaAsString(&on->neighPath.link->k.linkDev->key.local->local_id),
+				ip6AsStr(&on->neighPath.link->k.linkDev->key.llocal_ip),
+				on->neighPath.link->k.myDev->ifname_label.str);
 
 			cb_route_change_hooks(DEL, on);
-			on->curr_rt_link = NULL;
+			on->neighPath.link = NULL;
 
 			removed++;
 		}
@@ -246,29 +451,31 @@ void neigh_destroy(struct neigh_node *local)
 
 	dbgf_sys(DBGT_INFO, "purging local_id=%s curr_rx_packet=%d thisNeighsPacket=%d verified_link=%d",
 		cryptShaAsString(&local->local_id), !!curr_rx_packet,
-		(curr_rx_packet && curr_rx_packet->i.claimedKey == local->on->key),
+		(curr_rx_packet && curr_rx_packet->i.claimedKey == local->on->kn),
 		(curr_rx_packet && curr_rx_packet->i.verifiedLink));
 
-	if (curr_rx_packet && curr_rx_packet->i.claimedKey == local->on->key)
+	if (curr_rx_packet && curr_rx_packet->i.claimedKey == local->on->kn)
 		curr_rx_packet->i.verifiedLink = NULL;
 
 	while ((linkDev = avl_first_item(&local->linkDev_tree)))
-		purge_linkDevs(&linkDev->key, NULL, NO);
+		purge_linkDevs(linkDev, NULL, NULL, NO, NO);
 
 
-	assertion(-501135, (!local->linkDev_tree.items));
-	assertion(-501135, (!local->orig_routes));
-	assertion(-502465, (!local->best_rp_link));
-	assertion(-502466, (!local->best_tp_link));
-
-	while (local->refsByDhash_tree.items)
-		refNode_destroy(avl_first_item(&local->refsByDhash_tree), YES);
-
-	while (local->refsByKhash_tree.items)
-		refNode_destroy(avl_first_item(&local->refsByKhash_tree), YES);
+	assertion(-502639, (!local->linkDev_tree.items));
+	assertion(-502640, (!local->orig_routes));
+	assertion(-502465, (!local->best_rq_link));
+	assertion(-502466, (!local->best_tq_link));
 
 
-	purge_tx_task_tree(local, NULL, NULL, YES);
+	IID_T iid;
+	for (iid = 0; iid < local->neighIID4x_repos.max_free; iid++) {
+		struct NeighRef_node *ref;
+		if ((ref = iid_get_node_by_neighIID4x(&local->neighIID4x_repos, iid, NO)))
+			neighRef_destroy(ref, YES);
+	}
+
+
+	purge_tx_task_tree(NULL, local, NULL, NULL, YES);
 
 	local->on->neigh = NULL;
 	local->on = NULL;
@@ -282,6 +489,10 @@ void neigh_destroy(struct neigh_node *local)
 	debugFree(local, -300333);
 }
 
+
+
+
+
 struct neigh_node *neigh_create(struct orig_node *on)
 {
 	struct neigh_node *nn = (on->neigh = debugMallocReset(sizeof(struct neigh_node), -300757));
@@ -289,12 +500,10 @@ struct neigh_node *neigh_create(struct orig_node *on)
 	avl_insert(&local_tree, nn, -300758);
 
 	AVL_INIT_TREE(nn->linkDev_tree, LinkDevNode, key.devIdx);
-	AVL_INIT_TREE(nn->refsByDhash_tree, struct reference_node, dhn);
-	AVL_INIT_TREE(nn->refsByKhash_tree, struct reference_node, claimedKey);
 
 	nn->internalNeighId = allocate_internalNeighId(nn);
 
-	struct dsc_msg_pubkey *pkey_msg = contents_data(on->descContent, BMX_DSC_TLV_LINK_PUBKEY);
+	struct dsc_msg_pubkey *pkey_msg = contents_data(on->dc, BMX_DSC_TLV_LINK_PUBKEY);
 
 	if (pkey_msg)
 		nn->linkKey = cryptPubKeyFromRaw(pkey_msg->key, cryptKeyLenByType(pkey_msg->type));
@@ -309,64 +518,6 @@ struct neigh_node *neigh_create(struct orig_node *on)
 
 
 
-STATIC_FUNC
-void free_dhash_(struct dhash_node *dhn)
-{
-	// only/exactly destroyed if neither references nor key
-	dbgf_track(DBGT_INFO, "dhash=%s rejected=%d", cryptShaAsShortStr(&dhn->dhash), dhn->rejected);
-
-	assertion(-502466, (!dhn->neighRefs_tree.items));
-	assertion(-502467, (!dhn->descContent));
-
-	avl_remove(&dhash_tree, &dhn->dhash, -300195);
-	debugFree(dhn, -300737);
-}
-
-
-void dhash_clean_data(struct dhash_node *dhn)
-{
-	if (dhn->descContent)
-		descContent_destroy(dhn->descContent);
-
-	if (!dhn->neighRefs_tree.items)
-		free_dhash_(dhn);
-}
-
-void dhash_node_reject(struct dhash_node *dhn)
-{
-	struct desc_content *dc = dhn->descContent;
-
-	dbgf_track(DBGT_INFO, "dhash=%s kHash=%s hostname=%s descSqn=%d nextSqn=%d",
-		cryptShaAsShortStr(&dhn->dhash),
-		cryptShaAsShortStr(dc ? &dc->key->kHash : NULL),
-		dc && dc->key->currOrig ? dc->key->currOrig->k.hostname : NULL,
-		dc ? dc->descSqn : 0, dc && dc->key->nextDesc ? dc->key->nextDesc->descSqn : 0);
-
-	dhn->rejected = 1;
-	dhash_clean_data(dhn);
-}
-
-struct dhash_node* dhash_node_create(DHASH_T *dhash, struct neigh_node *neigh)
-{
-
-	assertion(-502468, IMPLIES(neigh, (neigh->on->key->bookedState->i.c >= KCNeighbor)));
-
-	struct dhash_node *dhn = avl_find_item(&dhash_tree, dhash);
-
-	if (!dhn) {
-		dhn = debugMallocReset(sizeof( struct dhash_node), -300001);
-		dhn->dhash = *dhash;
-		dhn->referred_by_others_timestamp = bmx_time;
-		dhn->referred_by_me_timestamp = bmx_time;
-		AVL_INIT_TREE(dhn->neighRefs_tree, struct reference_node, neigh);
-		avl_insert(&dhash_tree, dhn, -300142);
-	}
-
-	return dhn;
-}
-
-
-
 
 
 
@@ -374,16 +525,16 @@ void destroy_orig_node(struct orig_node *on)
 {
 	dbgf_sys(DBGT_INFO, "id=%s name=%s", cryptShaAsString(&on->k.nodeId), on->k.hostname);
 
-	assertion(-502474, (on && on->descContent && on->key && on->descContent->descSqn));
-	assertion(-502475, (on->descContent->orig == on && on->descContent->key == on->key && on->key->currOrig == on));
-	assertion(-502180, IMPLIES(!terminating, on != myKey->currOrig));
+	assertion(-502474, (on && on->dc && on->kn && on->dc->descSqn));
+	assertion(-502475, (on->dc->on == on && on->dc->kn == on->kn && on->kn->on == on));
+	assertion(-502180, IMPLIES(!terminating, on != myKey->on));
 	assertion(-502476, (!on->neigh));
 
 	purge_orig_router(on, NULL, NULL, NO);
 
 	cb_plugin_hooks(PLUGIN_CB_DESCRIPTION_DESTROY, on);
 
-	process_description_tlvs(NULL, on, NULL, on->descContent, TLV_OP_DEL, FRAME_TYPE_PROCESS_ALL);
+	process_description_tlvs(NULL, on, NULL, on->dc, TLV_OP_DEL, FRAME_TYPE_PROCESS_ALL);
 
 	if (on->trustedNeighsBitArray)
 		debugFree(on->trustedNeighsBitArray, -300653);
@@ -396,13 +547,18 @@ void destroy_orig_node(struct orig_node *on)
 		assertion(-501269, (!on->plugin_data[i]));
 	}
 
-	on->key->currOrig = NULL;
-	on->descContent->orig = NULL;
+	on->kn->on = NULL;
+	on->dc->on = NULL;
 
-	if (on->key->nextDesc)
-		dhash_node_reject(on->descContent->dhn);
+	if (on->kn->nextDesc)
+		descContent_destroy(on->dc);
 	else
-		on->key->nextDesc = on->descContent;
+		on->kn->nextDesc = on->dc;
+
+	iid_free(NULL, on->__myIID4x);
+
+	if (terminating && !orig_tree.items)
+		iid_purge_repos(&my_iid_repos);
 
 	debugFree(on, -300759);
 }
@@ -412,7 +568,7 @@ void init_self(void)
 	assertion(-502094, (my_NodeKey));
 	assertion(-502477, (!myKey));
 
-	struct key_credits friend_kc = {.friend=1};
+	struct key_credits friend_kc = {.dFriend = TYP_TRUST_LEVEL_IMPORT};
 	struct dsc_msg_pubkey *msg = debugMallocReset(sizeof(struct dsc_msg_pubkey) +my_NodeKey->rawKeyLen, -300631);
 	msg->type = my_NodeKey->rawKeyType;
 	memcpy(msg->key, my_NodeKey->rawKey, my_NodeKey->rawKeyLen);

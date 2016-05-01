@@ -34,6 +34,7 @@
 #include "key.h"
 #include "sec.h"
 #include "ogm.h"
+#include "link.h"
 #include "msg.h"
 #include "desc.h"
 #include "content.h"
@@ -44,10 +45,11 @@
 
 #define CODE_CATEGORY_NAME "key"
 
-static int32_t ogm_purge_to = DEF_OGM_PURGE_TO;
-int32_t link_purge_to = DEF_LINK_PURGE_TO;
+
 int32_t tracked_timeout = 20000;
 int32_t neigh_qualifying_to = 30000;
+int32_t id_purge_to = DEF_ID_PURGE_TO;
+
 
 AVL_TREE(schedDecreasedEffectiveState_tree, struct schedDecreasedEffectiveState_node, kn);
 AVL_TREE(key_tree, struct key_node, kHash);
@@ -58,12 +60,25 @@ int32_t maxDescRefsPerNeigh = 1000;
 int32_t maxContentRefsPerDesc = 50;
 int32_t maxKeySupportsPerOrig = 1000;
 
-struct key_credits zeroKeyCredit = {.friend = 0};
+struct key_credits zeroKeyCredit = {.dFriend = 0};
 
 //void keyNode_schedLowerState(struct key_node *kn, struct KeyState *s);
 
 #define KS_INIT {0,0,0,0,0, NULL, NULL, NULL, NULL}
 
+STATIC_FUNC
+IDM_T keyNode_anyRef (struct key_node *kn)
+{
+	return (kn && (
+		kn->dFriend > TYP_TRUST_LEVEL_NONE ||
+		kn->recommendations_tree.items ||
+		kn->trustees_tree.items ||
+		kn->neighRefs_tree.items ||
+		kn->pktIdTime ||
+		kn->pktSignTime ||
+		kn->nQTime
+		));
+}
 
 
 STATIC_FUNC
@@ -75,7 +90,7 @@ int8_t kRowCond_qualifying(struct key_node *kn, struct key_credits *kc)
 STATIC_FUNC
 int8_t kRowCond_friend(struct key_node *kn, struct key_credits *kc)
 {
-	return(kc->friend || (kn && kn->dirFriend));
+	return(kc->dFriend >= TYP_TRUST_LEVEL_DIRECT || (kn && kn->dFriend >= TYP_TRUST_LEVEL_DIRECT));
 }
 
 STATIC_FUNC
@@ -87,7 +102,7 @@ int8_t kRowCond_recommended(struct key_node *kn, struct key_credits *kc)
 STATIC_FUNC
 int8_t kRowCond_alien(struct key_node *kn, struct key_credits *kc)
 {
-	return(kc->pktId || (kn && kn->pktIdTime) || kc->ref || (kn && kn->neighRefs_tree.items));
+	return(kc->pktId || (kn && kn->pktIdTime) || kc->neighRef || (kn && kn->neighRefs_tree.items) || kc->trusteeRef || (kn && kn->trustees_tree.items) || (kn && kn->unReferencedTime && id_purge_to));
 }
 
 
@@ -95,16 +110,16 @@ STATIC_FUNC
 int16_t kPref_listedAlien(struct key_node *kn)
 {
 	int32_t referencingNeighsPref = 0;
-	struct reference_node *ref;
+	struct NeighRef_node *ref;
 	struct avl_node *an = NULL;
 
 	assertion(-502336, (kn && kn->bookedState == &(keyMatrix[KCListed][KRAlien])));
 
 	while ((ref = avl_iterate_item(&kn->neighRefs_tree, &an))) {
 
-		assertion(-502337, (ref->neigh->on->key->bookedState->i.c == KCNeighbor));
+		assertion(-502337, (ref->nn->on->kn->bookedState->i.c == KCNeighbor));
 
-		referencingNeighsPref += (*(ref->neigh->on->key->bookedState->prefGet))(ref->neigh->on->key);
+		referencingNeighsPref += (*(ref->nn->on->kn->bookedState->prefGet))(ref->nn->on->kn);
 	}
 
 	return XMIN(
@@ -194,8 +209,9 @@ struct key_node *keyNode_create(GLOBAL_ID_T *kHash)
 {
 	struct key_node *kn = debugMallocReset(sizeof(struct key_node), -300703);
 	kn->kHash = *kHash;
-	AVL_INIT_TREE(kn->recommendations_tree, struct orig_node, key);
-	AVL_INIT_TREE(kn->neighRefs_tree, struct reference_node, neigh);
+	AVL_INIT_TREE(kn->recommendations_tree, struct orig_node, kn);
+	AVL_INIT_TREE(kn->neighRefs_tree, struct NeighRef_node, nn);
+	AVL_INIT_TREE(kn->trustees_tree, struct orig_node, kn);
 
 	avl_insert(&key_tree, kn, -300704);
 
@@ -226,7 +242,7 @@ void keyNode_destroy_(struct key_node *kn)
 	if (curr_rx_packet && curr_rx_packet->i.claimedKey == kn)
 		curr_rx_packet->i.claimedKey = NULL;
 
-	assertion(-502344, (!kn->currOrig && !kn->nextDesc && !kn->recommendations_tree.items));
+	assertion(-502344, (!kn->on && !kn->nextDesc && !kn->recommendations_tree.items) && !kn->trustees_tree.items);
 	assertion(-502345, (!kn->neighRefs_tree.items));
 	assertion(-502346, (!kn->content));
 
@@ -242,18 +258,21 @@ STATIC_FUNC
 void kSetOutAction_listed(struct key_node **knp, struct KeyState *next)
 {
 	assertion(-502347, (knp && *knp));
-	assertion(-502348, IMPLIES((*knp)->dirFriend, terminating));
+	assertion(-502348, IMPLIES((*knp)->dFriend != TYP_TRUST_LEVEL_NONE, terminating));
 
-	struct reference_node *rn;
+	struct NeighRef_node *rn;
 	while ((rn = avl_first_item(&(*knp)->neighRefs_tree))) {
-		struct key_node *refNeighKey = rn->neigh->on->key;
-		refNode_destroy(rn, NO);
+		struct key_node *refNeighKey = rn->nn->on->kn;
+		neighRef_destroy(rn, NO);
 		keyNode_schedLowerWeight(refNeighKey, KCPromoted);
 	}
 
 	struct orig_node *on;
 	while ((on = avl_remove_first_item(&(*knp)->recommendations_tree, -300708)))
-		keyNode_schedLowerWeight(on->key, KCListed);
+		keyNode_schedLowerWeight(on->kn, KCListed);
+
+	while ((on = avl_remove_first_item(&(*knp)->trustees_tree, -300784)))
+		keyNode_schedLowerWeight(on->kn, KCListed);
 
 	keyNode_destroy_(*knp);
 	(*knp) = NULL;
@@ -285,7 +304,7 @@ void kSetInAction_tracked(GLOBAL_ID_T *kHash, struct key_node **kn, struct KeySt
 		(*kn)->TAPTime = bmx_time;
 
 	(*kn)->content = content_add_hash(kHash);
-	(*kn)->content->key = (*kn);
+	(*kn)->content->kn = (*kn);
 
 
 }
@@ -294,15 +313,15 @@ STATIC_FUNC
 void kSetOutAction_tracked(struct key_node **kn, struct KeyState *next)
 {
 	assertion(-502350, (kn && *kn));
-	assertion(-502351, (!(*kn)->currOrig));
-	assertion(-502352, ((*kn)->content && (*kn)->content->key == (*kn)));
+	assertion(-502351, (!(*kn)->on));
+	assertion(-502352, ((*kn)->content && (*kn)->content->kn == (*kn)));
 
 	(*kn)->TAPTime = 0;
 
 	if ((*kn)->nextDesc)
-		dhash_clean_data((*kn)->nextDesc->dhn);
+		descContent_destroy((*kn)->nextDesc);
 
-	(*kn)->content->key = NULL;
+	(*kn)->content->kn = NULL;
 	content_purge_unused((*kn)->content);
 	(*kn)->content = NULL;
 
@@ -315,7 +334,7 @@ int8_t kColCond_certified(uint8_t asRow, struct key_node *kn)
 	return (kn &&
 		kn->content &&
 		kn->content->f_body_len &&
-		(kn->currOrig || kn->nextDesc)
+		(kn->on || kn->nextDesc)
 		);
 }
 
@@ -339,9 +358,9 @@ int8_t kColCond_promoted(uint8_t asRow, struct key_node *kn)
 {
 
 	return (kn && (kn->pktSignTime || kn->neighRefs_tree.items || kn == myKey) && (
-		(kn->currOrig) ||
+		(kn->on) ||
 		(kn->nextDesc && kn->nextDesc->unresolvedContentCounter == 0 &&
-		process_description_tlvs(NULL, kn->currOrig, (kn->currOrig ? kn->currOrig->descContent : NULL), kn->nextDesc, TLV_OP_TEST, FRAME_TYPE_PROCESS_ALL) == TLV_RX_DATA_DONE)
+		process_description_tlvs(NULL, kn->on, (kn->on ? kn->on->dc : NULL), kn->nextDesc, TLV_OP_TEST, FRAME_TYPE_PROCESS_ALL) == TLV_RX_DATA_DONE)
 		));
 }
 
@@ -363,7 +382,7 @@ int8_t kColMaintain_promoted(struct key_node *kn)
 	if (!kn->nextDesc || kn->nextDesc->unresolvedContentCounter)
 		return YES;
 
-	if (process_description_tlvs(NULL, kn->currOrig, (kn->currOrig ? kn->currOrig->descContent : NULL), kn->nextDesc, TLV_OP_TEST, FRAME_TYPE_PROCESS_ALL) != TLV_RX_DATA_DONE)
+	if (process_description_tlvs(NULL, kn->on, (kn->on ? kn->on->dc : NULL), kn->nextDesc, TLV_OP_TEST, FRAME_TYPE_PROCESS_ALL) != TLV_RX_DATA_DONE)
 		return NO;
 
 	update_orig_dhash(kn->nextDesc);
@@ -374,22 +393,19 @@ int8_t kColMaintain_promoted(struct key_node *kn)
 STATIC_FUNC
 void kSetOutAction_promoted(struct key_node **kn, struct KeyState *next)
 {
-	assertion(-502357, (kn && *kn && (*kn)->currOrig));
+	assertion(-502357, (kn && *kn && (*kn)->on));
 
-	destroy_orig_node( (*kn)->currOrig );
+	destroy_orig_node( (*kn)->on );
 }
 
 
-STATIC_FUNC
 int16_t kPref_neighbor_metric(struct key_node *kn)
 {
-	IDM_T TODO_returnTrustedRoutesToFriendsAndRecommendeds;
+//	IDM_T TODO_returnTrustedRoutesToFriendsAndRecommendeds;
 
-	if (kn->currOrig && kn->currOrig->neigh && kn->currOrig->neigh->best_tp_link) {
+	if (kn->on && kn->on->neigh && kn->on->neigh->best_tq_link) {
 
-		return ((!!kn->currOrig->neigh->best_tp_link->timeaware_tx_probe)
-//		* kn->currOrig->neigh->orig_routes
-		);
+		return min_lq_probe(kn->on->neigh->best_tq_link);
 	}
 
 	return 0;
@@ -412,50 +428,50 @@ int8_t kColCond_neighbor(uint8_t asRow, struct key_node *kn)
 STATIC_FUNC
 void kSetInAction_neighbor(GLOBAL_ID_T *kHash, struct key_node **kn, struct KeyState *next)
 {
-	assertion(-502358, (kn && *kn && cryptShasEqual(kHash, &(*kn)->kHash) && (*kn)->currOrig));
-	neigh_create((*kn)->currOrig);
+	assertion(-502358, (kn && *kn && cryptShasEqual(kHash, &(*kn)->kHash) && (*kn)->on));
+	neigh_create((*kn)->on);
 }
 
 STATIC_FUNC
 void kSetOutAction_neighbor(struct key_node **kn, struct KeyState *next)
 {
-	assertion(-502360, (kn && *kn && (*kn)->currOrig && (*kn)->currOrig->neigh));
+	assertion(-502360, (kn && *kn && (*kn)->on && (*kn)->on->neigh));
 
-	neigh_destroy((*kn)->currOrig->neigh);
+	neigh_destroy((*kn)->on->neigh);
 }
 
 
 
 struct KeyState keyMatrix[KCSize][KRSize] = {
 	{
-		{KS_INIT, "Listed", "qualifying", "listedQualifying", 4000, NULL, 10000, kSetInAction_listed, kSetOutAction_listed, kCol_TRUE, kColCond_listed, kRowCond_qualifying},
-		{KS_INIT, "Qualified", "friend", "listedFriend", 3000, NULL, 0, NULL, NULL, NULL, NULL, kRowCond_friend},
-		{KS_INIT, "Stranger", "recommended", "listedRecommended", 2000, NULL, 0, NULL, NULL, NULL, NULL, kRowCond_recommended},
-		{KS_INIT, "Alien", "alien", "listedAlien", 0, kPref_listedAlien, 0, kSetInAction_alien, kSetOutAction_alien, NULL, NULL, kRowCond_alien},
+		{KS_INIT, "Listed", "qualifying", "listedQualifying", "lQ", 4000, NULL, 10000, kSetInAction_listed, kSetOutAction_listed, kCol_TRUE, kColCond_listed, kRowCond_qualifying},
+		{KS_INIT, "Graded", "friend", "listedFriend", "lF", 3000, NULL, 0, NULL, NULL, NULL, NULL, kRowCond_friend},
+		{KS_INIT, "Stranger", "recommended", "listedRecommended", "lR", 2000, NULL, 0, NULL, NULL, NULL, NULL, kRowCond_recommended},
+		{KS_INIT, "Alien", "alien", "listedAlien", "lA", 0, kPref_listedAlien, 0, kSetInAction_alien, kSetOutAction_alien, NULL, NULL, kRowCond_alien},
 	},
 	{
-		{KS_INIT, "Tracked", "qualifying", "trackedQualifying", 4001, NULL, 1100, kSetInAction_tracked, kSetOutAction_tracked, kCol_TRUE, kColCond_tracked, NULL},
-		{KS_INIT, "TrackedQualified", "friend", "trackedFriend", 3001, NULL, 0, NULL, NULL, NULL, NULL, NULL},
-		{KS_INIT, "TrackedStranger", "recommended", "trackedRecommended", 2001, NULL, 0, NULL, NULL, NULL, NULL, NULL},
-		{KS_INIT, "TrackedAlien", "alien", "trackedAlien", 1001, NULL, 0, NULL, NULL, NULL, NULL, NULL},
+		{KS_INIT, "Tracked", "qualifying", "trackedQualifying", "tQ", 4001, NULL, 1100, kSetInAction_tracked, kSetOutAction_tracked, kCol_TRUE, kColCond_tracked, NULL},
+		{KS_INIT, "TrackedGraded", "friend", "trackedFriend", "tF", 3001, NULL, 0, NULL, NULL, NULL, NULL, NULL},
+		{KS_INIT, "TrackedStranger", "recommended", "trackedRecommended", "tR", 2001, NULL, 0, NULL, NULL, NULL, NULL, NULL},
+		{KS_INIT, "TrackedAlien", "alien", "trackedAlien", "tA", 1001, NULL, 0, NULL, NULL, NULL, NULL, NULL},
 	},
 	{
-		{KS_INIT, "Certified", "qualifying", "certifiedQualifying", 4002, NULL, 0, kSetInAction_certified, kSetOutAction_certified, kCol_TRUE, kColCond_certified, NULL},
-		{KS_INIT, "CertifiedQualified", "friend", "certifiedFriend", 3002, NULL, 0, NULL, NULL, NULL, NULL, NULL},
-		{KS_INIT, "CertifiedStranger", "recommended", "certifiedRecommended", 2002, NULL, 0, NULL, NULL, NULL, NULL, NULL},
-		{KS_INIT, "CertifiedAlien", "alien", "certifiedAlien", 1002, NULL, 0, NULL, NULL, NULL, NULL, NULL},
+		{KS_INIT, "Certified", "qualifying", "certifiedQualifying", "cQ", 4002, NULL, 0, kSetInAction_certified, kSetOutAction_certified, kCol_TRUE, kColCond_certified, NULL},
+		{KS_INIT, "CertifiedGraded", "friend", "certifiedFriend", "cF", 3002, NULL, 0, NULL, NULL, NULL, NULL, NULL},
+		{KS_INIT, "CertifiedStranger", "recommended", "certifiedRecommended", "cR", 2002, NULL, 0, NULL, NULL, NULL, NULL, NULL},
+		{KS_INIT, "CertifiedAlien", "alien", "certifiedAlien", "cA", 1002, NULL, 0, NULL, NULL, NULL, NULL, NULL},
 	},
 	{
-		{KS_INIT, "Promoted", "qualifying", "promotedQualifying", 4003, NULL, 1000, kSetInAction_promoted, kSetOutAction_promoted, kColMaintain_promoted, kColCond_promoted, NULL},
-		{KS_INIT, "PromotedQualified", "friend", "promotedFriend", 3003, NULL, 0, NULL, NULL, NULL, NULL, NULL},
-		{KS_INIT, "PromotedStranger", "recommended", "promotedRecommended", 2003, NULL, 0, NULL, NULL, NULL, NULL, NULL},
-		{KS_INIT, "PromotedAlien", "alien", "promotedAlien", 1003, NULL, 0, NULL, NULL, NULL, NULL, NULL},
+		{KS_INIT, "Promoted", "qualifying", "promotedQualifying", "pQ", 4003, NULL, XMIN(1000, IID_REPOS_SIZE_MAX), kSetInAction_promoted, kSetOutAction_promoted, kColMaintain_promoted, kColCond_promoted, NULL},
+		{KS_INIT, "PromotedGraded", "friend", "promotedFriend", "pF", 3003, NULL, 0, NULL, NULL, NULL, NULL, NULL},
+		{KS_INIT, "PromotedStranger", "recommended", "promotedRecommended", "pR", 2003, NULL, 0, NULL, NULL, NULL, NULL, NULL},
+		{KS_INIT, "PromotedAlien", "alien", "promotedAlien", "pA", 1003, NULL, 0, NULL, NULL, NULL, NULL, NULL},
 	},
 	{
-		{KS_INIT, "Neighbor", "qualifying", "neighboringQualifying", 9999, NULL, 100, kSetInAction_neighbor, kSetOutAction_neighbor, kCol_TRUE, kColCond_neighbor, NULL},
-		{KS_INIT, "NeighboringQualified", "friend", "neighboringFriend", 7000, kPref_neighbor, 50, NULL, NULL, NULL, NULL, NULL},
-		{KS_INIT, "NeighboringStranger", "recommended", "neighboringRecommended", 6000, kPref_neighbor, 0, NULL, NULL, NULL, NULL, NULL},
-		{KS_INIT, "NeighboringAlien", "alien", "neighboringAlien", 5000, kPref_neighbor, 25, NULL, NULL, NULL, NULL, NULL},
+		{KS_INIT, "Neighbor", "qualifying", "neighboringQualifying", "nQ", 9999, NULL, 100, kSetInAction_neighbor, kSetOutAction_neighbor, kCol_TRUE, kColCond_neighbor, NULL},
+		{KS_INIT, "NeighboringGraded", "friend", "neighboringFriend", "nF", 7000, kPref_neighbor, 50, NULL, NULL, NULL, NULL, NULL},
+		{KS_INIT, "NeighboringStranger", "recommended", "neighboringRecommended", "nR", 6000, kPref_neighbor, 0, NULL, NULL, NULL, NULL, NULL},
+		{KS_INIT, "NeighboringAlien", "alien", "neighboringAlien", "nA", 5000, kPref_neighbor, 25, NULL, NULL, NULL, NULL, NULL},
 	},
 };
 
@@ -519,7 +535,7 @@ struct key_node * keyNode_setState(GLOBAL_ID_T *kHash, struct key_node *kn, stru
 	int8_t nc = new ? new->i.c : 0;
 	int8_t nr = new ? new->i.r : 0;
 
-	dbgf_sys(DBGT_INFO, "nodeId=%s old=%s or=%d oc=%d new=%s nr=%d nc=%d",
+	dbgf_track(DBGT_INFO, "nodeId=%s old=%s or=%d oc=%d new=%s nr=%d nc=%d",
 		cryptShaAsShortStr(kHash), old ? old->secName : NULL, or, oc, new ? new->secName : NULL, nr, nc);
 
 	if (old != new) {
@@ -742,28 +758,35 @@ void keyNode_schedLowerState(struct key_node *kn, struct KeyState *s)
 void keyNode_schedLowerWeight(struct key_node *kn, int8_t weight)
 {
 	assertion(-502384, (kn && kn->bookedState));
-	assertion(-502385, (weight >= -1 && weight < KCSize));
-	keyNode_schedLowerState(kn, weight>=0 ? &(keyMatrix[weight][kn->bookedState->i.r]) : NULL );
+	assertion(-502385, (weight >= KCNull && weight < KCSize));
+	keyNode_schedLowerState(kn, weight > KCNull ? &(keyMatrix[weight][kn->bookedState->i.r]) : NULL);
 }
 
 
-void keyNodes_cleanup(int8_t keyStateColumn, struct key_node *except)
+void keyNodes_cleanup(int8_t targetStateColumn, struct key_node *except)
 {
-	assertion(-502386, (keyStateColumn >= -1 && keyStateColumn < KCSize));
+	assertion(-502386, (targetStateColumn >= KCNull && targetStateColumn < KCSize));
 
-	struct key_node *kn = NULL;
-	GLOBAL_ID_T curr = ZERO_CYRYPSHA1;
+	int8_t next;
 
-	while((kn = avl_next_item(&key_tree, &curr))) {
+	// ensure all nodes remain KCListed before purged:
+	for (next = XMAX(targetStateColumn, KCListed); next >= targetStateColumn; next--) {
 
-		curr = kn->kHash;
-		assertion(-502387, (kn->bookedState));
-		if (kn != except && kn->bookedState->i.c > keyStateColumn) {
+		struct key_node *kn = NULL;
+		GLOBAL_ID_T curr = ZERO_CYRYPSHA1;
 
-			keyNode_schedLowerWeight(kn,
-				(!terminating && kn == myKey && keyStateColumn < KCPromoted) ? KCPromoted : (
-					(!terminating && kn->dirFriend && keyStateColumn < KCTracked) ? KCTracked :
-						keyStateColumn ) );
+		while ((kn = avl_next_item(&key_tree, &curr))) {
+
+			curr = kn->kHash;
+			assertion(-502387, (kn->bookedState));
+
+			if (((int8_t)kn->bookedState->i.c) > next && kn != except) {
+
+				keyNode_schedLowerWeight(kn, (
+					(!terminating && (kn->dFriend != TYP_TRUST_LEVEL_NONE) && next < KCTracked) ?
+					KCTracked :
+					next));
+			}
 		}
 	}
 }
@@ -788,7 +811,7 @@ IDM_T keyNode_getNQualifyingCredits(GLOBAL_ID_T *kHash, struct key_node *kn)
 }
 
 
-void keyNode_delCredits_(const char* f, GLOBAL_ID_T *kHash, struct key_node *kn, struct key_credits *kc)
+void keyNode_delCredits_(const char* f, GLOBAL_ID_T *kHash, struct key_node *kn, struct key_credits *kc, IDM_T reAssessState)
 {
 	uint32_t blockId = keyNodes_block_and_sync(0, NO);
 
@@ -799,41 +822,40 @@ void keyNode_delCredits_(const char* f, GLOBAL_ID_T *kHash, struct key_node *kn,
 	assertion(-502391, (kn && kn->bookedState));
 
 	if (kc) {
-		assertion(-502392, IMPLIES(kc->friend, kn->dirFriend));
-		assertion(-502393, IMPLIES(kc->recom, avl_find(&kn->recommendations_tree, &kc->recom->key)));
-		assertion(-502394, (!kc->ref)); // this function is called from refNode_destroy()! Not the other way around!
+
+		IDM_T oldAnyRef = keyNode_anyRef(kn);
+
+		dbgf_track(DBGT_INFO, "%s id=%s bookedState=%s friend=%d/%d recom=%d/%d trustees=%d/%d neighRef=%d/%d pktId=%d/%d pktSing=%d/%d nQ=%d/%d",
+			f, cryptShaAsShortStr(&kn->kHash), kn->bookedState->secName,
+			kc->dFriend, kn->dFriend, !!kc->recom, kn->recommendations_tree.items, !!kc->trusteeRef, kn->trustees_tree.items, !!kc->neighRef, kn->neighRefs_tree.items,
+			kc->pktId, kn->pktIdTime, kc->pktSign, kn->pktSignTime, kc->nQualifying, kn->nQTime);
+
+		assertion(-502555, (kc->dFriend == TYP_TRUST_LEVEL_NONE || (kc->dFriend >= TYP_TRUST_LEVEL_DIRECT && kc->dFriend <= MAX_TRUST_LEVEL)));
+		assertion(-502556, (kn->dFriend == TYP_TRUST_LEVEL_NONE || (kn->dFriend >= TYP_TRUST_LEVEL_DIRECT && kn->dFriend <= MAX_TRUST_LEVEL)));
+		assertion(-502392, IMPLIES(kc->dFriend, kn->dFriend));
+		assertion(-502393, IMPLIES(kc->recom, avl_find(&kn->recommendations_tree, &kc->recom->kn)));
+		assertion(-502557, IMPLIES(kc->trusteeRef, avl_find(&kn->trustees_tree, &kc->trusteeRef->kn)));
+		assertion(-502394, IMPLIES(kc->neighRef, avl_find(&kn->neighRefs_tree, &kc->neighRef->nn)));
 		assertion(-502395, IMPLIES(kc->pktId, (kn->pktIdTime)));
 		assertion(-502396, IMPLIES(kc->pktSign, (kn->pktSignTime)));
 		assertion(-502397, IMPLIES(kc->nQualifying, (kn->nQTime)));
 
-		if (kc->friend || kc->recom || kc->pktId || kc->pktSign || kc->nQualifying) {
-			dbgf_sys(DBGT_INFO, "%s now=%d id=%s bookedState=%s friend=%d/%d recom=%d/%d pktId=%d/%d pktSing=%d/%d nQ=%d/%d",
-				f, bmx_time, cryptShaAsShortStr(&kn->kHash), kn->bookedState->secName,
-				kc->friend, kn->dirFriend, kc->recom, kn->recommendations_tree.items,
-				kc->pktId, kn->pktIdTime, kc->pktSign, kn->pktSignTime, kc->nQualifying, kn->nQTime);
+		if (kc->dFriend) {
+			if (kn->on && kn->dFriend >= TYP_TRUST_LEVEL_IMPORT)
+				apply_trust_changes(BMX_DSC_TLV_SUPPORTS, kn->on, kn->on->dc, NULL);
+
+			kn->dFriend = TYP_TRUST_LEVEL_NONE;
 		}
-
-		if (kc->friend) {
-			if (kn->currOrig) {
-				struct dsc_msg_trust *suppMsg = contents_data(kn->currOrig->descContent, BMX_DSC_TLV_SUPPORTS);
-				uint32_t suppMsgs = contents_dlen(kn->currOrig->descContent, BMX_DSC_TLV_SUPPORTS) / sizeof(struct dsc_msg_trust);
-				uint32_t m;
-				struct key_credits vkc = {.recom = kn->currOrig};
-
-				for (m = 0; m < suppMsgs; m++)
-					keyNode_delCredits(&suppMsg[m].nodeId, NULL, &vkc);
-
-			}
-			kn->dirFriend = 0;
-		}
-
 
 		if (kc->recom)
-			avl_remove(&kn->recommendations_tree, &kc->recom->key, -300710);
-/*
-		if (kc->ref)
-			refNode_destroy(kc->ref);
-*/
+			avl_remove(&kn->recommendations_tree, &kc->recom->kn, -300710);
+
+		if (kc->trusteeRef)
+			avl_remove(&kn->trustees_tree, &kc->trusteeRef->kn, -300785);
+
+		if (kc->neighRef)
+			avl_remove(&kn->neighRefs_tree, &kc->neighRef->nn, -300823);
+
 		if (kc->pktId)
 			kn->pktIdTime = 0;
 
@@ -843,9 +865,17 @@ void keyNode_delCredits_(const char* f, GLOBAL_ID_T *kHash, struct key_node *kn,
 
 		if (kc->pktId || kc->nQualifying)
 			kn->nQTime = 0;
+
+		if (oldAnyRef && !keyNode_anyRef(kn))
+			kn->unReferencedTime = bmx_time;
+
+		if (kc->unReferenced)
+			kn->unReferencedTime = 0;
 	}
 
-	keyNode_schedLowerState(kn, keyNode_getMinMaxState(kn));
+	if (reAssessState)
+		keyNode_schedLowerState(kn, keyNode_getMinMaxState(kn));
+
 	keyNodes_block_and_sync(blockId, NO);
 }
 
@@ -854,48 +884,41 @@ STATIC_FUNC
 void keyNode_addCredits_(struct key_node *kn, struct key_credits *kc)
 {
 	assertion(-502398, (kn && kc));
+	assertion(-502558, (kc->dFriend == TYP_TRUST_LEVEL_NONE || (kc->dFriend >= TYP_TRUST_LEVEL_DIRECT && kc->dFriend <= MAX_TRUST_LEVEL)));
 
-	if (kc->friend) {
-		if (kn->dirFriend != kc->friend && kn->currOrig) {
+	IDM_T oldAnyRef = keyNode_anyRef(kn);
 
-			struct dsc_msg_trust *suppMsg = contents_data(kn->currOrig->descContent, BMX_DSC_TLV_SUPPORTS);
-			uint32_t suppMsgs = contents_dlen(kn->currOrig->descContent, BMX_DSC_TLV_SUPPORTS) / sizeof(struct dsc_msg_trust);
-			uint32_t m;
-			struct key_credits vkc = {.recom=kn->currOrig};
+	if (kc->dFriend && (kc->dFriend != kn->dFriend)) {
 
-			for (m = 0; m < suppMsgs; m++) {
+		IDM_T willImport = (kc->dFriend >= TYP_TRUST_LEVEL_IMPORT);
+		IDM_T wasImport = (kn->dFriend >= TYP_TRUST_LEVEL_IMPORT);
 
-				if (kn->dirFriend < kc->friend)
-					keyNode_updCredits(&suppMsg[m].nodeId, NULL, &vkc);
-				else
-					keyNode_delCredits(&suppMsg[m].nodeId, NULL, &vkc);
-			}
+		kn->dFriend = kc->dFriend;
+
+		if (kn->on && (willImport != wasImport)) {
+
+			struct desc_content *dc = kn->on->dc;
+			apply_trust_changes(BMX_DSC_TLV_SUPPORTS, kn->on, wasImport ? dc : NULL, willImport ? dc : NULL);
 		}
 
-		kn->dirFriend = kc->friend;
 	}
 
 	if (kc->recom) {
-		assertion(-502399, (!avl_find(&kn->recommendations_tree, &kc->recom->key)));
+		assertion(-502399, (!avl_find(&kn->recommendations_tree, &kc->recom->kn)));
 		avl_insert(&kn->recommendations_tree, kc->recom, -300711);
 	}
 
-	if (kc->ref) {
-		struct reference_node *ref;
-		if ((ref = avl_find_item(&kn->neighRefs_tree, &kc->ref->neigh)) && ref != kc->ref) {
-			ASSERTION(-502400, (ref == avl_find_item(&kc->ref->neigh->refsByKhash_tree, &kn)));
-			assertion(-502401, (ref->dhn != kc->ref->dhn));
-			refNode_destroy(ref, NO);
-		}
+	if (kc->trusteeRef) {
+		assertion(-502559, (!avl_find(&kn->trustees_tree, &kc->trusteeRef->kn)));
+		avl_insert(&kn->trustees_tree, kc->trusteeRef, -300786);
+	}
 
-		ASSERTION(-502402, (!avl_find(&kn->neighRefs_tree, &kc->ref->neigh) && !avl_find(&kc->ref->neigh->refsByKhash_tree, &kn)));
+	if (kc->neighRef) {
 
-		if (!kc->ref->claimedKey) {
-			kc->ref->claimedKey = kn;
-			avl_insert(&kn->neighRefs_tree, kc->ref, -300712);
-			avl_insert(&kc->ref->neigh->refsByKhash_tree, kc->ref, -300713);
+		if (!kc->neighRef->kn) {
+			kc->neighRef->kn = kn;
+			avl_insert(&kn->neighRefs_tree, kc->neighRef, -300712);
 		}
-		kc->ref->mentionedRefTime = bmx_time;
 	}
 
 	if (kc->pktId) {
@@ -911,6 +934,9 @@ void keyNode_addCredits_(struct key_node *kn, struct key_credits *kc)
 		assertion(-502403, (kc->pktId && !kn->nQTime));
 		kn->nQTime = bmx_time;
 	}
+
+	if (!oldAnyRef && keyNode_anyRef(kn))
+		kn->unReferencedTime = 0;
 }
 
 
@@ -919,13 +945,13 @@ struct key_node *keyNode_updCredits(GLOBAL_ID_T *kHash, struct key_node *kn, str
 	kHash = kHash ? kHash : (kn ? &kn->kHash : NULL);
 	kn = kn ? kn : (kHash ? avl_find_item(&key_tree, kHash) : NULL);
 	
-	dbgf_all(DBGT_INFO, "id=%s", cryptShaAsShortStr(kHash));
-	dbgf_all(DBGT_INFO, "bookedSec=%s schedSec=%s",	kn ? kn->bookedState->secName : NULL,
+	dbgf_track(DBGT_INFO, "id=%s bookedSec=%s schedSec=%s", cryptShaAsShortStr(kHash), kn ? kn->bookedState->secName : NULL,
 		kn && kn->decreasedEffectiveState ? kn->decreasedEffectiveState->secName : NULL);
 
 	assertion(-502404, (kHash));
+	assertion(-502560, IMPLIES(kc, kc->dFriend == TYP_TRUST_LEVEL_NONE || (kc->dFriend >= TYP_TRUST_LEVEL_DIRECT && kc->dFriend <= MAX_TRUST_LEVEL)));
 	assertion(-502405, IMPLIES(kc && kc->pktSign, kc->pktId));
-	assertion(-502406, IMPLIES(kc && kc->ref, kc->ref->neigh && kc->ref->dhn));
+	assertion(-502406, IMPLIES(kc && kc->neighRef, kc->neighRef->nn));
 	assertion(-502407, IMPLIES(kn, cryptShasEqual(kHash, &kn->kHash)));
 	assertion(-502408, IMPLIES(kn, kn->bookedState));
 	assertion(-502409, IMPLIES(kn, !(kc && kc->nQualifying && kn->nQTime)));
@@ -934,8 +960,10 @@ struct key_node *keyNode_updCredits(GLOBAL_ID_T *kHash, struct key_node *kn, str
 		kc->nQualifying = keyNode_getNQualifyingCredits(kHash, kn);
 
 	if (kn) {
-		if (kc)
+		if (kc) {
 			keyNode_addCredits_(kn, kc);
+			kc = NULL;
+		}
 
 		keyNode_schedLowerState(kn, keyNode_getMinMaxState(kn));
 
@@ -945,7 +973,7 @@ struct key_node *keyNode_updCredits(GLOBAL_ID_T *kHash, struct key_node *kn, str
 	uint32_t blockId = keyNodes_block_and_sync(0, NO);
 	uint8_t r, c;
 
-	dbgf_all(DBGT_INFO, "bookedSec=%s schedSec=%s",	kn ? kn->bookedState->secName : NULL,
+	dbgf_track(DBGT_INFO, "bookedSec=%s schedSec=%s",	kn ? kn->bookedState->secName : NULL,
 		kn && kn->decreasedEffectiveState ? kn->decreasedEffectiveState->secName : NULL);
 
 	IDM_T condSuccess = NO;
@@ -954,12 +982,12 @@ struct key_node *keyNode_updCredits(GLOBAL_ID_T *kHash, struct key_node *kn, str
 	if (!kn || kn->decreasedEffectiveState == kn->bookedState) {
 
 		for (r = 0; r < (kn ? kn->bookedState->i.r + 1 : KRSize); r++) {
-			dbgf_all(DBGT_INFO, "testing sec=%-10s from sec=%s",
-				keyMatrix[0][r].secName, kn ? kn->bookedState->secName : NULL);
+			dbgf_all(DBGT_INFO, "testing row=%-10s from sec=%s",
+				keyMatrix[0][r].rowName, kn ? kn->bookedState->secName : NULL);
 
 			if ((condSuccess = (*(keyMatrix[0][r].rowCond))(kn, (kc ? kc : (struct key_credits*) &zeroKeyCredit)))) {
 
-				for (c = (kn ? kn->bookedState->i.c + 1 : 0); c < KCSize; c++) {
+				for (c = (kn ? kn->bookedState->i.c + (r < kn->bookedState->i.r ? 0 : 1) : 0); c < KCSize; c++) {
 					dbgf_all(DBGT_INFO, "testing set=%-10s from sec=%s",
 						keyMatrix[c][0].setName, kn ? kn->bookedState->secName: NULL);
 
@@ -1035,19 +1063,21 @@ void keyNode_fixTimeouts()
 		struct key_credits kc = {
 			.pktId = (kn->pktIdTime && (((TIME_T) (bmx_time - kn->pktIdTime))>((TIME_T) link_purge_to))),
 			.nQualifying = (kn->nQTime && (((TIME_T) (bmx_time - kn->nQTime))>((TIME_T) neigh_qualifying_to))),
-			.pktSign = (kn->pktSignTime && (((TIME_T) (bmx_time - kn->pktSignTime))>((TIME_T) link_purge_to)))
+			.pktSign = (kn->pktSignTime && (((TIME_T) (bmx_time - kn->pktSignTime))>((TIME_T) link_purge_to))),
+			.unReferenced = (kn->unReferencedTime && (((TIME_T) (bmx_time - kn->unReferencedTime))>((TIME_T) id_purge_to)))
 		};
-		if (kc.pktId || kc.nQualifying || kc.pktSign)
-			keyNode_delCredits(NULL, kn, &kc);
+
+		if (kc.pktId || kc.nQualifying || kc.pktSign || kn->unReferencedTime)
+			keyNode_delCredits(NULL, kn, &kc, YES);
 
 
 		struct neigh_node * neigh = NULL;
-		struct reference_node * ref = NULL;
+		struct NeighRef_node * ref = NULL;
 		while ((ref = avl_next_item(&kn->neighRefs_tree, &neigh))) {
-			neigh = ref->neigh;
-			assertion(-502411, (ref->mentionedRefTime));
-			if (((TIME_T) (bmx_time - ref->mentionedRefTime))>((TIME_T) ogm_purge_to))
-				refNode_destroy(ref, YES);
+			neigh = ref->nn;
+			
+			if (!iid_get_neighIID4x_timeout_by_node(ref))
+				neighRef_destroy(ref, YES);
 		}
 
 
@@ -1072,7 +1102,7 @@ uint32_t keyNodes_setDecreasedStates_(const char *f)
 
 	while ((kn = avl_remove_first_item(&schedDecreasedEffectiveState_tree, -300714))) {
 
-		dbgf_sys(DBGT_INFO, "f=%s id=%s bookedSec=%s schedSec=%s", f, cryptShaAsShortStr(&kn->kHash), kn->bookedState->secName,
+		dbgf_track(DBGT_INFO, "f=%s id=%s bookedSec=%s schedSec=%s", f, cryptShaAsShortStr(&kn->kHash), kn->bookedState->secName,
 			kn->decreasedEffectiveState ? kn->decreasedEffectiveState->secName : NULL);
 
 		assertion(-502415, (kn->decreasedEffectiveState != kn->bookedState));
@@ -1085,7 +1115,7 @@ uint32_t keyNodes_setDecreasedStates_(const char *f)
 }
 
 STATIC_FUNC
-uint32_t keyNodes_fixLimits()
+uint32_t keyNodes_fixLimits(void)
 {
 	uint32_t changes = 0;
 	dbgf_all(DBGT_INFO, "exceptions=%d", key_tree_exceptions);
@@ -1136,19 +1166,28 @@ uint32_t keyNodes_block_and_sync_(const char *f, uint32_t id, IDM_T force)
 
 	if ( force || id ) {
 
-		if (id)
-			keyNodes_next_block_id--;
+		if (force || (keyNodes_next_block_id - 1) == KEYNODES_BLOCKING_ID) {
 
-		if (force || keyNodes_next_block_id == KEYNODES_BLOCKING_ID) {
 			uint32_t changes = 0;
+
 			changes += keyNodes_setDecreasedStates_(f);
 			changes += keyNodes_fixLimits();
+
+			if (id)
+				keyNodes_next_block_id--;
+
 			return YES + changes;
+
+		} else {
+
+			if (id)
+				keyNodes_next_block_id--;
+
+			return NO;
 		}
 
-		return NO;
-
 	} else {
+
 		keyNodes_next_block_id++;
 		return (keyNodes_next_block_id-1);
 	}
@@ -1209,11 +1248,8 @@ static struct opt_type key_options[] = {
 	{ODI,0,ARG_CREDITS,	        0,  9,1,A_PS0N,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
 			0,		"show credits\n"},
 #ifndef LESS_OPTIONS
-	{ODI, 0, ARG_OGM_PURGE_TO, 0, 9, 1, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &ogm_purge_to, MIN_OGM_PURGE_TO, MAX_OGM_PURGE_TO, DEF_OGM_PURGE_TO, 0, 0,
-		ARG_VALUE_FORM, "timeout in ms for purging stale originators"}
-	,
-	{ODI, 0, ARG_LINK_PURGE_TO, 0, 9, 1, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &link_purge_to, MIN_LINK_PURGE_TO, MAX_LINK_PURGE_TO, DEF_LINK_PURGE_TO, 0, 0,
-		ARG_VALUE_FORM, "timeout in ms for purging stale links"}
+	{ODI, 0, ARG_ID_PURGE_TO, 0, 9, 1, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &id_purge_to, MIN_ID_PURGE_TO, MAX_ID_PURGE_TO, DEF_ID_PURGE_TO, 0, 0,
+		ARG_VALUE_FORM, "timeout in ms for purging unreferenced (alien) IDs"}
 #endif
 };
 

@@ -606,7 +606,7 @@ void cryptKeyAddRaw( CRYPTKEY_T *cryptKey) {
 
 	assertion(-502144, (cryptKeyTypeByLen(rawLen) != FAILURE));
 
-	dbgf_sys(DBGT_INFO, "mpi_size=%zd rawLen=%d",
+	dbgf_track(DBGT_INFO, "mpi_size=%zd rawLen=%d",
 		mpi_size( &rsa->N ), rawLen /*, memAsHexStringSep(rawStart, rawLen, 16, "\n")*/);
 
 	cryptKey->rawKey = debugMalloc(rawLen, -300641);
@@ -857,10 +857,32 @@ int cryptVerify(uint8_t *sign, size_t signLen, CRYPTSHA1_T *plainSha, CRYPTKEY_T
 
 
 
-void cryptRand( void *out, int32_t outLen) {
+void cryptRand( void *out, uint32_t outLen) {
 
-	if (entropy_func( &entropy_ctx, out, outLen) != 0)
-		cleanup_all(-502148);
+	assertion(-502139, ENTROPY_BLOCK_SIZE > sizeof(CRYPTSHA1_T));
+
+	if (outLen <= sizeof(CRYPTSHA1_T)) {
+
+		if (entropy_func( &entropy_ctx, out, outLen) != 0)
+			cleanup_all(-502148);
+	} else {
+
+		CRYPTSHA1_T seed[2];
+		uint32_t outPos;
+
+		if (entropy_func( &entropy_ctx, (void*)&seed[0], sizeof(CRYPTSHA1_T)) != 0)
+			cleanup_all(-502140);
+
+		cryptShaAtomic(&seed[0], sizeof(CRYPTSHA1_T), &seed[1]);
+
+		for (outPos = 0; outLen > outPos; outPos += sizeof(CRYPTSHA1_T)) {
+
+			cryptShaAtomic(&seed, sizeof(seed), &seed[1]);
+
+			memcpy(&(((uint8_t*) out)[outPos]), &seed[1], XMIN(outLen - outPos, sizeof(CRYPTSHA1_T)));
+		}
+
+	}
 }
 
 STATIC_FUNC

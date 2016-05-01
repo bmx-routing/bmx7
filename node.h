@@ -21,19 +21,13 @@
 #include <stdint.h>
 #include <sys/types.h>
 #include <netinet/in.h>
-#include <linux/if.h>
+//#include <linux/if.h>
 #include <linux/rtnetlink.h>
 #include <netinet/ip.h>
 #include <netinet/ip6.h>
 #include <netinet/udp.h>
 
-
-
-/*
- * from iid.h:
- */
-typedef uint16_t IID_T;
-
+#include "iid.h"
 
 
 
@@ -44,10 +38,13 @@ typedef uint16_t IID_T;
 
 // to be used:
 typedef uint64_t UMETRIC_T;
+typedef uint8_t LQ_T;
 
+#define LQ_MAX 255
 
-#define OGM_MANTISSA_BIT_SIZE  5
+#define OGM_MANTISSA_BIT_SIZE  6
 #define OGM_EXPONENT_BIT_SIZE  5
+#define OGM_HOP_COUNT_BITSIZE 6
 #define OGM_EXPONENT_OFFSET    OGM_MANTISSA_BIT_SIZE
 
 #define OGM_EXPONENT_MAX       ((1<<OGM_EXPONENT_BIT_SIZE)-1)
@@ -76,6 +73,7 @@ typedef uint64_t UMETRIC_T;
 #define UMETRIC_FM8_MAX            ((((UMETRIC_T) 1) << (OGM_EXPONENT_OFFSET+OGM_EXPONENT_MAX)) + (((UMETRIC_T) FM8_MANTISSA_MASK) << ((OGM_EXPONENT_OFFSET+OGM_EXPONENT_MAX)-FM8_MANTISSA_BIT_SIZE)))
 #define UMETRIC_FM8_MIN            ((((UMETRIC_T) 1) << OGM_EXPONENT_OFFSET) + (((UMETRIC_T) FM8_MANTISSA_MIN) << (OGM_EXPONENT_OFFSET-FM8_MANTISSA_BIT_SIZE)))
 #define UMETRIC_MAX                UMETRIC_FM8_MAX
+#define UMETRIC_MAX_MAX            ((UMETRIC_T)-1)
 //#define UMETRIC_MAX       ((((UMETRIC_T) 1) << (OGM_EXPONENT_OFFSET+OGM_EXPONENT_MAX)) + (((UMETRIC_T) OGM_MANTISSA_MAX) << ((OGM_EXPONENT_OFFSET+OGM_EXPONENT_MAX)-OGM_MANTISSA_BIT_SIZE)))
 
 // these fixes are used to improove (average) rounding errors in umetric_to_fmetric()
@@ -133,6 +131,29 @@ typedef struct float_u8 FMETRIC_U8_T;
 
 typedef uint16_t ALGO_T;
 
+
+#define MAX_PATH_IFR_PARAMETERS 4
+#define TYP_PATH_IFR_CHA_DISTANCE_BITS 8
+#define TYP_PATH_IFR_INDEPENDENCE_BITS 5
+#define TYP_PATH_IFR_HOP_DISTANCE_BITS 3
+
+
+
+struct path_interference_parameter {
+	uint8_t channelDistance;
+#if __BYTE_ORDER == __LITTLE_ENDIAN         // 1 byte
+	unsigned int independence : TYP_PATH_IFR_INDEPENDENCE_BITS;
+	unsigned int hopDistance : TYP_PATH_IFR_HOP_DISTANCE_BITS;
+#elif __BYTE_ORDER == __BIG_ENDIAN
+	unsigned int hopDistance : TYP_PATH_IFR_HOP_DISTANCE_BITS;
+	unsigned int independence : TYP_PATH_IFR_INDEPENDENCE_BITS;
+#else
+#error "Please fix <bits/endian.h>"
+#endif
+} __attribute__((packed));
+
+
+
 struct host_metricalgo {
 	FMETRIC_U16_T fmetric_u16_min;
 
@@ -148,10 +169,16 @@ struct host_metricalgo {
 	uint8_t lq_ty_point_r255;
 	uint8_t lq_t1_point_r255;
 
+	uint8_t ogm_link_rate_efficiency;
+
+	uint8_t ogm_hops_max;
+	uint8_t ogm_hop_history;
 	uint8_t ogm_hop_penalty;
 	uint8_t ogm_sqn_best_hystere;
-	uint16_t ogm_sqn_late_hystere;
-	uint16_t ogm_metric_hystere;
+	uint8_t ogm_sqn_late_hystere_100ms;
+	uint16_t ogm_metric_hystere_new_path;
+	uint16_t ogm_metric_hystere_old_path;
+	struct path_interference_parameter pip[MAX_PATH_IFR_PARAMETERS];
 };
 
 struct lndev_probe_record {
@@ -159,7 +186,7 @@ struct lndev_probe_record {
 
 	uint8_t hello_array[MAX_HELLO_SQN_WINDOW / 8];
 	uint32_t hello_sum;
-	UMETRIC_T hello_umetric;
+	LQ_T hello_lq;
 	TIME_T hello_time_max;
 };
 
@@ -193,12 +220,10 @@ typedef CRYPTSHA1_T RHASH_T;
 
 typedef CRYPTSHA1_T GLOBAL_ID_T;
 
-typedef CRYPTSHA1_T LOCAL_ID_T;
-
-typedef uint16_t DEVIDX_T;
+typedef uint8_t DEVIDX_T;
 #define DEVIDX_INVALID 0
 #define DEVIDX_MIN 1
-#define DEVIDX_BITS 10
+#define DEVIDX_BITS 8
 #define DEVIDX_MASK ((1<<DEVIDX_BITS)-1)
 #define DEVIDX_MAX DEVIDX_MASK
 
@@ -231,25 +256,63 @@ typedef struct {
 	struct dev_node *myDev;
 } __attribute__((packed)) LinkKey;
 
+struct LinkStats {
+	UMETRIC_T txRate;
+	UMETRIC_T txRateAvg;
+	uint32_t txPackets;
+	uint32_t txBurstPackets;
+
+	UMETRIC_T rxRate;
+	uint32_t rxPackets;
+
+	int8_t signal;
+	int8_t noise;
+
+	TIME_T updatedTime;
+	TIME_T txTriggTime;
+	TIME_T txBurstTime;
+	uint32_t txTriggCnt;
+	uint32_t txBurstCnt;
+
+	int8_t txMcs;
+	uint8_t txMhz;
+	uint8_t txNss;
+
+	int8_t rxMcs;
+	uint8_t rxMhz;
+	uint8_t rxNss;
+
+	unsigned int txShortGi : 1;
+	unsigned int tx40mhz : 1;
+	unsigned int txHt : 1;
+	unsigned int txVht : 1;
+
+	unsigned int rxShortGi : 1;
+	unsigned int rx40mhz : 1;
+	unsigned int rxHt : 1;
+	unsigned int rxVht : 1;
+};
+
 typedef struct {
-	struct list_node list;
 	LinkKey k;
 
-	UMETRIC_T tx_probe_umetric;
-	UMETRIC_T timeaware_tx_probe;
-	struct lndev_probe_record rx_probe_record;
-	UMETRIC_T timeaware_rx_probe;
+	struct lndev_probe_record rq_probe_record;
+	TIME_T tq_probe_time;
+	LQ_T tq_probe;
+	LQ_T timeaware_tq_probe;
+	LQ_T timeaware_rq_probe;
+	UMETRIC_T timeaware_wifiRate;
+
+	struct LinkStats wifiStats;
 	int32_t orig_routes;
 
-
-	TIME_T rp_time_max;
 } LinkNode;
 
 struct neigh_node {
-	LOCAL_ID_T local_id;
+	GLOBAL_ID_T local_id;
 	struct avl_tree linkDev_tree;
-	LinkNode *best_rp_link;
-	LinkNode *best_tp_link;
+	LinkNode *best_rq_link;
+	LinkNode *best_tq_link;
 
 	BURST_SQN_T burstSqn;
 
@@ -261,8 +324,7 @@ struct neigh_node {
 	CRYPTKEY_T *linkKey;
 
 
-	struct avl_tree refsByDhash_tree;
-	struct avl_tree refsByKhash_tree;
+	struct iid_repos neighIID4x_repos;
 
 	TIME_T ogm_aggreg_time;
 	AGGREG_SQN_T ogm_aggreg_max;
@@ -288,7 +350,7 @@ struct content_usage_node {
 
 struct content_node {
 	SHA1_T chash;
-	struct key_node *key;
+	struct key_node *kn;
 	uint8_t *f_body;
 	uint32_t f_body_len;
 	uint8_t nested;
@@ -307,33 +369,94 @@ struct desc_tlv_body {
 	uint16_t desc_tlv_body_len;
 };
 
-struct desc_content {
-	IDM_T cntr;
-	struct key_node *key;
-	struct orig_node *orig;
-	uint8_t *desc_frame;
-	uint16_t desc_frame_len;
-	int32_t ref_content_len;
+#define MIN_OGM_HOP_HISTORY_SZ 0
+#define MAX_OGM_HOP_HISTORY_SZ 10
+#define DEF_OGM_HOP_HISTORY_SZ 5
+#define ARG_OGM_HOP_HISTORY_SZ "ogmHistorySize"
+
+struct msg_ogm_adv_metric_tAny {
+
+	union {
+
+		struct {
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+			unsigned int reserved : 4;
+			unsigned int type : 3;
+			unsigned int more : 1;
+#elif __BYTE_ORDER == __BIG_ENDIAN
+			unsigned int more : 1;
+			unsigned int type : 3;
+			unsigned int reserved : 4;
+#else
+#error "Please fix <bits/endian.h>"
+#endif
+		} __attribute__((packed)) f;
+		uint8_t u8[1];
+	} u;
+} __attribute__((packed));
+
+struct msg_ogm_adv_metric_t0 {
+
+	union {
+
+		struct {
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+			unsigned int metric_mantissa : OGM_MANTISSA_BIT_SIZE; // 6
+			unsigned int metric_exp : OGM_EXPONENT_BIT_SIZE; // 5
+			unsigned int directional : 1;
+			unsigned int type : 3;
+			unsigned int more : 1;
+#elif __BYTE_ORDER == __BIG_ENDIAN
+			unsigned int more : 1;
+			unsigned int type : 3;
+			unsigned int directional : 1;
+			unsigned int metric_exp : OGM_EXPONENT_BIT_SIZE; // 5
+			unsigned int metric_mantissa : OGM_MANTISSA_BIT_SIZE; // 6
+#else
+#error "Please fix <bits/endian.h>"
+#endif
+		} __attribute__((packed)) f;
+		uint16_t u16;
+		uint8_t u8[2];
+	} u;
+
+	uint8_t channel; // 0)wired, 0xFF)wlanUnknown, 1-14)2.4GHz, 36-..)5GHz,
+} __attribute__((packed));
+
+struct NeighPath {
+	LinkNode *link;
+	UMETRIC_T um;
+	uint16_t pathMetricsByteSize;
+	struct msg_ogm_adv_metric_t0 pathMetrics[MAX_OGM_HOP_HISTORY_SZ];
+};
+
+
+
+
+struct NeighRef_node {
+	AGGREG_SQN_T aggSqn;
+	uint8_t scheduled_ogm_processing;
+	uint8_t shown;
+
+	struct InaptChainOgm *inaptChainOgm;
+
+	// set by ref_node_update():
+	IID_T __neighIID4x;
+	struct neigh_node *nn;
+	struct key_node *kn;
 	DESC_SQN_T descSqn;
 
-	struct dhash_node *dhn;
-	struct avl_tree contentRefs_tree;
-	uint32_t unresolvedContentCounter;
-	uint8_t max_nesting;
-	struct desc_tlv_body final[BMX_DSC_TLV_ARRSZ];
+	OGM_SQN_T ogmSqnMax;
+	FMETRIC_U16_T ogmSqnMaxClaimedMetric;
+	uint8_t ogmSqnMaxClaimedHops;
+	TIME_T ogmSqnMaxTime;
+	uint16_t ogmSqnMaxPathMetricsByteSize;
+	struct msg_ogm_adv_metric_t0 *ogmSqnMaxPathMetrics;
+
+	// set by rx_frame_ogm_aggreg_adv():
+	TIME_T ogmBestSinceSqn;
+
 };
-
-struct dhash_node {
-	DHASH_T dhash;
-
-	TIME_T referred_by_me_timestamp; // last time this node was referred
-	TIME_T referred_by_others_timestamp;
-
-	struct desc_content *descContent;
-	uint8_t rejected;
-	struct avl_tree neighRefs_tree;
-};
-
 
 struct orig_node {
 	// filled in by validate_new_link_desc0():
@@ -346,9 +469,11 @@ struct orig_node {
 
 	//	struct dhash_node *dhn; //TODO: remove
 	//	int32_t currKeySupportsPerOrig;
-	struct desc_content *descContent;
-	struct key_node *key;
+	struct desc_content *dc;
+	struct key_node *kn;
 	struct neigh_node *neigh;
+	IID_T __myIID4x;
+
 	TIME_T updated_timestamp; // last time this on's desc was succesfully updated
 
 	// filled in by process_desc0_tlvs()->
@@ -356,45 +481,34 @@ struct orig_node {
 	//	uint8_t blocked; // blocked description
 	//	uint8_t added; // added description
 
-	struct host_metricalgo *path_metricalgo;
+	struct host_metricalgo *mtcAlgo;
 
 	uint32_t *trustedNeighsBitArray;
 
-	IDM_T ogmAggregActive;
 	AGGREG_SQN_T ogmAggregSqn;
+	int16_t ogmAggregActiveMsgLen;
 
-	TIME_T ogmSqnTime;
-	OGM_SQN_T ogmSqn;
-	UMETRIC_T ogmMetric;
-	LinkNode *curr_rt_link; // the configured route in the kernel!
+	uint8_t ogmHopCount;
+
+	struct NeighPath neighPath;
+	//	UMETRIC_T ogmMetric;
+	//	LinkNode *curr_rt_link; // the configured route in the kernel!
 
 	//size of plugin data is defined during intialization and depends on registered PLUGIN_DATA_ORIG hooks
 	void *plugin_data[];
 
 };
 
-struct reference_node {
-	struct dhash_node *dhn;
-	struct neigh_node *neigh;
-	struct key_node *claimedKey;
-	TIME_T mentionedRefTime;
-	DESC_SQN_T claimedDescSqn;
-	OGM_SQN_T ogmSqnMax;
-	TIME_T ogmSqnTime;
-	TIME_T ogmBestSinceSqn;
-	AGGREG_SQN_T aggSqn;
-	FMETRIC_U16_T ogmMetricMax;
-	uint8_t scheduled_ogm_processing;
-	uint8_t shown;
-};
 
 struct key_credits {
 	uint8_t nQualifying;
-	uint8_t friend;
+	uint8_t dFriend;
 	uint8_t pktId;
 	uint8_t pktSign;
+	uint8_t unReferenced;
 	struct orig_node *recom;
-	struct reference_node *ref;
+	struct orig_node *trusteeRef;
+	struct NeighRef_node *neighRef;
 };
 
 struct key_node {
@@ -402,14 +516,17 @@ struct key_node {
 	struct KeyState *bookedState;
 	struct KeyState *decreasedEffectiveState;
 	struct content_node *content;
-	uint8_t dirFriend; //[0,1,2=supportHisDirSupKeys]
+	uint8_t dFriend; //[0,1,2=supportHisDirSupKeys]
 	TIME_T pktIdTime;
 	TIME_T pktSignTime;
 	TIME_T nQTime;
 	TIME_T TAPTime;
+	TIME_T unReferencedTime;
 	struct avl_tree neighRefs_tree;
-	struct orig_node *currOrig;
+	struct avl_tree trustees_tree;
+	struct orig_node *on;
 	struct desc_content *nextDesc;
+	DESC_SQN_T descSqnMin;
 	struct avl_tree recommendations_tree; //ofMyDirect2SupportedKeys
 };
 
@@ -433,6 +550,7 @@ struct KeyState {
 	char *setName;
 	char *rowName;
 	char *secName;
+	char *secAcro;
 	int16_t prefBase;
 	int16_t(* prefGet) (struct key_node *kn);
 	int16_t maxSet;
@@ -491,6 +609,9 @@ extern struct avl_tree link_tree;
 extern struct avl_tree orig_tree;
 extern struct avl_tree key_tree;
 extern struct avl_tree dhash_tree;
+extern struct avl_tree descContent_tree;
+extern struct avl_tree ogmHChainLXD_tree;
+
 
 extern uint32_t content_tree_unresolveds;
 
@@ -499,12 +620,11 @@ extern uint32_t content_tree_unresolveds;
  Data Infrastructure
  ************************************************************/
 
-void refNode_destroy(struct reference_node *ref, IDM_T reAssessState);
-struct reference_node *refNode_update(struct neigh_node *neigh, AGGREG_SQN_T aggSqn, DHASH_T *descHash, struct CRYPTSHA1_T *claimedKey, DESC_SQN_T claimedSqn);
-
-struct dhash_node* dhash_node_create(DHASH_T *dhash, struct neigh_node *neigh);
-void dhash_node_reject(struct dhash_node *dhn);
-void dhash_clean_data(struct dhash_node *dhn);
+void neighRef_destroy(struct NeighRef_node *ref, IDM_T reAssessState);
+struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn, IID_T neighIID4x, CRYPTSHA1_T *kHash, DESC_SQN_T descSqn, struct InaptChainOgm *chainOgm);
+void neighRefs_update(struct key_node *kn);
+struct NeighRef_node *neighRef_resolve_or_destroy(struct NeighRef_node *ref, IDM_T reassessState);
+void neighRefs_resolve_or_destroy(void);
 
 int purge_orig_router(struct orig_node *onlyOrig, struct neigh_node *onlyNeigh, LinkNode *onlyLink, IDM_T onlyUseless);
 void neigh_destroy(struct neigh_node *local);

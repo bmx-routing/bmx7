@@ -114,7 +114,7 @@ int cryptDecrypt(uint8_t *in, size_t inLen, uint8_t *out, size_t *outLen);
 int cryptSign( CRYPTSHA1_T *inSha, uint8_t *out, size_t outLen, CRYPTKEY_T *cryptKey);
 int cryptVerify(uint8_t *sign, size_t signLen, CRYPTSHA1_T *sha, CRYPTKEY_T *pubKey);
 
-void cryptRand( void *out, int32_t outLen);
+void cryptRand(void *out, uint32_t outLen);
 
 void cryptShaAtomic( void *in, int32_t len, CRYPTSHA1_T *sha);
 void cryptShaNew( void *in, int32_t len);

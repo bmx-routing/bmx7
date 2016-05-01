@@ -45,9 +45,12 @@
 #include "crypt.h"
 #include "avl.h"
 #include "node.h"
+#include "key.h"
+#include "sec.h"
 #include "metrics.h"
 #include "msg.h"
 #include "desc.h"
+#include "content.h"
 #include "ip.h"
 #include "plugin.h"
 #include "prof.h"
@@ -504,7 +507,7 @@ struct tun_dev_node * tun_dev_out_del(struct tun_bit_node *tbn)
 
 	assertion(-501460, (is_ip_set(&ton->localIp)));
 	assertion(-501461, (ton->tunOutKey.on));
-	assertion(-501462, (ton->tunOutKey.on != myKey->currOrig));
+	assertion(-501462, (ton->tunOutKey.on != myKey->on));
 	assertion(-501463, (tdn));
 	assertion(-501464, (tdn->ifIdx));
 	assertion(-501465, (tdn->orig_mtu));
@@ -645,7 +648,7 @@ struct tun_dev_node *tun_dev_out_add(struct tun_bit_node *tbn, IDM_T tdn_state)
 
 	assertion(-501524, (is_ip_set(&ton->localIp)));
 	assertion(-501235, (ton->tunOutKey.on));
-	assertion(-501321, (ton->tunOutKey.on != myKey->currOrig));
+	assertion(-501321, (ton->tunOutKey.on != myKey->on));
 	assertion(-501343, (is_ip_set(&ton->tunOutKey.on->primary_ip)));
 
 	dbgf_track(DBGT_INFO, "tdn_state=%d", tdn_state);
@@ -1023,19 +1026,14 @@ IDM_T _recalc_tun_bit_tree(void)
 		struct tun_net_node *tnn = tbn_curr->tunBitKey.keyNodes.tnn;
 		struct tun_search_node *tsn = tbn_curr->tunBitKey.keyNodes.tsn;
 
-
 		struct orig_node *on = tnn->tunNetKey.ton->tunOutKey.on;
 
-		UMETRIC_T linkMax = UMETRIC_MAX;
-		UMETRIC_T tnnBandwidth = fmetric_u8_to_umetric(tnn->bandwidth);
-		UMETRIC_T linkQuality = tnnBandwidth >= tsn->minBW ? UMETRIC_MAX : tnnBandwidth;
-		UMETRIC_T pathMetric = on->curr_rt_link ? on->ogmMetric : 0;
-		UMETRIC_T e2eMetric;
+		assertion_dbg(-502533, ((on->neighPath.um & ~UMETRIC_MASK) == 0), "um=%ju mask=%ju max=%ju",on->neighPath.um, UMETRIC_MASK, UMETRIC_MAX);
 
-		if (linkQuality <= UMETRIC_MIN__NOT_ROUTABLE || pathMetric <= UMETRIC_MIN__NOT_ROUTABLE)
-			e2eMetric = UMETRIC_MIN__NOT_ROUTABLE;
-		else
-			e2eMetric = apply_metric_algo(&linkQuality, &linkMax, &pathMetric, on->path_metricalgo);
+		UMETRIC_T tnnBandwidth = fmetric_u8_to_umetric(tnn->bandwidth);
+		UMETRIC_T tnnQuality = tnnBandwidth >= tsn->minBW ? UMETRIC_MAX : tnnBandwidth;
+		UMETRIC_T pathMetric = on->neighPath.link ? on->neighPath.um : 0;
+		UMETRIC_T e2eMetric = XMIN(tnnQuality, pathMetric);
 
 		dbgf_all(DBGT_INFO, "acceptable e2eMetric=%s,", umetric_to_human(e2eMetric));
 
@@ -1328,7 +1326,7 @@ int process_dsc_tlv_tun6(struct rx_frame_iterator *it)
 	TRACE_FUNCTION_CALL;
 	int16_t m;
 
-	if (it->dcOp->key == myKey)
+	if (it->dcOp->kn == myKey)
 		return it->f_msgs_len;
 
 
@@ -1375,7 +1373,7 @@ int process_dsc_tlv_tun6(struct rx_frame_iterator *it)
 
 			for (t = 0; t < sizeof(tlv_types); t++) {
 
-				if (desc_frame_changed(it, tlv_types[t])) {
+				if (desc_frame_changed(it->dcOld, it->dcOp, tlv_types[t])) {
 					new_tun6_advs_changed = YES;
 					break;
 				}
@@ -1399,7 +1397,7 @@ int process_dsc_tlv_tun6(struct rx_frame_iterator *it)
 		struct dsc_msg_tun6 *adv = &(((struct dsc_msg_tun6 *) (it->f_data))[m]);
 		struct tun_out_key key = set_tun_adv_key(it->on, m);
 
-		dbgf_all(DBGT_INFO, "op=%s tunnel_out.items=%d tun_net.items=%d msg=%d/%d localIp=%s nodeId=%s key=%s",
+		dbgf_track(DBGT_INFO, "op=%s tunnel_out.items=%d tun_net.items=%d msg=%d/%d localIp=%s nodeId=%s key=%s",
 			tlv_op_str(it->op), tun_out_tree.items, tun_net_tree.items, m, it->f_msgs_fixed,
 			ip6AsStr(&adv->localIp), nodeIdAsStringFromDescAdv(it->dcOp->desc_frame),
 			memAsHexString(&key, sizeof(key)));
@@ -1424,7 +1422,7 @@ int process_dsc_tlv_tun6(struct rx_frame_iterator *it)
 
 		} else if (it->op == TLV_OP_NEW) {
 
-			assertion(-600005, (!avl_find_item(&tun_out_tree, &key)));
+			assertion(-500005, (!avl_find_item(&tun_out_tree, &key)));
 
 			struct tun_out_node *tun = debugMallocReset(sizeof(struct tun_out_node), -300426);
 			tun->tunOutKey = key;
@@ -1485,7 +1483,7 @@ int process_dsc_tlv_tunXin6ingress(struct rx_frame_iterator *it)
 	uint8_t isSrc4 = (it->f_type == BMX_DSC_TLV_TUN4IN6_INGRESS);
 	int32_t pos;
 
-	if (it->dcOp->key == myKey)
+	if (it->dcOp->kn == myKey)
 		return it->f_msgs_len;
 
 
@@ -1718,7 +1716,7 @@ int process_dsc_tlv_tunXin6net(struct rx_frame_iterator *it)
 
 	uint8_t used = NO;
 
-	if (it->dcOp->key == myKey && it->op != TLV_OP_TEST)
+	if (it->dcOp->kn == myKey && it->op != TLV_OP_TEST)
 		return it->f_msgs_len;
 
 
@@ -1726,7 +1724,7 @@ int process_dsc_tlv_tunXin6net(struct rx_frame_iterator *it)
 
 	if (it->op == TLV_OP_NEW) {
 
-		if (!new_tun6_advs_changed && !desc_frame_changed(it, it->f_type))
+		if (!new_tun6_advs_changed && !desc_frame_changed(it->dcOld, it->dcOp, it->f_type))
 			return it->f_msgs_len;
 	}
 
@@ -2021,7 +2019,7 @@ static int32_t tun_out_status_creator(struct status_handl *handl, void *data)
 				strcpy(status->srcIngress, netAsStr(&tun->ingressPrefix[(tnn->tunNetKey.netKey.af == AF_INET)]));
 				status->advBwVal = fmetric_u8_to_umetric(tnn->bandwidth);
 				status->advBw = status->advBwVal ? &status->advBwVal : NULL;
-				status->pathMtc = tun->tunOutKey.on->curr_rt_link ? &tun->tunOutKey.on->ogmMetric : NULL;
+				status->pathMtc = tun->tunOutKey.on->neighPath.link ? &tun->tunOutKey.on->neighPath.um : NULL;
 			} else {
 				strcpy(status->advNet, DBG_NIL);
 				strcpy(status->srcIngress, DBG_NIL);
@@ -2891,7 +2889,7 @@ void tun_dev_event_hook(int32_t cb_id, void* unused)
 {
         TRACE_FUNCTION_CALL;
 
-	IDM_T TODO_CheckIfThisFunctionIsneededAsPrimaryIpCanNotChangeAnymore;
+//	IDM_T TODO_CheckIfThisFunctionIsneededAsPrimaryIpCanNotChangeAnymore;
 
         struct tun_in_node *tun;
         struct avl_node *an = NULL;

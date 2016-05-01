@@ -37,8 +37,13 @@
 #include "crypt.h"
 #include "avl.h"
 #include "node.h"
+#include "key.h"
+#include "sec.h"
+#include "metrics.h"
 #include "link.h"
 #include "msg.h"
+#include "desc.h"
+#include "content.h"
 #include "plugin.h"
 #include "schedule.h"
 #include "tools.h"
@@ -451,7 +456,7 @@ void json_originator_event_hook(int32_t cb_id, struct orig_node *orig)
                                 char status_name[sizeof (((struct status_handl *) NULL)->status_name)] = ARG_ORIGINATORS;
 
                                 if ((handl = avl_find_item(&status_tree, status_name)) &&
-                                        (data_len = ((*(handl->frame_creator))(handl, on->key)))) {
+                                        (data_len = ((*(handl->frame_creator))(handl, on->kn)))) {
 
                                         json_object *jdesc_fields = NULL;
 
@@ -517,7 +522,7 @@ void json_description_event_hook(int32_t cb_id, struct orig_node *on)
                 }
 
                 json_object *jorig = json_object_new_object();
-                json_object_object_add(jorig, "descSha", json_object_new_string(cryptShaAsString(&on->descContent->dhn->dhash)));
+                json_object_object_add(jorig, "descSha", json_object_new_string(cryptShaAsString(&on->dc->dHash)));
 
 /*
                 json_object *jblocked = json_object_new_int(on->blocked);

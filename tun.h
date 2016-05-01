@@ -163,9 +163,9 @@ struct dsc_msg_tun4in6ingress {
 } __attribute__((packed));
 
 #define DESCRIPTION_MSG_TUN4IN6_INGRESS_ADV_FORMAT { \
-{FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_MEDI, "tun6Id" },  \
-{FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_HIGH, "ingressPrefixLen" },  \
-{FIELD_TYPE_IP4,      -1,  32, 1, FIELD_RELEVANCE_HIGH, "ingressPrefix" },  \
+{FIELD_TYPE_UINT,     -1,   8, 0, FIELD_RELEVANCE_MEDI, "tun6Id" },  \
+{FIELD_TYPE_UINT,     -1,   8, 0, FIELD_RELEVANCE_HIGH, "ingressPrefixLen" },  \
+{FIELD_TYPE_IP4,      -1,  32, 0, FIELD_RELEVANCE_HIGH, "ingressPrefix" },  \
 FIELD_FORMAT_END }
 
 struct dsc_msg_tun6in6ingress {
@@ -177,9 +177,9 @@ struct dsc_msg_tun6in6ingress {
 } __attribute__((packed));
 
 #define DESCRIPTION_MSG_TUN6IN6_INGRESS_ADV_FORMAT { \
-{FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_MEDI, "tun6Id" },  \
-{FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_HIGH, "ingressPrefixLen" },  \
-{FIELD_TYPE_IPX6,     -1, 128, 1, FIELD_RELEVANCE_HIGH, "ingressPrefix" },  \
+{FIELD_TYPE_UINT,     -1,   8, 0, FIELD_RELEVANCE_MEDI, "tun6Id" },  \
+{FIELD_TYPE_UINT,     -1,   8, 0, FIELD_RELEVANCE_HIGH, "ingressPrefixLen" },  \
+{FIELD_TYPE_IPX6,     -1, 128, 0, FIELD_RELEVANCE_HIGH, "ingressPrefix" },  \
 FIELD_FORMAT_END }
 
 
@@ -200,11 +200,11 @@ struct dsc_msg_tun4in6src {
 } __attribute__((packed));
 
 #define DESCRIPTION_MSG_TUN4IN6_SRC_ADV_FORMAT { \
-{FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_MEDI, "tun6Id" },  \
-{FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_HIGH, "srcType" },  \
-{FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_HIGH, "srcPrefixMin" },  \
-{FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_HIGH, "srcPrefixLen" },  \
-{FIELD_TYPE_IP4,      -1,  32, 1, FIELD_RELEVANCE_HIGH, "srcPrefix" },  \
+{FIELD_TYPE_UINT,     -1,   8, 0, FIELD_RELEVANCE_MEDI, "tun6Id" },  \
+{FIELD_TYPE_UINT,     -1,   8, 0, FIELD_RELEVANCE_HIGH, "srcType" },  \
+{FIELD_TYPE_UINT,     -1,   8, 0, FIELD_RELEVANCE_HIGH, "srcPrefixMin" },  \
+{FIELD_TYPE_UINT,     -1,   8, 0, FIELD_RELEVANCE_HIGH, "srcPrefixLen" },  \
+{FIELD_TYPE_IP4,      -1,  32, 0, FIELD_RELEVANCE_HIGH, "srcPrefix" },  \
 FIELD_FORMAT_END }
 
 struct dsc_msg_tun6in6src {
@@ -216,11 +216,11 @@ struct dsc_msg_tun6in6src {
 } __attribute__((packed));
 
 #define DESCRIPTION_MSG_TUN6IN6_SRC_ADV_FORMAT { \
-{FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_MEDI, "tun6Id" },  \
-{FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_HIGH, "srcType" },  \
-{FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_HIGH, "srcPrefixMin" },  \
-{FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_HIGH, "srcPrefixLen" },  \
-{FIELD_TYPE_IPX6,     -1, 128, 1, FIELD_RELEVANCE_HIGH, "srcPrefix" },  \
+{FIELD_TYPE_UINT,     -1,   8, 0, FIELD_RELEVANCE_MEDI, "tun6Id" },  \
+{FIELD_TYPE_UINT,     -1,   8, 0, FIELD_RELEVANCE_HIGH, "srcType" },  \
+{FIELD_TYPE_UINT,     -1,   8, 0, FIELD_RELEVANCE_HIGH, "srcPrefixMin" },  \
+{FIELD_TYPE_UINT,     -1,   8, 0, FIELD_RELEVANCE_HIGH, "srcPrefixLen" },  \
+{FIELD_TYPE_IPX6,     -1, 128, 0, FIELD_RELEVANCE_HIGH, "srcPrefix" },  \
 FIELD_FORMAT_END }
 
 struct dsc_msg_tun4in6net {
@@ -232,11 +232,11 @@ struct dsc_msg_tun4in6net {
 } __attribute__((packed));
 
 #define DESCRIPTION_MSG_TUN4IN6_NET_ADV_FORMAT { \
-{FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_MEDI, "tun6Id" },  \
-{FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_HIGH, "rtype" },  \
-{FIELD_TYPE_FMETRIC8, -1,   8, 1, FIELD_RELEVANCE_HIGH, "bandwidth" },  \
-{FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_HIGH, "networkLen" },  \
-{FIELD_TYPE_IP4,      -1,  32, 1, FIELD_RELEVANCE_HIGH, "network" },  \
+{FIELD_TYPE_UINT,     -1,   8, 0, FIELD_RELEVANCE_MEDI, "tun6Id" },  \
+{FIELD_TYPE_UINT,     -1,   8, 0, FIELD_RELEVANCE_HIGH, "rtype" },  \
+{FIELD_TYPE_FMETRIC8, -1,   8, 0, FIELD_RELEVANCE_HIGH, "bandwidth" },  \
+{FIELD_TYPE_UINT,     -1,   8, 0, FIELD_RELEVANCE_HIGH, "networkLen" },  \
+{FIELD_TYPE_IP4,      -1,  32, 0, FIELD_RELEVANCE_HIGH, "network" },  \
 FIELD_FORMAT_END }
 
 struct dsc_msg_tun6in6net {
@@ -248,11 +248,11 @@ struct dsc_msg_tun6in6net {
 } __attribute__((packed));
 
 #define DESCRIPTION_MSG_TUN6IN6_NET_ADV_FORMAT { \
-{FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_MEDI, "tun6Id" },  \
-{FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_HIGH, "rtype" },  \
-{FIELD_TYPE_FMETRIC8, -1,   8, 1, FIELD_RELEVANCE_HIGH, "bandwidth" },  \
-{FIELD_TYPE_UINT,     -1,   8, 1, FIELD_RELEVANCE_HIGH, "networkLen" },  \
-{FIELD_TYPE_IPX6,     -1, 128, 1, FIELD_RELEVANCE_HIGH, "network" },  \
+{FIELD_TYPE_UINT,     -1,   8, 0, FIELD_RELEVANCE_MEDI, "tun6Id" },  \
+{FIELD_TYPE_UINT,     -1,   8, 0, FIELD_RELEVANCE_HIGH, "rtype" },  \
+{FIELD_TYPE_FMETRIC8, -1,   8, 0, FIELD_RELEVANCE_HIGH, "bandwidth" },  \
+{FIELD_TYPE_UINT,     -1,   8, 0, FIELD_RELEVANCE_HIGH, "networkLen" },  \
+{FIELD_TYPE_IPX6,     -1, 128, 0, FIELD_RELEVANCE_HIGH, "network" },  \
 FIELD_FORMAT_END }
 
 struct tunXin6_net_adv_node {

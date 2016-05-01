@@ -37,6 +37,15 @@
 #include "tools.h"
 #include "allocate.h"
 
+char *strToLower(char *s)
+{
+	uint32_t i;
+	for (i = 0; s[i]; i++)
+		s[i] = tolower(s[i]);
+
+	return s;
+}
+
 char* memAsHexStringSep( const void* mem, uint32_t len, uint16_t seperationLen, char *seperator)
 {
 #define MEMASSTR_BUFF_SIZE 2048
@@ -75,7 +84,7 @@ char* memAsHexString( const void* mem, uint32_t len)
 char* rmStrKeyValue(char* str, char* key)
 {
 	char *needleBegin = NULL, *needleVal = NULL, *needleEnd = NULL, *ret = NULL;
-	char *haystack = debugMallocReset(strlen(str)+1, -300000);
+	char *haystack = debugMallocReset(strlen(str)+1, -300810);
 
 	if (
 		(strcpy(haystack, str)) &&
@@ -103,7 +112,7 @@ char* rmStrKeyValue(char* str, char* key)
 
 
 	dbgf_all(DBGT_INFO, "in=%s key=%s beg=%s val=%s end=%s ret=%s, out=%s", haystack, key, needleBegin, needleVal, needleEnd, ret, str);
-	debugFree(haystack, -300000);
+	debugFree(haystack, -300811);
 	return ret;
 }
 
@@ -472,6 +481,28 @@ uint8_t is_zero(void *data, int32_t len)
         return YES;
 }
 
+void bit_xor(void *out, void *a, void *b, uint32_t size)
+{
+	uint32_t p = 0;
+
+	while (p < size) {
+
+		if ((size - p) >= sizeof(uint64_t)) {
+			*((uint64_t*) &(((uint8_t*) out)[p])) = (*((uint64_t*) &(((uint8_t*) a)[p]))) ^ (*((uint64_t*) &(((uint8_t*) b)[p])));
+			p += sizeof(uint64_t);
+		} else if ((size - p) >= sizeof(uint32_t)) {
+			*((uint32_t*) &(((uint8_t*) out)[p])) = (*((uint32_t*) &(((uint8_t*) a)[p]))) ^ (*((uint32_t*) &(((uint8_t*) b)[p])));
+			p += sizeof(uint32_t);
+		} else if ((size - p) >= sizeof(uint16_t)) {
+			*((uint16_t*) &(((uint8_t*) out)[p])) = (*((uint16_t*) &(((uint8_t*) a)[p]))) ^ (*((uint16_t*) &(((uint8_t*) b)[p])));
+			p += sizeof(uint16_t);
+		} else if ((size - p) >= sizeof(uint8_t)) {
+			*((uint8_t*) &(((uint8_t*) out)[p])) = (*((uint8_t*) &(((uint8_t*) a)[p]))) ^ (*((uint8_t*) &(((uint8_t*) b)[p])));
+			p += sizeof(uint8_t);
+		}
+	}
+	assertion(-502609, (p == size));
+}
 
 
 

@@ -168,7 +168,7 @@ void filter_temporary_route_changes(void *newP)
 
 	if (newP == FILTER_TMP_RT_CHANGES_NOW) {
 
-		while ((rfn = avl_remove_first_item(&redist_filter_tree, -300000))) {
+		while ((rfn = avl_remove_first_item(&redist_filter_tree, -300773))) {
 
 			struct redist_in_node *rin = avl_find_item(&redist_in_tree, &rfn->k);
 
@@ -190,7 +190,7 @@ void filter_temporary_route_changes(void *newP)
 				avl_insert(&redist_in_tree, rin, -300553);
 			}
 
-			debugFree(rfn, -300000);
+			debugFree(rfn, -300774);
 		}
 
 		schedule_table_routes((void*)YES);
@@ -232,7 +232,7 @@ void filter_temporary_route_changes(void *newP)
 				}
 
 				schedule_table_routes((void*) NO);
-				debugFree(avl_remove(&redist_filter_tree, &rfn->k, -300000), -300000);
+				debugFree(avl_remove(&redist_filter_tree, &rfn->k, -300775), -300776);
 
 			} else {
 				next_check = XMIN(next_check, (rtfilter_delay - passed));
@@ -242,7 +242,7 @@ void filter_temporary_route_changes(void *newP)
 	} else if (newP == FILTER_TMP_RT_CHANGES_PURGE) {
 
 		while (redist_filter_tree.items)
-			debugFree(avl_remove_first_item(&redist_filter_tree, -300000), -3000000);
+			debugFree(avl_remove_first_item(&redist_filter_tree, -300777), -300778);
 		
 	} else if (newP > FILTER_TMP_RT_CHANGES_MAX) {
 
@@ -251,7 +251,7 @@ void filter_temporary_route_changes(void *newP)
 			rfn->cnt += new->cnt;
 
 			if (rfn->cnt == 0) {
-				debugFree(avl_remove(&redist_filter_tree, &rfn->k, -300000), -300000);
+				debugFree(avl_remove(&redist_filter_tree, &rfn->k, -300779), -300780);
 				dbgf_track(DBGT_INFO, "filtering temporary change");
 			}
 
@@ -267,7 +267,7 @@ void filter_temporary_route_changes(void *newP)
 	if (redist_filter_tree.items) {
 		if (!scheduled) {
 			scheduled = YES;
-			task_register(next_check, filter_temporary_route_changes, FILTER_TMP_RT_CHANGES_CHECK, -300000);
+			task_register(next_check, filter_temporary_route_changes, FILTER_TMP_RT_CHANGES_CHECK, -300781);
 		}
 	} else {
 		if (scheduled) {

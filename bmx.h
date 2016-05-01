@@ -23,7 +23,7 @@
 #include <stdint.h>
 #include <sys/types.h>
 #include <netinet/in.h>
-#include <linux/if.h>
+#include <net/if.h>
 #include <linux/rtnetlink.h>
 
 
@@ -62,9 +62,9 @@ typedef int8_t IDM_T; // smallest int which size does NOT matter
 //and so on...
 
 
-#define MIN_COMPATIBILITY CV17
-#define MAX_COMPATIBILITY CV18
-#define DEF_COMPATIBILITY CV17
+#define MIN_COMPATIBILITY CV19
+#define MAX_COMPATIBILITY CV20
+#define DEF_COMPATIBILITY CV19
 #define ARG_COMPATIBILITY "compatibility"
 extern int32_t my_compatibility;
 
@@ -174,9 +174,6 @@ extern int32_t dad_to;
 
 
 
-#define MIN_DHASH_TO 300000
-#define DHASH_TO_TOLERANCE_FK 10
-
 
 
 
@@ -188,15 +185,17 @@ extern int32_t dad_to;
 // deprecated:
 typedef uint16_t SQN_T;
 #define SQN_MAX ((SQN_T)-1)
-#define MAX_SQN_RANGE 8192 // the maxumim of all .._SQN_RANGE ranges, should never be more than SQN_MAX/4
 
 typedef uint32_t PKT_SQN_T;
 #define PKT_SQN_MAX ((PKT_SQN_T)-1)
 
 
 // OGMs:
-typedef uint16_t OGM_SQN_T;
-#define OGM_SQN_BIT_SIZE (16)
+
+typedef uint16_t ROUGH_DHASH_T;
+
+typedef uint32_t OGM_SQN_T;
+#define OGM_SQN_BIT_SIZE (32)
 #define OGM_SQN_MASK     ((1<<OGM_SQN_BIT_SIZE)-1)
 #define OGM_SQN_MAX      OGM_SQN_MASK
 
@@ -211,7 +210,7 @@ typedef uint16_t AGGREG_SQN_T;
 #define AGGREG_SQN_MAX      AGGREG_SQN_MASK
 
 #define AGGREG_SQN_CACHE_MASK  0xFF
-#define AGGREG_SQN_CACHE_RANGE (AGGREG_SQN_CACHE_MASK+1) //32
+#define AGGREG_SQN_CACHE_RANGE (AGGREG_SQN_CACHE_MASK+1)
 
 
 
@@ -309,6 +308,7 @@ typedef uint32_t DESC_SQN_T;
 #define ARG_LIST "list"
 #define ARG_SHOW "show"
 #define ARG_ORIGINATORS "originators"
+#define ARG_KEYS "keys"
 #define ARG_STATUS "status"
 #define ARG_CREDITS "credits"
 #define ARG_DESCREFS "references"
@@ -423,7 +423,8 @@ enum {
 	FIELD_TYPE_IPX6P,
 	FIELD_TYPE_NETP,
 	FIELD_TYPE_MAC,
-
+	FIELD_TYPE_INT,
+	FIELD_TYPE_FLOAT,
 	FIELD_TYPE_END
 };
 
@@ -431,7 +432,7 @@ enum {
                               (8*sizeof(GLOBAL_ID_T*)),(8*sizeof(GLOBAL_ID_T*)),(8*sizeof(GLOBAL_ID_T)), \
                               (8*sizeof(UMETRIC_T)),(8*sizeof(UMETRIC_T*)),(8*sizeof(FMETRIC_U8_T)), \
                               (8*sizeof(IP4_T)), (8*sizeof(IPX_T)), (8*sizeof(IPX_T)), (8*sizeof(IP6_T)), \
-                              (8*sizeof(IP6_T*)), (8*sizeof(struct net_key*)), (8*sizeof(MAC_T))}
+                              (8*sizeof(IP6_T*)), (8*sizeof(struct net_key*)), (8*sizeof(MAC_T)), -1, (8*sizeof(float))}
 // negative values mean size must be multiple of negativ value, positive values mean absolute bit sizes
 
 #define FIELD_FORMAT_MAX_ITEMS 100
@@ -554,15 +555,15 @@ enum {
 /*
  * ASSERTION / PARANOIA ERROR CODES:
  * Negative numbers are used as SIGSEV error codes !
- * Currently used numbers are: -500000 -500001 ... -502519
+ * Currently used numbers are: -500000 -500001 ... -502677
  */
 
 //#define paranoia( code , problem ) do { if ( (problem) ) { cleanup_all( code ); } }while(0)
-#define assertion( code , condition ) do { if ( !(condition) ) { cleanup_all( code ); } }while(0)
-#define assertion_dbg( code , condition, ... ) do { if ( !(condition) ) { dbgf_sys(DBGT_ERR, __VA_ARGS__ ); cleanup_all( code ); } }while(0)
+#define assertion( code , condition ) do { if ( code <= -600000 || code > -500000 || !(condition) ) { cleanup_all( code ); } }while(0)
+#define assertion_dbg( code , condition, ... ) do { if ( code <= -600000 || code > -500000 || !(condition) ) { dbgf_sys(DBGT_ERR, __VA_ARGS__ ); cleanup_all( code ); } }while(0)
 
 #ifdef EXTREME_PARANOIA
-#define ASSERTION( code , condition ) do { if ( !(condition) ) { cleanup_all( code ); } }while(0)
+#define ASSERTION( code , condition ) assertion(code, condition)
 #define CHECK_INTEGRITY( ) checkIntegrity()
 #else
 #define CHECK_INTEGRITY( )

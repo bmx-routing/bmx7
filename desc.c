@@ -38,8 +38,8 @@
 #include "metrics.h"
 #include "ogm.h"
 #include "msg.h"
-#include "desc.h"
 #include "content.h"
+#include "desc.h"
 #include "z.h"
 #include "ip.h"
 #include "schedule.h"
@@ -60,8 +60,9 @@ int32_t desc_vbodies_size_in =        DEF_DESC_VBODIES_SIZE;
 int32_t vrt_frame_max_nesting = 2;
 
 int32_t unsolicitedDescAdvs = DEF_UNSOLICITED_DESC_ADVS;
-int32_t dhashRslvInterval = DEF_DHASH_RSLV_INTERVAL;
-int32_t dhashRslvIters = DEF_DHASH_RSLV_ITERS;
+int32_t maintainanceInterval = DEF_REF_MAINTAIN_INTERVAL;
+int32_t resolveIterations = DEF_DHASH_RSLV_ITERS;
+int32_t resolveInterval = DEF_DHASH_RSLV_INTERVAL;
 
 
 
@@ -77,7 +78,7 @@ IDM_T process_description_tlvs(struct packet_buff *pb, struct orig_node *on, str
         int32_t result;
 	int8_t blocked = NO;
 
-	assertion(-500807, (dcOp && dcOp->desc_frame && dcOp->dhn));
+	assertion(-500807, (dcOp && dcOp->desc_frame));
 	assertion(-502047, IMPLIES(op == TLV_OP_DEL || op == TLV_OP_NEW, on && dcOp));
 
 	if (filter <= description_tlv_db->handl_max && !contents_data(dcOp, filter))
@@ -109,8 +110,8 @@ IDM_T process_description_tlvs(struct packet_buff *pb, struct orig_node *on, str
 
                 assertion(-501355, (op == TLV_OP_TEST));
 
-                dbgf_sys(DBGT_WARN, "problematic description_ltv from %s, near type=%d=%s frame_data_length=%d  pos=%d %s %s",
-                        pb ? pb->i.llip_str : DBG_NIL,
+                dbgf_sys(DBGT_WARN, "problematic description_ltv via %s from id=%s near type=%d=%s frame_data_length=%d  pos=%d %s %s",
+                        pb ? pb->i.llip_str : DBG_NIL, nodeIdAsStringFromDescAdv(dcOp->desc_frame),
 			it.f_type, (((uint8_t)it.f_type) <= description_tlv_db->handl_max) ? description_tlv_db->handls[it.f_type].name : "",
                         it.f_dlen, it._f_pos_next, blocked ? "BLOCKED" : "", tlv_rx_result_str(result));
 
@@ -130,11 +131,9 @@ IDM_T process_description_tlvs(struct packet_buff *pb, struct orig_node *on, str
 
 
 
-IDM_T desc_frame_changed(  struct rx_frame_iterator *it, uint8_t type )
+IDM_T desc_frame_changed(  struct desc_content *dcA, struct desc_content *dcB, uint8_t type )
 {
-	struct desc_content *dcA = it->dcOld;
-	struct desc_content *dcB = it->dcOp;
-	struct key_node *kn = (dcA ? dcA->key : (dcB ? dcB->key : NULL));
+	struct key_node *kn = (dcA ? dcA->kn : (dcB ? dcB->kn : NULL));
 
 	assertion(-502274, (kn));
 
@@ -143,7 +142,7 @@ IDM_T desc_frame_changed(  struct rx_frame_iterator *it, uint8_t type )
 
 	dbgf_track(DBGT_INFO, "orig=%s %s type=%d (%s) dcA_len=%d dcB_len=%d",
 		cryptShaAsString(&kn->kHash), changed ? "  CHANGED" : "UNCHANGED",
-		type, it->db->handls[type].name, contents_dlen(dcA, type), contents_dlen(dcB, type));
+		type, description_tlv_db->handls[type].name, contents_dlen(dcA, type), contents_dlen(dcB, type));
 
 	return changed;
 }
@@ -177,55 +176,75 @@ char *nodeIdAsStringFromDescAdv(uint8_t *desc_adv)
 
 void update_orig_dhash(struct desc_content *dcNew)
 {
-	assertion(-502469, (dcNew->key));
+	assertion(-502469, (dcNew->kn));
 
-	struct key_node *kn = dcNew->key;
-	struct orig_node *on = kn->currOrig;
-	struct desc_content *dcOld = on ? on->descContent : NULL;
+	struct key_node *kn = dcNew->kn;
+	struct orig_node *on = kn->on;
+	struct desc_content *dcOld = on ? on->dc : NULL;
+	IID_T iid;
 
-	assertion(-502470, (dcNew && dcNew->key && !dcNew->orig));
+	assertion(-502470, (dcNew && dcNew->kn && !dcNew->on));
 	assertion(-502471, (dcNew && dcNew->unresolvedContentCounter == 0 && dcNew->contentRefs_tree.items));
-	assertion(-502225, IMPLIES(on, on->descContent != dcNew));
-	assertion(-502225, IMPLIES(on, on->descContent->orig == on));
-	assertion(-502472, IMPLIES(on, on->descContent->descSqn < dcNew->descSqn));
+	assertion(-502225, IMPLIES(on, on->dc != dcNew));
+	assertion(-502225, IMPLIES(on, on->dc->on == on));
+	assertion(-502472, IMPLIES(on, on->dc->descSqn < dcNew->descSqn));
+	assertion(-502643, (kn->descSqnMin <= dcNew->descSqn));
 	ASSERTION(-502473, (process_description_tlvs(NULL, on, dcOld, dcNew, TLV_OP_TEST, FRAME_TYPE_PROCESS_ALL) == TLV_RX_DATA_DONE));
 
 	if (on) {
-		cb_plugin_hooks(PLUGIN_CB_DESCRIPTION_DESTROY, on);
-		on->descContent = dcNew;
-		dcNew->orig = on;
-		dcOld->orig = NULL;
-	} else {
-		on = debugMallocReset(sizeof( struct orig_node) + (sizeof(void*) * plugin_data_registries[PLUGIN_DATA_ORIG]), -300128);
-		on->k.nodeId = dcNew->key->kHash;
-		on->key = dcNew->key;
 
-		on->descContent = dcNew;
-		dcNew->orig = on;
-		dcNew->key->currOrig = on;
+		cb_plugin_hooks(PLUGIN_CB_DESCRIPTION_DESTROY, on);
+		on->dc = dcNew;
+		dcNew->on = on;
+		dcOld->on = NULL;
+		iid = iid_get_myIID4x_by_node(on);
+		
+		if (on->ogmAggregActiveMsgLen)
+			remove_ogm(on);
+
+	} else {
+
+		on = debugMallocReset(sizeof( struct orig_node) + (sizeof(void*) * plugin_data_registries[PLUGIN_DATA_ORIG]), -300128);
+		on->k.nodeId = dcNew->kn->kHash;
+		on->kn = dcNew->kn;
+
+		on->dc = dcNew;
+		dcNew->on = on;
+		dcNew->kn->on = on;
 
 		init_neighTrust(on);
 
 		avl_insert(&orig_tree, on, -300148);
+		
+		iid = iid_new_myIID4x(on);
 
 		cb_plugin_hooks(PLUGIN_CB_STATUS, NULL);
 	}
 
+//	memset(&on->anchor, 0, sizeof(on->anchor));
+
+	kn->descSqnMin = dcNew->descSqn;
 	kn->nextDesc = NULL;
+
+	assertion_dbg(-502536, ((on->neighPath.um & ~UMETRIC_MASK) == 0), "um=%ju mask=%ju max=%ju",on->neighPath.um, UMETRIC_MASK, UMETRIC_MAX);
+
+	assertion(-502537, IMPLIES(myKey == on->kn, iid == IID_MIN_USED_FOR_SELF)); // Not strictly necessary yet but maybe this requirement can be useful later.
 
 	process_description_tlvs(NULL, on, dcOld, dcNew, TLV_OP_NEW, FRAME_TYPE_PROCESS_ALL);
 
 	if (dcOld)
-		dhash_node_reject(dcOld->dhn);
+		descContent_destroy(dcOld);
 
 	on->updated_timestamp = bmx_time;
 
 	cb_plugin_hooks(PLUGIN_CB_DESCRIPTION_CREATED, on);
 
 	if (unsolicitedDescAdvs) {
-		schedule_tx_task(FRAME_TYPE_DESC_ADVS, NULL, NULL, NULL, dcNew->desc_frame_len, &dcNew->dhn->dhash, sizeof(DHASH_T));
-		schedule_tx_task(FRAME_TYPE_DHASH_ADV, NULL, NULL, NULL, SCHEDULE_MIN_MSG_SIZE, &dcNew->dhn->dhash, sizeof(DHASH_T));
+		schedule_tx_task(FRAME_TYPE_DESC_ADVS, NULL, NULL, NULL, NULL, dcNew->desc_frame_len, &dcNew->dHash, sizeof(DHASH_T));
+		//schedule_tx_task(FRAME_TYPE_IID_ADV, NULL, NULL, NULL, NULL, SCHEDULE_MIN_MSG_SIZE, &iid, sizeof(iid));
 	}
+
+	neighRefs_update(on->kn);
 }
 
 
@@ -240,7 +259,7 @@ void process_description_tlvs_del( struct orig_node *on, struct desc_content *dc
 
 	int8_t t;
 
-	assertion(-502068, (on && dcOld && dcOld->dhn && dcOld->key));
+	assertion(-502068, (on && dcOld && dcOld->kn));
 
 	for (t = ft_start; t <= ft_end; t++) {
 
@@ -253,9 +272,6 @@ void process_description_tlvs_del( struct orig_node *on, struct desc_content *dc
 		}
 	}
 }
-
-
-
 
 
 
@@ -295,24 +311,18 @@ void update_my_description(void)
 	}
 
 	ASSERTION(-502315, (test_description_signature(tx.frames_out_ptr, tx.frames_out_pos)));
-
+	DHASH_T oldDHash = myKey->on ? myKey->on->dc->dHash : ZERO_CYRYPSHA1;
 	struct desc_content *dcNew = descContent_create(tx.frames_out_ptr, tx.frames_out_pos, myKey);
 
-	assertion(-502316, (dcNew && dcNew->dhn));
-	assertion(-502317, (dcNew->key == myKey && myKey->nextDesc == dcNew));
-	assertion(-502318, (dcNew->contentRefs_tree.items && !dcNew->unresolvedContentCounter));
-	assertion(-502319, IMPLIES(myKey->currOrig, myKey->currOrig->descContent->dhn));
+	assertion(-502316, (dcNew));
 
 	dbgf_sys(DBGT_INFO, "nodeId=%s dhashOld=%s dhashNew=%s descSqn=%d",
-		cryptShaAsString(&myKey->kHash),
-		cryptShaAsString(myKey->currOrig ? &myKey->currOrig->descContent->dhn->dhash : NULL),
-		cryptShaAsString(&dcNew->dhn->dhash),
-		dcNew->descSqn);
+		cryptShaAsString(&myKey->kHash), cryptShaAsString(&oldDHash), cryptShaAsString(&dcNew->dHash), dcNew->descSqn);
 
-	keyNode_updCredits(NULL, myKey, NULL);
-
-	assertion(-502512, (myKey->currOrig));
-	assertion(-502320, (myKey->currOrig->descContent == dcNew));
+	assertion(-502317, (dcNew->kn == myKey && !myKey->nextDesc));
+	assertion(-502318, (dcNew->contentRefs_tree.items && !dcNew->unresolvedContentCounter));
+	assertion(-502512, (myKey->on));
+	assertion(-502320, (myKey->on->dc == dcNew));
 
         my_description_changed = NO;
 
@@ -334,7 +344,7 @@ int32_t opt_show_descriptions(uint8_t cmd, uint8_t _save, struct opt_type *opt,
 	if ( cmd == OPT_APPLY ) {
 
                 struct avl_node *an = NULL;
-		struct dhash_node *dhn;
+		struct desc_content *dc;
 		char *name = NULL;
                 int32_t type_filter = DEF_DESCRIPTION_TYPE;
                 int32_t relevance = DEF_RELEVANCE;
@@ -355,17 +365,16 @@ int32_t opt_show_descriptions(uint8_t cmd, uint8_t _save, struct opt_type *opt,
 
 		dbg_printf( cn, "DESCRIPTIONS:" );
 
-                while ((dhn = avl_iterate_item(&dhash_tree, &an))) {
+                while ((dc = avl_iterate_item(&descContent_tree, &an))) {
 
-			struct desc_content *dc = dhn->descContent;
-			if (name && (!dc || !dc->orig || strcmp(name, dc->orig->k.hostname)))
+			if (name && (!dc || !dc->on || strcmp(name, dc->on->k.hostname)))
 				continue;
 
-                        dbg_printf(cn, "\ndescSha=%s nodeId=%s name=%s state=%s contents=%d/%d rejected=%d neighRefs=%d:",
-                                cryptShaAsString(&dhn->dhash), cryptShaAsString(dc ? &dc->key->kHash: NULL),
-				dc && dc->orig ? dc->orig->k.hostname : NULL, dc ? dc->key->bookedState->secName : NULL,
+                        dbg_printf(cn, "\ndescSha=%s nodeId=%s name=%s state=%s contents=%d/%d neighRefs=%d:",
+                                cryptShaAsString(&dc->dHash), cryptShaAsString(dc ? &dc->kn->kHash: NULL),
+				dc && dc->on ? dc->on->k.hostname : NULL, dc ? dc->kn->bookedState->secName : NULL,
 				dc ? dc->contentRefs_tree.items : 0, dc ? (int)(dc->unresolvedContentCounter + dc->contentRefs_tree.items) : -1,
-				dhn->rejected, dhn->neighRefs_tree.items);
+				dc->kn->neighRefs_tree.items);
 
 			if (!dc || !dc->contentRefs_tree.items || dc->unresolvedContentCounter)
 				continue;
@@ -408,50 +417,6 @@ int32_t opt_update_dext_method(uint8_t cmd, uint8_t _save, struct opt_type *opt,
 
 
 
-
-
-STATIC_FUNC
-int32_t create_dsc_tlv_version(struct tx_frame_iterator *it)
-{
-        TRACE_FUNCTION_CALL;
-
-	struct dsc_msg_version *dsc = (struct dsc_msg_version *)tx_iterator_cache_msg_ptr(it);
-
-        dsc->capabilities = htons(my_desc_capabilities);
-
-        uint32_t rev_u32;
-        sscanf(GIT_REV, "%8X", &rev_u32);
-        dsc->codeRevision = htonl(rev_u32);
-        dsc->comp_version = my_compatibility;
-        dsc->descSqn = newDescriptionSqn( NULL, 1);
-
-	return sizeof(struct dsc_msg_version);
-}
-
-STATIC_FUNC
-int32_t process_dsc_tlv_version(struct rx_frame_iterator *it)
-{
-        TRACE_FUNCTION_CALL;
-	assertion(-502321, IMPLIES(it->op == TLV_OP_NEW || it->op == TLV_OP_DEL, it->on));
-
-	if (it->op != TLV_OP_TEST && it->op != TLV_OP_NEW)
-		return it->f_dlen;
-
-	DESC_SQN_T newSqn = ntohl(((struct dsc_msg_version*)it->f_data)->descSqn);
-
-	if (it->dcOld && newSqn <= it->dcOld->descSqn)
-		return TLV_RX_DATA_FAILURE;
-
-	if (it->op == TLV_OP_NEW && it->on->neigh) {
-
-		it->on->neigh->burstSqn = 0;
-
-		if (it->dcOld && newSqn >= (it->dcOld->descSqn + DESC_SQN_REBOOT_ADDS))
-			keyNode_schedLowerWeight(it->on->key, KCPromoted);
-	}
-
-	return sizeof(struct dsc_msg_version);
-}
 
 
 
@@ -531,43 +496,37 @@ int32_t tx_msg_description_request(struct tx_frame_iterator *it)
 	struct tx_task_node *ttn = it->ttn;
 	struct hdr_description_request *hdr = ((struct hdr_description_request*) tx_iterator_cache_hdr_ptr(it));
 	struct msg_description_request *msg = ((struct msg_description_request*) tx_iterator_cache_msg_ptr(it));
-	DHASH_T *dhash = NULL;
-	IDM_T wanted = NO;;
+	struct schedule_dsc_req *req = (struct schedule_dsc_req*)ttn->key.data;
+	struct NeighRef_node *ref = (req->iid) ? iid_get_node_by_neighIID4x(&ttn->neigh->neighIID4x_repos, req->iid, NO) : NULL;
+	struct key_node *kn = (req->iid && ref) ? ref->kn : keyNode_get(&ttn->key.f.groupId);
+	int32_t ret = TLV_TX_DATA_DONE;
 
-	if (memcmp((((uint8_t*) ttn->key.data) + sizeof(DESC_SQN_T)), ((uint8_t *) & ZERO_CYRYPSHA1), (sizeof(CRYPTSHA1_T) - sizeof(DESC_SQN_T)))) {
 
-		struct dhash_node *dhn = avl_find_item(&dhash_tree, (dhash = (DHASH_T*) ttn->key.data));
-		wanted = (dhn && !dhn->descContent && !dhn->rejected && dhn->neighRefs_tree.items);
-	} else {
-		DESC_SQN_T *descSqn = (DESC_SQN_T*) ttn->key.data;
-		struct key_node *neighKn = keyNode_get(&ttn->key.f.groupId);
-		assertion(-502322, IMPLIES(neighKn && neighKn->bookedState->i.c >= KCTracked, neighKn->content));
-		wanted = (neighKn && neighKn->bookedState->i.c >= KCTracked && neighKn->content->f_body &&
-			(neighKn->nextDesc ? neighKn->nextDesc->descSqn < *descSqn : (neighKn->currOrig ? neighKn->currOrig->descContent->descSqn < *descSqn : YES)));
+	if ( ( req && kn && (req->descSqn > (kn->nextDesc ? kn->nextDesc->descSqn : 0)) && (req->descSqn > (kn->on? kn->on->dc->descSqn : 0)) ) && (
+		((!req->iid) && kn->bookedState->i.c >= KCTracked && kn->content->f_body && (kn->bookedState->i.r <= KRQualifying || kn->bookedState->i.c >= KCNeighbor)) ||
+		(req->iid && ref && iid_get_neighIID4x_timeout_by_node(ref) && kn->bookedState->i.c >= KCTracked && kn->content->f_body && ref->inaptChainOgm && ref->inaptChainOgm->claimedChain && ref->descSqn == req->descSqn)
+		)) {
+
+		assertion(-500855, (tx_iterator_cache_data_space_pref(it, 0, 0) >= ((int) (sizeof(struct msg_description_request)))));
+
+		if (hdr->msg == msg) {
+			assertion(-500854, (is_zero(hdr, sizeof(*hdr))));
+			hdr->dest_kHash = ttn->key.f.groupId;
+		} else {
+			assertion(-500871, (cryptShasEqual(&hdr->dest_kHash, &ttn->key.f.groupId)));
+		}
+
+		msg->kHash = kn->kHash;
+
+		ret = sizeof(struct msg_description_request);
 	}
 
-	assertion(-500855, (tx_iterator_cache_data_space_pref(it, 0, 0) >= ((int) (sizeof(struct msg_description_request)))));
-
-	dbgf_track(DBGT_INFO, "%s dev=%s to khash=%s iterations=%d requesting dhash=%s send=%d",
-		it->db->handls[ttn->key.f.type].name, ttn->key.f.p.dev->label_cfg.str, cryptShaAsString(&ttn->key.f.groupId),
-		ttn->tx_iterations, cryptShaAsString(dhash), wanted);
-
-	if (!wanted)
-		return TLV_TX_DATA_DONE;
-
-	msg->dhash = dhash ? *dhash : ZERO_CYRYPSHA1;
-
-	if (hdr->msg == msg) {
-		assertion(-500854, (is_zero(hdr, sizeof(*hdr))));
-		hdr->dest_kHash = ttn->key.f.groupId;
-	} else {
-		assertion(-500871, (cryptShasEqual(&hdr->dest_kHash, &ttn->key.f.groupId)));
-	}
-
-	dbgf_track(DBGT_INFO, "created msg=%d", ((int) ((((char*) msg) - ((char*) hdr) - sizeof( *hdr)) / sizeof(*msg))));
+	dbgf_track(DBGT_INFO, "%s dev=%s to neigh khash=%s iterations=%d requesting kHash=%s iid=%d descSqn=%d credits=%s ret=%d",
+		it->db->handls[ttn->key.f.type].name, ttn->key.f.p.dev->ifname_label.str, cryptShaAsString(&ttn->key.f.groupId),
+		ttn->tx_iterations, cryptShaAsString(kn ? &kn->kHash : NULL), req->iid, req->descSqn, kn ? kn->bookedState->secName : NULL, ret);
 
 
-	return sizeof(struct msg_description_request);
+	return ret;
 }
 
 STATIC_FUNC
@@ -583,23 +542,19 @@ int32_t rx_msg_description_request(struct rx_frame_iterator *it)
 
 	if (cryptShasEqual(&hdr->dest_kHash, &myKey->kHash)) {
 
-		dbgf_track(DBGT_INFO, "%s NB %s destination_dhash=%s requested_dhash=%s",
-			it->f_handl->name, pb->i.llip_str, cryptShaAsString(&hdr->dest_kHash), cryptShaAsString(&msg->dhash));
+		dbgf_track(DBGT_INFO, "%s NB %s destination_dhash=%s requested_kHash=%s",
+			it->f_handl->name, pb->i.llip_str, cryptShaAsString(&hdr->dest_kHash), cryptShaAsString(&msg->kHash));
 
-		struct dhash_node *dhn = cryptShasEqual(&msg->dhash, (void*) &ZERO_CYRYPSHA1) ? myKey->currOrig->descContent->dhn : avl_find_item(&dhash_tree, &msg->dhash);
+		struct key_node *kn = keyNode_get(&msg->kHash);
 
-		if (dhn && dhn->descContent && dhn->descContent->orig && (((TIME_T) (bmx_time - dhn->referred_by_me_timestamp)) <= DEF_DESC0_REFERRED_TO) &&
-			(pb->i.verifiedLink|| dhn == myKey->currOrig->descContent->dhn)) {
+		if (kn && kn->on && (pb->i.verifiedLink || kn == myKey)) {
 
-			dhn->referred_by_me_timestamp = bmx_time;
-
-			schedule_tx_task(FRAME_TYPE_DESC_ADVS, NULL, NULL, pb->i.iif, dhn->descContent->desc_frame_len, &dhn->dhash, sizeof(DHASH_T));
-
+			schedule_tx_task(FRAME_TYPE_DESC_ADVS, NULL, NULL, NULL, pb->i.iif, kn->on->dc->desc_frame_len, &kn->on->dc->dHash, sizeof(kn->on->dc->dHash));
 
 		} else {
-			dbgf_sys(DBGT_WARN, "UNVERIFIED neigh=%s llip=%s or UNKNOWN dhash=%s or OUTDATED dhn=%d dc=%d on=%d",
+			dbgf_sys(DBGT_WARN, "UNVERIFIED neigh=%s llip=%s or non-promoted kHash=%s on=%d nextDc=%d",
 				pb->i.verifiedLink? cryptShaAsString(&pb->i.verifiedLink->k.linkDev->key.local->local_id) : NULL,
-				pb->i.llip_str, cryptShaAsString(&msg->dhash), !!dhn, (dhn && dhn->descContent), (dhn && dhn->descContent && dhn->descContent->orig));
+				pb->i.llip_str, cryptShaAsString(&msg->kHash), !!kn->on, !!kn->nextDesc);
 		}
 	}
 
@@ -611,10 +566,9 @@ int32_t tx_frame_description_adv(struct tx_frame_iterator *it)
 {
         TRACE_FUNCTION_CALL;
 	DHASH_T *dhash = (DHASH_T*)it->ttn->key.data;
-        struct dhash_node *dhn = avl_find_item(&dhash_tree, dhash);
-	struct desc_content *dc = dhn ? dhn->descContent : NULL;
+        struct desc_content *dc = avl_find_item(&descContent_tree, dhash);
 
-	if (!dc || !dc->orig) {
+	if (!dc || !dc->on) {
 		dbgf_sys(DBGT_WARN, "%s dhash=%s!", dc ? "UnKnown" : "UnPromoted", cryptShaAsString(dhash));
                 return TLV_TX_DATA_DONE;
         }
@@ -623,9 +577,10 @@ int32_t tx_frame_description_adv(struct tx_frame_iterator *it)
 	assertion(-502061, (dc->desc_frame_len <= tx_iterator_cache_data_space_max(it, 0, 0)));
 
         memcpy(tx_iterator_cache_msg_ptr(it), dc->desc_frame, dc->desc_frame_len);
-	dc->dhn->referred_by_me_timestamp = bmx_time;
+	iid_get_myIID4x_by_node(dc->on);
+
 	dbgf_track(DBGT_INFO, "dhash=%s id=%s descr_size=%d",
-		cryptShaAsString(dhash), cryptShaAsString(&dc->key->kHash), dc->desc_frame_len);
+		cryptShaAsString(dhash), cryptShaAsString(&dc->kn->kHash), dc->desc_frame_len);
 
         return dc->desc_frame_len;
 }
@@ -636,200 +591,162 @@ int32_t rx_frame_description_adv(struct rx_frame_iterator *it)
         TRACE_FUNCTION_CALL;
 
 	int32_t goto_error_code;
-	struct key_node *kn;
 	GLOBAL_ID_T *nodeId = NULL;
-	struct dsc_msg_version *versMsg;
-	DHASH_T dhash;
-	struct dhash_node *dhn = NULL;
+	struct dsc_msg_version *thisVers, *currVers, *nextVers;
 	struct desc_content *dc = NULL;
+	SHA1_T dHash;
 
-	cryptShaAtomic(it->f_data, it->f_dlen, &dhash);
+	cryptShaAtomic(it->f_data, it->f_dlen, &dHash);
 
-	if (!(nodeId = get_desc_id(it->f_data, it->f_dlen, NULL, &versMsg)))
+
+	if (!(nodeId = get_desc_id(it->f_data, it->f_dlen, NULL, &thisVers)))
 		goto_error(finish, TLV_RX_DATA_FAILURE);
 
-	if (!(kn = keyNode_get(nodeId)) || (kn->bookedState->i.c < KCTracked) || !kn->content || !kn->content->f_body)
+	struct key_node *kn = keyNode_get(nodeId);
+	DESC_SQN_T descSqn = ntohl(thisVers->descSqn);
+
+	if (!kn || (kn->bookedState->i.c < KCTracked) || !kn->content || !kn->content->f_body)
 		goto_error(finish, it->f_dlen);
 
-	if ((kn->nextDesc && kn->nextDesc->descSqn >= ntohl(versMsg->descSqn)) ||
-		(kn->currOrig && kn->currOrig->descContent->descSqn >= ntohl(versMsg->descSqn)))
+	if (!(descSqn) ||
+		(kn->descSqnMin > descSqn) ||
+		(kn->nextDesc && kn->nextDesc->descSqn >= descSqn) ||
+		(kn->on && kn->on->dc->descSqn >= descSqn))
 		goto_error(finish, it->f_dlen);
 
-	if ((dhn = avl_find_item(&dhash_tree, &dhash)) && (dhn->descContent || dhn->rejected))
+	if ((dc = avl_find_item(&descContent_tree, &dHash)))
 		goto_error(finish, it->f_dlen);
 
 	if (!test_description_signature(it->f_data, it->f_dlen))
 		goto_error(finish, TLV_RX_DATA_FAILURE);
 
-	if ((dc = descContent_create(it->f_data, it->f_dlen, kn)) && !dc->unresolvedContentCounter)
-		keyNode_updCredits(NULL, kn, NULL);
+	if ((kn->on && (!get_desc_id(kn->on->dc->desc_frame, kn->on->dc->desc_frame_len, NULL, &currVers) || currVers->bootSqn != thisVers->bootSqn)) ||
+		(kn->nextDesc && (!get_desc_id(kn->nextDesc->desc_frame, kn->nextDesc->desc_frame_len, NULL, &nextVers) || nextVers->bootSqn != thisVers->bootSqn))) {
+
+		keyNode_schedLowerWeight(kn, KCListed);
+
+		goto_error(finish, it->f_dlen);
+	}
+
+	dc = descContent_create(it->f_data, it->f_dlen, kn);
 
         goto_error(finish, it->f_dlen);
 
 finish:
-	if (dhn)
-		dhn->referred_by_others_timestamp = bmx_time;
+	if (dc)
+		dc->referred_by_others_timestamp = bmx_time;
 
-	dbgf_track(DBGT_INFO, "rcvd dhash=%s nodeId=%s via_dev=%s via_ip=%s dc=%d",
-		memAsHexString(&dhash, sizeof(SHA1_T)), cryptShaAsString(nodeId),
-		it->pb->i.iif->label_cfg.str, it->pb->i.llip_str, !!dc);
+	dbgf_track(DBGT_INFO, "Finished rcvd dhash=%s nodeId=%s via_dev=%s via_ip=%s dc=%d",
+		memAsHexString(&dHash, sizeof(dHash)), cryptShaAsString(nodeId),
+		it->pb->i.iif->ifname_label.str, it->pb->i.llip_str, !!dc);
 
 	return goto_error_code;
 }
 
 STATIC_FUNC
-int32_t tx_msg_dhash_request(struct tx_frame_iterator *it)
+int32_t tx_msg_iid_request(struct tx_frame_iterator *it)
 {
 	TRACE_FUNCTION_CALL;
 
-	struct hdr_dhash_request *hdr = ((struct hdr_dhash_request*) tx_iterator_cache_hdr_ptr(it));
-	struct msg_dhash_request *msg = ((struct msg_dhash_request*) tx_iterator_cache_msg_ptr(it));
-	DHASH_T *dhash = ((DHASH_T*) it->ttn->key.data);
-	struct dhash_node *dhn = avl_find_item(&dhash_tree, dhash);
-	struct reference_node *ref;
+	struct hdr_iid_request *hdr = ((struct hdr_iid_request*) tx_iterator_cache_hdr_ptr(it));
+	struct msg_iid_request *msg = ((struct msg_iid_request*) tx_iterator_cache_msg_ptr(it));
 
-	if (!dhn || dhn->rejected || !dhn->neighRefs_tree.items || ((ref = avl_find_item(&it->ttn->neigh->refsByDhash_tree, &dhn)) && ref->claimedKey))
-		return TLV_TX_DATA_DONE;
+	int32_t ret = TLV_TX_DATA_DONE;
 
-	if (hdr->msg == msg) {
-		assertion(-502287, (is_zero(hdr, sizeof(*hdr))));
-		hdr->dest_nodeId = it->ttn->key.f.groupId;
-	} else {
-		assertion(-502288, (cryptShasEqual(&hdr->dest_nodeId, &it->ttn->key.f.groupId)));
+	IID_T *iid = ((IID_T*) it->ttn->key.data);
+	struct NeighRef_node *ref = iid_get_node_by_neighIID4x(&it->ttn->neigh->neighIID4x_repos, *iid, NO);
+
+	if (ref && iid_get_neighIID4x_timeout_by_node(ref) && (!ref->kn || (ref->inaptChainOgm && !ref->inaptChainOgm->claimedChain))) {
+
+		if (hdr->msg == msg) {
+			assertion(-502287, (is_zero(hdr, sizeof(*hdr))));
+			hdr->dest_nodeId = it->ttn->key.f.groupId;
+		} else {
+			assertion(-502288, (cryptShasEqual(&hdr->dest_nodeId, &it->ttn->key.f.groupId)));
+		}
+
+		msg->receiverIID4x = htons(*iid);
+
+		ret = sizeof(struct msg_iid_request);
 	}
 
-	msg->dhash = *dhash;
+	dbgf_track(DBGT_INFO, "iid=%d ref=%d nodeId=%s to neighId=%s dev=%s send=%d",
+		*iid, !!ref, cryptShaAsShortStr(ref && ref->kn ? &ref->kn->kHash : NULL), cryptShaAsShortStr(&it->ttn->key.f.groupId), it->ttn->key.f.p.dev->ifname_label.str, ret);
 
-	return sizeof(struct msg_dhash_request);
+	return ret;
 }
 
 STATIC_FUNC
-int32_t rx_frame_dhash_request(struct rx_frame_iterator *it)
+int32_t rx_frame_iid_request(struct rx_frame_iterator *it)
 {
 	TRACE_FUNCTION_CALL;
 
 	struct neigh_node *nn = it->pb->i.verifiedLink->k.linkDev->key.local;
-	struct hdr_dhash_request *hdr = (struct hdr_dhash_request*) (it->f_data);
-	struct msg_dhash_request *msg = (struct msg_dhash_request*) (it->f_msg);
+	struct hdr_iid_request *hdr = (struct hdr_iid_request*) (it->f_data);
+	struct msg_iid_request *msg = (struct msg_iid_request*) (it->f_msg);
 
 	if (cryptShasEqual(&hdr->dest_nodeId, &myKey->kHash)) {
 
 		for (; msg < &(hdr->msg[it->f_msgs_fixed]); msg++) {
 
-			if ((avl_find(&dhash_tree, &msg->dhash)))
-				schedule_tx_task(FRAME_TYPE_DHASH_ADV, NULL, NULL, nn->best_tp_link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &msg->dhash, sizeof(DHASH_T));
+			MIID_T *in;
+			IID_T iid = ntohs(msg->receiverIID4x);
+			if ((in = iid_get_node_by_myIID4x(iid))) {
+			
+				schedule_tx_task(FRAME_TYPE_IID_ADV, NULL, NULL, NULL, nn->best_tq_link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &iid, sizeof(iid));
+
+				dbgf_track(DBGT_INFO, "neigh=%s iid=%d", nn->on->k.hostname, iid);
+			}
+
 		}
 	}
 	return TLV_RX_DATA_PROCESSED;
 }
 
-void ref_resolve(struct reference_node *ref)
-{
-	struct dhash_node *dhn = ref->dhn;
-	struct key_node *claimedKey = ref->claimedKey;
-	struct neigh_node *nn = ref->neigh;
-
-	assertion(-502500, IMPLIES(claimedKey, avl_find(&claimedKey->neighRefs_tree, &nn)));
-
-	if (!claimedKey) {
-
-		schedule_tx_task(FRAME_TYPE_DHASH_REQ, &nn->local_id, nn, nn->best_tp_link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &dhn->dhash, sizeof(dhn->dhash));
-
-	} else if (claimedKey->content && !claimedKey->content->f_body) {
-
-		assertion(-502323, (claimedKey->bookedState->i.c >= KCTracked));
-
-		//schedule_tx_task(FRAME_TYPE_CONTENT_REQ, &nn->local_id, nn, nn->best_tp_link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &ck->kHash, sizeof(ck->kHash));
-
-	} else if (claimedKey->content && !dhn->descContent && !dhn->rejected) {
-
-		assertion(-502324, (claimedKey->bookedState->i.c >= KCTracked && claimedKey->content->f_body));
-
-		schedule_tx_task(FRAME_TYPE_DESC_REQ, &nn->local_id, nn, nn->best_tp_link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &dhn->dhash, sizeof(dhn->dhash));
-	}
-}
-
 
 STATIC_FUNC
-void dhash_tree_maintain(void)
-{
-	static TIME_T next = 0;
-
-	if (doNowOrLater(&next, dhashRslvInterval, 0)) {
-
-		struct dhash_node *dhn = NULL;
-		DHASH_T dhash = ZERO_CYRYPSHA1;
-
-		while ((dhn = avl_next_item(&dhash_tree, &dhash))) {
-
-			dhash = dhn->dhash;
-
-			if (dhn->descContent || dhn->rejected)
-				continue;
-
-			struct neigh_node *nn = NULL;
-			struct reference_node *ref;
-
-			while (dhn && (ref = avl_next_item(&dhn->neighRefs_tree, &nn))) {
-				nn = ref->neigh;
-
-				if (((AGGREG_SQN_T) ((nn->ogm_aggreg_max - ref->aggSqn)) >= nn->ogm_aggreg_size) && !ref->claimedKey) {
-
-					if (dhn->neighRefs_tree.items == 1)
-						dhn = NULL;
-
-					refNode_destroy(ref, NO);
-
-				} else {
-					ref_resolve(ref);
-				}
-			}
-		}
-	}
-}
-
-
-STATIC_FUNC
-int32_t tx_msg_dhash_adv(struct tx_frame_iterator *it)
+int32_t tx_msg_iid_adv(struct tx_frame_iterator *it)
 {
 	TRACE_FUNCTION_CALL;
 
-	struct msg_dhash_adv *msg = ((struct msg_dhash_adv*) tx_iterator_cache_msg_ptr(it));
-	struct dhash_node *dhn;
+	struct msg_iid_adv *msg = ((struct msg_iid_adv*) tx_iterator_cache_msg_ptr(it));
+	IID_T *iid = (IID_T*) it->ttn->key.data;
+	MIID_T *in;
 
-	if ((dhn = avl_find_item(&dhash_tree, ((DHASH_T*)it->ttn->key.data))) && (dhn->descContent || dhn->rejected)) {
+	if ((in = iid_get_node_by_myIID4x(*iid))) {
+		msg->nodeId = in->kn->kHash;
+		msg->transmitterIID4x = htons(*iid);
+		msg->descSqn = htonl(in->dc->descSqn);
+		msg->chainOgm = chainOgmCalc(in->dc, in->dc->ogmSqnMaxSend);
 
-		msg->dhash = dhn->dhash;
+		dbgf_track(DBGT_INFO, "iid=%d nodeId=%s descSqn=%d ogmSqn=%d chainOgm=%s",
+			*iid, cryptShaAsShortStr(&msg->nodeId), in->dc->descSqn, in->dc->ogmSqnMaxSend, memAsHexString(&msg->chainOgm, sizeof(msg->chainOgm)));
 
-		if (dhn->descContent) {
-			msg->descSqn = htonl(dhn->descContent->descSqn);
-			msg->kHash = dhn->descContent->key->kHash;
-		} // else notify requesting node of stale dhash.
-
-		return sizeof(struct msg_dhash_adv);
+		return sizeof(struct msg_iid_adv);
 	}
 
 	return TLV_TX_DATA_DONE;
 }
 
 STATIC_FUNC
-int32_t rx_msg_dhash_adv(struct rx_frame_iterator *it)
+int32_t rx_msg_iid_adv(struct rx_frame_iterator *it)
 {
 	TRACE_FUNCTION_CALL;
 
-	struct msg_dhash_adv *msg = (struct msg_dhash_adv*) (it->f_msg);
+	struct msg_iid_adv *msg = (struct msg_iid_adv*) (it->f_msg);
 	struct neigh_node *nn = it->pb->i.verifiedLink->k.linkDev->key.local;
 	AGGREG_SQN_T aggSqnInvalidMax = (nn->ogm_aggreg_max - AGGREG_SQN_CACHE_RANGE);
-	struct reference_node *ref;
+	struct InaptChainOgm chainOgm = {.chainOgm = msg->chainOgm, .claimedMetric = {.val = {.u16 = 0}}, .claimedHops = 0, .claimedChain = 1};
+	IID_T iid = ntohs(msg->transmitterIID4x);
+	DESC_SQN_T descSqn = ntohl(msg->descSqn);
 
-	if (!msg->descSqn) {
+	dbgf_track(DBGT_INFO, "neigh=%s iid=%d nodeId=%s descSqn=%d chainOgm=%s",
+		nn->on->k.hostname, iid, cryptShaAsShortStr(&msg->nodeId), descSqn, memAsHexString(&msg->chainOgm, sizeof(msg->chainOgm)));
 
-		if ((ref = avl_find_item(&nn->refsByDhash_tree, &msg->dhash)))
-			ref->aggSqn = aggSqnInvalidMax; // do not try to resolve this anymore
+//	if (iid == IID_MIN_USED_FOR_SELF && !cryptShasEqual(&msg->nodeId, &nn->local_id))
+//		return TLV_RX_DATA_FAILURE;
 
-	} else {
-		refNode_update(nn, aggSqnInvalidMax, &msg->dhash, &msg->kHash, ntohl(msg->descSqn));
-	}
+	neighRef_update(nn, aggSqnInvalidMax, iid, &msg->nodeId, descSqn, &chainOgm);
 
 	return TLV_RX_DATA_PROCESSED;
 }
@@ -880,10 +797,12 @@ struct opt_type desc_options[]=
 			ARG_VALUE_FORM, HLP_DESC_VBODIES_SIZE_IN},
 	{ODI,0,ARG_UNSOLICITED_DESC_ADVS,  0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &unsolicitedDescAdvs,MIN_UNSOLICITED_DESC_ADVS,MAX_UNSOLICITED_DESC_ADVS,DEF_UNSOLICITED_DESC_ADVS,0,0,
 			ARG_VALUE_FORM, NULL},
-        {ODI,0,ARG_DHASH_RSLV_INTERVAL,    0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &dhashRslvInterval,MIN_DHASH_RSLV_INTERVAL, MAX_DHASH_RSLV_INTERVAL,DEF_DHASH_RSLV_INTERVAL,0,    NULL,
-			ARG_VALUE_FORM,	"set interval for resolving unknown descriptions in ms"},
-        {ODI,0,ARG_DHASH_RSLV_ITERS,    0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &dhashRslvIters,MIN_DHASH_RSLV_ITERS, MAX_DHASH_RSLV_ITERS,DEF_DHASH_RSLV_ITERS,0,    NULL,
+        {ODI,0,ARG_REF_MAINTAIN_INTERVAL,    0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &maintainanceInterval,MIN_REF_MAINTAIN_INTERVAL, MAX_REF_MAINTAIN_INTERVAL,DEF_REF_MAINTAIN_INTERVAL,0,    NULL,
+			ARG_VALUE_FORM,	"set interval for resolving unresolved neighRefs in ms"},
+        {ODI,0,ARG_DHASH_RSLV_ITERS,    0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &resolveIterations,MIN_DHASH_RSLV_ITERS, MAX_DHASH_RSLV_ITERS,DEF_DHASH_RSLV_ITERS,0,    NULL,
 			ARG_VALUE_FORM,	"set max tx iterations for resolving unknown descriptions"},
+        {ODI,0,ARG_DHASH_RSLV_INTERVAL, 0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &resolveInterval,MIN_DHASH_RSLV_INTERVAL, MAX_DHASH_RSLV_INTERVAL,DEF_DHASH_RSLV_INTERVAL,0,    NULL,
+			ARG_VALUE_FORM,	"set tx interval for resolving unknown descriptions"},
 #endif
 	{ODI, 0, ARG_DESCRIPTIONS,	   0,  9,2, A_PS0N,A_USR, A_DYN, A_ARG, A_ANY, 0,               0,                  0,                 0,0,                  opt_show_descriptions,
 			0,		HLP_DESCRIPTIONS}
@@ -914,18 +833,6 @@ void init_desc( void )
 	struct frame_handl handl;
         memset(&handl, 0, sizeof ( handl));
 
-	static const struct field_format version_format[] = VERSION_MSG_FORMAT;
-        handl.name = "DSC_VERSION";
-	handl.alwaysMandatory = 1;
-	handl.min_msg_size = sizeof (struct dsc_msg_version);
-        handl.fixed_msg_size = 1;
-	handl.dextReferencing = (int32_t*)&fref_never;
-	handl.dextCompression = (int32_t*)&never_fzip;
-        handl.tx_frame_handler = create_dsc_tlv_version;
-        handl.rx_frame_handler = process_dsc_tlv_version;
-        handl.msg_format = version_format;
-        register_frame_handler(description_tlv_db, BMX_DSC_TLV_VERSION, &handl);
-
 
 	static const struct field_format names_format[] = DESCRIPTION_MSG_NAME_FORMAT;
         handl.name = "DSC_NAMES";
@@ -948,8 +855,8 @@ void init_desc( void )
 	handl.data_header_size = sizeof( struct hdr_description_request);
 	handl.min_msg_size = sizeof(struct msg_description_request);
 	handl.fixed_msg_size = 1;
-	handl.tx_iterations = &dhashRslvIters;
-//	handl.tx_task_interval_min = &dhashRslvInterval;
+	handl.tx_iterations = &resolveIterations;
+	handl.tx_task_interval_min = &resolveInterval;
 	handl.tx_msg_handler = tx_msg_description_request;
 	handl.rx_msg_handler = rx_msg_description_request;
 	register_frame_handler(packet_frame_db, FRAME_TYPE_DESC_REQ, &handl);
@@ -966,23 +873,27 @@ void init_desc( void )
 	register_frame_handler(packet_frame_db, FRAME_TYPE_DESC_ADVS, &handl);
 
 
-        handl.name = "DHASH_REQ";
-        handl.data_header_size = sizeof( struct hdr_dhash_request);
-        handl.min_msg_size = sizeof (struct msg_dhash_request);
+        handl.name = "IID_REQ";
+        handl.data_header_size = sizeof( struct hdr_iid_request);
+        handl.min_msg_size = sizeof (struct msg_iid_request);
         handl.fixed_msg_size = 1;
-	handl.tx_packet_prepare_always = dhash_tree_maintain;
-	handl.tx_iterations = &dhashRslvIters;
-//	handl.tx_task_interval_min = &dhashRslvInterval;
-        handl.tx_msg_handler = tx_msg_dhash_request;
-        handl.rx_frame_handler = rx_frame_dhash_request;
-        register_frame_handler(packet_frame_db, FRAME_TYPE_DHASH_REQ, &handl);
+	handl.tx_iterations = &resolveIterations;
+	handl.tx_packet_prepare_casuals = neighRefs_resolve_or_destroy;
+	handl.tx_task_interval_min = &resolveInterval;
+        handl.tx_msg_handler = tx_msg_iid_request;
+        handl.rx_frame_handler = rx_frame_iid_request;
+	handl.rx_minNeighCol = KCNeighbor;
+	handl.rx_minNeighCond = kPref_neighbor_metric;
+        register_frame_handler(packet_frame_db, FRAME_TYPE_IID_REQ, &handl);
 
-        handl.name = "DHASH_ADV";
-        handl.min_msg_size = sizeof (struct msg_dhash_adv);
+        handl.name = "IID_ADV";
+        handl.min_msg_size = sizeof (struct msg_iid_adv);
         handl.fixed_msg_size = 1;
-        handl.tx_msg_handler = tx_msg_dhash_adv;
-        handl.rx_msg_handler = rx_msg_dhash_adv;
-        register_frame_handler(packet_frame_db, FRAME_TYPE_DHASH_ADV, &handl);
+        handl.tx_msg_handler = tx_msg_iid_adv;
+        handl.rx_msg_handler = rx_msg_iid_adv;
+	handl.rx_minNeighCol = KCNeighbor;
+	handl.rx_minNeighCond = kPref_neighbor_metric;
+        register_frame_handler(packet_frame_db, FRAME_TYPE_IID_ADV, &handl);
 
 
 }

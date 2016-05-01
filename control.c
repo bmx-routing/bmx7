@@ -39,8 +39,9 @@
 #include "node.h"
 #include "link.h"
 #include "msg.h"
-#include "desc.h"
+#include "sec.h"
 #include "content.h"
+#include "desc.h"
 #include "ip.h"
 #include "plugin.h"
 #include "schedule.h"
@@ -143,7 +144,7 @@ void add_dbgl_node(struct ctrl_node *cn, int dbgl)
 	
 }
 
-static int daemonize()
+static int daemonize(void)
 {
 
 	int fd;

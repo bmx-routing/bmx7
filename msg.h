@@ -18,7 +18,6 @@
 #include <stdint.h>
 #include <sys/types.h>
 #include <netinet/in.h>
-#include <linux/if.h>
 
 
 
@@ -90,7 +89,8 @@ extern int32_t txCasualInterval;
 
 
 #define PKT_FRAMES_SIZE_PREF     (pref_udpd_size - sizeof(struct packet_header))
-#define PKT_FRAMES_SIZE_MAX     ( MAX_UDPD_SIZE - sizeof(struct packet_header))
+#define PKT_FRAMES_SIZE_MAX      (MAX_UDPD_SIZE - sizeof(struct packet_header))
+#define PKT_MSGS_SIZE_MAX        (PKT_FRAMES_SIZE_MAX - sizeof(struct tlv_hdr))
 
 #define FRM_SIGN_VERS_SIZE_MIN (sizeof(struct tlv_hdr) + sizeof(struct frame_hdr_signature) + sizeof(struct frame_msg_signature) + \
                                 sizeof(struct tlv_hdr) + sizeof(struct msg_ogm_aggreg_sqn_adv))
@@ -130,6 +130,7 @@ extern int32_t txTaskTreeSizeMax;
 
 #define FRAME_TYPE_RSVD0            0
 
+#define FRAME_TYPE_TRASH_ADV       1
 #define FRAME_TYPE_DESC_ADVS        2
 #define FRAME_TYPE_CONTENT_ADV      4
 
@@ -142,13 +143,12 @@ extern int32_t txTaskTreeSizeMax;
 #define FRAME_TYPE_HELLO_REPLY_DHASH  13
 #define FRAME_TYPE_HELLO_REPLY_IID  14
 
-#define FRAME_TYPE_DHASH_ADV        19  // Hash-for-description-of-OG-ID advertisements
+#define FRAME_TYPE_IID_ADV        19  // Hash-for-description-of-OG-ID advertisements
 
-#define FRAME_TYPE_OGM_DHASH_ADV    21
-#define FRAME_TYPE_OGM_IID_ADV      22
+#define FRAME_TYPE_OGM_ADV    21
 
 #define FRAME_TYPE_OGM_REQ          27
-#define FRAME_TYPE_DHASH_REQ        28  // Hash-for-description-of-OG-ID requests
+#define FRAME_TYPE_IID_REQ        28  // Hash-for-description-of-OG-ID requests
 #define FRAME_TYPE_DESC_REQ         29
 #define FRAME_TYPE_CONTENT_REQ      30
 
@@ -168,7 +168,7 @@ extern int32_t txTaskTreeSizeMax;
 #define DEF_DBG_FRAME_TYPES ( \
 	 (1 << FRAME_TYPE_CONTENT_ADV) | (1 << FRAME_TYPE_CONTENT_REQ) | \
 	 (1 << FRAME_TYPE_DESC_ADVS) | (1 << FRAME_TYPE_DESC_REQ) | \
-	 (1 << FRAME_TYPE_DHASH_ADV) | (1 << FRAME_TYPE_DHASH_REQ) | \
+	 (1 << FRAME_TYPE_IID_ADV) | (1 << FRAME_TYPE_IID_REQ) | \
 /*       (1 << FRAME_TYPE_OGM_DHASH_ADV) | (1 << FRAME_TYPE_OGM_IID_ADV) |*/ \
 	 (1 << FRAME_TYPE_OGM_REQ) \
 	 )
@@ -212,7 +212,7 @@ struct tlv_hdr { // 2 bytes
 #define TLV_FORMAT { \
 {FIELD_TYPE_UINT,          -1,  5,  0, FIELD_RELEVANCE_HIGH, "type"},  \
 {FIELD_TYPE_UINT,          -1, 11,  0, FIELD_RELEVANCE_HIGH, "length"},\
-{FIELD_TYPE_STRING_BINARY, -1,  0,  1, FIELD_RELEVANCE_HIGH, "data" }, \
+{FIELD_TYPE_STRING_BINARY, -1,  0,  0, FIELD_RELEVANCE_HIGH, "data" }, \
 FIELD_FORMAT_END }
 
 
@@ -287,12 +287,13 @@ struct tlv_hdr tlvSetBigEndian(int16_t type, int16_t length);
 #define BMX_DSC_TLV_TUN6_MAX        0x17
 
 #define BMX_DSC_TLV_SMS             0x1A
+#define BMX_DSC_TLV_TOPOLOGY        0x1B
 
 #define BMX_DSC_TLV_SIGNATURE_DUMMY 0x1F
 
 #define FRAME_MSG_SIGNATURE_FORMAT { \
-{FIELD_TYPE_UINT,          -1, 8*sizeof(uint8_t),                   1, FIELD_RELEVANCE_HIGH,  "type"}, \
-{FIELD_TYPE_STRING_BINARY, -1, 0,                                   1, FIELD_RELEVANCE_HIGH,  "signature" }, \
+{FIELD_TYPE_UINT,          -1, 8*sizeof(uint8_t),                   0, FIELD_RELEVANCE_HIGH,  "type"}, \
+{FIELD_TYPE_STRING_BINARY, -1, 0,                                   0, FIELD_RELEVANCE_HIGH,  "signature" }, \
 FIELD_FORMAT_END }
 
 struct frame_msg_signature {
@@ -394,6 +395,7 @@ struct frame_handl {
 	int32_t *dextReferencing;
 	uint8_t rx_processUnVerifiedLink;
 	int8_t rx_minNeighCol;
+	int16_t(* rx_minNeighCond) (struct key_node *kn);
 	uint16_t data_header_size;
 	uint16_t min_msg_size;
 	uint16_t fixed_msg_size;
@@ -425,9 +427,12 @@ struct tx_task_key {
 	struct {
 
 		struct {
+			LinkNode *unicast; // ensure broadcasted (non-unicast) packets are queued first;
 			uint8_t sign; //ensure unsigned tx_tasks are queued first
+			uint8_t reservedA;
+			uint16_t reservedB;
 			struct dev_node *dev; // the outgoing interface to be used for transmitting
-		} p; // ensure individual packets for each (in order of pref): sing, dev, type, id
+		} __attribute__((packed)) p; // ensure individual packets for each (in order of pref): sing, dev, type, id
 		uint8_t type;
 		CRYPTSHA1_T groupId;
 	} f;
@@ -475,7 +480,7 @@ int32_t _tx_iterator_cache_data_space(struct tx_frame_iterator *it, IDM_T max, i
 #define tx_iterator_cache_data_space_pref( it, len, rsvd ) _tx_iterator_cache_data_space(it, 0, len, rsvd)
 
 
-IDM_T purge_tx_task_tree(struct neigh_node *onlyNeigh, struct dev_node *onlyDev, struct tx_task_node *onlyTtn, IDM_T force);
+IDM_T purge_tx_task_tree(LinkNode *onlyUnicast, struct neigh_node *onlyNeigh, struct dev_node *onlyDev, struct tx_task_node *onlyTtn, IDM_T force);
 void tx_packets(void *unused);
 int32_t tx_frame_iterate(IDM_T iterate_msg, struct tx_frame_iterator *it);
 int32_t rx_frame_iterate(struct rx_frame_iterator* it);
@@ -485,7 +490,7 @@ void rx_packet(struct packet_buff *pb);
 #define SCHEDULE_UNKNOWN_MSGS_SIZE 0
 #define SCHEDULE_MIN_MSG_SIZE -1
 
-void schedule_tx_task(uint8_t f_type, CRYPTSHA1_T *someId, struct neigh_node *neighId, struct dev_node *dev, int16_t f_msgs_len, void *keyData, uint32_t keyLen);
+void schedule_tx_task(uint8_t f_type, LinkNode *unicast, CRYPTSHA1_T *groupId, struct neigh_node *neigh, struct dev_node *dev, int16_t f_msgs_len, void *keyData, uint32_t keyLen);
 
 void register_frame_handler(struct frame_db *db, int pos, struct frame_handl *handl);
 

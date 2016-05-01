@@ -28,14 +28,16 @@
 #define ARG_DESC_METRICALGO           "descMetricAlgo"
 
 #define BIT_METRIC_ALGO_MIN           0x00
-#define BIT_METRIC_ALGO_MP            0x00 // ->   1
-#define BIT_METRIC_ALGO_EP            0x01 // ->   2
-#define BIT_METRIC_ALGO_MB            0x02 // ->   4
-#define BIT_METRIC_ALGO_EB            0x03 // ->   8
-#define BIT_METRIC_ALGO_VB            0x04 // ->  16
-#define BIT_METRIC_ALGO_MAX           0x04
+#define BIT_METRIC_ALGO_CP            0x00 // ->   0
+#define BIT_METRIC_ALGO_MP            0x08 // -> 256
+#define BIT_METRIC_ALGO_EP            0x09 // ->
+#define BIT_METRIC_ALGO_MB            0x0A // ->
+#define BIT_METRIC_ALGO_EB            0x0B // ->
+#define BIT_METRIC_ALGO_VB            0x0C // ->
+#define BIT_METRIC_ALGO_MAX           0x0C
 #define BIT_METRIC_ALGO_ARRSZ         ((8*sizeof(ALGO_T)))
 
+#define TYP_METRIC_ALGO_CP            (0x01 << BIT_METRIC_ALGO_CP)
 #define TYP_METRIC_ALGO_MP            (0x01 << BIT_METRIC_ALGO_MP)
 #define TYP_METRIC_ALGO_EP            (0x01 << BIT_METRIC_ALGO_EP)
 #define TYP_METRIC_ALGO_MB            (0x01 << BIT_METRIC_ALGO_MB)
@@ -43,13 +45,13 @@
 #define TYP_METRIC_ALGO_VB            (0x01 << BIT_METRIC_ALGO_VB)
 
 #define MIN_METRIC_ALGO               0x00 // hop count
-#define MAX_METRIC_ALGO               (0x01 << BIT_METRIC_ALGO_MAX)
-#define MAX_METRIC_ALGO_RESERVED      ((ALGO_T)-1);
-#define DEF_METRIC_ALGO               TYP_METRIC_ALGO_VB
+#define MAX_METRIC_ALGO               ((0x01 << (BIT_METRIC_ALGO_MAX+1))-1)
+#define MAX_METRIC_ALGO_RESERVED      ((ALGO_T)-1)
+#define DEF_METRIC_ALGO               (TYP_METRIC_ALGO_CP | TYP_METRIC_ALGO_VB)
 
 #define ARG_PATH_METRIC_ALGO "metricAlgo"
 #define CHR_PATH_METRIC_ALGO 'M'
-#define HELP_PATH_METRIC_ALGO "set metric algo for routing towards myself:\n        0:HopCount  1:MP (M=1 /R=0 /T=1 /t=1 <=> TQ) 2:EP  4:MB  8:EB (M=8 /R=1 /r=1 /T=1 /t=1 <=> ETT)  16:VB"
+#define HELP_PATH_METRIC_ALGO "set metric algo for routing towards myself:\n         0 :HopCount 1:CP  256:MP (M=1 /R=0 /T=1 /t=1 <=> TQ) 512:EP  1024:MB  2048:EB (M=8 /R=1 /r=1 /T=1 /t=1 <=> ETT)  4096:VB "
 
 
 #define MIN_PATH_XP_EXP_NUMERATOR     0
@@ -89,24 +91,42 @@
 #define DEF_PATH_LQ_T1_R255  ((255*9)/10)
 #define ARG_PATH_LQ_T1_R255  "pathLq1Threshold"
 
+#define MIN_OGM_LINK_RATE_EFFICIENCY 1
+#define MAX_OGM_LINK_RATE_EFFICIENCY 255
+#define DEF_OGM_LINK_RATE_EFFICIENCY 40
+#define ARG_OGM_LINK_RATE_EFFICIENCY "linkRateEfficiency"
+#define HLP_OGM_LINK_RATE_EFFICIENCY "set to-be considered efficiency in percent of probed wireless layer-2 link rate regarding its expected user (e.g. TCP) throughput"
 
 
-#define MIN_OGM_METRIC_HYST 0
-#define MAX_OGM_METRIC_HYST 64000
-#define DEF_OGM_METRIC_HYST 10
-#define ARG_OGM_METRIC_HYST "pathMetricHysteresis"
-//extern int32_t my_path_hystere;
+
+#define MIN_OGM_METRIC_HYST_NEW_PATH 0
+#define MAX_OGM_METRIC_HYST_NEW_PATH 64000
+#define DEF_OGM_METRIC_HYST_NEW_PATH 20
+#define ARG_OGM_METRIC_HYST_NEW_PATH "newPathMetricHysteresis"
+
+#define MIN_OGM_METRIC_HYST_OLD_PATH 0
+#define MAX_OGM_METRIC_HYST_OLD_PATH 64000
+#define DEF_OGM_METRIC_HYST_OLD_PATH 10
+#define ARG_OGM_METRIC_HYST_OLD_PATH "oldPathMetricHysteresis"
 
 #define MIN_OGM_SQN_LATE_HYST 0
-#define MAX_OGM_SQN_LATE_HYST 64000
-#define DEF_OGM_SQN_LATE_HYST 2500
+#define MAX_OGM_SQN_LATE_HYST 255
+#define DEF_OGM_SQN_LATE_HYST 25
 #define ARG_OGM_SQN_LATE_HYST "pathLateHysteresis"
 
 #define MIN_OGM_SQN_BEST_HYST 0
 #define MAX_OGM_SQN_BEST_HYST 255
-#define DEF_OGM_SQN_BEST_HYST 5
+#define DEF_OGM_SQN_BEST_HYST 3
 #define ARG_OGM_SQN_BEST_HYST "pathSqnBestHysteresis"
 
+
+
+
+
+#define MIN_OGM_HOPS_MAX 0
+#define MAX_OGM_HOPS_MAX ((1<<OGM_HOP_COUNT_BITSIZE)-1)
+#define DEF_OGM_HOPS_MAX MAX_OGM_HOPS_MAX
+#define ARG_OGM_HOPS_MAX "maxPathHops"
 
 
 #define DEF_OGM_HOP_PENALTY 0 //(U8_MAX/20) <=>  5% penalty on metric per hop
@@ -115,6 +135,7 @@
 #define ARG_OGM_HOP_PENALTY "pathHopPenalty"
 #define MAX_OGM_HOP_PENALTY_PRECISION_EXP 8
 //extern int32_t my_hop_penalty;
+
 
 
 #define DEF_NEW_RT_DISMISSAL 99
@@ -128,10 +149,6 @@
 #define ARG_PATH_UMETRIC_MIN "pathMetricMin"
 #define DEF_PATH_UMETRIC_MIN MIN_PATH_UMETRIC_MIN
 
-#define RP_ADV_DELAY_TOLERANCE 3000
-#define RP_ADV_DELAY_RANGE     ((uint32_t)link_purge_to)
-#define TP_ADV_DELAY_TOLERANCE 3000
-#define TP_ADV_DELAY_RANGE     ((uint32_t)link_purge_to)
 
 
 //#define TYP_METRIC_FLAG_STRAIGHT (0x1<<0)
@@ -142,18 +159,39 @@
 #define DEF_PATH_METRIC_FLAGS     (0x0)
 #define ARG_PATH_METRIC_FLAGS     "pathMetricFlags"
 
+#define ARG_PATH_IFR_PARAMETER "pathInterference"
+#define MIN_PATH_IFR_PARAMETER 0
+#define MAX_PATH_IFR_PARAMETER (MAX_PATH_IFR_PARAMETERS -1)
+#define DEF_PATH_IFR_PARAMETER { \
+	{.channelDistance = 6, .hopDistance = 3, .independence = MAX_PATH_IFR_INDEPENDENCE},  \
+	{.channelDistance = 100, .hopDistance = 1, .independence = MAX_PATH_IFR_INDEPENDENCE} \
+}
 
+#define ARG_PATH_IFR_INDEPENDENCE "independence"
+#define MIN_PATH_IFR_INDEPENDENCE 0
+#define MAX_PATH_IFR_INDEPENDENCE ((1<<TYP_PATH_IFR_INDEPENDENCE_BITS)-1)
+#define DEF_PATH_IFR_INDEPENDENCE 0
+
+#define ARG_PATH_IFR_CHA_DISTANCE "channelDistance"
+#define MIN_PATH_IFR_CHA_DISTANCE 0
+#define MAX_PATH_IFR_CHA_DISTANCE ((1<<TYP_PATH_IFR_CHA_DISTANCE_BITS)-1)
+#define DEF_PATH_IFR_CHA_DISTANCE 0
+
+#define ARG_PATH_IFR_HOP_DISTANCE "hopDistance"
+#define MIN_PATH_IFR_HOP_DISTANCE 0
+#define MAX_PATH_IFR_HOP_DISTANCE ((1<<TYP_PATH_IFR_HOP_DISTANCE_BITS)-1)
+#define DEF_PATH_IFR_HOP_DISTANCE 0
 
 
 struct mandatory_tlv_metricalgo { // 16 bytes
 
 	FMETRIC_U16_T fmetric_u16_min;      // 2 bytes
 
-	uint16_t reserved;                  // 2 bytes
+	uint16_t reserved0; // 2 bytes
 
 	ALGO_T algo_type;                   // 2 bytes
 
-        uint16_t flags;                     // 2 bytes
+	uint16_t flags; // 2 bytes
 
 #if __BYTE_ORDER == __LITTLE_ENDIAN         // 1 byte
 	unsigned int tp_exp_divisor : 2;
@@ -172,36 +210,58 @@ struct mandatory_tlv_metricalgo { // 16 bytes
 	uint8_t lq_tx_point_r255;
 	uint8_t lq_ty_point_r255;
 	uint8_t lq_t1_point_r255;
-
+	uint8_t ogm_link_rate_efficiency;
+	uint8_t hops_history;
+	uint8_t hops_max;
 	uint8_t hop_penalty; // 1 byte
 	uint8_t ogm_sqn_best_hystere;
-	uint16_t ogm_sqn_late_hystere;
-	uint16_t ogm_metric_hystere; // 2 byte
-
+	uint8_t ogm_sqn_late_hystere_100ms;
+	uint16_t ogm_metric_hystere_new_path; // 2 byte
+	uint16_t ogm_metric_hystere_old_path; // 2 byte
+	uint16_t reserved1;
+	struct path_interference_parameter pip[MAX_PATH_IFR_PARAMETERS];
 } __attribute__((packed));
 
 
 struct description_tlv_metricalgo {
 	struct mandatory_tlv_metricalgo m;
+
 	uint8_t optional[];
 } __attribute__((packed));
 
 #define DESCRIPTION_MSG_METRICALGO_FORMAT { \
 {FIELD_TYPE_HEX,  -1, (8*sizeof(FMETRIC_U16_T)),  0, FIELD_RELEVANCE_HIGH, "fmetric_u16_min"}, \
-{FIELD_TYPE_UINT, -1, 16,  0, FIELD_RELEVANCE_LOW,  "reserved"},  \
+{FIELD_TYPE_UINT, -1, 16,  0, FIELD_RELEVANCE_LOW,  "reserved0"},  \
 {FIELD_TYPE_UINT, -1, 16,  0, FIELD_RELEVANCE_HIGH, ARG_PATH_METRIC_ALGO },  \
 {FIELD_TYPE_HEX,  -1, 16,  0, FIELD_RELEVANCE_HIGH, "flags" },   \
-{FIELD_TYPE_UINT, -1,  2,  1, FIELD_RELEVANCE_HIGH, ARG_PATH_RP_EXP_NUMERATOR },   \
-{FIELD_TYPE_UINT, -1,  2,  1, FIELD_RELEVANCE_HIGH, ARG_PATH_RP_EXP_DIVISOR },   \
-{FIELD_TYPE_UINT, -1,  2,  1, FIELD_RELEVANCE_HIGH, ARG_PATH_TP_EXP_NUMERATOR },   \
-{FIELD_TYPE_UINT, -1,  2,  1, FIELD_RELEVANCE_HIGH, ARG_PATH_TP_EXP_DIVISOR },   \
-{FIELD_TYPE_UINT, -1,  8,  1, FIELD_RELEVANCE_HIGH, ARG_PATH_LQ_TX_R255},  \
-{FIELD_TYPE_UINT, -1,  8,  1, FIELD_RELEVANCE_HIGH, ARG_PATH_LQ_TY_R255},  \
-{FIELD_TYPE_UINT, -1,  8,  1, FIELD_RELEVANCE_HIGH, ARG_PATH_LQ_T1_R255},  \
-{FIELD_TYPE_UINT, -1,  8,  1, FIELD_RELEVANCE_HIGH, ARG_OGM_HOP_PENALTY},  \
-{FIELD_TYPE_UINT, -1,  8,  1, FIELD_RELEVANCE_HIGH, ARG_OGM_SQN_BEST_HYST},  \
-{FIELD_TYPE_UINT, -1, 16,  1, FIELD_RELEVANCE_HIGH, ARG_OGM_SQN_LATE_HYST},  \
-{FIELD_TYPE_UINT, -1, 16,  1, FIELD_RELEVANCE_HIGH, ARG_OGM_METRIC_HYST},  \
+{FIELD_TYPE_UINT, -1,  2,  0, FIELD_RELEVANCE_HIGH, ARG_PATH_RP_EXP_NUMERATOR },   \
+{FIELD_TYPE_UINT, -1,  2,  0, FIELD_RELEVANCE_HIGH, ARG_PATH_RP_EXP_DIVISOR },   \
+{FIELD_TYPE_UINT, -1,  2,  0, FIELD_RELEVANCE_HIGH, ARG_PATH_TP_EXP_NUMERATOR },   \
+{FIELD_TYPE_UINT, -1,  2,  0, FIELD_RELEVANCE_HIGH, ARG_PATH_TP_EXP_DIVISOR },   \
+{FIELD_TYPE_UINT, -1,  8,  0, FIELD_RELEVANCE_HIGH, ARG_PATH_LQ_TX_R255},  \
+{FIELD_TYPE_UINT, -1,  8,  0, FIELD_RELEVANCE_HIGH, ARG_PATH_LQ_TY_R255},  \
+{FIELD_TYPE_UINT, -1,  8,  0, FIELD_RELEVANCE_HIGH, ARG_PATH_LQ_T1_R255},  \
+{FIELD_TYPE_UINT, -1,  8,  0, FIELD_RELEVANCE_HIGH, ARG_OGM_LINK_RATE_EFFICIENCY},  \
+{FIELD_TYPE_UINT, -1,  8,  0, FIELD_RELEVANCE_HIGH, ARG_OGM_HOP_HISTORY_SZ},  \
+{FIELD_TYPE_UINT, -1,  8,  0, FIELD_RELEVANCE_HIGH, ARG_OGM_HOPS_MAX},  \
+{FIELD_TYPE_UINT, -1,  8,  0, FIELD_RELEVANCE_HIGH, ARG_OGM_HOP_PENALTY},  \
+{FIELD_TYPE_UINT, -1,  8,  0, FIELD_RELEVANCE_HIGH, ARG_OGM_SQN_BEST_HYST},  \
+{FIELD_TYPE_UINT, -1,  8,  0, FIELD_RELEVANCE_HIGH, ARG_OGM_SQN_LATE_HYST},  \
+{FIELD_TYPE_UINT, -1, 16,  0, FIELD_RELEVANCE_HIGH, ARG_OGM_METRIC_HYST_NEW_PATH},  \
+{FIELD_TYPE_UINT, -1, 16,  0, FIELD_RELEVANCE_HIGH, ARG_OGM_METRIC_HYST_OLD_PATH},  \
+{FIELD_TYPE_UINT, -1, 16,  0, FIELD_RELEVANCE_LOW,  "reserved1"},  \
+{FIELD_TYPE_UINT, -1,  8,  0, FIELD_RELEVANCE_HIGH, ARG_PATH_IFR_CHA_DISTANCE },   \
+{FIELD_TYPE_UINT, -1,  3,  0, FIELD_RELEVANCE_HIGH, ARG_PATH_IFR_HOP_DISTANCE },   \
+{FIELD_TYPE_UINT, -1,  5,  0, FIELD_RELEVANCE_HIGH, ARG_PATH_IFR_INDEPENDENCE },   \
+{FIELD_TYPE_UINT, -1,  8,  0, FIELD_RELEVANCE_HIGH, ARG_PATH_IFR_CHA_DISTANCE },   \
+{FIELD_TYPE_UINT, -1,  3,  0, FIELD_RELEVANCE_HIGH, ARG_PATH_IFR_HOP_DISTANCE },   \
+{FIELD_TYPE_UINT, -1,  5,  0, FIELD_RELEVANCE_HIGH, ARG_PATH_IFR_INDEPENDENCE },   \
+{FIELD_TYPE_UINT, -1,  8,  0, FIELD_RELEVANCE_HIGH, ARG_PATH_IFR_CHA_DISTANCE },   \
+{FIELD_TYPE_UINT, -1,  3,  0, FIELD_RELEVANCE_HIGH, ARG_PATH_IFR_HOP_DISTANCE },   \
+{FIELD_TYPE_UINT, -1,  5,  0, FIELD_RELEVANCE_HIGH, ARG_PATH_IFR_INDEPENDENCE },   \
+{FIELD_TYPE_UINT, -1,  8,  0, FIELD_RELEVANCE_HIGH, ARG_PATH_IFR_CHA_DISTANCE },   \
+{FIELD_TYPE_UINT, -1,  3,  0, FIELD_RELEVANCE_HIGH, ARG_PATH_IFR_HOP_DISTANCE },   \
+{FIELD_TYPE_UINT, -1,  5,  0, FIELD_RELEVANCE_HIGH, ARG_PATH_IFR_INDEPENDENCE },   \
 FIELD_FORMAT_END }
 
 
@@ -234,12 +294,7 @@ IDM_T fmetric_cmp(FMETRIC_U16_T a, unsigned char cmp, FMETRIC_U16_T b);
 // some core hooks:
 //void apply_metric_algo(UMETRIC_T *out, struct link_dev_node *link, const UMETRIC_T *path, struct host_metricalgo *algo);
 
-UMETRIC_T apply_metric_algo(UMETRIC_T *tr, UMETRIC_T *umetric_max, const UMETRIC_T *path, struct host_metricalgo *algo);
-UMETRIC_T apply_lndev_metric_algo(LinkNode *link, const UMETRIC_T *path, struct host_metricalgo *algo);
-
-
-IDM_T update_path_metrics(struct packet_buff *pb, struct orig_node *on, OGM_SQN_T in_sqn, UMETRIC_T *in_umetric);
-
+struct NeighPath *apply_metric_algo(struct NeighRef_node *ref, LinkNode *link, struct host_metricalgo *algo);
 
 
 // plugin hooks:

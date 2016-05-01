@@ -52,41 +52,60 @@
 #define CODE_CATEGORY_NAME "metric"
 
 
-
 static int32_t my_link_window = DEF_HELLO_SQN_WINDOW;
 
 //int32_t link_ignore_min = DEF_LINK_IGNORE_MIN;
 
 //int32_t link_ignore_max = DEF_LINK_IGNORE_MAX;
 
+int32_t link_purge_to = DEF_LINK_PURGE_TO;
+int32_t timeaware_lq_min = DEF_TIMEAWARE_LQ_MIN;
 
-STATIC_FUNC
-UMETRIC_T timeaware_rx_probe(LinkNode *link)
+
+IDM_T min_lq_probe(LinkNode *link)
 {
-        if (((TIME_T) (bmx_time - link->rx_probe_record.hello_time_max)) < RP_ADV_DELAY_TOLERANCE)
-                return link->rx_probe_record.hello_umetric;
 
-        if (((TIME_T) (bmx_time - link->rx_probe_record.hello_time_max)) < RP_ADV_DELAY_RANGE) {
-                return (link->rx_probe_record.hello_umetric *
-                        ((UMETRIC_T) (RP_ADV_DELAY_RANGE - (bmx_time - link->rx_probe_record.hello_time_max)))) /
-                        RP_ADV_DELAY_RANGE;
-        }
-
-        return 0;
+	return (
+		(link->timeaware_tq_probe >= timeaware_lq_min) &&
+		(link->timeaware_rq_probe >= timeaware_lq_min)
+		);
 }
 
 STATIC_FUNC
-UMETRIC_T timeaware_tx_probe(LinkNode *link)
+void upd_timeaware_rq_probe(LinkNode *link)
 {
-        if (((TIME_T) (bmx_time - link->rp_time_max)) < TP_ADV_DELAY_TOLERANCE)
-                return link->tx_probe_umetric;
+        if (((TIME_T) (bmx_time - link->rq_probe_record.hello_time_max)) < ((uint32_t)link_purge_to/10)) {
 
-        if (((TIME_T) (bmx_time - link->rp_time_max)) < TP_ADV_DELAY_RANGE) {
+                link->timeaware_rq_probe = link->rq_probe_record.hello_lq;
 
-		return ((link->tx_probe_umetric * ((UMETRIC_T) (TP_ADV_DELAY_RANGE - (bmx_time - link->rp_time_max)))) / TP_ADV_DELAY_RANGE);
-        }
 
-        return 0;
+        } else if (((TIME_T) (bmx_time - link->rq_probe_record.hello_time_max)) < ((uint32_t)link_purge_to)) {
+
+		link->timeaware_rq_probe =
+			(((uint32_t)link->rq_probe_record.hello_lq) * (((uint32_t)link_purge_to) - (bmx_time - link->rq_probe_record.hello_time_max))) / ((uint32_t)link_purge_to);
+
+	} else {
+
+		link->timeaware_rq_probe = 0;
+	}
+}
+
+STATIC_FUNC
+void upd_timeaware_tq_probe(LinkNode *link)
+{
+
+	if (((TIME_T) (bmx_time - link->tq_probe_time)) < ((uint32_t)link_purge_to/10)) {
+
+		link->timeaware_tq_probe = link->tq_probe;
+
+	} else if (((TIME_T) (bmx_time - link->tq_probe_time)) < ((uint32_t)link_purge_to)) {
+
+		link->timeaware_tq_probe = ((((uint32_t)link->tq_probe) * ((((uint32_t)link_purge_to) - (bmx_time - link->tq_probe_time)))) / ((uint32_t)link_purge_to));
+
+	} else {
+
+		link->timeaware_tq_probe = 0;
+	}
 }
 
 STATIC_FUNC
@@ -101,7 +120,7 @@ void lndev_assign_best(struct neigh_node *onlyLocal, LinkNode *onlyLink )
                 onlyLocal ? cryptShaAsString(&onlyLocal->local_id) : 0,
                 onlyLink ? ip6AsStr(&onlyLink->k.linkDev->key.llocal_ip) : DBG_NIL,
 		onlyLink ? onlyLink->k.linkDev->key.devIdx : 0,
-                onlyLink ? onlyLink->k.myDev->label_cfg.str : DBG_NIL);
+                onlyLink ? onlyLink->k.myDev->ifname_label.str : DBG_NIL);
 
         struct avl_node *local_an = NULL;
         struct neigh_node *local;
@@ -113,15 +132,11 @@ void lndev_assign_best(struct neigh_node *onlyLocal, LinkNode *onlyLink )
 		LinkDevNode *linkDev = NULL;
                 struct avl_node *link_an = NULL;
 
-		UMETRIC_T old_timeaware_tx_probe = 0;
+                if (local->best_rq_link)
+                        upd_timeaware_rq_probe(local->best_rq_link);
 
-                if (local->best_rp_link)
-                        local->best_rp_link->timeaware_rx_probe = timeaware_rx_probe(local->best_rp_link);
-
-                if (local->best_tp_link) {
-			old_timeaware_tx_probe = local->best_tp_link->timeaware_tx_probe;
-                        local->best_tp_link->timeaware_tx_probe = timeaware_tx_probe(local->best_tp_link);
-		}
+                if (local->best_tq_link)
+                        upd_timeaware_tq_probe(local->best_tq_link);
 
 
                 dbgf_all(DBGT_INFO, "local_id=%s", cryptShaAsString(&local->local_id));
@@ -135,17 +150,21 @@ void lndev_assign_best(struct neigh_node *onlyLocal, LinkNode *onlyLink )
 			while ((onlyLink && (currLink = onlyLink)) || (currLink = avl_next_item(&linkDev->link_tree, (currLink ? &currLink->k : NULL)))) {
 
                                 dbgf_all(DBGT_INFO, "lndev=%s items=%d",
-                                        currLink->k.myDev->label_cfg.str, linkDev->link_tree.items);
+                                        currLink->k.myDev->ifname_label.str, linkDev->link_tree.items);
 
-                                currLink->timeaware_rx_probe = timeaware_rx_probe(currLink);
-                                currLink->timeaware_tx_probe = timeaware_tx_probe(currLink);
+				if (local->best_rq_link != currLink) {
+					upd_timeaware_rq_probe(currLink);
 
+					if (!local->best_rq_link || local->best_rq_link->timeaware_rq_probe < currLink->timeaware_rq_probe)
+						local->best_rq_link = currLink;
+				}
 
-                                if (!local->best_rp_link || local->best_rp_link->timeaware_rx_probe < currLink->timeaware_rx_probe)
-                                        local->best_rp_link = currLink;
+				if (local->best_tq_link != currLink) {
+					upd_timeaware_tq_probe(currLink);
 
-                                if (!local->best_tp_link || local->best_tp_link->timeaware_tx_probe < currLink->timeaware_tx_probe)
-                                        local->best_tp_link = currLink;
+					if (!local->best_tq_link || local->best_tq_link->timeaware_tq_probe < currLink->timeaware_tq_probe)
+						local->best_tq_link = currLink;
+				}
 
                                 if (onlyLink)
                                         break;
@@ -159,18 +178,8 @@ void lndev_assign_best(struct neigh_node *onlyLocal, LinkNode *onlyLink )
 //		assertion(-500406, (local->best_rp_link));
 //		assertion(-501086, (local->best_tp_link));
 
-                if (!local->best_tp_link || local->best_tp_link->timeaware_tx_probe == 0)
-                        local->best_tp_link = local->best_rp_link;
-
-		if (sendLinkRevisedOgms && local->best_tp_link && local->best_tp_link->timeaware_tx_probe > old_timeaware_tx_probe) {
-
-			struct reference_node *ref = NULL;
-			while ((ref = avl_next_item(&local->refsByKhash_tree, ref ? &ref->claimedKey : NULL))) {
-				assertion(-502422, (ref->dhn));
-				if (ref->dhn->descContent && ref->dhn->descContent->orig)
-					process_ogm_metric(ref);
-			}
-		}
+                if (!local->best_tq_link || local->best_tq_link->timeaware_tq_probe == 0)
+                        local->best_tq_link = local->best_rq_link;
 
                 if(onlyLocal)
                         break;
@@ -180,19 +189,26 @@ void lndev_assign_best(struct neigh_node *onlyLocal, LinkNode *onlyLink )
 
 
 
-void purge_linkDevs(LinkDevKey *onlyLinkDev, struct dev_node *only_dev, IDM_T purgeLocal)
+uint16_t purge_linkDevs(LinkDevNode *onlyLinkDev, struct dev_node *onlyDev, LinkNode *onlyLink, IDM_T onlyExpired, IDM_T purgeLocal)
 {
 	TRACE_FUNCTION_CALL;
 
+	uint16_t removed = 0;
 	LinkDevNode *linkDev;
 	LinkDevKey linkDevKey;
 	memset(&linkDevKey, 0, sizeof(linkDevKey));
 
 	dbgf_all(DBGT_INFO, "only_link_key=%s llip=%s only_dev=%s purgeLocal=%d",
-		onlyLinkDev ? cryptShaAsString(&onlyLinkDev->local->local_id) : "---", ip6AsStr(onlyLinkDev ? &onlyLinkDev->llocal_ip : NULL),
-		only_dev ? only_dev->label_cfg.str : DBG_NIL, purgeLocal);
+		onlyLinkDev ? cryptShaAsString(&onlyLinkDev->key.local->local_id) : "---", ip6AsStr(onlyLinkDev ? &onlyLinkDev->key.llocal_ip : NULL),
+		onlyDev ? onlyDev->ifname_label.str : DBG_NIL, purgeLocal);
 
-	while ((linkDev = (onlyLinkDev ? avl_find_item(&link_dev_tree, onlyLinkDev) : avl_next_item(&link_dev_tree, &linkDevKey)))) {
+	assertion(-502644, IMPLIES(onlyLinkDev, (!onlyLink || onlyLink->k.linkDev == onlyLinkDev)));
+	assertion(-502645, IMPLIES(onlyDev, (!onlyLink || onlyLink->k.myDev == onlyDev)));
+
+	onlyLinkDev = (onlyLink ? onlyLink->k.linkDev : onlyLinkDev);
+	onlyDev = (onlyLink ? onlyLink->k.myDev : onlyDev);
+
+	while ((linkDev = (onlyLinkDev ? onlyLinkDev : avl_next_item(&link_dev_tree, &linkDevKey)))) {
 
 		struct neigh_node *local = linkDev->key.local;
 		LinkKey linkKey = {NULL,NULL};
@@ -204,50 +220,56 @@ void purge_linkDevs(LinkDevKey *onlyLinkDev, struct dev_node *only_dev, IDM_T pu
 
 		linkDevKey = linkDev->key;
 
-		while ((link = avl_next_item(&linkDev->link_tree, &linkKey))) {
+		while ((link = (onlyLink ? onlyLink : avl_next_item(&linkDev->link_tree, &linkKey)))) {
 			linkKey = link->k;
 
-			if ((!only_dev || only_dev == link->k.myDev)
-				//&& (!only_expired || (((TIME_T) (bmx_time - link->pkt_time_max)) > (TIME_T) link_purge_to))
+			if ((!onlyDev || onlyDev == link->k.myDev) &&
+				(!onlyExpired || (((TIME_T) (bmx_time - link->rq_probe_record.hello_time_max)) > (TIME_T) link_purge_to))
 				) {
 
 				dbgf_track(DBGT_INFO, "purging nbLlIp=%s nbIdx=%d dev=%s",
-					ip6AsStr(&linkDev->key.llocal_ip), linkDev->key.devIdx, link->k.myDev->label_cfg.str);
+					ip6AsStr(&linkDev->key.llocal_ip), linkDev->key.devIdx, link->k.myDev->ifname_label.str);
 
 				purge_orig_router(NULL, NULL, link, NO);
 
-				if (link == local->best_rp_link)
-					local->best_rp_link = NULL;
+				purge_tx_task_tree(link, NULL, NULL, NULL, YES);
 
-				if (link == local->best_tp_link)
-					local->best_tp_link = NULL;
+				if (link == local->best_rq_link)
+					local->best_rq_link = NULL;
+
+				if (link == local->best_tq_link)
+					local->best_tq_link = NULL;
 
 				avl_remove(&link_tree, &link->k, -300221);
 				avl_remove(&linkDev->link_tree, &link->k, -300749);
 				debugFree(link, -300044);
 
+				removed++;
 			}
+
+			if (onlyLink)
+				break;
 		}
 
 
-		assertion(-500323, (only_dev || !linkDev->link_tree.items));
+		assertion(-500323, (onlyDev || !linkDev->link_tree.items));
 
 		if (!linkDev->link_tree.items) {
 
 			dbgf_track(DBGT_INFO, "purging: linkDev local_id=%s link_ip=%s only_dev=%s, local->linkDevs=%d",
 				cryptShaAsString(&linkDev->key.local->local_id), ip6AsStr(&linkDev->key.llocal_ip),
-				only_dev ? only_dev->label_cfg.str : "???", local->linkDev_tree.items);
+				onlyDev ? onlyDev->ifname_label.str : "???", local->linkDev_tree.items);
 
 			avl_remove(&link_dev_tree, &linkDev->key, -300193);
 			avl_remove(&local->linkDev_tree, &linkDev->key.devIdx, -300330);
 
-			assertion(-502423, IMPLIES(!local->linkDev_tree.items, !local->best_rp_link));
-			assertion(-502424, IMPLIES(!local->linkDev_tree.items, !local->best_tp_link));
+			assertion(-502423, IMPLIES(!local->linkDev_tree.items, !local->best_rq_link));
+			assertion(-502424, IMPLIES(!local->linkDev_tree.items, !local->best_tq_link));
 
 			debugFree(linkDev, -300045);
 
 			if (purgeLocal && !local->linkDev_tree.items)
-				keyNode_schedLowerWeight(local->on->key, KCPromoted);
+				keyNode_schedLowerWeight(local->on->kn, KCPromoted);
 
 		}
 
@@ -260,8 +282,10 @@ void purge_linkDevs(LinkDevKey *onlyLinkDev, struct dev_node *only_dev, IDM_T pu
 	lndev_assign_best(NULL, NULL);
 	cb_plugin_hooks(PLUGIN_CB_LINKS_EVENT, NULL);
 
-	assertion(-502425, IMPLIES(!only_dev && !onlyLinkDev, !link_tree.items));
-	assertion(-502426, IMPLIES(!only_dev && !onlyLinkDev, !link_dev_tree.items));
+	assertion(-502425, IMPLIES(!onlyDev && !onlyLinkDev, !link_tree.items));
+	assertion(-502426, IMPLIES(!onlyDev && !onlyLinkDev, !link_dev_tree.items));
+
+	return removed;
 }
 
 STATIC_FUNC
@@ -273,7 +297,7 @@ IDM_T updateNeighDevId(struct neigh_node *nn, struct desc_content *contents)
 	DEVIDX_T idx = 0;
 	struct avl_node *an = NULL;
 
-	if (!contents || (msgs = contents_dlen(contents, BMX_DSC_TLV_LLIP) / sizeof(struct dsc_msg_llip))) {
+	if (!contents || (msgs = (contents_dlen(contents, BMX_DSC_TLV_LLIP) / sizeof(struct dsc_msg_llip)))) {
 
 		for (an = NULL; (ldn = avl_iterate_item(&nn->linkDev_tree, &an));)
 			ldn->purge = YES;
@@ -291,7 +315,7 @@ IDM_T updateNeighDevId(struct neigh_node *nn, struct desc_content *contents)
 			idx = ldn->key.devIdx;
 
 			if (ldn->purge)
-				purge_linkDevs(&ldn->key, NULL, YES);
+				purge_linkDevs(ldn, NULL, NULL, NO, YES);
 
 		}
 	}
@@ -324,13 +348,13 @@ LinkNode *getLinkNode(struct dev_node *dev, IPX_T *llip, DEVIDX_T idx, struct ne
 
 		dbgf_track(DBGT_INFO, "creating new link=%s (total %d)", ip6AsStr(llip), link_dev_tree.items);
 
-		updateNeighDevId(verifiedNeigh, verifiedNeigh->on->descContent);
+		updateNeighDevId(verifiedNeigh, verifiedNeigh->on->dc);
 
 	} else if (!is_ip_equal(&linkDev->key.llocal_ip, llip)) {
 
 		dbgf_mute(25 , DBGL_SYS, DBGT_ERR, "changed NB=%s devIdx=%d llIp: %s->%s",
 			cryptShaAsString(&verifiedNeigh->local_id), idx, ip6AsStr(&linkDev->key.llocal_ip), ip6AsStr(llip));
-		purge_linkDevs(&linkDev->key, NULL, NO);
+		purge_linkDevs(linkDev, NULL, NULL, NO, NO);
 		return NULL;
 	}
 
@@ -344,7 +368,7 @@ LinkNode *getLinkNode(struct dev_node *dev, IPX_T *llip, DEVIDX_T idx, struct ne
 
 		link->k = linkKey;
 
-		dbgf_track(DBGT_INFO, "creating new lndev %16s %s", ip6AsStr(&linkDev->key.llocal_ip), dev->name_phy_cfg.str);
+		dbgf_track(DBGT_INFO, "creating new lndev %16s %s", ip6AsStr(&linkDev->key.llocal_ip), dev->ifname_device.str);
 
 		avl_insert(&linkDev->link_tree, link, -300750);
 
@@ -370,7 +394,7 @@ void update_link_probe_record(LinkNode *link, HELLO_SQN_T sqn, uint8_t probe)
 
         TRACE_FUNCTION_CALL;
 	LinkDevNode *linkDev = link->k.linkDev;
-        struct lndev_probe_record *lpr = &link->rx_probe_record;
+        struct lndev_probe_record *lpr = &link->rq_probe_record;
 
         ASSERTION(-501049, ((sizeof (((struct lndev_probe_record*) NULL)->hello_array)) * 8 == MAX_HELLO_SQN_WINDOW));
         assertion(-501050, (probe <= 1));
@@ -433,7 +457,7 @@ void update_link_probe_record(LinkNode *link, HELLO_SQN_T sqn, uint8_t probe)
         }
 
         lpr->hello_sqn_max = sqn;
-        lpr->hello_umetric = (UMETRIC_MAX / my_link_window) * lpr->hello_sum;
+	lpr->hello_lq = (LQ_MAX * ((uint32_t)lpr->hello_sum)) / ((uint32_t)my_link_window);
         lpr->hello_time_max = bmx_time;
 
         linkDev->hello_sqn_max = sqn;
@@ -441,7 +465,7 @@ void update_link_probe_record(LinkNode *link, HELLO_SQN_T sqn, uint8_t probe)
 
         lndev_assign_best(linkDev->key.local, link);
 
-        dbgf_all(DBGT_INFO, "%s metric %ju", ip6AsStr(&linkDev->key.llocal_ip), link->timeaware_rx_probe);
+        dbgf_all(DBGT_INFO, "%s metric tq=%d", ip6AsStr(&linkDev->key.llocal_ip), link->timeaware_rq_probe);
 }
 
 
@@ -460,7 +484,7 @@ int32_t opt_link_metric(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
 
                 for (an = NULL; (link = avl_iterate_item(&link_tree, &an));) {
 
-                        struct lndev_probe_record *lpr = &link->rx_probe_record;
+                        struct lndev_probe_record *lpr = &link->rq_probe_record;
 
                         if (my_link_window < my_link_window_prev) {
 
@@ -474,7 +498,8 @@ int32_t opt_link_metric(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
                         assertion(-501053, (bits_get(lpr->hello_array, MAX_HELLO_SQN_WINDOW, 0, MAX_HELLO_SQN_WINDOW - 1, HELLO_SQN_MASK) == lpr->hello_sum));
                         assertion(-501061, (lpr->hello_sum <= ((uint32_t)my_link_window)));
 
-                        lpr->hello_umetric = (UMETRIC_MAX / my_link_window) * lpr->hello_sum;
+			lpr->hello_lq = (LQ_MAX * ((uint32_t)lpr->hello_sum)) / ((uint32_t)my_link_window);
+
                 }
 
 
@@ -510,7 +535,7 @@ int process_dsc_tlv_llip(struct rx_frame_iterator *it)
 			if( !is_ip_net_equal(&(msg[m].ip6), &IP6_LINKLOCAL_UC_PREF, IP6_LINKLOCAL_UC_PLEN, AF_INET6))
 				return TLV_RX_DATA_FAILURE;
 
-			IDM_T TODO_check_for_each_becoming_neighbor_if_llip_is_unused_then_add_linkDev_and_update_neighDevId_otherwise_ignore;
+//			IDM_T TODO_check_for_each_becoming_neighbor_if_llip_is_unused_then_add_linkDev_and_update_neighDevId_otherwise_ignore;
 		}
 	}
 
@@ -562,7 +587,7 @@ int32_t tx_msg_hello_adv(struct tx_frame_iterator *it)
 
 	adv->hello_sqn = htons(sqn_in);
 
-	dbgf_all(DBGT_INFO, "%s %s SQN %d", ttn->key.f.p.dev->label_cfg.str, ttn->key.f.p.dev->ip_llocal_str, sqn_in);
+	dbgf_all(DBGT_INFO, "%s %s SQN %d", ttn->key.f.p.dev->ifname_label.str, ttn->key.f.p.dev->ip_llocal_str, sqn_in);
 
 	return sizeof(struct msg_hello_adv);
 }
@@ -572,8 +597,28 @@ void schedule_hello_adv(void)
 {
 	static TIME_T next = 0;
 
-	if (doNowOrLater(&next, txCasualInterval, 0))
-		schedule_tx_task(FRAME_TYPE_HELLO_ADV, NULL, NULL, NULL, SCHEDULE_MIN_MSG_SIZE, 0, 0);
+	if (doNowOrLater(&next, txCasualInterval, 0)) {
+
+		LinkNode *link;
+		LinkKey lk = {NULL, NULL};
+
+		while((link = avl_next_item(&link_tree, &lk))) {
+			lk = link->k;
+
+			if (purge_linkDevs(NULL,NULL,link,YES,YES) == 0) {
+
+				if (link->k.myDev->upd_link_capacity) {
+					//IDM_T TODO_WARNING_mac_probes_are_unsigned_messages;
+					(*(link->k.myDev->upd_link_capacity)) (link, NULL);
+				}
+
+				upd_timeaware_rq_probe(link);
+				upd_timeaware_tq_probe(link);
+			}
+		}
+
+		schedule_tx_task(FRAME_TYPE_HELLO_ADV, NULL, NULL, NULL, NULL, SCHEDULE_MIN_MSG_SIZE, 0, 0);
+	}
 }
 
 STATIC_FUNC
@@ -585,22 +630,13 @@ int32_t rx_msg_hello_adv(struct rx_frame_iterator *it)
 	LinkNode *link = pb->i.verifiedLink;
         struct msg_hello_adv *msg = (struct msg_hello_adv*) (it->f_msg);
         HELLO_SQN_T hello_sqn = ntohs(msg->hello_sqn);
-	DEVIDX_T devIdx = link->k.linkDev->key.devIdx;
-	char *goto_error_code = NULL;
-	int goto_error_ret = TLV_RX_DATA_PROCESSED;
-
-	if (devIdx < DEVIDX_MIN || devIdx > DEVIDX_MAX) {
-		goto_error_return( finish, "Invalid LinkDevIdx!", TLV_RX_DATA_FAILURE);
-	}
 
         update_link_probe_record(link, hello_sqn, 1);
 
-finish:
-	dbgf_mute(10, goto_error_code ? DBGL_SYS : DBGL_ALL, goto_error_code ? DBGT_ERR : DBGT_INFO,
-	"NB=%s via llip=%s dev=%s SQN=%d linkDevIdx=%d problem=%s",
-                cryptShaAsShortStr(&pb->p.hdr.keyHash), pb->i.llip_str, pb->i.iif->label_cfg.str, hello_sqn, devIdx, goto_error_code);
+	dbgf_all(DBGT_INFO, "NB=%s via llip=%s dev=%s SQN=%d linkDevIdx=%d",
+                cryptShaAsShortStr(&pb->p.hdr.keyHash), pb->i.llip_str, pb->i.iif->ifname_label.str, hello_sqn, link->k.linkDev->key.devIdx);
 
-	return goto_error_ret;
+	return TLV_RX_DATA_PROCESSED;
 }
 
 STATIC_FUNC
@@ -611,7 +647,7 @@ void schedule_hello_reply(void)
 
 	while ((link = avl_iterate_item(&link_tree, &an))) {
 
-		schedule_tx_task(ogmIid ? FRAME_TYPE_HELLO_REPLY_IID : FRAME_TYPE_HELLO_REPLY_DHASH, &link->k.linkDev->key.local->local_id,
+		schedule_tx_task(FRAME_TYPE_HELLO_REPLY_DHASH, NULL, &link->k.linkDev->key.local->local_id,
 			link->k.linkDev->key.local, link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &link->k.linkDev->key.devIdx, sizeof(DEVIDX_T));
 	}
 }
@@ -627,36 +663,25 @@ int32_t tx_msg_hello_reply(struct tx_frame_iterator *it)
 	LinkKey lk = {.linkDev = ldn, .myDev = it->ttn->key.f.p.dev};
 	LinkNode *link = ldn ? avl_find_item(&link_tree, &lk) : NULL;
 
+	assertion(-502561, (it->frame_type == FRAME_TYPE_HELLO_REPLY_DHASH));
+
 	if (!link || !ldn || ldn->key.devIdx < DEVIDX_MIN) {
 
 		dbgf_track(DBGT_INFO, "yet unestablished devIdx=%d link=%p ldn=%p dev=%p neigh=%p for neigh=%s llip=%s dev=%s",
 			(ldn ? ldn->key.devIdx : 0), link, ldn, lk.myDev, neigh, cryptShaAsString(&neigh->local_id),
-			ip6AsStr(&ldn->key.llocal_ip), (lk.myDev ? lk.myDev->label_cfg.str : NULL));
+			ip6AsStr(&ldn->key.llocal_ip), (lk.myDev ? lk.myDev->ifname_label.str : NULL));
 
 		return TLV_TX_DATA_DONE;
 	}
 
-	if (ogmIid && it->frame_type == FRAME_TYPE_HELLO_REPLY_IID) {
-/*
-		struct msg_hello_reply_iid* msg = ((struct msg_hello_reply_iid*) tx_iterator_cache_msg_ptr(it));
-		msg->dest_transmitterIid4x = neigh->on->dhn->myIID4orig;
-		msg->u.d.receiverDevId = ldn->neighDevId;
-		msg->u.d.rxLq_63range = (link->timeaware_rx_probe * 63) / UMETRIC_MAX;
-		msg->u.u16 = htons(msg->u.u16);
-		return sizeof(struct msg_hello_reply_iid);
-*/
-	} else if (!ogmIid && it->frame_type == FRAME_TYPE_HELLO_REPLY_DHASH) {
+	struct msg_hello_reply_dhash* msg = ((struct msg_hello_reply_dhash*) tx_iterator_cache_msg_ptr(it));
+	msg->dest_dhash = neigh->on->dc->dHash;
+	msg->receiverDevIdx = ldn->key.devIdx;
+	msg->rxLq = link->timeaware_rq_probe;
 
-		struct msg_hello_reply_dhash* msg = ((struct msg_hello_reply_dhash*) tx_iterator_cache_msg_ptr(it));
-		msg->dest_dhash = neigh->on->descContent->dhn->dhash;
-		msg->u.d.receiverDevIdx = ldn->key.devIdx;
-		msg->u.d.rxLq_63range = (link->timeaware_rx_probe * 63) / UMETRIC_MAX;
-		msg->u.u16 = htons(msg->u.u16);
+	iid_get_myIID4x_by_node(neigh->on);
 
-		neigh->on->descContent->dhn->referred_by_me_timestamp = bmx_time;
-
-		return sizeof(struct msg_hello_reply_dhash);
-	}
+	return sizeof(struct msg_hello_reply_dhash);
 
 	return TLV_TX_DATA_DONE;
 }
@@ -667,31 +692,23 @@ int32_t rx_msg_hello_reply(struct rx_frame_iterator *it)
 	TRACE_FUNCTION_CALL;
 	struct packet_buff *pb = it->pb;
 	assertion(-502431, (pb->i.verifiedLink));
-
-	struct msg_hello_reply_dhash msg;
-
-	if (!ogmIid && it->f_type == FRAME_TYPE_HELLO_REPLY_DHASH) {
-		if (!cryptShasEqual(&(((struct msg_hello_reply_dhash *) it->f_msg)->dest_dhash), &myKey->currOrig->descContent->dhn->dhash))
-			return TLV_RX_DATA_PROCESSED;
-		msg.u.u16 = ntohs(((struct msg_hello_reply_dhash *) it->f_msg)->u.u16);
-	} else if (ogmIid && it->f_type == FRAME_TYPE_HELLO_REPLY_IID) {
-/*
-		if (self->dhn != iid_get_node_by_neighIID4x(neigh, ((struct msg_hello_reply_iid *) it->f_msg)->dest_transmitterIid4x))
-			return TLV_RX_DATA_PROCESSED;
-		msg.u.u16 = ntohs(((struct msg_hello_reply_iid *) it->f_msg)->u.u16);
-*/
-	} else {
-		return TLV_RX_DATA_PROCESSED;
-	}
-
+	struct msg_hello_reply_dhash *msg = (struct msg_hello_reply_dhash *) it->f_msg;
+	assertion(-502562, (it->f_type == FRAME_TYPE_HELLO_REPLY_DHASH));
 	LinkNode *link = pb->i.verifiedLink;
 	struct neigh_node *neigh = link->k.linkDev->key.local;
 
-	if (msg.u.d.receiverDevIdx != link->k.myDev->llipKey.devIdx)
+	dbgf_all(DBGT_INFO, "dstDHash=%s myDHash=%s rcvDevIdx=%d myDevIdx=%d lastProbeTime=%d lastTqProbe=%d new tqProbe=%d",
+		cryptShaAsShortStr(&msg->dest_dhash), cryptShaAsShortStr(&myKey->on->dc->dHash),
+		msg->receiverDevIdx, link->k.myDev->llipKey.devIdx, link->tq_probe_time, link->tq_probe, msg->rxLq);
+
+	if (!cryptShasEqual(&msg->dest_dhash, &myKey->on->dc->dHash))
 		return TLV_RX_DATA_PROCESSED;
 
-	link->rp_time_max = bmx_time;
-	link->tx_probe_umetric = (UMETRIC_MAX * ((UMETRIC_T) (msg.u.d.rxLq_63range))) / 63;
+	if (msg->receiverDevIdx != link->k.myDev->llipKey.devIdx)
+		return TLV_RX_DATA_PROCESSED;
+
+	link->tq_probe_time = bmx_time;
+	link->tq_probe = msg->rxLq;
 	lndev_assign_best(neigh, link);
 
 	return TLV_RX_DATA_PROCESSED;
@@ -709,11 +726,47 @@ struct link_status {
 	IPX_T localIp;
 	IFNAME_T dev;
 	uint16_t idx;
-	uint8_t rxRate;
-	uint8_t bestRxLink;
-	uint8_t txRate;
-	uint8_t bestTxLink;
-	uint8_t routes;
+	uint8_t rq;
+	uint8_t bestRq;
+	uint8_t tq;
+	uint8_t bestTq;
+	UMETRIC_T rxRate;
+	UMETRIC_T txRate;
+
+	// link stats:
+	float wLastUpd;
+
+	UMETRIC_T wRxRate;
+	uint32_t wRxCnt;
+	int8_t wRxMcs;
+	uint8_t wRxMhz;
+	uint8_t wRxNss;
+	int8_t wRxSGI;
+	int8_t wRx40M;
+	int8_t wRxHt;
+	int8_t wRxVht;
+
+	float wTxLastProbe;
+	uint32_t wTxProbe;
+	float wTxLastBurst;
+	uint32_t wTxBurst;
+	UMETRIC_T wTxRate;
+	UMETRIC_T wTxRateAvg;
+	uint32_t wTxCnt;
+	int8_t wTxMcs;
+	uint8_t wTxMhz;
+	uint8_t wTxNss;
+	int8_t wTxSGI;
+	int8_t wTx40M;
+	int8_t wTxHt;
+	int8_t wTxVht;
+
+	int8_t wSignal;
+	int8_t wNoise;
+	int8_t wSNR;
+
+	uint16_t routes;
+	IID_T iidMax;
 	AGGREG_SQN_T aggSqnSize;
 	AGGREG_SQN_T aggSqnMax;
 	uint8_t aggSqnRcvd;
@@ -733,11 +786,46 @@ static const struct field_format link_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_IPX,               link_status, localIp,          1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       link_status, dev,              1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, idx,              1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, rxRate,           1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, bestRxLink,       1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, txRate,           1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, bestTxLink,       1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, rq,               1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, bestRq,           1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, tq,               1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, bestTq,           1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           link_status, rxRate,           1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           link_status, txRate,           1, FIELD_RELEVANCE_HIGH),
+
+	FIELD_FORMAT_INIT(FIELD_TYPE_FLOAT,             link_status, wLastUpd,         1, FIELD_RELEVANCE_MEDI),
+
+        FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           link_status, wRxRate,          1, FIELD_RELEVANCE_MEDI),
+	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wRxCnt,           1, FIELD_RELEVANCE_MEDI),
+	FIELD_FORMAT_INIT(FIELD_TYPE_INT,               link_status, wRxMcs,           1, FIELD_RELEVANCE_LOW),
+	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wRxMhz,           1, FIELD_RELEVANCE_LOW),
+	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wRxNss,           1, FIELD_RELEVANCE_LOW),
+	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wRxSGI,           1, FIELD_RELEVANCE_LOW),
+	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wRx40M,           1, FIELD_RELEVANCE_LOW),
+	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wRxHt,            1, FIELD_RELEVANCE_LOW),
+	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wRxVht,           1, FIELD_RELEVANCE_LOW),
+
+	FIELD_FORMAT_INIT(FIELD_TYPE_FLOAT,             link_status, wTxLastProbe,     1, FIELD_RELEVANCE_MEDI),
+	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wTxProbe,         1, FIELD_RELEVANCE_MEDI),
+	FIELD_FORMAT_INIT(FIELD_TYPE_FLOAT,             link_status, wTxLastBurst,     1, FIELD_RELEVANCE_MEDI),
+	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wTxBurst,         1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           link_status, wTxRate,          1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           link_status, wTxRateAvg,       1, FIELD_RELEVANCE_MEDI),
+	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wTxCnt,           1, FIELD_RELEVANCE_MEDI),
+	FIELD_FORMAT_INIT(FIELD_TYPE_INT,               link_status, wTxMcs,           1, FIELD_RELEVANCE_HIGH),
+	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wTxMhz,           1, FIELD_RELEVANCE_LOW),
+	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wTxNss,           1, FIELD_RELEVANCE_LOW),
+	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wTxSGI,           1, FIELD_RELEVANCE_HIGH),
+	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wTx40M,           1, FIELD_RELEVANCE_HIGH),
+	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wTxHt,            1, FIELD_RELEVANCE_LOW),
+	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wTxVht,           1, FIELD_RELEVANCE_LOW),
+
+	FIELD_FORMAT_INIT(FIELD_TYPE_INT,               link_status, wSignal,          1, FIELD_RELEVANCE_LOW),
+	FIELD_FORMAT_INIT(FIELD_TYPE_INT,               link_status, wNoise,           1, FIELD_RELEVANCE_LOW),
+	FIELD_FORMAT_INIT(FIELD_TYPE_INT,               link_status, wSNR,             1, FIELD_RELEVANCE_HIGH),
+
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, routes,           1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, iidMax,           1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, aggSqnSize,       1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, aggSqnMax,        1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, aggSqnRcvd,       1, FIELD_RELEVANCE_MEDI),
@@ -745,25 +833,6 @@ static const struct field_format link_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, lastHelloAdv,     1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_END
 };
-
-MAC_T *ip6Eui64ToMac(IPX_T *ll, MAC_T *mp)
-{
-	static MAC_T mac;
-
-	mac.u8[0] = ll->s6_addr[8]^(0x1 << 1);
-	mac.u8[1] = ll->s6_addr[9];
-	mac.u8[2] = ll->s6_addr[10];
-	mac.u8[3] = ll->s6_addr[13];
-	mac.u8[4] = ll->s6_addr[14];
-	mac.u8[5] = ll->s6_addr[15];
-
-	if (!mp)
-		return &mac;
-
-	*mp = mac;
-	return mp;
-}
-
 
 static int32_t link_status_creator(struct status_handl *handl, void *data)
 {
@@ -789,19 +858,51 @@ static int32_t link_status_creator(struct status_handl *handl, void *data)
 				status[i].nodeId = &on->k.nodeId;
 				status[i].shortId = &on->k.nodeId;
 				status[i].name = on->k.hostname;
-				status[i].nodeKey = cryptKeyTypeAsString(((struct dsc_msg_pubkey*) on->key->content->f_body)->type);
-				status[i].linkKey = (pkm = contents_data(on->descContent, BMX_DSC_TLV_LINK_PUBKEY)) ? cryptKeyTypeAsString(pkm->type) : DBG_NIL;
+				status[i].nodeKey = cryptKeyTypeAsString(((struct dsc_msg_pubkey*) on->kn->content->f_body)->type);
+				status[i].linkKey = (pkm = contents_data(on->dc, BMX_DSC_TLV_LINK_PUBKEY)) ? cryptKeyTypeAsString(pkm->type) : DBG_NIL;
 				status[i].nbLocalIp = linkDev->key.llocal_ip;
-				strcpy(status[i].nbMac, memAsHexStringSep(ip6Eui64ToMac(&linkDev->key.llocal_ip, NULL), 6, 1, ":"));
+				strcpy(status[i].nbMac, strToLower(memAsHexStringSep(ip6Eui64ToMac(&linkDev->key.llocal_ip, NULL), 6, 1, ":")));
 				status[i].nbIdx = linkDev->key.devIdx;
-				status[i].dev = link->k.myDev->label_cfg;
+				status[i].dev = link->k.myDev->ifname_label;
 				status[i].idx = link->k.myDev->llipKey.devIdx;
 				status[i].localIp = link->k.myDev->llipKey.llip;
-				status[i].rxRate = ((link->timeaware_rx_probe * 100) / UMETRIC_MAX);
-				status[i].bestRxLink = (link == local->best_rp_link);
-				status[i].txRate = ((link->timeaware_tx_probe * 100) / UMETRIC_MAX);
-				status[i].bestTxLink = (link == local->best_tp_link);
+				status[i].rq = ((link->timeaware_rq_probe * 100) / LQ_MAX);
+				status[i].bestRq = (link == local->best_rq_link);
+				status[i].tq = ((link->timeaware_tq_probe * 100) / LQ_MAX);
+				status[i].bestTq = (link == local->best_tq_link);
+				status[i].txRate = link->wifiStats.txRateAvg ? link->wifiStats.txRateAvg : ((link->timeaware_tq_probe * link->k.myDev->umetric_max) / LQ_MAX);
+				status[i].rxRate = ((link->timeaware_rq_probe * link->k.myDev->umetric_max) / LQ_MAX);
+
+				status[i].wLastUpd = link->wifiStats.updatedTime ? ((float)(((TIME_T)(bmx_time - link->wifiStats.updatedTime))/1000)) : -1;
+				status[i].wTxLastProbe = link->wifiStats.txTriggTime ? ((float)(((TIME_T)(bmx_time - link->wifiStats.txTriggTime))/1000)) : -1;
+				status[i].wTxProbe = link->wifiStats.txTriggCnt;
+				status[i].wTxLastBurst = link->wifiStats.txBurstTime ? ((float)(((TIME_T)(bmx_time - link->wifiStats.txBurstTime))/1000)) : -1;
+				status[i].wTxBurst = link->wifiStats.txBurstCnt;
+				status[i].wSignal = link->wifiStats.signal;
+				status[i].wNoise = link->wifiStats.noise;
+				status[i].wSNR = link->wifiStats.signal - link->wifiStats.noise;
+				status[i].wTxRate = link->wifiStats.txRate;
+				status[i].wTxRateAvg = link->wifiStats.txRateAvg;
+				status[i].wTxCnt = link->wifiStats.txPackets;
+				status[i].wTxMcs = link->wifiStats.txMcs;
+				status[i].wTxMhz = link->wifiStats.txMhz;
+				status[i].wTxNss = link->wifiStats.txNss;
+				status[i].wTxSGI = link->wifiStats.txShortGi;
+				status[i].wTx40M = link->wifiStats.tx40mhz;
+				status[i].wTxHt = link->wifiStats.txHt;
+				status[i].wTxVht = link->wifiStats.txVht;
+				status[i].wRxRate = link->wifiStats.rxRate;
+				status[i].wRxCnt = link->wifiStats.rxPackets;
+				status[i].wRxMcs = link->wifiStats.rxMcs;
+				status[i].wRxMhz = link->wifiStats.rxMhz;
+				status[i].wRxNss = link->wifiStats.rxNss;
+				status[i].wRxSGI = link->wifiStats.rxShortGi;
+				status[i].wRx40M = link->wifiStats.rx40mhz;
+				status[i].wRxHt = link->wifiStats.rxHt;
+				status[i].wRxVht = link->wifiStats.rxVht;
+
 				status[i].routes = link->orig_routes;
+				status[i].iidMax = linkDev->key.local->neighIID4x_repos.max_free;
 				status[i].aggSqnSize = local->ogm_aggreg_size;
 				status[i].aggSqnMax = local->ogm_aggreg_max;
 				status[i].aggSqnRcvd = bit_get(local->ogm_aggreg_sqns, AGGREG_SQN_CACHE_RANGE, local->ogm_aggreg_max);
@@ -825,6 +926,13 @@ struct opt_type link_options[]=
 {
 	{ODI,0,ARG_LINKS,		0,  9,1,A_PS0N,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
 			0,		"show links\n"},
+			
+	{ODI, 0, ARG_LINK_PURGE_TO,     0, 9, 1, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &link_purge_to, MIN_LINK_PURGE_TO, MAX_LINK_PURGE_TO, DEF_LINK_PURGE_TO, 0, 0,
+		ARG_VALUE_FORM, "timeout in ms for purging stale links"},
+
+	{ODI, 0, ARG_TIMEAWARE_LQ_MIN,     0, 9, 1, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &timeaware_lq_min, MIN_TIMEAWARE_LQ_MIN, MAX_TIMEAWARE_LQ_MIN, DEF_TIMEAWARE_LQ_MIN, 0, 0,
+		ARG_VALUE_FORM, "set minimum required link quality"},
+
         {ODI,0,ARG_HELLO_SQN_WINDOW,       0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&my_link_window,	MIN_HELLO_SQN_WINDOW, 	MAX_HELLO_SQN_WINDOW,DEF_HELLO_SQN_WINDOW,0,    opt_link_metric,
 			ARG_VALUE_FORM,	"set link window size (LWS) for link-quality calculation (link metric)"}
 };

@@ -47,7 +47,7 @@ static inline uint64_t ntoh64(uint64_t x) {
 
 
 
-
+char *strToLower(char *s);
 char* rmStrKeyValue(char* str, char* key);
 IDM_T hexStrToMem(char *s, uint8_t *m, uint16_t mLen, uint8_t strict);
 char* memAsHexString( const void* mem, uint32_t len);
@@ -79,6 +79,7 @@ void bits_clear(uint8_t *array, uint32_t array_bit_size, uint32_t beg_bit, uint3
 
 char* bits_print(uint8_t *array, uint32_t array_bit_size, uint32_t beg_bit, uint32_t end_bit, uint32_t range_mask);
 
+void bit_xor(void *out, void *a, void *b, uint32_t size);
 
 uint8_t is_zero(void *data, int len);
 

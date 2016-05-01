@@ -120,7 +120,7 @@ void list_add_after(struct list_head *head, struct list_node *ln, struct list_no
  */
 void list_del_next(struct list_head *head, struct list_node *ln)
 {
-        assertion(-5001135, (ln->next != (struct list_node*) head));
+        assertion(-502641, (ln->next != (struct list_node*) head));
 
         struct list_node *rem = ln->next;
 

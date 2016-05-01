@@ -51,7 +51,7 @@
 
 #define CODE_CATEGORY_NAME "message"
 
-static IDM_T test_unsknown_packet_and_desc_frames_are_simply_ignored;
+//static IDM_T TODO_test_unsknown_packet_and_desc_frames_are_simply_ignored;
 
 static int32_t drop_all_packets = DEF_DROP_ALL_PACKETS;
 
@@ -200,7 +200,7 @@ struct frame_db *description_tlv_db = NULL;
 struct tlv_hdr tlvSetBigEndian(int16_t type, int16_t length)
 {
 	assertion(-502044, (type >= 0 && type <= FRAME_TYPE_MASK));
-	assertion(-502045, (length > 0 && length < (int)(MAX_UDPD_SIZE - sizeof(struct packet_header))));
+	assertion(-502045, (length > 0 && length <= (int)(MAX_UDPD_SIZE - sizeof(struct packet_header))));
 
 	struct tlv_hdr tlv = {.u.tlv = {.type = type, .length = length } };
 	tlv.u.u16 = htons(tlv.u.u16);
@@ -440,6 +440,21 @@ int32_t rx_frame_iterate(struct rx_frame_iterator *it)
 
 			return TLV_RX_DATA_PROCESSED;
 
+		} else if (it->db == packet_frame_db && it->f_handl->rx_minNeighCol && (!it->pb->i.claimedKey || it->pb->i.claimedKey->bookedState->i.c < it->f_handl->rx_minNeighCol)) {
+
+			dbgf_track(DBGT_INFO, "%s - Insufficient neigh credits (llip=%s id=%s state=%s < %s) for frame type=%s",
+				it->caller, it->pb->i.llip_str, cryptShaAsShortStr(&it->pb->p.hdr.keyHash), (it->pb->i.claimedKey ? it->pb->i.claimedKey->bookedState->secName : NULL),
+				keyMatrix[it->f_handl->rx_minNeighCol][0].setName , it->f_handl->name);
+
+			return TLV_RX_DATA_PROCESSED;
+
+		} else if (it->db == packet_frame_db && it->f_handl->rx_minNeighCond && (!it->pb->i.claimedKey || !(*(it->f_handl->rx_minNeighCond))(it->pb->i.claimedKey))) {
+
+			dbgf_track(DBGT_INFO, "%s - Unsatisfied neigh cond (llip=%s id=%s ) credits for frame type=%s",
+				it->caller, it->pb->i.llip_str, cryptShaAsShortStr(&it->pb->p.hdr.keyHash), it->f_handl->name);
+
+			return TLV_RX_DATA_PROCESSED;
+
                 } else if (it->op >= TLV_OP_PLUGIN_MIN && it->op <= TLV_OP_PLUGIN_MAX) {
 
                         return TLV_RX_DATA_PROCESSED;
@@ -490,7 +505,7 @@ rx_frame_iterate_error:{
 			chHdr.u.i.expanded_type, chHdr.u.i.expanded_length, chHdr.u.i.gzip, chHdr.u.i.maxNesting, cryptShaAsShortStr(&chHdr.expanded_chash),
 			(it->f_data && it->f_dlen) ? memAsHexString(it->f_data, it->f_dlen) : NULL);
 
-	EXITERROR(-502074, result != TLV_RX_DATA_FAILURE);
+	EXITERROR(-502074, result == TLV_RX_DATA_REBOOTED || result != TLV_RX_DATA_FAILURE);
         return result;
 }
 }
@@ -499,7 +514,7 @@ rx_frame_iterate_error:{
 
 
 STATIC_FUNC
-int8_t send_bmx_packet(struct packet_buff *pb, struct dev_node *dev, int len)
+int8_t send_bmx_packet(LinkNode *unicast, struct packet_buff *pb, struct dev_node *dev, int len)
 {
 	TRACE_FUNCTION_CALL;
 
@@ -507,7 +522,12 @@ int8_t send_bmx_packet(struct packet_buff *pb, struct dev_node *dev, int len)
 		return 0;
 
 	int status;
-	struct sockaddr_storage *dst = &dev->tx_netwbrc_addr;
+	struct sockaddr_storage unicast_dst;
+
+	if (unicast)
+		unicast_dst = set_sockaddr_storage(AF_INET6, &unicast->k.linkDev->key.llocal_ip, base_port);
+
+	struct sockaddr_storage *dst = unicast ? & unicast_dst : &dev->tx_netwbrc_addr;
 	int32_t send_sock = dev->unicast_sock;
 
 	pb->i.length = len;
@@ -516,7 +536,7 @@ int8_t send_bmx_packet(struct packet_buff *pb, struct dev_node *dev, int len)
 	pb->i.oif->udpTxBytesCurr += pb->i.length;
 
 
-	dbgf_all(DBGT_INFO, "len=%d via dev=%s", pb->i.length, pb->i.oif->label_cfg.str);
+	dbgf_all(DBGT_INFO, "len=%d via dev=%s", pb->i.length, pb->i.oif->ifname_label.str);
 
 	if ( send_sock == 0 )
 		return 0;
@@ -542,12 +562,12 @@ int8_t send_bmx_packet(struct packet_buff *pb, struct dev_node *dev, int len)
 
                         dbg_mute(60, DBGL_SYS, DBGT_ERR, "can't send: %s. Does firewall accept %s dev=%s port=%i ?",
                                 strerror(errno), family2Str(((struct sockaddr_in*) dst)->sin_family),
-                                pb->i.oif->label_cfg.str ,ntohs(((struct sockaddr_in*) dst)->sin_port));
+                                pb->i.oif->ifname_label.str ,ntohs(((struct sockaddr_in*) dst)->sin_port));
 
 		} else {
 
                         dbg_mute(60, DBGL_SYS, DBGT_ERR, "can't send via fd=%d dev=%s : %s",
-                                send_sock, pb->i.oif->label_cfg.str, strerror(errno));
+                                send_sock, pb->i.oif->ifname_label.str, strerror(errno));
 
 		}
 
@@ -727,7 +747,8 @@ int32_t tx_frame_iterate(IDM_T iterate_msg, struct tx_frame_iterator *it)
 			(handl->min_msg_size > (cdsp=tx_iterator_cache_data_space_pref(it, 0, 0))) ||
 			(it->ttn && it->ttn->frame_msgs_length > (cdss=tx_iterator_cache_data_space_sched(it))) ) {
 
-			dbgf_track(DBGT_WARN, "ft=%d mms=%d cdsp=%d, fml=%d cdss=%d",
+			// WARNING: Using more verbose debuglevel here distorts link-capacity measurements !!!
+			dbgf_all(DBGT_WARN, "ft=%d mms=%d cdsp=%d, fml=%d cdss=%d",
 				it->frame_type, handl->min_msg_size, cdsp, it->ttn ? it->ttn->frame_msgs_length : 0, cdss);
 			return TLV_TX_DATA_FULL;
 		}
@@ -765,16 +786,20 @@ int32_t tx_frame_iterate(IDM_T iterate_msg, struct tx_frame_iterator *it)
 
 
 
-IDM_T purge_tx_task_tree(struct neigh_node *onlyNeigh, struct dev_node *onlyDev, struct tx_task_node *onlyTtn, IDM_T force)
+IDM_T purge_tx_task_tree(LinkNode *onlyUnicast, struct neigh_node *onlyNeigh, struct dev_node *onlyDev, struct tx_task_node *onlyTtn, IDM_T force)
 {
 	TRACE_FUNCTION_CALL;
+
+	assertion(-502654, ((!!onlyUnicast + !!onlyNeigh + !!onlyDev + !!onlyTtn) <= 1));
+
+
 	IDM_T removed = 0;
 	struct tx_task_node *curr, *next = onlyTtn ? onlyTtn : avl_first_item(&txTask_tree);
 
 	while ((curr = next)) {
 		next = onlyTtn ? NULL : avl_next_item(&txTask_tree, &curr->key);
 
-		if ((onlyNeigh && onlyNeigh != curr->neigh) || (onlyDev && onlyDev != curr->key.f.p.dev) || (onlyTtn && onlyTtn != curr))
+		if ((onlyUnicast && onlyUnicast != curr->key.f.p.unicast) || (onlyNeigh && onlyNeigh != curr->neigh) || (onlyDev && onlyDev != curr->key.f.p.dev) || (onlyTtn && onlyTtn != curr))
 			continue;
 
 		if (force || (curr->tx_iterations <= 0 && ((TIME_T) (bmx_time - curr->send_ts) > (TIME_T)*(packet_frame_db->handls[curr->key.f.type].tx_task_interval_min)))) {
@@ -810,7 +835,7 @@ struct tx_task_node *get_next_ttn( struct tx_task_node *curr) {
 
 		nextp = avl_next_item(&txTask_tree, &next->key);
 
-		if ((purge_tx_task_tree(NULL, NULL, next, NO) == NO) &&
+		if ((purge_tx_task_tree(NULL, NULL, NULL, next, NO) == NO) &&
 			 (next->tx_iterations > 0) &&
 			 ((TIME_T) (bmx_time - next->send_ts) >= (TIME_T)*(packet_frame_db->handls[next->key.f.type].tx_task_interval_min))) {
 
@@ -848,8 +873,7 @@ void tx_packets( void *unused ) {
 
         dbgf_all(DBGT_INFO, " ");
 
-
-	myKey->currOrig->descContent->dhn->referred_by_me_timestamp = bmx_time;
+	iid_get_myIID4x_by_node(myKey->on);
 
 	// These are always scheduled as needed (if my_tx_interval is due)
 	for (ft = 0; ft <= FRAME_TYPE_MAX_KNOWN; ft++) {
@@ -895,7 +919,7 @@ void tx_packets( void *unused ) {
 	while ((nextTask)) {
 
 		if (nextTask->key.f.type > FRAME_TYPE_OGM_AGG_SQN_ADV && it.frames_out_pos==0) {
-			struct tx_task_node ttn = {.key = {.f = {.p = {.dev = nextTask->key.f.p.dev}}}};
+			struct tx_task_node ttn = {.key = {.f = {.p = {.dev = nextTask->key.f.p.dev, .unicast = nextTask->key.f.p.unicast}}}};
 			it.ttn = &ttn;
 			
 			ttn.key.f.type = FRAME_TYPE_SIGNATURE_ADV;
@@ -959,7 +983,7 @@ void tx_packets( void *unused ) {
 
 				assertion(-502446, (it.frames_out_pos <= it.frames_out_max));
 
-				send_bmx_packet(&pb, it.ttn->key.f.p.dev, it.frames_out_pos + sizeof( struct packet_header));
+				send_bmx_packet(it.ttn->key.f.p.unicast, &pb, it.ttn->key.f.p.dev, it.frames_out_pos + sizeof( struct packet_header));
 			}
 
 			memset(&pb.i, 0, sizeof(pb.i));
@@ -977,7 +1001,7 @@ void tx_packets( void *unused ) {
 }
 
 
-void schedule_tx_task(uint8_t f_type, CRYPTSHA1_T *groupId, struct neigh_node *neigh, struct dev_node *dev, int16_t f_msgs_len, void *keyData, uint32_t keyLen)
+void schedule_tx_task(uint8_t f_type, LinkNode *unicast, CRYPTSHA1_T *groupId, struct neigh_node *neigh, struct dev_node *dev, int16_t f_msgs_len, void *keyData, uint32_t keyLen)
 {
 	TRACE_FUNCTION_CALL;
 
@@ -990,12 +1014,14 @@ void schedule_tx_task(uint8_t f_type, CRYPTSHA1_T *groupId, struct neigh_node *n
 	struct frame_handl *handl = &packet_frame_db->handls[f_type];
 	assertion(-502450, (handl && handl->name));
 	assertion(-502451, IMPLIES(handl->tx_iterations, *handl->tx_iterations > 0));
+	assertion(-502655, IMPLIES(unicast, (dev && dev == unicast->k.myDev)));
+	assertion(-502656, IMPLIES(unicast, (neigh && neigh == unicast->k.linkDev->key.local)));
 
 	if (!dev) {
 		struct avl_node *an = NULL;
 		while ((dev = avl_iterate_item(&dev_ip_tree, &an))) {
 			if (dev->active && dev->linklayer != TYP_DEV_LL_LO)
-				schedule_tx_task(f_type, groupId, neigh, dev, f_msgs_len, keyData, keyLen);
+				schedule_tx_task(f_type, NULL, groupId, neigh, dev, f_msgs_len, keyData, keyLen);
 		}
 		return;
 	}
@@ -1004,15 +1030,15 @@ void schedule_tx_task(uint8_t f_type, CRYPTSHA1_T *groupId, struct neigh_node *n
 	dbgf((dbg_frame_types & (1<<f_type) ? DBGL_CHANGES : DBGL_ALL), DBGT_INFO,
 		 "type=%s groupId=%s neigh=%s dev=%s msgs_len=%d data=%s len=%d",
 		 handl->name, cryptShaAsString(groupId), neigh ? cryptShaAsShortStr(&neigh->local_id) : NULL,
-		 dev ? dev->label_cfg.str : NULL, f_msgs_len, memAsHexString(keyData, keyLen), keyLen);
+		 dev ? dev->ifname_label.str : NULL, f_msgs_len, memAsHexString(keyData, keyLen), keyLen);
 
 	if (dev->tx_task_items >= txTaskTreeSizeMax) {
-		dbg_mute(20, DBGL_SYS, DBGT_WARN, "%s txTaskItems=%d reached %s=%d", dev->label_cfg.str, dev->tx_task_items, ARG_TX_TREE_SIZE_MAX, txTaskTreeSizeMax);
+		dbg_mute(20, DBGL_SYS, DBGT_WARN, "%s txTaskItems=%d reached %s=%d", dev->ifname_label.str, dev->tx_task_items, ARG_TX_TREE_SIZE_MAX, txTaskTreeSizeMax);
 		return;
 	}
 
 	struct tx_task_node test = {
-		.key =	{ .f = { .p = { .sign = (f_type >= FRAME_TYPE_SIGNATURE_ADV), .dev = dev}, .type = f_type, .groupId = groupId ? *groupId : ZERO_CYRYPSHA1} },
+		.key =	{ .f = { .p = { .sign = (f_type >= FRAME_TYPE_SIGNATURE_ADV), .dev = dev, .unicast = unicast}, .type = f_type, .groupId = groupId ? *groupId : ZERO_CYRYPSHA1} },
 		.neigh = neigh, .tx_iterations = *(handl->tx_iterations),
 		.send_ts = ((TIME_T) (bmx_time - *handl->tx_task_interval_min)),
 		.frame_msgs_length = (f_msgs_len == SCHEDULE_MIN_MSG_SIZE ? handl->min_msg_size : f_msgs_len)
@@ -1127,7 +1153,7 @@ void rx_packet( struct packet_buff *pb )
 	pb->i.claimedKey = keyNode_updCredits(&pb->p.hdr.keyHash, NULL, &kc);
 
         dbgf_all(DBGT_INFO, "via dev=%s devLlIp=%s srcLlIp=%s size=%d version=%i rsvd=%X nodeId=%s kState=%s",
-		pb->i.iif->label_cfg.str, pb->i.iif->ip_llocal_str, pb->i.llip_str, pb->i.length,
+		pb->i.iif->ifname_label.str, pb->i.iif->ip_llocal_str, pb->i.llip_str, pb->i.length,
 		pb->p.hdr.comp_version, pb->p.hdr.reserved, cryptShaAsShortStr(&pb->p.hdr.keyHash),
 		pb->i.claimedKey ? pb->i.claimedKey->bookedState->secName : NULL);
 
@@ -1140,7 +1166,7 @@ process_packet_error:
 
         dbgf_mute(60, DBGL_SYS, DBGT_WARN,
                 "Drop (remaining) problematic packet: from nodeId=%s via srcLlIp=%s dev=%s my_version=%d version=%i capabilities=%d len=%d myTxDev=%d myTxKey=%d problem=%s",
-		cryptShaAsShortStr(&pb->p.hdr.keyHash), pb->i.llip_str, pb->i.iif->label_cfg.str,
+		cryptShaAsShortStr(&pb->p.hdr.keyHash), pb->i.llip_str, pb->i.iif->ifname_label.str,
 		my_compatibility, pb->p.hdr.comp_version, pb->p.hdr.reserved, pb->i.length,
 		!!myTxDev, !!myTxKey, goto_error_code);
 

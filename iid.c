@@ -28,8 +28,6 @@
 #include <sys/time.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <linux/if.h>     /* ifr_if, ifr_tun */
-#include <linux/rtnetlink.h>
 #include <time.h>
 
 #include "list.h"
@@ -38,10 +36,10 @@
 #include "crypt.h"
 #include "avl.h"
 #include "node.h"
-#include "iid.h"
 #include "key.h"
 #include "sec.h"
 #include "metrics.h"
+#include "ogm.h"
 #include "msg.h"
 #include "ip.h"
 #include "hna.h"
@@ -60,47 +58,38 @@
  IID Infrastructure
  ************************************************************/
 
-int32_t ogmIid = DEF_OGM_SQN_RANGE;
 
 struct iid_repos my_iid_repos = {0, 0, 0, 0,
 	{NULL}};
 
-int8_t iid_extend_repos(struct iid_repos *rep)
+void iid_extend_repos(struct iid_repos *rep)
 {
 	TRACE_FUNCTION_CALL;
 
-	dbgf_all(DBGT_INFO, "sizeof iid: %zu,  tot_used %d  arr_size %d ",
-		(rep == &my_iid_repos) ? sizeof(IID_NODE_T__*) : sizeof(IID_T), rep->tot_used, rep->arr_size);
-
-	assertion(-500217, (rep != &my_iid_repos || IID_SPREAD_FK != 1 || rep->tot_used == rep->arr_size));
+	assertion(-500217, (rep != &my_iid_repos || rep->tot_used == rep->arr_size));
 
 	if (rep->arr_size + IID_REPOS_SIZE_BLOCK >= IID_REPOS_SIZE_WARN) {
 
 		dbgf_sys(DBGT_WARN, "%d", rep->arr_size);
 
-		if (rep->arr_size + IID_REPOS_SIZE_BLOCK >= IID_REPOS_SIZE_MAX)
-			return FAILURE;
+		assertion(-502538, (rep->arr_size + IID_REPOS_SIZE_BLOCK <= IID_REPOS_SIZE_MAX));
 	}
-
-	int field_size = (rep == &my_iid_repos) ? sizeof(IID_NODE_T__*) : sizeof(struct iid_ref);
 
 	if (rep->arr_size) {
 
-		rep->arr.u8 = debugRealloc(rep->arr.u8, (rep->arr_size + IID_REPOS_SIZE_BLOCK) * field_size, -300035);
+		rep->arr.u8 = debugRealloc(rep->arr.u8, (rep->arr_size + IID_REPOS_SIZE_BLOCK) * sizeof(struct iid_ref), -300035);
 
 	} else {
 
-		rep->arr.u8 = debugMalloc(IID_REPOS_SIZE_BLOCK * field_size, -300085);
+		rep->arr.u8 = debugMalloc(IID_REPOS_SIZE_BLOCK * sizeof(struct iid_ref), -300085);
 		rep->tot_used = IID_RSVD_MAX + 1;
 		rep->min_free = IID_RSVD_MAX + 1;
 		rep->max_free = IID_RSVD_MAX + 1;
 	}
 
-	memset(&(rep->arr.u8[rep->arr_size * field_size]), 0, IID_REPOS_SIZE_BLOCK * field_size);
+	memset(&(rep->arr.u8[rep->arr_size * sizeof(struct iid_ref)]), 0, IID_REPOS_SIZE_BLOCK * sizeof(struct iid_ref));
 
 	rep->arr_size += IID_REPOS_SIZE_BLOCK;
-
-	return SUCCESS;
 }
 
 void iid_purge_repos(struct iid_repos *rep)
@@ -117,18 +106,21 @@ void iid_purge_repos(struct iid_repos *rep)
 void iid_free(struct iid_repos *rep, IID_T iid)
 {
 	TRACE_FUNCTION_CALL;
-	int m = (rep == &my_iid_repos);
+	rep = rep ? rep : &my_iid_repos;
 
 	assertion(-500330, (iid > IID_RSVD_MAX));
 	assertion(-500228, (iid < rep->arr_size && iid < rep->max_free && rep->tot_used > IID_RSVD_MAX));
-	assertion(-500229, ((m ? (rep->arr.node[iid] != NULL) : (rep->arr.ref[iid].myIID4x) != 0)));
 
-	if (m) {
-		rep->arr.node[iid] = NULL;
-	} else {
-		rep->arr.ref[iid].myIID4x = 0;
-		rep->arr.ref[iid].referred_by_neigh_timestamp_sec = 0;
-	}
+	struct iid_ref *ref = &rep->arr.r[iid];
+	assertion(-500229, (ref->referred_timestamp));
+
+	if (rep == &my_iid_repos)
+		((MIID_T*)(ref->iidn))->__myIID4x = 0;
+	else
+		((NIID_T*)(ref->iidn))->__neighIID4x = 0;
+
+	ref->iidn = NULL;
+	ref->referred_timestamp = 0;
 
 	rep->min_free = XMIN(rep->min_free, iid);
 
@@ -136,9 +128,9 @@ void iid_free(struct iid_repos *rep, IID_T iid)
 
 		IID_T i;
 
-		for (i = iid; i > IID_MIN_USED; i--) {
+		for (i = iid; i > IID_MIN_USED_FOR_SELF; i--) {
 
-			if (m ? (rep->arr.node[i - 1] != NULL) : (rep->arr.ref[i - 1].myIID4x) != 0)
+			if (rep->arr.r[i-1].referred_timestamp)
 				break;
 		}
 
@@ -147,96 +139,102 @@ void iid_free(struct iid_repos *rep, IID_T iid)
 
 	rep->tot_used--;
 
-	dbgf_all(DBGT_INFO, "mine %d, iid %d tot_used %d, min_free %d max_free %d",
-		m, iid, rep->tot_used, rep->min_free, rep->max_free);
+	dbgf_all(DBGT_INFO, "mine=%d, iid=%d tot_used=%d, min_free=%d max_free=%d",
+		(rep == &my_iid_repos), iid, rep->tot_used, rep->min_free, rep->max_free);
 
-	if (rep->tot_used > 0 && rep->tot_used <= IID_MIN_USED) {
+	if (rep->tot_used > 0 && rep->tot_used <= IID_MIN_USED_FOR_SELF) {
 
-		assertion(-500362, (rep->tot_used == IID_MIN_USED && rep->max_free == IID_MIN_USED && rep->min_free == IID_MIN_USED));
+		assertion(-500362, (rep->tot_used == IID_MIN_USED_FOR_SELF && rep->max_free == IID_MIN_USED_FOR_SELF && rep->min_free == IID_MIN_USED_FOR_SELF));
 
 		iid_purge_repos(rep);
-
 	}
 
 }
 
-IID_NODE_T__* iid_get_node_by_myIID4x(IID_T myIID4x)
+IID_T iid_get_myIID4x_by_node(MIID_T* miidn)
+{
+	assertion(-502539, (miidn));
+	IID_T iid = miidn->__myIID4x;
+
+	assertion(-502540, (iid));
+	assertion(-502541, (my_iid_repos.max_free > iid));
+	assertion(-502542, (my_iid_repos.arr.r[iid].iidn == miidn));
+
+	my_iid_repos.arr.r[iid].referred_timestamp = bmx_time;
+
+	return iid;
+}
+
+MIID_T* iid_get_node_by_myIID4x(IID_T myIID4x)
 {
 	TRACE_FUNCTION_CALL;
 
 	if (my_iid_repos.max_free <= myIID4x)
 		return NULL;
 
-	IID_NODE_T__ *dhn = my_iid_repos.arr.node[myIID4x];
+	MIID_T *ref = my_iid_repos.arr.r[myIID4x].iidn;
 
-	assertion(-500328, (!dhn || dhn->myIID4orig == myIID4x));
-
-	if (dhn && !dhn->key__) {
-
-		dbgf_track(DBGT_INFO, "myIID4x %d INVALIDATED %d sec ago",
-			myIID4x, (bmx_time - dhn->referred_by_me_timestamp) / 1000);
-
-		return NULL;
+	if (ref) {
+		assertion(-502543, (ref->__myIID4x == myIID4x));
+		my_iid_repos.arr.r[myIID4x].referred_timestamp = bmx_time;
 	}
-
-
-	return dhn;
+	
+	return ref;
 }
 
-IID_NODE_T__* iid_get_node_by_neighIID4x(IID_NEIGH_T *nn, IID_T neighIID4x)
+
+
+IID_T iid_get_neighIID4x_timeout_by_node(NIID_T *niidn)
+{
+	assertion(-502544, (niidn));
+	assertion(-502545, (niidn && niidn->__neighIID4x));
+	assertion(-502546, (niidn->nn));
+	assertion(-502547, (niidn->nn->neighIID4x_repos.max_free > niidn->__neighIID4x));
+	assertion(-502548, (niidn->nn->neighIID4x_repos.arr.r[niidn->__neighIID4x].iidn == niidn));
+
+	TIME_T to = ((TIME_T) ((bmx_time - niidn->nn->neighIID4x_repos.arr.r[niidn->__neighIID4x].referred_timestamp)));
+
+	if (to < NB_IID_TIMEOUT)
+		return (NB_IID_TIMEOUT - to);
+	else
+		return 0;
+}
+
+IID_T iid_get_neighIID4x_by_node(NIID_T *niidn)
+{
+	return niidn ? niidn->__neighIID4x : IID_RSVD_MAX;
+}
+
+
+NIID_T* iid_get_node_by_neighIID4x(struct iid_repos *rep, IID_T neighIID4x, IDM_T update )
 {
 	TRACE_FUNCTION_CALL;
-	assertion(-502331, (ogmIid));
+	struct iid_ref *ref = NULL;
 
-	if (!nn || nn->neighIID4x_repos.max_free <= neighIID4x) {
 
-		dbgf_all(DBGT_INFO, "neighIID4x=%d to large for neighIID4x_repos of neigh=%s",
-			neighIID4x, nn ? cryptShaAsString(&nn->local_id) : "???");
+	if (!rep || rep->max_free <= neighIID4x || !(ref = &(rep->arr.r[neighIID4x])) || !ref->iidn) {
+
 		return NULL;
-	}
-
-	struct iid_ref *ref = &(nn->neighIID4x_repos.arr.ref[neighIID4x]);
-
-
-	if (!ref->myIID4x) {
-
-		dbgf_all(DBGT_WARN, "neighIID4x=%d not recorded by neighIID4x_repos", neighIID4x);
-
-	} else if (((((uint16_t) bmx_time_sec) - ref->referred_by_neigh_timestamp_sec) >
-		((MIN_DHASH_TO - (MIN_DHASH_TO / DHASH_TO_TOLERANCE_FK)) / 1000))) {
-
-		dbgf_track(DBGT_WARN, "neighIID4x=%d outdated in neighIID4x_repos, now_sec=%d, ref_sec=%d",
-			neighIID4x, bmx_time_sec, ref->referred_by_neigh_timestamp_sec);
 
 	} else {
 
-		ref->referred_by_neigh_timestamp_sec = bmx_time_sec;
-
-		if (ref->myIID4x < my_iid_repos.max_free) {
-
-			IID_NODE_T__ *dhn = my_iid_repos.arr.node[ref->myIID4x];
-
-			if (dhn)
-				return dhn;
-
-			dbgf_track(DBGT_WARN, "neighIID4x=%d -> myIID4x=%d empty!", neighIID4x, ref->myIID4x);
-
-		} else {
-
-			dbgf_track(DBGT_WARN, "neighIID4x=%d -> myIID4x=%d to large!", neighIID4x, ref->myIID4x);
-		}
+		assertion(-502549, (((NIID_T*)(ref->iidn))->__neighIID4x == neighIID4x));
+		if (update)
+			ref->referred_timestamp = bmx_time;
+		return ((NIID_T*)(ref->iidn));
 	}
 
 	return NULL;
 }
 
 STATIC_FUNC
-void _iid_set(struct iid_repos *rep, IID_T IIDpos, IID_T myIID4x, IID_NODE_T__ *dhn)
+void _iid_set(struct iid_repos *rep, IID_T IIDpos, NIID_T *nbn, MIID_T *myn)
 {
 	TRACE_FUNCTION_CALL;
-	assertion(-500530, (rep && XOR(myIID4x, dhn))); // eihter the one ore the other !!
-	assertion(-500531, (!dhn || rep == &my_iid_repos));
-	assertion(-500535, (IIDpos >= IID_MIN_USED));
+	assertion(-500530, (rep));
+	assertion(-500535, (IIDpos >= IID_MIN_USED_FOR_SELF));
+	assertion(-502550, (XOR(nbn, myn))); // eihter the one ore the other !!
+	assertion(-500531, IMPLIES(myn, rep == &my_iid_repos));
 
 	rep->tot_used++;
 	rep->max_free = XMAX(rep->max_free, IIDpos + 1);
@@ -246,7 +244,7 @@ void _iid_set(struct iid_repos *rep, IID_T IIDpos, IID_T myIID4x, IID_NODE_T__ *
 	if (min == IIDpos) {
 		for (min++; min < rep->arr_size; min++) {
 
-			if (myIID4x ? !(rep->arr.ref[min].myIID4x) : !(rep->arr.node[min]))
+			if (!(rep->arr.r[min].referred_timestamp))
 				break;
 		}
 	}
@@ -255,174 +253,79 @@ void _iid_set(struct iid_repos *rep, IID_T IIDpos, IID_T myIID4x, IID_NODE_T__ *
 
 	rep->min_free = min;
 
-	if (myIID4x) {
-		rep->arr.ref[IIDpos].myIID4x = myIID4x;
-		rep->arr.ref[IIDpos].referred_by_neigh_timestamp_sec = bmx_time_sec;
+	assertion(-502551, (!rep->arr.r[IIDpos].iidn));
+	assertion(-502552, (!rep->arr.r[IIDpos].referred_timestamp));
+
+	if (nbn) {
+		assertion(-502553, (!nbn->__neighIID4x));
+		rep->arr.r[IIDpos].iidn = nbn;
+		nbn->__neighIID4x = IIDpos;
 	} else {
-		rep->arr.node[IIDpos] = dhn;
-		dhn->referred_by_me_timestamp = bmx_time;
+		assertion(-502554, (!myn->__myIID4x));
+		rep->arr.r[IIDpos].iidn = myn;
+		myn->__myIID4x = IIDpos;
 	}
+
+	rep->arr.r[IIDpos].referred_timestamp = bmx_time;
+
+
 }
 
-IID_T iid_new_myIID4x(IID_NODE_T__ *dhn)
+IID_T iid_new_myIID4x(MIID_T *on)
 {
 	TRACE_FUNCTION_CALL;
 	IID_T mid;
-#ifndef NO_ASSERTIONS
-	IDM_T warn = 0;
-#endif
 
 	assertion(-500216, (my_iid_repos.tot_used <= my_iid_repos.arr_size));
 
-	while (my_iid_repos.arr_size <= my_iid_repos.tot_used * IID_SPREAD_FK)
+	while (my_iid_repos.arr_size <= my_iid_repos.tot_used)
 		iid_extend_repos(&my_iid_repos);
 
-	if (IID_SPREAD_FK > 1) {
+	mid = my_iid_repos.min_free;
 
-		uint32_t random = rand_num(my_iid_repos.arr_size);
-
-		// Never put random function intro MAX()! It would be called twice
-		mid = XMAX(IID_MIN_USED, random);
-
-		while (my_iid_repos.arr.node[mid]) {
-
-			mid++;
-			if (mid >= my_iid_repos.arr_size) {
-
-				mid = IID_MIN_USED;
-
-				assertion(-500533, (!(warn++)));
-			}
-		}
-
-	} else {
-
-		mid = my_iid_repos.min_free;
-	}
-
-	_iid_set(&my_iid_repos, mid, 0, dhn);
+	_iid_set(&my_iid_repos, mid, 0, on);
 
 	return mid;
 
 }
 
-IDM_T iid_set_neighIID4x(struct iid_repos *neigh_rep, IID_T neighIID4x, IID_T myIID4x)
+void iid_set_neighIID4x(struct iid_repos *rep, IID_T neighIID4x, NIID_T *niidn)
 {
 	TRACE_FUNCTION_CALL;
-	assertion(-502332, (ogmIid));
 	assertion(-500326, (neighIID4x > IID_RSVD_MAX));
-	assertion(-500327, (myIID4x > IID_RSVD_MAX));
-	assertion(-500384, (neigh_rep && neigh_rep != &my_iid_repos));
-	assertion(-500245, (my_iid_repos.max_free > myIID4x));
+	assertion(-500327, (niidn));
+	assertion(-500384, (rep && rep != &my_iid_repos));
 
-	IID_NODE_T__ *dhn = my_iid_repos.arr.node[myIID4x];
 
-	assertion(-500485, (dhn && dhn->descContent && dhn->descContent->orig));
+	if (rep->max_free > neighIID4x) {
 
-	dhn->referred_by_me_timestamp = bmx_time;
+		struct iid_ref *ref = &(rep->arr.r[neighIID4x]);
 
-	if (neigh_rep->max_free > neighIID4x) {
-
-		struct iid_ref *ref = &(neigh_rep->arr.ref[neighIID4x]);
-
-		if (ref->myIID4x > IID_RSVD_MAX) {
-
-			if (ref->myIID4x == myIID4x ||
-				(((uint16_t) (((uint16_t) bmx_time_sec) - ref->referred_by_neigh_timestamp_sec)) >=
-				((MIN_DHASH_TO - (MIN_DHASH_TO / DHASH_TO_TOLERANCE_FK)) / 1000))) {
-
-				ref->myIID4x = myIID4x;
-				ref->referred_by_neigh_timestamp_sec = bmx_time_sec;
-				return SUCCESS;
-			}
-
-			IID_NODE_T__ *dhn_old;
-			dhn_old = my_iid_repos.arr.node[ref->myIID4x]; // avoid -DNO_DEBUG_SYS warnings
-			dbgf_sys(DBGT_ERR, "demanding mapping: neighIID4x=%d to myIID4x=%d "
-				"(global_id=%s updated=%d last_referred_by_me=%d)  "
-				"already used for ref->myIID4x=%d (last_referred_by_neigh_sec=%d %s=%s last_referred_by_me=%jd)! Reused faster than allowed!!",
-				neighIID4x, myIID4x, cryptShaAsString(&dhn->key__->orig__->nodeId), dhn->key__->orig__->updated_timestamp,
-				dhn->referred_by_me_timestamp,
-				ref->myIID4x,
-				ref->referred_by_neigh_timestamp_sec,
-				(!dhn_old ? "???" : (dhn_old->key__ && dhn_old->key__->orig__ ? cryptShaAsString(&dhn_old->key__->orig__->nodeId) :
-				(is_zero(&dhn_old->dhash, sizeof(dhn_old->dhash)) ? "FREED" : "INVALIDATED"))),
-				dhn_old ? cryptShaAsString(&dhn_old->dhash) : "???",
-				dhn_old ? (int64_t) dhn_old->referred_by_me_timestamp : -1
-				);
-
-			//                        EXITERROR(-500701, (0));
-
-			return FAILURE;
+		if (ref->iidn) {
+			ref->iidn = niidn;
+			ref->referred_timestamp = bmx_time;
+			return;
 		}
-
-		assertion(-500242, (ref->myIID4x == IID_RSVD_UNUSED));
 	}
 
-
-	while (neigh_rep->arr_size <= neighIID4x) {
+	while (rep->arr_size <= neighIID4x) {
 
 		if (
-			neigh_rep->arr_size > IID_REPOS_SIZE_BLOCK &&
-			neigh_rep->arr_size > my_iid_repos.arr_size &&
-			neigh_rep->tot_used < neigh_rep->arr_size / (2 * IID_SPREAD_FK)) {
+			rep->arr_size > IID_REPOS_SIZE_BLOCK &&
+			rep->arr_size > my_iid_repos.arr_size &&
+			rep->tot_used < rep->arr_size / 2) {
 
-			dbgf_sys(DBGT_WARN, "IID_REPOS USAGE WARNING neighIID4x %d myIID4x %d arr_size %d used %d",
-				neighIID4x, myIID4x, neigh_rep->arr_size, neigh_rep->tot_used);
+			dbgf_track(DBGT_WARN, "IID_REPOS USAGE WARNING neighIID4x=%d  arr_size=%d used=%d",
+				neighIID4x, rep->arr_size, rep->tot_used);
 		}
 
-		iid_extend_repos(neigh_rep);
+		iid_extend_repos(rep);
 	}
 
-	assertion(-500243, ((neigh_rep->arr_size > neighIID4x &&
-		(neigh_rep->max_free <= neighIID4x || neigh_rep->arr.ref[neighIID4x].myIID4x == IID_RSVD_UNUSED))));
+	assertion(-500243, (rep->arr_size > neighIID4x &&
+		(rep->max_free <= neighIID4x || rep->arr.r[neighIID4x].iidn == NULL)));
 
-	_iid_set(neigh_rep, neighIID4x, myIID4x, NULL);
-
-	return SUCCESS;
-}
-
-void iid_free_neighIID4x_by_myIID4x(struct iid_repos *rep, IID_T myIID4x)
-{
-	TRACE_FUNCTION_CALL;
-	assertion(-500282, (rep != &my_iid_repos));
-	assertion(-500328, (myIID4x > IID_RSVD_MAX));
-
-	IID_T p;
-	uint16_t removed = 0;
-
-	for (p = IID_RSVD_MAX + 1; p < rep->max_free; p++) {
-
-		if (rep->arr.ref[p].myIID4x == myIID4x) {
-
-			if (removed++) {
-				// there could indeed be several (if the neigh has timeouted this node and learned it again later)
-				dbgf(DBGL_TEST, DBGT_INFO, "removed %d. stale rep->arr.sid[%d] = %d", removed, p, myIID4x);
-			}
-
-			iid_free(rep, p);
-		}
-	}
+	_iid_set(rep, neighIID4x, niidn, NULL);
 }
 
 
-
-void iid_purge_dhash(IID_T myIID4orig)
-{
-	TRACE_FUNCTION_CALL;
-	struct avl_node *an;
-	struct neigh_node *local;
-
-	iid_free(&my_iid_repos, myIID4orig);
-
-	//reset all neigh_node->oid_repos[x]=dhn->mid4o entries
-	for (an = NULL; (local = avl_iterate_item(&local_tree, &an));)
-		iid_free_neighIID4x_by_myIID4x(&local->neighIID4x_repos, myIID4orig);
-
-}
-
-
-void iid_init(void)
-{
-	assertion(-502333, (OGMS_IID_PER_AGGREG_PREF <= OGMS_IID_PER_AGGREG_MAX));
-}

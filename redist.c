@@ -70,7 +70,7 @@ void update_tunXin6_net_adv_list(struct avl_tree *redist_out_tree, struct tunXin
 
 	struct avl_node *ran = NULL;
 	struct redist_out_node *routn;
-	struct tunXin6_net_adv_node *p = (*tunXin6_net_adv_list = debugRealloc(*tunXin6_net_adv_list, redist_out_tree->items * sizeof(struct tunXin6_net_adv_node), -300000));
+	struct tunXin6_net_adv_node *p = (*tunXin6_net_adv_list = debugRealloc(*tunXin6_net_adv_list, redist_out_tree->items * sizeof(struct tunXin6_net_adv_node), -300790));
 
 
 	for (;(routn = avl_iterate_item(redist_out_tree, &ran)); p++) {

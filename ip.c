@@ -32,14 +32,28 @@
 #include <arpa/inet.h>
 #include <sys/ioctl.h>
 #include <fcntl.h>
-#include <linux/if_tun.h> /* TUNSETPERSIST, ... */
-#include <linux/if.h>     /* ifr_if, ifr_tun */
 
 #include <sys/types.h>
 #include <asm/types.h>
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
 
+#include <netinet/ip.h>
+#include <net/if.h>
+#include <net/if_arp.h>
+#include <linux/if_tunnel.h>
+
+#include <linux/if_tun.h> /* TUNSETPERSIST, ... */
+#include <linux/ip6_tunnel.h>
+
+#ifndef BMX7_LIB_IWINFO
+#define BMX7_LIB_IW
+#include <iwlib.h>
+#endif
+//#include <iwlib.h>
+// apt-get install libiw-dev
+//#include <math.h>
+//#include <linux/wireless.h>
 
 #include "list.h"
 #include "control.h"
@@ -84,7 +98,7 @@ int32_t ip_policy_rt_cfg = DEF_IP_POLICY_ROUTING;
 
 int32_t policy_routing = POLICY_RT_UNSET;
 
-static int32_t base_port = DEF_BASE_PORT;
+int32_t base_port = DEF_BASE_PORT;
 
 int32_t netlinkBuffSize = DEF_NETLINK_BUFFSZ;
 
@@ -125,7 +139,7 @@ static IDM_T opt_dev_changed = YES;
 AVL_TREE(if_link_tree, struct if_link_node, index);
 
 AVL_TREE(dev_ip_tree, struct dev_node, llipKey);
-AVL_TREE(dev_name_tree, struct dev_node, name_phy_cfg);
+AVL_TREE(dev_name_tree, struct dev_node, ifname_device);
 AVL_TREE(tun_name_tree, struct ifname, str);
 
 AVL_TREE(iptrack_tree, struct track_node, k);
@@ -223,26 +237,51 @@ void parse_rtattr(struct rtattr *tb[], int max, struct rtattr *rta, int len)
 }
 
 STATIC_FUNC
-IDM_T get_if_req(IFNAME_T *dev_name, struct ifreq *if_req, int siocgi_req)
+IDM_T get_if_req(struct dev_node *dev, struct ifreq *if_req, int siocgi_req)
 {
-
 	memset( if_req, 0, sizeof (struct ifreq) );
-
-        if (dev_name)
-                strncpy(if_req->ifr_name, dev_name->str, IFNAMSIZ - 1);
+	strcpy(if_req->ifr_name, dev->ifname_phy.str);
 
         errno = 0;
         if ( ioctl( io_sock, siocgi_req, if_req ) < 0 ) {
 
                 if (siocgi_req != SIOCGIWNAME) {
                         dbgf_sys(DBGT_ERR, "can't get SIOCGI %d of interface %s: %s",
-                                siocgi_req, dev_name->str, strerror(errno));
+                                siocgi_req, dev->ifname_label.str, strerror(errno));
                 }
                 return FAILURE;
 	}
 
 	return SUCCESS;
 }
+
+
+#ifdef BMX7_LIB_IW
+STATIC_FUNC
+uint16_t get_iwlib_channel(struct dev_node *dev)
+{
+	struct iwreq wrq;
+	struct iw_range range;
+	double freq;
+	int channel;
+
+	/* Get list of frequencies / channels */
+	if (iw_get_range_info(io_sock, dev->ifname_phy.str, &range) < 0) {
+		dbgf_sys(DBGT_WARN, "No frequency information for dev=%s", dev->ifname_phy.str);
+	} else {
+
+		/* Get current frequency / channel and display it */
+		if (iw_get_ext(io_sock, dev->ifname_phy.str, SIOCGIWFREQ, &wrq) >= 0) {
+			freq = iw_freq2float(&(wrq.u.freq));
+			if ((channel = iw_freq_to_channel(freq, &range)) < MAX_DEV_CHANNEL)
+				return channel;
+		}
+	}
+
+	return 0;
+}
+#endif
+
 
 extern unsigned int if_nametoindex (const char *);
 
@@ -268,7 +307,7 @@ void add_rtattr(struct nlmsghdr *nlh, int rta_type, char *data, uint16_t data_le
 
         nlh->nlmsg_len = NLMSG_ALIGN(nlh->nlmsg_len) + RTA_ALIGN(len);
 
-        assertion(-50173, (NLMSG_ALIGN(nlh->nlmsg_len) < RT_REQ_BUFFSIZE));
+        assertion(-501730, (NLMSG_ALIGN(nlh->nlmsg_len) < RT_REQ_BUFFSIZE));
         // if this fails then double req buff size !!
 
         rta->rta_type = rta_type;
@@ -414,6 +453,25 @@ char *trackt2str(uint16_t cmd)
 }
 
 
+MAC_T *ip6Eui64ToMac(IPX_T *ll, MAC_T *mp)
+{
+	static MAC_T mac;
+
+	mac.u8[0] = ll->s6_addr[8]^(0x1 << 1);
+	mac.u8[1] = ll->s6_addr[9];
+	mac.u8[2] = ll->s6_addr[10];
+	mac.u8[3] = ll->s6_addr[13];
+	mac.u8[4] = ll->s6_addr[14];
+	mac.u8[5] = ll->s6_addr[15];
+
+	if (!mp)
+		return &mac;
+
+	*mp = mac;
+	return mp;
+}
+
+
 STATIC_FUNC
 struct dev_node * dev_get_by_name(char *name)
 {
@@ -543,7 +601,7 @@ IDM_T rtnl_talk(struct rtnl_handle *iprth, struct nlmsghdr *nlh, uint16_t cmd, u
 
 	int result = rtnl_rcv( iprth->fd, iprth->local.nl_pid, iprth->seq, cmd, quiet, func, data );
 
-	ASSERTION(result, (result >= FAILURE));
+	ASSERTION((result >= FAILURE ? -502638 : result), (result >= FAILURE));
 
 	iprth->busy = 0;
 	return result;
@@ -618,7 +676,7 @@ IDM_T kernel_get_if_config_post(IDM_T purge_all, uint16_t curr_sqn)
                         changed += iln->changed;
 
                         dbgf_track(DBGT_WARN, "link=%s dev=%s configuration CHANGED",
-                                iln->name.str, dev ? dev->label_cfg.str : "ERROR");
+                                iln->name.str, dev ? dev->ifname_label.str : "ERROR");
 
                 }
         }
@@ -1259,7 +1317,8 @@ int32_t kernel_tun_add(char *name, uint8_t proto, IPX_T *local, IPX_T *remote)
 		p.raddr = *remote;
 	if(local)
 		p.laddr = *local;
-	req.ifr_ifru.ifru_data = &p;
+
+	req.ifr_ifru.ifru_data = (void*)&p;
 
         if ((ioctl(io_sock, SIOCADDTUNNEL, &req))) {
                 dbgf_sys(DBGT_ERR, "Failed adding tunnel dev=%s %s", name, strerror(errno));
@@ -1881,9 +1940,9 @@ void sysctl_config( struct dev_node *dev )
 
 
 	if (dev) {
-		sprintf(filename, "ipv4/conf/%s/rp_filter", dev->name_phy_cfg.str);
+		sprintf(filename, "ipv4/conf/%s/rp_filter", dev->ifname_device.str);
 		check_proc_sys_net(filename, SYSCTL_IP4_RP_FILTER);
-		sprintf(filename, "ipv4/conf/%s/send_redirects", dev->name_phy_cfg.str); 
+		sprintf(filename, "ipv4/conf/%s/send_redirects", dev->ifname_device.str);
 		check_proc_sys_net(filename, SYSCTL_IP4_SEND_REDIRECT);
 	}
 }
@@ -1917,12 +1976,10 @@ void dev_reconfigure_soft(struct dev_node *dev)
         assertion(-500615, IMPLIES(dev->linklayer == TYP_DEV_LL_LO, dev->if_global_addr));
         
         if (!initializing) {
-                dbgf_sys(DBGT_INFO, "%s soft interface configuration changed", dev->label_cfg.str);
+                dbgf_sys(DBGT_INFO, "%s soft interface configuration changed", dev->ifname_label.str);
         }
 
         assertion(-501029, (dev->linklayer == TYP_DEV_LL_WIFI || dev->linklayer == TYP_DEV_LL_LAN || dev->linklayer == TYP_DEV_LL_LO));
-        assertion(-501030, (DEF_DEV_BITRATE_MAX_WIFI > DEF_DEV_BITRATE_MIN_WIFI));
-        assertion(-501031, (DEF_DEV_BITRATE_MAX_LAN >= DEF_DEV_BITRATE_MIN_LAN));
 
         // STRANGE! But  if (dev->umetric_max_conf != ((UMETRIC_T)-1)) does not work! !!!!
         static const UMETRIC_T UMETRIC_UNDEFINED  = OPT_CHILD_UNDEFINED;
@@ -1939,41 +1996,34 @@ void dev_reconfigure_soft(struct dev_node *dev)
                 }
         }
 
-        if (dev->umetric_min_conf != UMETRIC_UNDEFINED && dev->umetric_min_conf < dev->umetric_max) {
-                dev->umetric_min = dev->umetric_min_conf;
-        } else {
-                if (dev->linklayer == TYP_DEV_LL_WIFI) {
-                        dev->umetric_min = (dev->umetric_max / (DEF_DEV_BITRATE_MAX_WIFI / DEF_DEV_BITRATE_MIN_WIFI));
-                } else if (dev->linklayer == TYP_DEV_LL_LAN) {
-                        dev->umetric_min = (dev->umetric_max / (DEF_DEV_BITRATE_MAX_LAN / DEF_DEV_BITRATE_MIN_LAN));
-                } else if (dev->linklayer == TYP_DEV_LL_LO) {
-                        dev->umetric_min = UMETRIC_MAX;//umetric(0, 0);
-                }
-        }
-
-
-
-
         if (dev->channel_conf != OPT_CHILD_UNDEFINED) {
                 dev->channel = dev->channel_conf;
         } else {
                 if (dev->linklayer == TYP_DEV_LL_WIFI) {
-                        dev->channel = TYP_DEV_CHANNEL_SHARED;
+
+#ifdef BMX7_LIB_IW
+			if (!dev->get_iw_channel)
+				dev->get_iw_channel = get_iwlib_channel;
+#endif
+
+			if (!(dev->get_iw_channel) ||  !(dev->channel = (*(dev->get_iw_channel))(dev)))
+				dev->channel = TYP_DEV_CHANNEL_SHARED;
+
                 } else if (dev->linklayer == TYP_DEV_LL_LAN) {
                         dev->channel = TYP_DEV_CHANNEL_EXCLUSIVE;
                 } else if (dev->linklayer == TYP_DEV_LL_LO) {
-                        dev->channel = DEF_DEV_CHANNEL;
+                        dev->channel = TYP_DEV_CHANNEL_EXCLUSIVE;
                 }
         }
 
         dbgf(initializing ? DBGL_SYS : DBGL_CHANGES, DBGT_INFO,
-                "enabled %s umin=%s umax=%s umax=%ju umax_conf=%ju undef=%ju %s=%s MAC: %s link-local %s/%d global %s/%d brc %s",
+                "enabled %s umax=%s umax=%ju umax_conf=%ju undef=%ju %s=%s MAC: %s link-local %s/%d global %s/%d brc %s",
                 dev->linklayer == TYP_DEV_LL_LO ? "loopback" : (
                 dev->linklayer == TYP_DEV_LL_WIFI ? "wireless" : (
                 dev->linklayer == TYP_DEV_LL_LAN ? "ethernet" : ("ILLEGAL"))),
-                umetric_to_human(dev->umetric_min), umetric_to_human(dev->umetric_max), dev->umetric_max, dev->umetric_max_conf, ((UMETRIC_T) OPT_CHILD_UNDEFINED),
+                umetric_to_human(dev->umetric_max), dev->umetric_max, dev->umetric_max_conf, ((UMETRIC_T) OPT_CHILD_UNDEFINED),
                 ARG_DEV,
-                dev->label_cfg.str, macAsStr(&dev->mac),
+                dev->ifname_label.str, macAsStr(&dev->mac),
                 dev->ip_llocal_str, dev->if_llocal_addr->ifa.ifa_prefixlen,
                 dev->ip_global_str, dev->if_global_addr ? dev->if_global_addr->ifa.ifa_prefixlen : 0,
                 ip6AsStr(&dev->if_llocal_addr->ip_mcast));
@@ -1989,7 +2039,7 @@ void dev_deactivate( struct dev_node *dev )
         TRACE_FUNCTION_CALL;
 
         dbgf_sys(DBGT_WARN, "deactivating %s=%s llocal=%s global=%s",
-                ARG_DEV, dev->label_cfg.str, dev->ip_llocal_str, dev->ip_global_str);
+                ARG_DEV, dev->ifname_label.str, dev->ip_llocal_str, dev->ip_global_str);
 
         if (!is_ip_set(&dev->llipKey.llip) || !dev->llipKey.devIdx) {
                 dbgf_sys(DBGT_ERR, "no address or idx given to remove in dev_ip_tree!");
@@ -2013,7 +2063,7 @@ void dev_deactivate( struct dev_node *dev )
 
 
 
-		purge_tx_task_tree(NULL, dev, NULL, YES);
+		purge_tx_task_tree(NULL, NULL, dev, NULL, YES);
 
 
 		if (dev->unicast_sock) {
@@ -2031,7 +2081,7 @@ void dev_deactivate( struct dev_node *dev )
                         dev->rx_fullbrc_sock = 0;
                 }
 
-		purge_linkDevs(NULL, dev, YES);
+		purge_linkDevs(NULL, dev, NULL, NO, YES);
 
         }
 
@@ -2039,7 +2089,7 @@ void dev_deactivate( struct dev_node *dev )
 
 	change_selects();
 
-	dbgf_all( DBGT_WARN, "Interface %s deactivated", dev->label_cfg.str );
+	dbgf_all( DBGT_WARN, "Interface %s deactivated", dev->ifname_label.str );
 
 	my_description_changed = YES;
 
@@ -2084,7 +2134,6 @@ IDM_T dev_init_sockets(struct dev_node *dev)
         assertion(-500618, (dev->linklayer != TYP_DEV_LL_LO));
 
         int set_on = 1;
-        int sock_opts;
         int pf_domain = PF_INET6;
 
         if ((dev->unicast_sock = socket(pf_domain, SOCK_DGRAM, 0)) < 0) {
@@ -2101,7 +2150,7 @@ IDM_T dev_init_sockets(struct dev_node *dev)
 	}
 
         // bind send socket to interface name
-        if (dev_bind_sock(dev->unicast_sock, &dev->name_phy_cfg) < 0)
+        if (dev_bind_sock(dev->unicast_sock, &dev->ifname_device) < 0)
                 return FAILURE;
 
         // bind send socket to address
@@ -2115,9 +2164,11 @@ IDM_T dev_init_sockets(struct dev_node *dev)
                 return FAILURE;
         }
 
-        // make udp send socket non blocking
-        sock_opts = fcntl(dev->unicast_sock, F_GETFL, 0);
-        fcntl(dev->unicast_sock, F_SETFL, sock_opts | O_NONBLOCK);
+	if (!dev->blockingSockets) {
+		// make udp send socket non blocking
+		int sock_opts = fcntl(dev->unicast_sock, F_GETFL, 0);
+		fcntl(dev->unicast_sock, F_SETFL, sock_opts | O_NONBLOCK);
+	}
 
 #ifdef SO_TIMESTAMP
         if (setsockopt(dev->unicast_sock, SOL_SOCKET, SO_TIMESTAMP, &set_on, sizeof (set_on))) {
@@ -2140,7 +2191,7 @@ IDM_T dev_init_sockets(struct dev_node *dev)
         }
 
         // bind recv socket to interface name
-        if (dev_bind_sock(dev->rx_mcast_sock, &dev->name_phy_cfg) < 0)
+        if (dev_bind_sock(dev->rx_mcast_sock, &dev->ifname_device) < 0)
                 return FAILURE;
 
 
@@ -2165,7 +2216,7 @@ IDM_T dev_init_sockets(struct dev_node *dev)
 STATIC_FUNC
 DEVIDX_T get_free_devidx(void)
 {
-	DEVIDX_T idx;
+	uint16_t idx;
 
 	for (idx = DEVIDX_MIN; idx <= DEVIDX_MAX; idx++) {
 
@@ -2189,15 +2240,15 @@ void dev_activate( struct dev_node *dev )
         assertion(-500593, (AF_INET6 == dev->if_llocal_addr->ifa.ifa_family));
         assertion(-500599, (is_ip_set(&dev->if_llocal_addr->ip_addr) && dev->if_llocal_addr->ifa.ifa_prefixlen));
 
-        dbgf_sys(DBGT_WARN, "%s=%s", ARG_DEV, dev->label_cfg.str);
+        dbgf_sys(DBGT_WARN, "%s=%s", ARG_DEV, dev->ifname_label.str);
 
-	if ( wordsEqual( DEV_LO, dev->name_phy_cfg.str ) ) {
+	if ( wordsEqual( DEV_LO, dev->ifname_device.str ) ) {
 
 		dev->linklayer = TYP_DEV_LL_LO;
 
                 if (!dev->if_global_addr) {
                         dbgf_mute(30, DBGL_SYS, DBGT_WARN, "loopback dev %s MUST be given with global address",
-                                dev->label_cfg.str);
+                                dev->ifname_label.str);
 
                         cleanup_all(-500621);
                 }
@@ -2218,19 +2269,12 @@ void dev_activate( struct dev_node *dev )
                 } else /* check if interface is a wireless interface */ {
 
                         struct ifreq int_req;
-                        char *dot_ptr;
 
-                        // if given interface is a vlan then truncate to physical interface name:
-                        if ((dot_ptr = strchr(dev->name_phy_cfg.str, '.')) != NULL)
-                                *dot_ptr = '\0';
-
-                        if (get_if_req(&dev->name_phy_cfg, &int_req, SIOCGIWNAME) == SUCCESS)
+                        if (get_if_req(dev, &int_req, SIOCGIWNAME) == SUCCESS)
                                 dev->linklayer = TYP_DEV_LL_WIFI;
                         else
                                 dev->linklayer = TYP_DEV_LL_LAN;
 
-                        if (dot_ptr)
-                                *dot_ptr = '.';
                 }
 	}
 
@@ -2284,7 +2328,7 @@ void dev_activate( struct dev_node *dev )
 	return;
 
 error:
-        dbgf_sys(DBGT_ERR, "error intitializing %s=%s", ARG_DEV, dev->label_cfg.str);
+        dbgf_sys(DBGT_ERR, "error intitializing %s=%s", ARG_DEV, dev->ifname_label.str);
 
         dev_deactivate(dev);
 }
@@ -2376,7 +2420,7 @@ void ip_flush_tracked( uint16_t cmd )
 STATIC_FUNC
 int update_interface_rules(void)
 {
-	IDM_T TODO_instead_of_throwing_my_nets_only_announced_nets_are_hna_allowed_or_discarded;
+//	IDM_T TODO_instead_of_throwing_my_nets_only_announced_nets_are_hna_allowed_or_discarded;
 
 	TRACE_FUNCTION_CALL;
         assertion(-501130, (policy_routing != POLICY_RT_UNSET));
@@ -2519,7 +2563,7 @@ void dev_if_fix(void)
 
                 for (aan = NULL; (ian = avl_iterate_item(&dev->if_link->if_addr_tree, &aan));) {
 
-                        if (AF_INET6 != ian->ifa.ifa_family || strcmp(dev->label_cfg.str, ian->label.str))
+                        if (AF_INET6 != ian->ifa.ifa_family || strcmp(dev->ifname_label.str, ian->label.str))
                                 continue;
 
                         dbgf_all(DBGT_INFO, "testing %s=%s %s", ARG_DEV, ian->label.str, ip6AsStr(&ian->ip_addr));
@@ -2562,7 +2606,7 @@ void dev_if_fix(void)
 
                 if (DEF_AUTO_IP6ID_MASK && !dev->if_global_addr) {
 
-			dbgf_sys(DBGT_INFO, "Autoconfiguring dev=%s idx=%d ip=%s", dev->label_cfg.str, dev->if_link->index, ip6AsStr(&my_primary_ip));
+			dbgf_sys(DBGT_INFO, "Autoconfiguring dev=%s idx=%d ip=%s", dev->ifname_label.str, dev->if_link->index, ip6AsStr(&my_primary_ip));
 
                         kernel_set_addr(ADD, dev->if_link->index, AF_INET6, &my_primary_ip, DEF_AUTO_IP6ID_MASK, NO /*deprecated*/);
                         dev->autoIP6Configured.ip = my_primary_ip;
@@ -2571,7 +2615,7 @@ void dev_if_fix(void)
                 }
 
 
-                if (wordsEqual(DEV_LO, dev->name_phy_cfg.str)) {
+                if (wordsEqual(DEV_LO, dev->ifname_device.str)) {
                         // the loopback interface usually does not need a link-local address, BUT BMX needs one
                         // And it MUST have a global one.
                         if (!dev->if_global_addr)
@@ -2583,7 +2627,7 @@ void dev_if_fix(void)
                 if (dev->if_llocal_addr) {
                         dev->if_llocal_addr->dev = dev;
                 } else {
-                        dbgf_mute(30, DBGL_SYS, DBGT_ERR, "No link-local IP for %s=%s !", ARG_DEV, dev->label_cfg.str);
+                        dbgf_mute(30, DBGL_SYS, DBGT_ERR, "No link-local IP for %s=%s !", ARG_DEV, dev->ifname_label.str);
                 }
 
                 if (dev->if_global_addr && dev->if_llocal_addr) {
@@ -2596,7 +2640,7 @@ void dev_if_fix(void)
 
                 } else {
 			dbgf_mute(30, DBGL_SYS, DBGT_ERR,
-				"No global IP for %s=%s ! DEACTIVATING !!!", ARG_DEV, dev->label_cfg.str);
+				"No global IP for %s=%s ! DEACTIVATING !!!", ARG_DEV, dev->ifname_label.str);
 
 			if (dev->if_llocal_addr) {
 				dev->if_llocal_addr->dev = NULL;
@@ -2630,7 +2674,7 @@ static void dev_check(void *kernel_ip_config_changed)
 
                 if (dev->hard_conf_changed && dev->active) {
 
-                        dbgf_sys(DBGT_WARN, "detected changed but used dev=%s ! Deactivating now!", dev->label_cfg.str);
+                        dbgf_sys(DBGT_WARN, "detected changed but used dev=%s ! Deactivating now!", dev->ifname_label.str);
 
                         dev_deactivate(dev);
                 }
@@ -2653,27 +2697,26 @@ static void dev_check(void *kernel_ip_config_changed)
                         struct dev_node *tmpDev;
 			DevKey devIpKey = {.llip = dev->if_llocal_addr->ip_addr, .devIdx = 0};
 			if ((tmpDev = avl_closest_item(&dev_ip_tree, &devIpKey)) && is_ip_equal(&tmpDev->llipKey.llip, &dev->if_llocal_addr->ip_addr)) {
-				dbgf_sys(DBGT_WARN, "%s=%s llocal=%s already used for dev=%s",
-					ARG_DEV, dev->label_cfg.str, ip6AsStr(&dev->if_llocal_addr->ip_addr),
-					tmpDev->label_cfg.str);
+				dbgf_track(DBGT_INFO, "%s=%s llocal=%s also used for dev=%s",
+					ARG_DEV, dev->ifname_label.str, ip6AsStr(&dev->if_llocal_addr->ip_addr), tmpDev->ifname_label.str);
 			}
 
 			if (dev->activate_cancelled) {
 
-                                dbgf_sys(DBGT_ERR, "%s=%s activation delayed", ARG_DEV, dev->label_cfg.str);
+                                dbgf_sys(DBGT_ERR, "%s=%s activation delayed", ARG_DEV, dev->ifname_label.str);
 
                         } else if (!dev->if_global_addr) {
 
-                                dbgf_sys(DBGT_ERR, "%s=%s %s but no global addr", ARG_DEV, dev->label_cfg.str, "to-be announced");
+                                dbgf_sys(DBGT_ERR, "%s=%s %s but no global addr", ARG_DEV, dev->ifname_label.str, "to-be announced");
 
-                        } else if (wordsEqual(DEV_LO, dev->name_phy_cfg.str) && !dev->if_global_addr) {
+                        } else if (wordsEqual(DEV_LO, dev->ifname_device.str) && !dev->if_global_addr) {
 
-                                dbgf_sys(DBGT_ERR, "%s=%s %s but no global addr", ARG_DEV, dev->label_cfg.str, "loopback");
+                                dbgf_sys(DBGT_ERR, "%s=%s %s but no global addr", ARG_DEV, dev->ifname_label.str, "loopback");
 
                         } else  {
 
                                 dbgf_sys(DBGT_WARN, "detected valid but disabled dev=%s ! Activating now...",
-                                        dev->label_cfg.str);
+                                        dev->ifname_label.str);
 
                                 dev_activate(dev);
                         }
@@ -2682,7 +2725,7 @@ static void dev_check(void *kernel_ip_config_changed)
 
                 if (!dev->active) {
                         dbgf_sys(DBGT_WARN, "not using interface %s (retrying later): %s %s ila=%d iln=%d",
-                                dev->label_cfg.str, iff_up ? "UP" : "DOWN",
+                                dev->ifname_label.str, iff_up ? "UP" : "DOWN",
                                 dev->hard_conf_changed ? "CHANGED" : "UNCHANGED",
                                 dev->if_llocal_addr ? 1 : 0, dev->if_llocal_addr && dev->if_llocal_addr->iln ? 1 : 0);
                 }
@@ -2825,7 +2868,7 @@ int register_netlink_event_hook(uint32_t nlgroups, int buffsize, void (*cb_fd_ha
 		getsockopt(rtevent_sk, SOL_SOCKET, SO_RCVBUF, &newBuff, &newSize) < 0 ||
 		newBuff != buffsize) {
 
-		dbgf_sys(DBGT_WARN, "can't setsockopts buffsize from=%d to=%d now=%d %s", oldBuff, buffsize, newBuff, strerror(errno));
+		dbgf_track(DBGT_WARN, "can't setsockopts buffsize from=%d to=%d now=%d %s", oldBuff, buffsize, newBuff, strerror(errno));
 	}
 
 	dbgf_track(DBGT_INFO, "setsockopts buffsize from=%d to=%d now=%d", oldBuff, buffsize, newBuff);
@@ -3098,7 +3141,7 @@ struct dev_status {
         char *dev;
         char *state;
         char *type;
-        UMETRIC_T rateMin;
+	uint8_t channel;
         UMETRIC_T rateMax;
 	uint16_t idx;
         char localIp[IPX_PREFIX_STR_LEN];
@@ -3114,7 +3157,7 @@ static const struct field_format dev_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,              dev_status, dev,         1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,              dev_status, state,       1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,              dev_status, type,        1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,                   dev_status, rateMin,     1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,                      dev_status, channel,     1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,                   dev_status, rateMax,     1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,                      dev_status, idx,         1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,               dev_status, localIp,     1, FIELD_RELEVANCE_HIGH),
@@ -3141,13 +3184,13 @@ static int32_t dev_status_creator(struct status_handl *handl, void* data)
                 IDM_T iff_up = dev->if_llocal_addr && (dev->if_llocal_addr->iln->flags & IFF_UP);
 
 
-                status[i].dev = dev->label_cfg.str;
+                status[i].dev = dev->ifname_label.str;
                 status[i].state = iff_up ? "UP":"DOWN";
                 status[i].type = !dev->active ? "INACTIVE" :
                         (dev->linklayer == TYP_DEV_LL_LO ? "loopback" :
                         (dev->linklayer == TYP_DEV_LL_LAN ? "ethernet" :
                         (dev->linklayer == TYP_DEV_LL_WIFI ? "wireless" : "???")));
-                status[i].rateMin = dev->umetric_min;
+		status[i].channel = dev->channel;
                 status[i].rateMax = dev->umetric_max;
 		status[i].idx = dev->llipKey.devIdx;
                 sprintf(status[i].localIp, "%s/%d", dev->ip_llocal_str, dev->if_llocal_addr ? dev->if_llocal_addr->ifa.ifa_prefixlen : -1);
@@ -3207,7 +3250,7 @@ int32_t opt_dev_prefix(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
 
                                         //mark all dev that are note specified more precise:
                                         dbgf_track(DBGT_INFO, "applying %s %s=%s %s",
-                                                dev->label_cfg.str, opt->name, patch->val, netAsStr(&prefix));
+                                                dev->ifname_label.str, opt->name, patch->val, netAsStr(&prefix));
 
                                         dev->hard_conf_changed = YES;
                                         opt_dev_changed = YES;
@@ -3221,17 +3264,6 @@ int32_t opt_dev_prefix(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
 	return SUCCESS;
 }
 
-IPX_T create_crypto_IPv6(struct net_key *prefix, GLOBAL_ID_T *id)
-{
-	IPX_T ipx = prefix->ip;
-	memcpy(&ipx.s6_addr[(prefix->mask / 8)], id, ((128 - prefix->mask) / 8));
-
-	return ipx;
-/*	if (is_zero(&self->global_id.pkid, sizeof(self->global_id.pkid)/2))
-		memcpy(&self->primary_ip.s6_addr[(autoconf_prefix_cfg.mask/8)], &self->global_id.pkid.u8[sizeof(self->global_id.pkid)/2],
-			XMIN((128-autoconf_prefix_cfg.mask)/8, sizeof(self->global_id.pkid)/2));
-*/
-}
 
 STATIC_FUNC
 int32_t opt_auto_prefix(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
@@ -3287,7 +3319,7 @@ void dev_destroy(struct dev_node *dev)
 	if (dev->active)
 		dev_deactivate(dev);
 
-	avl_remove(&dev_name_tree, &dev->name_phy_cfg, -300205);
+	avl_remove(&dev_name_tree, &dev->ifname_device, -300205);
 
 	if (dev->if_llocal_addr)
 		dev->if_llocal_addr->dev = NULL;
@@ -3312,26 +3344,27 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
 
         if (cmd == OPT_ADJUST || cmd == OPT_CHECK || cmd == OPT_APPLY) {
 
+                char *cptr;
+                char ifname_vlan[IFNAMSIZ] = {0};
+
 		if ( strlen(patch->val) >= IFNAMSIZ ) {
 			dbgf_cn( cn, DBGL_SYS, DBGT_ERR, "dev name MUST be smaller than %d chars", IFNAMSIZ );
 			return FAILURE;
                 }
 
-                char *colon_ptr;
-                char phy_name[IFNAMSIZ] = {0};
-                strcpy(phy_name, patch->val);
+                strcpy(ifname_vlan, patch->val);
 
                 // if given interface is an alias then truncate to physical interface name:
-                if ((colon_ptr = strchr(phy_name, ':')) != NULL)
-                        *colon_ptr = '\0';
+                if ((cptr = strchr(ifname_vlan, ':')) != NULL)
+                        *cptr = '\0';
 
 
-                dev = dev_get_by_name(phy_name);
+                dev = dev_get_by_name(ifname_vlan);
 
-                if ( dev && strcmp(dev->label_cfg.str, patch->val)) {
+                if ( dev && strcmp(dev->ifname_label.str, patch->val)) {
                         dbgf_cn(cn, DBGL_SYS, DBGT_ERR,
                                 "%s=%s (%s) already used for %s=%s %s!",
-                                opt->name, patch->val, phy_name, opt->name, dev->label_cfg.str, dev->ip_llocal_str);
+                                opt->name, patch->val, ifname_vlan, opt->name, dev->ifname_label.str, dev->ip_llocal_str);
 
                         return FAILURE;
                 }
@@ -3373,17 +3406,22 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
                         uint32_t dev_size = sizeof (struct dev_node) + (sizeof (void*) * plugin_data_registries[PLUGIN_DATA_DEV]);
                         dev = debugMallocReset(dev_size, -300002);
 
-                        strcpy(dev->label_cfg.str, patch->val);
-                        strcpy(dev->name_phy_cfg.str, phy_name);
+                        strcpy(dev->ifname_label.str, patch->val);
+                        strcpy(dev->ifname_device.str, ifname_vlan);
+			strcpy(dev->ifname_phy.str, ifname_vlan);
+			// if given interface is a vlan then truncate to physical interface name:
+			if ((cptr = strchr(dev->ifname_phy.str, '.')) != NULL)
+				*cptr = '\0';
+
 
                         avl_insert(&dev_name_tree, dev, -300144);
 
                         // some configurable interface values - initialized to unspecified:
+			dev->blockingSockets = DEF_DEV_BLSOCK;
                         dev->linklayer_conf = OPT_CHILD_UNDEFINED;
 			dev->strictSignatures = DEF_DEV_SIGNATURES;
                         dev->channel_conf = OPT_CHILD_UNDEFINED;
                         dev->umetric_max_conf = (UMETRIC_T) OPT_CHILD_UNDEFINED;
-                        dev->umetric_min_conf = (UMETRIC_T) OPT_CHILD_UNDEFINED;
                         dev->llocal_prefix_conf_ = ZERO_NETCFG_KEY;
 
                         //dev->umetric_max = DEF_DEV_BITRATE_MAX;
@@ -3398,7 +3436,7 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
                          * http://marc.info/?l=linux-net&m=127811438206347&w=2
                          */
                         dev->hard_conf_changed = YES;
-                        dbgf_all(DBGT_INFO, "assigned dev %s physical name %s", dev->label_cfg.str, dev->name_phy_cfg.str);
+                        dbgf_all(DBGT_INFO, "assigned dev %s physical name %s", dev->ifname_label.str, dev->ifname_device.str);
                 }
 
                 if (cmd == OPT_APPLY)
@@ -3430,7 +3468,7 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
                                 if (cmd == OPT_APPLY) {
 
                                         dbgf_track(DBGT_INFO, "applying %s %s=%s hard_conf_changed=%d",
-                                                dev->label_cfg.str, c->opt->name, c->val, dev->hard_conf_changed);
+                                                dev->ifname_label.str, c->opt->name, c->val, dev->hard_conf_changed);
 
 					if (c->val)
                                                         dev->llocal_prefix_conf_ = prefix;
@@ -3439,6 +3477,12 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
 
                                         dev->hard_conf_changed = YES;
                                 }
+
+                        } else if (!strcmp(c->opt->name, ARG_DEV_BLSOCK) && cmd == OPT_APPLY) {
+
+                                dev->blockingSockets = c->val ? strtol(c->val, NULL, 10) : DEF_DEV_BLSOCK;
+
+                                dev->hard_conf_changed = YES;
 
                         } else if (!strcmp(c->opt->name, ARG_DEV_LL) && cmd == OPT_APPLY) {
 
@@ -3463,7 +3507,7 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
                                         if (ull > UMETRIC_MAX || ull < UMETRIC_FM8_MIN || *endptr != '\0') {
 
                                                 dbgf_sys(DBGT_ERR, "%s %c%s MUST be within [%ju ... %ju]",
-                                                        dev->label_cfg.str, LONG_OPT_ARG_DELIMITER_CHAR, c->opt->name, UMETRIC_FM8_MIN, UMETRIC_MAX);
+                                                        dev->ifname_label.str, LONG_OPT_ARG_DELIMITER_CHAR, c->opt->name, UMETRIC_FM8_MIN, UMETRIC_MAX);
 
                                                 return FAILURE;
                                         }
@@ -3473,26 +3517,6 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
                                         dev->umetric_max_conf = ull;
                                 } else {
                                         dev->umetric_max_conf = (UMETRIC_T) OPT_CHILD_UNDEFINED;
-                                }
-
-
-                        } else if (!strcmp(c->opt->name, ARG_DEV_BITRATE_MIN) && cmd == OPT_APPLY) {
-
-                                if (c->val) {
-                                        char *endptr;
-                                        unsigned long long int ull = strtoull(c->val, &endptr, 10);
-
-                                        if (ull > UMETRIC_MAX || ull < UMETRIC_FM8_MIN || *endptr != '\0') {
-
-                                                dbgf_sys(DBGT_ERR, "%s %c%s given with illegal value",
-                                                        dev->label_cfg.str, LONG_OPT_ARG_DELIMITER_CHAR, c->opt->name);
-
-                                                return FAILURE;
-                                        }
-
-                                        dev->umetric_min_conf = ull;
-                                } else {
-                                        dev->umetric_min_conf = OPT_CHILD_UNDEFINED;
                                 }
                         }
                 }
@@ -3568,16 +3592,16 @@ static struct opt_type ip_options[]=
 	{ODI,ARG_DEV,ARG_DEV_BITRATE_MAX,'r',9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,              0,              0,0,              opt_dev,
 			ARG_VALUE_FORM,	HLP_DEV_BITRATE_MAX},
 
-	{ODI,ARG_DEV,ARG_DEV_BITRATE_MIN, 0, 9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,              0,              0,0,              opt_dev,
-			ARG_VALUE_FORM,	HLP_DEV_BITRATE_MIN},
+	{ODI,ARG_DEV,ARG_DEV_CHANNEL,    'c',9,2,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		MIN_DEV_CHANNEL,MAX_DEV_CHANNEL,DEF_DEV_CHANNEL,0, opt_dev,
+			ARG_VALUE_FORM,	HLP_DEV_CHANNEL},
 
 	{ODI,ARG_DEV,ARG_DEV_SIGNATURES, 0, 9,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		MIN_DEV_SIGNATURES,MAX_DEV_SIGNATURES,DEF_DEV_SIGNATURES,0, opt_dev,
 			ARG_VALUE_FORM,	HLP_DEV_SIGNATURES},
 
+	{ODI,ARG_DEV,ARG_DEV_BLSOCK,     0, 9,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		MIN_DEV_BLSOCK,MAX_DEV_BLSOCK,DEF_DEV_BLSOCK,0, opt_dev,
+			ARG_VALUE_FORM,	HLP_DEV_BLSOCK},
 
 };
-
-
 
 
 void init_ip(void)

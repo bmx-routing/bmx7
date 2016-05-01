@@ -592,18 +592,18 @@ int32_t rx_frame_description_adv(struct rx_frame_iterator *it)
 
 	int32_t goto_error_code;
 	GLOBAL_ID_T *nodeId = NULL;
-	struct dsc_msg_version *versMsg;
+	struct dsc_msg_version *thisVers, *currVers, *nextVers;
 	struct desc_content *dc = NULL;
 	SHA1_T dHash;
 
 	cryptShaAtomic(it->f_data, it->f_dlen, &dHash);
 
 
-	if (!(nodeId = get_desc_id(it->f_data, it->f_dlen, NULL, &versMsg)))
+	if (!(nodeId = get_desc_id(it->f_data, it->f_dlen, NULL, &thisVers)))
 		goto_error(finish, TLV_RX_DATA_FAILURE);
 
 	struct key_node *kn = keyNode_get(nodeId);
-	DESC_SQN_T descSqn = ntohl(versMsg->descSqn);
+	DESC_SQN_T descSqn = ntohl(thisVers->descSqn);
 
 	if (!kn || (kn->bookedState->i.c < KCTracked) || !kn->content || !kn->content->f_body)
 		goto_error(finish, it->f_dlen);
@@ -620,8 +620,8 @@ int32_t rx_frame_description_adv(struct rx_frame_iterator *it)
 	if (!test_description_signature(it->f_data, it->f_dlen))
 		goto_error(finish, TLV_RX_DATA_FAILURE);
 
-	if ((kn->on && (((struct dsc_msg_version*) (contents_data(kn->on->dc, BMX_DSC_TLV_VERSION)))->bootSqn != versMsg->bootSqn)) ||
-		(kn->nextDesc && (((struct dsc_msg_version*) (contents_data(kn->nextDesc, BMX_DSC_TLV_VERSION)))->bootSqn != versMsg->bootSqn))) {
+	if ((kn->on && (!get_desc_id(kn->on->dc->desc_frame, kn->on->dc->desc_frame_len, NULL, &currVers) || currVers->bootSqn != thisVers->bootSqn)) ||
+		(kn->nextDesc && (!get_desc_id(kn->nextDesc->desc_frame, kn->nextDesc->desc_frame_len, NULL, &nextVers) || nextVers->bootSqn != thisVers->bootSqn))) {
 
 		keyNode_schedLowerWeight(kn, KCListed);
 

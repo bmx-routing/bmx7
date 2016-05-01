@@ -966,7 +966,7 @@ int32_t opt_path_metricalgo(uint8_t cmd, uint8_t _save, struct opt_type *opt, st
                 // only options with a non-zero MIN value and those with illegal compinations must be tested
                 // other illegal option configurations will be cached by their MIN_... MAX_.. control.c architecture
 
-		int32_t val = patch->diff != DEL && patch->val ? strtol(patch->val, NULL, 10) : -1;
+		int32_t val = (cmd != OPT_REGISTER && patch && patch->diff != DEL && patch->val) ? strtol(patch->val, NULL, 10) : -1;
 
                 test_algo.umetric_min = (cmd == OPT_REGISTER || strcmp(opt->name, ARG_PATH_UMETRIC_MIN)) ?
                         my_path_umetric_min : (val >= 0 ? val : (int)DEF_PATH_UMETRIC_MIN);

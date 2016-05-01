@@ -502,19 +502,19 @@ void spmSet( struct sub_path_metric *spmArr, uint8_t channel, uint8_t hopPos, UM
 
 
 STATIC_FUNC
-UMETRIC_T subPathArrMaxTime (struct sub_path_metric *a, uint16_t arrMax, struct host_metricalgo *algo)
+UMETRIC_T subPathArrMaxTime (struct sub_path_metric *a, uint16_t arrSize, struct host_metricalgo *algo)
 {
 	UMETRIC_T maxPathTime = 1;
 	
 	uint8_t t,i;
 
-	for (t = 0; t <= arrMax; t++) {
+	for (t = 0; t < arrSize; t++) {
 
 		a[t].pathTime = a[t].linkTime;
 
 		if (a[t].channel != TYP_DEV_CHANNEL_EXCLUSIVE) {
 
-			for (i = 0; i <= arrMax; i++) {
+			for (i = 0; i < arrSize; i++) {
 
 				if (t != i && a[i].channel != TYP_DEV_CHANNEL_EXCLUSIVE) {
 
@@ -559,7 +559,7 @@ void path_metricalgo_Capacity(struct NeighPath *np, struct NeighRef_node *ref, s
 {
 	assertion(-500000, ((ref->ogmSqnMaxPathMetricsByteSize % sizeof(struct msg_ogm_adv_metric_t0))==0));
 
-	uint16_t outHPos = 0, inHPos;
+	uint16_t inHPos, outHPos = 0, outIfrPos = 0;
 	uint16_t inHSz = ref->ogmSqnMaxPathMetricsByteSize / sizeof(struct msg_ogm_adv_metric_t0);
 	uint16_t inHMax = XMIN(inHSz, algo->ogm_hop_history);
 	uint16_t addHSz = (np->link->k.myDev->channel != 0);
@@ -586,18 +586,19 @@ void path_metricalgo_Capacity(struct NeighPath *np, struct NeighRef_node *ref, s
 	
 	if (addHSz) {
 
-		spmSet(subPathArr, np->link->k.myDev->channel, outHPos, &linkTP);
+		spmSet(subPathArr, np->link->k.myDev->channel, outIfrPos++, &linkTP);
 		maxPathTime += (UMETRIC_MAX_MAX / linkTP);
 
-		if (algo->ogm_hop_history > 0) {
+		if (algo->ogm_hop_history > outHPos) {
 			FMETRIC_U16_T linkFm = umetric_to_fmetric(linkTP);
-			np->pathMetrics[0].u.f.type = 0;
-			np->pathMetrics[0].u.f.directional = 0;
-			np->pathMetrics[0].channel = np->link->k.myDev->channel;
-			np->pathMetrics[0].u.f.metric_exp = linkFm.val.f.exp_fm16;
-			np->pathMetrics[0].u.f.metric_mantissa = linkFm.val.f.mantissa_fm16;
-			np->pathMetrics[0].u.f.more = 0;
+			np->pathMetrics[outHPos].u.f.type = 0;
+			np->pathMetrics[outHPos].u.f.directional = 0;
+			np->pathMetrics[outHPos].channel = np->link->k.myDev->channel;
+			np->pathMetrics[outHPos].u.f.metric_exp = linkFm.val.f.exp_fm16;
+			np->pathMetrics[outHPos].u.f.metric_mantissa = linkFm.val.f.mantissa_fm16;
+			np->pathMetrics[outHPos].u.f.more = 0;
 			np->pathMetricsByteSize += sizeof(struct msg_ogm_adv_metric_t0);
+			outHPos++;
 		}
 	}
 
@@ -616,9 +617,7 @@ void path_metricalgo_Capacity(struct NeighPath *np, struct NeighRef_node *ref, s
 
 		if (ref->ogmSqnMaxPathMetrics[inHPos].channel != 0) {
 
-			outHPos++;
-
-			spmSet(subPathArr, ref->ogmSqnMaxPathMetrics[inHPos].channel, outHPos, &linkTP);
+			spmSet(subPathArr, ref->ogmSqnMaxPathMetrics[inHPos].channel, outIfrPos++, &linkTP);
 			maxPathTime += (UMETRIC_MAX_MAX / linkTP);
 			
 			if (algo->ogm_hop_history > outHPos) {
@@ -630,14 +629,15 @@ void path_metricalgo_Capacity(struct NeighPath *np, struct NeighRef_node *ref, s
 					np->pathMetrics[outHPos - 1].u.f.more = 1;
 
 				np->pathMetricsByteSize += sizeof(struct msg_ogm_adv_metric_t0);
+				outHPos++;
 			}
 		}
 
-		dbgf_track(DBGT_INFO, "hops linkTP=%ju pathMaxTP=%ju maxPathTime=%ju subTreeTime=%ju i=%d o=%d",
-			linkTP, pathMaxTP, maxPathTime, subPathArrMaxTime(subPathArr, outHPos, algo), inHPos, outHPos);
+		dbgf_track(DBGT_INFO, "hops linkTP=%ju pathMaxTP=%ju maxPathTime=%ju subTreeTime=%ju i=%d o=%d p=%d",
+			linkTP, pathMaxTP, maxPathTime, subPathArrMaxTime(subPathArr, outIfrPos, algo), inHPos, outHPos, outIfrPos);
 	}
 
-	UMETRIC_T subTreeTime = subPathArrMaxTime(subPathArr, outHPos, algo);
+	UMETRIC_T subTreeTime = subPathArrMaxTime(subPathArr, outIfrPos, algo);
 
 	assertion_dbg(-500000, (subTreeTime <= maxPathTime), "subTreeTime=%ju !<= maxPathTime=%ju", subTreeTime, maxPathTime);
 

@@ -1006,6 +1006,37 @@ int32_t opt_path_metricalgo(uint8_t cmd, uint8_t _save, struct opt_type *opt, st
 			my_ogm_link_rate_efficiency : ((patch->diff != DEL) ? strtol(patch->val, NULL, 10) : DEF_OGM_LINK_RATE_EFFICIENCY);
 
 
+		if (cmd == OPT_APPLY && strcmp(opt->name, ARG_PATH_IFR_PARAMETER) == 0) {
+
+			int param = strtol(patch->val, NULL, 10);
+
+			if (patch->diff == DEL) {
+
+				my_path_interference_parameter[param] = DEF_OGM_PATH_INTERFERENCE_PARAMETER[param];
+
+			} else {
+
+				struct opt_child *c = NULL;
+
+				while ((c = list_iterate(&patch->childs_instance_list, c))) {
+
+                                        if (!c->val)
+                                                continue;
+
+                                        int32_t val = strtol(c->val, NULL, 10);
+
+                                        if (!strcmp(c->opt->name, ARG_PATH_IFR_CHA_DISTANCE))
+                                                my_path_interference_parameter[param].channelDistance = val;
+
+                                        if (!strcmp(c->opt->name, ARG_PATH_IFR_HOP_DISTANCE))
+						my_path_interference_parameter[param].hopDistance = val;
+
+                                        if (!strcmp(c->opt->name, ARG_PATH_IFR_INDEPENDENCE))
+						my_path_interference_parameter[param].independence = val;
+				}
+			}
+		}
+
 		memcpy(test_algo.pip, my_path_interference_parameter, sizeof(my_path_interference_parameter));
 
 
@@ -1166,6 +1197,21 @@ struct opt_type metrics_options[]=
         {ODI, ARG_PATH_METRIC_ALGO, ARG_PATH_TP_EXP_DIVISOR, CHR_PATH_TP_EXP_DIVISOR, 9,1, A_CS1, A_ADM, A_DYI, A_CFA, A_ANY, &my_path_tp_exp_divisor, MIN_PATH_XP_EXP_DIVISOR, MAX_PATH_XP_EXP_DIVISOR, DEF_PATH_TP_EXP_DIVISOR,0, opt_path_metricalgo,
                 ARG_VALUE_FORM, " "}
         ,
+
+        {ODI, 0, ARG_PATH_IFR_PARAMETER, 0,  9,1, A_PM1N, A_ADM, A_DYI, A_CFA, A_ANY, NULL,MIN_PATH_IFR_PARAMETER,    MAX_PATH_IFR_PARAMETER,    0,0,    opt_path_metricalgo,
+                ARG_VALUE_FORM, HELP_PATH_METRIC_ALGO}
+        ,
+        {ODI, ARG_PATH_IFR_PARAMETER, ARG_PATH_IFR_CHA_DISTANCE, 0, 9,1, A_CS1, A_ADM, A_DYI, A_CFA, A_ANY, NULL, MIN_PATH_IFR_CHA_DISTANCE, MAX_PATH_IFR_CHA_DISTANCE, DEF_PATH_IFR_CHA_DISTANCE,0, opt_path_metricalgo,
+                ARG_VALUE_FORM, ARG_PATH_IFR_CHA_DISTANCE}
+        ,
+        {ODI, ARG_PATH_IFR_PARAMETER, ARG_PATH_IFR_HOP_DISTANCE, 0, 9,1, A_CS1, A_ADM, A_DYI, A_CFA, A_ANY, NULL, MIN_PATH_IFR_HOP_DISTANCE, MAX_PATH_IFR_HOP_DISTANCE, DEF_PATH_IFR_HOP_DISTANCE,0, opt_path_metricalgo,
+                ARG_VALUE_FORM, ARG_PATH_IFR_HOP_DISTANCE}
+        ,
+        {ODI, ARG_PATH_IFR_PARAMETER, ARG_PATH_IFR_INDEPENDENCE, 0, 9,1, A_CS1, A_ADM, A_DYI, A_CFA, A_ANY, NULL, MIN_PATH_IFR_INDEPENDENCE, MAX_PATH_IFR_INDEPENDENCE, DEF_PATH_IFR_INDEPENDENCE,0, opt_path_metricalgo,
+                ARG_VALUE_FORM, ARG_PATH_IFR_INDEPENDENCE}
+        ,
+
+
 	{ODI, 0, ARG_OGM_METRIC_HYST_NEW_PATH,     0,   9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,    &my_ogm_metric_hyst_new_path,MIN_OGM_METRIC_HYST_NEW_PATH, MAX_OGM_METRIC_HYST_NEW_PATH,DEF_OGM_METRIC_HYST_NEW_PATH,0, opt_path_metricalgo,
 			ARG_VALUE_FORM,	"use metric hysteresis in % to delay route switching to alternative next-hop neighbors with better path metric"}
         ,

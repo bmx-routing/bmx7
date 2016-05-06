@@ -36,8 +36,9 @@ extern int32_t vrt_frame_max_nesting;
 #define ARG_VRT_FRAME_DATA_SIZE_IN   "descVirtFrameSizeIn"
 #define HLP_VRT_FRAME_DATA_SIZE_IN   "set maximum virtual size for other description frames"
 #define MIN_VRT_FRAME_DATA_SIZE      (MIN_DESC_ROOT_SIZE)
-#define MAX_VRT_FRAME_DATA_SIZE      (4*((REF_CONTENT_BODY_SIZE_MAX / sizeof(SHA1_T)) * REF_CONTENT_BODY_SIZE_MAX))
-#define DEF_VRT_FRAME_DATA_SIZE      (2*((REF_CONTENT_BODY_SIZE_MAX / sizeof(SHA1_T)) * REF_CONTENT_BODY_SIZE_MAX))
+// this should be nearly the max possible with a reference depth of 2:
+#define MAX_VRT_FRAME_DATA_SIZE      (32*((REF_CONTENT_BODY_SIZE_MAX / sizeof(SHA1_T)) * REF_CONTENT_BODY_SIZE_MAX))
+#define DEF_VRT_FRAME_DATA_SIZE      ( 2*((REF_CONTENT_BODY_SIZE_MAX / sizeof(SHA1_T)) * REF_CONTENT_BODY_SIZE_MAX))
 extern int32_t vrt_frame_data_size_in;
 extern int32_t vrt_frame_data_size_out;
 
@@ -48,9 +49,8 @@ extern int32_t vrt_frame_data_size_out;
 #define ARG_DESC_VBODIES_SIZE_IN   "descVirtSizeIn"
 #define HLP_DESC_VBODIES_SIZE_IN   "set maximum virtual size for other node descriptions"
 #define MIN_DESC_VBODIES_SIZE      (MIN_DESC_ROOT_SIZE)
-// this should be the max possible with a reference depth of 1 :
-#define MAX_DESC_VBODIES_SIZE      (10 * MAX_VRT_FRAME_DATA_SIZE)
-#define DEF_DESC_VBODIES_SIZE      ( 4 * MAX_VRT_FRAME_DATA_SIZE)
+#define MAX_DESC_VBODIES_SIZE      MAX_VRT_FRAME_DATA_SIZE
+#define DEF_DESC_VBODIES_SIZE      DEF_VRT_FRAME_DATA_SIZE
 
 #define MIN_DESC_CONTENTS 0
 #define MAX_DESC_CONTENTS 512

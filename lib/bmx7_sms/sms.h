@@ -24,7 +24,7 @@
 
 #define MAX_SMS_NAME_LEN 16
 #define MAX_SMS_DATA_LEN 300
-#define MAX_SMS_DATA_LEN_REF 10000
+#define MAX_SMS_DATA_LEN_REF MAX_VRT_FRAME_DATA_SIZE
 
 #define SMS_POLLING_INTERVAL 5000
 
@@ -32,25 +32,25 @@
 #define DEF_SMS_FZIP TYP_FZIP_DO
 
 #define ARG_SMS_FREF "refSms"
-#define DEF_SMS_FREF TYP_FREF_DO1
+#define DEF_SMS_FREF TYP_FREF_DO2
 
 
 struct sms_node {
 	char name[MAX_SMS_NAME_LEN];
         uint16_t stale;
-	uint16_t text_len;
-        char text[];
+	uint32_t dataLen;
+	char data[];
 };
 
 struct description_msg_sms {
 	char name[MAX_SMS_NAME_LEN];
-	uint16_t text_len;
-        char text[];
+	uint32_t dataLen;
+	char data[];
 } __attribute__((packed));
 
 #define DESCRIPTION_MSG_SMS_FORMAT { \
 {FIELD_TYPE_STRING_CHAR,   -1, (8*MAX_SMS_NAME_LEN), 1, FIELD_RELEVANCE_HIGH, "name"}, \
-{FIELD_TYPE_STRING_SIZE,   -1, 16,                        0, FIELD_RELEVANCE_LOW,  "len"},  \
+{FIELD_TYPE_STRING_SIZE,   -1, 32,                        0, FIELD_RELEVANCE_LOW,  "len"},  \
 {FIELD_TYPE_STRING_BINARY, -1, 0,                         1, FIELD_RELEVANCE_LOW,  "data" },  \
 FIELD_FORMAT_END }
 

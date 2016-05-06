@@ -120,7 +120,7 @@ void check_for_changed_sms(void *unused)
                         close(fd);
                         continue;
 
-                } else if ((sms = avl_find_item(&sms_tree, name)) && sms->text_len == len && !memcmp(sms->text, data, len)) {
+                } else if ((sms = avl_find_item(&sms_tree, name)) && (int)sms->dataLen == len && !memcmp(sms->data, data, len)) {
 
                         matching_sms++;
                         sms->stale = 0;
@@ -135,13 +135,13 @@ void check_for_changed_sms(void *unused)
 
                         sms = debugMallocReset(sizeof (struct sms_node) +len, -300370);
                         strcpy(sms->name, name);
-                        sms->text_len = len;
+                        sms->dataLen = len;
                         sms->stale = 0;
-                        memcpy(sms->text, data, len);
+                        memcpy(sms->data, data, len);
                         avl_insert(&sms_tree, sms, -300371);
                         close(fd);
 
-                        dbgf_track(DBGT_INFO, "new sms=%s size=%d! updating description..-", path_name, sms->text_len);
+                        dbgf_track(DBGT_INFO, "new sms=%s size=%d! updating description..-", path_name, sms->dataLen);
                 }
 
                 found_sms++;
@@ -157,7 +157,7 @@ void check_for_changed_sms(void *unused)
                         memcpy(name, sms->name, sizeof (sms->name));
                         if (sms->stale) {
                                 dbgf_track(DBGT_INFO, "removed sms=%s/%s size=%d! updating description...",
-                                        smsTx_dir, sms->name, sms->text_len);
+                                        smsTx_dir, sms->name, sms->dataLen);
 
                                 avl_remove(&sms_tree, sms->name, -300373);
                                 debugFree(sms, -300374);
@@ -227,7 +227,7 @@ int create_description_sms(struct tx_frame_iterator *it)
 
         while ((sms = avl_iterate_item(&sms_tree, &an))) {
 
-                if (pos + (int)sizeof (struct description_msg_sms) + (int)sms->text_len > max_size) {
+                if (pos + (int)sizeof (struct description_msg_sms) + (int)sms->dataLen > max_size) {
                         dbgf_sys(DBGT_ERR, "Failed adding descriptionSms=%s/%s", smsTx_dir, sms->name);
                         continue;
                 }
@@ -236,13 +236,13 @@ int create_description_sms(struct tx_frame_iterator *it)
 
                 memset(msg, 0, sizeof (struct description_msg_sms));
                 strcpy(msg->name, sms->name);
-                msg->text_len = htons(sms->text_len);
-                memcpy(msg->text, sms->text, sms->text_len);
+                msg->dataLen = htonl(sms->dataLen);
+                memcpy(msg->data, sms->data, sms->dataLen);
 
-                pos += (sizeof (struct description_msg_sms) + sms->text_len);
+                pos += (sizeof (struct description_msg_sms) + sms->dataLen);
 
                 dbgf_track(DBGT_INFO, "added descriptionSms=%s/%s text_len=%d total_len=%d",
-                        smsTx_dir, sms->name, sms->text_len, pos);
+                        smsTx_dir, sms->name, sms->dataLen, pos);
 
         }
 
@@ -265,7 +265,7 @@ int process_description_sms(struct rx_frame_iterator *it)
                         return TLV_RX_DATA_FAILURE;
 
                 struct description_msg_sms *sms = (struct description_msg_sms *) (it->f_data + pos);
-                mlen = sizeof ( struct description_msg_sms) +ntohs(sms->text_len);
+                mlen = sizeof ( struct description_msg_sms) +ntohl(sms->dataLen);
 
                 if (pos + mlen > it->f_msgs_len)
                         return TLV_RX_DATA_FAILURE;
@@ -285,10 +285,10 @@ int process_description_sms(struct rx_frame_iterator *it)
 
                         } else {
 
-                                int written = write(fd, sms->text, ntohs(sms->text_len));
-                                if (written != ntohs(sms->text_len)) {
+                                int written = write(fd, sms->data, ntohl(sms->dataLen));
+                                if (written != (int)ntohl(sms->dataLen)) {
                                         dbgf_sys(DBGT_ERR, "write=%d of %d bytes to %s: %s",
-                                                written, ntohs(sms->text_len), path_name, strerror(errno));
+                                                written, ntohl(sms->dataLen), path_name, strerror(errno));
                                 }
                                 close(fd);
                         }

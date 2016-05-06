@@ -80,7 +80,9 @@ struct topology_status {
 	DEVIDX_T neighIdx;
 
 	uint32_t lastDesc;
-
+	int8_t signal;
+	int8_t noise;
+	int8_t snr;
 	uint8_t rq;
 	uint8_t tq;
         UMETRIC_T rxRate;
@@ -98,6 +100,9 @@ static const struct field_format topology_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_IPX6P,             topology_status, neighIp,       1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              topology_status, neighIdx,      1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              topology_status, lastDesc,      1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_INT,               topology_status, signal,        1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_INT,               topology_status, noise,         1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_INT,               topology_status, snr,           1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              topology_status, rq,            1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              topology_status, tq,            1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           topology_status, rxRate,        1, FIELD_RELEVANCE_HIGH),
@@ -143,6 +148,9 @@ static int32_t topology_status_creator(struct status_handl *handl, void *data)
 				status[i].rxRate = fmetric_u8_to_umetric(topology_msg[m].rxBw);
 				status[i].tq = ((((uint32_t) topology_msg[m].tq) * 100) / LQ_MAX);
 				status[i].rq = ((((uint32_t) topology_msg[m].rq) * 100) / LQ_MAX);
+				status[i].signal = topology_msg[m].signal;
+				status[i].noise = topology_msg[m].noise;
+				status[i].snr = (topology_msg[m].signal - topology_msg[m].noise);
 				status[i].neighId = &non->k.nodeId;
 				status[i].neighDescSqnDiff = non->dc->descSqn - ntohl(topology_msg[m].nbDescSqn);
 				status[i].neighName = non->k.hostname;
@@ -199,9 +207,12 @@ void set_local_topology_node(struct local_topology_node *ltn, LinkNode *link)
 	assertion(-502524, (link));
 
 	ltn->txBw = link->wifiStats.txRateAvg ? link->wifiStats.txRateAvg : ((link->k.myDev->umetric_max * ((UMETRIC_T)link->timeaware_tq_probe))/LQ_MAX);
-	ltn->rxBw = ((link->k.myDev->umetric_max * ((UMETRIC_T)link->timeaware_rq_probe))/LQ_MAX);
+	ltn->rxBw = ((((UMETRIC_T)link->timeaware_rq_probe) * (link->wifiStats.rxRate ? link->wifiStats.rxRate : link->k.myDev->umetric_max)) / LQ_MAX);
+//	ltn->rxBw = ((link->k.myDev->umetric_max * ((UMETRIC_T)link->timeaware_rq_probe))/LQ_MAX);
 	ltn->tq = link->timeaware_tq_probe;
 	ltn->rq = link->timeaware_rq_probe;
+	ltn->signal = link->wifiStats.signal;
+	ltn->noise = link->wifiStats.noise;
 }
 
 STATIC_FUNC
@@ -314,6 +325,8 @@ int create_description_topology(struct tx_frame_iterator *it)
 			msg[m].rxBw = umetric_to_fmu8(&ltn->rxBw);
 			msg[m].tq = ltn->tq;
 			msg[m].rq = ltn->rq;
+			msg[m].signal = ltn->signal;
+			msg[m].noise = ltn->noise;
 
 			m++;
 		}

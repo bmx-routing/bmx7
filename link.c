@@ -871,7 +871,7 @@ static int32_t link_status_creator(struct status_handl *handl, void *data)
 				status[i].tq = ((link->timeaware_tq_probe * 100) / LQ_MAX);
 				status[i].bestTq = (link == local->best_tq_link);
 				status[i].txRate = link->wifiStats.txRateAvg ? link->wifiStats.txRateAvg : ((link->timeaware_tq_probe * link->k.myDev->umetric_max) / LQ_MAX);
-				status[i].rxRate = ((link->timeaware_rq_probe * link->k.myDev->umetric_max) / LQ_MAX);
+				status[i].rxRate = ((link->timeaware_rq_probe * (link->wifiStats.rxRate ? link->wifiStats.rxRate : link->k.myDev->umetric_max)) / LQ_MAX);
 
 				status[i].wLastUpd = link->wifiStats.updatedTime ? ((float)(((TIME_T)(bmx_time - link->wifiStats.updatedTime))/1000)) : -1;
 				status[i].wTxLastProbe = link->wifiStats.txTriggTime ? ((float)(((TIME_T)(bmx_time - link->wifiStats.txTriggTime))/1000)) : -1;

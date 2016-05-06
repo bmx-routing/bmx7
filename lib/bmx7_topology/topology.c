@@ -83,6 +83,7 @@ struct topology_status {
 	int8_t signal;
 	int8_t noise;
 	int8_t snr;
+	uint8_t channel;
 	uint8_t rq;
 	uint8_t tq;
         UMETRIC_T rxRate;
@@ -103,6 +104,7 @@ static const struct field_format topology_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_INT,               topology_status, signal,        1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_INT,               topology_status, noise,         1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_INT,               topology_status, snr,           1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              topology_status, channel,       1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              topology_status, rq,            1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              topology_status, tq,            1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           topology_status, rxRate,        1, FIELD_RELEVANCE_HIGH),
@@ -151,6 +153,7 @@ static int32_t topology_status_creator(struct status_handl *handl, void *data)
 				status[i].signal = topology_msg[m].signal;
 				status[i].noise = topology_msg[m].noise;
 				status[i].snr = (topology_msg[m].signal - topology_msg[m].noise);
+				status[i].channel = topology_msg[m].channel;
 				status[i].neighId = &non->k.nodeId;
 				status[i].neighDescSqnDiff = non->dc->descSqn - ntohl(topology_msg[m].nbDescSqn);
 				status[i].neighName = non->k.hostname;
@@ -213,6 +216,7 @@ void set_local_topology_node(struct local_topology_node *ltn, LinkNode *link)
 	ltn->rq = link->timeaware_rq_probe;
 	ltn->signal = link->wifiStats.signal;
 	ltn->noise = link->wifiStats.noise;
+	ltn->channel = link->k.myDev->channel;
 }
 
 STATIC_FUNC
@@ -245,7 +249,10 @@ void check_local_topology_cache(void *nothing)
 				check_value_deviation(ltn->txBw, tmp.txBw, 0) ||
 				check_value_deviation(ltn->rxBw, tmp.rxBw, 0) ||
 				check_value_deviation(ltn->tq, tmp.tq, 0) ||
-				check_value_deviation(ltn->rq, tmp.rq, 0) )
+				check_value_deviation(ltn->rq, tmp.rq, 0) ||
+				check_value_deviation(ltn->signal, tmp.signal, 0) ||
+				check_value_deviation(ltn->noise, tmp.noise, 0) ||
+				check_value_deviation(ltn->channel, tmp.channel, 0) )
 				) {
 
 				my_description_changed = YES;
@@ -255,7 +262,10 @@ void check_local_topology_cache(void *nothing)
 				check_value_deviation(ltn->txBw, tmp.txBw, my_topology_hysteresis) ||
 				check_value_deviation(ltn->rxBw, tmp.rxBw, my_topology_hysteresis) ||
 				check_value_deviation(ltn->tq, tmp.tq, my_topology_hysteresis) ||
-				check_value_deviation(ltn->rq, tmp.rq, my_topology_hysteresis)
+				check_value_deviation(ltn->rq, tmp.rq, my_topology_hysteresis) ||
+				check_value_deviation(ltn->signal, tmp.signal, my_topology_hysteresis) ||
+				check_value_deviation(ltn->noise, tmp.noise, my_topology_hysteresis) ||
+				check_value_deviation(ltn->channel, tmp.channel, 0)
 				) {
 				my_description_changed = YES;
 				return;
@@ -327,6 +337,7 @@ int create_description_topology(struct tx_frame_iterator *it)
 			msg[m].rq = ltn->rq;
 			msg[m].signal = ltn->signal;
 			msg[m].noise = ltn->noise;
+			msg[m].channel = ltn->channel;
 
 			m++;
 		}

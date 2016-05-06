@@ -42,7 +42,9 @@ struct description_msg_topology {
 	LQ_T rq;
 	int8_t signal;
 	int8_t noise;
-	uint32_t reserved;
+	uint8_t channel;
+	uint8_t reserved1;
+	uint16_t reserved2;
 
 } __attribute__((packed));
 
@@ -64,7 +66,9 @@ struct description_hdr_topology {
 {FIELD_TYPE_UINT,             -1, (8*sizeof(uint8_t)),     0, FIELD_RELEVANCE_HIGH, "rq"}, \
 {FIELD_TYPE_INT,              -1, (8*sizeof(int8_t)),      0, FIELD_RELEVANCE_HIGH, "signal"}, \
 {FIELD_TYPE_INT,              -1, (8*sizeof(int8_t)),      0, FIELD_RELEVANCE_HIGH, "noise"}, \
-{FIELD_TYPE_UINT,             -1, (8*sizeof(uint32_t)),    0, FIELD_RELEVANCE_HIGH, "reserved"}, \
+{FIELD_TYPE_UINT,             -1, (8*sizeof(uint8_t)),     0, FIELD_RELEVANCE_HIGH, "channel"}, \
+{FIELD_TYPE_UINT,             -1, (8*sizeof(uint8_t)),     0, FIELD_RELEVANCE_HIGH, "reserved1"}, \
+{FIELD_TYPE_UINT,             -1, (8*sizeof(uint16_t)),    0, FIELD_RELEVANCE_HIGH, "reserved2"}, \
 FIELD_FORMAT_END }
 
 struct local_topology_key {
@@ -81,5 +85,6 @@ struct local_topology_node {
 	LQ_T rq;
 	int8_t signal;
 	int8_t noise;
+	uint8_t channel;
 	uint8_t updated;
 };

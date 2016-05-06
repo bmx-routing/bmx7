@@ -819,6 +819,10 @@ void keyNode_delCredits_(const char* f, GLOBAL_ID_T *kHash, struct key_node *kn,
 
 	kn = kn ? kn : avl_find_item(&key_tree, kHash);
 
+
+	IDM_T TODO_FIX_THIS;
+	if (!kn)
+		return;
 	assertion(-502391, (kn && kn->bookedState));
 
 	if (kc) {

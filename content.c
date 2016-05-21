@@ -124,7 +124,7 @@ static const struct field_format content_status_format[] = {
 STATIC_FUNC
 uint8_t *content_status_page(uint8_t *sOut, uint32_t i, struct content_usage_node *cun, struct content_node *cn)
 {
-	struct desc_content *dc = cun->k.descContent;
+	struct desc_content *dc = cun ? cun->k.descContent : NULL;
 	struct key_node *kn = dc ? dc->kn : cn->kn;
 	struct orig_node *on = kn ? kn->on : NULL;
 
@@ -215,7 +215,7 @@ static int32_t content_status_creator(struct status_handl *handl, void *data)
 	}
 
 	for (it = NULL; (cn = avl_iterate_item(&content_tree, &it));) {
-		if (!cn->kn && !cn->usage_tree.items)
+		if (!cn->usage_tree.items && (!cn->kn || !(cn->kn->on || cn->kn->nextDesc)))
 			handl->data = content_status_page(handl->data, i++, NULL, cn);
 	}
 

@@ -1216,11 +1216,12 @@ static int32_t ref_status_creator(struct status_handl *handl, void *data)
 	}
 
 
-	dbgf(droppedSRefs ? DBGL_CHANGES : DBGL_ALL, droppedSRefs ? DBGT_WARN : DBGT_INFO,
+//	dbgf((droppedSRefs || (allRefs != i)) ? DBGL_CHANGES : DBGL_ALL, droppedSRefs ? DBGT_WARN : DBGT_INFO,
+	dbgf_track(DBGT_INFO,
 		"all=%d shown=%d != (%d = (named=%d + desc=%d + claimed=%d)) dDropped=%d sDropped=%d",
 		allRefs, i, (namedRefs + descRefs + claimedRefs), namedRefs, descRefs, claimedRefs, droppedDRefs, droppedSRefs);
 
-	assertion(-502510, (allRefs == i));
+	//assertion(-502510, (allRefs == i));
 
 	return((i) * sizeof(struct ref_status));
 }

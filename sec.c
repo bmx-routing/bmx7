@@ -1038,6 +1038,51 @@ getTrustStringParameter_error:
 }
 
 STATIC_FUNC
+int32_t opt_reset_node (uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
+{
+	char *goto_error_code = NULL;
+	struct opt_child *c = NULL;
+
+	GLOBAL_ID_T id = ZERO_CYRYPSHA1;
+	int8_t state = KCNull;
+
+	if (cmd == OPT_CHECK || cmd == OPT_APPLY) {
+
+		struct key_node *kn;
+
+		if (strlen(patch->val) != (int)(2 * sizeof(id)))
+			goto_error(opt_reset_node_error, "Invalid Id hex length!");
+
+		if (hexStrToMem(patch->val, (uint8_t*)&id, sizeof(id), YES/*strict*/) != SUCCESS)
+			goto_error(opt_reset_node_error, "Invalid Id hex value!");
+
+		if (!(kn = keyNode_get(&id)))
+			goto_error(opt_reset_node_error, "Unknown id");
+
+		if (myKey == kn)
+			goto_error(opt_reset_node_error, "Can not reset own nodeId");
+
+
+                while ((c = list_iterate(&patch->childs_instance_list, c))) {
+
+			if (!strcmp(c->opt->name, ARG_RESET_NODE_STATE) && c->val)
+                                state = strtol(c->val, NULL, 10);
+		}
+
+		if (cmd == OPT_APPLY)
+			keyNode_schedLowerWeight(kn, state);
+	}
+
+	return SUCCESS;
+
+opt_reset_node_error:
+
+	dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "%s id=%s state=%d", goto_error_code, (patch ? patch->val : NULL), state );
+
+	return FAILURE;
+}
+
+STATIC_FUNC
 int32_t opt_set_trusted (uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
 {
 	char *goto_error_code = NULL;
@@ -1968,6 +2013,10 @@ struct opt_type sec_options[]=
 			ARG_DIR_FORM,	""},
 	{ODI,0,ARG_SUPPORT_PUBLISHING,    0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &publishSupportedNodes, MIN_SUPPORT_PUBLISHING,MAX_SUPPORT_PUBLISHING, DEF_SUPPORT_PUBLISHING,0, NULL,
 			ARG_VALUE_FORM, HLP_SUPPORT_PUBLISHING},
+	{ODI,0,ARG_RESET_NODE,		  0,  9,2,A_PM1N,A_ADM,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_reset_node,
+			0,		HLP_RESET_NODE},
+	{ODI,ARG_RESET_NODE,ARG_RESET_NODE_STATE,0,9,2,A_CS1, A_ADM,A_INI,A_CFA,A_ANY,0,       MIN_RESET_NODE_STATE,MAX_RESET_NODE_STATE, MAX_RESET_NODE_STATE,0,  opt_reset_node,
+			ARG_DIR_FORM,	HLP_RESET_NODE_STATE},
 
 };
 

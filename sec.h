@@ -49,6 +49,14 @@
 #define DEF_TRUST_LEVEL 2
 
 
+#define ARG_RESET_NODE "resetNode"
+#define HLP_RESET_NODE "reset node id"
+#define ARG_RESET_NODE_STATE "state"
+#define MIN_RESET_NODE_STATE 0
+#define MAX_RESET_NODE_STATE 3
+#define DEF_RESET_NODE_STATE 0
+#define HLP_RESET_NODE_STATE "specify max-node state: 0) listed, 1) tracked, 2) certified, 3) promoted"
+
 #define ARG_SUPPORT_PUBLISHING "publishSupportedNodes"
 #define MIN_SUPPORT_PUBLISHING 0
 #define MAX_SUPPORT_PUBLISHING 1

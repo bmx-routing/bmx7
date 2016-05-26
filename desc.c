@@ -223,7 +223,7 @@ void update_orig_dhash(struct desc_content *dcNew)
 
 //	memset(&on->anchor, 0, sizeof(on->anchor));
 
-	kn->descSqnMin = dcNew->descSqn;
+	update_ogm_mins(kn, dcNew->descSqn, 0, NULL);
 	kn->nextDesc = NULL;
 
 	assertion_dbg(-502536, ((on->neighPath.um & ~UMETRIC_MASK) == 0), "um=%ju mask=%ju max=%ju",on->neighPath.um, UMETRIC_MASK, UMETRIC_MAX);

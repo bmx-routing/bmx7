@@ -178,6 +178,7 @@ struct host_metricalgo {
 	uint8_t ogm_sqn_late_hystere_100ms;
 	uint16_t ogm_metric_hystere_new_path;
 	uint16_t ogm_metric_hystere_old_path;
+	uint16_t ogm_interval_sec;
 	struct path_interference_parameter pip[MAX_PATH_IFR_PARAMETERS];
 };
 
@@ -526,7 +527,10 @@ struct key_node {
 	struct avl_tree trustees_tree;
 	struct orig_node *on;
 	struct desc_content *nextDesc;
+	TIME_SEC_T ogmSqnFirst_sec;
 	DESC_SQN_T descSqnMin;
+	OGM_SQN_T ogmSqnMin;
+	FMETRIC_U16_T ogmMetricMin;
 	struct avl_tree recommendations_tree; //ofMyDirect2SupportedKeys
 };
 
@@ -619,7 +623,8 @@ extern uint32_t content_tree_unresolveds;
 /***********************************************************
  Data Infrastructure
  ************************************************************/
-
+void update_ogm_mins(struct key_node *kn, DESC_SQN_T minDescSqn, OGM_SQN_T minOgmSqn, UMETRIC_T *minUMetric);
+IDM_T is_new_ogm_mins(struct key_node *kn, DESC_SQN_T minDescSqn, OGM_SQN_T minOgmSqn, UMETRIC_T *minUMetric);
 void neighRef_destroy(struct NeighRef_node *ref, IDM_T reAssessState);
 struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn, IID_T neighIID4x, CRYPTSHA1_T *kHash, DESC_SQN_T descSqn, struct InaptChainOgm *chainOgm);
 void neighRefs_update(struct key_node *kn);

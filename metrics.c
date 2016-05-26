@@ -745,6 +745,7 @@ IDM_T validate_metricalgo(struct host_metricalgo *ma, struct ctrl_node *cn)
 		validate_param((ma->lq_ty_point_r255), MIN_PATH_LQ_TY_R255, MAX_PATH_LQ_TY_R255, ARG_PATH_LQ_TY_R255) ||
 		validate_param((ma->lq_t1_point_r255), MIN_PATH_LQ_T1_R255, MAX_PATH_LQ_T1_R255, ARG_PATH_LQ_T1_R255) ||
 		validate_param((ma->ogm_link_rate_efficiency), MIN_OGM_LINK_RATE_EFFICIENCY, MAX_OGM_LINK_RATE_EFFICIENCY, ARG_OGM_LINK_RATE_EFFICIENCY) ||
+		validate_param((ma->ogm_interval_sec), MIN_OGM_INTERVAL/1000, MAX_OGM_INTERVAL/1000, ARG_OGM_INTERVAL) ||
 		ma->lq_t1_point_r255 <= ma->lq_tx_point_r255 ||
                 !is_umetric_valid(&ma->umetric_min) || !is_fmetric_valid(ma->fmetric_u16_min) ||
                 ma->umetric_min != fmetric_to_umetric(ma->fmetric_u16_min) || ma->umetric_min < UMETRIC_MIN__NOT_ROUTABLE ||
@@ -789,6 +790,7 @@ IDM_T metricalgo_tlv_to_host(struct description_tlv_metricalgo *tlv_algo, struct
 	host_algo->ogm_hop_penalty = tlv_algo->m.hop_penalty;
 	host_algo->ogm_hops_max = tlv_algo->m.hops_max;
 	host_algo->ogm_hop_history = tlv_algo->m.hops_history;
+	host_algo->ogm_interval_sec = ntohs(tlv_algo->m.ogm_interval_sec);
 	memcpy(host_algo->pip, tlv_algo->m.pip, sizeof(tlv_algo->m.pip));
 
 	assertion(-502650, ((MAX_PATH_IFR_PARAMETERS * sizeof(struct path_interference_parameter)) == sizeof(my_path_interference_parameter)));
@@ -842,6 +844,7 @@ int create_description_tlv_metricalgo(struct tx_frame_iterator *it)
         tlv_algo.m.hop_penalty = my_ogm_hop_penalty;
 	tlv_algo.m.hops_max = my_ogm_hops_max;
 	tlv_algo.m.hops_history = my_ogm_hop_hisotry_size;
+	tlv_algo.m.ogm_interval_sec = htons(my_ogmInterval/1000);
 	memcpy(tlv_algo.m.pip, my_path_interference_parameter, sizeof(my_path_interference_parameter));
 
 
@@ -1007,6 +1010,8 @@ int32_t opt_path_metricalgo(uint8_t cmd, uint8_t _save, struct opt_type *opt, st
 		test_algo.ogm_link_rate_efficiency = (cmd == OPT_REGISTER || strcmp(opt->name, ARG_OGM_LINK_RATE_EFFICIENCY)) ?
 			my_ogm_link_rate_efficiency : (val >= 0 ? val : DEF_OGM_LINK_RATE_EFFICIENCY);
 
+		test_algo.ogm_interval_sec = ((cmd == OPT_REGISTER || strcmp(opt->name, ARG_OGM_INTERVAL)) ?
+			my_ogmInterval : (val >= 0 ? val : DEF_OGM_INTERVAL))/1000;
 
 		if (cmd == OPT_APPLY && strcmp(opt->name, ARG_PATH_IFR_PARAMETER) == 0) {
 
@@ -1254,6 +1259,8 @@ struct opt_type metrics_options[]=
         {ODI, 0, ARG_DESC_METRICALGO,0, 9,2, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &descMetricalgo, MIN_DESC_METRICALGO, MAX_DESC_METRICALGO, DEF_DESC_METRICALGO,0, opt_path_metricalgo,
 			ARG_VALUE_FORM,	"enable/disable inclusion of metric algo in node description (other nodes will use their default algo)"}
         ,
+        {ODI,0,ARG_OGM_INTERVAL,        0,9,1, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &my_ogmInterval,  MIN_OGM_INTERVAL,   MAX_OGM_INTERVAL,   DEF_OGM_INTERVAL,0,   opt_path_metricalgo,
+			ARG_VALUE_FORM,	"set interval in ms with which new originator message (OGM) are send"},
 #endif
 
 };

@@ -140,13 +140,11 @@ extern int32_t linkSignLen;
 #define MAX_OGM_SQN_DEVIATION MAX_OGM_SQN_RANGE
 #define DEF_OGM_SQN_DEVIATION 10
 #define ARG_OGM_SQN_DEVIATION "ogmSqnDeviation"
-extern int32_t ogmSqnDeviationMax;
 
 #define MIN_OGM_SQN_RANDOM 0
 #define MAX_OGM_SQN_RANDOM (MAX_OGM_SQN_RANGE - 1)
 #define DEF_OGM_SQN_RANDOM 0
 #define ARG_OGM_SQN_RANDOM "ogmSqnRandom"
-extern int32_t ogmSqnRandom;
 
 
 extern CRYPTKEY_T *my_NodeKey;
@@ -327,7 +325,7 @@ struct dsc_msg_version {
 } __attribute__((packed));
 
 void chainLinkCalc(ChainInputs_T *ci_tmp, OGM_SQN_T diff);
-OGM_SQN_T chainOgmFind(ChainLink_T *chainOgm, struct desc_content *dc, OGM_SQN_T maxDeviation);
+OGM_SQN_T chainOgmFind(ChainLink_T *chainOgm, struct desc_content *dc, IDM_T searchFullRange);
 ChainLink_T chainOgmCalc(struct desc_content *dc, OGM_SQN_T ogmSqn);
 ChainElem_T myChainLinkCache(OGM_SQN_T sqn, DESC_SQN_T descSqn);
 

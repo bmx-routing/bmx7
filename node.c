@@ -231,6 +231,83 @@ void set_ref_ogmSqnMaxMetric(struct NeighRef_node *ref, DESC_SQN_T descSqn, OGM_
 	}
 }
 
+
+void update_ogm_mins(struct key_node *kn, DESC_SQN_T minDescSqn, OGM_SQN_T minOgmSqn, UMETRIC_T *minUMetric)
+{
+	assertion(-500000, (kn));
+	assertion(-500000, (minDescSqn));
+	assertion(-500000, IMPLIES(minUMetric, minOgmSqn));
+
+	FMETRIC_U16_T minFMetric = {.val = {.u16 = 0}};
+		
+	if (minUMetric)
+		minFMetric = umetric_to_fmetric(*minUMetric);
+
+	if (!kn->ogmSqnFirst_sec && !kn->ogmSqnMin && minOgmSqn)
+		kn->ogmSqnFirst_sec = bmx_time_sec;
+
+	if (!kn->ogmSqnFirst_sec || (((TIME_SEC_T) (bmx_time_sec - kn->ogmSqnFirst_sec)) < 5)) {
+		minOgmSqn++;
+		minFMetric.val.u16 = 0;
+	}
+
+	if (minDescSqn > kn->descSqnMin) {
+
+		kn->descSqnMin = minDescSqn;
+		kn->ogmSqnMin = minOgmSqn;
+		kn->ogmMetricMin = minFMetric;
+
+	} else if (minDescSqn == kn->descSqnMin) {
+
+		if (minOgmSqn > kn->ogmSqnMin) {
+
+			kn->ogmSqnMin = minOgmSqn;
+			kn->ogmMetricMin = minFMetric;
+
+		} else if (minOgmSqn == kn->ogmSqnMin) {
+
+			if (minFMetric.val.u16 > kn->ogmMetricMin.val.u16) {
+
+				kn->ogmMetricMin = minFMetric;
+			}
+		}
+	}
+}
+
+IDM_T is_new_ogm_mins(struct key_node *kn, DESC_SQN_T minDescSqn, OGM_SQN_T minOgmSqn, UMETRIC_T *minUMetric)
+{
+	assertion(-500000, (kn));
+	assertion(-500000, (minDescSqn));
+	assertion(-500000, IMPLIES(minUMetric, minOgmSqn));
+
+	FMETRIC_U16_T minFMetric = {.val = {.u16 = 0}};
+
+	if (minUMetric)
+		minFMetric = umetric_to_fmetric(*minUMetric);
+
+	if (minDescSqn > kn->descSqnMin) {
+
+		return YES;
+
+	} else if (minDescSqn == kn->descSqnMin) {
+
+		if (minOgmSqn > kn->ogmSqnMin) {
+
+			return YES;
+
+		} else if (minOgmSqn == kn->ogmSqnMin) {
+
+			if (minFMetric.val.u16 > kn->ogmMetricMin.val.u16) {
+
+				return YES;
+			}
+		}
+	}
+
+	return NO;
+}
+
+
 struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn, IID_T neighIID4x, CRYPTSHA1_T *kHash, DESC_SQN_T descSqn, struct InaptChainOgm *inChainOgm)
 {
 	assertion(-502459, (nn));
@@ -294,8 +371,11 @@ struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn
 
 	if ((chainOgm = inChainOgm ? inChainOgm : ref->inaptChainOgm)) {
 
-		if ((kn && kn->on && (dc = kn->on->dc) && ref->descSqn == dc->descSqn && (ogmSqn = chainOgmFind(&chainOgm->chainOgm, dc, (descSqn ? dc->ogmSqnRange : ogmSqnDeviationMax)))) ||
-			(kn && (dc = kn->nextDesc) && ref->descSqn <= dc->descSqn && (ogmSqn = chainOgmFind(&chainOgm->chainOgm, dc, ((descSqn || ref->descSqn < dc->descSqn) ? dc->ogmSqnRange : ogmSqnDeviationMax))))) {
+//		if ((dc = (kn && kn->nextDesc) ? kn->nextDesc : (kn && kn->on ? kn->on->dc : NULL)) &&
+//			(ref->descSqn <= dc->descSqn) && (ogmSqn = chainOgmFind(&chainOgm->chainOgm, dc, !!descSqn))) {
+
+		if ((kn && kn->on && (dc = kn->on->dc) && ref->descSqn == dc->descSqn && (ogmSqn = chainOgmFind(&chainOgm->chainOgm, dc, !!descSqn))) ||
+			(kn && (dc = kn->nextDesc) && ref->descSqn <= dc->descSqn && (ogmSqn = chainOgmFind(&chainOgm->chainOgm, dc, (!!descSqn /*|| ref->descSqn < dc->descSqn*/))))) {
 
 			assertion(-502568, (ogmSqn <= dc->ogmSqnRange));
 			assertion(-502569, (dc->ogmSqnMaxRcvd <= dc->ogmSqnRange));
@@ -333,7 +413,7 @@ struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn
 				dbgf_mute(70, DBGL_SYS, DBGT_WARN, "OGM SQN or metric attack on myself, rcvd via neigh=%s, rcvdSqn=%d sendSqn=%d rcvdMetric=%ju sendMetric=%ju",
 					cryptShaAsShortStr(&nn->local_id), ref->ogmSqnMax, dc->ogmSqnMaxSend, fmetric_to_umetric(ref->ogmSqnMaxClaimedMetric), myKey->on->neighPath.um);
 
-				nn->on->kn->descSqnMin++;
+				update_ogm_mins(nn->on->kn, nn->on->dc->descSqn + 1, 0, NULL);
 				keyNode_schedLowerWeight(nn->on->kn, KCListed);
 				ref = NULL;
 				nn = NULL;

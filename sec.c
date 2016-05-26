@@ -185,16 +185,17 @@ ChainLink_T chainOgmCalc(struct desc_content *dc, OGM_SQN_T ogmSqn)
 	return chainOgm;
 }
 
-OGM_SQN_T chainOgmFind(ChainLink_T *chainOgm, struct desc_content *dc, OGM_SQN_T maxDeviation)
+OGM_SQN_T chainOgmFind(ChainLink_T *chainOgm, struct desc_content *dc, IDM_T searchFullRange)
 {
 
 	assertion(-502597, (chainOgm && dc));
 	bit_xor(&dc->chainCache.elem.u.e.link, chainOgm, &dc->chainOgmConstInputHash, sizeof(ChainLink_T));
 
-	dbgf_track(DBGT_INFO, "chainOgm=%s -> chainLink=%s maxRcvd=%d range=%d maxDeviation=%d",
+	dbgf_track(DBGT_INFO, "chainOgm=%s -> chainLink=%s maxRcvd=%d range=%d searchFullRange=%d maxDeviation=%d",
 		memAsHexString(chainOgm, sizeof(ChainLink_T)), memAsHexString(&dc->chainCache.elem.u.e.link,
-		sizeof(ChainLink_T)), dc->ogmSqnMaxRcvd, dc->ogmSqnRange, maxDeviation);
+		sizeof(ChainLink_T)), dc->ogmSqnMaxRcvd, dc->ogmSqnRange, searchFullRange, ogmSqnDeviationMax);
 
+	OGM_SQN_T maxDeviation = searchFullRange ? dc->ogmSqnRange : ogmSqnDeviationMax;
 	OGM_SQN_T sqnReturn = 0;
 	OGM_SQN_T sqnOffset = 0;
 	ChainLink_T chainLink;
@@ -1051,16 +1052,16 @@ int32_t opt_reset_node (uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
 		struct key_node *kn;
 
 		if (strlen(patch->val) != (int)(2 * sizeof(id)))
-			goto_error(opt_reset_node_error, "Invalid Id hex length!");
+			goto_error(opt_reset_node_finish, "Invalid Id hex length!");
 
 		if (hexStrToMem(patch->val, (uint8_t*)&id, sizeof(id), YES/*strict*/) != SUCCESS)
-			goto_error(opt_reset_node_error, "Invalid Id hex value!");
+			goto_error(opt_reset_node_finish, "Invalid Id hex value!");
 
 		if (!(kn = keyNode_get(&id)))
-			goto_error(opt_reset_node_error, "Unknown id");
+			goto_error(opt_reset_node_finish, "Unknown id");
 
 		if (myKey == kn)
-			goto_error(opt_reset_node_error, "Can not reset own nodeId");
+			goto_error(opt_reset_node_finish, "Can not reset own nodeId");
 
 
                 while ((c = list_iterate(&patch->childs_instance_list, c))) {
@@ -1073,13 +1074,12 @@ int32_t opt_reset_node (uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
 			keyNode_schedLowerWeight(kn, state);
 	}
 
-	return SUCCESS;
+opt_reset_node_finish:
 
-opt_reset_node_error:
+	dbgf_cn(cn, goto_error_code ? DBGL_SYS : DBGL_CHANGES, goto_error_code ? DBGT_ERR : DBGT_INFO,
+		"%s id=%s state=%d", goto_error_code, (patch ? patch->val : NULL), state);
 
-	dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "%s id=%s state=%d", goto_error_code, (patch ? patch->val : NULL), state );
-
-	return FAILURE;
+	return goto_error_code ? FAILURE : SUCCESS;
 }
 
 STATIC_FUNC

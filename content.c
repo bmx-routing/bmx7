@@ -318,7 +318,7 @@ struct content_node * content_add_body( uint8_t *body, uint32_t body_len, uint8_
 				} else {
 					continue;
 				}
-				dc->kn->descSqnMin = dc->descSqn + 1;
+				update_ogm_mins(dc->kn, dc->descSqn + 1, 0, NULL);
 				descContent_destroy(dc);
 			}
 		}
@@ -845,12 +845,13 @@ struct desc_content* descContent_create(uint8_t *dsc, uint32_t dlen, struct key_
 	dc->desc_frame  = debugMalloc(dlen, -300105);
 	memcpy(dc->desc_frame, dsc, dlen);
 	get_desc_id(dc->desc_frame, dlen, NULL, &versMsg);
-
 	dc->desc_frame_len = dlen;
-	dc->descSqn = descSqn;
-	dc->ogmSqnRange = ntohs(versMsg->ogmSqnRange);
-	dc->ogmSqnMaxSend = (dc->ogmSqnMaxRcvd = ((kn == myKey && ogmSqnRandom) ? (rand_num(XMIN(dc->ogmSqnRange, ogmSqnRandom))) : 0));
 
+	dc->descSqn = descSqn;
+	dc->ogmSqnMaxSend = 0;
+
+	dc->ogmSqnMaxRcvd = 0;
+	dc->ogmSqnRange = ntohs(versMsg->ogmSqnRange);
 	dc->chainLinkMaxRcvd = versMsg->ogmHChainAnchor.u.e.link;
 	dc->chainAnchor = &versMsg->ogmHChainAnchor.u.e.link;
 	dc->chainCache.elem = versMsg->ogmHChainAnchor;
@@ -867,7 +868,7 @@ struct desc_content* descContent_create(uint8_t *dsc, uint32_t dlen, struct key_
 //		IDM_T TODO_ifFailingDueToLowConformanceToleranceAndUnknownSmsTlvTypeThisLoopsOnReRequestingTheDesc;
 		EXITERROR(-502271, (NO));
 
-		kn->descSqnMin = descSqn + 1;
+		update_ogm_mins(kn, descSqn + 1, 0, NULL);
 		descContent_destroy(dc);
 		return NULL;
 	}

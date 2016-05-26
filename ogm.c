@@ -130,14 +130,16 @@ void schedule_ogm( struct orig_node *on)
 	struct desc_content *dc = on->dc;
 	UMETRIC_T um = on->neighPath.um;
 
-	dbgf_track(DBGT_INFO, "ogmSqn=%d maxRcvd=%d maxSend=%d range=%d hops=%d metric=%s um=%ju ",
-		dc->ogmSqnMaxSend, dc->ogmSqnMaxRcvd, dc->ogmSqnMaxSend, dc->ogmSqnRange, on->ogmHopCount, umetric_to_human(um), um);
+	dbgf_track(DBGT_INFO, "maxRcvd=%d maxSend=%d range=%d hops=%d metric=%s um=%ju ",
+		dc->ogmSqnMaxRcvd, dc->ogmSqnMaxSend, dc->ogmSqnRange, on->ogmHopCount, umetric_to_human(um), um);
 
 	assertion(-502576, (dc->ogmSqnMaxRcvd <= dc->ogmSqnRange));
 	assertion(-502577, (dc->ogmSqnMaxSend <= dc->ogmSqnRange));
 	assertion(-502578, (dc->ogmSqnMaxRcvd >= dc->ogmSqnMaxSend));
 	assertion_dbg(-502574, ((um & ~UMETRIC_MASK) == 0), "um=%ju mask=%ju max=%ju",um, UMETRIC_MASK, UMETRIC_MAX);
 	assertion_dbg(-502575, (um >= fmetric_to_umetric(umetric_to_fmetric(um))), "um=%ju um16=%d -> um=%ju",um, umetric_to_fmetric(um).val.u16, fmetric_to_umetric(umetric_to_fmetric(um)));
+
+	update_ogm_mins(dc->kn, dc->descSqn, dc->ogmSqnMaxSend, &um);
 
 	if (on->ogmHopCount >= on->mtcAlgo->ogm_hops_max) {
 		remove_ogm(on);
@@ -201,9 +203,11 @@ void schedule_my_originator_message(void)
 
 	if (on->dc->ogmSqnMaxSend < on->dc->ogmSqnRange) {
 
-		on->dc->chainLinkMaxRcvd = myChainLinkCache(on->dc->ogmSqnMaxSend + 1, on->dc->descSqn).u.e.link;
-		on->dc->ogmSqnMaxRcvd = on->dc->ogmSqnMaxSend + 1;
-		on->dc->ogmSqnMaxSend = on->dc->ogmSqnMaxSend + 1;
+		OGM_SQN_T nextOgmSqn = on->dc->ogmSqnMaxSend + 1;
+
+		on->dc->chainLinkMaxRcvd = myChainLinkCache(nextOgmSqn, on->dc->descSqn).u.e.link;
+		on->dc->ogmSqnMaxRcvd = nextOgmSqn;
+		on->dc->ogmSqnMaxSend = nextOgmSqn;
 		on->neighPath.um = UMETRIC_MAX;
 		on->ogmHopCount = 0;
 
@@ -529,29 +533,29 @@ struct NeighPath *lndev_best_via_router(struct NeighRef_node *ref)
 	assertion(-502672, (ref->kn->on->mtcAlgo->umetric_min >= UMETRIC_MIN__NOT_ROUTABLE));
 	assertion(-502474, (ref->nn->linkDev_tree.items));
 
+	static struct NeighPath bestNeighPath;
+	struct avl_node *linkDev_an = NULL;
+	LinkDevNode *linkDev;
 	struct neigh_node *nn = ref->nn;
 	struct orig_node *on = ref->kn->on;
 	struct desc_content *dc = on->dc;
 	IDM_T neighTrust = verify_neighTrust(on, nn);
 	UMETRIC_T refMetric = fmetric_to_umetric(ref->ogmSqnMaxClaimedMetric);
-	struct avl_node *linkDev_an = NULL;
-	LinkDevNode *linkDev;
-	
-	static struct NeighPath bestNeighPath;
+	IDM_T newOgmMins = is_new_ogm_mins(ref->kn, ref->descSqn, ref->ogmSqnMax, &refMetric);
 
 	bestNeighPath.link = NULL;
 	bestNeighPath.pathMetricsByteSize = 0;
 	bestNeighPath.um = UMETRIC_MIN__NOT_ROUTABLE;
 
 	dbgf_track(refMetric <= on->mtcAlgo->umetric_min ? DBGT_WARN : DBGT_INFO,
-		"orig=%s descSqn=%d via neigh=%s nbTrust=%d hops=%d refMtc=%ju refOgmHist=%d/%d minMtc=%ju ogmSqnRcvd=%d ogmSqnMaxSend=%d onSendMtc=%ju onSqnHystere=%d onMtcHystere=%d RefSqnBestSince=%d",
+		"orig=%s descSqn=%d via neigh=%s trusted=%d new=%d hops=%d refMtc=%ju refOgmHist=%d/%d minMtc=%ju ogmSqnRcvd=%d ogmSqnMaxSend=%d onSendMtc=%ju onSqnHystere=%d onMtcHystere=%d RefSqnBestSince=%d",
 		cryptShaAsShortStr(&on->k.nodeId), dc->descSqn, cryptShaAsShortStr(&nn->local_id),
-		neighTrust, ref->ogmSqnMaxClaimedHops, refMetric, 
+		neighTrust, newOgmMins, ref->ogmSqnMaxClaimedHops, refMetric,
 		(int)(ref->ogmSqnMaxPathMetricsByteSize / sizeof(struct msg_ogm_adv_metric_t0)), on->mtcAlgo->ogm_hop_history,
 		on->mtcAlgo->umetric_min, ref->ogmSqnMax, dc->ogmSqnMaxSend, on->neighPath.um,
 		on->mtcAlgo->ogm_sqn_late_hystere_100ms, on->mtcAlgo->ogm_metric_hystere_new_path, ref->ogmBestSinceSqn);
 
-	if (!neighTrust || refMetric < on->mtcAlgo->umetric_min || refMetric == UMETRIC_MIN__NOT_ROUTABLE || !ref->ogmSqnMaxClaimedHops)
+	if (!neighTrust || !newOgmMins || refMetric < on->mtcAlgo->umetric_min || refMetric == UMETRIC_MIN__NOT_ROUTABLE || !ref->ogmSqnMaxClaimedHops)
 		return &bestNeighPath;
 
 	while ((linkDev = avl_iterate_item(&nn->linkDev_tree, &linkDev_an))) {
@@ -577,12 +581,12 @@ struct NeighPath *lndev_best_via_router(struct NeighRef_node *ref)
 }
 
 
-
 void process_ogm_metric(void *voidRef)
 {
 	struct NeighRef_node *ref = voidRef;
 	struct orig_node *on = NULL;
 	struct desc_content *dc = NULL;
+	struct key_node *kn = NULL;
 	assertion(-502475, (ref));
 	assertion(-502581, (ref->nn));
 
@@ -591,7 +595,20 @@ void process_ogm_metric(void *voidRef)
 		task_remove(process_ogm_metric, (void*)ref);
 	}
 
-	if (!(ref->kn) || !(on = ref->kn->on) || !(dc = on->dc) || (ref->descSqn != dc->descSqn) || !ref->ogmSqnMax || ref->ogmSqnMax < dc->ogmSqnMaxSend || !is_fmetric_valid(ref->ogmSqnMaxClaimedMetric))
+	if (!((kn = ref->kn) && (on = kn->on) && (dc = on->dc) && (ref->descSqn == dc->descSqn)))
+		return;
+
+	if (!(
+		ref->ogmSqnMax &&
+		(dc->ogmSqnMaxSend <= dc->ogmSqnRange) &&
+		(dc->ogmSqnMaxSend <= dc->ogmSqnMaxRcvd) &&
+		(dc->ogmSqnMaxRcvd <= dc->ogmSqnRange) &&
+		(ref->ogmSqnMax <= dc->ogmSqnRange) &&
+		(ref->ogmSqnMax <= dc->ogmSqnMaxRcvd) &&
+		(ref->ogmSqnMax >= dc->ogmSqnMaxSend) &&
+		(is_fmetric_valid(ref->ogmSqnMaxClaimedMetric)) &&
+		(ref->ogmSqnMax > dc->ogmSqnMaxSend || fmetric_to_umetric(ref->ogmSqnMaxClaimedMetric) > on->neighPath.um)
+		))
 		return;
 	
 	assertion(-502583, (dc->ogmSqnMaxSend <= dc->ogmSqnRange));
@@ -639,6 +656,7 @@ void process_ogm_metric(void *voidRef)
 			if (on->neighPath.link)
 				cb_route_change_hooks(ADD, on);
 		}
+
 
 		on->dc->ogmSqnMaxSend = ref->ogmSqnMax;
 		on->neighPath = *bestNeighPath;
@@ -727,8 +745,6 @@ int32_t rx_frame_ogm_aggreg_advs(struct rx_frame_iterator *it)
 STATIC_FUNC
 struct opt_type ogm_options[]=
 {
-        {ODI,0,ARG_OGM_INTERVAL,        0,9,1, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &my_ogmInterval,  MIN_OGM_INTERVAL,   MAX_OGM_INTERVAL,   DEF_OGM_INTERVAL,0,   0,
-			ARG_VALUE_FORM,	"set interval in ms with which new originator message (OGM) are send"},
         {ODI,0,ARG_OGM_IFACTOR,         0,9,1, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &maxMyOgmIFactor,  MIN_OGM_IFACTOR,   MAX_OGM_IFACTOR,   DEF_OGM_IFACTOR, 0,   0,
 			ARG_VALUE_FORM,	"set factor (relative to ogmInterval) for max delay of own ogms"},
 

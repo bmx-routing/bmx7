@@ -23,9 +23,9 @@
 #define DEF_TOPOLOGY_HYSTERESIS 33
 
 #define ARG_TOPOLOGY_PERIOD "topologyUpdatePeriod"
-#define MIN_TOPOLOGY_PERIOD 10000
-#define MAX_TOPOLOGY_PERIOD 36000000
-#define DEF_TOPOLOGY_PERIOD 60000
+#define MIN_TOPOLOGY_PERIOD 0
+#define MAX_TOPOLOGY_PERIOD 360000
+#define DEF_TOPOLOGY_PERIOD 3600
 
 #define TLV_OP_CUSTOM_TOPOLOGY (TLV_OP_CUSTOM_MIN + 1)
 
@@ -79,6 +79,7 @@ struct local_topology_key {
 
 struct local_topology_node {
 	struct local_topology_key k;
+	uint8_t sqn;
 	UMETRIC_T txBw;
 	UMETRIC_T rxBw;
 	LQ_T tq;

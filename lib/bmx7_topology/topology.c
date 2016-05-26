@@ -61,7 +61,7 @@
 AVL_TREE(local_topology_tree, struct local_topology_node, k);
 
 int32_t my_topology_hysteresis = DEF_TOPOLOGY_HYSTERESIS;
-int32_t my_topology_period = DEF_TOPOLOGY_PERIOD;
+int32_t my_topology_period_sec = DEF_TOPOLOGY_PERIOD;
 
 struct description_msg_topology *topology_msg;
 uint32_t topology_msgs;
@@ -195,9 +195,12 @@ int process_description_topology(struct rx_frame_iterator *it)
 
 
 STATIC_FUNC
-int check_value_deviation(UMETRIC_T a, UMETRIC_T b, UMETRIC_T percent)
+int check_value_deviation(uint64_t a, uint64_t b, int32_t percent, int32_t absolute)
 {
-	if ((((a * (100+percent)) / 100) < b) || (((b * (100+percent)) / 100) < a))
+	if (percent >= 0 && ((((a * (100+percent)) / 100) < b) || (((b * (100+percent)) / 100) < a)))
+		return YES;
+
+	if (absolute >= 0 && ((XMAX(a,b) - XMIN(a,b)) > ((uint32_t)absolute)))
 		return YES;
 
 	return NO;
@@ -222,65 +225,68 @@ void set_local_topology_node(struct local_topology_node *ltn, LinkNode *link)
 STATIC_FUNC
 void check_local_topology_cache(void *nothing)
 {
-	assertion(-502532, (my_topology_period < MAX_TOPOLOGY_PERIOD));
+	assertion(-502532, (my_topology_period_sec > MIN_TOPOLOGY_PERIOD));
 
 	uint32_t m = 0;
-	struct avl_node *link_it;
+	struct avl_node *an;
 	LinkNode *link;
+	static uint8_t sqn;
+
+	sqn++;
 
 //	for (local_it = NULL; (local = avl_iterate_item(&local_tree, &local_it));) {
-	for (link_it = NULL; (link = avl_iterate_item(&link_tree, &link_it));) {
+	for (an = NULL; (link = avl_iterate_item(&link_tree, &an));) {
 
 		if (link->timeaware_tq_probe) {
 
-			struct local_topology_key key = {.nbId = link->k.linkDev->key.local->local_id, .myIdx = link->k.myDev->llipKey.devIdx, .nbIdx = link->k.linkDev->key.devIdx};
+			struct local_topology_key key = {
+				.nbId = link->k.linkDev->key.local->local_id,
+				.myIdx = link->k.myDev->llipKey.devIdx,
+				.nbIdx = link->k.linkDev->key.devIdx
+			};
 
 			struct local_topology_node *ltn = avl_find_item(&local_topology_tree, &key);
 			struct local_topology_node tmp;
 
-			if (!ltn) {
-				my_description_changed = YES;
-				return;
-			}
-
 			set_local_topology_node(&tmp, link);
 
-			if ( (bmx_time - myKey->on->updated_timestamp) > ((uint32_t)my_topology_period * 100) && (
-				check_value_deviation(ltn->txBw, tmp.txBw, 0) ||
-				check_value_deviation(ltn->rxBw, tmp.rxBw, 0) ||
-				check_value_deviation(ltn->tq, tmp.tq, 0) ||
-				check_value_deviation(ltn->rq, tmp.rq, 0) ||
-				check_value_deviation(ltn->signal, tmp.signal, 0) ||
-				check_value_deviation(ltn->noise, tmp.noise, 0) ||
-				check_value_deviation(ltn->channel, tmp.channel, 0) )
-				) {
+			if (!ltn && check_value_deviation(0, tmp.tq, -1, my_topology_hysteresis)) {
 
 				my_description_changed = YES;
 				return;
 
-			} else if (
-				check_value_deviation(ltn->txBw, tmp.txBw, my_topology_hysteresis) ||
-				check_value_deviation(ltn->rxBw, tmp.rxBw, my_topology_hysteresis) ||
-				check_value_deviation(ltn->tq, tmp.tq, my_topology_hysteresis) ||
-				check_value_deviation(ltn->rq, tmp.rq, my_topology_hysteresis) ||
-				check_value_deviation(ltn->signal, tmp.signal, my_topology_hysteresis) ||
-				check_value_deviation(ltn->noise, tmp.noise, my_topology_hysteresis) ||
-				check_value_deviation(ltn->channel, tmp.channel, 0)
-				) {
-				my_description_changed = YES;
-				return;
+			} else {
+
+				if (
+					check_value_deviation(ltn->txBw, tmp.txBw, my_topology_hysteresis, -1) ||
+					check_value_deviation(ltn->rxBw, tmp.rxBw, my_topology_hysteresis, -1) ||
+					check_value_deviation(ltn->tq, tmp.tq, -1, my_topology_hysteresis) ||
+					check_value_deviation(ltn->rq, tmp.rq, -1, my_topology_hysteresis) ||
+					check_value_deviation(ltn->signal - ltn->noise, tmp.signal - tmp.noise, my_topology_hysteresis, -1) ||
+					check_value_deviation(ltn->channel, tmp.channel, -1, 0)
+					) {
+					my_description_changed = YES;
+					return;
+				}
+
+				ltn->sqn = sqn;
+				m++;
 			}
-
-			m++;
 		}
         }
 
 	if (local_topology_tree.items != m) {
-		my_description_changed = YES;
-		return;
+		struct local_topology_node *ltn;
+		for (an = NULL; (ltn = avl_iterate_item(&local_topology_tree, &an));) {
+			if (ltn->sqn != sqn && check_value_deviation(ltn->tq, 0, -1, my_topology_hysteresis)) {
+
+				my_description_changed = YES;
+				return;
+			}
+		}
 	}
 
-	task_register(my_topology_period, check_local_topology_cache, NULL, -300782);
+	task_register((my_topology_period_sec*1000), check_local_topology_cache, NULL, -300782);
 }
 
 STATIC_FUNC
@@ -306,11 +312,13 @@ int create_description_topology(struct tx_frame_iterator *it)
 
 	destroy_local_topology_cache();
 
-	if (my_topology_period >= MAX_TOPOLOGY_PERIOD)
+	if (my_topology_period_sec <= MIN_TOPOLOGY_PERIOD)
 		return TLV_TX_DATA_IGNORED;
 
 	task_remove(check_local_topology_cache, NULL);
-	task_register(((bmx_time < ((TIME_T)my_topology_period/10)) ? (my_topology_period/10) : my_topology_hysteresis), check_local_topology_cache, NULL, -300785);
+	task_register(rand_num((my_topology_period_sec * 1000) / 10) +
+		((bmx_time < ((TIME_T) (my_topology_period_sec * 1000) / 10)) ? ((TIME_T)(((my_topology_period_sec * 1000) / 10) - bmx_time)) : ((TIME_T)(my_topology_period_sec * 1000))),
+		check_local_topology_cache, NULL, -300785);
 
 	hdr->reserved = 0;
 	hdr->type = 0;
@@ -354,21 +362,21 @@ int32_t opt_topology(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct op
 {
         TRACE_FUNCTION_CALL;
 
-	static int32_t scheduled_period = MAX_TOPOLOGY_PERIOD;
+	static int32_t scheduled_period = MIN_TOPOLOGY_PERIOD;
 
-        if (!terminating && cmd == OPT_POST && my_topology_period != scheduled_period) {
+        if (!terminating && cmd == OPT_POST && my_topology_period_sec != scheduled_period) {
 
 		task_remove(check_local_topology_cache, NULL);
 
-		if (my_topology_period < MAX_TOPOLOGY_PERIOD)
-			task_register(my_topology_period/10, check_local_topology_cache, NULL, -300788);
+		if (my_topology_period_sec > MIN_TOPOLOGY_PERIOD)
+			task_register(0, check_local_topology_cache, NULL, -300788);
 
-		scheduled_period = my_topology_period;
+		scheduled_period = my_topology_period_sec;
 	}
 
-	if (cmd == OPT_UNREGISTER && scheduled_period < MAX_TOPOLOGY_PERIOD) {
+	if (cmd == OPT_UNREGISTER && scheduled_period > MIN_TOPOLOGY_PERIOD) {
 		task_remove(check_local_topology_cache, NULL);
-		scheduled_period = MAX_TOPOLOGY_PERIOD;
+		scheduled_period = MIN_TOPOLOGY_PERIOD;
 	}
 
 	return SUCCESS;
@@ -384,7 +392,7 @@ static struct opt_type topology_options[]=
 	{ODI,0,ARG_TOPOLOGY_HYSTERESIS, 0, 9,2, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &my_topology_hysteresis, MIN_TOPOLOGY_HYSTERESIS, MAX_TOPOLOGY_HYSTERESIS, DEF_TOPOLOGY_HYSTERESIS,0, NULL,
 			ARG_VALUE_FORM,	"set hysteresis for creating topology (description) updates due to changed local topology statistics"}
 	,
-	{ODI,0,ARG_TOPOLOGY_PERIOD,     0, 9,2, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &my_topology_period, MIN_TOPOLOGY_PERIOD, MAX_TOPOLOGY_PERIOD, DEF_TOPOLOGY_PERIOD,0, opt_topology,
+	{ODI,0,ARG_TOPOLOGY_PERIOD,     0, 9,2, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &my_topology_period_sec, MIN_TOPOLOGY_PERIOD, MAX_TOPOLOGY_PERIOD, DEF_TOPOLOGY_PERIOD,0, opt_topology,
 			ARG_VALUE_FORM,	"set min periodicity for creating topology (description) updates due to changed local topology statistics"}
 };
 

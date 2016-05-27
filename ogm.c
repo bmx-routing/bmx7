@@ -350,12 +350,12 @@ int32_t rx_frame_ogm_aggreg_sqn(struct rx_frame_iterator *it)
 	if ((AGGREG_SQN_MASK & (nn->ogm_aggreg_max - (max + 1))) >= AGGREG_SQN_CACHE_RANGE) {
 
 		sz = XMIN(sz, AGGREG_SQN_CACHE_RANGE);
-
+/*
 		if (nn->ogm_aggreg_time && ((AGGREG_SQN_MASK & (max - nn->ogm_aggreg_max)) < AGGREG_SQN_CACHE_RANGE))
 			sz = XMIN(sz, (nn->ogm_aggreg_size + (max - nn->ogm_aggreg_max)));
 		else
 			sz = XMIN(sz, 1);
-
+*/
 		nn->ogm_aggreg_size = sz;
 
 		if (max != nn->ogm_aggreg_max) {

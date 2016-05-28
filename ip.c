@@ -71,6 +71,7 @@
 #include "iptools.h"
 #include "allocate.h"
 #include "sec.h"
+#include "prof.h"
 
 #define CODE_CATEGORY_NAME "ip"
 
@@ -2654,6 +2655,7 @@ void dev_if_fix(void)
 static void dev_check(void *kernel_ip_config_changed)
 {
 	TRACE_FUNCTION_CALL;
+	prof_start(dev_check, main);
 
         struct avl_node *an;
         struct dev_node *dev;
@@ -2745,6 +2747,7 @@ static void dev_check(void *kernel_ip_config_changed)
         }
 
 //        cb_plugin_hooks(PLUGIN_CB_CONF, NULL);
+	prof_stop();
 }
 
 
@@ -3118,6 +3121,7 @@ int32_t opt_ip_version(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
 STATIC_FUNC
 void update_devStatistic_task(void *data)
 {
+	prof_start(update_devStatistic_task, main);
         struct dev_node *dev;
         struct avl_node *an = NULL;
 
@@ -3134,6 +3138,7 @@ void update_devStatistic_task(void *data)
         }
 
         task_register(DEF_DEVSTAT_PERIOD, update_devStatistic_task, NULL, -300700);
+	prof_stop();
 }
 
 

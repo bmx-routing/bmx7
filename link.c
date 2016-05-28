@@ -48,6 +48,7 @@
 #include "tools.h"
 #include "iptools.h"
 #include "allocate.h"
+#include "prof.h"
 
 #define CODE_CATEGORY_NAME "metric"
 
@@ -596,6 +597,7 @@ STATIC_FUNC
 void schedule_hello_adv(void)
 {
 	static TIME_T next = 0;
+	prof_start(schedule_hello_adv, main);
 
 	if (doNowOrLater(&next, txCasualInterval, 0)) {
 
@@ -619,6 +621,7 @@ void schedule_hello_adv(void)
 
 		schedule_tx_task(FRAME_TYPE_HELLO_ADV, NULL, NULL, NULL, NULL, SCHEDULE_MIN_MSG_SIZE, 0, 0);
 	}
+	prof_stop();
 }
 
 STATIC_FUNC

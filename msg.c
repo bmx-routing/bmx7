@@ -871,6 +871,7 @@ void tx_packets( void *unused ) {
 	struct tx_task_node *nextTask = NULL;
 	uint8_t ft;
 
+	prof_start( tx_packets, main );
         dbgf_all(DBGT_INFO, " ");
 
 	iid_get_myIID4x_by_node(myKey->on);
@@ -898,10 +899,10 @@ void tx_packets( void *unused ) {
 
 	task_register(nextSchedule, tx_packets, NULL, -300353);
 
-	if (!nextTask)
+	if (!nextTask) {
+		prof_stop();
 		return;
-
-	prof_start( tx_packets, main );
+	}
 
 	int32_t result = TLV_TX_DATA_IGNORED;
 	static uint8_t cache_data_array[PKT_FRAMES_SIZE_MAX - sizeof(struct tlv_hdr)] = {0};

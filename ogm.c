@@ -583,6 +583,7 @@ struct NeighPath *lndev_best_via_router(struct NeighRef_node *ref)
 
 void process_ogm_metric(void *voidRef)
 {
+	prof_start(process_ogm_metric, main);
 	struct NeighRef_node *ref = voidRef;
 	struct orig_node *on = NULL;
 	struct desc_content *dc = NULL;
@@ -595,10 +596,8 @@ void process_ogm_metric(void *voidRef)
 		task_remove(process_ogm_metric, (void*)ref);
 	}
 
-	if (!((kn = ref->kn) && (on = kn->on) && (dc = on->dc) && (ref->descSqn == dc->descSqn)))
-		return;
-
-	if (!(
+	if (((kn = ref->kn) && (on = kn->on) && (dc = on->dc) && (ref->descSqn == dc->descSqn)) &&
+		(
 		ref->ogmSqnMax &&
 		(dc->ogmSqnMaxSend <= dc->ogmSqnRange) &&
 		(dc->ogmSqnMaxSend <= dc->ogmSqnMaxRcvd) &&
@@ -608,8 +607,8 @@ void process_ogm_metric(void *voidRef)
 		(ref->ogmSqnMax >= dc->ogmSqnMaxSend) &&
 		(is_fmetric_valid(ref->ogmSqnMaxClaimedMetric)) &&
 		(ref->ogmSqnMax > dc->ogmSqnMaxSend || fmetric_to_umetric(ref->ogmSqnMaxClaimedMetric) > on->neighPath.um)
-		))
-		return;
+		)
+		) {
 	
 	assertion(-502583, (dc->ogmSqnMaxSend <= dc->ogmSqnRange));
 	assertion(-502584, (dc->ogmSqnMaxRcvd <= dc->ogmSqnRange));
@@ -677,6 +676,8 @@ void process_ogm_metric(void *voidRef)
 		else if (bestNeighPath->um <= on->neighPath.um)
 			ref->ogmBestSinceSqn = 0;
 	}
+	}
+	prof_stop();
 }
 
 

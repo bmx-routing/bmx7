@@ -1643,6 +1643,8 @@ IDM_T supportedKnownKey( CRYPTSHA1_T *pkhash ) {
 STATIC_FUNC
 void check_nodes_dir(void *dirWatchPtr)
 {
+	prof_start(check_nodes_dir, main);
+
 	struct DirWatch *dw = (struct DirWatch*) dirWatchPtr;
 
 	DIR *dir;
@@ -1717,6 +1719,8 @@ void check_nodes_dir(void *dirWatchPtr)
 
 		dw->retryCnt = 5000;
 	}
+
+	prof_stop();
 }
 
 void inotify_event_hook(int fd)

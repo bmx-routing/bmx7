@@ -35,6 +35,7 @@
 #include "plugin.h"
 #include "tools.h"
 #include "allocate.h"
+#include "prof.h"
 
 #define CODE_CATEGORY_NAME "traffic"
 
@@ -82,6 +83,8 @@ void update_traffic_statistics_data(struct dump_data *data)
 STATIC_FUNC
 void update_traffic_statistics_task(void *data)
 {
+	prof_start(update_traffic_statistics_task, main);
+
         struct dev_node *dev;
         struct avl_node *an = NULL;
 
@@ -103,6 +106,7 @@ void update_traffic_statistics_task(void *data)
         task_register(next_dump_period, update_traffic_statistics_task, NULL, -300348);
 	prev_dump_period = next_dump_period;
 
+	prof_stop();
 }
 
 STATIC_FUNC

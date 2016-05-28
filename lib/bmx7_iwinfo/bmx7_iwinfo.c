@@ -149,7 +149,7 @@ void get_link_rate(LinkNode *link, struct ctrl_node *cn)
 					link->wifiStats.txTriggTime = bmx_time;
 
 
-				} else if (((TIME_T) (bmx_time - link->wifiStats.txBurstTime)) >= ((TIME_T) linkBurstInterval)) {
+				} else if (((TIME_T) (bmx_time - link->wifiStats.txBurstTime)) >= ((TIME_T) linkBurstInterval) && linkBurstInterval && linkBurstDuration && linkBurstPacketSize) {
 
 					link->wifiStats.txBurstPackets = e->tx_packets;
 					link->wifiStats.txBurstTime = bmx_time;
@@ -161,12 +161,12 @@ void get_link_rate(LinkNode *link, struct ctrl_node *cn)
 						tk.packetSize, &tk, sizeof(tk));
 
 
+
 				} else if (link->wifiStats.txPackets == e->tx_packets &&
-					((TIME_T) (bmx_time - link->wifiStats.txTriggTime)) >= (TIME_T) linkProbeInterval) {
+					(((TIME_T) (bmx_time - link->wifiStats.txTriggTime)) >= (TIME_T) linkProbeInterval) && linkProbeInterval && linkProbePacketSize) {
 
 					link->wifiStats.txTriggTime = bmx_time;
 					link->wifiStats.txTriggCnt++;
-
 
 					struct tp_test_key tk = {.duration = 0, .endTime = 0, .packetSize = linkProbePacketSize, .totalSend = 0};
 
@@ -260,7 +260,8 @@ int32_t tx_frame_trash_adv(struct tx_frame_iterator *it)
 		(link ? &link->k.linkDev->key.local->on->k.hostname: NULL),
 		cryptShaAsString(&it->ttn->key.f.groupId));
 
-	if (link && tk->duration && ((tk->totalSend + tk->packetSize) <= (uint32_t)linkBurstBytes) && (!tk->endTime || (((TIME_T)(tk->endTime - now)) < tk->duration))) {
+	if (link && linkBurstInterval && linkBurstDuration && linkBurstPacketSize &&
+		((tk->totalSend + tk->packetSize) <= (uint32_t)linkBurstBytes) && (!tk->endTime || (((TIME_T)(tk->endTime - now)) < tk->duration))) {
 
 		struct tp_test_key TK = *tk;
 

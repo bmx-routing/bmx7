@@ -50,6 +50,7 @@
 #include "json.h"
 #include "ip.h"
 #include "allocate.h"
+#include "prof.h"
 
 
 #define CODE_CATEGORY_NAME "json"
@@ -579,6 +580,7 @@ void json_description_event_hook(int32_t cb_id, struct orig_node *on)
 STATIC_FUNC
 void update_json_status(void *data)
 {
+	prof_start(update_json_status, main);
         assertion(-501276, (json_dir));
         assertion(-501307, (json_update_interval));
 
@@ -588,6 +590,7 @@ void update_json_status(void *data)
         json_dev_event_hook(0, NULL);
         json_links_event_hook(0, NULL);
         json_originator_event_hook(PLUGIN_CB_DESCRIPTION_CREATED, NULL);
+	prof_stop();
 }
 
 

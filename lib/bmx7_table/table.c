@@ -126,6 +126,7 @@ void redist_table_routes(void)
 STATIC_FUNC
 void schedule_table_routes(void* nowPtr)
 {
+	prof_start(schedule_table_routes, main);
 	static IDM_T scheduled_table_routes = NO;
 
 	dbgf_track(DBGT_INFO, "%s", nowPtr ? "NOW" : "later");
@@ -142,6 +143,7 @@ void schedule_table_routes(void* nowPtr)
 		scheduled_table_routes = YES;
 		task_register(rtredist_delay, schedule_table_routes, (void*)YES, -300550);
 	}
+	prof_stop();
 }
 
 #define FILTER_TMP_RT_CHANGES_CHECK ((void*)0)
@@ -152,6 +154,7 @@ void schedule_table_routes(void* nowPtr)
 STATIC_FUNC
 void filter_temporary_route_changes(void *newP)
 {
+	prof_start(filter_temporary_route_changes, main);
 	static IDM_T scheduled = NO;
 	struct redist_in_node *rfn;
 	struct redist_in_node *new = newP;
@@ -275,6 +278,7 @@ void filter_temporary_route_changes(void *newP)
 			task_remove(filter_temporary_route_changes, FILTER_TMP_RT_CHANGES_CHECK);
 		}
 	}
+	prof_stop();
 }
 
 void get_route_list_nlhdr(struct nlmsghdr *nh, void *unused )

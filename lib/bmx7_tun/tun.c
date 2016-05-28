@@ -316,6 +316,7 @@ void tun_out_state_set(struct tun_out_node *ton, IDM_T tdn_state)
 STATIC_FUNC
 void tun_out_state_catchAll(void *tonp)
 {
+	prof_start(tun_out_state_catchAll, main);
 	assertion(-502327, (tun_dedicated_to > 0));
 
 	struct tun_out_node *ton = tonp;
@@ -333,9 +334,12 @@ void tun_out_state_catchAll(void *tonp)
 	if (stats_captured == SUCCESS && tdn->stats_captured == SUCCESS && tx_packets != tdn->stats.tx_packets) {
 		task_register(tun_dedicated_to, tun_out_state_catchAll, ton, -300748);
 		return;
+
+	} else {
+		tun_out_state_set(tonp, TDN_STATE_CATCHALL);
 	}
 
-	tun_out_state_set(tonp, TDN_STATE_CATCHALL);
+	prof_stop();
 }
 
 STATIC_FUNC

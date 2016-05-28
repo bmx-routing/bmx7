@@ -46,6 +46,7 @@
 #include "tools.h"
 #include "sms.h"
 #include "allocate.h"
+#include "prof.h"
 
 #define CODE_CATEGORY_NAME "sms"
 
@@ -67,6 +68,8 @@ int32_t sms_fref = DEF_SMS_FREF;
 STATIC_FUNC
 void check_for_changed_sms(void *unused)
 {
+	prof_start(check_for_changed_sms, main);
+
         uint16_t found_sms = 0;
         uint16_t matching_sms = 0;
 
@@ -163,6 +166,7 @@ void check_for_changed_sms(void *unused)
 
                 my_description_changed = YES;
         }
+	prof_stop();
 }
 
 

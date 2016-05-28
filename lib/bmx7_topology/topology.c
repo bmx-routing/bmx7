@@ -53,6 +53,7 @@
 #include "ip.h"
 #include "allocate.h"
 #include "topology.h"
+#include "prof.h"
 
 
 #define CODE_CATEGORY_NAME "topology"
@@ -225,6 +226,7 @@ void set_local_topology_node(struct local_topology_node *ltn, LinkNode *link)
 STATIC_FUNC
 void check_local_topology_cache(void *nothing)
 {
+	prof_start(check_local_topology_cache, main);
 	assertion(-502532, (my_topology_period_sec > MIN_TOPOLOGY_PERIOD));
 
 	uint32_t m = 0;
@@ -253,7 +255,7 @@ void check_local_topology_cache(void *nothing)
 			if (!ltn && check_value_deviation(0, tmp.tq, -1, my_topology_hysteresis)) {
 
 				my_description_changed = YES;
-				return;
+				goto finish;
 
 			} else {
 
@@ -266,7 +268,7 @@ void check_local_topology_cache(void *nothing)
 					check_value_deviation(ltn->channel, tmp.channel, -1, 0)
 					) {
 					my_description_changed = YES;
-					return;
+					goto finish;;
 				}
 
 				ltn->sqn = sqn;
@@ -281,12 +283,16 @@ void check_local_topology_cache(void *nothing)
 			if (ltn->sqn != sqn && check_value_deviation(ltn->tq, 0, -1, my_topology_hysteresis)) {
 
 				my_description_changed = YES;
-				return;
+				goto finish;
 			}
 		}
 	}
 
 	task_register((my_topology_period_sec*1000), check_local_topology_cache, NULL, -300782);
+
+finish:
+	prof_stop();
+
 }
 
 STATIC_FUNC

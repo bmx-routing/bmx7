@@ -77,116 +77,144 @@ static int32_t linkProbePacketSize = DEF_LINK_PROBE_PACKETSZ;
 static int32_t linkAvgRateWeight = DEF_LINK_RATE_AVG_WEIGHT;
 
 
-void get_link_rate(LinkNode *link, struct ctrl_node *cn)
+void get_link_rate(struct dev_node *tDev)
 {
-	const struct iwinfo_ops *iw;
-	int i, len;
-	char buf[IWINFO_BUFSIZE];
-	struct iwinfo_assoclist_entry *e = NULL;
+	IDM_T TODO_use_nl_tiny_lib_instead;
 
-	if ((min_lq_probe(link)) &&
-		(iw = iwinfo_backend(link->k.myDev->ifname_phy.str)) &&
-		((iw->assoclist(link->k.myDev->ifname_phy.str, buf, &len)) == 0 && len > 0)) {
+	if (tDev->linklayer == TYP_DEV_LL_WIFI  && tDev->active && (
+		(linkProbeInterval && (!tDev->upd_link_capacities_time || (((TIME_T) (bmx_time - tDev->upd_link_capacities_time)) >= (TIME_T) linkProbeInterval))) ||
+		(linkBurstInterval && (!tDev->upd_link_capacities_time || (((TIME_T) (bmx_time - tDev->upd_link_capacities_time)) >= (TIME_T) linkBurstInterval)))
+		)) {
+		
+		dbgf_track(DBGT_INFO, "dev=%s phy=%s probeInterval=%d burstInterval=%d last=%d",
+			tDev->ifname_label.str, tDev->ifname_phy.str, linkProbeInterval, linkBurstInterval, tDev->upd_link_capacities_time);
 
-		MAC_T *mac = ip6Eui64ToMac(&link->k.linkDev->key.llocal_ip, NULL);
+		struct dev_node *oDev;
+		struct avl_node *oDAn;
+		for (oDAn = NULL; (oDev = avl_iterate_item(&dev_name_tree, &oDAn));) {
+			if (oDev->linklayer == TYP_DEV_LL_WIFI && oDev->active && !strcmp(tDev->ifname_phy.str, oDev->ifname_phy.str))
+				oDev->upd_link_capacities_time = bmx_time;
+		}
 
-		for (i = 0; i < len; i += sizeof(struct iwinfo_assoclist_entry)) {
-			e = (struct iwinfo_assoclist_entry *) &buf[i];
+		const struct iwinfo_ops *iw;
+		int i, len;
+		static char buf[IWINFO_BUFSIZE];
+		struct iwinfo_assoclist_entry *e = NULL;
+		LinkNode *oLink;
+		struct avl_node *oLAn;
+		static uint16_t wifiStatsUpdSqn;
 
-			if (memcmp(e->mac, mac, sizeof(MAC_T)) == 0) {
+		wifiStatsUpdSqn++;
 
-				dbgf_cn(cn, DBGL_CHANGES, DBGT_INFO,
-					"mac=%s signal=%d noise=%d snr=%d age=%d rxRate=%d rxCnt=%d txRate=%d txCount=%d",
-					memAsHexStringSep(mac, 6, 1, ":"),
-					e->signal, e->noise, (e->signal - e->noise), e->inactive,
-					e->rx_rate.rate, e->rx_rate.is_short_gi, e->rx_packets,
-					e->tx_rate.rate, e->tx_packets);
+		if ((iw = iwinfo_backend(tDev->ifname_phy.str)) && ((iw->assoclist(tDev->ifname_phy.str, buf, &len)) == 0 && len > 0)) {
 
-				if (link->wifiStats.txPackets != e->tx_packets) {
+			for (i = 0; i < len; i += sizeof(struct iwinfo_assoclist_entry)) {
 
-					link->wifiStats.txRate = e->tx_rate.rate * 1000;
-					link->wifiStats.txRateAvg = link->wifiStats.txRateAvg + (link->wifiStats.txRate / linkAvgRateWeight) - (link->wifiStats.txRateAvg / linkAvgRateWeight);
-					link->wifiStats.tx40mhz = e->tx_rate.is_40mhz;
-					//link->linkStats.txHt = e->tx_rate.is_ht;
-					link->wifiStats.txMcs = e->tx_rate.mcs;
-					//link->linkStats.txMhz = e->tx_rate.mhz;
-					//link->linkStats.txNss = e->tx_rate.nss;
-					link->wifiStats.txShortGi = e->tx_rate.is_short_gi;
-					//link->linkStats.txVht = e->tx_rate.is_vht;
+				e = (struct iwinfo_assoclist_entry *) &buf[i];
 
-					link->wifiStats.rxRate = e->rx_rate.rate * 1000;
-					link->wifiStats.rxPackets = e->rx_packets;
-					link->wifiStats.rx40mhz = e->rx_rate.is_40mhz;
-					//link->linkStats.rxHt = e->rx_rate.is_ht;
-					link->wifiStats.rxMcs = e->rx_rate.mcs;
-					//link->linkStats.rxMhz = e->rx_rate.mhz;
-					//link->linkStats.rxNss = e->rx_rate.nss;
-					link->wifiStats.rxShortGi = e->rx_rate.is_short_gi;
-					//link->linkStats.rxVht = e->rx_rate.is_vht;
+				for (oLAn = NULL;(oLink = avl_iterate_item(&link_tree, &oLAn));) {
 
-					link->wifiStats.signal = e->signal;
-					link->wifiStats.noise = e->noise;
+					MAC_T *oMac = ip6Eui64ToMac(&oLink->k.linkDev->key.llocal_ip, NULL);
 
-					link->wifiStats.updatedTime = bmx_time;
-					link->wifiStats.txTriggTime = bmx_time;
+					if (min_lq_probe(oLink) && !strcmp(tDev->ifname_phy.str, oLink->k.myDev->ifname_phy.str) && !memcmp(e->mac, oMac, sizeof(MAC_T))) {
 
-					link->wifiStats.txPackets = e->tx_packets;
+						oLink->wifiStats.updSqn = wifiStatsUpdSqn;
+
+						dbgf_track(DBGT_INFO,
+							"mac=%s signal=%d noise=%d snr=%d age=%d rxRate=%d rxCnt=%d txRate=%d txCount=%d",
+							memAsHexStringSep(oMac, 6, 1, ":"),
+							e->signal, e->noise, (e->signal - e->noise), e->inactive,
+							e->rx_rate.rate, e->rx_rate.is_short_gi, e->rx_packets,
+							e->tx_rate.rate, e->tx_packets);
+
+						if (oLink->wifiStats.txPackets != e->tx_packets) {
+
+							oLink->wifiStats.txRate = e->tx_rate.rate * 1000;
+							oLink->wifiStats.txRateAvg = oLink->wifiStats.txRateAvg + (oLink->wifiStats.txRate / linkAvgRateWeight) - (oLink->wifiStats.txRateAvg / linkAvgRateWeight);
+							oLink->wifiStats.tx40mhz = e->tx_rate.is_40mhz;
+							//link->linkStats.txHt = e->tx_rate.is_ht;
+							oLink->wifiStats.txMcs = e->tx_rate.mcs;
+							//link->linkStats.txMhz = e->tx_rate.mhz;
+							//link->linkStats.txNss = e->tx_rate.nss;
+							oLink->wifiStats.txShortGi = e->tx_rate.is_short_gi;
+							//link->linkStats.txVht = e->tx_rate.is_vht;
+
+							oLink->wifiStats.rxRate = e->rx_rate.rate * 1000;
+							oLink->wifiStats.rxPackets = e->rx_packets;
+							oLink->wifiStats.rx40mhz = e->rx_rate.is_40mhz;
+							//link->linkStats.rxHt = e->rx_rate.is_ht;
+							oLink->wifiStats.rxMcs = e->rx_rate.mcs;
+							//link->linkStats.rxMhz = e->rx_rate.mhz;
+							//link->linkStats.rxNss = e->rx_rate.nss;
+							oLink->wifiStats.rxShortGi = e->rx_rate.is_short_gi;
+							//link->linkStats.rxVht = e->rx_rate.is_vht;
+
+							oLink->wifiStats.signal = e->signal;
+							oLink->wifiStats.noise = e->noise;
+
+							oLink->wifiStats.updatedTime = bmx_time;
+							oLink->wifiStats.txTriggTime = bmx_time;
+
+							oLink->wifiStats.txPackets = e->tx_packets;
+						}
+
+
+						if (oLink->wifiStats.txBurstTime == 0) {
+
+							oLink->wifiStats.txBurstPackets = e->tx_packets;
+							oLink->wifiStats.txBurstTime = bmx_time - (((TIME_T) linkBurstInterval) - ((TIME_T) (my_ogmInterval / 2)));
+							if (!oLink->wifiStats.txBurstTime)
+								oLink->wifiStats.txBurstTime = 1;
+
+
+						} else if (((uint32_t) (e->tx_packets - oLink->wifiStats.txBurstPackets)) >= ((uint32_t) linkBurstThreshold)) {
+
+							oLink->wifiStats.txBurstPackets = e->tx_packets;
+							oLink->wifiStats.txBurstTime = bmx_time;
+							oLink->wifiStats.txTriggTime = bmx_time;
+
+
+						} else if (((TIME_T) (bmx_time - oLink->wifiStats.txBurstTime)) >= ((TIME_T) linkBurstInterval) && linkBurstInterval && linkBurstDuration && linkBurstPacketSize) {
+
+							oLink->wifiStats.txBurstPackets = e->tx_packets;
+							oLink->wifiStats.txBurstTime = bmx_time;
+							oLink->wifiStats.txBurstCnt++;
+
+							struct tp_test_key tk = {.duration = linkBurstDuration, .endTime = 0, .packetSize = linkBurstPacketSize, .totalSend = 0};
+
+							schedule_tx_task(FRAME_TYPE_TRASH_ADV, oLink, &oLink->k.linkDev->key.local->local_id, oLink->k.linkDev->key.local, oLink->k.myDev,
+								tk.packetSize, &tk, sizeof(tk));
+
+
+
+						} else if (oLink->wifiStats.txPackets == e->tx_packets &&
+							(((TIME_T) (bmx_time - oLink->wifiStats.txTriggTime)) >= (TIME_T) linkProbeInterval) && linkProbeInterval && linkProbePacketSize) {
+
+							oLink->wifiStats.txTriggTime = bmx_time;
+							oLink->wifiStats.txTriggCnt++;
+
+							struct tp_test_key tk = {.duration = 0, .endTime = 0, .packetSize = linkProbePacketSize, .totalSend = 0};
+
+							schedule_tx_task(FRAME_TYPE_TRASH_ADV, oLink, &oLink->k.linkDev->key.local->local_id, oLink->k.linkDev->key.local, oLink->k.myDev,
+								tk.packetSize, &tk, sizeof(tk));
+
+						}
+
+						break;
+					}
 				}
-
-
-				if (link->wifiStats.txBurstTime == 0) {
-						
-					link->wifiStats.txBurstPackets = e->tx_packets;
-					link->wifiStats.txBurstTime = bmx_time - (((TIME_T) linkBurstInterval) - ((TIME_T) (my_ogmInterval / 2)));
-					if (!link->wifiStats.txBurstTime)
-						link->wifiStats.txBurstTime = 1;
-
-
-				} else if (((uint32_t) (e->tx_packets - link->wifiStats.txBurstPackets)) >= ((uint32_t) linkBurstThreshold)) {
-
-					link->wifiStats.txBurstPackets = e->tx_packets;
-					link->wifiStats.txBurstTime = bmx_time;
-					link->wifiStats.txTriggTime = bmx_time;
-
-
-				} else if (((TIME_T) (bmx_time - link->wifiStats.txBurstTime)) >= ((TIME_T) linkBurstInterval) && linkBurstInterval && linkBurstDuration && linkBurstPacketSize) {
-
-					link->wifiStats.txBurstPackets = e->tx_packets;
-					link->wifiStats.txBurstTime = bmx_time;
-					link->wifiStats.txBurstCnt++;
-
-					struct tp_test_key tk = {.duration = linkBurstDuration, .endTime = 0, .packetSize = linkBurstPacketSize, .totalSend = 0};
-
-					schedule_tx_task(FRAME_TYPE_TRASH_ADV, link, &link->k.linkDev->key.local->local_id, link->k.linkDev->key.local, link->k.myDev,
-						tk.packetSize, &tk, sizeof(tk));
-
-
-
-				} else if (link->wifiStats.txPackets == e->tx_packets &&
-					(((TIME_T) (bmx_time - link->wifiStats.txTriggTime)) >= (TIME_T) linkProbeInterval) && linkProbeInterval && linkProbePacketSize) {
-
-					link->wifiStats.txTriggTime = bmx_time;
-					link->wifiStats.txTriggCnt++;
-
-					struct tp_test_key tk = {.duration = 0, .endTime = 0, .packetSize = linkProbePacketSize, .totalSend = 0};
-
-					schedule_tx_task(FRAME_TYPE_TRASH_ADV, link, &link->k.linkDev->key.local->local_id, link->k.linkDev->key.local, link->k.myDev,
-						tk.packetSize, &tk, sizeof(tk));
-
-				}
-
-				break;
-			} else {
-				e = NULL;
 			}
 		}
-	}
 
-	if (!e) {
-		memset(&link->wifiStats, 0, sizeof(link->wifiStats));
-	}
+		for (oLAn = NULL;(oLink = avl_iterate_item(&link_tree, &oLAn));) {
 
-	iwinfo_finish();
+			if (!strcmp(tDev->ifname_phy.str, oLink->k.myDev->ifname_phy.str) && oLink->wifiStats.updSqn != wifiStatsUpdSqn) {
+				memset(&oLink->wifiStats, 0, sizeof(oLink->wifiStats));
+			}
+		}
+
+		iwinfo_finish();
+	}
 }
 
 uint16_t iwi_get_channel(struct dev_node *dev)
@@ -219,8 +247,8 @@ void init_iwinfo_handler(int32_t cb_id, void* devp)
 
 		if (dev->active) {
 			
-			if (!dev->upd_link_capacity)
-				dev->upd_link_capacity = get_link_rate;
+			if (!dev->upd_link_capacities)
+				dev->upd_link_capacities = get_link_rate;
 
 
 			if (!dev->get_iw_channel)
@@ -232,8 +260,8 @@ void init_iwinfo_handler(int32_t cb_id, void* devp)
 			if (dev->get_iw_channel == iwi_get_channel)
 				dev->get_iw_channel = NULL;
 
-			if (dev->upd_link_capacity == get_link_rate)
-				dev->upd_link_capacity = NULL;
+			if (dev->upd_link_capacities == get_link_rate)
+				dev->upd_link_capacities = NULL;
 		}
 //	}
 }

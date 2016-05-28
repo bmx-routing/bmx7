@@ -269,6 +269,7 @@ struct LinkStats {
 	int8_t signal;
 	int8_t noise;
 
+	uint16_t updSqn;
 	TIME_T updatedTime;
 	TIME_T txTriggTime;
 	TIME_T txBurstTime;

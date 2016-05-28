@@ -496,9 +496,9 @@ struct dev_node {
 //	UMETRIC_T umetric_max_configured;
 	UMETRIC_T umetric_max;
 
-	void(*upd_link_capacity) (LinkNode *link, struct ctrl_node *cn);
+	void(*upd_link_capacities) (struct dev_node *dev);
 	uint16_t(*get_iw_channel) (struct dev_node *dev);
-
+	TIME_T upd_link_capacities_time;
 
         struct net_key llocal_prefix_conf_;
 

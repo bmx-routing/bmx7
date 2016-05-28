@@ -253,7 +253,7 @@ uint16_t purge_linkDevs(LinkDevNode *onlyLinkDev, struct dev_node *onlyDev, Link
 		}
 
 
-		assertion(-500323, (onlyDev || !linkDev->link_tree.items));
+//		assertion(-500323, (onlyDev || !linkDev->link_tree.items));
 
 		if (!linkDev->link_tree.items) {
 
@@ -279,12 +279,13 @@ uint16_t purge_linkDevs(LinkDevNode *onlyLinkDev, struct dev_node *onlyDev, Link
 	}
 
 
+	if (removed) {
+		lndev_assign_best(NULL, NULL);
+		cb_plugin_hooks(PLUGIN_CB_LINKS_EVENT, NULL);
+	}
 
-	lndev_assign_best(NULL, NULL);
-	cb_plugin_hooks(PLUGIN_CB_LINKS_EVENT, NULL);
-
-	assertion(-502425, IMPLIES(!onlyDev && !onlyLinkDev, !link_tree.items));
-	assertion(-502426, IMPLIES(!onlyDev && !onlyLinkDev, !link_dev_tree.items));
+	assertion(-502425, IMPLIES(!(onlyDev || onlyLinkDev || onlyLink || onlyExpired), !link_tree.items));
+	assertion(-502425, IMPLIES(!(onlyDev || onlyLinkDev || onlyLink || onlyExpired), !link_dev_tree.items));
 
 	return removed;
 }
@@ -594,30 +595,40 @@ int32_t tx_msg_hello_adv(struct tx_frame_iterator *it)
 }
 
 STATIC_FUNC
+void schedule_hello_adv(void);
+
+
+STATIC_FUNC
+void _hello_dev_capacities(void)
+{
+	prof_start(_hello_dev_capacities, schedule_hello_adv);
+	struct dev_node *dev;
+	struct avl_node *dan;
+
+	for (dan = NULL; (dev = avl_iterate_item(&dev_name_tree, &dan));) {
+
+		//IDM_T TODO_WARNING_mac_probes_are_unsigned_messages;
+		if (dev->upd_link_capacities)
+			(*(dev->upd_link_capacities)) (dev);
+
+	}
+
+	prof_stop();
+	return;
+}
+
+STATIC_FUNC
 void schedule_hello_adv(void)
 {
 	static TIME_T next = 0;
-	prof_start(schedule_hello_adv, main);
+	prof_start(schedule_hello_adv, tx_packets);
 
 	if (doNowOrLater(&next, txCasualInterval, 0)) {
 
-		LinkNode *link;
-		LinkKey lk = {NULL, NULL};
+		if (purge_linkDevs(NULL, NULL, NULL, YES, YES) == 0)
+			lndev_assign_best(NULL, NULL);
 
-		while((link = avl_next_item(&link_tree, &lk))) {
-			lk = link->k;
-
-			if (purge_linkDevs(NULL,NULL,link,YES,YES) == 0) {
-
-				if (link->k.myDev->upd_link_capacity) {
-					//IDM_T TODO_WARNING_mac_probes_are_unsigned_messages;
-					(*(link->k.myDev->upd_link_capacity)) (link, NULL);
-				}
-
-				upd_timeaware_rq_probe(link);
-				upd_timeaware_tq_probe(link);
-			}
-		}
+		_hello_dev_capacities();
 
 		schedule_tx_task(FRAME_TYPE_HELLO_ADV, NULL, NULL, NULL, NULL, SCHEDULE_MIN_MSG_SIZE, 0, 0);
 	}

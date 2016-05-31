@@ -185,7 +185,7 @@ void schedule_ogm( struct orig_node *on)
 	oan->msgsLen += (sizeof(struct msg_ogm_adv) + on->neighPath.pathMetricsByteSize) - on->ogmAggregActiveMsgLen;
 	on->ogmAggregActiveMsgLen = (sizeof(struct msg_ogm_adv) + on->neighPath.pathMetricsByteSize);
 
-	assertion(-502284, ((ogm_aggreg_sqn_max - ogm_aggreg_sqn_send) == 1));
+	assertion(-502284, (((AGGREG_SQN_T)(ogm_aggreg_sqn_max - ogm_aggreg_sqn_send)) == 1));
 
 	if (oan->tree.items >= OGMS_DHASH_PER_AGGREG_PREF_REMOVE)
 		schedule_ogm_aggregations();

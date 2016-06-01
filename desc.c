@@ -421,69 +421,84 @@ int32_t opt_update_dext_method(uint8_t cmd, uint8_t _save, struct opt_type *opt,
 
 
 
-
 STATIC_FUNC
-int32_t create_dsc_tlv_names(struct tx_frame_iterator *it)
+int32_t create_dsc_tlv_info(struct tx_frame_iterator *it)
 {
         TRACE_FUNCTION_CALL;
-	dbgf_all(DBGT_INFO, "%s", my_Hostname);
 
 	if (!describeInfos)
 		return TLV_TX_DATA_IGNORED;
 
+	struct description_msg_info *msg = (struct description_msg_info*)tx_iterator_cache_msg_ptr(it);
+
+        uint32_t rev_u32;
+        sscanf(GIT_REV, "%8X", &rev_u32);
+	msg->type = 0;
+	msg->infoOffset = sizeof(struct description_msg_info);
+        msg->codeRevision = htonl(rev_u32);
+
+	uint32_t infoLen = 0;
+
 	int32_t nameLen = strlen(my_Hostname);
 
-	if (nameLen<=0 || nameLen>=255 || nameLen >= MAX_HOSTNAME_LEN)
-		return TLV_TX_DATA_IGNORED;
+	if (nameLen>0 && nameLen<255 && nameLen < MAX_HOSTNAME_LEN && nameLen <= tx_iterator_cache_data_space_pref(it, 0, 0)) {
+		msg->nameLen = nameLen;
+		memcpy(&msg->info[infoLen], my_Hostname, nameLen);
+		infoLen += nameLen;
+	}
 
-	if (nameLen > tx_iterator_cache_data_space_pref(it, 0, 0))
-		return TLV_TX_DATA_FULL;
-
-	struct description_msg_name *msg = (struct description_msg_name *) tx_iterator_cache_msg_ptr(it);
-
-	msg->type = 0;
-	msg->len = nameLen;
-	memcpy(msg->name, my_Hostname, nameLen);
-
-	return sizeof(struct description_msg_name) + nameLen;
+	return (sizeof(struct description_msg_info) + infoLen);
 }
 
+
 STATIC_FUNC
-int32_t process_dsc_tlv_names(struct rx_frame_iterator *it)
+int32_t process_dsc_tlv_info(struct rx_frame_iterator *it)
 {
         TRACE_FUNCTION_CALL;
-	char name[MAX_HOSTNAME_LEN];
 
 	dbgf_all(DBGT_INFO, "op=%s", tlv_op_str(it->op) );
 
-	struct description_msg_name *msg = (struct description_msg_name *) it->f_msg;
+	struct description_msg_info *msg = (struct description_msg_info *) it->f_msg;
 
-	if (msg->type != 0 || msg->len >= MAX_HOSTNAME_LEN)
+	if (msg->type != 0 || msg->infoOffset < sizeof(struct description_msg_info))
+		return TLV_RX_DATA_PROCESSED;
+
+	if (it->f_dlen < (msg->infoOffset + msg->nameLen + msg->mailLen) || msg->nameLen >= MAX_HOSTNAME_LEN || msg->mailLen >= MAX_MAILNAME_LEN)
 		return TLV_RX_DATA_FAILURE;
 
-	memcpy(name, msg->name, msg->len);
-	name[msg->len]=0;
+	uint32_t msgInfoPos = 0;
 
-	if (validate_name_string(name, msg->len+1, NULL) == FAILURE)
-		return TLV_RX_DATA_FAILURE;
+	if (msg->nameLen) {
+		char name[MAX_HOSTNAME_LEN];
+		memcpy(name, &msg->info[msgInfoPos], msg->nameLen);
+		name[msg->nameLen] = 0;
 
-	if (my_conformance_tolerance == 0 && it->f_dlen != (int) (sizeof(struct description_msg_name) +msg->len))
-		return TLV_RX_DATA_FAILURE;
+		if (validate_name_string(name, msg->nameLen + 1, NULL) == FAILURE)
+			return TLV_RX_DATA_FAILURE;
 
-	if ((it->op==TLV_OP_NEW || it->op == TLV_OP_DEL)) {
-		memset(it->on->k.hostname, 0, sizeof(it->on->k.hostname));
+		if ((it->op==TLV_OP_NEW || it->op == TLV_OP_DEL))
+			memset(it->on->k.hostname, 0, sizeof(it->on->k.hostname));
+
+		if (it->op == TLV_OP_NEW)
+			strcpy(it->on->k.hostname, name);
+
+		msgInfoPos += msg->nameLen;
 	}
 
-	if (it->op == TLV_OP_NEW) {
-		strcpy(it->on->k.hostname, name);
+	if (msg->mailLen) {
+		char mail[MAX_MAILNAME_LEN];
+		memcpy(mail, &msg->info[msgInfoPos], msg->mailLen);
+		mail[msg->mailLen] = 0;
+
+		if (validate_name_string(mail, msg->mailLen + 1, "@") == FAILURE)
+			return TLV_RX_DATA_FAILURE;
+
+		msgInfoPos += msg->mailLen;
 	}
+
 
 	return TLV_RX_DATA_PROCESSED;
 }
-
-
-
-
 
 
 
@@ -806,7 +821,7 @@ struct opt_type desc_options[]=
 			ARG_VALUE_FORM,	"set max tx iterations for resolving unknown descriptions"},
         {ODI,0,ARG_DHASH_RSLV_INTERVAL, 0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &resolveInterval,MIN_DHASH_RSLV_INTERVAL, MAX_DHASH_RSLV_INTERVAL,DEF_DHASH_RSLV_INTERVAL,0,    NULL,
 			ARG_VALUE_FORM,	"set tx interval for resolving unknown descriptions"},
-        {ODI,0,ARG_DESCRIBE_INFOS,         0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &describeInfos,MIN_DESCRIBE_INFOS, MAX_DESCRIBE_INFOS,DEF_DESCRIBE_INFOS,0,    NULL,
+        {ODI,0,ARG_DESCRIBE_INFOS,         0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &describeInfos,MIN_DESCRIBE_INFOS, MAX_DESCRIBE_INFOS,DEF_DESCRIBE_INFOS,0,    opt_update_description,
 			ARG_VALUE_FORM,	"publish optional node metadata via node description"},
 #endif
 	{ODI, 0, ARG_DESCRIPTIONS,	   0,  9,2, A_PS0N,A_USR, A_DYN, A_ARG, A_ANY, 0,               0,                  0,                 0,0,                  opt_show_descriptions,
@@ -839,17 +854,16 @@ void init_desc( void )
         memset(&handl, 0, sizeof ( handl));
 
 
-	static const struct field_format names_format[] = DESCRIPTION_MSG_NAME_FORMAT;
-        handl.name = "DSC_NAMES";
-	handl.min_msg_size = sizeof(struct description_msg_name);
+	static const struct field_format info_format[] = DESCRIPTION_MSG_INFO_FORMAT;
+        handl.name = "DSC_INFO";
+	handl.min_msg_size = sizeof(struct description_msg_info);
         handl.fixed_msg_size = 0;
 	handl.dextReferencing = (int32_t*)&fref_dflt;
 	handl.dextCompression = (int32_t*)&dflt_fzip;
-        handl.tx_frame_handler = create_dsc_tlv_names;
-        handl.rx_frame_handler = process_dsc_tlv_names;
-        handl.msg_format = names_format;
-        register_frame_handler(description_tlv_db, BMX_DSC_TLV_NAMES, &handl);
-
+        handl.tx_frame_handler = create_dsc_tlv_info;
+        handl.rx_frame_handler = process_dsc_tlv_info;
+	handl.msg_format = info_format;
+        register_frame_handler(description_tlv_db, BMX_DSC_TLV_INFO, &handl);
 
 
 

@@ -134,24 +134,30 @@ struct hdr_description_request {
 } __attribute__((packed));
 
 
-
-
-
-
-
-
-struct description_msg_name {
-	uint8_t type;
-	uint8_t len;
-	char name[];
-} __attribute__((packed));
-
-#define DESCRIPTION_MSG_NAME_FORMAT { \
-{FIELD_TYPE_UINT,          -1, 8, 0, FIELD_RELEVANCE_HIGH, "type"}, \
-{FIELD_TYPE_STRING_SIZE,   -1, 8, 0, FIELD_RELEVANCE_LOW,  "len"},  \
-{FIELD_TYPE_STRING_BINARY, -1, 0, 0, FIELD_RELEVANCE_LOW,  "name" },  \
+#define DESCRIPTION_MSG_INFO_FORMAT { \
+{FIELD_TYPE_UINT,          -1, 8,     0, FIELD_RELEVANCE_HIGH,  "type"}, \
+{FIELD_TYPE_UINT,          -1, 8,     0, FIELD_RELEVANCE_HIGH,  "infoOffset"}, \
+{FIELD_TYPE_STRING_BINARY, -1, 32,    0, FIELD_RELEVANCE_HIGH,  "codeRevision"}, \
+{FIELD_TYPE_STRING_BINARY, -1, 32,    0, FIELD_RELEVANCE_LOW,   "reservedA"}, \
+{FIELD_TYPE_STRING_BINARY, -1, 32,    0, FIELD_RELEVANCE_LOW,   "reservedB"}, \
+{FIELD_TYPE_STRING_BINARY, -1, 32,    0, FIELD_RELEVANCE_LOW,   "reservedC"}, \
+{FIELD_TYPE_UINT,          -1, 8,     0, FIELD_RELEVANCE_HIGH,  "nameLen"}, \
+{FIELD_TYPE_UINT,          -1, 8,     0, FIELD_RELEVANCE_HIGH,  "mailLen"}, \
+{FIELD_TYPE_STRING_BINARY, -1, 0,     0, FIELD_RELEVANCE_HIGH,  "variableInfoFields" }, \
 FIELD_FORMAT_END }
 
+
+struct description_msg_info {
+	uint8_t type;
+	uint8_t infoOffset;
+	uint32_t codeRevision;
+	uint32_t reservedA;
+	uint32_t reservedB;
+	uint32_t reservedC;
+	uint8_t nameLen;
+	uint8_t mailLen;
+	char info[];
+} __attribute__((packed));
 
 
 

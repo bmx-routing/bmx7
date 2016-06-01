@@ -853,7 +853,7 @@ struct orig_status {
 	char T[2]; // trusted by me;
 	char t[2]; // me trusted by him
 	char *nodeKey;
-	uint32_t revision;
+	char revision[10];
 	CRYPTSHA1_T *shortDHash;
 	CRYPTSHA1_T *dHash;
 	IID_T myIid;
@@ -898,7 +898,7 @@ static const struct field_format orig_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       orig_status, T,             1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       orig_status, t,             1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      orig_status, nodeKey,       1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_BINARY,     orig_status, revision,      1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       orig_status, revision,      1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, myIid,         1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_SHORT_ID,  orig_status, shortDHash,    1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, orig_status, dHash,         1, FIELD_RELEVANCE_LOW),
@@ -966,10 +966,10 @@ uint8_t *key_status_page(uint8_t *sOut, uint32_t i, struct orig_node *on, struct
 	}
 
 	if (dc) {
-		struct dsc_msg_version *dmv;
+		struct description_msg_info *dmi;
 		os->s[0] = (s = setted_pubkey(dc, BMX_DSC_TLV_SUPPORTS, &myKey->kHash, 0)) == -1 ? 'A' : (s + '0');
 		os->t[0] = (t = setted_pubkey(dc, BMX_DSC_TLV_TRUSTS, &myKey->kHash, 0)) == -1 ? 'A' : (t + '0');
-		os->revision = (dmv = contents_data(dc, BMX_DSC_TLV_VERSION)) ? dmv->codeRevision : 0;
+		snprintf(os->revision, sizeof (os->revision), "%x", (dmi = contents_data(dc, BMX_DSC_TLV_INFO)) ? ntohl(dmi->codeRevision) : 0);
 		os->descSqn = dc->descSqn;
 		snprintf(os->descSize, (sizeof(os->descSize)-1), "%d+%d", dc->desc_frame_len, dc->ref_content_len);
 		snprintf(os->contents, (sizeof(os->contents)-1), "%d/%d", (dc->contentRefs_tree.items - dc->unresolvedContentCounter), dc->contentRefs_tree.items);

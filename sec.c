@@ -608,13 +608,14 @@ int32_t create_dsc_tlv_version(struct tx_frame_iterator *it)
 
         uint32_t rev_u32;
         sscanf(GIT_REV, "%8X", &rev_u32);
-        dsc->codeRevision = htonl(rev_u32);
+
         dsc->comp_version = my_compatibility;
         dsc->descSqn = htonl(descSqn);
 	dsc->bootSqn = (myKey->on) ? ((struct dsc_msg_version*) (contents_data(myKey->on->dc, BMX_DSC_TLV_VERSION)))->bootSqn : dsc->descSqn;
 
 	dsc->ogmHChainAnchor = myChainLinkCache(ogmSqnRange, descSqn);
 	dsc->ogmSqnRange = htons(ogmSqnRange);
+
 	return sizeof(struct dsc_msg_version);
 }
 
@@ -797,14 +798,14 @@ int create_dsc_tlv_signature(struct tx_frame_iterator *it)
 {
         TRACE_FUNCTION_CALL;
 
-	static struct dsc_msg_signature *desc_msg = NULL;
+	static struct dsc_msg_signature *signMsg = NULL;
 	static int32_t dataOffset = 0;
 
 	if (it->frame_type == BMX_DSC_TLV_DSC_SIGNATURE) {
 
-		assertion(-502098, (!desc_msg && !dataOffset));
+		assertion(-502098, (!signMsg && !dataOffset));
 
-		desc_msg = (struct dsc_msg_signature*) (it->frames_out_ptr + it->frames_out_pos + sizeof(struct tlv_hdr));
+		signMsg = (struct dsc_msg_signature*) (it->frames_out_ptr + it->frames_out_pos + sizeof(struct tlv_hdr));
 
 		dataOffset = it->frames_out_pos + sizeof(struct tlv_hdr) + sizeof(struct dsc_msg_signature) + my_NodeKey->rawKeyLen;
 
@@ -812,24 +813,38 @@ int create_dsc_tlv_signature(struct tx_frame_iterator *it)
 
 	} else {
 		assertion(-502230, (it->frame_type == BMX_DSC_TLV_SIGNATURE_DUMMY));
-		assertion(-502231, (desc_msg && dataOffset));
+		assertion(-502231, (signMsg && dataOffset));
 		assertion(-502232, (it->frames_out_pos > dataOffset));
 
 		int32_t dataLen = it->frames_out_pos - dataOffset;
-		uint8_t *data = it->frames_out_ptr + dataOffset;
+		uint8_t *data = (it->frames_out_ptr + dataOffset);
+
+		signMsg->type = my_NodeKey->rawKeyType;
+
+		struct dsc_msg_signature *dms = NULL;
+		struct dsc_msg_version *dmv = NULL;
+		GLOBAL_ID_T *dmk = get_desc_id(it->frames_out_ptr, it->frames_out_pos, &dms, &dmv);
+
+		assertion(-500000, (dmk));
+		assertion(-500000, (cryptShasEqual(dmk, &myKey->kHash)));
+		assertion(-500000, ((uint8_t*)dmv == data + sizeof(struct tlv_hdr)));
+		assertion(-500000, (signMsg == dms));
+
+		dmv->u.f.descSize = it->frames_out_pos;
+		dmv->u.f.descContents = 0;
+		dmv->u.u32 = htonl(dmv->u.u32);
 
 		CRYPTSHA1_T dataSha;
 		cryptShaAtomic(data, dataLen, &dataSha);
 		size_t keySpace = my_NodeKey->rawKeyLen;
 
-		desc_msg->type = my_NodeKey->rawKeyType;
-		cryptSign(&dataSha, desc_msg->signature, keySpace, NULL);
+		cryptSign(&dataSha, signMsg->signature, keySpace, NULL);
 
 		dbgf_track(DBGT_INFO, "fixed RSA%zd type=%d signature=%s of dataSha=%s over dataLen=%d data=%s (dataOffset=%d desc_frames_len=%d)",
-			(keySpace*8), desc_msg->type, memAsHexString(desc_msg->signature, keySpace),
+			(keySpace*8), signMsg->type, memAsHexString(signMsg->signature, keySpace),
 			cryptShaAsString(&dataSha), dataLen, memAsHexString(data, dataLen), dataOffset, it->frames_out_pos);
 
-		desc_msg = NULL;
+		signMsg = NULL;
 		dataOffset = 0;
 		return TLV_TX_DATA_IGNORED;
 	}

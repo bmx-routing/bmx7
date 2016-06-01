@@ -320,8 +320,21 @@ struct dsc_msg_version {
 
 	ChainElem_T ogmHChainAnchor;
 
-	uint32_t codeRevision;
+	union {
 
+		struct {
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+			unsigned int descContents : 11;
+			unsigned int descSize : 21;
+#elif __BYTE_ORDER == __BIG_ENDIAN
+			unsigned int descSize : 21;
+			unsigned int descContents : 11;
+#else
+#error "Please fix <bits/endian.h>"
+#endif
+		} __attribute__((packed)) f;
+		uint32_t u32;
+	} u;
 } __attribute__((packed));
 
 void chainLinkCalc(ChainInputs_T *ci_tmp, OGM_SQN_T diff);

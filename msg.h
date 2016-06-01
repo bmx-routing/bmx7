@@ -263,7 +263,7 @@ struct tlv_hdr tlvSetBigEndian(int16_t type, int16_t length);
 #define BMX_DSC_TLV_VERSION         0x03
 #define BMX_DSC_TLV_LINK_PUBKEY     0x05
 
-#define BMX_DSC_TLV_NAMES           0x07
+#define BMX_DSC_TLV_NAMES_UNUSED    0x07
 
 #define BMX_DSC_TLV_BOYCOTS         0x08
 #define BMX_DSC_TLV_SUPPORTS        0x09
@@ -288,6 +288,7 @@ struct tlv_hdr tlvSetBigEndian(int16_t type, int16_t length);
 
 #define BMX_DSC_TLV_SMS             0x1A
 #define BMX_DSC_TLV_TOPOLOGY        0x1B
+#define BMX_DSC_TLV_INFO            0x1C
 
 #define BMX_DSC_TLV_SIGNATURE_DUMMY 0x1F
 

@@ -76,7 +76,8 @@ extern int32_t my_compatibility;
 extern int32_t my_conformance_tolerance;
 extern uint32_t my_runtimeKey;
 
-#define MAX_HOSTNAME_LEN 32
+#define MAX_MAILNAME_LEN 64
+#define MAX_HOSTNAME_LEN 64
 extern char my_Hostname[];
 
 #ifndef GIT_REV

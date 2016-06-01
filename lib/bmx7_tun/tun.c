@@ -2013,7 +2013,7 @@ static int32_t tun_out_status_creator(struct status_handl *handl, void *data)
 
 				assertion(-501391, (tun));
 
-				status->remoteName = tun->tunOutKey.on->k.hostname;
+				status->remoteName = strlen(tun->tunOutKey.on->k.hostname) ? tun->tunOutKey.on->k.hostname : DBG_NIL;
 				status->remoteId = &tun->tunOutKey.on->k.nodeId;
 				status->localTunIp = &tun->localIp;
 				status->remoteTunIp = &tun->remoteIp;

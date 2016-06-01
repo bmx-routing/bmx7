@@ -142,7 +142,7 @@ static int32_t topology_status_creator(struct status_handl *handl, void *data)
 
 				memset(&status[i], 0, sizeof(struct topology_status));
 				status[i].id = &on->k.nodeId;
-				status[i].name = on->k.hostname;
+				status[i].name = strlen(on->k.hostname) ? on->k.hostname : DBG_NIL;
 				status[i].primaryIp = &on->primary_ip;
 				status[i].idx = topology_msg[m].idx;
 
@@ -157,7 +157,7 @@ static int32_t topology_status_creator(struct status_handl *handl, void *data)
 				status[i].channel = topology_msg[m].channel;
 				status[i].neighId = &non->k.nodeId;
 				status[i].neighDescSqnDiff = non->dc->descSqn - ntohl(topology_msg[m].nbDescSqn);
-				status[i].neighName = non->k.hostname;
+				status[i].neighName = strlen(non->k.hostname) ? non->k.hostname : DBG_NIL;
 				status[i].neighIp = &non->primary_ip;
 				status[i].neighIdx = topology_msg[m].nbIdx;
 

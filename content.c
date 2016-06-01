@@ -153,7 +153,7 @@ uint8_t *content_status_page(uint8_t *sOut, uint32_t i, struct content_usage_nod
 	
 
 	if (on) {
-		cs->name = on->k.hostname;
+		cs->name = strlen(on->k.hostname) ? on->k.hostname : DBG_NIL;
 		cs->lastDesc = (bmx_time - on->updated_timestamp) / 1000;
 	}
 

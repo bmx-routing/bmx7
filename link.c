@@ -872,7 +872,7 @@ static int32_t link_status_creator(struct status_handl *handl, void *data)
 
 				status[i].nodeId = &on->k.nodeId;
 				status[i].shortId = &on->k.nodeId;
-				status[i].name = on->k.hostname;
+				status[i].name = strlen(on->k.hostname) ? on->k.hostname : DBG_NIL;
 				status[i].nodeKey = cryptKeyTypeAsString(((struct dsc_msg_pubkey*) on->kn->content->f_body)->type);
 				status[i].linkKey = (pkm = contents_data(on->dc, BMX_DSC_TLV_LINK_PUBKEY)) ? cryptKeyTypeAsString(pkm->type) : DBG_NIL;
 				status[i].nbLocalIp = linkDev->key.llocal_ip;

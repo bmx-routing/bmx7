@@ -1982,7 +1982,7 @@ static int32_t trust_status_creator(struct status_handl *handl, void *data)
 
 		status[i].nodeId = &kwn->global_id;
 		status[i].shortId = &kwn->global_id;
-		status[i].name = (on=avl_find_item(&orig_tree, &kwn->global_id)) ? on->k.hostname : NULL;
+		status[i].name = ((on = avl_find_item(&orig_tree, &kwn->global_id)) && strlen(on->k.hostname)) ? on->k.hostname : DBG_NIL;
 		status[i].trust = kwn->trust;
 		status[i].support = kwn->support;
 		status[i].fileName = kwn->fileName;

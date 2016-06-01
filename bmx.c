@@ -984,13 +984,14 @@ uint8_t *key_status_page(uint8_t *sOut, uint32_t i, struct orig_node *on, struct
 
 	if (on) {
 		os->linkKey = (pkm = contents_data(dc, BMX_DSC_TLV_LINK_PUBKEY)) ? cryptKeyTypeAsString(pkm->type) : DBG_NIL;
-		os->name = on->k.hostname;
+		os->name = strlen(on->k.hostname) ? on->k.hostname : DBG_NIL;
 		os->primaryIp = on->primary_ip;
-		os->dev = on->neighPath.link && on->neighPath.link->k.myDev ? on->neighPath.link->k.myDev->ifname_device.str : DBG_NIL;
-		os->myIdx = on->neighPath.link && on->neighPath.link->k.myDev ? on->neighPath.link->k.myDev->llipKey.devIdx : 0;
-		os->nbIdx = (on->neighPath.link ? on->neighPath.link->k.linkDev->key.devIdx : 0);
-		os->nbLocalIp = (on->neighPath.link ? on->neighPath.link->k.linkDev->key.llocal_ip : ZERO_IP);
-		os->nbName = (on->neighPath.link ? on->neighPath.link->k.linkDev->key.local->on->k.hostname : DBG_NIL);
+		LinkNode *link = on->neighPath.link;
+		os->dev = link && link->k.myDev ? link->k.myDev->ifname_device.str : DBG_NIL;
+		os->myIdx = link && link->k.myDev ? link->k.myDev->llipKey.devIdx : 0;
+		os->nbIdx = (link ? link->k.linkDev->key.devIdx : 0);
+		os->nbLocalIp = (link ? link->k.linkDev->key.llocal_ip : ZERO_IP);
+		os->nbName = (link && strlen(link->k.linkDev->key.local->on->k.hostname) ? link->k.linkDev->key.local->on->k.hostname : DBG_NIL);
 		os->metric = on->neighPath.um;
 		snprintf(os->ogmHist, (sizeof(os->ogmHist)-1), "%d/%d", (int)(on->neighPath.pathMetricsByteSize / sizeof(struct msg_ogm_adv_metric_t0)), on->mtcAlgo->ogm_hop_history);
 		uint16_t i;
@@ -1121,7 +1122,7 @@ uint8_t *ref_status_page(uint8_t *sOut, uint32_t i, struct NeighRef_node *ref, u
 	snprintf(rs->nbs, sizeof(rs->nbs), "---");
 
 	rs->lastRef = (iid_get_neighIID4x_timeout_by_node(ref) / 1000);
-	rs->nbName = ref->nn->on->k.hostname;
+	rs->nbName = strlen(ref->nn->on->k.hostname) ? ref->nn->on->k.hostname : DBG_NIL;
 	rs->nbId = &ref->nn->on->k.nodeId;
 
 	if (kn) {
@@ -1144,7 +1145,7 @@ uint8_t *ref_status_page(uint8_t *sOut, uint32_t i, struct NeighRef_node *ref, u
 	snprintf(rs->nbs, sizeof(rs->nbs), "%d", (kn ? kn->neighRefs_tree.items : 0));
 
 	if (on) {
-		rs->name = on->k.hostname;
+		rs->name = strlen(on->k.hostname) ? on->k.hostname : DBG_NIL;
 		rs->lastDesc = (bmx_time - on->updated_timestamp) / 1000;
 	}
 

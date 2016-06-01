@@ -64,7 +64,7 @@ int32_t maintainanceInterval = DEF_REF_MAINTAIN_INTERVAL;
 int32_t resolveIterations = DEF_DHASH_RSLV_ITERS;
 int32_t resolveInterval = DEF_DHASH_RSLV_INTERVAL;
 
-
+int32_t describeInfos = DEF_DESCRIBE_INFOS;
 
 
 
@@ -427,6 +427,9 @@ int32_t create_dsc_tlv_names(struct tx_frame_iterator *it)
 {
         TRACE_FUNCTION_CALL;
 	dbgf_all(DBGT_INFO, "%s", my_Hostname);
+
+	if (!describeInfos)
+		return TLV_TX_DATA_IGNORED;
 
 	int32_t nameLen = strlen(my_Hostname);
 
@@ -803,6 +806,8 @@ struct opt_type desc_options[]=
 			ARG_VALUE_FORM,	"set max tx iterations for resolving unknown descriptions"},
         {ODI,0,ARG_DHASH_RSLV_INTERVAL, 0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &resolveInterval,MIN_DHASH_RSLV_INTERVAL, MAX_DHASH_RSLV_INTERVAL,DEF_DHASH_RSLV_INTERVAL,0,    NULL,
 			ARG_VALUE_FORM,	"set tx interval for resolving unknown descriptions"},
+        {ODI,0,ARG_DESCRIBE_INFOS,         0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &describeInfos,MIN_DESCRIBE_INFOS, MAX_DESCRIBE_INFOS,DEF_DESCRIBE_INFOS,0,    NULL,
+			ARG_VALUE_FORM,	"publish optional node metadata via node description"},
 #endif
 	{ODI, 0, ARG_DESCRIPTIONS,	   0,  9,2, A_PS0N,A_USR, A_DYN, A_ARG, A_ANY, 0,               0,                  0,                 0,0,                  opt_show_descriptions,
 			0,		HLP_DESCRIPTIONS}

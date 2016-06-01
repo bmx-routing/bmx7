@@ -97,6 +97,12 @@ extern int32_t resolveIterations;
 #define ARG_DHASH_RSLV_INTERVAL "resolveInterval"
 extern int32_t resolveInterval;
 
+#define DEF_DESCRIBE_INFOS 1
+#define MIN_DESCRIBE_INFOS 0
+#define MAX_DESCRIBE_INFOS 1
+#define ARG_DESCRIBE_INFOS "describeNodeInfos"
+
+
 struct msg_iid_adv {
 	IID_T transmitterIID4x;
 	DESC_SQN_T descSqn;

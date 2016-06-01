@@ -739,7 +739,15 @@ struct link_status {
 	uint16_t nbIdx;
 	IPX_T localIp;
 	IFNAME_T dev;
+	uint16_t routes;
 	uint16_t idx;
+	IID_T iidMax;
+	AGGREG_SQN_T aggSqnSize;
+	AGGREG_SQN_T aggSqnMax;
+	uint8_t aggSqnRcvd;
+	HELLO_SQN_T lastHelloSqn;
+	TIME_T lastHelloAdv;
+
 	uint8_t rq;
 	uint8_t bestRq;
 	uint8_t tq;
@@ -755,37 +763,30 @@ struct link_status {
 	int8_t wRxMcs;
 	uint8_t wRxMhz;
 	uint8_t wRxNss;
-	int8_t wRxSGI;
-	int8_t wRx40M;
+	int8_t wRxSgi;
+	int8_t wRxChw;
 	int8_t wRxHt;
 	int8_t wRxVht;
 
+	UMETRIC_T wTxRateAvg;
+	UMETRIC_T wTxRate;
+	uint32_t cnt;
+	int8_t mcs;
+	uint8_t mhz;
+	uint8_t nss;
+	int8_t sgi;
+	int8_t chw;
+	int8_t ht;
+	int8_t vht;
 	float wTxLastProbe;
 	uint32_t wTxProbe;
 	float wTxLastBurst;
 	uint32_t wTxBurst;
-	UMETRIC_T wTxRate;
-	UMETRIC_T wTxRateAvg;
-	uint32_t wTxCnt;
-	int8_t wTxMcs;
-	uint8_t wTxMhz;
-	uint8_t wTxNss;
-	int8_t wTxSGI;
-	int8_t wTx40M;
-	int8_t wTxHt;
-	int8_t wTxVht;
 
 	int8_t wSignal;
 	int8_t wNoise;
-	int8_t wSNR;
+	int8_t wSnr;
 
-	uint16_t routes;
-	IID_T iidMax;
-	AGGREG_SQN_T aggSqnSize;
-	AGGREG_SQN_T aggSqnMax;
-	uint8_t aggSqnRcvd;
-	HELLO_SQN_T lastHelloSqn;
-	TIME_T lastHelloAdv;
 };
 
 static const struct field_format link_status_format[] = {
@@ -796,14 +797,21 @@ static const struct field_format link_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      link_status, linkKey,          1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_IPX,               link_status, nbLocalIp,        1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       link_status, nbMac,            1, FIELD_RELEVANCE_LOW),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, nbIdx,            1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, nbIdx,            1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_IPX,               link_status, localIp,          1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       link_status, dev,              1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, idx,              1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, routes,           1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, idx,              1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, iidMax,           1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, aggSqnSize,       1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, aggSqnMax,        1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, aggSqnRcvd,       1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, lastHelloSqn,     1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, lastHelloAdv,     1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, rq,               1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, bestRq,           1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, tq,               1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, bestTq,           1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, bestTq,           1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           link_status, rxRate,           1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           link_status, txRate,           1, FIELD_RELEVANCE_HIGH),
 
@@ -814,37 +822,30 @@ static const struct field_format link_status_format[] = {
 	FIELD_FORMAT_INIT(FIELD_TYPE_INT,               link_status, wRxMcs,           1, FIELD_RELEVANCE_LOW),
 	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wRxMhz,           1, FIELD_RELEVANCE_LOW),
 	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wRxNss,           1, FIELD_RELEVANCE_LOW),
-	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wRxSGI,           1, FIELD_RELEVANCE_LOW),
-	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wRx40M,           1, FIELD_RELEVANCE_LOW),
+	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wRxSgi,           1, FIELD_RELEVANCE_LOW),
+	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wRxChw,           1, FIELD_RELEVANCE_LOW),
 	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wRxHt,            1, FIELD_RELEVANCE_LOW),
 	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wRxVht,           1, FIELD_RELEVANCE_LOW),
 
+        FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           link_status, wTxRateAvg,       1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           link_status, wTxRate,          1, FIELD_RELEVANCE_HIGH),
+	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, cnt,              1, FIELD_RELEVANCE_MEDI),
+	FIELD_FORMAT_INIT(FIELD_TYPE_INT,               link_status, mcs,              1, FIELD_RELEVANCE_HIGH),
+	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, mhz,              1, FIELD_RELEVANCE_LOW),
+	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, nss,              1, FIELD_RELEVANCE_LOW),
+	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, sgi,              1, FIELD_RELEVANCE_HIGH),
+	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, chw,              1, FIELD_RELEVANCE_HIGH),
+	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, ht,               1, FIELD_RELEVANCE_LOW),
+	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, vht,              1, FIELD_RELEVANCE_LOW),
 	FIELD_FORMAT_INIT(FIELD_TYPE_FLOAT,             link_status, wTxLastProbe,     1, FIELD_RELEVANCE_MEDI),
 	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wTxProbe,         1, FIELD_RELEVANCE_MEDI),
 	FIELD_FORMAT_INIT(FIELD_TYPE_FLOAT,             link_status, wTxLastBurst,     1, FIELD_RELEVANCE_MEDI),
 	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wTxBurst,         1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           link_status, wTxRate,          1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           link_status, wTxRateAvg,       1, FIELD_RELEVANCE_MEDI),
-	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wTxCnt,           1, FIELD_RELEVANCE_MEDI),
-	FIELD_FORMAT_INIT(FIELD_TYPE_INT,               link_status, wTxMcs,           1, FIELD_RELEVANCE_HIGH),
-	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wTxMhz,           1, FIELD_RELEVANCE_LOW),
-	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wTxNss,           1, FIELD_RELEVANCE_LOW),
-	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wTxSGI,           1, FIELD_RELEVANCE_HIGH),
-	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wTx40M,           1, FIELD_RELEVANCE_HIGH),
-	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wTxHt,            1, FIELD_RELEVANCE_LOW),
-	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wTxVht,           1, FIELD_RELEVANCE_LOW),
 
 	FIELD_FORMAT_INIT(FIELD_TYPE_INT,               link_status, wSignal,          1, FIELD_RELEVANCE_LOW),
 	FIELD_FORMAT_INIT(FIELD_TYPE_INT,               link_status, wNoise,           1, FIELD_RELEVANCE_LOW),
-	FIELD_FORMAT_INIT(FIELD_TYPE_INT,               link_status, wSNR,             1, FIELD_RELEVANCE_HIGH),
+	FIELD_FORMAT_INIT(FIELD_TYPE_INT,               link_status, wSnr,             1, FIELD_RELEVANCE_HIGH),
 
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, routes,           1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, iidMax,           1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, aggSqnSize,       1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, aggSqnMax,        1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, aggSqnRcvd,       1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, lastHelloSqn,     1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, lastHelloAdv,     1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_END
 };
 
@@ -894,24 +895,24 @@ static int32_t link_status_creator(struct status_handl *handl, void *data)
 				status[i].wTxBurst = link->wifiStats.txBurstCnt;
 				status[i].wSignal = link->wifiStats.signal;
 				status[i].wNoise = link->wifiStats.noise;
-				status[i].wSNR = link->wifiStats.signal - link->wifiStats.noise;
+				status[i].wSnr = link->wifiStats.signal - link->wifiStats.noise;
 				status[i].wTxRate = link->wifiStats.txRate;
 				status[i].wTxRateAvg = link->wifiStats.txRateAvg;
-				status[i].wTxCnt = link->wifiStats.txPackets;
-				status[i].wTxMcs = link->wifiStats.txMcs;
-				status[i].wTxMhz = link->wifiStats.txMhz;
-				status[i].wTxNss = link->wifiStats.txNss;
-				status[i].wTxSGI = link->wifiStats.txShortGi;
-				status[i].wTx40M = link->wifiStats.tx40mhz;
-				status[i].wTxHt = link->wifiStats.txHt;
-				status[i].wTxVht = link->wifiStats.txVht;
+				status[i].cnt = link->wifiStats.txPackets;
+				status[i].mcs = link->wifiStats.txMcs;
+				status[i].mhz = link->wifiStats.txMhz;
+				status[i].nss = link->wifiStats.txNss;
+				status[i].sgi = link->wifiStats.txShortGi;
+				status[i].chw = link->wifiStats.tx40mhz ? 40 : 20;
+				status[i].ht = link->wifiStats.txHt;
+				status[i].vht = link->wifiStats.txVht;
 				status[i].wRxRate = link->wifiStats.rxRate;
 				status[i].wRxCnt = link->wifiStats.rxPackets;
 				status[i].wRxMcs = link->wifiStats.rxMcs;
 				status[i].wRxMhz = link->wifiStats.rxMhz;
 				status[i].wRxNss = link->wifiStats.rxNss;
-				status[i].wRxSGI = link->wifiStats.rxShortGi;
-				status[i].wRx40M = link->wifiStats.rx40mhz;
+				status[i].wRxSgi = link->wifiStats.rxShortGi;
+				status[i].wRxChw = link->wifiStats.rx40mhz ? 40 : 20;
 				status[i].wRxHt = link->wifiStats.rxHt;
 				status[i].wRxVht = link->wifiStats.rxVht;
 

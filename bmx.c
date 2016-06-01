@@ -786,18 +786,18 @@ static const struct field_format bmx_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_IPX,               bmx_status, primaryIp,     1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_NETP,              bmx_status, tun6Address,   1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_NETP,              bmx_status, tun4Address,   1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              bmx_status, descSqn,       1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              bmx_status, lastDesc,      1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              bmx_status, descSqn,       1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              bmx_status, lastDesc,      1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              bmx_status, ogmSqn,        1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      bmx_status, uptime,        1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       bmx_status, cpu,           1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       bmx_status, mem,           1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       bmx_status, mem,           1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       bmx_status, txQ,           1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       bmx_status, rxBpP,         1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       bmx_status, txBpP,         1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              bmx_status, nbs,           1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       bmx_status, nodes,         1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       bmx_status, contents,      1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       bmx_status, contents,      1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_END
 };
 
@@ -853,6 +853,7 @@ struct orig_status {
 	char T[2]; // trusted by me;
 	char t[2]; // me trusted by him
 	char *nodeKey;
+	uint32_t revision;
 	CRYPTSHA1_T *shortDHash;
 	CRYPTSHA1_T *dHash;
 	IID_T myIid;
@@ -897,10 +898,11 @@ static const struct field_format orig_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       orig_status, T,             1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       orig_status, t,             1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      orig_status, nodeKey,       1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_BINARY,     orig_status, revision,      1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, myIid,         1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_SHORT_ID,  orig_status, shortDHash,    1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, orig_status, dHash,         1, FIELD_RELEVANCE_LOW),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, descSqn,       1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, descSqn,       1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, descSqnMin,    1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, descSqnNext,   1, FIELD_RELEVANCE_LOW),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, lastDesc,      1, FIELD_RELEVANCE_HIGH),
@@ -964,8 +966,10 @@ uint8_t *key_status_page(uint8_t *sOut, uint32_t i, struct orig_node *on, struct
 	}
 
 	if (dc) {
+		struct dsc_msg_version *dmv;
 		os->s[0] = (s = setted_pubkey(dc, BMX_DSC_TLV_SUPPORTS, &myKey->kHash, 0)) == -1 ? 'A' : (s + '0');
 		os->t[0] = (t = setted_pubkey(dc, BMX_DSC_TLV_TRUSTS, &myKey->kHash, 0)) == -1 ? 'A' : (t + '0');
+		os->revision = (dmv = contents_data(dc, BMX_DSC_TLV_VERSION)) ? dmv->codeRevision : 0;
 		os->descSqn = dc->descSqn;
 		snprintf(os->descSize, (sizeof(os->descSize)-1), "%d+%d", dc->desc_frame_len, dc->ref_content_len);
 		snprintf(os->contents, (sizeof(os->contents)-1), "%d/%d", (dc->contentRefs_tree.items - dc->unresolvedContentCounter), dc->contentRefs_tree.items);

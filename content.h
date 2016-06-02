@@ -109,6 +109,7 @@ struct hdr_content_req { // 20 bytes
 	struct msg_content_req msg[];
 } __attribute__((packed));
 
+
 struct desc_content {
 	DHASH_T dHash;
 
@@ -119,6 +120,8 @@ struct desc_content {
 	uint16_t desc_frame_len;
 	int32_t ref_content_len;
 	DESC_SQN_T descSqn;
+	union content_sizes claimedVirtDescSizes;
+	union content_sizes countedVirtDescSizes;
 	TIME_T referred_by_others_timestamp;
 
 	struct avl_tree contentRefs_tree;
@@ -141,12 +144,12 @@ int8_t descContent_assemble(struct desc_content *dc, IDM_T init_not_finalize);
 struct desc_content* descContent_create(uint8_t *dsc, uint32_t dlen, struct key_node *kn);
 void descContent_destroy(struct desc_content *dc);
 void content_resolve(struct key_node *kn, struct neigh_node *viaNeigh);
-struct content_node * content_get(SHA1_T *chash);
+struct content_node * content_find(SHA1_T *chash);
 void *contents_data(struct desc_content *contents, uint8_t type);
 uint32_t contents_dlen(struct desc_content *contents, uint8_t type);
 struct content_node * content_add_hash(SHA1_T *chash);
 struct content_node * content_add_body(uint8_t *body, uint32_t body_len, uint8_t compressed, uint8_t nested, uint8_t force);
-int32_t create_chash_tlv(struct tlv_hdr *tlv, uint8_t *f_data, uint32_t f_len, uint8_t f_type, uint8_t fzip, uint8_t level);
+int32_t create_chash_tlv(struct tlv_hdr *tlv, uint8_t *f_data, uint32_t f_len, uint8_t f_type, uint8_t fzip, uint8_t level, union content_sizes *virtDescSizes);
 void content_purge_unused(struct content_node *onlyCn);
 
 

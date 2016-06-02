@@ -52,8 +52,22 @@ extern int32_t vrt_frame_data_size_out;
 #define MAX_DESC_VBODIES_SIZE      (10 * MAX_VRT_FRAME_DATA_SIZE)
 #define DEF_DESC_VBODIES_SIZE      ( 4 * MAX_VRT_FRAME_DATA_SIZE)
 
+#define MIN_DESC_CONTENTS 0
+#define MAX_DESC_CONTENTS 512
+#define DEF_DESC_CONTENTS 32
+
 extern int32_t desc_vbodies_size_in;
 extern int32_t desc_vbodies_size_out;
+
+#define DEF_DESC_CHECKING 0
+#define MIN_DESC_CHECKING 0
+#define TYP_DESC_CHECKING_SIZES 1
+#define MAX_DESC_CHECKING 10
+#define ARG_DESC_CHECKING "descChecks"
+#define HLP_DESC_CHECKING "extended descriptions checking (allowing future additional consistency checks"
+
+extern int32_t extended_desc_checking;
+
 
 #define MIN_DESC0_REFERRED_TO 10000
 #define MAX_DESC0_REFERRED_TO 100000

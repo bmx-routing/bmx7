@@ -308,8 +308,10 @@ struct dsc_msg_trust {
 {FIELD_TYPE_UINT,          -1, (8*sizeof(DESC_SQN_T)),         0, FIELD_RELEVANCE_HIGH, "descSqn" }, \
 {FIELD_TYPE_UINT,          -1, (8*sizeof(uint16_t)),           0, FIELD_RELEVANCE_HIGH, "ogmSqnRange" }, \
 {FIELD_TYPE_STRING_BINARY, -1, (8*sizeof(ChainElem_T)),        0, FIELD_RELEVANCE_HIGH, "ogmHChainAnchor" }, \
-{FIELD_TYPE_HEX,           -1, 32,                             0, FIELD_RELEVANCE_HIGH, "codeRevision" }, \
+{FIELD_TYPE_UINT,          -1, 21,                             0, FIELD_RELEVANCE_HIGH, "descSize" }, \
+{FIELD_TYPE_UINT,          -1, 11,                             0, FIELD_RELEVANCE_HIGH, "descContents" }, \
 FIELD_FORMAT_END}
+
 
 struct dsc_msg_version {
 	uint8_t comp_version;
@@ -320,21 +322,8 @@ struct dsc_msg_version {
 
 	ChainElem_T ogmHChainAnchor;
 
-	union {
+	union content_sizes virtDescSizes;
 
-		struct {
-#if __BYTE_ORDER == __LITTLE_ENDIAN
-			unsigned int descContents : 11;
-			unsigned int descSize : 21;
-#elif __BYTE_ORDER == __BIG_ENDIAN
-			unsigned int descSize : 21;
-			unsigned int descContents : 11;
-#else
-#error "Please fix <bits/endian.h>"
-#endif
-		} __attribute__((packed)) f;
-		uint32_t u32;
-	} u;
 } __attribute__((packed));
 
 void chainLinkCalc(ChainInputs_T *ci_tmp, OGM_SQN_T diff);

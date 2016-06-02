@@ -57,7 +57,7 @@ uint32_t content_tree_unresolveds = 0;
 int32_t unsolicitedContentAdvs = DEF_UNSOLICITED_CONTENT_ADVS;
 
 
-struct content_node * content_get(SHA1_T *chash)
+struct content_node * content_find(SHA1_T *chash)
 {
 	return avl_find_item(&content_tree, chash);
 }
@@ -79,10 +79,9 @@ struct content_status {
 	char *typeName;
 	uint8_t typeId;
 	int8_t fzip;
-	int8_t fref;
 	uint8_t final;
-	uint8_t dup;
-	uint8_t gzip;
+	uint8_t dups;
+	uint8_t czip;
 	uint8_t nested;
 	uint8_t level;
 	uint8_t maxLevel;
@@ -102,16 +101,15 @@ static const struct field_format content_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_SHORT_ID,  content_status, shortDHash,    1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, content_status, dHash,         1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              content_status, lastRef,       1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       content_status, nbs,           1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       content_status, nbs,           1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_SHORT_ID,  content_status, shortCHash,    1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, content_status, cHash,         1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      content_status, typeName,      1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              content_status, typeId,        1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              content_status, fzip,          1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              content_status, fref,          1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              content_status, fzip,          1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              content_status, final,         1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              content_status, dup,           1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              content_status, gzip,          1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              content_status, dups,          1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              content_status, czip,          1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              content_status, nested,        1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              content_status, level,         1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              content_status, maxLevel,      1, FIELD_RELEVANCE_HIGH),
@@ -146,7 +144,7 @@ uint8_t *content_status_page(uint8_t *sOut, uint32_t i, struct content_usage_nod
 		cs->shortDHash = &dc->dHash;
 		cs->descSqn = dc->descSqn;
 		cs->lastRef = ((bmx_time - dc->referred_by_others_timestamp) / 1000);
-		snprintf(cs->contents, sizeof(cs->contents), "%d/%d", (dc->contentRefs_tree.items - dc->unresolvedContentCounter), dc->contentRefs_tree.items);
+		snprintf(cs->contents, sizeof(cs->contents), "%d/%d", (dc->countedVirtDescSizes.f.contents - dc->unresolvedContentCounter), dc->countedVirtDescSizes.f.contents);
 	}
 
 	snprintf(cs->nbs, sizeof(cs->nbs), "%d", (kn ? kn->neighRefs_tree.items : 0));
@@ -161,7 +159,7 @@ uint8_t *content_status_page(uint8_t *sOut, uint32_t i, struct content_usage_nod
 		cs->cHash = &cn->chash;
 		cs->shortCHash = &cn->chash;
 		cs->len = cn->f_body_len;
-		cs->gzip = cn->gzip;
+		cs->czip = cn->gzip;
 		cs->nested = cn->nested;
 		cs->usages = cn->usage_tree.items;
 		if (cn->f_body)
@@ -171,15 +169,11 @@ uint8_t *content_status_page(uint8_t *sOut, uint32_t i, struct content_usage_nod
 	if (cun) {
 		cs->typeId = cun->k.expanded_type;
 		cs->typeName = (cun->k.expanded_type < BMX_DSC_TLV_MAX_KNOWN) ? description_tlv_db->handls[cun->k.expanded_type].name : "---";
-		cs->fref = (cun->k.expanded_type < BMX_DSC_TLV_MAX_KNOWN) ? use_refLevel(&description_tlv_db->handls[cun->k.expanded_type]) : -1;
-		cs->fzip = (cun->k.expanded_type < BMX_DSC_TLV_MAX_KNOWN) ? use_compression(&description_tlv_db->handls[cun->k.expanded_type]) : -1;
+		cs->fzip = cun->k.expanded_gzip;
 		cs->level = cun->maxUsedLevel;
 		cs->maxLevel = cun->maxAllowedLevel;
 		cs->final = (cun->k.descContent->final[cun->k.expanded_type].u.cun == cun);
-		cs->dup = cun->dup;
-	} else {
-		cs->fref = -1;
-		cs->fzip = -1;
+		cs->dups = cun->dup;
 	}
 
 	return sOut;
@@ -260,7 +254,7 @@ struct content_node * content_add_hash(SHA1_T *chash)
 }
 
 STATIC_FUNC
-IDM_T contentUse_add_nested(struct desc_content *dc, SHA1_T *f_body, uint32_t f_body_len, uint8_t level, uint8_t maxLevel, uint8_t expanded_type);
+IDM_T contentUse_add_nested(struct desc_content *dc, SHA1_T *f_body, uint32_t f_body_len, uint8_t level, uint8_t maxLevel, uint8_t expanded_type, uint8_t gzip);
 
 
 struct content_node * content_add_body( uint8_t *body, uint32_t body_len, uint8_t gzip, uint8_t nested, uint8_t force)
@@ -268,7 +262,7 @@ struct content_node * content_add_body( uint8_t *body, uint32_t body_len, uint8_
 	assertion(-502242, (body && body_len));
 
 	SHA1_T *chash = content_key(body, body_len, gzip, nested);
-	struct content_node *cn = force ? content_add_hash(chash) : content_get(chash);
+	struct content_node *cn = force ? content_add_hash(chash) : content_find(chash);
 	struct content_usage_node *cun;
 	struct content_usage_node cit = {.maxUsedLevel = 0};
 	struct desc_content *dc;
@@ -307,7 +301,8 @@ struct content_node * content_add_body( uint8_t *body, uint32_t body_len, uint8_
 
 					dbgf_sys(DBGT_ERR, "FAILED A: max=%d nested=%d allowed=%d", cun->maxUsedLevel, nested, cun->maxAllowedLevel);
 
-				} else if ((nested && contentUse_add_nested(dc, (SHA1_T *) cun->k.content->f_body, cun->k.content->f_body_len, cun->maxUsedLevel + 1, cun->maxAllowedLevel, cun->k.expanded_type) != SUCCESS)) {
+				} else if ((nested &&
+					contentUse_add_nested(dc, (SHA1_T *) cun->k.content->f_body, cun->k.content->f_body_len, cun->maxUsedLevel + 1, cun->maxAllowedLevel, cun->k.expanded_type, cun->k.expanded_gzip) != SUCCESS)) {
 
 					dbgf_sys(DBGT_ERR, "FAILED B: nested=%d", nested);
 
@@ -384,8 +379,9 @@ uint32_t contents_dlen( struct desc_content *c, uint8_t t)
 }
 
 
-int32_t create_chash_tlv(struct tlv_hdr *tlv, uint8_t *f_data, uint32_t f_len, uint8_t f_type, uint8_t fzip, uint8_t level)
+int32_t create_chash_tlv(struct tlv_hdr *tlv, uint8_t *f_data, uint32_t f_len, uint8_t f_type, uint8_t fzip, uint8_t level, union content_sizes *virtDescSizes)
 {
+	assertion(-502438, (f_type != BMX_DSC_TLV_CONTENT_HASH));
 	assertion(-502304, (tlv && f_data && f_len <= (uint32_t)vrt_frame_data_size_out && f_type && fzip <= 1 && level <= 2));
 	assertion(-502305, (level || fzip));
 
@@ -408,10 +404,18 @@ int32_t create_chash_tlv(struct tlv_hdr *tlv, uint8_t *f_data, uint32_t f_len, u
 	uint32_t cfd_msgs = cfd_agg_len / REF_CONTENT_BODY_SIZE_OUT + (cfd_agg_len % REF_CONTENT_BODY_SIZE_OUT ? 1 : 0);
 	uint8_t cfd_gzip = (cfd_agg_len < f_len);
 
-	dbgf_track(DBGT_INFO, "adding t_type=%d fDataInLen=%d fDataOutLen=%d -> msgs=%d  do_fzip=%d, cfd_gzip=%d",
-		f_type, f_len, cfd_agg_len, cfd_msgs, fzip, cfd_gzip);
+	dbgf_track(DBGT_INFO, "adding t_type=%d %s fDataInLen=%d fDataOutLen=%d -> msgs=%d  do_fzip=%d, cfd_gzip=%d level=%d virtDescSizes.length/contents=%d/%d",
+		f_type, description_tlv_db->handls[f_type].name, f_len, cfd_agg_len, cfd_msgs, fzip, cfd_gzip, level, virtDescSizes->f.length, virtDescSizes->f.contents);
 
 	assertion(-502306, IMPLIES(!level,  cfd_agg_len <= REF_CONTENT_BODY_SIZE_OUT));
+
+	if (!level && !cfd_gzip) {
+
+		if (cfd_agg_data && cfd_agg_data != f_data)
+			debugFree(cfd_agg_data, -501595);
+
+		return 0;
+	}
 
 	struct dsc_hdr_chash *cHdp = ((struct dsc_hdr_chash *) ((uint8_t*)&(tlv[1])));
 	struct dsc_hdr_chash cHdr = {.u = {.i = {
@@ -423,6 +427,8 @@ int32_t create_chash_tlv(struct tlv_hdr *tlv, uint8_t *f_data, uint32_t f_len, u
 
 	cHdp->u.u32 = htonl(cHdr.u.u32);
 	cHdp->expanded_chash = (content_add_body(f_data, f_len, 0, 0, YES))->chash;//cn->chash;
+	virtDescSizes->f.length += f_len;
+	virtDescSizes->f.contents++;
 
 	uint32_t m0 = 0, tlv_len = sizeof(struct tlv_hdr) + sizeof(struct dsc_hdr_chash);
 
@@ -450,6 +456,7 @@ int32_t create_chash_tlv(struct tlv_hdr *tlv, uint8_t *f_data, uint32_t f_len, u
 			for (m1 = 0; (m1 < m1Msgs && pos < cfd_agg_len); pos += REF_CONTENT_BODY_SIZE_OUT) {
 				uint32_t cfd_bdy_size = XMIN(cfd_agg_len - pos, REF_CONTENT_BODY_SIZE_OUT);
 				struct content_node *cfd_msg_cn = content_add_body(cfd_agg_data + pos, cfd_bdy_size, 0, 0, YES);
+				virtDescSizes->f.contents++;
 				chash[m1++] = cfd_msg_cn->chash;
 			}
 
@@ -458,6 +465,7 @@ int32_t create_chash_tlv(struct tlv_hdr *tlv, uint8_t *f_data, uint32_t f_len, u
 				break;
 			} else {
 				struct content_node *cfd_msg_cn = content_add_body((uint8_t*) chash, m1 * sizeof(struct dsc_msg_chash), 0, (cHdr.u.i.maxNesting - 1), YES);
+				virtDescSizes->f.contents++;
 				cHdp->msg[m0++].chash = cfd_msg_cn->chash;
 			}
 		}
@@ -478,6 +486,7 @@ int32_t create_chash_tlv(struct tlv_hdr *tlv, uint8_t *f_data, uint32_t f_len, u
 		"level=%d->%d gzip=%d->%d cHashes=%d->%d", level, cHdr.u.i.maxNesting, fzip, cHdr.u.i.gzip, cfd_msgs, m0);
 
 	*tlv = tlvSetBigEndian(BMX_DSC_TLV_CONTENT_HASH, tlv_len);
+	dbgf_track(DBGT_INFO, "virtDescSizes.length/contents=%d/%d", virtDescSizes->f.length, virtDescSizes->f.contents);
 	return tlv_len;
 }
 
@@ -526,51 +535,55 @@ void contentUse_del_(struct content_usage_node *cun)
 }
 
 
-
 STATIC_FUNC
-struct content_usage_node *contentUse_add(struct desc_content *dc, struct content_node *cn, uint8_t f_type, uint8_t maxUsedLevel, uint8_t maxAllowedLevel, uint8_t expanded_type)
+struct content_usage_node *contentUse_add(uint8_t add, struct desc_content *dc, struct content_node *cn, uint8_t maxUsedLevel, uint8_t maxAllowedLevel, uint8_t expanded_type, uint8_t expanded_gzip)
 {
 	assertion(-502248, (dc && cn));
 	assertion(-502311, (maxUsedLevel <= maxAllowedLevel && maxUsedLevel <= vrt_frame_max_nesting));
+	assertion(-500000, (add <= 1));
 
-	dbgf_all(DBGT_INFO, "f_type=%d, cHash=%s bodyLen=%d nested=%d compression=%d data=%d usage=%d",
-		f_type, cryptShaAsShortStr(&cn->chash), cn->f_body_len, cn->nested, cn->gzip, !!cn->f_body, cn->usage_tree.items);
+	dbgf_track(DBGT_INFO, "add=%d expanded_type=%d %s gzip=%d cHash=%s bodyLen=%d nested=%d nested_gzip=%d data=%d usage=%d counted/claimedContents=%d/%d maxUsed/AllowedLevel=%d/%d",
+		add, expanded_type, (expanded_type <= description_tlv_db->handl_max ? description_tlv_db->handls[expanded_type].name : NULL), expanded_gzip,
+		cryptShaAsShortStr(&cn->chash), cn->f_body_len, cn->nested, cn->gzip, !!cn->f_body, cn->usage_tree.items,
+		dc->countedVirtDescSizes.f.contents + add, dc->claimedVirtDescSizes.f.contents, maxUsedLevel, maxAllowedLevel);
 
 
-	struct content_usage_node *cup;
-	struct content_usage_node cuv = {.k = { .expanded_type = expanded_type, .content = cn, .descContent = dc} };
+	struct content_usage_node cuv = {.k = { .expanded_type = expanded_type, .expanded_gzip = expanded_gzip, .content = cn, .descContent = dc} };
+	struct content_usage_node *cup = avl_find_item(&dc->contentRefs_tree, &cuv.k);
 
-	if ((cup = avl_find_item(&dc->contentRefs_tree, &cuv.k))) {
-		cup->dup++;
-	} else {
-		cup = debugMallocReset(sizeof(struct content_usage_node), -300725);
-		*cup = cuv;
-		avl_insert(&dc->contentRefs_tree, cup, -300726);
-		avl_insert(&cn->usage_tree, cup, -300727);
+	if (add) {
 
-		if (!cn->f_body)
-			dc->unresolvedContentCounter++;
+		if (((++dc->countedVirtDescSizes.f.contents) > dc->claimedVirtDescSizes.f.contents) && (extended_desc_checking >= TYP_DESC_CHECKING_SIZES))
+			return NULL;
+
+		if (cup) {
+
+			cup->dup++;
+
+		} else {
+
+			cup = debugMallocReset(sizeof(struct content_usage_node), -300725);
+			*cup = cuv;
+			avl_insert(&dc->contentRefs_tree, cup, -300726);
+			avl_insert(&cn->usage_tree, cup, -300727);
+
+			if (!cn->f_body)
+				dc->unresolvedContentCounter++;
+		}
+
+		cup->maxAllowedLevel = XMAX(maxAllowedLevel, cup->maxAllowedLevel);
+		cup->maxUsedLevel = XMAX(maxUsedLevel, cup->maxUsedLevel);
 	}
 
-	cup->maxAllowedLevel = XMAX(maxAllowedLevel, cup->maxAllowedLevel);
-	cup->maxUsedLevel = XMAX(maxUsedLevel, cup->maxUsedLevel);
-
-
-	if (f_type != BMX_DSC_TLV_CONTENT_HASH) {
-		assertion(-502312, (f_type = expanded_type));
-		assertion(-502249, (cn->f_body));
-		assertion(-502250, (dc->contentRefs_tree.items));
-		assertion(-502251, (!dc->unresolvedContentCounter));
-		assertion(-502252, (!dc->final[f_type].desc_tlv_body_len));
-
-		dc->final[f_type].u.cun = cup;
-	}
+	assertion(-500000, (!((dc->countedVirtDescSizes.f.contents > dc->claimedVirtDescSizes.f.contents) && (extended_desc_checking >= TYP_DESC_CHECKING_SIZES))));
+	assertion(-500000, IMPLIES(cup, cup->maxAllowedLevel >= maxAllowedLevel));
+	assertion(-500000, IMPLIES(cup, cup->maxUsedLevel >= maxUsedLevel));
 
 	return cup;
 }
 
 STATIC_FUNC
-IDM_T contentUse_add_nested(struct desc_content *dc, SHA1_T *f_body, uint32_t f_body_len, uint8_t level, uint8_t maxLevel, uint8_t expanded_type)
+IDM_T contentUse_add_nested(struct desc_content *dc, SHA1_T *f_body, uint32_t f_body_len, uint8_t level, uint8_t maxLevel, uint8_t expanded_type, uint8_t expanded_gzip)
 {
 	uint32_t m;
 	dbgf_track(DBGT_INFO, "level=%d maxLevel=%d maxNesting=%d", level, maxLevel, vrt_frame_max_nesting);
@@ -582,13 +595,13 @@ IDM_T contentUse_add_nested(struct desc_content *dc, SHA1_T *f_body, uint32_t f_
 
 		struct content_node *cn = content_add_hash(&f_body[m]);
 
-		struct content_usage_node *cun = contentUse_add(dc, cn, BMX_DSC_TLV_CONTENT_HASH, level, maxLevel, expanded_type);
+		struct content_usage_node *cun = contentUse_add(YES, dc, cn, level, maxLevel, expanded_type, expanded_gzip);
 
 		if (!cun)
 			return FAILURE;
 
 		if (cn->f_body && cn->nested) {
-			if (contentUse_add_nested(dc, (SHA1_T *) cn->f_body, cn->f_body_len, cun->maxUsedLevel + 1, maxLevel, expanded_type) != SUCCESS)
+			if (contentUse_add_nested(dc, (SHA1_T *) cn->f_body, cn->f_body_len, cun->maxUsedLevel + 1, maxLevel, expanded_type, expanded_gzip) != SUCCESS)
 				return FAILURE;
 		}
 	}
@@ -642,8 +655,10 @@ IDM_T content_attach_references(uint8_t *outData, uint32_t *outLen, SHA1_T *f_bo
 	uint32_t tmpLen = 0;
 	uint32_t m;
 
+	dbgf_track(DBGT_INFO, "f_body_len=%d gzip=%d maxLen=%d", f_body_len, compression, max_len);
+
 	for (m = 0; m < (f_body_len/sizeof(SHA1_T)); m++) {
-		struct content_node *cn = content_get(&f_body[m]);
+		struct content_node *cn = content_find(&f_body[m]);
 		assertion(-502259, (cn && cn->f_body));
 
 		if (cn->nested) {
@@ -694,6 +709,9 @@ int8_t descContent_assemble(struct desc_content *dc, IDM_T init_not_finalize)
 			chHdrVar.u.i.expanded_type, (cHdrPtr ? it.db->handls[chHdrVar.u.i.expanded_type].name : NULL),
 			chHdrVar.u.i.gzip, chHdrVar.u.i.maxNesting, chHdrVar.u.i.expanded_length, cryptShaAsShortStr(cHdrPtr ? &cHdrPtr->expanded_chash : NULL));
 
+		assertion(-500000, IMPLIES(cHdrPtr, chHdrVar.u.i.expanded_type != BMX_DSC_TLV_CONTENT_HASH));
+		assertion(-500000, IMPLIES(!cHdrPtr, it.f_type != BMX_DSC_TLV_CONTENT_HASH));
+
 		if (init_not_finalize) {
 
 			if (cHdrPtr) {
@@ -710,17 +728,17 @@ int8_t descContent_assemble(struct desc_content *dc, IDM_T init_not_finalize)
 				if (chHdrVar.u.i.expanded_length > vrt_frame_data_size_in)
 					goto_error(finish, "D");
 
-				if ((dc->ref_content_len += chHdrVar.u.i.expanded_length) > desc_vbodies_size_in)
+				if ((dc->countedVirtDescSizes.f.length += chHdrVar.u.i.expanded_length) > dc->claimedVirtDescSizes.f.length  && (extended_desc_checking >= TYP_DESC_CHECKING_SIZES))
 					goto_error(finish, "E");
 
 				if (it.f_msgs_len == 0) {
 
-					if (!contentUse_add(dc, content_add_hash(&cHdrPtr->expanded_chash), BMX_DSC_TLV_CONTENT_HASH, 1, chHdrVar.u.i.maxNesting, chHdrVar.u.i.expanded_type))
+					if (!contentUse_add(YES, dc, content_add_hash(&cHdrPtr->expanded_chash), 1, chHdrVar.u.i.maxNesting, chHdrVar.u.i.expanded_type, chHdrVar.u.i.gzip))
 						goto_error(finish, "F");
 
 				} else if (chHdrVar.u.i.maxNesting) {
 
-					if (contentUse_add_nested(dc, (SHA1_T*) & cHdrPtr[1], it.f_msgs_len, 1, chHdrVar.u.i.maxNesting, chHdrVar.u.i.expanded_type)!=SUCCESS)
+					if (contentUse_add_nested(dc, (SHA1_T*) & cHdrPtr[1], it.f_msgs_len, 1, chHdrVar.u.i.maxNesting, chHdrVar.u.i.expanded_type, chHdrVar.u.i.gzip)!=SUCCESS)
 						goto_error(finish, "G");
 				}
 			}
@@ -728,66 +746,93 @@ int8_t descContent_assemble(struct desc_content *dc, IDM_T init_not_finalize)
 		} else {
 
 			if (cHdrPtr) {
-				uint8_t data[chHdrVar.u.i.expanded_length];
-				uint32_t dlen = 0;
+				struct content_node *cn;
+				struct content_usage_node *cun;
 
 				if (it.f_msgs_len == 0) {
 
 					if (chHdrVar.u.i.gzip)
 						goto_error(finish, "H"); //not possible as unique-existing expanded_chash can not match compressed and uncompressed (resolved) data !!
 
-					struct content_node *cn = content_get(&cHdrPtr->expanded_chash);
-					assertion(-502258, (cn && cn->f_body));
+					cn = content_find(&cHdrPtr->expanded_chash);
+
 					if (cn->gzip || cn->nested || cn->f_body_len != chHdrVar.u.i.expanded_length)
 						goto_error(finish, "I"); //not possible as unique-existing expanded_chash can not match nested and resolved data !!
 
-					if (!contentUse_add(dc, cn, chHdrVar.u.i.expanded_type, 0, 0, chHdrVar.u.i.expanded_type))
+					if (!(cun = contentUse_add(NO, dc, cn, 0, 0, chHdrVar.u.i.expanded_type, chHdrVar.u.i.gzip)))
 						goto_error(finish, "J");
 
-				} else if (!chHdrVar.u.i.maxNesting) {
-
-					if (content_attach_data(data, &dlen, (uint8_t*) & cHdrPtr[1], it.f_msgs_len, chHdrVar.u.i.gzip, chHdrVar.u.i.expanded_length, &cHdrPtr->expanded_chash) != SUCCESS)
-						goto_error(finish, "K");
-
-					if (!contentUse_add(dc, content_add_body(data, dlen, 0, 0, YES), chHdrVar.u.i.expanded_type, 0, 0, chHdrVar.u.i.expanded_type))
-						goto_error(finish, "L");
 
 				} else {
+					uint8_t data[chHdrVar.u.i.expanded_length];
+					uint32_t dlen = 0;
 
-					if (content_attach_references(data, &dlen, (SHA1_T*) & cHdrPtr[1], it.f_msgs_len, chHdrVar.u.i.gzip, chHdrVar.u.i.expanded_length, &cHdrPtr->expanded_chash) != SUCCESS)
-						goto_error(finish, "M");
+					if (chHdrVar.u.i.maxNesting) {
 
-					if (!contentUse_add(dc, content_add_body(data, dlen, 0, 0, YES), chHdrVar.u.i.expanded_type, 0, 0, chHdrVar.u.i.expanded_type))
+						if (content_attach_references(data, &dlen, (SHA1_T*) & cHdrPtr[1], it.f_msgs_len, chHdrVar.u.i.gzip, chHdrVar.u.i.expanded_length, &cHdrPtr->expanded_chash) != SUCCESS)
+							goto_error(finish, "M");
+
+					} else {
+
+						if (content_attach_data(data, &dlen, (uint8_t*) & cHdrPtr[1], it.f_msgs_len, chHdrVar.u.i.gzip, chHdrVar.u.i.expanded_length, &cHdrPtr->expanded_chash) != SUCCESS)
+							goto_error(finish, "K");
+					}
+
+					assertion(-500000, (!dc->unresolvedContentCounter));
+
+					cn = content_add_body(data, dlen, 0, 0, YES);
+
+					if (!(cun = contentUse_add(YES, dc, cn, 0, 0, chHdrVar.u.i.expanded_type, chHdrVar.u.i.gzip)))
 						goto_error(finish, "N");
+
 				}
+
+				assertion(-502258, (cn && cn->f_body));
+				assertion(-500000, (chHdrVar.u.i.expanded_type != BMX_DSC_TLV_CONTENT_HASH));
+				assertion(-502250, (dc->contentRefs_tree.items));
+				assertion(-502252, (!dc->final[chHdrVar.u.i.expanded_type].desc_tlv_body_len));
+
+
+				dc->final[chHdrVar.u.i.expanded_type].u.cun = cun;
 
 			} else {
 				dc->final[it.f_type].desc_tlv_body_len = it.f_dlen;
 				dc->final[it.f_type].u.desc_tlv_body = it.f_data;
 			}
+
+			assertion(-502313, (!dc->unresolvedContentCounter));
 		}
 	}
 
 	if (result != TLV_RX_DATA_DONE)
 		goto_error(finish, "O");
 
-	assertion(-502313, IMPLIES(!init_not_finalize, !dc->unresolvedContentCounter));
+
 	if (!dc->unresolvedContentCounter) {
+
 		struct avl_node *an=NULL;
 		struct content_usage_node *cun;
 		while ((cun = avl_iterate_item(&dc->contentRefs_tree, &an))) {
 			assertion(-502314, cun->k.content->f_body);
 		}
+
+		if (dc->countedVirtDescSizes.f.length != dc->claimedVirtDescSizes.f.length && (extended_desc_checking >= TYP_DESC_CHECKING_SIZES))
+			goto_error(finish, "P");
+
+		if (init_not_finalize)
+			return descContent_assemble(dc, NO);
+
+		else if (dc->countedVirtDescSizes.f.contents != dc->claimedVirtDescSizes.f.contents && (extended_desc_checking >= TYP_DESC_CHECKING_SIZES))
+			goto_error(finish, "Q");
+
 	}
 
-	if (init_not_finalize && !dc->unresolvedContentCounter)
-		return descContent_assemble(dc, NO);
 
 	dbgf_all(DBGT_INFO, "done");
 	return SUCCESS;
 
 finish: {
-	dbgf_track(DBGT_WARN, "FAILURE %s", goto_error_code);
+	dbgf_track(DBGT_WARN, "FAILURE %s counted/claimedContents=%d/%d ", goto_error_code, dc->countedVirtDescSizes.f.contents, dc->claimedVirtDescSizes.f.contents);
 	return FAILURE;
 }
 }
@@ -846,6 +891,8 @@ struct desc_content* descContent_create(uint8_t *dsc, uint32_t dlen, struct key_
 	memcpy(dc->desc_frame, dsc, dlen);
 	get_desc_id(dc->desc_frame, dlen, NULL, &versMsg);
 	dc->desc_frame_len = dlen;
+	dc->claimedVirtDescSizes.u32 = ntohl(versMsg->virtDescSizes.u32);
+	dc->countedVirtDescSizes.f.contents = 0;
 
 	dc->descSqn = descSqn;
 	dc->ogmSqnMaxSend = 0;
@@ -932,7 +979,7 @@ int32_t tx_msg_content_request(struct tx_frame_iterator *it)
         struct msg_content_req *msg = (struct msg_content_req *)tx_iterator_cache_msg_ptr(it);
 	struct content_node *cn;
 
-	if (!content_tree_unresolveds || !(cn = content_get(cHash)) || cn->f_body)
+	if (!content_tree_unresolveds || !(cn = content_find(cHash)) || cn->f_body)
                 return TLV_TX_DATA_DONE;
 
 	if (hdr->msg == msg) {
@@ -958,7 +1005,7 @@ int32_t rx_msg_content_request(struct rx_frame_iterator *it)
         struct msg_content_req *msg = (struct msg_content_req*) (it->f_msg);
 	struct content_node *cn;
 
-        if (cryptShasEqual(&hdr->dest_kHash, &myKey->kHash) && (cn = content_get(&msg->chash)) && cn->f_body && cn->f_body_len <= REF_CONTENT_BODY_SIZE_MAX && cn->usage_tree.items) {
+        if (cryptShasEqual(&hdr->dest_kHash, &myKey->kHash) && (cn = content_find(&msg->chash)) && cn->f_body && cn->f_body_len <= REF_CONTENT_BODY_SIZE_MAX && cn->usage_tree.items) {
 
 		 struct content_usage_node cunKey = {.k = {.descContent = myKey->on->dc}};
 		 struct content_usage_node *cun;
@@ -981,7 +1028,7 @@ int32_t tx_frame_content_adv(struct tx_frame_iterator *it)
 {
         TRACE_FUNCTION_CALL;
 
-	struct content_node *cn = content_get((SHA1_T *)it->ttn->key.data);
+	struct content_node *cn = content_find((SHA1_T *)it->ttn->key.data);
 
 	if(cn && cn->f_body && cn->usage_tree.items) {
 
@@ -1048,14 +1095,14 @@ void init_content( void )
         memset(&handl, 0, sizeof ( handl));
 
 
-        static const struct field_format msg_content_hash_format[] = DSC_MSG_CHASH_FORMAT;
+//	static const struct field_format msg_content_hash_format[] = DSC_MSG_CHASH_FORMAT;
         handl.name = "DSC_CONTENT_HASH";
         handl.data_header_size = sizeof( struct dsc_hdr_chash);
-        handl.min_msg_size = sizeof (struct dsc_msg_chash);
+	handl.min_msg_size = XMIN(1, sizeof(struct dsc_msg_chash)); // smallest would be minimum possible gzip-compressed output
         handl.fixed_msg_size = 0;
         handl.tx_frame_handler = create_tlv_content_hash;
         handl.rx_frame_handler = process_tlv_content_hash;
-        handl.msg_format = msg_content_hash_format;
+//	handl.msg_format = msg_content_hash_format;
         register_frame_handler(description_tlv_db, BMX_DSC_TLV_CONTENT_HASH, &handl);
 
 

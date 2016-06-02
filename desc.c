@@ -56,6 +56,10 @@ int32_t vrt_frame_data_size_out = DEF_VRT_FRAME_DATA_SIZE;
 int32_t vrt_frame_data_size_in =  DEF_VRT_FRAME_DATA_SIZE;
 int32_t desc_vbodies_size_out =       DEF_DESC_VBODIES_SIZE;
 int32_t desc_vbodies_size_in =        DEF_DESC_VBODIES_SIZE;
+int32_t desc_contents_in =            DEF_DESC_CONTENTS;
+
+int32_t extended_desc_checking = DEF_DESC_CHECKING;
+
 
 int32_t vrt_frame_max_nesting = 2;
 
@@ -614,7 +618,8 @@ int32_t rx_frame_description_adv(struct rx_frame_iterator *it)
 {
         TRACE_FUNCTION_CALL;
 
-	int32_t goto_error_code;
+	char *goto_error_code = NULL;
+	int32_t goto_error_ret = TLV_RX_DATA_FAILURE;
 	GLOBAL_ID_T *nodeId = NULL;
 	struct dsc_msg_version *thisVers, *currVers, *nextVers;
 	struct desc_content *dc = NULL;
@@ -624,47 +629,59 @@ int32_t rx_frame_description_adv(struct rx_frame_iterator *it)
 
 
 	if (!(nodeId = get_desc_id(it->f_data, it->f_dlen, NULL, &thisVers)))
-		goto_error(finish, TLV_RX_DATA_FAILURE);
+		goto_error_return(finish, "Invalid nodeId", TLV_RX_DATA_FAILURE);
 
 	struct key_node *kn = keyNode_get(nodeId);
 	DESC_SQN_T descSqn = ntohl(thisVers->descSqn);
+	union content_sizes virtDescSizes = {.u32 = ntohl(thisVers->virtDescSizes.u32)};
 
 	if (!kn || (kn->bookedState->i.c < KCTracked) || !kn->content || !kn->content->f_body)
-		goto_error(finish, it->f_dlen);
+		goto_error_return(finish, "Insufficient Credits", it->f_dlen);
 
 	if (!(descSqn) ||
 		(kn->descSqnMin > descSqn) ||
 		(kn->nextDesc && kn->nextDesc->descSqn >= descSqn) ||
 		(kn->on && kn->on->dc->descSqn >= descSqn))
-		goto_error(finish, it->f_dlen);
+		goto_error_return(finish, "Outdated DescSqn", it->f_dlen);
 
 	if ((dc = avl_find_item(&descContent_tree, &dHash)))
-		goto_error(finish, it->f_dlen);
+		goto_error_return(finish, "Already known dc", it->f_dlen);
 
 	if (!test_description_signature(it->f_data, it->f_dlen))
-		goto_error(finish, TLV_RX_DATA_FAILURE);
+		goto_error_return(finish, "Invalid signature", TLV_RX_DATA_FAILURE);
 
-	if ((kn->on && (!get_desc_id(kn->on->dc->desc_frame, kn->on->dc->desc_frame_len, NULL, &currVers) || currVers->bootSqn != thisVers->bootSqn)) ||
-		(kn->nextDesc && (!get_desc_id(kn->nextDesc->desc_frame, kn->nextDesc->desc_frame_len, NULL, &nextVers) || nextVers->bootSqn != thisVers->bootSqn))) {
+	if (
+		(kn->on && (
+			!get_desc_id(kn->on->dc->desc_frame, kn->on->dc->desc_frame_len, NULL, &currVers) ||
+			currVers->bootSqn != thisVers->bootSqn)) ||
+		(kn->nextDesc && (
+			!get_desc_id(kn->nextDesc->desc_frame, kn->nextDesc->desc_frame_len, NULL, &nextVers) ||
+			nextVers->bootSqn != thisVers->bootSqn))) {
 
 		keyNode_schedLowerWeight(kn, KCListed);
 
-		goto_error(finish, it->f_dlen);
+		goto_error_return(finish, "Rebooted", it->f_dlen);
 	}
 
-	dc = descContent_create(it->f_data, it->f_dlen, kn);
+	if ((virtDescSizes.f.length > desc_vbodies_size_in || virtDescSizes.f.contents > desc_contents_in) && (extended_desc_checking >= TYP_DESC_CHECKING_SIZES)) {
+		update_ogm_mins(kn, descSqn + 1, 0, NULL);
+		goto_error_return(finish, "Intolerable desc sizes", it->f_dlen);
+	}
 
-        goto_error(finish, it->f_dlen);
+	if (!(dc = descContent_create(it->f_data, it->f_dlen, kn)))
+		goto_error_return(finish, "Failed desc content creation", it->f_dlen);
+
+        goto_error_return(finish, "Success", it->f_dlen);
 
 finish:
 	if (dc)
 		dc->referred_by_others_timestamp = bmx_time;
 
-	dbgf_track(DBGT_INFO, "Finished rcvd dhash=%s nodeId=%s via_dev=%s via_ip=%s dc=%d",
-		memAsHexString(&dHash, sizeof(dHash)), cryptShaAsString(nodeId),
+	dbgf_track(DBGT_INFO, "Finished=%s rcvd dhash=%s nodeId=%s via_dev=%s via_ip=%s dc=%d",
+		goto_error_code, memAsHexString(&dHash, sizeof(dHash)), cryptShaAsString(nodeId),
 		it->pb->i.iif->ifname_label.str, it->pb->i.llip_str, !!dc);
 
-	return goto_error_code;
+	return goto_error_ret;
 }
 
 STATIC_FUNC
@@ -819,6 +836,8 @@ struct opt_type desc_options[]=
 			ARG_VALUE_FORM, HLP_DESC_VBODIES_SIZE_OUT},
 	{ODI,0,ARG_DESC_VBODIES_SIZE_IN,   0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &desc_vbodies_size_in,MIN_DESC_VBODIES_SIZE,MAX_DESC_VBODIES_SIZE,DEF_DESC_VBODIES_SIZE,0,    opt_update_dext_method,
 			ARG_VALUE_FORM, HLP_DESC_VBODIES_SIZE_IN},
+	{ODI,0,ARG_DESC_CHECKING,          0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &extended_desc_checking,MIN_DESC_CHECKING,MAX_DESC_CHECKING,DEF_DESC_CHECKING,          0,    NULL,
+			ARG_VALUE_FORM, HLP_DESC_CHECKING},
 	{ODI,0,ARG_UNSOLICITED_DESC_ADVS,  0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &unsolicitedDescAdvs,MIN_UNSOLICITED_DESC_ADVS,MAX_UNSOLICITED_DESC_ADVS,DEF_UNSOLICITED_DESC_ADVS,0,0,
 			ARG_VALUE_FORM, NULL},
         {ODI,0,ARG_REF_MAINTAIN_INTERVAL,    0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &maintainanceInterval,MIN_REF_MAINTAIN_INTERVAL, MAX_REF_MAINTAIN_INTERVAL,DEF_REF_MAINTAIN_INTERVAL,0,    NULL,

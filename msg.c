@@ -494,15 +494,15 @@ rx_frame_iterate_error:{
 
 		dbgf_mute(50, result == TLV_RX_DATA_FAILURE ? DBGL_SYS : DBGL_CHANGES,
 			result == TLV_RX_DATA_FAILURE ? DBGT_ERR : DBGT_INFO,
-			"%s - db_name=%s problem=\"%s\" result=%s dhn=%d frame_type=%d=%s (prev)expanded=%d=%s %s=%d "
-			"frames_length=%d f_pos_next=%d f_dlen=%d f_mlen=%d "
+			"%s - db_name=%s problem=\"%s\" result=%s dhn=%d f_type=%d=%s (prev)expanded=%d=%s %s=%d "
+			"frames_length=%d f_pos_next=%d f_dlen=%d f_mlen=%d f_mms=%d"
 			"exp_type=%d exp_len=%d gzip=%d maxNesting=%d expHash=%s "
 			"f_data=%s",
 			it->caller, it->db->name, goto_error_code, tlv_rx_result_str(result),
-			!!it->dcOp, it->f_type, (it->f_handl ? it->f_handl->name : NULL), 
+			!!it->dcOp, it->f_type, (it->f_handl ? it->f_handl->name : NULL),
 			it->f_type_expanded, (it->f_type_expanded <= it->db->handl_max ? it->db->handls[it->f_type_expanded].name : NULL),
 			ARG_VRT_FRAME_DATA_SIZE_IN, vrt_frame_data_size_in,
-			it->frames_length, it->_f_pos_next, it->f_dlen, it->f_msgs_len,
+			it->frames_length, it->_f_pos_next, it->f_dlen, it->f_msgs_len, (it->f_handl ? (int) it->f_handl->min_msg_size : -1),
 			chHdr.u.i.expanded_type, chHdr.u.i.expanded_length, chHdr.u.i.gzip, chHdr.u.i.maxNesting, cryptShaAsShortStr(&chHdr.expanded_chash),
 			(it->f_data && it->f_dlen) ? memAsHexString(it->f_data, it->f_dlen) : NULL);
 
@@ -692,10 +692,12 @@ void tx_frame_iterate_finish_(struct tx_frame_iterator *it)
 	ASSERTION(-501003, (is_zero((it->frame_cache_array + it->frame_cache_msgs_size + handl->data_header_size), tx_iterator_cache_data_space_max(it, 0, 0))));
 	assertion(-501019, (fdata_len)); // there must be some data to send!!
 
+	int32_t cct;
 
-	if (it->db == description_tlv_db && (gzip || level)) {
+	if (it->db == description_tlv_db && (gzip || level) &&
+		(cct = create_chash_tlv(tlv, it->frame_cache_array, fdata_len, it->frame_type, gzip, level, &it->virtDescSizes))) {
 
-		it->frames_out_pos += create_chash_tlv(tlv, it->frame_cache_array, fdata_len, it->frame_type, gzip, level);
+		it->frames_out_pos += cct;
 
 	} else {
 

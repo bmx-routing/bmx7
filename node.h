@@ -334,10 +334,27 @@ struct neigh_node {
 	uint8_t ogm_aggreg_sqns[(AGGREG_SQN_CACHE_RANGE / 8)];
 };
 
+union content_sizes {
+
+	struct {
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+		unsigned int contents : 11;
+		unsigned int length : 21;
+#elif __BYTE_ORDER == __BIG_ENDIAN
+		unsigned int length : 21;
+		unsigned int contents : 11;
+#else
+#error "Please fix <bits/endian.h>"
+#endif
+	} __attribute__((packed)) f;
+	uint32_t u32;
+};
+
 struct content_usage_node {
 
 	struct {
-		uint32_t expanded_type;
+		uint8_t expanded_type;
+		uint8_t expanded_gzip;
 		struct content_node *content;
 		struct desc_content *descContent;
 	} __attribute__((packed)) k;

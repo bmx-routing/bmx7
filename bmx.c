@@ -871,8 +871,10 @@ struct orig_status {
 	DESC_SQN_T descSqnMin;
 	DESC_SQN_T descSqnNext;
 	uint32_t lastDesc;
-	char descSize[20];
-	char contents[12]; //contentRefs
+	char descSize[2*20];
+	char contents[2*12]; //contentRefs
+	uint32_t unresolveds;
+	uint32_t uniques;
 	char *linkKey;
 	IPX_T primaryIp;
 	char *dev;
@@ -893,8 +895,8 @@ static const struct field_format orig_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_SHORT_ID,  orig_status, shortId,       1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, orig_status, nodeId,        1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      orig_status, name,          1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      orig_status, assessedState, 1, FIELD_RELEVANCE_LOW),
-        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      orig_status, as,            1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      orig_status, assessedState, 1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      orig_status, as,            1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, pref,          1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, brcTo,         1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, signTo,        1, FIELD_RELEVANCE_MEDI),
@@ -917,7 +919,9 @@ static const struct field_format orig_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, descSqnNext,   1, FIELD_RELEVANCE_LOW),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, lastDesc,      1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       orig_status, descSize,      1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       orig_status, contents,      1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       orig_status, contents,      1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, unresolveds,   1, FIELD_RELEVANCE_LOW),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, uniques,       1, FIELD_RELEVANCE_LOW),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      orig_status, linkKey,       1, FIELD_RELEVANCE_LOW),
         FIELD_FORMAT_INIT(FIELD_TYPE_IPX,               orig_status, primaryIp,     1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      orig_status, dev,           1, FIELD_RELEVANCE_HIGH),
@@ -976,20 +980,24 @@ uint8_t *key_status_page(uint8_t *sOut, uint32_t i, struct orig_node *on, struct
 	}
 
 	if (dc) {
-		struct description_msg_info *dmi;
+		struct description_msg_info *dmi = contents_data(dc, BMX_DSC_TLV_INFO);
 		os->s[0] = (s = setted_pubkey(dc, BMX_DSC_TLV_SUPPORTS, &myKey->kHash, 0)) == -1 ? 'A' : (s + '0');
 		os->t[0] = (t = setted_pubkey(dc, BMX_DSC_TLV_TRUSTS, &myKey->kHash, 0)) == -1 ? 'A' : (t + '0');
-		snprintf(os->revision, sizeof (os->revision), "%x", (dmi = contents_data(dc, BMX_DSC_TLV_INFO)) ? ntohl(dmi->codeRevision) : 0);
+		snprintf(os->revision, sizeof (os->revision), "%x", dmi ? ntohl(dmi->codeRevision) : 0);
 		os->descSqn = dc->descSqn;
-		snprintf(os->descSize, (sizeof(os->descSize)-1), "%d+%d", dc->desc_frame_len, dc->ref_content_len);
-		snprintf(os->contents, (sizeof(os->contents)-1), "%d/%d", (dc->contentRefs_tree.items - dc->unresolvedContentCounter), dc->contentRefs_tree.items);
+		snprintf(os->descSize, (sizeof(os->descSize) - 1), "%d+%d", dc->desc_frame_len, dc->countedVirtDescSizes.f.length);
+		snprintf(os->contents, (sizeof(os->contents) - 1), "%d-%d", dc->claimedVirtDescSizes.f.contents, dc->claimedVirtDescSizes.f.contents - dc->countedVirtDescSizes.f.contents);
+		os->unresolveds = dc->unresolvedContentCounter;
+		os->uniques = dc->contentRefs_tree.items;
 		os->dHash = &dc->dHash;
 		os->shortDHash = &dc->dHash;
 		os->lastRef = (bmx_time - dc->referred_by_others_timestamp) / 1000;
 	} else {
 		os->s[0] = '-';
 		os->t[0] = '-';
-		snprintf(os->contents, (sizeof(os->contents)-1), "---");
+		snprintf(os->contents, (sizeof(os->contents)-1), DBG_NIL);
+		snprintf(os->revision, (sizeof(os->revision)-1), DBG_NIL);
+		snprintf(os->descSize, (sizeof(os->descSize)-1), DBG_NIL);
 	}
 
 	if (on) {
@@ -1016,6 +1024,8 @@ uint8_t *key_status_page(uint8_t *sOut, uint32_t i, struct orig_node *on, struct
 		os->myIid = iid_get_myIID4x_by_node(on);
 		struct NeighRef_node *nref = on->neighPath.link ? avl_find_item(&kn->neighRefs_tree, &on->neighPath.link->k.linkDev->key.local) : NULL;
 		os->nbIid = nref ? iid_get_neighIID4x_by_node(nref) : 0;
+	} else {
+		snprintf(os->ogmHist, (sizeof(os->ogmHist)-1), DBG_NIL);
 	}
 
 	snprintf(os->nbs, (sizeof(os->nbs)-1), "%d", (kn ? kn->neighRefs_tree.items : 0));
@@ -1146,9 +1156,9 @@ uint8_t *ref_status_page(uint8_t *sOut, uint32_t i, struct NeighRef_node *ref, u
 		rs->shortDHash = &dc->dHash;
 		rs->descSqn = dc->descSqn;
 
-		snprintf(rs->contents, sizeof(rs->contents), "%d/%d", (dc->contentRefs_tree.items - dc->unresolvedContentCounter), dc->contentRefs_tree.items);
+		snprintf(rs->contents, sizeof(rs->contents), "%d/%d", (dc->countedVirtDescSizes.f.contents - dc->unresolvedContentCounter), dc->countedVirtDescSizes.f.contents);
 		rs->rootLen = dc->desc_frame_len;
-		rs->virtLen = dc->ref_content_len;
+		rs->virtLen = dc->countedVirtDescSizes.f.length;
 		rs->unresolveds = dc->unresolvedContentCounter;
 	}
 

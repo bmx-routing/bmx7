@@ -355,6 +355,7 @@ struct rx_frame_iterator {
 	// allocated by handl[].rx_tlv_handler and freed by calling function of rx_frame_iterate() (e.g. process_description_tlvs())
 };
 
+
 /*
  * this iterator is given a fr_type and a set of handlers,
  * then the handlers are supposed to figure out what needs to be done.
@@ -382,6 +383,8 @@ struct tx_frame_iterator {
 	struct frame_handl *handl;
 	int32_t frames_out_pos;
 	int32_t frame_cache_msgs_size;
+
+	union content_sizes virtDescSizes;
 
 
 	//#define tx_iterator_cache_data_space( it ) (((it)->frames_out_max) - ((it)->frames_out_pos + (it)->cache_msg_pos + ((int)(sizeof (struct frame_header_long)))))

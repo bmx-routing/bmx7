@@ -830,9 +830,7 @@ int create_dsc_tlv_signature(struct tx_frame_iterator *it)
 		assertion(-500000, ((uint8_t*)dmv == data + sizeof(struct tlv_hdr)));
 		assertion(-500000, (signMsg == dms));
 
-		dmv->u.f.descSize = it->frames_out_pos;
-		dmv->u.f.descContents = 0;
-		dmv->u.u32 = htonl(dmv->u.u32);
+		dmv->virtDescSizes.u32 = htonl(it->virtDescSizes.u32);
 
 		CRYPTSHA1_T dataSha;
 		cryptShaAtomic(data, dataLen, &dataSha);
@@ -892,7 +890,7 @@ struct content_node *test_description_signature(uint8_t *desc, uint32_t desc_len
 		goto_error( finish, "Unsupported signature length");
 	}
 
-	if (!(pkeyRef = content_get(nodeId))) {
+	if (!(pkeyRef = content_find(nodeId))) {
 		goto_error(finish, "Unresolved signature content");
 	}
 

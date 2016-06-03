@@ -494,12 +494,13 @@ rx_frame_iterate_error:{
 
 		dbgf_mute(50, result == TLV_RX_DATA_FAILURE ? DBGL_SYS : DBGL_CHANGES,
 			result == TLV_RX_DATA_FAILURE ? DBGT_ERR : DBGT_INFO,
-			"%s - db_name=%s problem=\"%s\" result=%s dhn=%d frame_type=%d=%s prev_expanded=%d %s=%d "
+			"%s - db_name=%s problem=\"%s\" result=%s dhn=%d frame_type=%d=%s (prev)expanded=%d=%s %s=%d "
 			"frames_length=%d f_pos_next=%d f_dlen=%d f_mlen=%d "
 			"exp_type=%d exp_len=%d gzip=%d maxNesting=%d expHash=%s "
 			"f_data=%s",
 			it->caller, it->db->name, goto_error_code, tlv_rx_result_str(result),
-			!!it->dcOp, it->f_type, (it->f_handl ? it->f_handl->name : NULL), it->f_type_expanded,
+			!!it->dcOp, it->f_type, (it->f_handl ? it->f_handl->name : NULL), 
+			it->f_type_expanded, (it->f_type_expanded <= it->db->handl_max ? it->db->handls[it->f_type_expanded].name : NULL),
 			ARG_VRT_FRAME_DATA_SIZE_IN, vrt_frame_data_size_in,
 			it->frames_length, it->_f_pos_next, it->f_dlen, it->f_msgs_len,
 			chHdr.u.i.expanded_type, chHdr.u.i.expanded_length, chHdr.u.i.gzip, chHdr.u.i.maxNesting, cryptShaAsShortStr(&chHdr.expanded_chash),

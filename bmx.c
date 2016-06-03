@@ -319,49 +319,59 @@ static const int32_t field_standard_sizes[FIELD_TYPE_END] = FIELD_STANDARD_SIZES
 
 int64_t field_get_value(const struct field_format *format, uint32_t min_msg_size, uint8_t *data, uint32_t pos_bit, uint32_t bits)
 {
-        uint8_t host_order = format->field_host_order;
+	uint8_t host_order = format->field_host_order;
 
-        assertion(-501221, (format->field_type == FIELD_TYPE_UINT || format->field_type == FIELD_TYPE_HEX || format->field_type == FIELD_TYPE_STRING_SIZE));
-        assertion(-501222, (bits <= 32));
+	assertion(-501221, (format->field_type == FIELD_TYPE_UINT || format->field_type == FIELD_TYPE_HEX || format->field_type == FIELD_TYPE_STRING_SIZE));
+	assertion(-501222, (bits <= 32));
 
-        if ((bits % 8) == 0) {
+	uint8_t bit = 0;
+	uint32_t result = 0;
 
-                assertion(-501223, (bits == 8 || bits == 16 || bits == 32));
-                assertion(-501168, ((pos_bit % 8) == 0));
+	for (bit = 0; bit < bits; bit++) {
+		uint8_t val = bit_get(data, pos_bit + bits, (pos_bit + bit));
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+		if (host_order)
+			bit_set((uint8_t*) & result, 32, bit + ((bit >= ((bits / 8)*8)) ? (8 - (bits % 8)) : 0), val);
+		else
+			bit_set((uint8_t*) & result, 32, (32 - bits) + bit, val);
+#elif __BYTE_ORDER == __BIG_ENDIAN
+		bit_set((uint8_t*) & result, 32, (32 - bits) + bit, val);
+#else
+#error "Please fix <bits/endian.h>"
+#endif
+	}
+
+	result = host_order ? result : ntohl(result);
+
+        if (bits == 8 || bits == 16 || bits == 32) {
+
+		uint32_t check;
+
+		assertion(-501168, ((pos_bit % 8) == 0));
 
                 if (bits == 8) {
 
-                        return data[pos_bit / 8];
+                        check = data[pos_bit / 8];
 
                 } else if (bits == 16) {
 
 			if (host_order)
-                                return *((uint16_t*) & data[pos_bit / 8]);
+                                check = *((uint16_t*) & data[pos_bit / 8]);
                         else
-                                return ntohs(*((uint16_t*) & data[pos_bit / 8]));
+                                check = ntohs(*((uint16_t*) & data[pos_bit / 8]));
 
-                } else if (bits == 32) {
+                } else {
 
 			if (host_order)
-                                return *((uint32_t*) & data[pos_bit / 8]);
+                                check = *((uint32_t*) & data[pos_bit / 8]);
                         else
-                                return ntohl(*((uint32_t*) & data[pos_bit / 8]));
-                }
+                                check = ntohl(*((uint32_t*) & data[pos_bit / 8]));
+		}
 
-        } else if (bits <= 16) {
+		assertion(-500000, (check == result));
+	}
 
-                uint8_t bit = 0;
-                uint16_t result = 0;
-
-                for (bit = 0; bit < bits; bit++) {
-                        uint8_t val = bit_get(data, (8 * min_msg_size), (pos_bit + bit));
-                        bit_set((uint8_t*)&result, 16, (16-bits)+bit, val);
-                }
-
-		return ntohs(result);
-        }
-
-        return FAILURE;
+	return result;
 }
 
 char *field_dbg_value(const struct field_format *format, uint32_t min_msg_size, uint8_t *data, uint32_t pos_bit, uint32_t bits)
@@ -544,7 +554,7 @@ uint32_t field_iterate(struct field_iterator *it)
                 //printf("msg_name=%s field_name=%s\n", handl->name, format->msg_field_name);
 
 		assertion(-501172, IMPLIES(field_type == FIELD_TYPE_STRING_SIZE, !it->var_bits));
-		assertion(-501203, IMPLIES(field_type == FIELD_TYPE_UINT, (field_bits <= 16 || field_bits == 32)));
+		assertion(-501203, IMPLIES(field_type == FIELD_TYPE_UINT, (field_bits <= 32)));
 		assertion(-501204, IMPLIES(field_type == FIELD_TYPE_HEX, (field_bits <= 16 || field_bits == 32)));
 		assertion(-501205, IMPLIES(field_type == FIELD_TYPE_STRING_SIZE, (field_bits <= 16 || field_bits == 32)));
 

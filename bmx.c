@@ -384,7 +384,7 @@ char *field_dbg_value(const struct field_format *format, uint32_t min_msg_size, 
         void *p = (void*) (data + (pos_bit / 8));
         void **pp = (void**) (data + (pos_bit / 8)); // There is problem with pointer to pointerpointer casting!!!!
 
-        uint8_t bytes = bits / 8;
+        uint32_t bytes = bits / 8;
 
 	if (field_type == FIELD_TYPE_UINT || field_type == FIELD_TYPE_HEX || field_type == FIELD_TYPE_STRING_SIZE || (field_type == FIELD_TYPE_INT && bits != 8 && bits != 16 && bits != 32)) {
 

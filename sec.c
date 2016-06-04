@@ -606,9 +606,6 @@ int32_t create_dsc_tlv_version(struct tx_frame_iterator *it)
 
         dsc->capabilities = htons(my_desc_capabilities);
 
-        uint32_t rev_u32;
-        sscanf(GIT_REV, "%8X", &rev_u32);
-
         dsc->comp_version = my_compatibility;
         dsc->descSqn = htonl(descSqn);
 	dsc->bootSqn = (myKey->on) ? ((struct dsc_msg_version*) (contents_data(myKey->on->dc, BMX_DSC_TLV_VERSION)))->bootSqn : dsc->descSqn;

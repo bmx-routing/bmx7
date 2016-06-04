@@ -83,7 +83,7 @@ extern char my_Hostname[];
 #ifndef GIT_REV
 #define GIT_REV "0"             // to be incremented after each critical code change
 #endif
-extern uint32_t rev_u32;
+extern uint32_t bmx_git_rev_u32;
 
 
 /*

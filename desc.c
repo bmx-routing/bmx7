@@ -441,11 +441,9 @@ int32_t create_dsc_tlv_info(struct tx_frame_iterator *it)
 
 	struct description_msg_info *msg = (struct description_msg_info*)tx_iterator_cache_msg_ptr(it);
 
-        uint32_t rev_u32;
-        sscanf(GIT_REV, "%8X", &rev_u32);
 	msg->type = 0;
 	msg->infoOffset = sizeof(struct description_msg_info);
-        msg->codeRevision = htonl(rev_u32);
+        msg->codeRevision = htonl(bmx_git_rev_u32);
 
 	uint32_t infoLen = 0;
 

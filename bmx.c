@@ -54,6 +54,7 @@
 
 #define CODE_CATEGORY_NAME "general"
 
+uint32_t bmx_git_rev_u32;
 
 int32_t my_compatibility = DEF_COMPATIBILITY;
 
@@ -216,8 +217,8 @@ static void segmentation_fault(int32_t sig)
                 debug_function_calls();
 #endif
 
-                dbg(DBGL_SYS, DBGT_ERR, "Terminating with error code %d (%s-%s-rev%s)! Please notify a developer",
-                        sig, BMX_BRANCH, BRANCH_VERSION, GIT_REV);
+                dbg(DBGL_SYS, DBGT_ERR, "Terminating with error code %d (%s-%s-rev%.7x)! Please notify a developer",
+                        sig, BMX_BRANCH, BRANCH_VERSION, bmx_git_rev_u32);
 
                 if (initializing) {
                         dbg_sys(DBGT_ERR,
@@ -825,7 +826,7 @@ static int32_t bmx_status_creator(struct status_handl *handl, void *data)
 	status->linkKey = (pkm = contents_data(myKey->on->dc, BMX_DSC_TLV_LINK_PUBKEY)) ? cryptKeyTypeAsString(pkm->type) : DBG_NIL;
 	snprintf(status->version, sizeof(status->version), "%s-%s", BMX_BRANCH, BRANCH_VERSION);
 	status->compat = my_compatibility;
-	snprintf(status->revision, 8, "%s", GIT_REV);
+	snprintf(status->revision, 8, "%.7x", bmx_git_rev_u32);
 	status->primaryIp = my_primary_ip;
 	status->tun4Address = tin ? &tin->tunAddr46[1] : NULL;
 	status->tun6Address = tin ? &tin->tunAddr46[0] : NULL;
@@ -863,7 +864,7 @@ struct orig_status {
 	char T[2]; // trusted by me;
 	char t[2]; // me trusted by him
 	char *nodeKey;
-	char revision[10];
+	char revision[9];
 	CRYPTSHA1_T *shortDHash;
 	CRYPTSHA1_T *dHash;
 	IID_T myIid;
@@ -983,7 +984,11 @@ uint8_t *key_status_page(uint8_t *sOut, uint32_t i, struct orig_node *on, struct
 		struct description_msg_info *dmi = contents_data(dc, BMX_DSC_TLV_INFO);
 		os->s[0] = (s = setted_pubkey(dc, BMX_DSC_TLV_SUPPORTS, &myKey->kHash, 0)) == -1 ? 'A' : (s + '0');
 		os->t[0] = (t = setted_pubkey(dc, BMX_DSC_TLV_TRUSTS, &myKey->kHash, 0)) == -1 ? 'A' : (t + '0');
-		snprintf(os->revision, sizeof (os->revision), "%x", dmi ? ntohl(dmi->codeRevision) : 0);
+		if (dmi)
+			snprintf(os->revision, (sizeof(os->revision)-1), "%.7x", ntohl(dmi->codeRevision));
+		else
+			snprintf(os->revision, (sizeof(os->revision)-1), DBG_NIL);
+
 		os->descSqn = dc->descSqn;
 		snprintf(os->descSize, (sizeof(os->descSize) - 1), "%d+%d", dc->desc_frame_len, dc->countedVirtDescSizes.f.length);
 		snprintf(os->contents, (sizeof(os->contents) - 1), "%d-%d", dc->claimedVirtDescSizes.f.contents, dc->claimedVirtDescSizes.f.contents - dc->countedVirtDescSizes.f.contents);
@@ -1268,8 +1273,8 @@ int32_t opt_version(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt
 
         assertion(-501257, !strcmp(opt->name, ARG_VERSION));
 
-        dbg_printf(cn, "version=%s-%s compatibility=%d revision=%s id=%s descSqn=%d ip=%s hostname=%s\n",
-                        BMX_BRANCH, BRANCH_VERSION, my_compatibility, GIT_REV, cryptShaAsString(&myKey->kHash), myKey->on ? (int)myKey->on->dc->descSqn : -1, ip6AsStr(&my_primary_ip), my_Hostname);
+        dbg_printf(cn, "version=%s-%s compatibility=%d revision=%.7x id=%s descSqn=%d ip=%s hostname=%s\n",
+                        BMX_BRANCH, BRANCH_VERSION, my_compatibility, bmx_git_rev_u32, cryptShaAsString(&myKey->kHash), myKey->on ? (int)myKey->on->dc->descSqn : -1, ip6AsStr(&my_primary_ip), my_Hostname);
 
         if (initializing)
                 cleanup_all(CLEANUP_SUCCESS);
@@ -1624,6 +1629,9 @@ int main(int argc, char *argv[])
 #ifdef CORE_LIMIT
 #include <sys/time.h>
 #include <sys/resource.h>
+
+        sscanf(GIT_REV, "%7X", &bmx_git_rev_u32);
+
 
 	struct rlimit rlim = {.rlim_cur = (CORE_LIMIT * 1024), .rlim_max = (CORE_LIMIT * 1024) };
 

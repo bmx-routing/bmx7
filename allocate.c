@@ -195,7 +195,7 @@ void checkLeak(void)
 
 }
 
-void *_debugMalloc(uint32_t length, int32_t tag, uint8_t reset)
+void *_debugMalloc(size_t length, int32_t tag, uint8_t reset)
 {
 
 	unsigned char *memory;
@@ -245,7 +245,7 @@ void *_debugMalloc(uint32_t length, int32_t tag, uint8_t reset)
 	return chunk;
 }
 
-void *_debugRealloc(void *memoryParameter, uint32_t length, int32_t tag)
+void *_debugRealloc(void *memoryParameter, size_t length, int32_t tag)
 {
 
         unsigned char *result = _debugMalloc(length, tag, 0);
@@ -345,6 +345,17 @@ void _debugFree(void *memoryParameter, int tag)
 
 }
 
+void _debugFreeReset(void **mem, size_t resetSize, int tag)
+{
+	if (mem) {
+		if (resetSize)
+			memset(*mem, 0, resetSize);
+
+		debugFree( *mem, tag );
+
+		*mem = NULL;
+	}
+}
 
 #else
 
@@ -367,5 +378,17 @@ void _free( void *mem ) {
 		free( mem );
 }
 
+void _freeReset( void **mem, size_t resetSize ) {
+
+	if (mem) {
+		if (resetSize)
+			memset(*mem, 0, resetSize);
+
+		if (!terminating)
+			free( *mem );
+
+		*mem = NULL;
+	}
+}
 
 #endif

@@ -35,10 +35,12 @@ extern uint32_t debugMalloc_objects;
 #define debugRealloc( mem,length,tag ) _debugRealloc( (mem), (length), (tag) )
 
 #define debugFree( mem,tag ) _debugFree( (mem), (tag) )
+#define debugFreeReset( mempp, resetSize, tag ) _debugFreeReset( ((void**)(mempp)), (resetSize), (tag) )
 
-void *_debugMalloc(uint32_t length, int32_t tag, uint8_t reset);
-void *_debugRealloc(void *memory, uint32_t length, int32_t tag);
+void *_debugMalloc(size_t length, int32_t tag, uint8_t reset);
+void *_debugRealloc(void *memory, size_t length, int32_t tag);
 void _debugFree(void *memoryParameter, int32_t tag);
+void _debugFreeReset(void **memoryParameter, size_t resetSize, int32_t tag);
 
 void checkIntegrity(void);
 void checkLeak(void);
@@ -50,6 +52,7 @@ void debugMemory( struct ctrl_node *cn );
 #define debugMallocReset( length,tag )  _calloc( (length) )
 #define debugRealloc( mem,length,tag ) _realloc( (mem), (length) )
 #define debugFree( mem,tag ) _free( (mem) )
+#define debugFreeReset( mempp, resetSize, tag ) _freeReset( ((void**)(mempp)), (resetSize) )
 
 #define checkIntegrity()
 #define checkLeak()
@@ -58,7 +61,8 @@ void debugMemory( struct ctrl_node *cn );
 void * _malloc( size_t length );
 void * _calloc( size_t length );
 void * _realloc( void *mem, size_t length );
-void _free( void *mem );
+void _free(void *mem);
+void _freeReset(void **mem, size_t resetLength);
 
 #endif
 

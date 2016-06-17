@@ -1063,7 +1063,7 @@ int32_t rx_frame_content_adv(struct rx_frame_iterator *it)
 	dbgf_track(DBGT_INFO, "unresolveds=%d msgs_len=%d gzip=%d maxNesting=%d",
 		content_tree_unresolveds, it->f_msgs_len, adv->gzip, adv->maxNesting);
 
-	if (it->f_msgs_len > (int)REF_CONTENT_BODY_SIZE_MAX)
+	if (!it->f_msgs_len || it->f_msgs_len > (int)REF_CONTENT_BODY_SIZE_MAX)
 		return TLV_RX_DATA_FAILURE;
 
 	if (adv->maxNesting && (it->f_msgs_len % sizeof(struct frame_msg_content_adv)))

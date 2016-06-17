@@ -397,11 +397,12 @@ int32_t opt_show_descriptions(uint8_t cmd, uint8_t _save, struct opt_type *opt,
 					it.f_handl && it.f_handl->msg_format ? "" : " UNKNOWN_FORMAT"
 					);
 
-				if (it.f_handl && it.f_handl->msg_format)
-					fields_dbg_lines(cn, relevance, it.f_msgs_len, it.f_msg, it.f_handl->min_msg_size, it.f_handl->msg_format);
-				else
-					dbg_printf(cn, "\n    hex=%s", memAsHexStringSep(it.f_msg, it.f_msgs_len, it.f_handl->min_msg_size, " "));
-
+				if (it.f_msg) {
+					if (it.f_handl && it.f_handl->msg_format)
+						fields_dbg_lines(cn, relevance, it.f_msgs_len, it.f_msg, it.f_handl->min_msg_size, it.f_handl->msg_format);
+					else
+						dbg_printf(cn, "\n    hex=%s", memAsHexStringSep(it.f_msg, it.f_msgs_len, it.f_handl->min_msg_size, " "));
+				}
                         }
 
 		}
@@ -468,7 +469,7 @@ int32_t process_dsc_tlv_info(struct rx_frame_iterator *it)
 
 	struct description_msg_info *msg = (struct description_msg_info *) it->f_msg;
 
-	if (msg->type != 0 || msg->infoOffset < sizeof(struct description_msg_info))
+	if (!msg || msg->type != 0 || msg->infoOffset < sizeof(struct description_msg_info))
 		return TLV_RX_DATA_PROCESSED;
 
 	if (it->f_dlen < (msg->infoOffset + msg->nameLen + msg->mailLen) || msg->nameLen >= MAX_HOSTNAME_LEN || msg->mailLen >= MAX_MAILNAME_LEN)
@@ -724,7 +725,7 @@ int32_t rx_frame_iid_request(struct rx_frame_iterator *it)
 	struct hdr_iid_request *hdr = (struct hdr_iid_request*) (it->f_data);
 	struct msg_iid_request *msg = (struct msg_iid_request*) (it->f_msg);
 
-	if (cryptShasEqual(&hdr->dest_nodeId, &myKey->kHash)) {
+	if (msg && cryptShasEqual(&hdr->dest_nodeId, &myKey->kHash)) {
 
 		for (; msg < &(hdr->msg[it->f_msgs_fixed]); msg++) {
 

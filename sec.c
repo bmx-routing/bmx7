@@ -461,6 +461,9 @@ int process_packet_signature(struct rx_frame_iterator *it)
 	char *goto_error_code = NULL;
 	int goto_error_ret = TLV_RX_DATA_PROCESSED;
 
+	if (!msg)
+		return TLV_RX_DATA_PROCESSED;
+
 	prof_start( process_packet_signature, rx_packet);
 
 	if (msg->type ? (!cryptKeyTypeAsString(msg->type) || cryptKeyLenByType(msg->type) != sign_len) : (sign_len != 0))

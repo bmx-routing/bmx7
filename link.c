@@ -734,6 +734,7 @@ struct link_status {
 	char* name;
 	char* nodeKey;
 	char* linkKey;
+	char supportedKeys[30];
 	IPX_T nbLocalIp;
 	char nbMac[40];
 	uint16_t nbIdx;
@@ -795,6 +796,7 @@ static const struct field_format link_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      link_status, name,             1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      link_status, nodeKey,          1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      link_status, linkKey,          1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       link_status, supportedKeys,    1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_IPX,               link_status, nbLocalIp,        1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       link_status, nbMac,            1, FIELD_RELEVANCE_LOW),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, nbIdx,            1, FIELD_RELEVANCE_MEDI),
@@ -868,13 +870,16 @@ static int32_t link_status_creator(struct status_handl *handl, void *data)
 
 			LinkNode *link = NULL;
 			while ((link = avl_next_item(&linkDev->link_tree, (link ? &link->k : NULL)))) {
-				struct dsc_msg_pubkey *pkm;
 
 				status[i].nodeId = &on->k.nodeId;
 				status[i].shortId = &on->k.nodeId;
 				status[i].name = strlen(on->k.hostname) ? on->k.hostname : DBG_NIL;
-				status[i].nodeKey = cryptKeyTypeAsString(((struct dsc_msg_pubkey*) on->kn->content->f_body)->type);
-				status[i].linkKey = (pkm = contents_data(on->dc, BMX_DSC_TLV_LINK_PUBKEY)) ? cryptKeyTypeAsString(pkm->type) : DBG_NIL;
+				status[i].nodeKey = cryptRsaKeyTypeAsString(((struct dsc_msg_pubkey*) on->kn->content->f_body)->type);
+				status[i].linkKey = cryptRsaKeyTypeAsString(link->lastLinkKeyType) ? cryptRsaKeyTypeAsString(link->lastLinkKeyType) : cryptDhmKeyTypeAsString(link->lastLinkKeyType);
+				struct dsc_msg_pubkey *rsaMsg = contents_data(on->dc, BMX_DSC_TLV_RSA_LINK_PUBKEY);
+				struct dsc_msg_dhm_link_key *dhmMsg = contents_data(on->dc, BMX_DSC_TLV_DHM_LINK_PUBKEY);
+				sprintf(status[i].supportedKeys, "%s%s%s", (rsaMsg ? cryptRsaKeyTypeAsString(rsaMsg->type) : (dhmMsg ? cryptDhmKeyTypeAsString(dhmMsg->type) : DBG_NIL)),
+					(rsaMsg && dhmMsg ? "," : ""), (rsaMsg && dhmMsg ? cryptDhmKeyTypeAsString(dhmMsg->type) : ""));
 				status[i].nbLocalIp = linkDev->key.llocal_ip;
 				strcpy(status[i].nbMac, strToLower(memAsHexStringSep(ip6Eui64ToMac(&linkDev->key.llocal_ip, NULL), 6, 1, ":")));
 				status[i].nbIdx = linkDev->key.devIdx;

@@ -63,25 +63,56 @@
 #define DEF_SUPPORT_PUBLISHING 1
 #define HLP_SUPPORT_PUBLISHING "publish (describe) id of nodes supported with priority"
 
-#define ARG_NODE_SIGN_LEN "nodeSignatureLen"
-#define MIN_NODE_SIGN_LEN 512
-#define MAX_NODE_SIGN_LEN 4096
-#define DEF_NODE_SIGN_LEN 2048
-#define HLP_NODE_SIGN_LEN "sign own descriptions with given RSA key length (512,768,896,1024,1536,2048,3072,4096)"
 
 
-#define ARG_NODE_SIGN_MAX "nodeSignatureLenMax"
-#define MIN_NODE_SIGN_MAX 512
-#define MAX_NODE_SIGN_MAX 4096
-#define DEF_NODE_SIGN_MAX 4096
-#define HLP_NODE_SIGN_MAX "verify description signatures up-to given RSA key length"
 
-#define ARG_LINK_SIGN_LEN "linkSignatureLen"
-#define MIN_LINK_SIGN_LEN 0
-#define MAX_LINK_SIGN_LEN 2048
-#define DEF_LINK_SIGN_LEN 896
-#define HLP_LINK_SIGN_LEN "sign outgoing packets with given RSA key length (512,768,896,1024,1536,2048)"
-extern int32_t linkSignLen;
+#define ARG_NODE_RSA_TX_TYPE "nodeRsaSignature"
+#define MIN_NODE_RSA_TX_TYPE CRYPT_RSA512_TYPE
+#define MAX_NODE_RSA_TX_TYPE CRYPT_RSA4096_TYPE
+#define DEF_NODE_RSA_TX_TYPE CRYPT_RSA2048_TYPE
+#define HLP_NODE_RSA_TX_TYPE "sign own descriptions with given RSA key type (1:512, 2:768, 3:896, 4:1024, 5:1536, 6:2048, 7:3072, 8:4096)"
+
+#define ARG_NODE_RSA_RX_TYPES "nodeRsaRxSignatures"
+#define MIN_NODE_RSA_RX_TYPES (1<<CRYPT_RSA512_TYPE)
+#define MAX_NODE_RSA_RX_TYPES ((1<<CRYPT_RSA_MAX_TYPE)-1)
+#define DEF_NODE_RSA_RX_TYPES ((1<<CRYPT_RSA512_TYPE) | (1<<CRYPT_RSA768_TYPE) | (1<<CRYPT_RSA896_TYPE) | (1<<CRYPT_RSA1024_TYPE) | (1<<CRYPT_RSA1536_TYPE) | (1<<CRYPT_RSA2048_TYPE) | (1<<CRYPT_RSA3072_TYPE) | (1<<CRYPT_RSA4096_TYPE))
+#define HLP_NODE_RSA_RX_TYPES "verify description signatures of flag-given RSA key types"
+
+#define ARG_LINK_RSA_TX_TYPE "linkRsaSignature"
+#define MIN_LINK_RSA_TX_TYPE 0
+#define MAX_LINK_RSA_TX_TYPE CRYPT_RSA2048_TYPE
+#define DEF_LINK_RSA_TX_TYPE CRYPT_RSA896_TYPE
+#define HLP_LINK_RSA_TX_TYPE "sign outgoing packets with given RSA key type (1:512, 2:768, 3:896, 4:1024, 5:1536, 6:2048)"
+extern int32_t linkRsaSignType;
+
+#define ARG_LINK_RSA_RX_TYPES "linkRsaRxSignatures"
+#define MIN_LINK_RSA_RX_TYPES 0
+#define MAX_LINK_RSA_RX_TYPES ((1<<CRYPT_RSA_MAX_TYPE)-1)
+#define DEF_LINK_RSA_RX_TYPES ((1<<CRYPT_RSA512_TYPE) | (1<<CRYPT_RSA768_TYPE) | (1<<CRYPT_RSA896_TYPE) | (1<<CRYPT_RSA1024_TYPE) | (1<<CRYPT_RSA1536_TYPE) | (1<<CRYPT_RSA2048_TYPE))
+#define HLP_LINK_RSA_RX_TYPES "verify incoming link (packet) signaturs of flag-given RSA key types"
+
+#define ARG_LINK_DHM_TX_TYPE "linkDhmSignature"
+#define MIN_LINK_DHM_TX_TYPE 0
+#define MAX_LINK_DHM_TX_TYPE CRYPT_DHM_MAX_TYPE
+#define DEF_LINK_DHM_TX_TYPE CRYPT_DHM2048_TYPE
+#define HLP_LINK_DHM_TX_TYPE "sign outgoing packets with DH-authenticated HMAC type"
+extern int32_t linkDhmSignType;
+
+
+#define ARG_MIN_RSA_NEIGHS "minRsaNeighs"
+#define MIN_MIN_RSA_NEIGHS 0
+#define MAX_MIN_RSA_NEIGHS 255
+#define DEF_MIN_RSA_NEIGHS (CRYPT_DHM2048_LEN / sizeof(struct frame_msg_dhMac112)) //36
+extern int32_t minRsaNeighs;
+
+
+#define ARG_MAX_DHM_NEIGHS "maxDhmNeighs"
+#define MIN_MAX_DHM_NEIGHS 0
+#define MAX_MAX_DHM_NEIGHS 255
+#define DEF_MAX_DHM_NEIGHS 60
+extern int32_t maxDhmNeighs;
+
+
 
 #define ARG_DEV_SIGNATURES "strictSignatures"
 #define MIN_DEV_SIGNATURES 0
@@ -117,17 +148,6 @@ extern int32_t linkSignLen;
 #define ARG_LINK_SIGN_LT "linkSignatureLifetime"
 #define HLP_LINK_SIGN_LT "Lifetime of outgoing link keys and signatures in seconds"
 
-#define ARG_LINK_SIGN_MAX "linkSignatureLenMax"
-#define MIN_LINK_SIGN_MAX 0
-#define MAX_LINK_SIGN_MAX 4096
-#define DEF_LINK_SIGN_MAX 2048
-#define HLP_LINK_SIGN_MAX "verify incoming link (packet) signature up-to given RSA key length"
-
-#define ARG_LINK_SIGN_MIN "linkSignatureLenMin"
-#define MIN_LINK_SIGN_MIN 0
-#define MAX_LINK_SIGN_MIN 4096
-#define DEF_LINK_SIGN_MIN 0
-#define HLP_LINK_SIGN_MIN "require incoming link (packet) signatures of at least given RSA key length"
 
 #define MAX_KEY_FILE_SIZE 100
 
@@ -147,24 +167,19 @@ extern int32_t linkSignLen;
 #define ARG_OGM_SQN_RANDOM "ogmSqnRandom"
 
 
-extern CRYPTKEY_T *my_NodeKey;
-extern CRYPTKEY_T *my_LinkKey;
+extern CRYPTRSA_T *my_NodeKey;
+extern CRYPTRSA_T *my_RsaLinkKey;
+extern CRYPTDHM_T *my_DhmLinkKey;
 
 
-#define OGM_HASH_CHAIN_LINK_BITSIZE 112
-// 2^112=5.2e33!
-// As of april 2016 total cummulative number of bitcoin double-sha256 hashes is < 1e26 < 2^89 (source http://bitcoin.sipa.be/ ).
-// Work for 2^89 double-sha256 == work for 2^90 single-sha256 (and single-sha224)
-// Assuming a doubling of hash power per year I assume that 112 bits remains unfeasible for 112-90=22 more years!
-// Note that HashChainAnchors are invalidated every OGM_SQN_RANGE ogm intervals (every hour)
 
 
 typedef struct {
-	uint8_t u8[OGM_HASH_CHAIN_LINK_BITSIZE / 8];
+	uint8_t u8[sizeof(CRYPTSHA112_T)];
 } __attribute__((packed)) ChainLink_T;
 
 typedef struct {
-	uint8_t u8[sizeof(CRYPTSHA1_T) - (OGM_HASH_CHAIN_LINK_BITSIZE / 8)];
+	uint8_t u8[sizeof(CRYPTSHA1_T) - sizeof(CRYPTSHA112_T)];
 } __attribute__((packed)) ChainSeed_T;
 
 typedef struct {
@@ -241,6 +256,15 @@ struct DirWatch {
 };
 
 
+#define DESCRIPTION_MSG_DHM_LINK_KEY_FORMAT { \
+{FIELD_TYPE_UINT,          -1, 8,     0, FIELD_RELEVANCE_HIGH,  "type"}, \
+{FIELD_TYPE_STRING_BINARY, -1, 0,     0, FIELD_RELEVANCE_HIGH,  "gx"}, \
+FIELD_FORMAT_END }
+
+struct dsc_msg_dhm_link_key {
+	uint8_t type;
+	uint8_t gx[];
+} __attribute__((packed));
 
 
 
@@ -335,6 +359,7 @@ IPX_T create_crypto_IPv6(struct net_key *prefix, GLOBAL_ID_T *id);
 IDM_T verify_crypto_ip6_suffix(IPX_T *ip, uint8_t mask, CRYPTSHA1_T *id);
 
 GLOBAL_ID_T *get_desc_id(uint8_t *desc_adv, uint32_t desc_len, struct dsc_msg_signature **signpp, struct dsc_msg_version **verspp);
+void setQualifyingPromotedOrNeigh(IDM_T in, struct key_node *kn);
 
 struct content_node *test_description_signature(uint8_t *desc, uint32_t desc_len);
 void apply_trust_changes(int8_t f_type, struct orig_node *on, struct desc_content* dcOld, struct desc_content *dcNew);

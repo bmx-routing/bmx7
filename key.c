@@ -385,6 +385,9 @@ void kSetInAction_promoted(GLOBAL_ID_T *kHash, struct key_node **kn, struct KeyS
 
 
 	update_orig_dhash( (*kn)->nextDesc );
+
+	if (next && next->i.r == KRQualifying)
+		setQualifyingPromotedOrNeigh(YES, (*kn));
 }
 
 STATIC_FUNC
@@ -407,8 +410,27 @@ void kSetOutAction_promoted(struct key_node **kn, struct KeyState *next)
 {
 	assertion(-502357, (kn && *kn && (*kn)->on));
 
+	setQualifyingPromotedOrNeigh(NO, (*kn) );
 	destroy_orig_node( (*kn)->on );
 }
+
+
+STATIC_FUNC
+void kSetInAction_Graded(GLOBAL_ID_T *kHash, struct key_node **kn, struct KeyState *next)
+{
+
+	if (!next || next->i.c <= KCPromoted)
+		setQualifyingPromotedOrNeigh(NO, (*kn));
+}
+
+
+STATIC_FUNC
+void kSetOutAction_Graded(struct key_node **kn, struct KeyState *next)
+{
+	if (next && next->i.c >= KCPromoted)
+		setQualifyingPromotedOrNeigh(YES, (*kn));
+}
+
 
 
 int16_t kPref_neighbor_metric(struct key_node *kn)
@@ -442,6 +464,7 @@ void kSetInAction_neighbor(GLOBAL_ID_T *kHash, struct key_node **kn, struct KeyS
 {
 	assertion(-502358, (kn && *kn && cryptShasEqual(kHash, &(*kn)->kHash) && (*kn)->on));
 	neigh_create((*kn)->on);
+	setQualifyingPromotedOrNeigh(YES, (*kn) );
 }
 
 STATIC_FUNC
@@ -450,6 +473,10 @@ void kSetOutAction_neighbor(struct key_node **kn, struct KeyState *next)
 	assertion(-502360, (kn && *kn && (*kn)->on && (*kn)->on->neigh));
 
 	neigh_destroy((*kn)->on->neigh);
+
+	if (!next || next->i.r != KRQualifying)
+		setQualifyingPromotedOrNeigh(NO, (*kn));
+
 }
 
 
@@ -457,7 +484,7 @@ void kSetOutAction_neighbor(struct key_node **kn, struct KeyState *next)
 struct KeyState keyMatrix[KCSize][KRSize] = {
 	{
 		{KS_INIT, "Listed", "qualifying", "listedQualifying", "lQ", 4000, NULL, 10000, kSetInAction_listed, kSetOutAction_listed, kCol_TRUE, kColCond_listed, kRowCond_qualifying},
-		{KS_INIT, "ListedGraded", "friend", "listedFriend", "lF", 3000, NULL, 0, NULL, NULL, NULL, NULL, kRowCond_friend},
+		{KS_INIT, "ListedGraded", "friend", "listedFriend", "lF", 3000, NULL, 0, kSetInAction_Graded, kSetOutAction_Graded, NULL, NULL, kRowCond_friend},
 		{KS_INIT, "ListedStranger", "recommended", "listedRecommended", "lR", 2000, NULL, 0, NULL, NULL, NULL, NULL, kRowCond_recommended},
 		{KS_INIT, "ListedAlien", "alien", "listedAlien", "lA", 0, kPref_listedAlien, 0, kSetInAction_alien, kSetOutAction_alien, NULL, NULL, kRowCond_alien},
 	},

@@ -95,10 +95,9 @@ extern int32_t txCasualInterval;
 #define FRM_SIGN_VERS_SIZE_MIN (sizeof(struct tlv_hdr) + sizeof(struct frame_hdr_signature) + sizeof(struct frame_msg_signature) + \
                                 sizeof(struct tlv_hdr) + sizeof(struct msg_ogm_aggreg_sqn_adv))
 
-#define FRM_SIGN_VERS_SIZE_MAX (FRM_SIGN_VERS_SIZE_MIN + (MAX_LINK_SIGN_LEN/8))
+#define FRM_SIGN_VERS_SIZE_MAX (FRM_SIGN_VERS_SIZE_MIN + cryptRsaKeyLenByType(MAX_LINK_RSA_TX_TYPE))
 
 #define SIGNED_FRAMES_SIZE_PREF (PKT_FRAMES_SIZE_PREF - FRM_SIGN_VERS_SIZE_MAX)
-#define SIGNED_FRAMES_SIZE_MAX (PKT_FRAMES_SIZE_MAX - FRM_SIGN_VERS_SIZE_MAX)
 
 #define ARG_FZIP     "descCompression"
 #define MIN_FZIP      0
@@ -261,7 +260,8 @@ struct tlv_hdr tlvSetBigEndian(int16_t type, int16_t length);
 #define BMX_DSC_TLV_NODE_PUBKEY     0x01
 #define BMX_DSC_TLV_DSC_SIGNATURE   0x02
 #define BMX_DSC_TLV_VERSION         0x03
-#define BMX_DSC_TLV_LINK_PUBKEY     0x05
+#define BMX_DSC_TLV_RSA_LINK_PUBKEY 0x05
+#define BMX_DSC_TLV_DHM_LINK_PUBKEY 0x06
 
 #define BMX_DSC_TLV_NAMES_UNUSED    0x07
 
@@ -300,6 +300,11 @@ FIELD_FORMAT_END }
 struct frame_msg_signature {
 	uint8_t type;
 	uint8_t signature[];
+} __attribute__((packed));
+
+struct frame_msg_dhMac112 {
+	uint8_t type;
+	CRYPTSHA112_T mac;
 } __attribute__((packed));
 
 struct frame_hdr_signature {

@@ -303,6 +303,7 @@ typedef struct {
 	LQ_T tq_probe;
 	LQ_T timeaware_tq_probe;
 	LQ_T timeaware_rq_probe;
+	uint8_t lastLinkKeyType;
 	UMETRIC_T timeaware_wifiRate;
 
 	struct LinkStats wifiStats;
@@ -323,7 +324,8 @@ struct neigh_node {
 	int32_t orig_routes;
 
 	struct orig_node *on;
-	CRYPTKEY_T *linkKey;
+	CRYPTRSA_T *rsaLinkKey;
+	//	CRYPTSHA1_T *dhmLinkSecret;
 
 
 	struct iid_repos neighIID4x_repos;
@@ -491,6 +493,8 @@ struct orig_node {
 	struct desc_content *dc;
 	struct key_node *kn;
 	struct neigh_node *neigh;
+	CRYPTSHA1_T *dhmSecret;
+
 	IID_T __myIID4x;
 
 	TIME_T updated_timestamp; // last time this on's desc was succesfully updated
@@ -652,7 +656,6 @@ void neighRefs_resolve_or_destroy(void);
 int purge_orig_router(struct orig_node *onlyOrig, struct neigh_node *onlyNeigh, LinkNode *onlyLink, IDM_T onlyUseless);
 void neigh_destroy(struct neigh_node *local);
 struct neigh_node *neigh_create(struct orig_node *on);
-
 void destroy_orig_node(struct orig_node *on);
 void init_self(void);
 

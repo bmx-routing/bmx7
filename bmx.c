@@ -822,8 +822,8 @@ static int32_t bmx_status_creator(struct status_handl *handl, void *data)
 	status->name = my_Hostname;
 	status->shortDhash = &myKey->on->dc->dHash;
 	status->dhash = &myKey->on->dc->dHash;
-	status->nodeKey = (pkm = contents_data(myKey->on->dc, BMX_DSC_TLV_NODE_PUBKEY)) ? cryptKeyTypeAsString(pkm->type) : DBG_NIL;
-	status->linkKey = (pkm = contents_data(myKey->on->dc, BMX_DSC_TLV_LINK_PUBKEY)) ? cryptKeyTypeAsString(pkm->type) : DBG_NIL;
+	status->nodeKey = (pkm = contents_data(myKey->on->dc, BMX_DSC_TLV_NODE_PUBKEY)) ? cryptRsaKeyTypeAsString(pkm->type) : DBG_NIL;
+	status->linkKey = (pkm = contents_data(myKey->on->dc, BMX_DSC_TLV_RSA_LINK_PUBKEY)) ? cryptRsaKeyTypeAsString(pkm->type) : DBG_NIL;
 	snprintf(status->version, sizeof(status->version), "%s-%s", BMX_BRANCH, BRANCH_VERSION);
 	status->compat = my_compatibility;
 	snprintf(status->revision, 8, "%.7x", bmx_git_rev_u32);
@@ -974,7 +974,7 @@ uint8_t *key_status_page(uint8_t *sOut, uint32_t i, struct orig_node *on, struct
 		os->descSqnMin = kn->descSqnMin;
 		os->descSqnNext = kn->nextDesc ? kn->nextDesc->descSqn : 0;
 		os->nodeKey = (kn->content && (kn->content->f_body_len >= sizeof(struct dsc_msg_pubkey))) ?
-			cryptKeyTypeAsString(((struct dsc_msg_pubkey*) kn->content->f_body)->type) : DBG_NIL;
+			cryptRsaKeyTypeAsString(((struct dsc_msg_pubkey*) kn->content->f_body)->type) : DBG_NIL;
 	} else {
 		os->S[0] = '-';
 		os->T[0] = '-';
@@ -1006,7 +1006,7 @@ uint8_t *key_status_page(uint8_t *sOut, uint32_t i, struct orig_node *on, struct
 	}
 
 	if (on) {
-		os->linkKey = (pkm = contents_data(dc, BMX_DSC_TLV_LINK_PUBKEY)) ? cryptKeyTypeAsString(pkm->type) : DBG_NIL;
+		os->linkKey = (pkm = contents_data(dc, BMX_DSC_TLV_RSA_LINK_PUBKEY)) ? cryptRsaKeyTypeAsString(pkm->type) : DBG_NIL;
 		os->name = strlen(on->k.hostname) ? on->k.hostname : DBG_NIL;
 		os->primaryIp = on->primary_ip;
 		LinkNode *link = on->neighPath.link;

@@ -560,8 +560,8 @@ void neigh_destroy(struct neigh_node *local)
 	local->on->neigh = NULL;
 	local->on = NULL;
 
-	if (local->linkKey)
-		cryptKeyFree(&local->linkKey);
+	if (local->rsaLinkKey)
+		cryptRsaKeyFree(&local->rsaLinkKey);
 
 	free_internalNeighId(local->internalNeighId);
 
@@ -578,16 +578,31 @@ struct neigh_node *neigh_create(struct orig_node *on)
 	struct neigh_node *nn = (on->neigh = debugMallocReset(sizeof(struct neigh_node), -300757));
 	nn->local_id = on->k.nodeId;
 	avl_insert(&local_tree, nn, -300758);
+	struct dsc_msg_pubkey *rsaKey;
+	int rsaMsgLen, rsaKeyLen;
 
 	AVL_INIT_TREE(nn->linkDev_tree, LinkDevNode, key.devIdx);
 
 	nn->internalNeighId = allocate_internalNeighId(nn);
 
-	struct dsc_msg_pubkey *pkey_msg = contents_data(on->dc, BMX_DSC_TLV_LINK_PUBKEY);
+	if ((rsaKey  = contents_data(on->dc, BMX_DSC_TLV_RSA_LINK_PUBKEY)) && 
+		(rsaMsgLen = contents_dlen(on->dc, BMX_DSC_TLV_RSA_LINK_PUBKEY)) &&
+		(rsaKey->type) && (rsaKeyLen = cryptRsaKeyLenByType(rsaKey->type)) &&
+		(rsaMsgLen == (rsaKeyLen + (int)sizeof(struct dsc_msg_pubkey)))) {
 
-	if (pkey_msg)
-		nn->linkKey = cryptPubKeyFromRaw(pkey_msg->key, cryptKeyLenByType(pkey_msg->type));
+		nn->rsaLinkKey = cryptRsaPubKeyFromRaw(rsaKey->key, rsaKeyLen);
+	}
+/*
+	struct dsc_msg_dhm_link_key *neighDhmKey;
+	int neighDhmLen;
+	if (my_DhmLinkKey &&
+		(neighDhmKey = contents_data(on->dc, BMX_DSC_TLV_DHM_LINK_PUBKEY)) &&
+		(neighDhmLen = contents_dlen(on->dc, BMX_DSC_TLV_DHM_LINK_PUBKEY)) &&
+		(neighDhmLen == my_DhmLinkKey->rawGXLen) && (neighDhmKey->type == my_DhmLinkKey->rawGXType)) {
 
+		nn->on->dhmSecret = cryptDhmSecretForNeigh(my_DhmLinkKey, neighDhmKey->gx, neighDhmLen);
+	}
+*/
 	nn->on = on;
 	return nn;
 }
@@ -645,15 +660,18 @@ void destroy_orig_node(struct orig_node *on)
 
 void init_self(void)
 {
-	assertion(-502094, (my_NodeKey));
+	assertion(-502094, (my_NodeKey && my_NodeKey->rawKeyType && my_NodeKey->rawKeyLen));
 	assertion(-502477, (!myKey));
 
 	struct key_credits friend_kc = {.dFriend = TYP_TRUST_LEVEL_IMPORT};
-	struct dsc_msg_pubkey *msg = debugMallocReset(sizeof(struct dsc_msg_pubkey) +my_NodeKey->rawKeyLen, -300631);
-	msg->type = my_NodeKey->rawKeyType;
-	memcpy(msg->key, my_NodeKey->rawKey, my_NodeKey->rawKeyLen);
+	struct dsc_msg_pubkey *msg = debugMallocReset(sizeof(struct dsc_msg_pubkey) + my_NodeKey->rawKeyLen, -300631);
+	int ret = cryptRsaPubKeyGetRaw(my_NodeKey, msg->key, my_NodeKey->rawKeyLen);
 
-	struct content_node *cn = content_add_body((uint8_t*)msg, sizeof(struct dsc_msg_pubkey) +my_NodeKey->rawKeyLen, 0, 0, YES);
+	assertion(-500000, (ret==SUCCESS));
+
+	msg->type = my_NodeKey->rawKeyType;
+
+	struct content_node *cn = content_add_body((uint8_t*)msg, sizeof(struct dsc_msg_pubkey) + my_NodeKey->rawKeyLen, 0, 0, YES);
 
 	myKey = keyNode_updCredits(&cn->chash, NULL, &friend_kc);
 

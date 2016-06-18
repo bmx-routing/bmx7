@@ -445,9 +445,9 @@ void kSetOutAction_neighbor(struct key_node **kn, struct KeyState *next)
 struct KeyState keyMatrix[KCSize][KRSize] = {
 	{
 		{KS_INIT, "Listed", "qualifying", "listedQualifying", "lQ", 4000, NULL, 10000, kSetInAction_listed, kSetOutAction_listed, kCol_TRUE, kColCond_listed, kRowCond_qualifying},
-		{KS_INIT, "Graded", "friend", "listedFriend", "lF", 3000, NULL, 0, NULL, NULL, NULL, NULL, kRowCond_friend},
-		{KS_INIT, "Stranger", "recommended", "listedRecommended", "lR", 2000, NULL, 0, NULL, NULL, NULL, NULL, kRowCond_recommended},
-		{KS_INIT, "Alien", "alien", "listedAlien", "lA", 0, kPref_listedAlien, 0, kSetInAction_alien, kSetOutAction_alien, NULL, NULL, kRowCond_alien},
+		{KS_INIT, "ListedGraded", "friend", "listedFriend", "lF", 3000, NULL, 0, NULL, NULL, NULL, NULL, kRowCond_friend},
+		{KS_INIT, "ListedStranger", "recommended", "listedRecommended", "lR", 2000, NULL, 0, NULL, NULL, NULL, NULL, kRowCond_recommended},
+		{KS_INIT, "ListedAlien", "alien", "listedAlien", "lA", 0, kPref_listedAlien, 0, kSetInAction_alien, kSetOutAction_alien, NULL, NULL, kRowCond_alien},
 	},
 	{
 		{KS_INIT, "Tracked", "qualifying", "trackedQualifying", "tQ", 4001, NULL, 1100, kSetInAction_tracked, kSetOutAction_tracked, kCol_TRUE, kColCond_tracked, NULL},

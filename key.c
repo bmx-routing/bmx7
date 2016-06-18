@@ -357,7 +357,7 @@ STATIC_FUNC
 int8_t kColCond_promoted(uint8_t asRow, struct key_node *kn)
 {
 
-	return (kn && (kn->pktSignTime || kn->neighRefs_tree.items || kn == myKey) && (
+	return(kn && (kn->bookedState->i.r <= KRQualifying || kn->neighRefs_tree.items || kn == myKey) && (
 		(kn->on) ||
 		(kn->nextDesc && kn->nextDesc->unresolvedContentCounter == 0 &&
 		process_description_tlvs(NULL, kn->on, (kn->on ? kn->on->dc : NULL), kn->nextDesc, TLV_OP_TEST, FRAME_TYPE_PROCESS_ALL) == TLV_RX_DATA_DONE)

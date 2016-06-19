@@ -334,6 +334,7 @@ int8_t kColCond_certified(uint8_t asRow, struct key_node *kn)
 	return (kn &&
 		kn->content &&
 		kn->content->f_body_len &&
+		IMPLIES(kn->nextDesc, kn->nextDesc->descSqn >= kn->descSqnMin) &&
 		(kn->on || kn->nextDesc)
 		);
 }
@@ -357,11 +358,23 @@ STATIC_FUNC
 int8_t kColCond_promoted(uint8_t asRow, struct key_node *kn)
 {
 
-	return(kn && (kn->bookedState->i.r <= KRQualifying || kn->neighRefs_tree.items || kn == myKey) && (
-		(kn->on) ||
-		(kn->nextDesc && kn->nextDesc->unresolvedContentCounter == 0 &&
-		process_description_tlvs(NULL, kn->on, (kn->on ? kn->on->dc : NULL), kn->nextDesc, TLV_OP_TEST, FRAME_TYPE_PROCESS_ALL) == TLV_RX_DATA_DONE)
-		));
+	if (!(kn &&
+		(asRow == KRQualifying || kn->neighRefs_tree.items || kn == myKey) &&
+		IMPLIES(kn->nextDesc, kn->nextDesc->descSqn >= kn->descSqnMin)))
+		return NO;
+
+	if (kn->nextDesc && kn->nextDesc->unresolvedContentCounter == 0) {
+
+		if (process_description_tlvs(NULL, kn->on, (kn->on ? kn->on->dc : NULL), kn->nextDesc, TLV_OP_TEST, FRAME_TYPE_PROCESS_ALL) == TLV_RX_DATA_DONE)
+			return YES;
+
+	} else if (kn->on) {
+
+		return YES;
+	}
+
+
+	return NO;
 }
 
 STATIC_FUNC
@@ -377,15 +390,14 @@ void kSetInAction_promoted(GLOBAL_ID_T *kHash, struct key_node **kn, struct KeyS
 STATIC_FUNC
 int8_t kColMaintain_promoted(struct key_node *kn)
 {
-	assertion(-502356, kColCond_promoted(kn->bookedState->i.r, kn));
+	ASSERTION(-502356, kColCond_promoted(kn->bookedState->i.r, kn));
 
-	if (!kn->nextDesc || kn->nextDesc->unresolvedContentCounter)
-		return YES;
+	if (kn->nextDesc && kn->nextDesc->unresolvedContentCounter == 0) {
 
-	if (process_description_tlvs(NULL, kn->on, (kn->on ? kn->on->dc : NULL), kn->nextDesc, TLV_OP_TEST, FRAME_TYPE_PROCESS_ALL) != TLV_RX_DATA_DONE)
-		return NO;
+		ASSERTION(-500000, (process_description_tlvs(NULL, kn->on, (kn->on ? kn->on->dc : NULL), kn->nextDesc, TLV_OP_TEST, FRAME_TYPE_PROCESS_ALL) == TLV_RX_DATA_DONE));
+		update_orig_dhash(kn->nextDesc);
+	}
 
-	update_orig_dhash(kn->nextDesc);
 	return YES;
 }
 

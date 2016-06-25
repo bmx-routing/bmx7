@@ -200,7 +200,7 @@ void get_link_rate(struct dev_node *tDev)
 
 						}
 
-						break;
+						//break; // if running several vlan-interfaces on same phy this would not find the second
 					}
 				}
 			}

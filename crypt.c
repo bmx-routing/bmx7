@@ -765,7 +765,7 @@ CRYPTSHA1_T *cryptDhmSecretForNeigh(CRYPTDHM_T *myDhm, uint8_t *neighRawKey, uin
 	if ((ret = dhm_calc_secret(dhm, buff, &n, ctr_drbg_random, &ctr_drbg)) != 0)
 		goto_error(finish, "Failed calculating secret");
 
-	if (n != neighRawKeyLen)
+	if (n > neighRawKeyLen || n < ((neighRawKeyLen / 4)*3))
 		goto_error(finish, "Unexpected secret length");
 
 	secret = debugMallocReset(sizeof(CRYPTSHA1_T), -300000);
@@ -773,7 +773,7 @@ CRYPTSHA1_T *cryptDhmSecretForNeigh(CRYPTDHM_T *myDhm, uint8_t *neighRawKey, uin
 
 	
 finish: {
-	dbgf_track(DBGT_WARN, "%s", goto_error_code);
+	dbgf_track(DBGT_WARN, "%s n=%d neighKeyLen=%d myKeyLen=%d", goto_error_code, n, neighRawKeyLen, myDhm->rawGXLen);
 
 	mpi_free(&dhm->GY);
 	mpi_free(&dhm->K);

@@ -1036,6 +1036,7 @@ uint8_t *key_status_page(uint8_t *sOut, uint32_t i, struct orig_node *on, struct
 		os->nbIid = nref ? iid_get_neighIID4x_by_node(nref) : 0;
 	} else {
 		snprintf(os->ogmHist, (sizeof(os->ogmHist)-1), DBG_NIL);
+		sprintf(os->linkKeys, DBG_NIL);
 	}
 
 	snprintf(os->nbs, (sizeof(os->nbs)-1), "%d", (kn ? kn->neighRefs_tree.items : 0));

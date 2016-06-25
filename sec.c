@@ -486,10 +486,14 @@ int create_packet_signature(struct tx_frame_iterator *it)
 		sendRsaSignature = 0;
 		sendDhmSignatures = 0;
 
+		dev->lastTxKey = 0;
+
 		if ((sendRsaSignature = (
 			(my_RsaLinkKey && it->ttn->key.f.p.dev->strictSignatures >= OPT_DEV_SIGNATURES_TX) &&
 			(dhmNeighs < qualifyingPromoteds_tree.items || dhmNeighs >= minRsaNeighs)
 			))) {
+
+			dev->lastTxKey = my_RsaLinkKey->rawKeyType;
 
 			signatureSize = (sizeof(struct frame_msg_signature) +my_RsaLinkKey->rawKeyLen);
 			dataOffset += signatureSize;
@@ -503,6 +507,7 @@ int create_packet_signature(struct tx_frame_iterator *it)
 			}
 
 			if (sendDhmSignatures) {
+				dev->lastTxKey = my_DhmLinkKey->rawGXType;
 				signatureSize = (sendDhmSignatures * sizeof(struct frame_msg_dhMac112));
 				dataOffset += signatureSize;
 			} else {
@@ -537,7 +542,6 @@ int create_packet_signature(struct tx_frame_iterator *it)
 			struct frame_msg_signature *msg = (struct frame_msg_signature *) &(hdr[1]);
 			msg->type = my_RsaLinkKey->rawKeyType;
 			cryptRsaSign(&packetSha, msg->signature, my_RsaLinkKey->rawKeyLen, my_RsaLinkKey);
-			dev->lastTxKey = my_RsaLinkKey->rawKeyType;
 
 		} else {
 			assertion(-500000, (sendDhmSignatures));
@@ -560,8 +564,6 @@ int create_packet_signature(struct tx_frame_iterator *it)
 			ASSERTION(-500000, (dhmNeighs == sendDhmSignatures));
 			for (; dhmNeighs < sendDhmSignatures; dhmNeighs++)
 				msg[dhmNeighs].type = my_DhmLinkKey->rawGXType;
-
-			dev->lastTxKey = my_DhmLinkKey->rawGXType;
 		}
 
 		hdr = NULL;

@@ -772,8 +772,9 @@ CRYPTSHA1_T *cryptDhmSecretForNeigh(CRYPTDHM_T *myDhm, uint8_t *neighRawKey, uin
 	cryptShaAtomic(buff, n, secret);
 
 	
-finish: {
-	dbgf_track(DBGT_WARN, "%s n=%d neighKeyLen=%d myKeyLen=%d", goto_error_code, n, neighRawKeyLen, myDhm->rawGXLen);
+finish:{
+	dbgf(((goto_error_code || n != neighRawKeyLen) ? DBGL_SYS : DBGL_CHANGES), ((goto_error_code || n != neighRawKeyLen) ? DBGT_WARN : DBGT_INFO),
+		"%s n=%d neighKeyLen=%d myKeyLen=%d", goto_error_code, n, neighRawKeyLen, myDhm->rawGXLen);
 
 	mpi_free(&dhm->GY);
 	mpi_free(&dhm->K);

@@ -66,36 +66,36 @@
 
 
 
-#define ARG_NODE_RSA_TX_TYPE "nodeRsaSignature"
+#define ARG_NODE_RSA_TX_TYPE "nodeRsaKey"
 #define MIN_NODE_RSA_TX_TYPE CRYPT_RSA512_TYPE
 #define MAX_NODE_RSA_TX_TYPE CRYPT_RSA4096_TYPE
 #define DEF_NODE_RSA_TX_TYPE CRYPT_RSA2048_TYPE
 #define HLP_NODE_RSA_TX_TYPE "sign own descriptions with given RSA key type (1:512, 2:768, 3:896, 4:1024, 5:1536, 6:2048, 7:3072, 8:4096)"
 
-#define ARG_NODE_RSA_RX_TYPES "nodeRsaRxSignatures"
+#define ARG_NODE_RSA_RX_TYPES "nodesRsaKeys"
 #define MIN_NODE_RSA_RX_TYPES (1<<CRYPT_RSA512_TYPE)
 #define MAX_NODE_RSA_RX_TYPES ((1<<CRYPT_RSA_MAX_TYPE)-1)
 #define DEF_NODE_RSA_RX_TYPES ((1<<CRYPT_RSA512_TYPE) | (1<<CRYPT_RSA768_TYPE) | (1<<CRYPT_RSA896_TYPE) | (1<<CRYPT_RSA1024_TYPE) | (1<<CRYPT_RSA1536_TYPE) | (1<<CRYPT_RSA2048_TYPE) | (1<<CRYPT_RSA3072_TYPE) | (1<<CRYPT_RSA4096_TYPE))
 #define HLP_NODE_RSA_RX_TYPES "verify description signatures of flag-given RSA key types"
 
-#define ARG_LINK_RSA_TX_TYPE "linkRsaSignature"
+#define ARG_LINK_RSA_TX_TYPE "linkRsaKey"
 #define MIN_LINK_RSA_TX_TYPE 0
 #define MAX_LINK_RSA_TX_TYPE CRYPT_RSA2048_TYPE
 #define DEF_LINK_RSA_TX_TYPE CRYPT_RSA896_TYPE
 #define HLP_LINK_RSA_TX_TYPE "sign outgoing packets with given RSA key type (1:512, 2:768, 3:896, 4:1024, 5:1536, 6:2048)"
 extern int32_t linkRsaSignType;
 
-#define ARG_LINK_RSA_RX_TYPES "linkRsaRxSignatures"
+#define ARG_LINK_RSA_RX_TYPES "linkRsaKeys"
 #define MIN_LINK_RSA_RX_TYPES 0
 #define MAX_LINK_RSA_RX_TYPES ((1<<CRYPT_RSA_MAX_TYPE)-1)
 #define DEF_LINK_RSA_RX_TYPES ((1<<CRYPT_RSA512_TYPE) | (1<<CRYPT_RSA768_TYPE) | (1<<CRYPT_RSA896_TYPE) | (1<<CRYPT_RSA1024_TYPE) | (1<<CRYPT_RSA1536_TYPE) | (1<<CRYPT_RSA2048_TYPE))
 #define HLP_LINK_RSA_RX_TYPES "verify incoming link (packet) signaturs of flag-given RSA key types"
 
-#define ARG_LINK_DHM_TX_TYPE "linkDhmSignature"
+#define ARG_LINK_DHM_TX_TYPE "linkDhmKey"
 #define MIN_LINK_DHM_TX_TYPE 0
 #define MAX_LINK_DHM_TX_TYPE CRYPT_DHM_MAX_TYPE
 #define DEF_LINK_DHM_TX_TYPE CRYPT_DHM2048_TYPE
-#define HLP_LINK_DHM_TX_TYPE "sign outgoing packets with DH-authenticated HMAC type"
+#define HLP_LINK_DHM_TX_TYPE "sign outgoing packets with DH-authenticated HMAC type (16:DH1024M112, 17:DH2048M112, 18:3072M112). Type must match that of neighbors"
 extern int32_t linkDhmSignType;
 
 

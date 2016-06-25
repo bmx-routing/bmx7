@@ -64,13 +64,14 @@
 #include "metrics.h"
 #include "link.h"
 #include "msg.h"
+#include "sec.h"
+#include "content.h"
 #include "ip.h"
 #include "schedule.h"
 #include "plugin.h"
 #include "tools.h"
 #include "iptools.h"
 #include "allocate.h"
-#include "sec.h"
 #include "prof.h"
 
 #define CODE_CATEGORY_NAME "ip"
@@ -3145,6 +3146,8 @@ void update_devStatistic_task(void *data)
 struct dev_status {
         char *dev;
         char *state;
+	char *linkKey;
+	char linkKeys[30];
         char *type;
 	uint8_t channel;
         UMETRIC_T rateMax;
@@ -3161,6 +3164,8 @@ struct dev_status {
 static const struct field_format dev_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,              dev_status, dev,         1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,              dev_status, state,       1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,              dev_status, linkKey,     1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,               dev_status, linkKeys,    1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,              dev_status, type,        1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,                      dev_status, channel,     1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,                   dev_status, rateMax,     1, FIELD_RELEVANCE_HIGH),
@@ -3191,6 +3196,11 @@ static int32_t dev_status_creator(struct status_handl *handl, void* data)
 
                 status[i].dev = dev->ifname_label.str;
                 status[i].state = iff_up ? "UP":"DOWN";
+		status[i].linkKey = cryptRsaKeyTypeAsString(dev->lastTxKey) ? cryptRsaKeyTypeAsString(dev->lastTxKey) : cryptDhmKeyTypeAsString(dev->lastTxKey);
+		struct dsc_msg_pubkey *rsaMsg = myKey->on ? contents_data(myKey->on->dc, BMX_DSC_TLV_RSA_LINK_PUBKEY) : NULL;
+		struct dsc_msg_dhm_link_key *dhmMsg = myKey->on ? contents_data(myKey->on->dc, BMX_DSC_TLV_DHM_LINK_PUBKEY) : NULL;
+		sprintf(status[i].linkKeys, "%s%s%s", (rsaMsg ? cryptRsaKeyTypeAsString(rsaMsg->type) : (dhmMsg ? cryptDhmKeyTypeAsString(dhmMsg->type) : DBG_NIL)),
+			(rsaMsg && dhmMsg ? "," : ""), (rsaMsg && dhmMsg ? cryptDhmKeyTypeAsString(dhmMsg->type) : ""));
                 status[i].type = !dev->active ? "INACTIVE" :
                         (dev->linklayer == TYP_DEV_LL_LO ? "loopback" :
                         (dev->linklayer == TYP_DEV_LL_LAN ? "ethernet" :

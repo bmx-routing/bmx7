@@ -452,6 +452,8 @@ struct dev_node {
 	uint8_t activate_cancelled;
 	uint8_t blockingSockets;
 
+	uint8_t lastTxKey;
+
 	uint32_t udpTxPacketsCurr;
 	uint32_t udpTxPacketsMean;
 	uint32_t udpRxPacketsCurr;

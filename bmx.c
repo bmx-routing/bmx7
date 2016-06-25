@@ -760,7 +760,7 @@ struct bmx_status {
 	GLOBAL_ID_T *nodeId;
 	char* name;
 	char *nodeKey;
-	char *linkKey;
+	char linkKeys[30];
 	DHASH_T *shortDhash;
 	DHASH_T *dhash;
 	char version[(sizeof(BMX_BRANCH) - 1) + (sizeof("-") - 1) + (sizeof(BRANCH_VERSION) - 1) + 1];
@@ -788,7 +788,7 @@ static const struct field_format bmx_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, bmx_status, nodeId,        1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      bmx_status, name,          1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      bmx_status, nodeKey,       1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      bmx_status, linkKey,       1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       bmx_status, linkKeys,      1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_SHORT_ID,  bmx_status, shortDhash,    1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, bmx_status, dhash,         1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       bmx_status, version,       1, FIELD_RELEVANCE_MEDI),
@@ -823,7 +823,10 @@ static int32_t bmx_status_creator(struct status_handl *handl, void *data)
 	status->shortDhash = &myKey->on->dc->dHash;
 	status->dhash = &myKey->on->dc->dHash;
 	status->nodeKey = (pkm = contents_data(myKey->on->dc, BMX_DSC_TLV_NODE_PUBKEY)) ? cryptRsaKeyTypeAsString(pkm->type) : DBG_NIL;
-	status->linkKey = (pkm = contents_data(myKey->on->dc, BMX_DSC_TLV_RSA_LINK_PUBKEY)) ? cryptRsaKeyTypeAsString(pkm->type) : DBG_NIL;
+	struct dsc_msg_pubkey *rsaMsg = contents_data(myKey->on->dc, BMX_DSC_TLV_RSA_LINK_PUBKEY);
+	struct dsc_msg_dhm_link_key *dhmMsg = contents_data(myKey->on->dc, BMX_DSC_TLV_DHM_LINK_PUBKEY);
+	sprintf(status->linkKeys, "%s%s%s", (rsaMsg ? cryptRsaKeyTypeAsString(rsaMsg->type) : (dhmMsg ? cryptDhmKeyTypeAsString(dhmMsg->type) : DBG_NIL)),
+		(rsaMsg && dhmMsg ? "," : ""), (rsaMsg && dhmMsg ? cryptDhmKeyTypeAsString(dhmMsg->type) : ""));
 	snprintf(status->version, sizeof(status->version), "%s-%s", BMX_BRANCH, BRANCH_VERSION);
 	status->compat = my_compatibility;
 	snprintf(status->revision, 8, "%.7x", bmx_git_rev_u32);
@@ -863,8 +866,6 @@ struct orig_status {
 	char s[2]; // me supported by him
 	char T[2]; // trusted by me;
 	char t[2]; // me trusted by him
-	char *nodeKey;
-	char revision[9];
 	CRYPTSHA1_T *shortDHash;
 	CRYPTSHA1_T *dHash;
 	IID_T myIid;
@@ -876,7 +877,9 @@ struct orig_status {
 	char contents[2*12]; //contentRefs
 	uint32_t unresolveds;
 	uint32_t uniques;
-	char *linkKey;
+	char revision[9];
+	char *nodeKey;
+	char linkKeys[30];
 	IPX_T primaryIp;
 	char *dev;
 	uint32_t nbIdx;
@@ -910,8 +913,6 @@ static const struct field_format orig_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       orig_status, s,             1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       orig_status, T,             1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       orig_status, t,             1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      orig_status, nodeKey,       1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       orig_status, revision,      1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, myIid,         1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_SHORT_ID,  orig_status, shortDHash,    1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, orig_status, dHash,         1, FIELD_RELEVANCE_LOW),
@@ -923,7 +924,9 @@ static const struct field_format orig_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       orig_status, contents,      1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, unresolveds,   1, FIELD_RELEVANCE_LOW),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, uniques,       1, FIELD_RELEVANCE_LOW),
-        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      orig_status, linkKey,       1, FIELD_RELEVANCE_LOW),
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       orig_status, revision,      1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      orig_status, nodeKey,       1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       orig_status, linkKeys,      1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_IPX,               orig_status, primaryIp,     1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      orig_status, dev,           1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, myIdx,         1, FIELD_RELEVANCE_MEDI),
@@ -949,7 +952,6 @@ uint8_t *key_status_page(uint8_t *sOut, uint32_t i, struct orig_node *on, struct
 	assertion(-502240, IMPLIES(dc, !dc->on));
 
 	IDM_T S, s, T, t;
-	struct dsc_msg_pubkey *pkm;
 	struct orig_status *os = &(((struct orig_status*) (sOut = debugRealloc(sOut, ((i + 1) * sizeof(struct orig_status)), -300366)))[i]);
 	memset(os, 0, sizeof(struct orig_status));
 
@@ -1006,7 +1008,10 @@ uint8_t *key_status_page(uint8_t *sOut, uint32_t i, struct orig_node *on, struct
 	}
 
 	if (on) {
-		os->linkKey = (pkm = contents_data(dc, BMX_DSC_TLV_RSA_LINK_PUBKEY)) ? cryptRsaKeyTypeAsString(pkm->type) : DBG_NIL;
+		struct dsc_msg_pubkey *rsaMsg = contents_data(on->dc, BMX_DSC_TLV_RSA_LINK_PUBKEY);
+		struct dsc_msg_dhm_link_key *dhmMsg = contents_data(on->dc, BMX_DSC_TLV_DHM_LINK_PUBKEY);
+		sprintf(os->linkKeys, "%s%s%s", (rsaMsg ? cryptRsaKeyTypeAsString(rsaMsg->type) : (dhmMsg ? cryptDhmKeyTypeAsString(dhmMsg->type) : DBG_NIL)),
+			(rsaMsg && dhmMsg ? "," : ""), (rsaMsg && dhmMsg ? cryptDhmKeyTypeAsString(dhmMsg->type) : ""));
 		os->name = strlen(on->k.hostname) ? on->k.hostname : DBG_NIL;
 		os->primaryIp = on->primary_ip;
 		LinkNode *link = on->neighPath.link;

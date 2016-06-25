@@ -459,6 +459,7 @@ int create_packet_signature(struct tx_frame_iterator *it)
 	static uint8_t sendRsaSignature = 0;
 	static uint16_t sendDhmSignatures = 0;
 	uint32_t signatureSize = TLV_TX_DATA_DONE;
+	struct dev_node *dev = it->ttn->key.f.p.dev;
 	struct avl_node *an;
 	struct orig_node *on;
 	uint16_t dhmNeighs = 0;
@@ -470,7 +471,7 @@ int create_packet_signature(struct tx_frame_iterator *it)
 		hdr = (struct frame_hdr_signature*) tx_iterator_cache_hdr_ptr(it);
 		hdr->sqn.u32.burstSqn = htonl(myBurstSqn);
 		hdr->sqn.u32.descSqn = htonl(myKey->on->dc->descSqn);
-		hdr->devIdx = it->ttn->key.f.p.dev->llipKey.devIdx;
+		hdr->devIdx = dev->llipKey.devIdx;
 
 		assertion(-502445, (be64toh(hdr->sqn.u64) == (((uint64_t) myKey->on->dc->descSqn) << 32) + myBurstSqn));
 		struct frame_msg_signature *msg = (struct frame_msg_signature *) &(hdr[1]);
@@ -536,6 +537,7 @@ int create_packet_signature(struct tx_frame_iterator *it)
 			struct frame_msg_signature *msg = (struct frame_msg_signature *) &(hdr[1]);
 			msg->type = my_RsaLinkKey->rawKeyType;
 			cryptRsaSign(&packetSha, msg->signature, my_RsaLinkKey->rawKeyLen, my_RsaLinkKey);
+			dev->lastTxKey = my_RsaLinkKey->rawKeyType;
 
 		} else {
 			assertion(-500000, (sendDhmSignatures));
@@ -558,6 +560,8 @@ int create_packet_signature(struct tx_frame_iterator *it)
 			ASSERTION(-500000, (dhmNeighs == sendDhmSignatures));
 			for (; dhmNeighs < sendDhmSignatures; dhmNeighs++)
 				msg[dhmNeighs].type = my_DhmLinkKey->rawGXType;
+
+			dev->lastTxKey = my_DhmLinkKey->rawGXType;
 		}
 
 		hdr = NULL;
@@ -715,7 +719,7 @@ int process_packet_signature(struct rx_frame_iterator *it)
 			if (!(pb->i.verifiedLink = getLinkNode(pb->i.iif, &pb->i.llip, devIdx, nn)))
 				goto_error_return(finish, "Failed Link detection", TLV_RX_DATA_PROCESSED);
 
-			pb->i.verifiedLink->lastLinkKeyType = msgType;
+			pb->i.verifiedLink->lastRxKey = msgType;
 		}
 	}
 

@@ -303,7 +303,7 @@ typedef struct {
 	LQ_T tq_probe;
 	LQ_T timeaware_tq_probe;
 	LQ_T timeaware_rq_probe;
-	uint8_t lastLinkKeyType;
+	uint8_t lastRxKey;
 	UMETRIC_T timeaware_wifiRate;
 
 	struct LinkStats wifiStats;

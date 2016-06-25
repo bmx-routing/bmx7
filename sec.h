@@ -142,10 +142,10 @@ extern int32_t maxDhmNeighs;
 // ~600 secs with ~10000 machines, or
 // ~60 secs with ~100000 machines
 // However, this would be for RSA512 but RSA896 is used by default!!:
-#define MIN_LINK_SIGN_LT (60)    // one minute, needs ~100000 machines to crack RSA512 before end of life
+#define MIN_LINK_SIGN_LT (1)      // one minute, needs ~100000 machines to crack RSA512 before end of life
 #define DEF_LINK_SIGN_LT (6000)   // 100 minutes, needs ~1000 machines (in 2013) to crack RSA512 before end of life
 #define MAX_LINK_SIGN_LT (REGISTER_TASK_TIMEOUT_MAX/1000)
-#define ARG_LINK_SIGN_LT "linkSignatureLifetime"
+#define ARG_LINK_SIGN_LT "linkKeyLifetime"
 #define HLP_LINK_SIGN_LT "Lifetime of outgoing link keys and signatures in seconds"
 
 

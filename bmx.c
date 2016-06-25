@@ -1435,7 +1435,7 @@ DESC_SQN_T newDescriptionSqn( char* newPath, uint8_t exitIfFailure )
 	static DESC_SQN_T currSqn = 0;
 	static char path[MAX_PATH_SIZE];
 	FILE* file = NULL;
-	int ret;
+	int ret = 0;
 	char *goto_error_code = NULL;
 
 	assertion(-502014, XOR(newPath, strlen(path) ));
@@ -1457,9 +1457,10 @@ DESC_SQN_T newDescriptionSqn( char* newPath, uint8_t exitIfFailure )
 			if ((fscanf(file, "%u", &currSqn) == 1) && (fseek(file, 0, SEEK_SET) == 0) &&
 				(currSqn = (((currSqn + DESC_SQN_SAVE_INTERVAL) / DESC_SQN_SAVE_INTERVAL) * DESC_SQN_SAVE_INTERVAL) + DESC_SQN_REBOOT_ADDS) &&
 				((ret = fprintf(file, "%u", currSqn)) > 0) &&
-				(fclose(file) == 0) && (truncate(path, ret) == 0)) {
+				(fclose(file) == 0) && !(file = NULL) && (truncate(path, ret) == 0)) {
+
 				dbgf_sys(DBGT_INFO, "Updating existing %s=%s descSqn=%d", ARG_DSQN_PATH, path, currSqn );
-				file=NULL;
+
 			} else {
 				goto_error(finish, "has illegal content");
 			}
@@ -1493,7 +1494,9 @@ finish: {
 		fclose(file);
 
 	if (goto_error_code) {
-		dbgf_sys(DBGT_ERR, "%s=%s %s! errno=%s", ARG_DSQN_PATH, path, goto_error_code, strerror(errno));
+		dbgf_sys(DBGT_ERR, "Failed storing descSqn=%d in %s=%s %s! ret=%d errno=%s",
+			currSqn, ARG_DSQN_PATH, path, goto_error_code, ret, strerror(errno));
+
 		if (exitIfFailure)
 			cleanup_all(-502015);
 		return 0;

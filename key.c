@@ -668,7 +668,7 @@ struct KeyState *keySec_getLeast(struct KeyState *in, struct KeyState *out)
 			if (out && c >= out->i.c && r >= out->i.r)
 				continue;
 
-			if (curr->i.numSec && curr->prefBase <= (least ? least->prefBase : 0))
+			if (curr->i.numSec && curr->prefBase <= (least ? least->prefBase : INT16_MAX))
 				least = curr;
 		}
 	}
@@ -689,19 +689,24 @@ struct key_node *keyNode_getLeast(struct KeyState *inSet, struct KeyState *outSe
 		struct key_node *kCurr = avl_next_item(&key_tree, &k);
 		struct key_node *kLast = kCurr;
 		struct key_node *kLeast = NULL;
-		uint16_t prefLeast = 0;
-		uint16_t currLeast = 0;
+		uint16_t prefLeast = UINT16_MAX;
 
 		while ((kCurr = avl_next_item(&key_tree, kCurr ? &kCurr->kHash : NULL)) || (kCurr = avl_next_item(&key_tree, kCurr ? &kCurr->kHash : NULL))) {
 
 			if (kCurr->bookedState == ks) {
 				assertion(-502381, ((kCurr->bookedState->i.flags & inSet->i.flags) == inSet->i.flags));
+				uint16_t currLeast = 0;
 
 				if (kCurr->bookedState->prefGet == kPref_base) {
 
 					return kCurr;
 
-				} else if (!kLeast || prefLeast < (currLeast = (*(kCurr->bookedState->prefGet))(kCurr))) {
+				} else if (!kLeast) {
+
+					kLeast = kCurr;
+					prefLeast = (*(kCurr->bookedState->prefGet))(kCurr);
+
+				} else if (prefLeast > (currLeast = (*(kCurr->bookedState->prefGet))(kCurr))) {
 
 					kLeast = kCurr;
 					prefLeast = currLeast;

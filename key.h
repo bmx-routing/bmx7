@@ -29,6 +29,18 @@ extern int32_t neigh_qualifying_to;
 #define DEF_ID_PURGE_TO 20000
 #define ARG_ID_PURGE_TO "idTimeout"
 
+#define ARG_SET_CREDITS "setCredits"
+#define ARG_SET_CREDITS_MAX "maxNodes"
+#define HLP_SET_CREDITS "parametrize given state section"
+#define MIN_SET_CREDITS_MAX 1
+#define MAX_SET_CREDITS_MAX 100000
+#define HLP_SET_CREDITS_MAX "set maximum number of nodes of state section"
+#define ARG_SET_CREDITS_PREF "preference"
+#define MIN_SET_CREDITS_PREF 0
+#define MAX_SET_CREDITS_PREF 9999
+#define HLP_SET_CREDITS_PREF "set preference for nodes of given state section"
+
+
 // Key Weight:
 #define KCNull (-1)
 

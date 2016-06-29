@@ -563,6 +563,10 @@ struct schedDecreasedEffectiveState_node {
 struct KeyState {
 
 	struct {
+		int16_t setPrefConf;
+		int16_t setMaxConf;
+		int16_t setPrefUse;
+		int16_t setMaxUse;
 		int16_t numSet;
 		int16_t numSec;
 		uint16_t flags;
@@ -577,9 +581,9 @@ struct KeyState {
 	char *rowName;
 	char *secName;
 	char *secAcro;
-	int16_t prefBase;
+	int16_t setPrefDflt;
 	int16_t(* prefGet) (struct key_node *kn);
-	int16_t maxSet;
+	int16_t setMaxDflt;
 	void (*setInAction) (GLOBAL_ID_T *kHash, struct key_node **kn, struct KeyState *next);
 	void (*setOutAction) (struct key_node **kn, struct KeyState *next);
 	int8_t(* colMaintain) (struct key_node *kn);

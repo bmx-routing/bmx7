@@ -64,7 +64,7 @@ struct key_credits zeroKeyCredit = {.dFriend = 0};
 
 //void keyNode_schedLowerState(struct key_node *kn, struct KeyState *s);
 
-#define KS_INIT {0,0,0,0,0, NULL, NULL, NULL, NULL}
+#define KS_INIT {0,0,0,0,0,0,0,0,0, NULL, NULL, NULL, NULL}
 
 STATIC_FUNC
 IDM_T keyNode_anyRef (struct key_node *kn)
@@ -123,8 +123,8 @@ int16_t kPref_listedAlien(struct key_node *kn)
 	}
 
 	return XMIN(
-		((int32_t)keyMatrix[KCListed][KRAlien].i.right->prefBase - 1),
-		((int32_t)keyMatrix[KCListed][KRAlien].prefBase + (referencingNeighsPref / 1000))
+		((int32_t)keyMatrix[KCListed][KRAlien].i.right->i.setPrefUse - 1),
+		((int32_t)keyMatrix[KCListed][KRAlien].i.setPrefUse + (referencingNeighsPref / 1000))
 		);
 }
 
@@ -148,13 +148,13 @@ STATIC_FUNC
 int8_t keyNode_compoundsLessPrefSecItem(struct KeyState *test, uint16_t prefBase)
 {
 
-	assertion(-502339, IMPLIES(test && test->i.down, test->prefBase > test->i.down->prefBase));
-	assertion(-502340, IMPLIES(test && test->i.right, test->prefBase < test->i.right->prefBase));
+	assertion(-502339, IMPLIES(test && test->i.down, test->i.setPrefUse > test->i.down->i.setPrefUse));
+	assertion(-502340, IMPLIES(test && test->i.right, test->i.setPrefUse < test->i.right->i.setPrefUse));
 
 	if (!test)
 		return NO;
 
-	if (test->prefBase >= prefBase)
+	if (test->i.setPrefUse >= prefBase)
 		return NO;
 
 	if (test->i.numSet > (test->i.right ? test->i.right->i.numSet : 0))
@@ -172,7 +172,7 @@ int8_t keyNode_hasFreeSecItem(struct KeyState *test, struct KeyState *applicant)
 	if (((applicant ? applicant->i.flags : 0) & test->i.flags) == test->i.flags)
 		return YES;
 
-	return ((test->i.numSet < test->maxSet) &&
+	return ((test->i.numSet < test->i.setMaxUse) &&
 		keyNode_hasFreeSecItem(test->i.up, applicant) &&
 		keyNode_hasFreeSecItem(test->i.left, applicant));
 }
@@ -194,7 +194,7 @@ int8_t kColCond_listed(uint8_t asRow, struct key_node *kn)
 {
 	struct KeyState *lTarget = &(keyMatrix[KCListed][asRow]);
 
-	if (keyNode_compoundsLessPrefSecItem(lTarget->i.down, lTarget->prefBase))
+	if (keyNode_compoundsLessPrefSecItem(lTarget->i.down, lTarget->i.setPrefUse))
 		return YES;
 
 	if (keyNode_hasFreeSecItem(lTarget, kn ? kn->bookedState : NULL))
@@ -284,7 +284,7 @@ int8_t kColCond_tracked(uint8_t asRow, struct key_node *kn)
 {
 	struct KeyState *tTarget = &(keyMatrix[KCTracked][asRow]);
 
-	if (keyNode_compoundsLessPrefSecItem(tTarget->i.down, tTarget->prefBase))
+	if (keyNode_compoundsLessPrefSecItem(tTarget->i.down, tTarget->i.setPrefUse))
 		return YES;
 
 	if (keyNode_hasFreeSecItem(tTarget, kn->bookedState))
@@ -448,7 +448,7 @@ int16_t kPref_neighbor_metric(struct key_node *kn)
 STATIC_FUNC
 int16_t kPref_neighbor(struct key_node *kn)
 {
-	return kn->bookedState->prefBase + kPref_neighbor_metric(kn);
+	return kn->bookedState->i.setPrefUse + kPref_neighbor_metric(kn);
 }
 
 STATIC_FUNC
@@ -484,9 +484,9 @@ void kSetOutAction_neighbor(struct key_node **kn, struct KeyState *next)
 struct KeyState keyMatrix[KCSize][KRSize] = {
 	{
 		{KS_INIT, "Listed", "qualifying", "listedQualifying", "lQ", 4000, NULL, 10000, kSetInAction_listed, kSetOutAction_listed, kCol_TRUE, kColCond_listed, kRowCond_qualifying},
-		{KS_INIT, "ListedGraded", "friend", "listedFriend", "lF", 3000, NULL, 0, kSetInAction_Graded, kSetOutAction_Graded, NULL, NULL, kRowCond_friend},
-		{KS_INIT, "ListedStranger", "recommended", "listedRecommended", "lR", 2000, NULL, 0, NULL, NULL, NULL, NULL, kRowCond_recommended},
-		{KS_INIT, "ListedAlien", "alien", "listedAlien", "lA", 0, kPref_listedAlien, 0, kSetInAction_alien, kSetOutAction_alien, NULL, NULL, kRowCond_alien},
+		{KS_INIT, "Graded", "friend", "listedFriend", "lF", 3000, NULL, 0, kSetInAction_Graded, kSetOutAction_Graded, NULL, NULL, kRowCond_friend},
+		{KS_INIT, "Stranger", "recommended", "listedRecommended", "lR", 2000, NULL, 0, NULL, NULL, NULL, NULL, kRowCond_recommended},
+		{KS_INIT, "Alien", "alien", "listedAlien", "lA", 0, kPref_listedAlien, 0, kSetInAction_alien, kSetOutAction_alien, NULL, NULL, kRowCond_alien},
 	},
 	{
 		{KS_INIT, "Tracked", "qualifying", "trackedQualifying", "tQ", 4001, NULL, 1100, kSetInAction_tracked, kSetOutAction_tracked, kCol_TRUE, kColCond_tracked, NULL},
@@ -517,16 +517,15 @@ struct KeyState keyMatrix[KCSize][KRSize] = {
 STATIC_FUNC
 int16_t kPref_base(struct key_node *kn)
 {
-	return kn->bookedState->prefBase;
+	return kn->bookedState->i.setPrefUse;
 }
 
 STATIC_FUNC
 void keyNode_initMatrix(void)
 {
-	uint8_t c = 0;
-	for (; c < KCSize; c++) {
-		uint8_t r = 0;
-		for (; r < KRSize; r++) {
+	uint8_t c, r;
+	for (c = 0; c < KCSize; c++) {
+		for (r = 0; r < KRSize; r++) {
 			struct KeyState *curr = &(keyMatrix[c][r]);
 			struct KeyState *left = (c > 0) ? &(keyMatrix[c - 1][r]) : NULL;
 			struct KeyState *up = (r > 0) ? &(keyMatrix[c][r - 1]) : NULL;
@@ -538,23 +537,45 @@ void keyNode_initMatrix(void)
 			assertion(-502366, IMPLIES(!r, curr->colMaintain));
 			assertion(-502367, IMPLIES(!c, curr->rowCond));
 
-			curr->prefGet = curr->prefGet ? curr->prefGet : kPref_base;
-			curr->i.flags |= ((up ? up->i.flags : 0) | (left ? left->i.flags : 0) | (1 << (c + KRSize)) | (1 << (r)));
-
-			if (!curr->maxSet)
-				curr->maxSet = (left && up) ? XMIN(left->maxSet, up->maxSet) : (left ? left->maxSet : (up ? up->maxSet : 0));
-
 			curr->i.c = c;
 			curr->i.r = r;
 			curr->i.down = (r < (KRSize - 1)) ? &(keyMatrix[c][r + 1]) : NULL;
 			curr->i.up = up;
 			curr->i.right = (c < (KCSize - 1)) ? &(keyMatrix[c + 1][r]) : NULL;
 			curr->i.left = left;
+			curr->prefGet = curr->prefGet ? curr->prefGet : kPref_base;
+			curr->i.flags |= ((up ? up->i.flags : 0) | (left ? left->i.flags : 0) | (1 << (c + KRSize)) | (1 << (r)));
 
-			assertion(-502368, IMPLIES(left, left->maxSet >= curr->maxSet));
-			assertion(-502369, IMPLIES(left, left->prefBase < curr->prefBase));
-			assertion(-502370, IMPLIES(up, up->maxSet >= curr->maxSet));
-			assertion(-502371, IMPLIES(up, up->prefBase > curr->prefBase));
+			if (curr->i.setMaxConf)
+				curr->i.setMaxUse = curr->i.setMaxConf;
+			else if (curr->setMaxDflt)
+				curr->i.setMaxUse = curr->setMaxDflt;
+			else
+				curr->i.setMaxUse = INT16_MAX;
+
+			if (left)
+				curr->i.setMaxUse = XMIN(curr->i.setMaxUse, left->i.setMaxUse);
+			if (up)
+				curr->i.setMaxUse = XMIN(curr->i.setMaxUse, up->i.setMaxUse);
+
+			assertion(-502368, IMPLIES(left, curr->i.setMaxUse <= left->i.setMaxUse));
+			assertion(-502370, IMPLIES(up, curr->i.setMaxUse <= up->i.setMaxUse));
+
+
+			if (curr->i.setPrefConf)
+				curr->i.setPrefUse = curr->i.setPrefConf;
+			else if (curr->setPrefDflt)
+				curr->i.setPrefUse = curr->setPrefDflt;
+			else
+				curr->i.setPrefUse = 0;
+
+			if (left)
+				curr->i.setPrefUse = XMAX(curr->i.setPrefUse, (left->i.setPrefUse + 1));
+			if (up && up->i.setPrefUse > 0)
+				curr->i.setPrefUse = XMIN(curr->i.setPrefUse, (up->i.setPrefUse - 1));
+
+			assertion(-502369, IMPLIES(left, curr->i.setPrefUse > left->i.setPrefUse));
+			assertion(-502371, IMPLIES(up, curr->i.setPrefUse < up->i.setPrefUse));
 
 		}
 	}
@@ -594,11 +615,11 @@ struct key_node * keyNode_setState(GLOBAL_ID_T *kHash, struct key_node *kn, stru
 				int8_t diff = ((!was && will) ? (+1) : ((was && !will) ? (-1) : (0)));
 
 				dbgf_all(DBGT_INFO, "c=%d r=%d numSet=%d diff=%-2d maxSet=%-5d exception=%d/%d setName=%s",
-					c, r, t->i.numSet, diff, t->maxSet, (t->i.numSet + diff > t->maxSet), key_tree_exceptions, t->setName);
+					c, r, t->i.numSet, diff, t->i.setMaxUse, (t->i.numSet + diff > t->i.setMaxUse), key_tree_exceptions, t->setName);
 
 				t->i.numSet += diff;
 
-				if (t->i.numSet > t->maxSet)
+				if (t->i.numSet > t->i.setMaxUse)
 					key_tree_exceptions = YES;
 			}
 		}
@@ -668,7 +689,7 @@ struct KeyState *keySec_getLeast(struct KeyState *in, struct KeyState *out)
 			if (out && c >= out->i.c && r >= out->i.r)
 				continue;
 
-			if (curr->i.numSec && curr->prefBase <= (least ? least->prefBase : INT16_MAX))
+			if (curr->i.numSec && curr->i.setPrefUse <= (least ? least->i.setPrefUse : INT16_MAX))
 				least = curr;
 		}
 	}
@@ -847,7 +868,7 @@ IDM_T keyNode_getNQualifyingCredits(GLOBAL_ID_T *kHash, struct key_node *kn)
 	return (
 		(keyMatrix[KCListed][KRQualifying].i.numSet - keyMatrix[KCListed][KRFriend].i.numSet)
 		<
-		((keyMatrix[KCNeighbor][KRQualifying].maxSet - keyMatrix[KCNeighbor][KRFriend].i.numSet) /
+		((keyMatrix[KCNeighbor][KRQualifying].i.setMaxUse - keyMatrix[KCNeighbor][KRFriend].i.numSet) /
 		((kn && kn->bookedState->i.c >= KCPromoted && kn->bookedState->i.r < KRAlien) ? 1 : 2)
 		)
 		);
@@ -1078,7 +1099,7 @@ void keyNodes_updCredits(void)
 	struct KeyState *ks;
 
 	ks = &(keyMatrix[KCListed][0]);
-	if (ks->i.numSet > ks->i.right->i.numSet && ks->i.right->i.numSet < ks->i.right->maxSet ) {
+	if (ks->i.numSet > ks->i.right->i.numSet && ks->i.right->i.numSet < ks->i.right->i.setMaxUse ) {
 
 		struct key_node *kn = NULL;
 
@@ -1175,7 +1196,7 @@ uint32_t keyNodes_fixLimits(void)
 			for (r = KRSize-1; r >= 0; r--) {
 				struct KeyState *ks = &(keyMatrix[c][r]);
 
-				while (ks->i.numSet > ks->maxSet) {
+				while (ks->i.numSet > ks->i.setMaxUse) {
 
 					//keyNode_reduceSet(ks);
 					struct key_node *least = keyNode_getLeast(ks, NULL);
@@ -1183,7 +1204,7 @@ uint32_t keyNodes_fixLimits(void)
 					struct KeyState *newState = (least->bookedState->i.c) ? &(keyMatrix[least->bookedState->i.c - 1][least->bookedState->i.r]) : NULL;
 
 					dbgf_sys(DBGT_INFO, "c=%d r=%d set=%s %d/%d sec=%s %d, least=%s old=%s new=%s",
-						c, r, ks->setName, ks->i.numSet, ks->maxSet, ks->secName, ks->i.numSec,
+						c, r, ks->setName, ks->i.numSet, ks->i.setMaxUse, ks->secName, ks->i.numSec,
 						cryptShaAsShortStr(&least->kHash), least->bookedState->secName, newState->secName);
 
 					keyNode_setState(&least->kHash, least, newState);
@@ -1250,24 +1271,34 @@ struct key_node *keyNode_get(GLOBAL_ID_T *kHash)
 
 
 struct credits_status {
-#define CSFSize 20
-	char *row;
+#define CSFSize 30
 	char *set;
+	char *row;
 	char Listed[CSFSize];
+	int16_t  lPref;
 	char Tracked[CSFSize];
+	int16_t  tPref;
 	char Certified[CSFSize];
+	int16_t  cPref;
 	char Promoted[CSFSize];
+	int16_t  pPref;
 	char Neighbor[CSFSize];
-};
+	int16_t  nPref;
+}__attribute__((packed));
 
 static const struct field_format credits_format[] = {
-        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,   credits_status, row,       1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,   credits_status, set,       1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,   credits_status, row,       1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,    credits_status, Listed,    1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_INT,            credits_status, lPref,     1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,    credits_status, Tracked,   1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_INT,            credits_status, tPref,     1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,    credits_status, Certified, 1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_INT,            credits_status, cPref,     1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,    credits_status, Promoted,  1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_INT,            credits_status, pPref,     1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,    credits_status, Neighbor,  1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_INT,            credits_status, nPref,     1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_END
 };
 
@@ -1281,14 +1312,82 @@ static int32_t credits_creator(struct status_handl *handl, void *data)
 		s[r].set = keyMatrix[KCListed][r].setName;
 		s[r].row = keyMatrix[KCListed][r].rowName;
 		for (c = KCListed; c < KCSize; c++) {
-			sprintf((s[r].Listed + (c * CSFSize)), "%d/%d/%d",
-				keyMatrix[c][r].i.numSec, keyMatrix[c][r].i.numSet, keyMatrix[c][r].maxSet);
+			sprintf((s[r].Listed + (c * (CSFSize + sizeof(int16_t)))), "%s=%d/%d/%d",
+				keyMatrix[c][r].secAcro, keyMatrix[c][r].i.numSec, keyMatrix[c][r].i.numSet, keyMatrix[c][r].i.setMaxUse);
+
+			*((int16_t*)(((char*)(&s[r].lPref)) + (c * (CSFSize + sizeof(int16_t))))) = keyMatrix[c][r].i.setPrefUse;
 		}
 	}
 	return cSize;
 }
 
 
+STATIC_FUNC
+int32_t opt_set_credits(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
+{
+	TRACE_FUNCTION_CALL;
+
+	struct KeyState *ks = NULL;
+	uint8_t kc, kr;
+
+        if (cmd == OPT_CHECK || cmd == OPT_APPLY) {
+
+		char validSections[1024] = "";
+
+		if ( strlen(patch->val) != 2 ) {
+			dbgf_cn( cn, DBGL_SYS, DBGT_ERR, "section name MUST valid two-letter acronym" );
+			return FAILURE;
+		}
+
+		for (kc = 0; kc < KCSize; kc++) {
+			for (kr = 0; kr < KRSize; kr++) {
+				sprintf(&validSections[strlen(validSections)], "%s ", keyMatrix[kc][kr].secAcro);
+				if (!strcasecmp(keyMatrix[kc][kr].secAcro, patch->val)) {
+					ks = &keyMatrix[kc][kr];
+					dbgf_cn(cn, DBGL_CHANGES, DBGT_INFO, "Found credibility section %s (%s)", ks->secName, ks->secAcro);
+				}
+			}
+		}
+
+		if (!ks) {
+			dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "section name MUST be one of: %s!", validSections);
+			return FAILURE;
+		}
+	}
+
+	if (cmd == OPT_APPLY) {
+
+		if ( patch->diff == DEL ) {
+
+			ks->i.setMaxConf = 0;
+			ks->i.setPrefConf = 0;
+
+                } else {
+
+			struct opt_child *c = NULL;
+			while ((c = list_iterate(&patch->childs_instance_list, c))) {
+
+				int cval = c->val ? strtol(c->val, NULL, 10) : 0;
+
+				if (!strcmp(c->opt->name, ARG_SET_CREDITS_MAX)) {
+
+					ks->i.setMaxConf = cval;
+
+				} else if (!strcmp(c->opt->name, ARG_SET_CREDITS_PREF)) {
+
+					ks->i.setPrefConf = cval;
+				}
+			}
+		}
+
+		uint32_t blockId = keyNodes_block_and_sync(0, NO);
+		keyNode_initMatrix();
+		key_tree_exceptions = YES;
+		keyNodes_block_and_sync(blockId, NO);
+        }
+
+	return SUCCESS;
+}
 
 
 static struct opt_type key_options[] = {
@@ -1296,8 +1395,16 @@ static struct opt_type key_options[] = {
 	{ODI,0,ARG_CREDITS,	        0,  9,1,A_PS0N,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
 			0,		"show credits\n"},
 #ifndef LESS_OPTIONS
-	{ODI, 0, ARG_ID_PURGE_TO, 0, 9, 1, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &id_purge_to, MIN_ID_PURGE_TO, MAX_ID_PURGE_TO, DEF_ID_PURGE_TO, 0, 0,
-		ARG_VALUE_FORM, "timeout in ms for purging unreferenced (alien) IDs"}
+	{ODI, 0, ARG_ID_PURGE_TO,       0, 9, 1, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &id_purge_to, MIN_ID_PURGE_TO, MAX_ID_PURGE_TO, DEF_ID_PURGE_TO, 0, 0,
+		ARG_VALUE_FORM, "timeout in ms for purging unreferenced (alien) IDs"},
+
+	{ODI,0,ARG_SET_CREDITS,         0,9,2,A_PM1N,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0, 		0,		0,0, 		opt_set_credits,
+			"section name", HLP_SET_CREDITS},
+	{ODI,ARG_SET_CREDITS,ARG_SET_CREDITS_MAX,0,9,0,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,     MIN_SET_CREDITS_MAX,MAX_SET_CREDITS_MAX,0,0,        opt_set_credits,
+			ARG_VALUE_FORM,	HLP_SET_CREDITS_MAX},
+	{ODI,ARG_SET_CREDITS,ARG_SET_CREDITS_PREF,0,9,0,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0,    MIN_SET_CREDITS_PREF,MAX_SET_CREDITS_PREF,0,0,      opt_set_credits,
+			ARG_VALUE_FORM,	HLP_SET_CREDITS_PREF},
+
 #endif
 };
 

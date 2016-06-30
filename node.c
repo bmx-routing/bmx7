@@ -525,9 +525,13 @@ int purge_orig_router(struct orig_node *onlyOrig, struct neigh_node *onlyNeigh, 
 
 
 
-void neigh_destroy(struct neigh_node *local)
+void neigh_destroy(struct orig_node *on)
 {
+	struct neigh_node *local = on->neigh;
 	LinkDevNode *linkDev;
+
+	if (on->kn == myKey)
+		return;
 
 	dbgf_sys(DBGT_INFO, "purging local_id=%s curr_rx_packet=%d thisNeighsPacket=%d verified_link=%d",
 		cryptShaAsString(&local->local_id), !!curr_rx_packet,
@@ -575,6 +579,9 @@ void neigh_destroy(struct neigh_node *local)
 
 struct neigh_node *neigh_create(struct orig_node *on)
 {
+	if (on->kn == myKey)
+		return NULL;
+
 	struct neigh_node *nn = (on->neigh = debugMallocReset(sizeof(struct neigh_node), -300757));
 	nn->local_id = on->k.nodeId;
 	avl_insert(&local_tree, nn, -300758);

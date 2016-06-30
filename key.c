@@ -84,7 +84,7 @@ IDM_T keyNode_anyRef (struct key_node *kn)
 STATIC_FUNC
 int8_t kRowCond_qualifying(struct key_node *kn, struct key_credits *kc)
 {
-	return(kc->nQualifying || (kn && kn->nQTime));
+	return(kc->nQualifying || (kn && kn->nQTime) || kn == myKey);
 }
 
 STATIC_FUNC
@@ -454,8 +454,9 @@ int16_t kPref_neighbor(struct key_node *kn)
 STATIC_FUNC
 int8_t kColCond_neighbor(uint8_t asRow, struct key_node *kn)
 {
-	return (kn && kn->pktSignTime &&
-		(kn->nQTime || (kn->bookedState->i.c >= KCNeighbor && kPref_neighbor_metric(kn))));
+	return (kn == myKey || (
+		kn && kn->pktSignTime && (kn->nQTime || (kn->bookedState->i.c >= KCNeighbor && kPref_neighbor_metric(kn))))
+		);
 }
 
 
@@ -463,6 +464,7 @@ STATIC_FUNC
 void kSetInAction_neighbor(GLOBAL_ID_T *kHash, struct key_node **kn, struct KeyState *next)
 {
 	assertion(-502358, (kn && *kn && cryptShasEqual(kHash, &(*kn)->kHash) && (*kn)->on));
+
 	neigh_create((*kn)->on);
 	setQualifyingPromotedOrNeigh(YES, (*kn) );
 }
@@ -470,9 +472,9 @@ void kSetInAction_neighbor(GLOBAL_ID_T *kHash, struct key_node **kn, struct KeyS
 STATIC_FUNC
 void kSetOutAction_neighbor(struct key_node **kn, struct KeyState *next)
 {
-	assertion(-502360, (kn && *kn && (*kn)->on && (*kn)->on->neigh));
+	assertion(-502360, (kn && *kn && (*kn)->on && IMPLIES((*kn) != myKey, (*kn)->on->neigh)));
 
-	neigh_destroy((*kn)->on->neigh);
+	neigh_destroy((*kn)->on);
 
 	if (!next || next->i.r != KRQualifying)
 		setQualifyingPromotedOrNeigh(NO, (*kn));
@@ -707,7 +709,7 @@ struct key_node *keyNode_getLeast(struct KeyState *inSet, struct KeyState *outSe
 		//find first random node in section...
 		CRYPTSHA1_T k;
 		cryptRand(&k, sizeof(k));
-		struct key_node *kCurr = avl_next_item(&key_tree, &k);
+		struct key_node *kCurr = (kCurr = avl_next_item(&key_tree, &k)) ? kCurr : avl_next_item(&key_tree, NULL);
 		struct key_node *kLast = kCurr;
 		struct key_node *kLeast = NULL;
 		uint16_t prefLeast = UINT16_MAX;
@@ -718,7 +720,7 @@ struct key_node *keyNode_getLeast(struct KeyState *inSet, struct KeyState *outSe
 				assertion(-502381, ((kCurr->bookedState->i.flags & inSet->i.flags) == inSet->i.flags));
 				uint16_t currLeast = 0;
 
-				if (kCurr->bookedState->prefGet == kPref_base) {
+				if (kCurr->bookedState->prefGet == kPref_base && kCurr != myKey) {
 
 					return kCurr;
 
@@ -727,7 +729,7 @@ struct key_node *keyNode_getLeast(struct KeyState *inSet, struct KeyState *outSe
 					kLeast = kCurr;
 					prefLeast = (*(kCurr->bookedState->prefGet))(kCurr);
 
-				} else if (prefLeast > (currLeast = (*(kCurr->bookedState->prefGet))(kCurr))) {
+				} else if (prefLeast > (currLeast = (*(kCurr->bookedState->prefGet))(kCurr)) || kLeast == myKey) {
 
 					kLeast = kCurr;
 					prefLeast = currLeast;
@@ -1205,7 +1207,7 @@ uint32_t keyNodes_fixLimits(void)
 
 					dbgf_sys(DBGT_INFO, "c=%d r=%d set=%s %d/%d sec=%s %d, least=%s old=%s new=%s",
 						c, r, ks->setName, ks->i.numSet, ks->i.setMaxUse, ks->secName, ks->i.numSec,
-						cryptShaAsShortStr(&least->kHash), least->bookedState->secName, newState->secName);
+						cryptShaAsShortStr(&least->kHash), least->bookedState->secName, newState ? newState->secName : NULL);
 
 					keyNode_setState(&least->kHash, least, newState);
 					changes++;

@@ -658,7 +658,7 @@ struct NeighRef_node *neighRef_resolve_or_destroy(struct NeighRef_node *ref, IDM
 void neighRefs_resolve_or_destroy(void);
 
 int purge_orig_router(struct orig_node *onlyOrig, struct neigh_node *onlyNeigh, LinkNode *onlyLink, IDM_T onlyUseless);
-void neigh_destroy(struct neigh_node *local);
+void neigh_destroy(struct orig_node *on);
 struct neigh_node *neigh_create(struct orig_node *on);
 void destroy_orig_node(struct orig_node *on);
 void init_self(void);

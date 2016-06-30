@@ -424,6 +424,9 @@ void setQualifyingPromotedOrNeigh(IDM_T in, struct key_node *kn)
 {
 	assertion(-502701, (kn));
 
+	if (kn == myKey)
+		return;
+	
 	struct orig_node *qon = avl_find_item(&qualifyingPromoteds_tree, &kn->kHash);
 
 	assertion(-502702, IMPLIES(qon, kn->on && qon == kn->on));

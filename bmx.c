@@ -1607,8 +1607,6 @@ STATIC_FUNC
 void bmx(void)
 {
 
-        struct avl_node *an;
-	struct dev_node *dev;
 	TIME_T frequent_timeout, seldom_timeout;
 
 	TIME_T s_last_cpu_time = 0, s_curr_cpu_time = 0;
@@ -1633,12 +1631,7 @@ void bmx(void)
 		if ( U32_LT( frequent_timeout + 1000,  bmx_time ) ) {
 
 			// check for changed interface konfigurations...
-                        for (an = NULL; (dev = avl_iterate_item(&dev_name_tree, &an));) {
-
-				if ( dev->active )
-                                        sysctl_config( dev );
-
-                        }
+			sysctl_config( NULL );
 
 
 			close_ctrl_node( CTRL_CLEANUP, NULL );

@@ -97,6 +97,8 @@ int32_t ip_prio_rules_cfg = DEF_IP_PRIO_RULES;
 int32_t ip_throw_rules_cfg = DEF_IP_THROW_RULES;
 int32_t ip_policy_rt_cfg = DEF_IP_POLICY_ROUTING;
 
+int32_t autoSysctl = DEF_AUTO_SYSCTL;
+int32_t autoTunSysctl = DEF_AUTO_SYSCTL;
 
 int32_t policy_routing = POLICY_RT_UNSET;
 
@@ -1227,11 +1229,11 @@ int32_t kernel_dev_tun_add( char *name, int32_t *fdp, IDM_T isIp4Tun )
 		char filename[100];
 
 		sprintf(filename,"ipv4/conf/%s/accept_local", name);
-		if (check_proc_sys_net(filename, SYSCTL_IP4_ACCEPT_LOCAL)==FAILURE)
+		if (check_proc_sys_net(filename, SYSCTL_IP4_ACCEPT_LOCAL, autoTunSysctl)==FAILURE)
 			goto kernel_dev_tun_add_error;
 
 		sprintf(filename,"ipv4/conf/%s/rp_filter", name);
-		if (check_proc_sys_net(filename, SYSCTL_IP4_RP_FILTER)==FAILURE)
+		if (check_proc_sys_net(filename, SYSCTL_IP4_RP_FILTER, autoTunSysctl)==FAILURE)
 			goto kernel_dev_tun_add_error;
 	}
 
@@ -1332,11 +1334,11 @@ int32_t kernel_tun_add(char *name, uint8_t proto, IPX_T *local, IPX_T *remote)
 
 
 	sprintf(filename,"ipv4/conf/%s/accept_local", name);
-	if (check_proc_sys_net(filename, SYSCTL_IP4_ACCEPT_LOCAL)==FAILURE)
+	if (check_proc_sys_net(filename, SYSCTL_IP4_ACCEPT_LOCAL, autoTunSysctl)==FAILURE)
 		goto kernel_tun_add_error;
 
 	sprintf(filename,"ipv4/conf/%s/rp_filter", name);
-	if (check_proc_sys_net(filename, SYSCTL_IP4_RP_FILTER)==FAILURE)
+	if (check_proc_sys_net(filename, SYSCTL_IP4_RP_FILTER, autoTunSysctl)==FAILURE)
 		goto kernel_tun_add_error;
 
 	return idx;
@@ -1876,7 +1878,7 @@ IDM_T iproute(uint16_t cmd, int8_t del, uint8_t quiet, const struct net_key *dst
 
 
 
-IDM_T check_proc_sys_net(char *file, int32_t desired)
+IDM_T check_proc_sys_net(char *file, int32_t desired, IDM_T force)
 {
 	TRACE_FUNCTION_CALL;
         FILE *f;
@@ -1899,7 +1901,13 @@ IDM_T check_proc_sys_net(char *file, int32_t desired)
 
 	if ( state != desired ) {
 
-		dbgf_sys(DBGT_INFO, "changing %s from %d to %d", filename, state, desired );
+		force |= autoSysctl;
+
+		dbgf_sys(DBGT_INFO, "%s CHANGING %s from %d to %d! Set --%s or --%s to %s configuration",
+			force ? "" : "NOT", filename, state, desired, ARG_AUTO_SYSCTL, ARG_ATUN_SYSCTL, force ? "0 for manual" : "1 for automatic");
+
+		if (!force)
+			return SUCCESS;
 
 		if((f = fopen(filename, "w" )) == NULL) {
 
@@ -1915,37 +1923,44 @@ IDM_T check_proc_sys_net(char *file, int32_t desired)
 
 
 // TODO: check for further traps: http://lwn.net/Articles/45386/
-void sysctl_config( struct dev_node *dev )
+void sysctl_config( struct dev_node *onlyDev )
 {
         TRACE_FUNCTION_CALL;
 
         static TIME_T checkstamp = -1;
         char filename[100];
+        struct avl_node *an;
+	struct dev_node *dev;
 
-        if (!(dev->active && dev->if_llocal_addr && dev->if_llocal_addr->iln->flags && IFF_UP))
-                return;
+	if (onlyDev || autoSysctl) {
 
+		if (checkstamp != bmx_time) {
 
-	if (checkstamp != bmx_time) {
+			check_proc_sys_net("ipv6/conf/all/forwarding", SYSCTL_IP6_FORWARD, NO);
 
-		check_proc_sys_net("ipv6/conf/all/forwarding", SYSCTL_IP6_FORWARD);
+			check_proc_sys_net("ipv4/ip_forward", SYSCTL_IP4_FORWARD, NO);
 
-		check_proc_sys_net("ipv4/ip_forward", SYSCTL_IP4_FORWARD);
+			check_proc_sys_net("ipv4/conf/all/rp_filter", SYSCTL_IP4_RP_FILTER, NO);
+			check_proc_sys_net("ipv4/conf/default/rp_filter", SYSCTL_IP4_RP_FILTER, NO);
+			check_proc_sys_net("ipv4/conf/all/send_redirects", SYSCTL_IP4_SEND_REDIRECT, NO);
+			check_proc_sys_net("ipv4/conf/default/send_redirects", SYSCTL_IP4_SEND_REDIRECT, NO);
 
-		check_proc_sys_net("ipv4/conf/all/rp_filter", SYSCTL_IP4_RP_FILTER);
-		check_proc_sys_net("ipv4/conf/default/rp_filter", SYSCTL_IP4_RP_FILTER);
-		check_proc_sys_net("ipv4/conf/all/send_redirects", SYSCTL_IP4_SEND_REDIRECT);
-		check_proc_sys_net("ipv4/conf/default/send_redirects", SYSCTL_IP4_SEND_REDIRECT);
+			checkstamp = bmx_time;
+		}
 
-		checkstamp = bmx_time;
-	}
+		for (an = NULL; (dev = onlyDev ? onlyDev : avl_iterate_item(&dev_name_tree, &an));) {
 
+			if ((dev->active && dev->if_llocal_addr && dev->if_llocal_addr->iln->flags && IFF_UP)) {
 
-	if (dev) {
-		sprintf(filename, "ipv4/conf/%s/rp_filter", dev->ifname_device.str);
-		check_proc_sys_net(filename, SYSCTL_IP4_RP_FILTER);
-		sprintf(filename, "ipv4/conf/%s/send_redirects", dev->ifname_device.str);
-		check_proc_sys_net(filename, SYSCTL_IP4_SEND_REDIRECT);
+				sprintf(filename, "ipv4/conf/%s/rp_filter", dev->ifname_device.str);
+				check_proc_sys_net(filename, SYSCTL_IP4_RP_FILTER, NO);
+				sprintf(filename, "ipv4/conf/%s/send_redirects", dev->ifname_device.str);
+				check_proc_sys_net(filename, SYSCTL_IP4_SEND_REDIRECT, NO);
+			}
+
+			if (onlyDev)
+				break;
+		}
 	}
 }
 
@@ -3596,6 +3611,11 @@ static struct opt_type ip_options[]=
 //order must be after ARG_HOSTNAME (which initializes self via init_self(), called from opt_hostname):
 	{ODI,0,ARG_AUTO_IP6ID_PREFIX,     0,  6,1,A_PS1,A_ADM,A_INI,A_CFA,A_ANY,	0,      	0,      	0,              0,DEF_AUTO_IP6ID_PREFIX,opt_auto_prefix,
 			ARG_VALUE_FORM,	HLP_AUTO_IP6ID_PREFIX},
+
+	{ODI,0,ARG_AUTO_SYSCTL,         0,  6,1,A_PS1,A_ADM,A_INI,A_CFA,A_ANY,	&autoSysctl,  	MIN_AUTO_SYSCTL,MAX_AUTO_SYSCTL,DEF_AUTO_SYSCTL, 0,NULL,
+			ARG_VALUE_FORM,	HLP_AUTO_SYSCTL},
+	{ODI,0,ARG_ATUN_SYSCTL,         0,  6,1,A_PS1,A_ADM,A_INI,A_CFA,A_ANY,	&autoTunSysctl, MIN_AUTO_SYSCTL,MAX_AUTO_SYSCTL,DEF_AUTO_SYSCTL, 0,NULL,
+			ARG_VALUE_FORM,	HLP_AUTO_SYSCTL},
 
 	{ODI,0,ARG_DEV,		        'i',9,2,A_PM1N,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0, 		0,		0,0, 		opt_dev,
 			"<interface-name>", HLP_DEV},

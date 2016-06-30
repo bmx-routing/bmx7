@@ -53,6 +53,13 @@
 
 extern int32_t netlinkBuffSize;
 
+#define ARG_AUTO_SYSCTL "autoSysctl"
+#define ARG_ATUN_SYSCTL "autoTunSysctl"
+#define MIN_AUTO_SYSCTL 0
+#define MAX_AUTO_SYSCTL 1
+#define DEF_AUTO_SYSCTL 1
+#define HLP_AUTO_SYSCTL "set automatic configuration of relevant sysctl settings (in /proc/sys/net...)"
+
 
 extern uint32_t udpRxBytesMean, udpRxPacketsMean, udpTxBytesMean, udpTxPacketsMean;
 
@@ -645,7 +652,7 @@ IDM_T iproute(uint16_t cmd, int8_t del, uint8_t quiet, const struct net_key *dst
 void ip_flush_routes(uint8_t family, int32_t table_macro);
 void ip_flush_rules(uint8_t family, int32_t table_macro);
 
-IDM_T check_proc_sys_net(char *file, int32_t desired);
+IDM_T check_proc_sys_net(char *file, int32_t desired, IDM_T force);
 
 void sysctl_config(struct dev_node *dev_node);
 

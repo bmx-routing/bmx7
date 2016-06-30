@@ -871,6 +871,7 @@ IDM_T keyNode_getNQualifyingCredits(GLOBAL_ID_T *kHash, struct key_node *kn)
 		(keyMatrix[KCListed][KRQualifying].i.numSet - keyMatrix[KCListed][KRFriend].i.numSet)
 		<
 		((keyMatrix[KCNeighbor][KRQualifying].i.setMaxUse - keyMatrix[KCNeighbor][KRFriend].i.numSet) /
+		//prefere promoted friends and recommendeds over aliens:
 		((kn && kn->bookedState->i.c >= KCPromoted && kn->bookedState->i.r < KRAlien) ? 1 : 2)
 		)
 		);

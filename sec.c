@@ -476,7 +476,7 @@ int process_packet_signature(struct rx_frame_iterator *it)
 		goto_error_return( finish, "Unsupported signature-key length!", TLV_RX_DATA_PROCESSED);
 
 	if (!claimedKey || claimedKey->bookedState->i.c < KCTracked || (claimedKey->bookedState->i.r > KRQualifying && claimedKey->bookedState->i.c < KCNeighbor))
-		goto_error_return( finish, "< KCTracked || (<= KRQualifying && < KCNeighbor)", TLV_RX_DATA_PROCESSED);
+		goto_error_return( finish, "< KCTracked || (> KRQualifying && < KCNeighbor)", TLV_RX_DATA_PROCESSED);
 
 	assertion(-502480, (claimedKey->content));
 
@@ -501,7 +501,7 @@ int process_packet_signature(struct rx_frame_iterator *it)
 	}
 
 	if (claimedKey->bookedState->i.c < KCCertified || (claimedKey->bookedState->i.r > KRQualifying && claimedKey->bookedState->i.c < KCNeighbor))
-		goto_error_return( finish, "< KCCertified || (<= KRQualifying && < KCNeighbor)", TLV_RX_DATA_PROCESSED);
+		goto_error_return( finish, "< KCCertified || (> KRQualifying && < KCNeighbor)", TLV_RX_DATA_PROCESSED);
 
 	if (dc->unresolvedContentCounter) {
 		content_resolve(claimedKey, NULL);

@@ -540,7 +540,7 @@ struct content_usage_node *contentUse_add(uint8_t add, struct desc_content *dc, 
 {
 	assertion(-502248, (dc && cn));
 	assertion(-502311, (maxUsedLevel <= maxAllowedLevel && maxUsedLevel <= vrt_frame_max_nesting));
-	assertion(-500000, (add <= 1));
+	assertion(-502710, (add <= 1));
 
 	dbgf_track(DBGT_INFO, "add=%d expanded_type=%d %s gzip=%d cHash=%s bodyLen=%d nested=%d nested_gzip=%d data=%d usage=%d counted/claimedContents=%d/%d maxUsed/AllowedLevel=%d/%d",
 		add, expanded_type, (expanded_type <= description_tlv_db->handl_max ? description_tlv_db->handls[expanded_type].name : NULL), expanded_gzip,
@@ -575,9 +575,9 @@ struct content_usage_node *contentUse_add(uint8_t add, struct desc_content *dc, 
 		cup->maxUsedLevel = XMAX(maxUsedLevel, cup->maxUsedLevel);
 	}
 
-	assertion(-500000, (!((dc->countedVirtDescSizes.f.contents > dc->claimedVirtDescSizes.f.contents) && (extended_desc_checking >= TYP_DESC_CHECKING_SIZES))));
-	assertion(-500000, IMPLIES(cup, cup->maxAllowedLevel >= maxAllowedLevel));
-	assertion(-500000, IMPLIES(cup, cup->maxUsedLevel >= maxUsedLevel));
+	assertion(-502711, (!((dc->countedVirtDescSizes.f.contents > dc->claimedVirtDescSizes.f.contents) && (extended_desc_checking >= TYP_DESC_CHECKING_SIZES))));
+	assertion(-502712, IMPLIES(cup, cup->maxAllowedLevel >= maxAllowedLevel));
+	assertion(-502713, IMPLIES(cup, cup->maxUsedLevel >= maxUsedLevel));
 
 	return cup;
 }
@@ -709,8 +709,8 @@ int8_t descContent_assemble(struct desc_content *dc, IDM_T init_not_finalize)
 			chHdrVar.u.i.expanded_type, (cHdrPtr ? it.db->handls[chHdrVar.u.i.expanded_type].name : NULL),
 			chHdrVar.u.i.gzip, chHdrVar.u.i.maxNesting, chHdrVar.u.i.expanded_length, cryptShaAsShortStr(cHdrPtr ? &cHdrPtr->expanded_chash : NULL));
 
-		assertion(-500000, IMPLIES(cHdrPtr, chHdrVar.u.i.expanded_type != BMX_DSC_TLV_CONTENT_HASH));
-		assertion(-500000, IMPLIES(!cHdrPtr, it.f_type != BMX_DSC_TLV_CONTENT_HASH));
+		assertion(-502714, IMPLIES(cHdrPtr, chHdrVar.u.i.expanded_type != BMX_DSC_TLV_CONTENT_HASH));
+		assertion(-502715, IMPLIES(!cHdrPtr, it.f_type != BMX_DSC_TLV_CONTENT_HASH));
 
 		if (init_not_finalize) {
 
@@ -778,7 +778,7 @@ int8_t descContent_assemble(struct desc_content *dc, IDM_T init_not_finalize)
 							goto_error(finish, "K");
 					}
 
-					assertion(-500000, (!dc->unresolvedContentCounter));
+					assertion(-502716, (!dc->unresolvedContentCounter));
 
 					cn = content_add_body(data, dlen, 0, 0, YES);
 
@@ -788,7 +788,7 @@ int8_t descContent_assemble(struct desc_content *dc, IDM_T init_not_finalize)
 				}
 
 				assertion(-502258, (cn && cn->f_body));
-				assertion(-500000, (chHdrVar.u.i.expanded_type != BMX_DSC_TLV_CONTENT_HASH));
+				assertion(-502717, (chHdrVar.u.i.expanded_type != BMX_DSC_TLV_CONTENT_HASH));
 				assertion(-502250, (dc->contentRefs_tree.items));
 				assertion(-502252, (!dc->final[chHdrVar.u.i.expanded_type].desc_tlv_body_len));
 

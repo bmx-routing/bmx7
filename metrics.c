@@ -1295,7 +1295,7 @@ void init_metrics_assertions( void ) {
 	UMETRIC_T test = 1000000000;
 	while (test >=   10000000) {
 		dbgf_all(DBGT_INFO, "um=%ju fm=%d %s",test, umetric_to_fmetric(test).val.u16, umetric_to_human(test));
-		assertion(-500000, (umetric_to_fmetric(test).val.u16 > umetric_to_fmetric(umetric_substract_min(&test)).val.u16));
+		assertion(-502726, (umetric_to_fmetric(test).val.u16 > umetric_to_fmetric(umetric_substract_min(&test)).val.u16));
 		test = umetric_substract_min(&test);
 	}
 

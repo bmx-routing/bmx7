@@ -234,9 +234,9 @@ void set_ref_ogmSqnMaxMetric(struct NeighRef_node *ref, DESC_SQN_T descSqn, OGM_
 
 void update_ogm_mins(struct key_node *kn, DESC_SQN_T minDescSqn, OGM_SQN_T minOgmSqn, UMETRIC_T *minUMetric)
 {
-	assertion(-500000, (kn));
-	assertion(-500000, (minDescSqn));
-	assertion(-500000, IMPLIES(minUMetric, minOgmSqn));
+	assertion(-502727, (kn));
+	assertion(-502728, (minDescSqn));
+	assertion(-502729, IMPLIES(minUMetric, minOgmSqn));
 
 	FMETRIC_U16_T minFMetric = {.val = {.u16 = 0}};
 		
@@ -276,9 +276,9 @@ void update_ogm_mins(struct key_node *kn, DESC_SQN_T minDescSqn, OGM_SQN_T minOg
 
 IDM_T is_new_ogm_mins(struct key_node *kn, DESC_SQN_T minDescSqn, OGM_SQN_T minOgmSqn, UMETRIC_T *minUMetric)
 {
-	assertion(-500000, (kn));
-	assertion(-500000, (minDescSqn));
-	assertion(-500000, IMPLIES(minUMetric, minOgmSqn));
+	assertion(-502730, (kn));
+	assertion(-502731, (minDescSqn));
+	assertion(-502732, IMPLIES(minUMetric, minOgmSqn));
 
 	FMETRIC_U16_T minFMetric = {.val = {.u16 = 0}};
 
@@ -674,7 +674,7 @@ void init_self(void)
 	struct dsc_msg_pubkey *msg = debugMallocReset(sizeof(struct dsc_msg_pubkey) + my_NodeKey->rawKeyLen, -300631);
 	int ret = cryptRsaPubKeyGetRaw(my_NodeKey, msg->key, my_NodeKey->rawKeyLen);
 
-	assertion(-500000, (ret==SUCCESS));
+	assertion(-502733, (ret==SUCCESS));
 
 	msg->type = my_NodeKey->rawKeyType;
 

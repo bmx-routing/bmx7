@@ -397,7 +397,7 @@ int8_t kColMaintain_promoted(struct key_node *kn)
 
 	if (kn->nextDesc && kn->nextDesc->unresolvedContentCounter == 0) {
 
-		ASSERTION(-500000, (process_description_tlvs(NULL, kn->on, (kn->on ? kn->on->dc : NULL), kn->nextDesc, TLV_OP_TEST, FRAME_TYPE_PROCESS_ALL) == TLV_RX_DATA_DONE));
+		ASSERTION(-502725, (process_description_tlvs(NULL, kn->on, (kn->on ? kn->on->dc : NULL), kn->nextDesc, TLV_OP_TEST, FRAME_TYPE_PROCESS_ALL) == TLV_RX_DATA_DONE));
 		update_orig_dhash(kn->nextDesc);
 	}
 

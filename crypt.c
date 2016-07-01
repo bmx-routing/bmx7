@@ -548,7 +548,7 @@ void cryptDhmKeyFree( CRYPTDHM_T **cryptKey ) {
 
 	if ((*cryptKey)->backendKey) {
 		dhm_free((dhm_context*)((*cryptKey)->backendKey));
-		debugFree((*cryptKey)->backendKey, -300000);
+		debugFree((*cryptKey)->backendKey, -300828);
 	}
 
 
@@ -594,8 +594,8 @@ CRYPTDHM_T *cryptDhmKeyMake( uint8_t keyType, uint8_t attempt) {
 	int ret = 0;
 	char *goto_error_code = NULL;
 	int keyLen = 0;
-	CRYPTDHM_T *key = debugMallocReset(sizeof(CRYPTDHM_T), -300000);
-	dhm_context *dhm = debugMallocReset(sizeof(dhm_context), -300000);
+	CRYPTDHM_T *key = debugMallocReset(sizeof(CRYPTDHM_T), -300829);
+	dhm_context *dhm = debugMallocReset(sizeof(dhm_context), -300830);
 	char *pptr = NULL;
 	char *gptr = NULL;;
 	int pSize = 0;
@@ -677,7 +677,7 @@ finish:
 		if ((++attempt) < 10)
 			return cryptDhmKeyMake(keyType, attempt);
 
-		assertion(-500000, (0));
+		assertion(-502718, (0));
 		return NULL;
 	}
 
@@ -686,12 +686,12 @@ finish:
 
 void cryptDhmPubKeyGetRaw(CRYPTDHM_T* key, uint8_t* buff, uint16_t buffLen)
 {
-	assertion_dbg(-500000, (key && buff && buffLen && key->rawGXType && buffLen == key->rawGXLen),
+	assertion_dbg(-502719, (key && buff && buffLen && key->rawGXType && buffLen == key->rawGXLen),
 		"Failed: key=%d buff=%d buffLen=%d key.GXLen=%d", !!key, !!buff, buffLen, key ? key->rawGXLen : 0);
 
 	dhm_context *dhm = key->backendKey;
 
-	assertion_dbg(-500000, (dhm && buffLen == mpi_size(&dhm->GX) && buffLen == dhm->len),
+	assertion_dbg(-502720, (dhm && buffLen == mpi_size(&dhm->GX) && buffLen == dhm->len),
 		"Failed: dhm.GXlen=%d dhm.len=%d", dhm ? mpi_size(&dhm->GX) : 0, dhm ? dhm->len : 0);
 
 	mpi_write_binary(&dhm->GX, buff, key->rawGXLen);
@@ -768,7 +768,7 @@ CRYPTSHA1_T *cryptDhmSecretForNeigh(CRYPTDHM_T *myDhm, uint8_t *neighRawKey, uin
 	if (n > neighRawKeyLen || n < ((neighRawKeyLen / 4)*3))
 		goto_error(finish, "Unexpected secret length");
 
-	secret = debugMallocReset(sizeof(CRYPTSHA1_T), -300000);
+	secret = debugMallocReset(sizeof(CRYPTSHA1_T), -300831);
 	cryptShaAtomic(buff, n, secret);
 
 	
@@ -851,8 +851,8 @@ CRYPTRSA_T *cryptRsaPubKeyFromRaw( uint8_t *rawKey, uint16_t rawKeyLen ) {
 	uint8_t buff[rawKeyLen];
 	memset(buff, 0, rawKeyLen);
 	int test = cryptRsaPubKeyGetRaw(cryptKey, buff, rawKeyLen);
-	assertion(-500000, (test == SUCCESS));
-	assertion(-500000, (memcmp(rawKey, buff, rawKeyLen) == 0));
+	assertion(-502721, (test == SUCCESS));
+	assertion(-502722, (memcmp(rawKey, buff, rawKeyLen) == 0));
 #endif
 
 
@@ -1088,7 +1088,7 @@ int cryptRsaEncrypt( uint8_t *in, size_t inLen, uint8_t *out, size_t *outLen, CR
 
 	rsa_context *pk = pubKey->backendKey;
 
-	assertion(-500000, (mpi_size(&pk->N) == pubKey->rawKeyLen));
+	assertion(-502723, (mpi_size(&pk->N) == pubKey->rawKeyLen));
 	assertion(-502145, (*outLen >= pubKey->rawKeyLen));
 
 	if (rsa_pkcs1_encrypt(pk, ctr_drbg_random, &ctr_drbg, RSA_PUBLIC, inLen, in, out))
@@ -1104,7 +1104,7 @@ int cryptRsaDecrypt(uint8_t *in, size_t inLen, uint8_t *out, size_t *outLen) {
 
 	rsa_context *pk = my_PrivKey->backendKey;
 
-	assertion(-500000, (mpi_size(&pk->N) == my_PrivKey->rawKeyLen));
+	assertion(-502724, (mpi_size(&pk->N) == my_PrivKey->rawKeyLen));
 	assertion(-502146, (inLen >= my_PrivKey->rawKeyLen));
 #if CRYPTLIB == POLARSSL_1_2_5
 	if (rsa_pkcs1_decrypt(pk, RSA_PRIVATE, &inLen, in, out, *outLen))

@@ -383,7 +383,7 @@ IDM_T getQualifyingPromotedOrNeighDhmSecret(struct orig_node *on, IDM_T calcSecr
 
 	if (kn->bookedState->i.c >= KCNeighbor || (kn->bookedState->i.c >= KCPromoted && kn->bookedState->i.r == KRQualifying)) {
 
-		assertion(-500000, (avl_find_item(&qualifyingPromoteds_tree, &kn->kHash)));
+		assertion(-502734, (avl_find_item(&qualifyingPromoteds_tree, &kn->kHash)));
 
 		if (on->dhmSecret) {
 
@@ -407,8 +407,8 @@ IDM_T getQualifyingPromotedOrNeighDhmSecret(struct orig_node *on, IDM_T calcSecr
 		}
 
 	} else {
-		assertion(-500000, (!on->dhmSecret));
-		assertion(-500000, (!avl_find_item(&qualifyingPromoteds_tree, &kn->kHash)));
+		assertion(-502735, (!on->dhmSecret));
+		assertion(-502736, (!avl_find_item(&qualifyingPromoteds_tree, &kn->kHash)));
 	}
 
 	dbgf_track(DBGT_INFO, "calcSecret=%d id=%s name=%s state=%s dhmSecret=%d myDhmKeyType=%d myDhmKeyLen=%d neighDhmKeyLen=%d ret=%d",
@@ -433,14 +433,14 @@ void setQualifyingPromotedOrNeigh(IDM_T in, struct key_node *kn)
 
 	if (in && kn->on && !qon) {
 
-		avl_insert(&qualifyingPromoteds_tree, kn->on, -300000);
+		avl_insert(&qualifyingPromoteds_tree, kn->on, -300832);
 
 	} else if (!in && qon) {
 
-		avl_remove(&qualifyingPromoteds_tree, &kn->kHash, -300000);
+		avl_remove(&qualifyingPromoteds_tree, &kn->kHash, -300833);
 
 		if (qon->dhmSecret)
-			debugFreeReset(&qon->dhmSecret, sizeof(CRYPTSHA1_T), -300000);
+			debugFreeReset(&qon->dhmSecret, sizeof(CRYPTSHA1_T), -300834);
 	}
 
 	assertion(-502703, IMPLIES(in && kn->on, avl_find_item(&qualifyingPromoteds_tree, &kn->kHash)));
@@ -529,7 +529,7 @@ int create_packet_signature(struct tx_frame_iterator *it)
 		assertion(-502099, (it->frame_type > FRAME_TYPE_SIGNATURE_ADV));
 		assertion(-502100, (hdr && dataOffset));
 		assertion(-502197, IMPLIES(sendRsaSignature, my_RsaLinkKey && my_RsaLinkKey->rawKeyLen && my_RsaLinkKey->rawKeyType));
-		assertion(-500000, IMPLIES(sendDhmSignatures, my_DhmLinkKey && my_DhmLinkKey->rawGXLen && my_DhmLinkKey->rawGXType));
+		assertion(-502737, IMPLIES(sendDhmSignatures, my_DhmLinkKey && my_DhmLinkKey->rawGXLen && my_DhmLinkKey->rawGXType));
 		assertion(-502101, (it->frames_out_pos > dataOffset));
 
 		int32_t dataLen = it->frames_out_pos - dataOffset;
@@ -547,14 +547,14 @@ int create_packet_signature(struct tx_frame_iterator *it)
 			cryptRsaSign(&packetSha, msg->signature, my_RsaLinkKey->rawKeyLen, my_RsaLinkKey);
 
 		} else {
-			assertion(-500000, (sendDhmSignatures));
+			assertion(-502738, (sendDhmSignatures));
 			struct frame_msg_dhMac112 *msg = (struct frame_msg_dhMac112 *) &(hdr[1]);
 
 			GLOBAL_ID_T id = ZERO_CYRYPSHA1;
 			while ((on = avl_next_item(&qualifyingPromoteds_tree, &id)) && (dhmNeighs < sendDhmSignatures)) {
 				id = on->k.nodeId;
 				if (getQualifyingPromotedOrNeighDhmSecret(on, YES)) {
-					assertion(-500000, (on->dhmSecret));
+					assertion(-502739, (on->dhmSecret));
 					CRYPTSHA1_T sha1Mac;
 					cryptShaNew(&packetSha, sizeof(packetSha));
 					cryptShaUpdate(on->dhmSecret, sizeof(CRYPTSHA1_T));
@@ -564,7 +564,7 @@ int create_packet_signature(struct tx_frame_iterator *it)
 					dhmNeighs++;
 				}
 			}
-			ASSERTION(-500000, (dhmNeighs == sendDhmSignatures));
+			ASSERTION(-502740, (dhmNeighs == sendDhmSignatures));
 			for (; dhmNeighs < sendDhmSignatures; dhmNeighs++)
 				msg[dhmNeighs].type = my_DhmLinkKey->rawGXType;
 		}
@@ -693,7 +693,7 @@ int process_packet_signature(struct rx_frame_iterator *it)
 			if (!getQualifyingPromotedOrNeighDhmSecret(dc->on, YES))
 				goto_error_return(finish, "Failed dhmSecret calculation", TLV_RX_DATA_FAILURE);
 
-			assertion(-500000, (dc->on->dhmSecret));
+			assertion(-502741, (dc->on->dhmSecret));
 			CRYPTSHA1_T sha1Mac;
 			cryptShaNew(&packetSha, sizeof(packetSha));
 			cryptShaUpdate(dc->on->dhmSecret, sizeof(CRYPTSHA1_T));
@@ -825,7 +825,7 @@ int create_dsc_tlv_nodeKey(struct tx_frame_iterator *it)
 {
         TRACE_FUNCTION_CALL;
 
-	assertion(-500000, (my_NodeKey));
+	assertion(-502742, (my_NodeKey));
 
 	struct dsc_msg_pubkey *msg = ((struct dsc_msg_pubkey*) tx_iterator_cache_msg_ptr(it));
 
@@ -834,7 +834,7 @@ int create_dsc_tlv_nodeKey(struct tx_frame_iterator *it)
 
 	int ret = cryptRsaPubKeyGetRaw(my_NodeKey, msg->key, my_NodeKey->rawKeyLen);
 
-	assertion(-500000, (ret==SUCCESS));
+	assertion(-502743, (ret==SUCCESS));
 
 	msg->type = my_NodeKey->rawKeyType;
 
@@ -867,7 +867,7 @@ void freeMyDhmLinkKey(void)
 		while ((on = avl_iterate_item(&qualifyingPromoteds_tree, &an))) {
 
 			if (on->dhmSecret)
-				debugFreeReset(&on->dhmSecret, sizeof(CRYPTSHA1_T), -300000);
+				debugFreeReset(&on->dhmSecret, sizeof(CRYPTSHA1_T), -300835);
 		}
 	}
 }
@@ -875,7 +875,7 @@ void freeMyDhmLinkKey(void)
 STATIC_FUNC
 void createMyDhmLinkKey(IDM_T randomLifetime)
 {
-	assertion(-500000, (linkDhmSignType && !my_DhmLinkKey));
+	assertion(-502744, (linkDhmSignType && !my_DhmLinkKey));
 
 	// set end-of-life for first packetKey to smaller random value >= 1:
 	int32_t thisSignLifetime = randomLifetime && linkSignLifetime ? (1 + ((int32_t) rand_num(linkSignLifetime - 1))) : linkSignLifetime;
@@ -897,7 +897,7 @@ int create_dsc_tlv_dhmLinkKey(struct tx_frame_iterator *it)
 	TRACE_FUNCTION_CALL;
 
 	if (!linkDhmSignType) {
-		assertion(-500000, (!my_DhmLinkKey));
+		assertion(-502745, (!my_DhmLinkKey));
 		return TLV_TX_DATA_IGNORED;
 	}
 
@@ -907,7 +907,7 @@ int create_dsc_tlv_dhmLinkKey(struct tx_frame_iterator *it)
 	struct dsc_msg_dhm_link_key *msg = ((struct dsc_msg_dhm_link_key*) tx_iterator_cache_msg_ptr(it));
 	uint8_t first = my_DhmLinkKey ? NO : YES;
 
-	assertion(-500000, (myKeyLen && (((int) sizeof(struct dsc_msg_dhm_link_key)) + myKeyLen) <= tx_iterator_cache_data_space_pref(it, 0, 0)));
+	assertion(-502746, (myKeyLen && (((int) sizeof(struct dsc_msg_dhm_link_key)) + myKeyLen) <= tx_iterator_cache_data_space_pref(it, 0, 0)));
 	assertion(-502204, IMPLIES(my_DhmLinkKey && linkSignLifetime, my_DhmLinkKey->endOfLife));
 
 	// renew pktKey if approaching last quarter of pktKey lifetime:
@@ -917,7 +917,7 @@ int create_dsc_tlv_dhmLinkKey(struct tx_frame_iterator *it)
 	if (!my_DhmLinkKey)
 		createMyDhmLinkKey(first);
 
-	assertion(-500000, (my_DhmLinkKey && my_DhmLinkKey->rawGXLen == myKeyLen));
+	assertion(-502747, (my_DhmLinkKey && my_DhmLinkKey->rawGXLen == myKeyLen));
 
 	cryptDhmPubKeyGetRaw(my_DhmLinkKey, msg->gx, myKeyLen);
 	msg->type = linkDhmSignType;
@@ -950,11 +950,11 @@ int process_dsc_tlv_dhmLinkKey(struct rx_frame_iterator *it)
 
 	} else if (it->op == TLV_OP_DEL && it->f_type == BMX_DSC_TLV_DHM_LINK_PUBKEY && it->on && it->on->dhmSecret) {
 
-		debugFreeReset(&it->on->dhmSecret, sizeof(CRYPTSHA1_T), -300000);
+		debugFreeReset(&it->on->dhmSecret, sizeof(CRYPTSHA1_T), -300836);
 
 	} else if (it->op == TLV_OP_NEW && it->f_type == BMX_DSC_TLV_DHM_LINK_PUBKEY && it->on && it->on->dhmSecret) {
 
-		debugFreeReset(&it->on->dhmSecret, sizeof(CRYPTSHA1_T), -300000);
+		debugFreeReset(&it->on->dhmSecret, sizeof(CRYPTSHA1_T), -300837);
 	}
 
 finish: {
@@ -990,7 +990,7 @@ void freeMyRsaLinkKey(void)
 STATIC_FUNC
 void createMyRsaLinkKey(IDM_T randomLifetime)
 {
-	assertion(-500000, (linkRsaSignType && !my_RsaLinkKey));
+	assertion(-502748, (linkRsaSignType && !my_RsaLinkKey));
 
 	// set end-of-life for first packetKey to smaller random value >= 1:
 	int32_t thisSignLifetime = randomLifetime && linkSignLifetime ? (1 + ((int32_t) rand_num(linkSignLifetime - 1))) : linkSignLifetime;
@@ -1001,7 +1001,7 @@ void createMyRsaLinkKey(IDM_T randomLifetime)
 	my_RsaLinkKey->endOfLife = (linkSignLifetime ? bmx_time_sec + thisSignLifetime : 0);
 
 	if (linkSignLifetime)
-		task_register(thisSignLifetime * 1000, update_dsc_tlv_rsaLinkKey, NULL, -300000);
+		task_register(thisSignLifetime * 1000, update_dsc_tlv_rsaLinkKey, NULL, -300838);
 
 	my_description_changed = YES;
 }
@@ -1023,7 +1023,7 @@ int create_dsc_tlv_rsaLinkKey(struct tx_frame_iterator *it)
 	struct dsc_msg_pubkey *msg = ((struct dsc_msg_pubkey*) tx_iterator_cache_msg_ptr(it));
 	uint8_t first = my_RsaLinkKey ? NO : YES;
 
-	assertion(-500000, ((int) (sizeof(struct dsc_msg_pubkey) + rawKeyLen) <= tx_iterator_cache_data_space_pref(it, 0, 0)));
+	assertion(-502749, ((int) (sizeof(struct dsc_msg_pubkey) + rawKeyLen) <= tx_iterator_cache_data_space_pref(it, 0, 0)));
 	assertion(-502204, IMPLIES(my_RsaLinkKey && linkSignLifetime, my_RsaLinkKey->endOfLife));
 
 	// renew pktKey if approaching last quarter of pktKey lifetime:
@@ -1033,11 +1033,11 @@ int create_dsc_tlv_rsaLinkKey(struct tx_frame_iterator *it)
 	if (!my_RsaLinkKey)
 		createMyRsaLinkKey(first);
 
-	assertion(-500000, (my_RsaLinkKey));
+	assertion(-502750, (my_RsaLinkKey));
 
 	int ret = cryptRsaPubKeyGetRaw(my_RsaLinkKey, msg->key, rawKeyLen);
 
-	assertion(-500000, (ret==SUCCESS));
+	assertion(-502751, (ret==SUCCESS));
 
 	msg->type = my_RsaLinkKey->rawKeyType;
 
@@ -1137,10 +1137,10 @@ int create_dsc_tlv_signature(struct tx_frame_iterator *it)
 		struct dsc_msg_version *dmv = NULL;
 		GLOBAL_ID_T *dmk = get_desc_id(it->frames_out_ptr, it->frames_out_pos, &dms, &dmv);
 
-		assertion(-500000, (dmk));
-		assertion(-500000, (cryptShasEqual(dmk, &myKey->kHash)));
-		assertion(-500000, ((uint8_t*)dmv == data + sizeof(struct tlv_hdr)));
-		assertion(-500000, (signMsg == dms));
+		assertion(-502752, (dmk));
+		assertion(-502753, (cryptShasEqual(dmk, &myKey->kHash)));
+		assertion(-502754, ((uint8_t*)dmv == data + sizeof(struct tlv_hdr)));
+		assertion(-502755, (signMsg == dms));
 
 		dmv->virtDescSizes.u32 = htonl(it->virtDescSizes.u32);
 

@@ -99,9 +99,8 @@ int prof_check(struct prof_ctx *p, int childs)
 
 void prof_start_( struct prof_ctx *p)
 {
-	assertion(-502122, (!p->active_prof));
-	assertion(-502123, (!p->clockBeforePStart));
-	assertion(-502124, (!p->active_childs));
+	assertion_dbg(-502122, (!p->active_prof && !p->clockBeforePStart && !p->active_childs),
+		"func=%s %d %d %d", p->name, p->active_prof, p->clockBeforePStart, p->active_childs);
 
 	if (!p->initialized)
 		prof_init(p);
@@ -119,11 +118,14 @@ void prof_start_( struct prof_ctx *p)
 
 void prof_stop_( struct prof_ctx *p)
 {
-	assertion(-502126, (p->active_prof));
-	ASSERTION(-502127, (prof_check(p, 0) == SUCCESS));
-
 	TIME_T clockAfter = clock();
 	TIME_T clockPeriod = (clockAfter - p->clockBeforePStart);
+
+	assertion_dbg(-502126, (p->active_prof && !p->active_childs),
+		"func=%s %d %d %d %d %d", p->name, p->active_prof, p->active_childs, p->clockBeforePStart, clockAfter, clockPeriod);
+
+	ASSERTION(-502127, (prof_check(p, 0) == SUCCESS));
+
 //	IDM_T TODO_Fix_this_for_critical_system_time_drifts;
 //	assertion(-502128, (clockPeriod < ((~((TIME_T)0))>>1)) ); //this wraps around some time..
 

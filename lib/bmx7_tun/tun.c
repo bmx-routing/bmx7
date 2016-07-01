@@ -333,7 +333,6 @@ void tun_out_state_catchAll(void *tonp)
 
 	if (stats_captured == SUCCESS && tdn->stats_captured == SUCCESS && tx_packets != tdn->stats.tx_packets) {
 		task_register(tun_dedicated_to, tun_out_state_catchAll, ton, -300748);
-		return;
 
 	} else {
 		tun_out_state_set(tonp, TDN_STATE_CATCHALL);

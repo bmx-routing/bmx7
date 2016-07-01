@@ -257,7 +257,7 @@ void check_local_topology_cache(void *nothing)
 				my_description_changed = YES;
 				goto finish;
 
-			} else {
+			} else if (ltn) {
 
 				if (
 					check_value_deviation(ltn->txBw, tmp.txBw, my_topology_hysteresis, -1) ||

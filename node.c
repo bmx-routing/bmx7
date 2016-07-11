@@ -638,6 +638,11 @@ void destroy_orig_node(struct orig_node *on)
 
 	process_description_tlvs(NULL, on, NULL, on->dc, TLV_OP_DEL, FRAME_TYPE_PROCESS_ALL);
 
+	assertion(-500000, (!on->dhmSecret));
+//	if (on->dhmSecret)
+//		debugFreeReset(&on->dhmSecret, sizeof(CRYPTSHA1_T), -300835);
+
+
 	if (on->trustedNeighsBitArray)
 		debugFree(on->trustedNeighsBitArray, -300653);
 

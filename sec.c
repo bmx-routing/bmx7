@@ -407,7 +407,6 @@ IDM_T getQualifyingPromotedOrNeighDhmSecret(struct orig_node *on, IDM_T calcSecr
 		}
 
 	} else {
-		assertion(-502735, (!on->dhmSecret));
 		assertion(-502736, (!avl_find_item(&qualifyingPromoteds_tree, &kn->kHash)));
 	}
 
@@ -439,13 +438,10 @@ void setQualifyingPromotedOrNeigh(IDM_T in, struct key_node *kn)
 
 		avl_remove(&qualifyingPromoteds_tree, &kn->kHash, -300833);
 
-		if (qon->dhmSecret)
-			debugFreeReset(&qon->dhmSecret, sizeof(CRYPTSHA1_T), -300834);
 	}
 
 	assertion(-502703, IMPLIES(in && kn->on, avl_find_item(&qualifyingPromoteds_tree, &kn->kHash)));
 	assertion(-502704, IMPLIES(!in || !kn->on, !avl_find_item(&qualifyingPromoteds_tree, &kn->kHash)));
-	assertion(-502705, IMPLIES(!in, !kn->on || !kn->on->dhmSecret));
 }
 
 
@@ -864,7 +860,7 @@ void freeMyDhmLinkKey(void)
 		struct avl_node *an = NULL;
 		struct orig_node *on;
 
-		while ((on = avl_iterate_item(&qualifyingPromoteds_tree, &an))) {
+		while ((on = avl_iterate_item(&orig_tree, &an))) {
 
 			if (on->dhmSecret)
 				debugFreeReset(&on->dhmSecret, sizeof(CRYPTSHA1_T), -300835);
@@ -947,14 +943,10 @@ int process_dsc_tlv_dhmLinkKey(struct rx_frame_iterator *it)
 		if (cryptDhmKeyTypeAsString(msg->type) && ((int)(cryptDhmKeyLenByType(msg->type) + sizeof(struct dsc_msg_dhm_link_key))) != msgLen)
 			goto_error(finish, "2");
 
-
-	} else if (it->op == TLV_OP_DEL && it->f_type == BMX_DSC_TLV_DHM_LINK_PUBKEY && it->on && it->on->dhmSecret) {
+	} else if ((it->op == TLV_OP_NEW || it->op == TLV_OP_DEL) && it->f_type == BMX_DSC_TLV_DHM_LINK_PUBKEY &&
+		it->on && it->on->dhmSecret && desc_frame_changed(it->dcOld, it->dcOp, it->f_type)) {
 
 		debugFreeReset(&it->on->dhmSecret, sizeof(CRYPTSHA1_T), -300836);
-
-	} else if (it->op == TLV_OP_NEW && it->f_type == BMX_DSC_TLV_DHM_LINK_PUBKEY && it->on && it->on->dhmSecret) {
-
-		debugFreeReset(&it->on->dhmSecret, sizeof(CRYPTSHA1_T), -300837);
 	}
 
 finish: {

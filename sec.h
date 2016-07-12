@@ -99,18 +99,13 @@ extern int32_t linkRsaSignType;
 extern int32_t linkDhmSignType;
 
 
-#define ARG_MIN_RSA_NEIGHS "minRsaNeighs"
-#define MIN_MIN_RSA_NEIGHS 0
-#define MAX_MIN_RSA_NEIGHS 255
-#define DEF_MIN_RSA_NEIGHS (CRYPT_DHM2048_LEN / sizeof(struct frame_msg_dhMac112)) //36
-extern int32_t minRsaNeighs;
-
-
 #define ARG_MAX_DHM_NEIGHS "maxDhmNeighs"
 #define MIN_MAX_DHM_NEIGHS 0
 #define MAX_MAX_DHM_NEIGHS 255
-#define DEF_MAX_DHM_NEIGHS 60
+#define DEF_MAX_DHM_NEIGHS (CRYPT_RSA2048_LEN / sizeof(struct frame_msg_dhMac112)) //17 corresponds equivalent maximum signature size of rsa2048 signatures
 extern int32_t maxDhmNeighs;
+
+
 
 
 

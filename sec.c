@@ -70,7 +70,6 @@ static int32_t publishSupportedNodes = DEF_SUPPORT_PUBLISHING;
 int32_t linkSignLifetime = DEF_LINK_SIGN_LT;
 int32_t linkRsaSignType = DEF_LINK_RSA_TX_TYPE;
 int32_t linkDhmSignType = DEF_LINK_DHM_TX_TYPE;
-int32_t minRsaNeighs = DEF_MIN_RSA_NEIGHS;
 int32_t maxDhmNeighs = DEF_MAX_DHM_NEIGHS;
 
 CRYPTRSA_T *my_NodeKey = NULL;
@@ -489,7 +488,7 @@ int create_packet_signature(struct tx_frame_iterator *it)
 
 		if ((sendRsaSignature = (
 			(my_RsaLinkKey && it->ttn->key.f.p.dev->strictSignatures >= OPT_DEV_SIGNATURES_TX) &&
-			(dhmNeighs < qualifyingPromoteds_tree.items || dhmNeighs >= minRsaNeighs)
+			(dhmNeighs < qualifyingPromoteds_tree.items || dhmNeighs > maxDhmNeighs)
 			))) {
 
 			dev->lastTxKey = my_RsaLinkKey->rawKeyType;
@@ -568,8 +567,8 @@ int create_packet_signature(struct tx_frame_iterator *it)
 		hdr = NULL;
 	}
 	
-	dbgf_track(DBGT_INFO, "f_type=%d=%s sendRsaSignature=%d sendDhmSignatures=%d dhmNeighs=%d qps=%d minRsaNeighs=%d signatureSize=%d",
-		it->frame_type, it->handl ? it->handl->name : NULL, sendRsaSignature, sendDhmSignatures, dhmNeighs, qualifyingPromoteds_tree.items, minRsaNeighs, signatureSize);
+	dbgf_track(DBGT_INFO, "f_type=%d=%s sendRsaSignature=%d sendDhmSignatures=%d dhmNeighs=%d qps=%d maxDhmNeighs=%d signatureSize=%d",
+		it->frame_type, it->handl ? it->handl->name : NULL, sendRsaSignature, sendDhmSignatures, dhmNeighs, qualifyingPromoteds_tree.items, maxDhmNeighs, signatureSize);
 
 	prof_stop();
 	return signatureSize;
@@ -2340,8 +2339,8 @@ struct opt_type sec_options[]=
 			ARG_VALUE_FORM, HLP_LINK_VERIFY},
 	{ODI,0,ARG_NODE_VERIFY,           0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &nodeVerify,   MIN_NODE_VERIFY,MAX_NODE_VERIFY, DEF_NODE_VERIFY,0, NULL,
 			ARG_VALUE_FORM, HLP_NODE_VERIFY},
-	{ODI,0,ARG_MIN_RSA_NEIGHS  ,      0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &minRsaNeighs,  MIN_MIN_RSA_NEIGHS,MAX_MIN_RSA_NEIGHS,DEF_MIN_RSA_NEIGHS,0, NULL,
-			ARG_VALUE_FORM, "set amount of neighbors for using rsa packet signatures"},
+	{ODI,0,ARG_MAX_DHM_NEIGHS  ,      0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &maxDhmNeighs,  MIN_MAX_DHM_NEIGHS,MAX_MAX_DHM_NEIGHS,DEF_MAX_DHM_NEIGHS,0, NULL,
+			ARG_VALUE_FORM, "limit amount of neighbors for using dhm packet signatures"},
 	{ODI,0,ARG_LINK_DHM_TX_TYPE,      0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &linkDhmSignType,  MIN_LINK_DHM_TX_TYPE,MAX_LINK_DHM_TX_TYPE,DEF_LINK_DHM_TX_TYPE,0, opt_linkSigning,
 			ARG_VALUE_FORM, HLP_LINK_RSA_TX_TYPE},
 	{ODI,0,ARG_LINK_SIGN_LT,          0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &linkSignLifetime,0,MAX_LINK_SIGN_LT,DEF_LINK_SIGN_LT,0, opt_linkSigning,

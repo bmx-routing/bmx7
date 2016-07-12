@@ -598,9 +598,10 @@ int process_packet_signature(struct rx_frame_iterator *it)
 	struct frame_msg_signature *msg = NULL;
 	int32_t msgPos = 0;
 	uint8_t msgType = 0;
+	uint8_t verified = 0;
 	uint16_t msgSize = 0;
 	uint16_t rsaSize = 0;
-	uint16_t dhmSize = 0;
+	uint16_t dhmKeySize = 0;
 
 	prof_start( process_packet_signature, rx_packet);
 
@@ -656,15 +657,18 @@ int process_packet_signature(struct rx_frame_iterator *it)
 	cryptShaFinal(&packetSha);
 
 	for (;
-		(!rsaSize && !dhmSize && it->f_msg && msgPos < it->f_msgs_len &&
+		(!verified && !(rsaSize = 0) && !(dhmKeySize = 0) && it->f_msg && msgPos < it->f_msgs_len &&
 		(msg = (struct frame_msg_signature*)(&it->f_msg[msgPos])) &&
 		(msgType = msg->type) &&
-		((rsaSize = cryptRsaKeyLenByType(msgType)) || (dhmSize = cryptDhmKeyLenByType(msgType))) &&
-		(msgSize = sizeof(struct frame_msg_signature) + rsaSize + dhmSize) &&
+		((rsaSize = cryptRsaKeyLenByType(msgType)) || (dhmKeySize = cryptDhmKeyLenByType(msgType))) &&
+		(msgSize = (rsaSize ? (sizeof(struct frame_msg_signature) + rsaSize) : sizeof(struct frame_msg_dhMac112))) &&
 		((msgPos + msgSize) <= it->f_msgs_len)
 		); msgPos += msgSize) {
 
-		if (rsaSize && (msgType & linkRsaSignTypes)) {
+		dbgf_all(DBGT_INFO, "msgType=%d linkRsaSignTypes=%x linkDhmSignType=%d msgSize=%d msgPos=%d rsaSize=%d dhmSize=%d frameSize=%d",
+			msgType, linkRsaSignTypes, linkDhmSignType, msgSize, msgPos, rsaSize, dhmKeySize, it->f_msgs_len);
+
+		if (rsaSize && ((1<<msgType) & linkRsaSignTypes)) {
 
 			if (dc->on && dc->on->neigh) {
 				pkey = dc->on->neigh->rsaLinkKey;
@@ -682,9 +686,9 @@ int process_packet_signature(struct rx_frame_iterator *it)
 			else if (linkVerify && cryptRsaVerify(msg->signature, rsaSize, &packetSha, pkey) != SUCCESS)
 				goto_error_return(finish, "Failed signature verification", TLV_RX_DATA_FAILURE);
 			else
-				break;
+				verified = 1;
 
-		} else if (dhmSize && (msgType == linkDhmSignType) && dc->on && getQualifyingPromotedOrNeighDhmSecret(dc->on, NO)) {
+		} else if (dhmKeySize && (msgType == linkDhmSignType) && dc->on && getQualifyingPromotedOrNeighDhmSecret(dc->on, NO)) {
 
 			if (!getQualifyingPromotedOrNeighDhmSecret(dc->on, YES))
 				goto_error_return(finish, "Failed dhmSecret calculation", TLV_RX_DATA_FAILURE);
@@ -696,15 +700,12 @@ int process_packet_signature(struct rx_frame_iterator *it)
 			cryptShaFinal(&sha1Mac);
 
 			if (memcmp(&sha1Mac, msg->signature, sizeof(CRYPTSHA112_T)) == 0)
-				break;
+				verified = 1;
 		}
-
-		rsaSize=0;
-		dhmSize=0;
 	}
 
 
-	if (!goto_error_ret && (rsaSize + dhmSize)) {
+	if (!goto_error_ret && verified) {
 
 		struct key_credits kc = {.pktId = 1, .pktSign = 1};
 		if (!(claimedKey = keyNode_updCredits(NULL, claimedKey, &kc)) || claimedKey->bookedState->i.c < KCNeighbor)
@@ -728,14 +729,14 @@ int process_packet_signature(struct rx_frame_iterator *it)
 finish:{
 
 	dbgf(
-		goto_error_ret != TLV_RX_DATA_PROCESSED ? DBGL_SYS : (goto_error_code || !(rsaSize + dhmSize) ? DBGL_CHANGES : DBGL_ALL),
+		goto_error_ret != TLV_RX_DATA_PROCESSED ? DBGL_SYS : (verified ? DBGL_ALL : DBGL_CHANGES),
 		goto_error_ret != TLV_RX_DATA_PROCESSED ? DBGT_ERR : DBGT_INFO,
-		"%s problem=%s nodeId=%s credits=%s data_len=%d data_sha=%s msgType=%d msgLen=%d rsa=%d dhm=%d "
+		"%s problem=%s nodeId=%s credits=%s data_len=%d data_sha=%s msgType=%d linkRsaSignTypes=%x linkDhmSignType=%d msgSize=%d msgPos=%d rsaSize=%d dhmSize=%d frameSize=%d "
 		"pkey_msg_type=%d pkey_type=%d "
 		"dev=%s srcIp=%s llIps=%s pcktSqn=%d/%d "
 		"descSqn=%d keyDescSqn=%d nextDescSqn=%d minDescSqn=%d ",
-		(rsaSize + dhmSize) ? "VERIFIED" : "FAILED", goto_error_code, cryptShaAsString(claimedKey ? &claimedKey->kHash : NULL), (claimedKey ? claimedKey->bookedState->setName : NULL),
-		dataLen, cryptShaAsString(&packetSha), msgType, msgSize, (rsaSize * 8), (dhmSize * 8),
+		verified ? "VERIFIED" : "FAILED", goto_error_code, cryptShaAsString(claimedKey ? &claimedKey->kHash : NULL), (claimedKey ? claimedKey->bookedState->setName : NULL),
+		dataLen, cryptShaAsString(&packetSha), msgType, linkRsaSignTypes, linkDhmSignType, msgSize, msgPos, rsaSize, dhmKeySize, it->f_msgs_len,
 		pkey_msg ? pkey_msg->type : -1, pkey ? pkey->rawKeyType : -1,
 		pb->i.iif->ifname_label.str, pb->i.llip_str, (llip_dlen ? memAsHexStringSep(llip_data, llip_dlen, sizeof(struct dsc_msg_llip), " ") : NULL),
 		burstSqn, (nn ? (int)nn->burstSqn : -1),

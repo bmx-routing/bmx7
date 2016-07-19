@@ -1940,10 +1940,10 @@ void sysctl_config( struct dev_node *onlyDev )
 
 			check_proc_sys_net("ipv4/ip_forward", SYSCTL_IP4_FORWARD, NO);
 
-			check_proc_sys_net("ipv4/conf/all/rp_filter", SYSCTL_IP4_RP_FILTER, NO);
-			check_proc_sys_net("ipv4/conf/default/rp_filter", SYSCTL_IP4_RP_FILTER, NO);
-			check_proc_sys_net("ipv4/conf/all/send_redirects", SYSCTL_IP4_SEND_REDIRECT, NO);
-			check_proc_sys_net("ipv4/conf/default/send_redirects", SYSCTL_IP4_SEND_REDIRECT, NO);
+//			check_proc_sys_net("ipv4/conf/all/rp_filter", SYSCTL_IP4_RP_FILTER, NO);
+//			check_proc_sys_net("ipv4/conf/default/rp_filter", SYSCTL_IP4_RP_FILTER, NO);
+//			check_proc_sys_net("ipv4/conf/all/send_redirects", SYSCTL_IP4_SEND_REDIRECT, NO);
+//			check_proc_sys_net("ipv4/conf/default/send_redirects", SYSCTL_IP4_SEND_REDIRECT, NO);
 
 			checkstamp = bmx_time;
 		}

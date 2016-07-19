@@ -885,6 +885,8 @@ struct orig_status {
 	uint32_t nbIdx;
 	uint32_t myIdx;
 	IPX_T nbLocalIp;
+	GLOBAL_ID_T *nbShortId;
+	GLOBAL_ID_T *nbNodeId;
 	char* nbName;
 	UMETRIC_T metric;
 	char ogmHist[10 + (MAX_OGM_HOP_HISTORY_SZ * 8)];
@@ -931,7 +933,9 @@ static const struct field_format orig_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      orig_status, dev,           1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, myIdx,         1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, nbIdx,         1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_IPX,               orig_status, nbLocalIp,     1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_IPX,               orig_status, nbLocalIp,     1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_SHORT_ID,  orig_status, nbShortId,     1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, orig_status, nbNodeId,      1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      orig_status, nbName,        1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           orig_status, metric,        1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       orig_status, ogmHist,       1, FIELD_RELEVANCE_HIGH),
@@ -980,6 +984,8 @@ static const struct field_format keys_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, myIdx,         1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, nbIdx,         1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_IPX,               orig_status, nbLocalIp,     1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_SHORT_ID,  orig_status, nbShortId,     1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, orig_status, nbNodeId,      1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      orig_status, nbName,        1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           orig_status, metric,        1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       orig_status, ogmHist,       1, FIELD_RELEVANCE_MEDI),
@@ -1068,6 +1074,8 @@ uint8_t *key_status_page(uint8_t *sOut, uint32_t i, struct orig_node *on, struct
 		os->myIdx = link && link->k.myDev ? link->k.myDev->llipKey.devIdx : 0;
 		os->nbIdx = (link ? link->k.linkDev->key.devIdx : 0);
 		os->nbLocalIp = (link ? link->k.linkDev->key.llocal_ip : ZERO_IP);
+		os->nbShortId = (link ? &link->k.linkDev->key.local->on->k.nodeId : NULL);
+		os->nbNodeId = os->nbShortId;
 		os->nbName = (link && strlen(link->k.linkDev->key.local->on->k.hostname) ? link->k.linkDev->key.local->on->k.hostname : DBG_NIL);
 		os->metric = on->neighPath.um;
 		snprintf(os->ogmHist, (sizeof(os->ogmHist)-1), "%d/%d", (int)(on->neighPath.pathMetricsByteSize / sizeof(struct msg_ogm_adv_metric_t0)), on->mtcAlgo->ogm_hop_history);

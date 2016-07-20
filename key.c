@@ -675,7 +675,7 @@ struct key_node * keyNode_setState(GLOBAL_ID_T *kHash, struct key_node *kn, stru
 }
 
 STATIC_FUNC
-struct KeyState *keySec_getLeast(struct KeyState *in, struct KeyState *out)
+struct KeyState *keySec_getLeastWithinSetWithNodes(struct KeyState *in, struct KeyState *out)
 {
 	in = in ? in : &(keyMatrix[0][0]);
 
@@ -700,11 +700,11 @@ struct KeyState *keySec_getLeast(struct KeyState *in, struct KeyState *out)
 }
 
 STATIC_FUNC
-struct key_node *keyNode_getLeast(struct KeyState *inSet, struct KeyState *outSet)
+struct key_node *keyNode_getLeastWithinSet(struct KeyState *inSet, struct KeyState *outSet)
 {
 //	IDM_T TODO_cacheLeastInKeyMatrixAndTrackwith_KeyNode_fixState;
 
-	struct KeyState *ks = keySec_getLeast(inSet, outSet);
+	struct KeyState *ks = keySec_getLeastWithinSetWithNodes(inSet, outSet);
 	if (ks) {
 		//find first random node in section...
 		CRYPTSHA1_T k;
@@ -1196,13 +1196,13 @@ uint32_t keyNodes_fixLimits(void)
 		key_tree_exceptions = NO;
 		int8_t c, r;
 		for (c = KCSize-1; c >= 0; c--) {
-			for (r = KRSize-1; r >= 0; r--) {
+			for (r = 0; r < KRSize; r++) {
 				struct KeyState *ks = &(keyMatrix[c][r]);
 
 				while (ks->i.numSet > ks->i.setMaxUse) {
 
 					//keyNode_reduceSet(ks);
-					struct key_node *least = keyNode_getLeast(ks, NULL);
+					struct key_node *least = keyNode_getLeastWithinSet(ks, NULL);
 					assertion(-502417, (least));
 					struct KeyState *newState = (least->bookedState->i.c) ? &(keyMatrix[least->bookedState->i.c - 1][least->bookedState->i.r]) : NULL;
 

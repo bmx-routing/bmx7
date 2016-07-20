@@ -884,17 +884,16 @@ IDM_T keyNode_getNQualifyingCredits(GLOBAL_ID_T *kHash, struct key_node *kn)
 
 void keyNode_delCredits_(const char* f, GLOBAL_ID_T *kHash, struct key_node *kn, struct key_credits *kc, IDM_T reAssessState)
 {
-	uint32_t blockId = keyNodes_block_and_sync(0, NO);
-
 	assertion(-502390, (kHash || kn));
 
 	kn = kn ? kn : avl_find_item(&key_tree, kHash);
-
 
 	IDM_T TODO_FIX_THIS;
 	if (!kn)
 		return;
 	assertion(-502391, (kn && kn->bookedState));
+
+	uint32_t blockId = keyNodes_block_and_sync(0, NO);
 
 	if (kc) {
 

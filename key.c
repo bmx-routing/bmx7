@@ -258,7 +258,10 @@ STATIC_FUNC
 void kSetOutAction_listed(struct key_node **knp, struct KeyState *next)
 {
 	assertion(-502347, (knp && *knp));
-	assertion(-502348, IMPLIES((*knp)->dFriend != TYP_TRUST_LEVEL_NONE, terminating));
+	IDM_T TODO_fix_catching_this_when_applying_trusts_or_limits;
+	assertion_dbg(-502348, IMPLIES((*knp)->dFriend != TYP_TRUST_LEVEL_NONE, terminating),
+		"Can not have more --%s nodes than allowed via --%s! Terminating, please fix",
+		ARG_SET_TRUSTED, ARG_SET_CREDITS);
 
 	struct NeighRef_node *rn;
 	while ((rn = avl_first_item(&(*knp)->neighRefs_tree))) {

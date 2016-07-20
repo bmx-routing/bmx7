@@ -1807,9 +1807,12 @@ int test_dsc_tlv_trust(uint8_t type, struct desc_content *dc)
 
 void apply_trust_changes(int8_t f_type, struct orig_node *on, struct desc_content* dcOld, struct desc_content *dcNew )
 {
-	assertion(-502605, (desc_frame_changed(dcOld, dcNew, f_type)));
+//	assertion(-502605, (desc_frame_changed(dcOld, dcNew, f_type)));
 	assertion(-502606, (f_type == BMX_DSC_TLV_TRUSTS || f_type == BMX_DSC_TLV_SUPPORTS));
 	assertion(-502607, (on && on->kn));
+
+	if (!desc_frame_changed(dcOld, dcNew, f_type))
+		return;
 
 	struct dsc_msg_trust *newMsg = contents_data(dcNew, f_type);
 	uint32_t newMsgs = contents_dlen(dcNew, f_type) / sizeof(struct dsc_msg_trust);

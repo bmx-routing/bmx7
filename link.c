@@ -728,13 +728,28 @@ int32_t rx_msg_hello_reply(struct rx_frame_iterator *it)
 	return TLV_RX_DATA_PROCESSED;
 }
 
+
+char * getLinkKeysAsString(struct orig_node *on)
+{
+	if (!on)
+		return DBG_NIL;
+
+	static char linkKeys[MAX_LINK_KEYS_SIZE];
+	struct dsc_msg_pubkey *rsaMsg = contents_data(on->dc, BMX_DSC_TLV_RSA_LINK_PUBKEY);
+	struct dsc_msg_dhm_link_key *dhmMsg = contents_data(on->dc, BMX_DSC_TLV_DHM_LINK_PUBKEY);
+	sprintf(linkKeys, "%s%s%s", (rsaMsg ? cryptRsaKeyTypeAsString(rsaMsg->type) : (dhmMsg ? cryptDhmKeyTypeAsString(dhmMsg->type) : DBG_NIL)),
+		(rsaMsg && dhmMsg ? "," : ""), (rsaMsg && dhmMsg ? cryptDhmKeyTypeAsString(dhmMsg->type) : ""));
+
+	return linkKeys;
+}
+
 struct link_status {
 	GLOBAL_ID_T *shortId;
 	GLOBAL_ID_T *nodeId;
 	char* name;
 	char* nodeKey;
 	char* linkKey;
-	char linkKeys[30];
+	char linkKeys[MAX_LINK_KEYS_SIZE];
 	IPX_T nbLocalIp;
 	char nbMac[40];
 	uint16_t nbIdx;
@@ -876,10 +891,7 @@ static int32_t link_status_creator(struct status_handl *handl, void *data)
 				status[i].name = strlen(on->k.hostname) ? on->k.hostname : DBG_NIL;
 				status[i].nodeKey = cryptRsaKeyTypeAsString(((struct dsc_msg_pubkey*) on->kn->content->f_body)->type);
 				status[i].linkKey = cryptRsaKeyTypeAsString(link->lastRxKey) ? cryptRsaKeyTypeAsString(link->lastRxKey) : cryptDhmKeyTypeAsString(link->lastRxKey);
-				struct dsc_msg_pubkey *rsaMsg = contents_data(on->dc, BMX_DSC_TLV_RSA_LINK_PUBKEY);
-				struct dsc_msg_dhm_link_key *dhmMsg = contents_data(on->dc, BMX_DSC_TLV_DHM_LINK_PUBKEY);
-				sprintf(status[i].linkKeys, "%s%s%s", (rsaMsg ? cryptRsaKeyTypeAsString(rsaMsg->type) : (dhmMsg ? cryptDhmKeyTypeAsString(dhmMsg->type) : DBG_NIL)),
-					(rsaMsg && dhmMsg ? "," : ""), (rsaMsg && dhmMsg ? cryptDhmKeyTypeAsString(dhmMsg->type) : ""));
+				sprintf(status[i].linkKeys, "%s", getLinkKeysAsString(on));
 				status[i].nbLocalIp = linkDev->key.llocal_ip;
 				strcpy(status[i].nbMac, strToLower(memAsHexStringSep(ip6Eui64ToMac(&linkDev->key.llocal_ip, NULL), 6, 1, ":")));
 				status[i].nbIdx = linkDev->key.devIdx;

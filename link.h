@@ -15,6 +15,7 @@ extern int32_t link_purge_to;
 #define DEF_TIMEAWARE_LQ_MIN (LQ_MAX / 10)
 #define ARG_TIMEAWARE_LQ_MIN "minLinkQuality"
 
+#define MAX_LINK_KEYS_SIZE 30
 
 
 struct dsc_msg_llip {
@@ -41,5 +42,6 @@ struct msg_hello_reply_dhash {
 IDM_T min_lq_probe(LinkNode *link);
 LinkNode *getLinkNode(struct dev_node *dev, IPX_T *llip, DEVIDX_T idx, struct neigh_node *verifiedNeigh);
 uint16_t purge_linkDevs(LinkDevNode *onlyLinkDev, struct dev_node *onlyDev, LinkNode *onlyLink, IDM_T onlyExpired, IDM_T purgeLocal);
+char * getLinkKeysAsString(struct orig_node *on);
 
 struct plugin *link_get_plugin(void);

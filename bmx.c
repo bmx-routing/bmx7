@@ -1336,8 +1336,12 @@ int32_t opt_version(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt
 
         assertion(-501257, !strcmp(opt->name, ARG_VERSION));
 
-        dbg_printf(cn, "version=%s-%s compatibility=%d revision=%.7x id=%s descSqn=%d ip=%s hostname=%s\n",
-                        BMX_BRANCH, BRANCH_VERSION, my_compatibility, bmx_git_rev_u32, cryptShaAsString(&myKey->kHash), myKey->on ? (int)myKey->on->dc->descSqn : -1, ip6AsStr(&my_primary_ip), my_Hostname);
+        dbg_printf(cn, "version=%s-%s compatibility=%d revision=%.7x id=%s nodeKey=%s linkKeys=%s descSqn=%d ip=%s hostname=%s\n",
+		BMX_BRANCH, BRANCH_VERSION, my_compatibility, bmx_git_rev_u32, cryptShaAsString(&myKey->kHash),
+		//(myKey->content && (myKey->content->f_body_len >= sizeof(struct dsc_msg_pubkey))) ?
+		cryptRsaKeyTypeAsString(((struct dsc_msg_pubkey*) myKey->content->f_body)->type),
+		//: DBG_NIL,
+		getLinkKeysAsString(myKey->on), myKey->on ? (int) myKey->on->dc->descSqn : -1, ip6AsStr(&my_primary_ip), my_Hostname);
 
         if (initializing)
                 cleanup_all(CLEANUP_SUCCESS);

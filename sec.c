@@ -2345,7 +2345,7 @@ struct opt_type sec_options[]=
 	{ODI,0,ARG_MAX_DHM_NEIGHS  ,      0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &maxDhmNeighs,  MIN_MAX_DHM_NEIGHS,MAX_MAX_DHM_NEIGHS,DEF_MAX_DHM_NEIGHS,0, NULL,
 			ARG_VALUE_FORM, "limit amount of neighbors for using dhm packet signatures"},
 	{ODI,0,ARG_LINK_DHM_TX_TYPE,      0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &linkDhmSignType,  MIN_LINK_DHM_TX_TYPE,MAX_LINK_DHM_TX_TYPE,DEF_LINK_DHM_TX_TYPE,0, opt_linkSigning,
-			ARG_VALUE_FORM, HLP_LINK_RSA_TX_TYPE},
+			ARG_VALUE_FORM, HLP_LINK_DHM_TX_TYPE},
 	{ODI,0,ARG_LINK_SIGN_LT,          0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &linkSignLifetime,0,MAX_LINK_SIGN_LT,DEF_LINK_SIGN_LT,0, opt_linkSigning,
 			ARG_VALUE_FORM, HLP_LINK_SIGN_LT},
 	{ODI,0,ARG_TRUSTED_NODES_DIR,     0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,DEF_TRUSTED_NODES_DIR, opt_trust_watch,

@@ -82,7 +82,7 @@
 #define MIN_LINK_RSA_TX_TYPE 0
 #define MAX_LINK_RSA_TX_TYPE CRYPT_RSA2048_TYPE
 #define DEF_LINK_RSA_TX_TYPE CRYPT_RSA896_TYPE
-#define HLP_LINK_RSA_TX_TYPE "sign outgoing packets with given RSA key type (1:512, 2:768, 3:896, 4:1024, 5:1536, 6:2048)"
+#define HLP_LINK_RSA_TX_TYPE "sign outgoing packets with given RSA key type (0:None and rely on DHM, 1:512, 2:768, 3:896, 4:1024, 5:1536, 6:2048)"
 extern int32_t linkRsaSignType;
 
 #define ARG_LINK_RSA_RX_TYPES "linkRsaKeys"
@@ -95,7 +95,7 @@ extern int32_t linkRsaSignType;
 #define MIN_LINK_DHM_TX_TYPE 0
 #define MAX_LINK_DHM_TX_TYPE CRYPT_DHM_MAX_TYPE
 #define DEF_LINK_DHM_TX_TYPE CRYPT_DHM2048_TYPE
-#define HLP_LINK_DHM_TX_TYPE "sign outgoing packets with DH-authenticated HMAC type (16:DH1024M112, 17:DH2048M112, 18:3072M112). Type must match that of neighbors"
+#define HLP_LINK_DHM_TX_TYPE "sign outgoing packets with DH-authenticated HMAC type (0:None and rely on RSA, 16:DH1024M112, 17:DH2048M112, 18:3072M112). Type must match that of neighbors"
 extern int32_t linkDhmSignType;
 
 

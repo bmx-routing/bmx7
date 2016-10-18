@@ -597,7 +597,7 @@ int process_packet_signature(struct rx_frame_iterator *it)
 	struct frame_msg_signature *msg = NULL;
 	int32_t msgPos = 0;
 	uint8_t msgType = 0;
-	uint8_t verified = 0;
+	uint8_t verified = linkVerify ? NO : YES;
 	uint16_t msgSize = 0;
 	uint16_t rsaSize = 0;
 	uint16_t dhmKeySize = 0;
@@ -682,7 +682,7 @@ int process_packet_signature(struct rx_frame_iterator *it)
 				goto_error_return(finish, "Key undescribed but used!", TLV_RX_DATA_FAILURE);
 			else if (pkey->rawKeyType != msgType)
 				goto_error_return(finish, "Described key different from used", TLV_RX_DATA_FAILURE);
-			else if (linkVerify && cryptRsaVerify(msg->signature, rsaSize, &packetSha, pkey) != SUCCESS)
+			else if (cryptRsaVerify(msg->signature, rsaSize, &packetSha, pkey) != SUCCESS)
 				goto_error_return(finish, "Failed signature verification", TLV_RX_DATA_FAILURE);
 			else
 				verified = 1;
@@ -730,11 +730,11 @@ finish:{
 	dbgf(
 		goto_error_ret != TLV_RX_DATA_PROCESSED ? DBGL_SYS : (verified ? DBGL_ALL : DBGL_CHANGES),
 		goto_error_ret != TLV_RX_DATA_PROCESSED ? DBGT_ERR : DBGT_INFO,
-		"%s problem=%s nodeId=%s credits=%s data_len=%d data_sha=%s msgType=%d linkRsaSignTypes=%x linkDhmSignType=%d msgSize=%d msgPos=%d rsaSize=%d dhmSize=%d frameSize=%d "
+		"%s problem=%s linkVerification=%d nodeId=%s credits=%s data_len=%d data_sha=%s msgType=%d linkRsaSignTypes=%x linkDhmSignType=%d msgSize=%d msgPos=%d rsaSize=%d dhmSize=%d frameSize=%d "
 		"pkey_msg_type=%d pkey_type=%d "
 		"dev=%s srcIp=%s llIps=%s pcktSqn=%d/%d "
 		"descSqn=%d keyDescSqn=%d nextDescSqn=%d minDescSqn=%d ",
-		verified ? "VERIFIED" : "FAILED", goto_error_code, cryptShaAsString(claimedKey ? &claimedKey->kHash : NULL), (claimedKey ? claimedKey->bookedState->setName : NULL),
+		verified ? "VERIFIED" : "FAILED", goto_error_code, linkVerify, cryptShaAsString(claimedKey ? &claimedKey->kHash : NULL), (claimedKey ? claimedKey->bookedState->setName : NULL),
 		dataLen, cryptShaAsString(&packetSha), msgType, linkRsaSignTypes, linkDhmSignType, msgSize, msgPos, rsaSize, dhmKeySize, it->f_msgs_len,
 		pkey_msg ? pkey_msg->type : -1, pkey ? pkey->rawKeyType : -1,
 		pb->i.iif->ifname_label.str, pb->i.llip_str, (llip_dlen ? memAsHexStringSep(llip_data, llip_dlen, sizeof(struct dsc_msg_llip), " ") : NULL),

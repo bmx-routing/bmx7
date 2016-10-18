@@ -374,7 +374,7 @@ struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn
 //		if ((dc = (kn && kn->nextDesc) ? kn->nextDesc : (kn && kn->on ? kn->on->dc : NULL)) &&
 //			(ref->descSqn <= dc->descSqn) && (ogmSqn = chainOgmFind(&chainOgm->chainOgm, dc, !!descSqn))) {
 
-		if ((kn && kn->on && (dc = kn->on->dc) && ref->descSqn == dc->descSqn && (ogmSqn = chainOgmFind(&chainOgm->chainOgm, dc, !!descSqn))) ||
+		if ((kn && kn->on && (dc = kn->on->dc) && ref->descSqn <= dc->descSqn && (ogmSqn = chainOgmFind(&chainOgm->chainOgm, dc, !!descSqn))) ||
 			(kn && (dc = kn->nextDesc) && ref->descSqn <= dc->descSqn && (ogmSqn = chainOgmFind(&chainOgm->chainOgm, dc, (!!descSqn /*|| ref->descSqn < dc->descSqn*/))))) {
 
 			assertion(-502568, (ogmSqn <= dc->ogmSqnRange));

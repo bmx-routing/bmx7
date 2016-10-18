@@ -786,7 +786,7 @@ int32_t init_ogm( void )
 	handl.rx_minNeighCond = kPref_neighbor_metric;
 	register_frame_handler(packet_frame_db, FRAME_TYPE_OGM_REQ, &handl);
 
-	handl.name = "OGMS_DHASH_ADV";
+	handl.name = "OGMS_ADV";
 	handl.data_header_size = sizeof(struct hdr_ogm_adv);
 	handl.min_msg_size = sizeof(struct msg_ogm_adv);
 	handl.fixed_msg_size = 0;

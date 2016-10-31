@@ -561,8 +561,10 @@ struct NeighPath *lndev_best_via_router(struct NeighRef_node *ref)
 	while ((linkDev = avl_iterate_item(&nn->linkDev_tree, &linkDev_an))) {
 
 		LinkNode *link = NULL;
+		struct avl_node *link_an = NULL;
 
-		while ((link = avl_next_item(&linkDev->link_tree, (link ? &link->k : NULL)))) {
+		while ((link = avl_iterate_item(&linkDev->link_tree, &link_an))) {
+//		while ((link = avl_next_item(&linkDev->link_tree, (link ? &link->k : NULL)))) {
 
 			if (min_lq_probe(link)) {
 

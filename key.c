@@ -1132,7 +1132,9 @@ void keyNode_fixTimeouts()
 	uint32_t blockId = keyNodes_block_and_sync(0, NO);
 
 	struct key_node *kn = NULL;
-	while ((kn = avl_next_item(&key_tree, kn ? &kn->kHash : NULL))) {
+	struct avl_node *it = NULL;
+	while ((kn = avl_iterate_item(&key_tree, &it))) {
+//	while ((kn = avl_next_item(&key_tree, kn ? &kn->kHash : NULL))) {
 		
 		struct key_credits kc = {
 			.pktId = (kn->pktIdTime && (((TIME_T) (bmx_time - kn->pktIdTime))>((TIME_T) link_purge_to))),

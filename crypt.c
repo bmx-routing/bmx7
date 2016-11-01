@@ -692,7 +692,7 @@ void cryptDhmPubKeyGetRaw(CRYPTDHM_T* key, uint8_t* buff, uint16_t buffLen)
 	dhm_context *dhm = key->backendKey;
 
 	assertion_dbg(-502720, (dhm && buffLen == mpi_size(&dhm->GX) && buffLen == dhm->len),
-		"Failed: dhm.GXlen=%d dhm.len=%d", dhm ? mpi_size(&dhm->GX) : 0, dhm ? dhm->len : 0);
+		"Failed: dhm.GXlen=%zd dhm.len=%zd", dhm ? mpi_size(&dhm->GX) : 0, dhm ? dhm->len : 0);
 
 	mpi_write_binary(&dhm->GX, buff, key->rawGXLen);
 }
@@ -734,7 +734,7 @@ IDM_T cryptDhmKeyCheck(CRYPTDHM_T *key)
 	return SUCCESS;
 
 finish:
-	dbgf_track(DBGT_WARN, "%s keyType=%d keyLen=%d dhmLen=%d pSize=%d xSize=%d gxSize=%d gySize=%d",
+	dbgf_track(DBGT_WARN, "%s keyType=%d keyLen=%d dhmLen=%zd pSize=%d xSize=%d gxSize=%d gySize=%d",
 		goto_error_code, keyType, keyLen, dhm ? dhm->len : 0, pSize, xSize, gxSize, gySize);
 
 	return FAILURE;
@@ -774,7 +774,7 @@ CRYPTSHA1_T *cryptDhmSecretForNeigh(CRYPTDHM_T *myDhm, uint8_t *neighRawKey, uin
 	
 finish:{
 	dbgf(((goto_error_code || n != neighRawKeyLen) ? DBGL_SYS : DBGL_CHANGES), ((goto_error_code || n != neighRawKeyLen) ? DBGT_WARN : DBGT_INFO),
-		"%s n=%d neighKeyLen=%d myKeyLen=%d", goto_error_code, n, neighRawKeyLen, myDhm->rawGXLen);
+		"%s n=%zd neighKeyLen=%d myKeyLen=%d", goto_error_code, n, neighRawKeyLen, myDhm->rawGXLen);
 
 	mpi_free(&dhm->GY);
 	mpi_free(&dhm->K);

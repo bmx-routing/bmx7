@@ -100,7 +100,7 @@ int prof_check(struct prof_ctx *p, int childs)
 void prof_start_( struct prof_ctx *p)
 {
 	assertion_dbg(-502122, (!p->active_prof && !p->clockBeforePStart && !p->active_childs),
-		"func=%s %d %d %d", p->name, p->active_prof, p->clockBeforePStart, p->active_childs);
+		"func=%s %d %ju %d", p->name, p->active_prof, (uintmax_t)p->clockBeforePStart, p->active_childs);
 
 	if (!p->initialized)
 		prof_init(p);
@@ -122,7 +122,7 @@ void prof_stop_( struct prof_ctx *p)
 	TIME_T clockPeriod = (clockAfter - p->clockBeforePStart);
 
 	assertion_dbg(-502126, (p->active_prof && !p->active_childs),
-		"func=%s %d %d %d %d %d", p->name, p->active_prof, p->active_childs, p->clockBeforePStart, clockAfter, clockPeriod);
+		"func=%s %d %d %ju %d %d", p->name, p->active_prof, p->active_childs, (uintmax_t)p->clockBeforePStart, clockAfter, clockPeriod);
 
 	ASSERTION(-502127, (prof_check(p, 0) == SUCCESS));
 

@@ -121,7 +121,7 @@ void get_link_rate(struct dev_node *tDev)
 						oLink->wifiStats.updSqn = wifiStatsUpdSqn;
 
 						dbgf_track(DBGT_INFO,
-							"mac=%s signal=%d noise=%d snr=%d age=%d rxRate=%d rxCnt=%d txRate=%d txCount=%d",
+							"mac=%s signal=%d noise=%d snr=%d age=%d rxRate=%d sgi=%d rxCnt=%d txRate=%d txCount=%d",
 							memAsHexStringSep(oMac, 6, 1, ":"),
 							e->signal, e->noise, (e->signal - e->noise), e->inactive,
 							e->rx_rate.rate, e->rx_rate.is_short_gi, e->rx_packets,
@@ -285,7 +285,7 @@ int32_t tx_frame_trash_adv(struct tx_frame_iterator *it)
 		it->ttn->tx_iterations, it->ttn->key.f.p.dev->ifname_label.str, it->ttn->key.f.p.dev->llipKey.devIdx, it->ttn->key.f.p.dev->ip_llocal_str, !!link,
 		ip6AsStr(link ? &link->k.linkDev->key.llocal_ip : NULL),
 		(link ? link->k.linkDev->key.devIdx : -1),
-		(link ? &link->k.linkDev->key.local->on->k.hostname: NULL),
+		(link ? link->k.linkDev->key.local->on->k.hostname : NULL),
 		cryptShaAsString(&it->ttn->key.f.groupId));
 
 	if (link && linkBurstInterval && linkBurstDuration && linkBurstPacketSize &&

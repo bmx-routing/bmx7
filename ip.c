@@ -2947,7 +2947,7 @@ IDM_T is_policy_rt_supported(void)
 
 static void get_rule_list_nlhdr(struct nlmsghdr *nh, void *unused )
 {
-	dbgf_all(DBGT_INFO, "");
+	dbgf_all(DBGT_INFO, " ");
 
 	struct avl_node *an;
 	struct track_node *tn;

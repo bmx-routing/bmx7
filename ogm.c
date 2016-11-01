@@ -240,7 +240,7 @@ void revise_ogm_aggregations(void)
 		struct OgmAggreg_node *oan = getOgmAggregNode(ogm_aggreg_sqn_max);
 
 		dbgf(myNextNow ? DBGL_CHANGES : DBGL_ALL, DBGT_INFO, 
-			"myNextNow=%d myGuaranteedInterval=%d aggSqnMax=%d aggSqnSend=%d msgs=%d size=%d max=%d ogmSqnMaxSend=%d",
+			"myNextNow=%d myGuaranteedInterval=%d aggSqnMax=%d aggSqnSend=%d msgs=%d size=%d max=%lu ogmSqnMaxSend=%d",
 			myNextNow, myGuaranteedInterval, ogm_aggreg_sqn_max, ogm_aggreg_sqn_send,
 			oan->tree.items, oan->msgsLen, OGMS_DHASH_MSGS_LEN_PER_AGGREG_PREF, myKey->on->dc->ogmSqnMaxSend);
 
@@ -486,7 +486,7 @@ int32_t tx_frame_ogm_aggreg_advs(struct tx_frame_iterator *it)
 		msg->u.f.transmitterIID4x = iid_get_myIID4x_by_node(on);
 		msg->u.f.more = !!on->neighPath.pathMetricsByteSize;
 
-		dbgf_track(DBGT_INFO, "name=%s nodeId=%s iid=%d sqn=%d metric=%ju more=%d hops=%d (%d) cih=%s chainOgm=%s viaDev=%s",
+		dbgf_track(DBGT_INFO, "name=%s nodeId=%s iid=%d sqn=%d metric=%ju more=%d hops=%lu (%d) cih=%s chainOgm=%s viaDev=%s",
 			on->k.hostname, cryptShaAsShortStr(&on->kn->kHash), msg->u.f.transmitterIID4x,  on->dc->ogmSqnMaxSend, 
 			on->neighPath.um, msg->u.f.more, (on->neighPath.pathMetricsByteSize / sizeof(struct msg_ogm_adv_metric_t0)), on->ogmHopCount,
 			memAsHexString(&on->dc->chainOgmConstInputHash, sizeof(msg->chainOgm)),

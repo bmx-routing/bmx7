@@ -682,7 +682,7 @@ int32_t tx_msg_hello_reply(struct tx_frame_iterator *it)
 	if (!link || !ldn || ldn->key.devIdx < DEVIDX_MIN) {
 
 		dbgf_track(DBGT_INFO, "yet unestablished devIdx=%d link=%p ldn=%p dev=%p neigh=%p for neigh=%s llip=%s dev=%s",
-			(ldn ? ldn->key.devIdx : 0), link, ldn, lk.myDev, neigh, cryptShaAsString(&neigh->local_id),
+			(ldn ? ldn->key.devIdx : 0), (void*)link, (void*)ldn, (void*)lk.myDev, (void*)neigh, cryptShaAsString(&neigh->local_id),
 			ip6AsStr(&ldn->key.llocal_ip), (lk.myDev ? lk.myDev->ifname_label.str : NULL));
 
 		return TLV_TX_DATA_DONE;

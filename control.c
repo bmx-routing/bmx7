@@ -2789,8 +2789,8 @@ int32_t opt_help(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
 	dbg_printf(cn, "Usage: %s [LONGOPT=[%c]VAL] | -[SHORTOPT[SHORTOPT...] [%c]VAL] ...\n",
 	           prog_name, ARG_RESET_CHAR , ARG_RESET_CHAR);
 	dbg_printf(cn, "  e.g. %s %s=eth1 %s=wlan0 d=3\n", prog_name, ARG_DEV, ARG_DEV);
-        dbg_printf(cn, "  e.g. %s -c %s=%s %s=%s %s=%s %s=%s\n",
-                prog_name, ARG_SHOW, ARG_STATUS,  ARG_SHOW, ARG_INTERFACES,  ARG_SHOW, ARG_LINKS, ARG_SHOW, ARG_ORIGINATORS, ARG_CREDITS);
+        dbg_printf(cn, "  e.g. %s -c %s=%s %s=%s %s=%s %s=%s %s=%s\n",
+                prog_name, ARG_SHOW, ARG_STATUS,  ARG_SHOW, ARG_INTERFACES,  ARG_SHOW, ARG_LINKS, ARG_SHOW, ARG_ORIGINATORS, ARG_SHOW, ARG_CREDITS);
         dbg_printf(cn, "  e.g. %s -c %s=%cwlan0 %s=%s \n", prog_name, ARG_DEV, ARG_RESET_CHAR, ARG_SHOW, ARG_INTERFACES );
 	dbg_printf(cn, "\n");
 

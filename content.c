@@ -991,7 +991,7 @@ int32_t tx_msg_content_request(struct tx_frame_iterator *it)
 
 	msg->chash = *cHash;
 
-	dbgf_track(DBGT_INFO, "send to neigh kHash=%s cHash=%s", cryptShaAsShortStr(&hdr->dest_kHash), cryptShaAsShortStr(&msg->chash))
+	dbgf_track(DBGT_INFO, "send to neigh kHash=%s cHash=%s", cryptShaAsShortStr(&hdr->dest_kHash), cryptShaAsShortStr(&msg->chash));
 
 	return sizeof (struct msg_content_req);
 }

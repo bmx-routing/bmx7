@@ -531,7 +531,7 @@ void contentUse_del_(struct content_usage_node *cun)
 	avl_remove(&cun->k.descContent->contentRefs_tree, &cun->k, -300728);
 	avl_remove(&cun->k.content->usage_tree, &cun->k, -300729);
 	content_purge_unused(cun->k.content);
-	debugFree(cun, 300000);
+	debugFree(cun, -300839);
 }
 
 

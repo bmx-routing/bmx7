@@ -369,7 +369,7 @@ int64_t field_get_value(const struct field_format *format, uint32_t min_msg_size
                                 check = ntohl(*((uint32_t*) & data[pos_bit / 8]));
 		}
 
-		assertion(-500000, (check == result));
+		assertion(-502757, (check == result));
 	}
 
 	return result;

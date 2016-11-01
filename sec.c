@@ -59,7 +59,7 @@
 
 static int32_t nodeRsaRxSignTypes = DEF_NODE_RSA_RX_TYPES;
 
-static int32_t linkRsaSignTypes = DEF_LINK_RSA_RX_TYPES;
+static int32_t linkRsaRxSignTypes = DEF_LINK_RSA_RX_TYPES;
 
 static int32_t linkVerify = DEF_LINK_VERIFY;
 static int32_t nodeVerify = DEF_NODE_VERIFY;
@@ -665,9 +665,9 @@ int process_packet_signature(struct rx_frame_iterator *it)
 		); msgPos += msgSize) {
 
 		dbgf_all(DBGT_INFO, "msgType=%d linkRsaSignTypes=%x linkDhmSignType=%d msgSize=%d msgPos=%d rsaSize=%d dhmSize=%d frameSize=%d",
-			msgType, linkRsaSignTypes, linkDhmSignType, msgSize, msgPos, rsaSize, dhmKeySize, it->f_msgs_len);
+			msgType, linkRsaRxSignTypes, linkDhmSignType, msgSize, msgPos, rsaSize, dhmKeySize, it->f_msgs_len);
 
-		if (rsaSize && ((1<<msgType) & linkRsaSignTypes)) {
+		if (rsaSize && ((1<<msgType) & linkRsaRxSignTypes)) {
 
 			if (dc->on && dc->on->neigh) {
 				pkey = dc->on->neigh->rsaLinkKey;
@@ -735,7 +735,7 @@ finish:{
 		"dev=%s srcIp=%s llIps=%s pcktSqn=%d/%d "
 		"descSqn=%d keyDescSqn=%d nextDescSqn=%d minDescSqn=%d ",
 		verified ? "VERIFIED" : "FAILED", goto_error_code, linkVerify, cryptShaAsString(claimedKey ? &claimedKey->kHash : NULL), (claimedKey ? claimedKey->bookedState->setName : NULL),
-		dataLen, cryptShaAsString(&packetSha), msgType, linkRsaSignTypes, linkDhmSignType, msgSize, msgPos, rsaSize, dhmKeySize, it->f_msgs_len,
+		dataLen, cryptShaAsString(&packetSha), msgType, linkRsaRxSignTypes, linkDhmSignType, msgSize, msgPos, rsaSize, dhmKeySize, it->f_msgs_len,
 		pkey_msg ? pkey_msg->type : -1, pkey ? pkey->rawKeyType : -1,
 		pb->i.iif->ifname_label.str, pb->i.llip_str, (llip_dlen ? memAsHexStringSep(llip_data, llip_dlen, sizeof(struct dsc_msg_llip), " ") : NULL),
 		burstSqn, (nn ? (int)nn->burstSqn : -1),
@@ -1190,7 +1190,7 @@ struct content_node *test_description_signature(uint8_t *desc, uint32_t desc_len
 		goto_error(finish, "Non-matching description length");
 
 
-	if (!(signLen = cryptRsaKeyLenByType(signMsg->type)) || !(signMsg->type & nodeRsaRxSignTypes)) {
+	if (!(signLen = cryptRsaKeyLenByType(signMsg->type)) || !((1<<signMsg->type) & nodeRsaRxSignTypes)) {
 		goto_error( finish, "Unsupported signature length");
 	}
 
@@ -1221,12 +1221,12 @@ finish: {
 		(goto_return_code ? DBGL_ALL : DBGL_SYS),
 		(goto_return_code ? DBGT_INFO : DBGT_ERR),
 		"%s verifying  descLen=%d nodeId=%s dataOffset=%d dataLen=%d data=%s dataSha=%s \n"
-		"signLen=%d signature=%s\n"
+		"signType=%d signLen=%d signature=%s %s=%X\n"
 		"msg_pkey_type=%s msg_pkey_len=%d pkey_type=%s \n"
 		"problem?=%s",
 		goto_error_code?"Failed":"Succeeded", desc_len, cryptShaAsString(nodeId),
 		dataOffset, dataLen, memAsHexString(data, dataLen), cryptShaAsString(&dataSha),
-		signLen, signMsg ? memAsHexString(signMsg->signature, signLen) : NULL,
+		(signMsg ? signMsg->type : 0), signLen, signMsg ? memAsHexString(signMsg->signature, signLen) : NULL, ARG_NODE_RSA_RX_TYPES, nodeRsaRxSignTypes,
 		pkeyMsg ? cryptRsaKeyTypeAsString(pkeyMsg->type) : NULL, pkeyMsg ? cryptRsaKeyLenByType(pkeyMsg->type) : 0,
 		pkey ? cryptRsaKeyTypeAsString(pkey->rawKeyType) : NULL,
 		goto_error_code);

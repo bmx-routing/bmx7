@@ -2617,6 +2617,14 @@ void dev_if_fix(void)
 				if (is_ip_equal(&my_primary_ip, &ian->ip_addr) && (DEF_AUTO_IP6ID_MASK == ian->ifa.ifa_prefixlen)) {
 
 					dev->if_global_addr = ian;
+
+				} else if (is_ip_net_equal(&my_primary_ip, &ian->ip_addr, DEF_AUTO_IP6ID_MASK, AF_INET6) && DEF_AUTO_IP6ID_MASK >= ian->ifa.ifa_prefixlen) {
+
+					dbgf_sys(DBGT_ERR, "Auto-Removing dev=%s idx=%d CONFLICTING ip=%s/%d",
+						dev->ifname_label.str, dev->if_link->index, ip6AsStr(&ian->ip_addr), ian->ifa.ifa_prefixlen);
+
+					kernel_set_addr(DEL, dev->if_link->index, AF_INET6, &ian->ip_addr, ian->ifa.ifa_prefixlen, NO /*deprecated*/);
+
 				}
 			}
                 }

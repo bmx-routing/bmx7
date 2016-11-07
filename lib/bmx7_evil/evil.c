@@ -101,61 +101,107 @@ int32_t evil_tx_msg_dhash_adv(struct tx_frame_iterator *it)
 STATIC_FUNC
 int32_t evil_tx_frame_ogm_aggreg_advs(struct tx_frame_iterator *it)
 {
-	if (evilDirWatch && (evilOgmDropping || evilOgmMetrics || evilOgmSqns)) {
+	struct hdr_ogm_adv *hdr = ((struct hdr_ogm_adv*) tx_iterator_cache_hdr_ptr(it));
+	AGGREG_SQN_T *sqn = ((AGGREG_SQN_T *)it->ttn->key.data);
+	struct OgmAggreg_node *oan = getOgmAggregNode(*sqn);
+	struct avl_node *an = NULL;
+	struct orig_node *on;
+	struct msg_ogm_adv *msg = (struct msg_ogm_adv*) tx_iterator_cache_msg_ptr(it);
 
-		struct hdr_ogm_adv *hdr = ((struct hdr_ogm_adv*) tx_iterator_cache_hdr_ptr(it));
-		struct msg_ogm_adv *msg = ((struct msg_ogm_adv*) tx_iterator_cache_msg_ptr(it));
-		AGGREG_SQN_T *sqn = ((AGGREG_SQN_T *)it->ttn->key.data);
-		struct OgmAggreg_node *oan = getOgmAggregNode(*sqn);
-		uint16_t o = 0;
-		struct avl_node *an = NULL;
-		struct orig_node *on;
+	if (!(evilDirWatch && (evilOgmDropping || evilOgmMetrics || evilOgmSqns)))
+		return (*orig_tx_frame_ogm_dhash_aggreg_advs)(it);
 
-		hdr->aggregation_sqn = htons(*sqn);
+	if (tx_iterator_cache_data_space_max(it, 0, 0) < oan->msgsLen)
+		return TLV_TX_DATA_FULL;
 
-		while ((on = avl_iterate_item(&oan->tree, &an))) {
+	hdr->aggregation_sqn = htons(*sqn);
 
-			struct KeyWatchNode *tn = avl_find_item(&evilDirWatch->node_tree, &on->kn->kHash);
+	while ((on = avl_iterate_item(&oan->tree, &an))) {
 
-			if (tn && evilOgmDropping)
-				continue;
+		assertion(-502661, (on->ogmAggregActiveMsgLen));
+		assertion(-502662, (on->dc->ogmSqnMaxSend)); //otherwise on->neighPath might be from last description, but ogm should have been removed during descupdate
 
-			FMETRIC_U16_T fm16 = umetric_to_fmetric((tn && evilOgmMetrics) ? UMETRIC_MAX : on->neighPath.um);
-			msg[o].u.f.metric_exp = fm16.val.f.exp_fm16;
-			msg[o].u.f.metric_mantissa = fm16.val.f.mantissa_fm16;
-			msg[o].u.f.hopCount = on->ogmHopCount;
-			msg[o].u.f.transmitterIID4x = iid_get_myIID4x_by_node(on);
-			msg[o].u.u32 = htonl(msg[o].u.u32);
-			msg[o].chainOgm = chainOgmCalc(on->dc, on->dc->ogmSqnMaxSend);
+		struct KeyWatchNode *tn = avl_find_item(&evilDirWatch->node_tree, &on->kn->kHash);
 
-			o++;
+		if (tn && evilOgmDropping)
+			continue;
+
+		msg->chainOgm = chainOgmCalc(on->dc, on->dc->ogmSqnMaxSend);
+
+		FMETRIC_U16_T fm16 = umetric_to_fmetric((tn && evilOgmMetrics) ? UMETRIC_MAX : on->neighPath.um);
+		msg->u.f.metric_exp = fm16.val.f.exp_fm16;
+		msg->u.f.metric_mantissa = fm16.val.f.mantissa_fm16;
+		msg->u.f.hopCount = (tn && evilOgmMetrics) ? 1 : on->ogmHopCount;
+		msg->u.f.transmitterIID4x = iid_get_myIID4x_by_node(on);
+		msg->u.f.more = (tn && evilOgmMetrics) ? 0 : !!on->neighPath.pathMetricsByteSize;
+
+		dbgf_track(DBGT_INFO, "name=%s nodeId=%s iid=%d sqn=%d metric=%ju more=%d hops=%lu (%d) cih=%s chainOgm=%s viaDev=%s",
+			on->k.hostname, cryptShaAsShortStr(&on->kn->kHash), msg->u.f.transmitterIID4x,  on->dc->ogmSqnMaxSend,
+			on->neighPath.um, msg->u.f.more, (on->neighPath.pathMetricsByteSize / sizeof(struct msg_ogm_adv_metric_t0)), on->ogmHopCount,
+			memAsHexString(&on->dc->chainOgmConstInputHash, sizeof(msg->chainOgm)),
+			memAsHexString(&msg->chainOgm, sizeof(msg->chainOgm)), it->ttn->key.f.p.dev->ifname_label.str);
+
+		msg->u.u32 = htonl(msg->u.u32);
+
+		if (tn && evilOgmMetrics) {
+			msg++;
+		} else {
+			assertion(-502663, ((on->neighPath.pathMetricsByteSize % sizeof(struct msg_ogm_adv_metric_t0)) == 0));
+			uint16_t p;
+			for (p = 0; p < (on->neighPath.pathMetricsByteSize / sizeof(struct msg_ogm_adv_metric_t0)); p++) {
+
+				struct msg_ogm_adv_metric_t0 *t0Out = ((struct msg_ogm_adv_metric_t0*) &(msg->mt0[p]));
+				struct msg_ogm_adv_metric_t0 *t0In = &(on->neighPath.pathMetrics[p]);
+				FMETRIC_U16_T fm = {.val = {.f = {.exp_fm16 = t0In->u.f.metric_exp, .mantissa_fm16 = t0In->u.f.metric_mantissa}}};
+
+				dbgf_track(DBGT_INFO, "ogmHist=%d more=%d channel=%d origMtc=%s", p + 1, t0In->u.f.more, t0In->channel, umetric_to_human(fmetric_to_umetric(fm)));
+
+				assertion(-502664, (on->neighPath.pathMetrics[p].u.f.more == ((p + 1) < (on->neighPath.pathMetricsByteSize / (uint16_t)sizeof(struct msg_ogm_adv_metric_t0)))));
+				t0Out->channel = t0In->channel;
+				if (tn && evilOgmMetrics) {
+					struct msg_ogm_adv_metric_t0 t0Evil = {.u = {.u16 = t0In->u.u16}};
+					t0Evil.u.f.directional = 1;
+					t0Evil.u.f.metric_exp = fm16.val.f.exp_fm16;
+					t0Evil.u.f.metric_mantissa = fm16.val.f.mantissa_fm16;
+					t0Out->u.u16 = htons(t0Evil.u.u16);
+				} else {
+					t0Out->u.u16 = htons(t0In->u.u16);
+				}
+			}
+
+			assertion(-502665, (on->ogmAggregActiveMsgLen == ((int)(sizeof(struct msg_ogm_adv) + (p * sizeof(struct msg_ogm_adv_metric_t0))))));
+			msg = (struct msg_ogm_adv*) (((uint8_t*) msg) + on->ogmAggregActiveMsgLen);
 		}
-
-		dbgf_all(DBGT_INFO, "aggSqn=%d ogms=%d", *sqn, o);
-
-		return (o * sizeof(struct msg_ogm_adv));
 	}
 
-	return (*orig_tx_frame_ogm_dhash_aggreg_advs)(it);
-}
+	dbgf_track(DBGT_INFO, "aggSqn=%d aggSqnMax=%d ogms=%d evilSize=%d origSize=%d",
+		*sqn, ogm_aggreg_sqn_max, oan->tree.items, ((uint32_t) (((uint8_t*) msg) - tx_iterator_cache_msg_ptr(it))), oan->msgsLen);
 
+	return ((uint32_t) (((uint8_t*) msg) - tx_iterator_cache_msg_ptr(it)));
+}
 
 STATIC_FUNC
 void idChanged_Evil(IDM_T del, struct KeyWatchNode *kwn, struct DirWatch *dw)
 {
-	if (!kwn || (kwn->misc != (del ? MIN_TRUST_LEVEL : MAX_TRUST_LEVEL)))
+	dbgf_sys(DBGT_WARN, "del=%d kwn=%d kwnFile=%s kwnGlobalId=%s kwnMisc=%d dw=%d evilRouteDropping=%d",
+		del, !!kwn, kwn ? kwn->fileName : NULL, cryptShaAsShortStr(kwn ? &kwn->global_id : NULL), kwn ? kwn->misc : -1, !!dw, evilRouteDropping);
+
+	if (!kwn)
 		return;
-	
-	kwn->misc = (del ? MIN_TRUST_LEVEL : MAX_TRUST_LEVEL);
 
-	if (evilRouteDropping ) {
+	struct net_key routeKey = {.af = AF_INET6, .mask = 128, .ip = create_crypto_IPv6(&autoconf_prefix_cfg, &kwn->global_id)};
 
-		struct net_key routeKey = {.af = AF_INET6, .mask = 128, .ip = create_crypto_IPv6(&autoconf_prefix_cfg, &kwn->global_id)};
+	if (!del && !kwn->misc && evilRouteDropping) {
 
-		dbgf_track(DBGT_WARN, "del=%d route=%s to id=%s table=%d idx=%d", del, netAsStr(&routeKey), cryptShaAsShortStr(&kwn->global_id), DEF_EVIL_IP_TABLE, evil_tun_idx);
+		iproute(IP_ROUTE_TUNS, ADD, NO, &routeKey, DEF_EVIL_IP_TABLE, 0, evil_tun_idx, NULL, NULL, DEF_EVIL_IP_METRIC, NULL);
+		kwn->misc = YES;
 
-		iproute(IP_ROUTE_TUNS, del, NO, &routeKey, DEF_EVIL_IP_TABLE, 0, evil_tun_idx, NULL, NULL, DEF_EVIL_IP_METRIC, NULL);
+	} else if (kwn->misc) {
+
+		iproute(IP_ROUTE_TUNS, DEL, NO, &routeKey, DEF_EVIL_IP_TABLE, 0, evil_tun_idx, NULL, NULL, DEF_EVIL_IP_METRIC, NULL);
+		kwn->misc = NO;
 	}
+
 
 	if (del) {
 		avl_remove(&dw->node_tree, &kwn->global_id, -300770);
@@ -174,27 +220,17 @@ void tun_out_devZero_hook(int fd)
 STATIC_FUNC
 int32_t opt_evil_route(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
 {
-	static int32_t prevEvilRouteDropping = DEF_EVIL_ROUTE_DROPPING;
 
+	if (cmd == OPT_APPLY) {
 
-	if ((cmd == OPT_APPLY && prevEvilRouteDropping != evilRouteDropping)) {
+		dbgf_sys(DBGT_INFO, "changing %s=%d", opt->name, evilRouteDropping);
 
-		dbgf_sys(DBGT_INFO, "changing %s old=%d now=%d next=%s", opt->name, prevEvilRouteDropping, evilRouteDropping, patch->val);
-
-		int32_t nextEvilRouteDropping = evilRouteDropping;
-		evilRouteDropping = YES;
-
-		struct KeyWatchNode *tn;
+		struct KeyWatchNode *kwn;
 		struct avl_node *an = NULL;
-		while (evilDirWatch && (tn = avl_iterate_item(&evilDirWatch->node_tree, &an)))
-			(*evilDirWatch->idChanged)((nextEvilRouteDropping ? ADD : DEL), tn, evilDirWatch);
+		while (evilDirWatch && (kwn = avl_iterate_item(&evilDirWatch->node_tree, &an)))
+			(*evilDirWatch->idChanged)(ADD, kwn, evilDirWatch);
 
-		evilRouteDropping = nextEvilRouteDropping;
 	}
-
-	if (cmd == OPT_APPLY)
-		prevEvilRouteDropping = evilRouteDropping;
-
 
 
 	return SUCCESS;

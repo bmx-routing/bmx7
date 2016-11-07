@@ -95,9 +95,6 @@ extern int32_t txCasualInterval;
 #define FRM_SIGN_VERS_SIZE_MIN (sizeof(struct tlv_hdr) + sizeof(struct frame_hdr_signature) + sizeof(struct frame_msg_signature) + \
                                 sizeof(struct tlv_hdr) + sizeof(struct msg_ogm_aggreg_sqn_adv))
 
-#define FRM_SIGN_VERS_SIZE_MAX (FRM_SIGN_VERS_SIZE_MIN + cryptRsaKeyLenByType(MAX_LINK_RSA_TX_TYPE))
-
-#define SIGNED_FRAMES_SIZE_PREF (PKT_FRAMES_SIZE_PREF - FRM_SIGN_VERS_SIZE_MAX)
 
 #define ARG_FZIP     "descCompression"
 #define MIN_FZIP      0

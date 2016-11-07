@@ -975,9 +975,8 @@ void tx_packets( void *unused ) {
 				"%d %d %lu %d+%d", it.frame_type, it.frames_out_pos, FRM_SIGN_VERS_SIZE_MIN, !!my_DhmLinkKey, (my_RsaLinkKey ? my_RsaLinkKey->rawKeyLen : 0));
 		}
 
-		assertion_dbg(-502519, (++cnt) < 10000, "cnt=%d result=%d nextFt=%d ft=%d fp=%d keyLen=%d",
-			cnt, result, (nextTask ? (int) nextTask->key.f.type : -1), it.frame_type, it.frames_out_pos,
-			(my_RsaLinkKey ? (int) (FRM_SIGN_VERS_SIZE_MIN + my_RsaLinkKey->rawKeyLen) : -1));
+		assertion_dbg(-502519, (++cnt) < 10000, "cnt=%d result=%d nextFType=%d fType=%d fLen=%d fPos=%d fPosMax=%d",
+			cnt, result, (nextTask ? (int) nextTask->key.f.type : -1), it.frame_type, it.ttn->frame_msgs_length, it.frames_out_pos, it.frames_out_max);
 
 
 

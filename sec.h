@@ -101,7 +101,7 @@ extern int32_t linkDhmSignType;
 
 #define ARG_MAX_DHM_NEIGHS "maxDhmNeighs"
 #define MIN_MAX_DHM_NEIGHS 0
-#define MAX_MAX_DHM_NEIGHS 255
+#define MAX_MAX_DHM_NEIGHS 40
 #define DEF_MAX_DHM_NEIGHS (CRYPT_RSA2048_LEN / sizeof(struct frame_msg_dhMac112)) //17 corresponds equivalent maximum signature size of rsa2048 signatures
 extern int32_t maxDhmNeighs;
 

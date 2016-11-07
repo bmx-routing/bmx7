@@ -187,7 +187,7 @@ void schedule_ogm( struct orig_node *on)
 
 	assertion(-502284, (((AGGREG_SQN_T)(ogm_aggreg_sqn_max - ogm_aggreg_sqn_send)) == 1));
 
-	if (oan->tree.items >= OGMS_DHASH_PER_AGGREG_PREF_REMOVE)
+	if (oan->msgsLen > (int)(OGMS_DHASH_MSGS_LEN_PER_AGGREG_PREF - (sizeof(struct msg_ogm_adv) + (MAX_OGM_HOP_HISTORY_SZ*sizeof(struct msg_ogm_adv_metric_t0)))))
 		schedule_ogm_aggregations();
 
 }

@@ -40,14 +40,14 @@ extern int32_t my_ogmInterval;
 #define ARG_OGM_AGGREG_HISTORY "ogmAggregHistory"
 
 
+#define FRM_SIGN_VERS_SIZE_MAX_XXX (FRM_SIGN_VERS_SIZE_MIN + XMAX(cryptRsaKeyLenByType(MAX_LINK_RSA_TX_TYPE), (MAX_MAX_DHM_NEIGHS*sizeof(struct frame_msg_dhMac112))))
 
+//note that precalculated ogm-aggregations MUST fit into remaining space of DHM signed frames with many neighbors:
+#define SIGNED_FRAMES_SIZE_PREF_XXX (PKT_FRAMES_SIZE_PREF - FRM_SIGN_VERS_SIZE_MAX_XXX)
 
+#define OGMS_DHASH_MSGS_LEN_PER_AGGREG_PREF (SIGNED_FRAMES_SIZE_PREF_XXX - (sizeof(struct tlv_hdr) + sizeof (struct hdr_ogm_adv)))
 
-#define OGM_JUMPS_PER_AGGREGATION 10
-
-#define OGMS_DHASH_MSGS_LEN_PER_AGGREG_PREF (SIGNED_FRAMES_SIZE_PREF - (sizeof(struct tlv_hdr) + sizeof (struct hdr_ogm_adv)))
-
-#define OGMS_DHASH_PER_AGGREG_PREF_REMOVE (OGMS_DHASH_MSGS_LEN_PER_AGGREG_PREF / sizeof(struct msg_ogm_adv))
+//#define OGMS_DHASH_PER_AGGREG_PREF_REMOVE (OGMS_DHASH_MSGS_LEN_PER_AGGREG_PREF / sizeof(struct msg_ogm_adv))
 
 
 

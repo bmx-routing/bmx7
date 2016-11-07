@@ -85,6 +85,8 @@ extern char my_Hostname[];
 #endif
 extern uint32_t bmx_git_rev_u32;
 
+extern int32_t totalOrigRoutes;
+
 
 /*
  * from ip.h:

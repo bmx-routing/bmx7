@@ -470,6 +470,7 @@ struct dev_node {
 	uint32_t udpRxBytesCurr;
 	uint32_t udpRxBytesMean;
 
+	int32_t totalOrigRoutes;
 
 	IFNAME_T ifname_label; // includes alias colons
 	IFNAME_T ifname_device; // includes vlan dots, without colons, key for dev_name_tree

@@ -3178,6 +3178,7 @@ struct dev_status {
         char localIp[IPX_PREFIX_STR_LEN];
         char globalIp[IPX_PREFIX_STR_LEN];
 	char multicastIp[IPX_STR_LEN];
+	uint32_t rts;
         HELLO_SQN_T helloSqn;
 	char rxBpP[12];
 	char txBpP[12];
@@ -3196,6 +3197,7 @@ static const struct field_format dev_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,               dev_status, localIp,     1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,               dev_status, globalIp,    1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,               dev_status, multicastIp, 1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,                      dev_status, rts,         1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,                      dev_status, helloSqn,    1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,               dev_status, rxBpP,       1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,               dev_status, txBpP,       1, FIELD_RELEVANCE_HIGH),
@@ -3235,6 +3237,7 @@ static int32_t dev_status_creator(struct status_handl *handl, void* data)
                 sprintf(status[i].globalIp, "%s/%d", dev->ip_global_str, dev->if_global_addr ? dev->if_global_addr->ifa.ifa_prefixlen : -1);
 		ip6ToStr(dev->if_llocal_addr ? &dev->if_llocal_addr->ip_mcast : NULL, status[i].multicastIp);
                 status[i].helloSqn = dev->link_hello_sqn;
+		status[i].rts = dev->totalOrigRoutes;
 		sprintf(status[i].rxBpP,  "%d/%.1f", (dev->udpRxBytesMean / DEVSTAT_PRECISION), (((float)dev->udpRxPacketsMean) / DEVSTAT_PRECISION));
 		sprintf(status[i].txBpP, "%d/%.1f", (dev->udpTxBytesMean / DEVSTAT_PRECISION), (((float)dev->udpTxPacketsMean) / DEVSTAT_PRECISION));
 		sprintf(status[i].txTasks, "%d/%d", dev->tx_task_items, txTaskTreeSizeMax);

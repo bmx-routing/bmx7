@@ -95,6 +95,8 @@ TIME_SEC_T bmx_time_sec = 0;
 
 uint32_t s_curr_avg_cpu_load = 0;
 
+int32_t totalOrigRoutes = 0;
+
 
 AVL_TREE(status_tree, struct status_handl, status_name);
 
@@ -779,6 +781,7 @@ struct bmx_status {
 	char txBpP[12];
 	char txQ[12];
 	uint32_t nbs;
+	uint32_t rts;
 	char nodes[24];
 	char contents[16];
 };
@@ -807,6 +810,7 @@ static const struct field_format bmx_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       bmx_status, rxBpP,         1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       bmx_status, txBpP,         1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              bmx_status, nbs,           1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              bmx_status, rts,           1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       bmx_status, nodes,         1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       bmx_status, contents,      1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_END
@@ -843,7 +847,8 @@ static int32_t bmx_status_creator(struct status_handl *handl, void *data)
 	snprintf(status->txBpP, sizeof(status->txBpP), "%d/%.1f", (udpTxBytesMean / DEVSTAT_PRECISION), (((float) udpTxPacketsMean) / DEVSTAT_PRECISION));
 	snprintf(status->txQ, sizeof(status->txQ), "%d/%d", txBucket / BUCKET_COIN_SCALE, txBucketSize);
 	status->nbs = local_tree.items;
-	snprintf(status->nodes, sizeof(status->nodes), "%d/%d/%d", orig_tree.items, key_tree.items, descContent_tree.items);
+	status->rts = totalOrigRoutes;
+	snprintf(status->nodes, sizeof(status->nodes), "%d/%d", orig_tree.items, key_tree.items);
 	snprintf(status->contents, sizeof(status->contents), "%d/%d", (content_tree.items - content_tree_unresolveds), content_tree.items);
 	return sizeof(struct bmx_status);
 }

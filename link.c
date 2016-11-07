@@ -755,7 +755,7 @@ struct link_status {
 	uint16_t nbIdx;
 	IPX_T localIp;
 	IFNAME_T dev;
-	uint16_t routes;
+	uint16_t rts;
 	uint16_t idx;
 	IID_T iidMax;
 	AGGREG_SQN_T aggSqnSize;
@@ -817,7 +817,7 @@ static const struct field_format link_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, nbIdx,            1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_IPX,               link_status, localIp,          1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       link_status, dev,              1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, routes,           1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, rts,              1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, idx,              1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, iidMax,           1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, aggSqnSize,       1, FIELD_RELEVANCE_MEDI),
@@ -933,7 +933,7 @@ static int32_t link_status_creator(struct status_handl *handl, void *data)
 				status[i].wRxHt = link->wifiStats.rxHt;
 				status[i].wRxVht = link->wifiStats.rxVht;
 
-				status[i].routes = link->orig_routes;
+				status[i].rts = link->orig_routes;
 				status[i].iidMax = linkDev->key.local->neighIID4x_repos.max_free;
 				status[i].aggSqnSize = local->ogm_aggreg_size;
 				status[i].aggSqnMax = local->ogm_aggreg_max;

@@ -125,8 +125,11 @@ void cb_route_change_hooks(uint8_t del, struct orig_node *dest)
 	struct cb_route_change_node *con, *prev_con = NULL;
         struct neigh_node *local_router = dest->neighPath.link->k.linkDev->key.local;
 
+	totalOrigRoutes += (del ? -1 : +1);
+
         local_router->orig_routes += (del ? -1 : +1);
 	dest->neighPath.link->orig_routes += (del ? -1 : +1);
+	dest->neighPath.link->k.myDev->totalOrigRoutes += (del ? -1 : +1);
 
         assertion(-501320, (local_router->orig_routes >= 0 && local_router->orig_routes < (int) orig_tree.items));
 

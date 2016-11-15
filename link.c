@@ -758,9 +758,9 @@ struct link_status {
 	uint16_t rts;
 	uint16_t idx;
 	IID_T iidMax;
-	AGGREG_SQN_T aggSqnSize;
-	AGGREG_SQN_T aggSqnMax;
-	uint8_t aggSqnRcvd;
+	AGGREG_SQN_T aggSize;
+	AGGREG_SQN_T aggMax;
+	uint8_t aggRcvd;
 	HELLO_SQN_T lastHelloSqn;
 	TIME_T lastHelloAdv;
 
@@ -820,9 +820,9 @@ static const struct field_format link_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, rts,              1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, idx,              1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, iidMax,           1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, aggSqnSize,       1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, aggSqnMax,        1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, aggSqnRcvd,       1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, aggSize,          1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, aggMax,           1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, aggRcvd,          1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, lastHelloSqn,     1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, lastHelloAdv,     1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, rq,               1, FIELD_RELEVANCE_HIGH),
@@ -935,9 +935,9 @@ static int32_t link_status_creator(struct status_handl *handl, void *data)
 
 				status[i].rts = link->orig_routes;
 				status[i].iidMax = linkDev->key.local->neighIID4x_repos.max_free;
-				status[i].aggSqnSize = local->ogm_aggreg_size;
-				status[i].aggSqnMax = local->ogm_aggreg_max;
-				status[i].aggSqnRcvd = bit_get(local->ogm_aggreg_sqns, AGGREG_SQN_CACHE_RANGE, local->ogm_aggreg_max);
+				status[i].aggSize = local->ogm_aggreg_size;
+				status[i].aggMax = local->ogm_aggreg_max;
+				status[i].aggRcvd = bit_get(local->ogm_aggreg_sqns, AGGREG_SQN_CACHE_RANGE, local->ogm_aggreg_max);
 				status[i].lastHelloSqn = linkDev->hello_sqn_max;
 				status[i].lastHelloAdv = ((TIME_T) (bmx_time - linkDev->hello_time_max)) / 1000;
 

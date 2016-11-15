@@ -39,6 +39,10 @@ extern int32_t my_ogmInterval;
 #define DEF_OGM_AGGREG_HISTORY 20
 #define ARG_OGM_AGGREG_HISTORY "ogmAggregHistory"
 
+extern AGGREG_SQN_T ogm_aggreg_sqn_max;
+extern AGGREG_SQN_T ogm_aggreg_sqn_max_window_size;
+extern AGGREG_SQN_T ogm_aggreg_sqn_send;
+
 
 #define FRM_SIGN_VERS_SIZE_MAX_XXX (FRM_SIGN_VERS_SIZE_MIN + XMAX(cryptRsaKeyLenByType(MAX_LINK_RSA_TX_TYPE), (MAX_MAX_DHM_NEIGHS*sizeof(struct frame_msg_dhMac112))))
 

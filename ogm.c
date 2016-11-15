@@ -86,6 +86,7 @@ void remove_ogm( struct orig_node *on )
 
 	if (on->ogmAggregActiveMsgLen) {
 		AGGREG_SQN_T aggregSqn = on->ogmAggregSqn;
+		AGGREG_SQN_T ogm_aggreg_sqn_min;
 		struct OgmAggreg_node *oan = getOgmAggregNode(aggregSqn);
 		ASSERTION(-502280, (oan->tree.items && avl_find(&oan->tree, &on->k.nodeId) && oan->msgsLen >= on->ogmAggregActiveMsgLen));
 
@@ -96,7 +97,9 @@ void remove_ogm( struct orig_node *on )
 
 		on->ogmAggregActiveMsgLen = 0;
 
-		while (ogm_aggreg_sqn_max_window_size && (ogm_aggreg_sqn_max - (ogm_aggreg_sqn_max_window_size - 1)) == aggregSqn && !(getOgmAggregNode(aggregSqn)->tree.items)) {
+		while (ogm_aggreg_sqn_max_window_size && 
+			(ogm_aggreg_sqn_min = (ogm_aggreg_sqn_max - (ogm_aggreg_sqn_max_window_size - 1))) == aggregSqn &&
+			!(getOgmAggregNode(ogm_aggreg_sqn_min)->tree.items)) {
 
 			ogm_aggreg_sqn_max_window_size--;
 			aggregSqn++;
@@ -108,10 +111,10 @@ void remove_ogm( struct orig_node *on )
 STATIC_FUNC
 void schedule_ogm_aggregations(void)
 {
-	assertion(-502276, ((ogm_aggreg_sqn_max - ogm_aggreg_sqn_send) <= 1));
+	assertion(-502276, (((AGGREG_SQN_T)(ogm_aggreg_sqn_max - ogm_aggreg_sqn_send)) <= 1));
 	assertion(-502275, ((getOgmAggregNode(ogm_aggreg_sqn_max))->tree.items));
 
-	if (ogm_aggreg_sqn_max > ogm_aggreg_sqn_send) {
+	if (ogm_aggreg_sqn_max /*>*/ != ogm_aggreg_sqn_send) {
 
 		ogm_aggreg_sqn_send = ogm_aggreg_sqn_max;
 		int16_t sz = (getOgmAggregNode(ogm_aggreg_sqn_max))->msgsLen;
@@ -138,6 +141,8 @@ void schedule_ogm( struct orig_node *on)
 	assertion(-502578, (dc->ogmSqnMaxRcvd >= dc->ogmSqnMaxSend));
 	assertion_dbg(-502574, ((um & ~UMETRIC_MASK) == 0), "um=%ju mask=%ju max=%ju",um, UMETRIC_MASK, UMETRIC_MAX);
 	assertion_dbg(-502575, (um >= fmetric_to_umetric(umetric_to_fmetric(um))), "um=%ju um16=%d -> um=%ju",um, umetric_to_fmetric(um).val.u16, fmetric_to_umetric(umetric_to_fmetric(um)));
+	assertion(-502759, (((AGGREG_SQN_T)(ogm_aggreg_sqn_max - ogm_aggreg_sqn_send)) <= 1));
+	assertion(-502760, (ogm_aggreg_sqn_max_window_size <= AGGREG_SQN_CACHE_RANGE));
 
 	update_ogm_mins(dc->kn, dc->descSqn, dc->ogmSqnMaxSend, &um);
 
@@ -149,7 +154,7 @@ void schedule_ogm( struct orig_node *on)
 
 	struct OgmAggreg_node *oan = getOgmAggregNode(ogm_aggreg_sqn_max);
 
-	if (on->ogmAggregActiveMsgLen && on->ogmAggregSqn == ogm_aggreg_sqn_max && ogm_aggreg_sqn_max > ogm_aggreg_sqn_send &&
+	if (on->ogmAggregActiveMsgLen && on->ogmAggregSqn == ogm_aggreg_sqn_max && ogm_aggreg_sqn_max /*>*/!= ogm_aggreg_sqn_send &&
 		(oan->msgsLen - on->ogmAggregActiveMsgLen) <= ((int)OGMS_DHASH_MSGS_LEN_PER_AGGREG_PREF - (int)(sizeof(struct msg_ogm_adv) +on->neighPath.pathMetricsByteSize))) {
 
 		ASSERTION(-502282, (avl_find(&oan->tree, &on->k.nodeId)));
@@ -170,7 +175,7 @@ void schedule_ogm( struct orig_node *on)
 					assertion(-502472, (o->ogmAggregActiveMsgLen && o->ogmAggregSqn == ((AGGREG_SQN_T) (ogm_aggreg_sqn_max + 1 - AGGREG_SQN_CACHE_RANGE))));
 					remove_ogm(o);
 				}
-				assertion(-502473, (ogm_aggreg_sqn_max_window_size < AGGREG_SQN_CACHE_RANGE));
+				assertion(-502761, (ogm_aggreg_sqn_max_window_size < AGGREG_SQN_CACHE_RANGE));
 			}
 
 			ogm_aggreg_sqn_max++;
@@ -221,7 +226,7 @@ void schedule_my_originator_message(void)
 STATIC_FUNC
 void revise_ogm_aggregations(void)
 {
-	assertion(-502276, ((ogm_aggreg_sqn_max - ogm_aggreg_sqn_send) <= 1));
+	assertion(-502276, (((AGGREG_SQN_T)(ogm_aggreg_sqn_max - ogm_aggreg_sqn_send)) <= 1));
 
 
 	static TIME_T myNextHitchhike = 0;
@@ -230,7 +235,7 @@ void revise_ogm_aggregations(void)
 	TIME_T myGuaranteedInterval = ((my_ogmInterval * maxMyOgmIFactor) / 100);
 	IDM_T myNextNow = !my_description_changed && doNowOrLater(&myNextGuarantee, myGuaranteedInterval, (myKey->on->dc->ogmSqnMaxSend == 0));
 
-	if (myNextNow || (ogm_aggreg_sqn_max > ogm_aggreg_sqn_send && getOgmAggregNode(ogm_aggreg_sqn_max)->tree.items)) {
+	if (myNextNow || (ogm_aggreg_sqn_max /*>*/!= ogm_aggreg_sqn_send && getOgmAggregNode(ogm_aggreg_sqn_max)->tree.items)) {
 
 		if (doNowOrLater(&myNextHitchhike, my_ogmInterval, myNextNow)) {
 			doNowOrLater(&myNextGuarantee, myGuaranteedInterval, YES); //sync the two timeouts!
@@ -343,7 +348,7 @@ int32_t rx_frame_ogm_aggreg_sqn(struct rx_frame_iterator *it)
 	AGGREG_SQN_T sz = ntohs(((struct msg_ogm_aggreg_sqn_adv *) it->f_msg)->size);
 	struct neigh_node *nn = it->pb->i.verifiedLink->k.linkDev->key.local;
 
-	dbgf_all(DBGT_INFO, "from neigh=%s max=%d/%d sz=%d/%d time=%d",
+	dbgf_track(DBGT_INFO, "from neigh=%s max=%d/%d sz=%d/%d time=%d",
 		nn->on->k.hostname, max, nn->ogm_aggreg_max, sz, nn->ogm_aggreg_size, nn->ogm_aggreg_time);
 
 
@@ -742,6 +747,32 @@ int32_t rx_frame_ogm_aggreg_advs(struct rx_frame_iterator *it)
 	return TLV_RX_DATA_PROCESSED;
 }
 
+int32_t opt_fake_agg_sqns(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
+{
+        TRACE_FUNCTION_CALL;
+
+	if ( cmd == OPT_APPLY ) {
+
+		int32_t val = patch->val ? strtol(patch->val, NULL, 10) : 0;
+
+		if (val) {
+
+			struct orig_node *on;
+			struct avl_node *an = NULL;
+
+			while ((on = avl_iterate_item(&orig_tree, &an)))
+				remove_ogm(on);
+
+			assertion(-500000, (!ogm_aggreg_sqn_max_window_size));
+
+			AGGREG_SQN_T diff = ((AGGREG_SQN_T)-val) - ogm_aggreg_sqn_max;
+			ogm_aggreg_sqn_max += diff;
+			ogm_aggreg_sqn_send += diff;
+		}
+	}
+
+	return SUCCESS;
+}
 
 
 
@@ -750,6 +781,9 @@ struct opt_type ogm_options[]=
 {
         {ODI,0,ARG_OGM_IFACTOR,         0,9,1, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &maxMyOgmIFactor,  MIN_OGM_IFACTOR,   MAX_OGM_IFACTOR,   DEF_OGM_IFACTOR, 0,   0,
 			ARG_VALUE_FORM,	"set factor (relative to ogmInterval) for max delay of own ogms"},
+	{ODI,0,"fakeOgmAggSqn",         0,9,0, A_PS1,A_ADM,A_DYN,A_ARG,A_ANY,    NULL,              0,           ((AGGREG_SQN_T)-1),          0,0,           opt_fake_agg_sqns,
+			NULL, "exceed ogm aggregation sqn range"},
+
 
 };
 

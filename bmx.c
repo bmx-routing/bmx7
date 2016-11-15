@@ -774,6 +774,9 @@ struct bmx_status {
 	DESC_SQN_T descSqn;
 	uint32_t lastDesc;
 	OGM_SQN_T ogmSqn;
+	AGGREG_SQN_T aggSize;
+	AGGREG_SQN_T aggMax;
+	AGGREG_SQN_T aggSend;
 	char *uptime;
 	char cpu[6];
 	char mem[22];
@@ -803,6 +806,10 @@ static const struct field_format bmx_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              bmx_status, descSqn,       1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              bmx_status, lastDesc,      1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              bmx_status, ogmSqn,        1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              bmx_status, aggSize,       1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              bmx_status, aggMax,        1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              bmx_status, aggSend,       1, FIELD_RELEVANCE_MEDI),
+
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      bmx_status, uptime,        1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       bmx_status, cpu,           1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       bmx_status, mem,           1, FIELD_RELEVANCE_MEDI),
@@ -840,6 +847,9 @@ static int32_t bmx_status_creator(struct status_handl *handl, void *data)
 	status->descSqn = myKey->on->dc->descSqn;
 	status->lastDesc = (bmx_time - myKey->on->updated_timestamp) / 1000;
 	status->ogmSqn = myKey->on->dc->ogmSqnMaxSend;
+	status->aggSize = ogm_aggreg_sqn_max_window_size;
+	status->aggMax = ogm_aggreg_sqn_max;
+	status->aggSend = ogm_aggreg_sqn_send;
 	status->uptime = get_human_uptime(0);
 	snprintf(status->cpu, sizeof(status->cpu), "%d.%1d", s_curr_avg_cpu_load / 10, s_curr_avg_cpu_load % 10);
 	snprintf(status->mem, sizeof(status->mem), "%dK/%d", debugMalloc_bytes / 1000, debugMalloc_objects);

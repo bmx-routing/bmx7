@@ -371,7 +371,7 @@ char *del2str(IDM_T del)
         return ( del ? "DEL" : "ADD");
 }
 
-#ifdef WITH_UNUSED
+#ifdef WITH_DEVEL
 STATIC_FUNC
 char *rtn2str(uint8_t rtn)
 {
@@ -2501,7 +2501,7 @@ int update_interface_rules(void)
 	return SUCCESS;
 }
 
-#ifdef WITH_UNUSED
+#ifdef WITH_DEVEL
 STATIC_FUNC
 struct net_key bmx7AutoEUI64Ip6(ADDR_T mac, struct net_key *prefix)
 {

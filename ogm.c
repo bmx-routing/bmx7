@@ -747,6 +747,7 @@ int32_t rx_frame_ogm_aggreg_advs(struct rx_frame_iterator *it)
 	return TLV_RX_DATA_PROCESSED;
 }
 
+#ifdef WITH_DEVEL
 int32_t opt_fake_agg_sqns(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
 {
         TRACE_FUNCTION_CALL;
@@ -763,7 +764,7 @@ int32_t opt_fake_agg_sqns(uint8_t cmd, uint8_t _save, struct opt_type *opt, stru
 			while ((on = avl_iterate_item(&orig_tree, &an)))
 				remove_ogm(on);
 
-			assertion(-500000, (!ogm_aggreg_sqn_max_window_size));
+			assertion(-502762, (!ogm_aggreg_sqn_max_window_size));
 
 			AGGREG_SQN_T diff = ((AGGREG_SQN_T)-val) - ogm_aggreg_sqn_max;
 			ogm_aggreg_sqn_max += diff;
@@ -773,7 +774,7 @@ int32_t opt_fake_agg_sqns(uint8_t cmd, uint8_t _save, struct opt_type *opt, stru
 
 	return SUCCESS;
 }
-
+#endif
 
 
 STATIC_FUNC
@@ -781,9 +782,10 @@ struct opt_type ogm_options[]=
 {
         {ODI,0,ARG_OGM_IFACTOR,         0,9,1, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &maxMyOgmIFactor,  MIN_OGM_IFACTOR,   MAX_OGM_IFACTOR,   DEF_OGM_IFACTOR, 0,   0,
 			ARG_VALUE_FORM,	"set factor (relative to ogmInterval) for max delay of own ogms"},
+#ifdef WITH_DEVEL
 	{ODI,0,"fakeOgmAggSqn",         0,9,0, A_PS1,A_ADM,A_DYN,A_ARG,A_ANY,    NULL,              0,           ((AGGREG_SQN_T)-1),          0,0,           opt_fake_agg_sqns,
 			NULL, "exceed ogm aggregation sqn range"},
-
+#endif
 
 };
 

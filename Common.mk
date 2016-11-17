@@ -40,7 +40,7 @@ CFLAGS += -DAVL_5XLINKED
 # CFLAGS += -DEXTREME_PARANOIA    # (check difficult syntax errors)
 # CFLAGS += -DEXIT_ON_ERROR       # (exit and return code due to unusual behavior)
 # CFLAGS += -DTEST_DEBUG
-# CFLAGS += -DWITH_UNUSED         # (includes yet unused stuff and buggy stuff)
+# CFLAGS += -DWITH_DEVEL          # (includes debug, yet unused, and buggy stuff)
 # CFLAGS += -DPROFILING           # (no static functions -> better profiling and cores)
 # CFLAGS += -DNO_CTAOCRYPT_DIR    # for backward compatibility with old cyassl versions
 # CFLAGS += -DCORE_LIMIT=20000    # equals ulimit -c 20000

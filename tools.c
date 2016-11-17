@@ -673,7 +673,7 @@ uint8_t *find_array_data(uint8_t *arr, uint32_t arrLen, uint8_t *element, uint32
 }
 
 
-#ifdef WITH_UNUSED
+#ifdef WITH_DEVEL
 
 struct ring_buffer {
 	uint16_t field_size;

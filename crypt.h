@@ -17,10 +17,9 @@
 
 /*
  * Alternative cryptographic libraries are:
- * libtomcrypt and gcrypt
+ * libtomcrypt, gcrypt, cyassl
  */
 
-//#define CRYPT_CYASSL
 //#define CRYPT_POLARSSL
 
 
@@ -31,9 +30,6 @@
 #define POLARSSL_1_3_4 1134
 #define POLARSSL_1_3_9 1139
 #define POLARSSL_MAX   1999
-#define CYASSL_MIN     2000
-#define CYASSL_2_8_0   2280
-#define CYASSL_MAX     2999
 
 #ifndef CRYPTLIB
 #define CRYPTLIB POLARSSL_1_3_4

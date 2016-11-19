@@ -46,7 +46,7 @@ install_libs:   all
 
 
 clean:
-	rm -f $(BINARY_NAME) *.o posix/*.o linux/*.o cyassl/*.o
+	rm -f $(BINARY_NAME) *.o posix/*.o linux/*.o
 
 clean_libs:
 	$(MAKE) -C lib clean

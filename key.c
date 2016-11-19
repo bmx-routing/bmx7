@@ -710,7 +710,7 @@ struct key_node *keyNode_getLeastWithinSet(struct KeyState *inSet, struct KeySta
 	struct KeyState *ks = keySec_getLeastWithinSetWithNodes(inSet, outSet);
 	if (ks) {
 		//find first random node in section...
-		CRYPTSHA1_T k;
+		CRYPTSHA_T k;
 		cryptRand(&k, sizeof(k));
 		struct key_node *kCurr = (kCurr = avl_next_item(&key_tree, &k)) ? kCurr : avl_next_item(&key_tree, NULL);
 		struct key_node *kLast = kCurr;
@@ -843,7 +843,7 @@ void keyNodes_cleanup(int8_t targetStateColumn, struct key_node *except)
 	for (next = XMAX(targetStateColumn, KCListed); next >= targetStateColumn; next--) {
 
 		struct key_node *kn = NULL;
-		GLOBAL_ID_T curr = ZERO_CYRYPSHA1;
+		GLOBAL_ID_T curr = ZERO_CYRYPSHA;
 
 		while ((kn = avl_next_item(&key_tree, &curr))) {
 

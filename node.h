@@ -213,13 +213,8 @@ struct metric_record {
  * from node.h:
  */
 
-typedef CRYPTSHA1_T SHA1_T;
-typedef CRYPTSHA1_T DHASH_T;
-typedef CRYPTSHA1_T RHASH_T;
-
-
-
-typedef CRYPTSHA1_T GLOBAL_ID_T;
+typedef CRYPTSHA_T DHASH_T;
+typedef CRYPTSHA_T GLOBAL_ID_T;
 
 typedef uint8_t DEVIDX_T;
 #define DEVIDX_INVALID 0
@@ -325,7 +320,7 @@ struct neigh_node {
 
 	struct orig_node *on;
 	CRYPTRSA_T *rsaLinkKey;
-	//	CRYPTSHA1_T *dhmLinkSecret;
+	//	CRYPTSHA_T *dhmLinkSecret;
 
 
 	struct iid_repos neighIID4x_repos;
@@ -370,7 +365,7 @@ struct content_usage_node {
 #define MAX_REF_NESTING 2
 
 struct content_node {
-	SHA1_T chash;
+	CRYPTSHA_T chash;
 	struct key_node *kn;
 	uint8_t *f_body;
 	uint32_t f_body_len;
@@ -493,7 +488,7 @@ struct orig_node {
 	struct desc_content *dc;
 	struct key_node *kn;
 	struct neigh_node *neigh;
-	CRYPTSHA1_T *dhmSecret;
+	CRYPTSHA_T *dhmSecret;
 
 	IID_T __myIID4x;
 
@@ -594,7 +589,7 @@ struct KeyState {
 struct packet_header {
 	uint8_t comp_version;
 	uint8_t reserved;
-	CRYPTSHA1_T keyHash;
+	CRYPTSHA_T keyHash;
 } __attribute__((packed, __may_alias__));
 
 struct packet_buff {
@@ -652,7 +647,7 @@ extern uint32_t content_tree_unresolveds;
 void update_ogm_mins(struct key_node *kn, DESC_SQN_T minDescSqn, OGM_SQN_T minOgmSqn, UMETRIC_T *minUMetric);
 IDM_T is_new_ogm_mins(struct key_node *kn, DESC_SQN_T minDescSqn, OGM_SQN_T minOgmSqn, UMETRIC_T *minUMetric);
 void neighRef_destroy(struct NeighRef_node *ref, IDM_T reAssessState);
-struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn, IID_T neighIID4x, CRYPTSHA1_T *kHash, DESC_SQN_T descSqn, struct InaptChainOgm *chainOgm);
+struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn, IID_T neighIID4x, CRYPTSHA_T *kHash, DESC_SQN_T descSqn, struct InaptChainOgm *chainOgm);
 void neighRefs_update(struct key_node *kn);
 struct NeighRef_node *neighRef_resolve_or_destroy(struct NeighRef_node *ref, IDM_T reassessState);
 void neighRefs_resolve_or_destroy(void);

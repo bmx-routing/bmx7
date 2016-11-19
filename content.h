@@ -43,11 +43,11 @@ extern struct avl_tree content_tree;
 	FIELD_FORMAT_END }
 
 struct dsc_msg_chash {
-	SHA1_T chash; // hash over frame data (without frame-header, but including hdr_content_adv and all body data) as transmitted via content_adv
+	CRYPTSHA_T chash; // hash over frame data (without frame-header, but including hdr_content_adv and all body data) as transmitted via content_adv
 } __attribute__((packed));
 
 struct dsc_hdr_chash {
-	SHA1_T expanded_chash; // hash over zero-frame_hdr_content_adv and frame body data with all resolved, re-assembled, uncompressed.
+	CRYPTSHA_T expanded_chash; // hash over zero-frame_hdr_content_adv and frame body data with all resolved, re-assembled, uncompressed.
 	// So for a dsc_hdr/msg_chash frame with a single uncompressed and non-nested chash this would equal the chash of dsc_msg_chash which MUST be omitted.
 	// Otherwise it provides a checksum over the final data.
 
@@ -76,7 +76,7 @@ struct dsc_hdr_chash {
 } __attribute__((packed));
 
 struct frame_msg_content_adv {
-	SHA1_T chash; // hash over frame data (without frame-header, but including hdr_content_adv and all body data) as transmitted via content_adv
+	CRYPTSHA_T chash; // hash over frame data (without frame-header, but including hdr_content_adv and all body data) as transmitted via content_adv
 } __attribute__((packed));
 
 struct frame_hdr_content_adv {
@@ -99,7 +99,7 @@ struct frame_hdr_content_adv {
 // for FRAME_TYPE_REF_REQ:
 
 struct msg_content_req {
-	SHA1_T chash;
+	CRYPTSHA_T chash;
 } __attribute__((packed));
 
 //TODO: Use this destination header!!!
@@ -133,7 +133,7 @@ struct desc_content {
 	OGM_SQN_T ogmSqnMaxRcvd;
 	ChainLink_T chainLinkMaxRcvd;
 	ChainInputs_T chainCache;
-	CRYPTSHA1_T chainOgmConstInputHash;
+	CRYPTSHA_T chainOgmConstInputHash;
 	ChainLink_T *chainAnchor;
 
 	struct desc_tlv_body final[BMX_DSC_TLV_ARRSZ];
@@ -144,10 +144,10 @@ int8_t descContent_assemble(struct desc_content *dc, IDM_T init_not_finalize);
 struct desc_content* descContent_create(uint8_t *dsc, uint32_t dlen, struct key_node *kn);
 void descContent_destroy(struct desc_content *dc);
 void content_resolve(struct key_node *kn, struct neigh_node *viaNeigh);
-struct content_node * content_find(SHA1_T *chash);
+struct content_node * content_find(CRYPTSHA_T *chash);
 void *contents_data(struct desc_content *contents, uint8_t type);
 uint32_t contents_dlen(struct desc_content *contents, uint8_t type);
-struct content_node * content_add_hash(SHA1_T *chash);
+struct content_node * content_add_hash(CRYPTSHA_T *chash);
 struct content_node * content_add_body(uint8_t *body, uint32_t body_len, uint8_t compressed, uint8_t nested, uint8_t force);
 int32_t create_chash_tlv(struct tlv_hdr *tlv, uint8_t *f_data, uint32_t f_len, uint8_t f_type, uint8_t fzip, uint8_t level, union content_sizes *virtDescSizes);
 void content_purge_unused(struct content_node *onlyCn);

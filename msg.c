@@ -340,10 +340,10 @@ int32_t rx_frame_iterate(struct rx_frame_iterator *it)
 				(chHdr.u.i.expanded_length <= vrt_frame_data_size_in) &&
 				(chHdr.u.i.maxNesting <= vrt_frame_max_nesting) &&
 				(chHdr.u.i.gzip <= 1) &&
-				(IMPLIES(chHdr.u.i.maxNesting >= 1, !((it->f_dlen - sizeof(struct dsc_hdr_chash)) % sizeof(SHA1_T)) )) &&
-				(IMPLIES(chHdr.u.i.maxNesting >= 1 && chHdr.u.i.gzip, ((it->f_dlen - sizeof(struct dsc_hdr_chash)) / sizeof(SHA1_T)) >= 1)) &&
-				(IMPLIES(chHdr.u.i.maxNesting == 1 && !chHdr.u.i.gzip && it->f_dlen != sizeof(struct dsc_hdr_chash), ((it->f_dlen - sizeof(struct dsc_hdr_chash)) / sizeof(SHA1_T)) >= 2)) &&
-				(IMPLIES(chHdr.u.i.maxNesting == 2 && !chHdr.u.i.gzip && it->f_dlen != sizeof(struct dsc_hdr_chash), ((it->f_dlen - sizeof(struct dsc_hdr_chash)) / sizeof(SHA1_T)) >= 1)) &&
+				(IMPLIES(chHdr.u.i.maxNesting >= 1, !((it->f_dlen - sizeof(struct dsc_hdr_chash)) % sizeof(CRYPTSHA_T)) )) &&
+				(IMPLIES(chHdr.u.i.maxNesting >= 1 && chHdr.u.i.gzip, ((it->f_dlen - sizeof(struct dsc_hdr_chash)) / sizeof(CRYPTSHA_T)) >= 1)) &&
+				(IMPLIES(chHdr.u.i.maxNesting == 1 && !chHdr.u.i.gzip && it->f_dlen != sizeof(struct dsc_hdr_chash), ((it->f_dlen - sizeof(struct dsc_hdr_chash)) / sizeof(CRYPTSHA_T)) >= 2)) &&
+				(IMPLIES(chHdr.u.i.maxNesting == 2 && !chHdr.u.i.gzip && it->f_dlen != sizeof(struct dsc_hdr_chash), ((it->f_dlen - sizeof(struct dsc_hdr_chash)) / sizeof(CRYPTSHA_T)) >= 1)) &&
 				(IMPLIES(chHdr.u.i.maxNesting == 0, chHdr.u.i.gzip && it->f_dlen > (int) sizeof(struct dsc_hdr_chash)))
 				) {
 
@@ -1011,7 +1011,7 @@ void tx_packets( void *unused ) {
 }
 
 
-void schedule_tx_task(uint8_t f_type, LinkNode *unicast, CRYPTSHA1_T *groupId, struct neigh_node *neigh, struct dev_node *dev, int16_t f_msgs_len, void *keyData, uint32_t keyLen)
+void schedule_tx_task(uint8_t f_type, LinkNode *unicast, CRYPTSHA_T *groupId, struct neigh_node *neigh, struct dev_node *dev, int16_t f_msgs_len, void *keyData, uint32_t keyLen)
 {
 	TRACE_FUNCTION_CALL;
 
@@ -1048,7 +1048,7 @@ void schedule_tx_task(uint8_t f_type, LinkNode *unicast, CRYPTSHA1_T *groupId, s
 	}
 
 	struct tx_task_node test = {
-		.key =	{ .f = { .p = { .sign = (f_type >= FRAME_TYPE_SIGNATURE_ADV), .dev = dev, .unicast = unicast}, .type = f_type, .groupId = groupId ? *groupId : ZERO_CYRYPSHA1} },
+		.key =	{ .f = { .p = { .sign = (f_type >= FRAME_TYPE_SIGNATURE_ADV), .dev = dev, .unicast = unicast}, .type = f_type, .groupId = groupId ? *groupId : ZERO_CYRYPSHA} },
 		.neigh = neigh, .tx_iterations = *(handl->tx_iterations),
 		.send_ts = ((TIME_T) (bmx_time - *handl->tx_task_interval_min)),
 		.frame_msgs_length = (f_msgs_len == SCHEDULE_MIN_MSG_SIZE ? handl->min_msg_size : f_msgs_len)
@@ -1246,7 +1246,7 @@ void init_msg( void )
 
         assertion(-500998, (sizeof(struct tlv_hdr) == 2));
 
-        assertion(-500347, (sizeof (DHASH_T) == CRYPT_SHA1_LEN));
+        assertion(-500347, (sizeof (DHASH_T) == CRYPT_SHA_LEN));
 
 	assertion(-502086, ( (tlvSetBigEndian(0x1B, 0x492)).u.u16 == htons(0xDC92) ) );
 

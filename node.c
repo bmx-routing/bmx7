@@ -181,7 +181,7 @@ struct NeighRef_node *neighRef_resolve_or_destroy(struct NeighRef_node *ref, IDM
 void neighRefs_resolve_or_destroy(void)
 {
 	static TIME_T next = 0;
-	GLOBAL_ID_T nid = ZERO_CYRYPSHA1;
+	GLOBAL_ID_T nid = ZERO_CYRYPSHA;
 	struct neigh_node *nn;
 	IID_T iid;
 	struct NeighRef_node *ref;
@@ -308,7 +308,7 @@ IDM_T is_new_ogm_mins(struct key_node *kn, DESC_SQN_T minDescSqn, OGM_SQN_T minO
 }
 
 
-struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn, IID_T neighIID4x, CRYPTSHA1_T *kHash, DESC_SQN_T descSqn, struct InaptChainOgm *inChainOgm)
+struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn, IID_T neighIID4x, CRYPTSHA_T *kHash, DESC_SQN_T descSqn, struct InaptChainOgm *inChainOgm)
 {
 	assertion(-502459, (nn));
 	assertion(-502566, (neighIID4x));
@@ -640,7 +640,7 @@ void destroy_orig_node(struct orig_node *on)
 
 	assertion(-502758, (!on->dhmSecret));
 //	if (on->dhmSecret)
-//		debugFreeReset(&on->dhmSecret, sizeof(CRYPTSHA1_T), -300835);
+//		debugFreeReset(&on->dhmSecret, sizeof(CRYPTSHA_T), -300835);
 
 
 	if (on->trustedNeighsBitArray)

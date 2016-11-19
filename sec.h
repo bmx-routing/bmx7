@@ -174,7 +174,7 @@ typedef struct {
 } __attribute__((packed)) ChainLink_T;
 
 typedef struct {
-	uint8_t u8[sizeof(CRYPTSHA1_T) - sizeof(CRYPTSHA112_T)];
+	uint8_t u8[sizeof(CRYPTSHA_T) - sizeof(CRYPTSHA112_T)];
 } __attribute__((packed)) ChainSeed_T;
 
 typedef struct {
@@ -185,13 +185,13 @@ typedef struct {
 			ChainLink_T link;
 			ChainSeed_T seed;
 		} e;
-		CRYPTSHA1_T sha;
+		CRYPTSHA_T sha;
 	} u;
 } __attribute__((packed)) ChainElem_T;
 
 typedef struct {
 	ChainElem_T elem;
-	CRYPTSHA1_T nodeId;
+	CRYPTSHA_T nodeId;
 	DESC_SQN_T descSqnNetOrder;
 } __attribute__((packed)) ChainInputs_T;
 
@@ -287,7 +287,7 @@ struct dsc_msg_signature {
 
 
 #define DESCRIPTION_MSG_TRUST_FORMAT { \
-{FIELD_TYPE_STRING_BINARY, -1, 8*sizeof(CRYPTSHA1_T),               0, FIELD_RELEVANCE_HIGH,  "nodeId"},  \
+{FIELD_TYPE_STRING_BINARY, -1, 8*sizeof(CRYPTSHA_T),               0, FIELD_RELEVANCE_HIGH,  "nodeId"},  \
 {FIELD_TYPE_UINT,          -1, 8*sizeof(uint16_t),                  0, FIELD_RELEVANCE_HIGH,  "reserved"}, \
 FIELD_FORMAT_END }
 
@@ -311,7 +311,7 @@ struct desc_msg_trust_fields {
 };
 
 struct dsc_msg_trust {
-	CRYPTSHA1_T nodeId;
+	CRYPTSHA_T nodeId;
 	struct desc_msg_trust_fields f;
 
 } __attribute__((packed));
@@ -351,7 +351,7 @@ ChainLink_T chainOgmCalc(struct desc_content *dc, OGM_SQN_T ogmSqn);
 ChainElem_T myChainLinkCache(OGM_SQN_T sqn, DESC_SQN_T descSqn);
 
 IPX_T create_crypto_IPv6(struct net_key *prefix, GLOBAL_ID_T *id);
-IDM_T verify_crypto_ip6_suffix(IPX_T *ip, uint8_t mask, CRYPTSHA1_T *id);
+IDM_T verify_crypto_ip6_suffix(IPX_T *ip, uint8_t mask, CRYPTSHA_T *id);
 
 GLOBAL_ID_T *get_desc_id(uint8_t *desc_adv, uint32_t desc_len, struct dsc_msg_signature **signpp, struct dsc_msg_version **verspp);
 void setQualifyingPromotedOrNeigh(IDM_T in, struct key_node *kn);
@@ -359,7 +359,7 @@ void setQualifyingPromotedOrNeigh(IDM_T in, struct key_node *kn);
 struct content_node *test_description_signature(uint8_t *desc, uint32_t desc_len);
 void apply_trust_changes(int8_t f_type, struct orig_node *on, struct desc_content* dcOld, struct desc_content *dcNew);
 IDM_T setted_pubkey(struct desc_content *dc, uint8_t type, GLOBAL_ID_T *globalId, uint8_t searchDepth);
-IDM_T supportedKnownKey(CRYPTSHA1_T *pkhash);
+IDM_T supportedKnownKey(CRYPTSHA_T *pkhash);
 INT_NEIGH_ID_T allocate_internalNeighId(struct neigh_node *nn);
 void free_internalNeighId(INT_NEIGH_ID_T ini);
 uint32_t *init_neighTrust(struct orig_node *on);

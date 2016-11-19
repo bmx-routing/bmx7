@@ -156,7 +156,7 @@ IDM_T desc_frame_changed(  struct desc_content *dcA, struct desc_content *dcB, u
 
 
 
-SHA1_T *nodeIdFromDescAdv(uint8_t *desc_adv)
+CRYPTSHA_T *nodeIdFromDescAdv(uint8_t *desc_adv)
 {
 	return &(((struct dsc_hdr_chash*) (desc_adv + sizeof(struct tlv_hdr)))->expanded_chash);
 }
@@ -315,7 +315,7 @@ void update_my_description(void)
 	}
 
 	ASSERTION(-502315, (test_description_signature(tx.frames_out_ptr, tx.frames_out_pos)));
-	DHASH_T oldDHash = myKey->on ? myKey->on->dc->dHash : ZERO_CYRYPSHA1;
+	DHASH_T oldDHash = myKey->on ? myKey->on->dc->dHash : ZERO_CYRYPSHA;
 	struct desc_content *dcNew = descContent_create(tx.frames_out_ptr, tx.frames_out_pos, myKey);
 
 	assertion(-502316, (dcNew));
@@ -622,7 +622,7 @@ int32_t rx_frame_description_adv(struct rx_frame_iterator *it)
 	GLOBAL_ID_T *nodeId = NULL;
 	struct dsc_msg_version *thisVers, *currVers, *nextVers;
 	struct desc_content *dc = NULL;
-	SHA1_T dHash;
+	CRYPTSHA_T dHash;
 
 	cryptShaAtomic(it->f_data, it->f_dlen, &dHash);
 

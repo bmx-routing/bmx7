@@ -440,7 +440,7 @@ struct tx_task_key {
 			struct dev_node *dev; // the outgoing interface to be used for transmitting
 		} __attribute__((packed)) p; // ensure individual packets for each (in order of pref): sing, dev, type, id
 		uint8_t type;
-		CRYPTSHA1_T groupId;
+		CRYPTSHA_T groupId;
 	} f;
 	uint8_t data[TX_TASK_MAX_KEY_DATA_LEN];
 	//TODO: remove these:
@@ -496,7 +496,7 @@ void rx_packet(struct packet_buff *pb);
 #define SCHEDULE_UNKNOWN_MSGS_SIZE 0
 #define SCHEDULE_MIN_MSG_SIZE -1
 
-void schedule_tx_task(uint8_t f_type, LinkNode *unicast, CRYPTSHA1_T *groupId, struct neigh_node *neigh, struct dev_node *dev, int16_t f_msgs_len, void *keyData, uint32_t keyLen);
+void schedule_tx_task(uint8_t f_type, LinkNode *unicast, CRYPTSHA_T *groupId, struct neigh_node *neigh, struct dev_node *dev, int16_t f_msgs_len, void *keyData, uint32_t keyLen);
 
 void register_frame_handler(struct frame_db *db, int pos, struct frame_handl *handl);
 

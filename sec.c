@@ -278,7 +278,7 @@ OGM_SQN_T chainOgmFind(ChainLink_T *chainOgm, struct desc_content *dc, IDM_T sea
 	return sqnReturn;
 }
 
-IDM_T verify_crypto_ip6_suffix( IPX_T *ip, uint8_t mask, CRYPTSHA1_T *id) {
+IDM_T verify_crypto_ip6_suffix( IPX_T *ip, uint8_t mask, CRYPTSHA_T *id) {
 
 	if (mask % 8)
 		return FAILURE;
@@ -498,7 +498,7 @@ int create_packet_signature(struct tx_frame_iterator *it)
 
 		} else if ((((my_DhmLinkKey && it->ttn->key.f.p.dev->strictSignatures >= OPT_DEV_SIGNATURES_TX) && dhmNeighs && dhmNeighs <= maxDhmNeighs))) {
 
-			GLOBAL_ID_T id = ZERO_CYRYPSHA1;
+			GLOBAL_ID_T id = ZERO_CYRYPSHA;
 			while ((on = avl_next_item(&qualifyingPromoteds_tree, &id))) {
 				id = on->k.nodeId;
 				sendDhmSignatures += getQualifyingPromotedOrNeighDhmSecret(on, YES);
@@ -530,7 +530,7 @@ int create_packet_signature(struct tx_frame_iterator *it)
 		int32_t dataLen = it->frames_out_pos - dataOffset;
 		uint8_t *data = it->frames_out_ptr + dataOffset;
 
-		CRYPTSHA1_T packetSha;
+		CRYPTSHA_T packetSha;
 		cryptShaNew(&it->ttn->key.f.p.dev->if_llocal_addr->ip_addr, sizeof(IPX_T));
 		cryptShaUpdate(hdr, sizeof(struct frame_hdr_signature));
 		cryptShaUpdate(data, dataLen);
@@ -545,17 +545,17 @@ int create_packet_signature(struct tx_frame_iterator *it)
 			assertion(-502738, (sendDhmSignatures));
 			struct frame_msg_dhMac112 *msg = (struct frame_msg_dhMac112 *) &(hdr[1]);
 
-			GLOBAL_ID_T id = ZERO_CYRYPSHA1;
+			GLOBAL_ID_T id = ZERO_CYRYPSHA;
 			while ((on = avl_next_item(&qualifyingPromoteds_tree, &id)) && (dhmNeighs < sendDhmSignatures)) {
 				id = on->k.nodeId;
 				if (getQualifyingPromotedOrNeighDhmSecret(on, YES)) {
 					assertion(-502739, (on->dhmSecret));
-					CRYPTSHA1_T sha1Mac;
+					CRYPTSHA_T shaMac;
 					cryptShaNew(&packetSha, sizeof(packetSha));
-					cryptShaUpdate(on->dhmSecret, sizeof(CRYPTSHA1_T));
-					cryptShaFinal(&sha1Mac);
+					cryptShaUpdate(on->dhmSecret, sizeof(CRYPTSHA_T));
+					cryptShaFinal(&shaMac);
 					msg[dhmNeighs].type = my_DhmLinkKey->rawGXType;
-					memcpy(&msg[dhmNeighs].mac, &sha1Mac, sizeof(CRYPTSHA112_T));
+					memcpy(&msg[dhmNeighs].mac, &shaMac, sizeof(CRYPTSHA112_T));
 					dhmNeighs++;
 				}
 			}
@@ -586,7 +586,7 @@ int process_packet_signature(struct rx_frame_iterator *it)
 	uint8_t *data = it->f_data + it->f_dlen;
 	int32_t dataLen = it->frames_length - (it->f_data - it->frames_in) - it->f_dlen;
 	struct desc_content *dc = NULL;
-	CRYPTSHA1_T packetSha = {.h.u32={0}};
+	CRYPTSHA_T packetSha = {.h.u32={0}};
 	CRYPTRSA_T *pkey = NULL, *pkeyTmp = NULL;
 	struct dsc_msg_pubkey *pkey_msg = NULL;
 	uint8_t *llip_data = NULL;
@@ -693,12 +693,12 @@ int process_packet_signature(struct rx_frame_iterator *it)
 				goto_error_return(finish, "Failed dhmSecret calculation", TLV_RX_DATA_FAILURE);
 
 			assertion(-502741, (dc->on->dhmSecret));
-			CRYPTSHA1_T sha1Mac;
+			CRYPTSHA_T shaMac;
 			cryptShaNew(&packetSha, sizeof(packetSha));
-			cryptShaUpdate(dc->on->dhmSecret, sizeof(CRYPTSHA1_T));
-			cryptShaFinal(&sha1Mac);
+			cryptShaUpdate(dc->on->dhmSecret, sizeof(CRYPTSHA_T));
+			cryptShaFinal(&shaMac);
 
-			if (memcmp(&sha1Mac, msg->signature, sizeof(CRYPTSHA112_T)) == 0)
+			if (memcmp(&shaMac, msg->signature, sizeof(CRYPTSHA112_T)) == 0)
 				verified = 1;
 		}
 	}
@@ -863,7 +863,7 @@ void freeMyDhmLinkKey(void)
 		while ((on = avl_iterate_item(&orig_tree, &an))) {
 
 			if (on->dhmSecret)
-				debugFreeReset(&on->dhmSecret, sizeof(CRYPTSHA1_T), -300835);
+				debugFreeReset(&on->dhmSecret, sizeof(CRYPTSHA_T), -300835);
 		}
 	}
 }
@@ -946,7 +946,7 @@ int process_dsc_tlv_dhmLinkKey(struct rx_frame_iterator *it)
 	} else if ((it->op == TLV_OP_NEW || it->op == TLV_OP_DEL) && it->f_type == BMX_DSC_TLV_DHM_LINK_PUBKEY &&
 		it->on && it->on->dhmSecret && desc_frame_changed(it->dcOld, it->dcOp, it->f_type)) {
 
-		debugFreeReset(&it->on->dhmSecret, sizeof(CRYPTSHA1_T), -300836);
+		debugFreeReset(&it->on->dhmSecret, sizeof(CRYPTSHA_T), -300836);
 	}
 
 finish: {
@@ -1136,7 +1136,7 @@ int create_dsc_tlv_signature(struct tx_frame_iterator *it)
 
 		dmv->virtDescSizes.u32 = htonl(it->virtDescSizes.u32);
 
-		CRYPTSHA1_T dataSha;
+		CRYPTSHA_T dataSha;
 		cryptShaAtomic(data, dataLen, &dataSha);
 		size_t keySpace = my_NodeKey->rawKeyLen;
 
@@ -1181,7 +1181,7 @@ struct content_node *test_description_signature(uint8_t *desc, uint32_t desc_len
 	uint8_t *data = NULL;
 	int32_t dataLen = 0;
 	CRYPTRSA_T *pkey = NULL;
-	CRYPTSHA1_T dataSha;
+	CRYPTSHA_T dataSha;
 
 	if (!(nodeId = get_desc_id(desc, desc_len, &signMsg, &versMsg)))
 		goto_error(finish, "Invalid desc structure");
@@ -1255,7 +1255,7 @@ int32_t rsa_load( char *tmp_path ) {
 
 	uint8_t in[] = "Everyone gets Friday off.";
 	size_t inLen = strlen((char*)in);
-	CRYPTSHA1_T inSha;
+	CRYPTSHA_T inSha;
 	uint8_t enc[CRYPT_RSA_MAX_LEN];
 	size_t encLen = sizeof(enc);
 	uint8_t plain[CRYPT_RSA_MAX_LEN];
@@ -1360,7 +1360,7 @@ int32_t opt_reset_node (uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
 {
 	char *goto_error_code = NULL;
 	struct opt_child *c = NULL;
-	GLOBAL_ID_T id = ZERO_CYRYPSHA1;
+	GLOBAL_ID_T id = ZERO_CYRYPSHA;
 	int8_t state = KCNull;
 	struct key_node *kn;
 
@@ -1784,7 +1784,7 @@ int test_dsc_tlv_trust(uint8_t type, struct desc_content *dc)
 	assertion(-502604, (!(contents_dlen(dc, type) % sizeof(struct dsc_msg_trust))));
 
 	if (trustList) {
-		CRYPTSHA1_T sha = ZERO_CYRYPSHA1;
+		CRYPTSHA_T sha = ZERO_CYRYPSHA;
 		for (m = 0; m < msgs; m++) {
 
 			struct desc_msg_trust_fields f = {.u = {.u16 = ntohs(trustList[m].f.u.u16)}};
@@ -1951,12 +1951,12 @@ int process_dsc_tlv_trusts(struct rx_frame_iterator *it)
 	return TLV_RX_DATA_PROCESSED;
 }
 
-IDM_T supportedKnownKey( CRYPTSHA1_T *pkhash ) {
+IDM_T supportedKnownKey( CRYPTSHA_T *pkhash ) {
 
 	struct KeyWatchNode *tn;
 	struct avl_node *an = NULL;
 
-	if (!pkhash || is_zero(pkhash, sizeof(CRYPTSHA1_T)))
+	if (!pkhash || is_zero(pkhash, sizeof(CRYPTSHA_T)))
 		return TYP_TRUST_LEVEL_NONE;
 
 	if (!trustedDirWatch)
@@ -2035,7 +2035,7 @@ void check_nodes_dir(void *dirWatchPtr)
 		}
 		closedir(dir);
 
-		GLOBAL_ID_T globalId = ZERO_CYRYPSHA1;
+		GLOBAL_ID_T globalId = ZERO_CYRYPSHA;
 		while ((ttn = avl_next_item(&dw->node_tree, &globalId))) {
 			globalId = ttn->global_id;
 

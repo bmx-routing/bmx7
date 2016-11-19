@@ -282,12 +282,12 @@ struct tunXin6_net_adv_node {
 // - let client request tunneled src networks (routes via tunnel from gw to client)
 //   -> explicit routes or refHash
 struct dedicated_msg_tun6_req {
-	SHA1_T clientRoutesRefSha;
+	CRYPTSHA_T clientRoutesRefSha;
 } __attribute__((packed));
 
 struct dedicated_hdr_tun6_req {
-//  SHA1_T     clientPubSha; // from packet header
-    SHA1_T     gwPubSha;
+//  CRYPTSHA_T     clientPubSha; // from packet header
+    CRYPTSHA_T     gwPubSha;
     IP6_T      gwTun6Ip;
     IP6_T      clientTun6Ip;
     DESC_SQN_T clientDescSqn;

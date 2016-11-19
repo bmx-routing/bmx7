@@ -472,7 +472,7 @@ char *field_dbg_value(const struct field_format *format, uint32_t min_msg_size, 
 
         } else if (field_type == FIELD_TYPE_GLOBAL_ID) {
 
-                val = cryptShaAsString(((SHA1_T*) p));
+                val = cryptShaAsString(((GLOBAL_ID_T*) p));
 
         } else if (field_type == FIELD_TYPE_UMETRIC) {
 
@@ -492,11 +492,11 @@ char *field_dbg_value(const struct field_format *format, uint32_t min_msg_size, 
 
         } else if (field_type == FIELD_TYPE_POINTER_GLOBAL_ID) {
 
-                val = *pp ? cryptShaAsString(*((SHA1_T**)pp)) : DBG_NIL;
+                val = *pp ? cryptShaAsString(*((GLOBAL_ID_T**)pp)) : DBG_NIL;
 
         } else if (field_type == FIELD_TYPE_POINTER_SHORT_ID) {
 
-                val = *pp ? cryptShaAsShortStr(*((SHA1_T**)pp)) : DBG_NIL;
+                val = *pp ? cryptShaAsShortStr(*((GLOBAL_ID_T**)pp)) : DBG_NIL;
 
         } else if (field_type == FIELD_TYPE_POINTER_UMETRIC) {
 
@@ -881,8 +881,8 @@ struct orig_status {
 	char s[2]; // me supported by him
 	char T[2]; // trusted by me;
 	char t[2]; // me trusted by him
-	CRYPTSHA1_T *shortDHash;
-	CRYPTSHA1_T *dHash;
+	CRYPTSHA_T *shortDHash;
+	CRYPTSHA_T *dHash;
 	IID_T myIid;
 	DESC_SQN_T descSqn;
 	DESC_SQN_T descSqnMin;
@@ -1181,8 +1181,8 @@ struct ref_status {
 	DESC_SQN_T descSqn;
 	char contents[12]; //contentRefs
 	uint16_t lastDesc;
-	CRYPTSHA1_T *shortDHash;
-	CRYPTSHA1_T *dHash;
+	CRYPTSHA_T *shortDHash;
+	CRYPTSHA_T *dHash;
 	uint16_t lastRef;
 	char nbs[12]; //neighRefs
 	GLOBAL_ID_T *nbId;

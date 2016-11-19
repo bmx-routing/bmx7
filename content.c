@@ -57,7 +57,7 @@ uint32_t content_tree_unresolveds = 0;
 int32_t unsolicitedContentAdvs = DEF_UNSOLICITED_CONTENT_ADVS;
 
 
-struct content_node * content_find(SHA1_T *chash)
+struct content_node * content_find(CRYPTSHA_T *chash)
 {
 	return avl_find_item(&content_tree, chash);
 }
@@ -70,12 +70,12 @@ struct content_status {
 	DESC_SQN_T descSqn;
 	char contents[12]; //contentRefs
 	uint16_t lastDesc;
-	CRYPTSHA1_T *shortDHash;
-	CRYPTSHA1_T *dHash;
+	CRYPTSHA_T *shortDHash;
+	CRYPTSHA_T *dHash;
 	uint16_t lastRef;
 	char nbs[12]; //neighRefs
-	CRYPTSHA1_T *shortCHash;
-	CRYPTSHA1_T *cHash;
+	CRYPTSHA_T *shortCHash;
+	CRYPTSHA_T *cHash;
 	char *typeName;
 	uint8_t typeId;
 	int8_t fzip;
@@ -218,9 +218,9 @@ static int32_t content_status_creator(struct status_handl *handl, void *data)
 
 
 STATIC_FUNC
-SHA1_T *content_key(uint8_t *content_body, uint32_t content_body_len, uint8_t gzip, uint8_t maxNesting)
+CRYPTSHA_T *content_key(uint8_t *content_body, uint32_t content_body_len, uint8_t gzip, uint8_t maxNesting)
 {
-	static SHA1_T chash;
+	static CRYPTSHA_T chash;
 
 	assertion(-501616, (content_body && content_body_len));
 
@@ -237,7 +237,7 @@ SHA1_T *content_key(uint8_t *content_body, uint32_t content_body_len, uint8_t gz
 	return &chash;
 }
 
-struct content_node * content_add_hash(SHA1_T *chash)
+struct content_node * content_add_hash(CRYPTSHA_T *chash)
 {
 	assertion(-502241, (chash));
 	struct content_node *cn = NULL;
@@ -254,14 +254,14 @@ struct content_node * content_add_hash(SHA1_T *chash)
 }
 
 STATIC_FUNC
-IDM_T contentUse_add_nested(struct desc_content *dc, SHA1_T *f_body, uint32_t f_body_len, uint8_t level, uint8_t maxLevel, uint8_t expanded_type, uint8_t gzip);
+IDM_T contentUse_add_nested(struct desc_content *dc, CRYPTSHA_T *f_body, uint32_t f_body_len, uint8_t level, uint8_t maxLevel, uint8_t expanded_type, uint8_t gzip);
 
 
 struct content_node * content_add_body( uint8_t *body, uint32_t body_len, uint8_t gzip, uint8_t nested, uint8_t force)
 {
 	assertion(-502242, (body && body_len));
 
-	SHA1_T *chash = content_key(body, body_len, gzip, nested);
+	CRYPTSHA_T *chash = content_key(body, body_len, gzip, nested);
 	struct content_node *cn = force ? content_add_hash(chash) : content_find(chash);
 	struct content_usage_node *cun;
 	struct content_usage_node cit = {.maxUsedLevel = 0};
@@ -302,7 +302,7 @@ struct content_node * content_add_body( uint8_t *body, uint32_t body_len, uint8_
 					dbgf_sys(DBGT_ERR, "FAILED A: max=%d nested=%d allowed=%d", cun->maxUsedLevel, nested, cun->maxAllowedLevel);
 
 				} else if ((nested &&
-					contentUse_add_nested(dc, (SHA1_T *) cun->k.content->f_body, cun->k.content->f_body_len, cun->maxUsedLevel + 1, cun->maxAllowedLevel, cun->k.expanded_type, cun->k.expanded_gzip) != SUCCESS)) {
+					contentUse_add_nested(dc, (CRYPTSHA_T *) cun->k.content->f_body, cun->k.content->f_body_len, cun->maxUsedLevel + 1, cun->maxAllowedLevel, cun->k.expanded_type, cun->k.expanded_gzip) != SUCCESS)) {
 
 					dbgf_sys(DBGT_ERR, "FAILED B: nested=%d", nested);
 
@@ -344,7 +344,7 @@ struct content_node * content_add_body( uint8_t *body, uint32_t body_len, uint8_
 void content_purge_unused(struct content_node *onlyCn)
 {
 	struct content_node *cn;
-	struct CRYPTSHA1_T chash = ZERO_CYRYPSHA1;
+	struct CRYPTSHA_T chash = ZERO_CYRYPSHA;
 
 	while((cn = onlyCn ? onlyCn : avl_next_item(&content_tree, &chash))) {
 		chash = cn->chash;
@@ -447,9 +447,9 @@ int32_t create_chash_tlv(struct tlv_hdr *tlv, uint8_t *f_data, uint32_t f_len, u
 		assertion(-502307, (cHdr.u.i.maxNesting >= 1 && (cfd_gzip || cfd_msgs > 1)));
 
 		uint32_t pos = 0;
-		uint32_t m1Msgs = (REF_CONTENT_BODY_SIZE_OUT/sizeof(SHA1_T));
-		SHA1_T m1Array[m1Msgs];
-		SHA1_T *chash = (cHdr.u.i.maxNesting >= 2 ? m1Array : &cHdp->msg[0].chash);
+		uint32_t m1Msgs = (REF_CONTENT_BODY_SIZE_OUT/sizeof(CRYPTSHA_T));
+		CRYPTSHA_T m1Array[m1Msgs];
+		CRYPTSHA_T *chash = (cHdr.u.i.maxNesting >= 2 ? m1Array : &cHdp->msg[0].chash);
 		uint32_t m1 = 0;
 
 		while (pos < cfd_agg_len) {
@@ -500,9 +500,9 @@ void content_resolve_(struct key_node *kn, struct content_node *cn, struct neigh
 		return;
 
 	if (viaNeigh) {
-		schedule_tx_task(FRAME_TYPE_CONTENT_REQ, NULL, &viaNeigh->local_id, viaNeigh, viaNeigh->best_tq_link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &cn->chash, sizeof(SHA1_T));
+		schedule_tx_task(FRAME_TYPE_CONTENT_REQ, NULL, &viaNeigh->local_id, viaNeigh, viaNeigh->best_tq_link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &cn->chash, sizeof(CRYPTSHA_T));
 	} else if (kn->pktIdTime) {
-		schedule_tx_task(FRAME_TYPE_CONTENT_REQ, NULL, &kn->kHash, NULL, NULL, SCHEDULE_MIN_MSG_SIZE, &cn->chash, sizeof(SHA1_T));
+		schedule_tx_task(FRAME_TYPE_CONTENT_REQ, NULL, &kn->kHash, NULL, NULL, SCHEDULE_MIN_MSG_SIZE, &cn->chash, sizeof(CRYPTSHA_T));
 	}
 }
 
@@ -583,7 +583,7 @@ struct content_usage_node *contentUse_add(uint8_t add, struct desc_content *dc, 
 }
 
 STATIC_FUNC
-IDM_T contentUse_add_nested(struct desc_content *dc, SHA1_T *f_body, uint32_t f_body_len, uint8_t level, uint8_t maxLevel, uint8_t expanded_type, uint8_t expanded_gzip)
+IDM_T contentUse_add_nested(struct desc_content *dc, CRYPTSHA_T *f_body, uint32_t f_body_len, uint8_t level, uint8_t maxLevel, uint8_t expanded_type, uint8_t expanded_gzip)
 {
 	uint32_t m;
 	dbgf_track(DBGT_INFO, "level=%d maxLevel=%d maxNesting=%d", level, maxLevel, vrt_frame_max_nesting);
@@ -591,7 +591,7 @@ IDM_T contentUse_add_nested(struct desc_content *dc, SHA1_T *f_body, uint32_t f_
 	if (level > maxLevel || level > vrt_frame_max_nesting)
 		return FAILURE;
 
-	for (m = 0; m < (f_body_len / sizeof(SHA1_T)); m++) {
+	for (m = 0; m < (f_body_len / sizeof(CRYPTSHA_T)); m++) {
 
 		struct content_node *cn = content_add_hash(&f_body[m]);
 
@@ -601,7 +601,7 @@ IDM_T contentUse_add_nested(struct desc_content *dc, SHA1_T *f_body, uint32_t f_
 			return FAILURE;
 
 		if (cn->f_body && cn->nested) {
-			if (contentUse_add_nested(dc, (SHA1_T *) cn->f_body, cn->f_body_len, cun->maxUsedLevel + 1, maxLevel, expanded_type, expanded_gzip) != SUCCESS)
+			if (contentUse_add_nested(dc, (CRYPTSHA_T *) cn->f_body, cn->f_body_len, cun->maxUsedLevel + 1, maxLevel, expanded_type, expanded_gzip) != SUCCESS)
 				return FAILURE;
 		}
 	}
@@ -611,7 +611,7 @@ IDM_T contentUse_add_nested(struct desc_content *dc, SHA1_T *f_body, uint32_t f_
 
 
 STATIC_FUNC
-IDM_T content_attach_data(uint8_t *outData, uint32_t *outLen, uint8_t *inData, uint32_t inLen, uint8_t gzip, uint32_t maxLen, SHA1_T *checksum)
+IDM_T content_attach_data(uint8_t *outData, uint32_t *outLen, uint8_t *inData, uint32_t inLen, uint8_t gzip, uint32_t maxLen, CRYPTSHA_T *checksum)
 {
 	IDM_T err = 0;
 
@@ -649,7 +649,7 @@ IDM_T content_attach_data(uint8_t *outData, uint32_t *outLen, uint8_t *inData, u
 }
 
 STATIC_FUNC
-IDM_T content_attach_references(uint8_t *outData, uint32_t *outLen, SHA1_T *f_body, uint32_t f_body_len, uint8_t compression, uint32_t max_len, SHA1_T *checksum)
+IDM_T content_attach_references(uint8_t *outData, uint32_t *outLen, CRYPTSHA_T *f_body, uint32_t f_body_len, uint8_t compression, uint32_t max_len, CRYPTSHA_T *checksum)
 {
 	uint8_t tmpData[max_len];
 	uint32_t tmpLen = 0;
@@ -657,13 +657,13 @@ IDM_T content_attach_references(uint8_t *outData, uint32_t *outLen, SHA1_T *f_bo
 
 	dbgf_track(DBGT_INFO, "f_body_len=%d gzip=%d maxLen=%d", f_body_len, compression, max_len);
 
-	for (m = 0; m < (f_body_len/sizeof(SHA1_T)); m++) {
+	for (m = 0; m < (f_body_len/sizeof(CRYPTSHA_T)); m++) {
 		struct content_node *cn = content_find(&f_body[m]);
 		assertion(-502259, (cn && cn->f_body));
 
 		if (cn->nested) {
 
-			if (content_attach_references(tmpData, &tmpLen, (SHA1_T*)cn->f_body, cn->f_body_len, cn->gzip, max_len, NULL) != SUCCESS)
+			if (content_attach_references(tmpData, &tmpLen, (CRYPTSHA_T*)cn->f_body, cn->f_body_len, cn->gzip, max_len, NULL) != SUCCESS)
 				return FAILURE;
 
 		} else {
@@ -738,7 +738,7 @@ int8_t descContent_assemble(struct desc_content *dc, IDM_T init_not_finalize)
 
 				} else if (chHdrVar.u.i.maxNesting) {
 
-					if (contentUse_add_nested(dc, (SHA1_T*) & cHdrPtr[1], it.f_msgs_len, 1, chHdrVar.u.i.maxNesting, chHdrVar.u.i.expanded_type, chHdrVar.u.i.gzip)!=SUCCESS)
+					if (contentUse_add_nested(dc, (CRYPTSHA_T*) & cHdrPtr[1], it.f_msgs_len, 1, chHdrVar.u.i.maxNesting, chHdrVar.u.i.expanded_type, chHdrVar.u.i.gzip)!=SUCCESS)
 						goto_error(finish, "G");
 				}
 			}
@@ -769,7 +769,7 @@ int8_t descContent_assemble(struct desc_content *dc, IDM_T init_not_finalize)
 
 					if (chHdrVar.u.i.maxNesting) {
 
-						if (content_attach_references(data, &dlen, (SHA1_T*) & cHdrPtr[1], it.f_msgs_len, chHdrVar.u.i.gzip, chHdrVar.u.i.expanded_length, &cHdrPtr->expanded_chash) != SUCCESS)
+						if (content_attach_references(data, &dlen, (CRYPTSHA_T*) & cHdrPtr[1], it.f_msgs_len, chHdrVar.u.i.gzip, chHdrVar.u.i.expanded_length, &cHdrPtr->expanded_chash) != SUCCESS)
 							goto_error(finish, "M");
 
 					} else {
@@ -974,7 +974,7 @@ int32_t tx_msg_content_request(struct tx_frame_iterator *it)
 {
         TRACE_FUNCTION_CALL;
 
-	SHA1_T *cHash = (SHA1_T *)it->ttn->key.data;
+	CRYPTSHA_T *cHash = (CRYPTSHA_T *)it->ttn->key.data;
         struct hdr_content_req *hdr = (struct hdr_content_req *)tx_iterator_cache_hdr_ptr(it);
         struct msg_content_req *msg = (struct msg_content_req *)tx_iterator_cache_msg_ptr(it);
 	struct content_node *cn;
@@ -1011,7 +1011,7 @@ int32_t rx_msg_content_request(struct rx_frame_iterator *it)
 		 struct content_usage_node *cun;
 
 		 if ((pb->i.verifiedLink || ((cun = avl_next_item(&cn->usage_tree, &cunKey.k)) && cun->k.descContent == myKey->on->dc))) {
-			 schedule_tx_task(FRAME_TYPE_CONTENT_ADV, NULL, NULL, NULL, pb->i.iif, cn->f_body_len, &cn->chash, sizeof(SHA1_T));
+			 schedule_tx_task(FRAME_TYPE_CONTENT_ADV, NULL, NULL, NULL, pb->i.iif, cn->f_body_len, &cn->chash, sizeof(CRYPTSHA_T));
 		 } else {
 			dbgf_sys(DBGT_WARN, "UNVERIFIED neigh=%s llip=%s or UNKNOWN chash=%s refn=%p refn_usage=%d",
 				 pb->i.verifiedLink ? cryptShaAsString(&pb->i.verifiedLink->k.linkDev->key.local->local_id) : NULL,
@@ -1028,7 +1028,7 @@ int32_t tx_frame_content_adv(struct tx_frame_iterator *it)
 {
         TRACE_FUNCTION_CALL;
 
-	struct content_node *cn = content_find((SHA1_T *)it->ttn->key.data);
+	struct content_node *cn = content_find((CRYPTSHA_T *)it->ttn->key.data);
 
 	if(cn && cn->f_body && cn->usage_tree.items) {
 

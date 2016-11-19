@@ -42,7 +42,6 @@
 
 #define CRYPT_DER_BUF_SZ 16000
 
-#define CRYPT_SHA1_LEN 20
 
 
 
@@ -98,15 +97,16 @@
 #define CRYPT_DHM_MAX_LEN CRYPT_DHM3072_LEN
 
 
+#define CRYPT_SHA_LEN 20
 
-typedef struct CRYPTSHA1_T {
+typedef struct CRYPTSHA_T {
 	union {
-		uint8_t u8[CRYPT_SHA1_LEN];
-		uint32_t u32[CRYPT_SHA1_LEN/sizeof(uint32_t)];
+		uint8_t u8[CRYPT_SHA_LEN];
+		uint32_t u32[CRYPT_SHA_LEN / sizeof(uint32_t)];
 	} h;
-} CRYPTSHA1_T;
+} CRYPTSHA_T;
 
-extern const CRYPTSHA1_T ZERO_CYRYPSHA1;
+extern const CRYPTSHA_T ZERO_CYRYPSHA;
 
 
 #define CRYPT_SHA112_BITSIZE 112
@@ -146,7 +146,7 @@ char *cryptDhmKeyTypeAsString(int type);
 
 void cryptDhmKeyFree(CRYPTDHM_T **cryptKey);
 CRYPTDHM_T *cryptDhmKeyMake(uint8_t dhmSignType, uint8_t attempt);
-CRYPTSHA1_T *cryptDhmSecretForNeigh(CRYPTDHM_T *myDhm, uint8_t *neighRawKey, uint16_t neighRawKeyLen);
+CRYPTSHA_T *cryptDhmSecretForNeigh(CRYPTDHM_T *myDhm, uint8_t *neighRawKey, uint16_t neighRawKeyLen);
 void cryptDhmPubKeyGetRaw(CRYPTDHM_T* key, uint8_t* buff, uint16_t buffLen);
 
 #ifndef NO_KEY_GEN
@@ -165,8 +165,8 @@ void cryptRsaKeyFree(CRYPTRSA_T **key);
 
 int cryptRsaEncrypt(uint8_t *in, size_t inLen, uint8_t *out, size_t *outLen, CRYPTRSA_T *pubKey);
 int cryptRsaDecrypt(uint8_t *in, size_t inLen, uint8_t *out, size_t *outLen);
-int cryptRsaSign(CRYPTSHA1_T *inSha, uint8_t *out, size_t outLen, CRYPTRSA_T *cryptKey);
-int cryptRsaVerify(uint8_t *sign, size_t signLen, CRYPTSHA1_T *sha, CRYPTRSA_T *pubKey);
+int cryptRsaSign(CRYPTSHA_T *inSha, uint8_t *out, size_t outLen, CRYPTRSA_T *cryptKey);
+int cryptRsaVerify(uint8_t *sign, size_t signLen, CRYPTSHA_T *sha, CRYPTRSA_T *pubKey);
 uint8_t cryptRsaKeyTypeByLen(int len);
 uint16_t cryptRsaKeyLenByType(int type);
 char *cryptRsaKeyTypeAsString(int type);
@@ -175,15 +175,15 @@ char *cryptRsaKeyTypeAsString(int type);
 
 void cryptRand(void *out, uint32_t outLen);
 
-void cryptShaAtomic( void *in, int32_t len, CRYPTSHA1_T *sha);
+void cryptShaAtomic(void *in, int32_t len, CRYPTSHA_T *sha);
 void cryptShaNew( void *in, int32_t len);
 void cryptShaUpdate( void *in, int32_t len);
-void cryptShaFinal( CRYPTSHA1_T *sha);
+void cryptShaFinal(CRYPTSHA_T *sha);
 
-char *cryptShaAsString( CRYPTSHA1_T *sha);
-char *cryptShaAsShortStr( CRYPTSHA1_T *sha);
+char *cryptShaAsString(CRYPTSHA_T *sha);
+char *cryptShaAsShortStr(CRYPTSHA_T *sha);
 
-int cryptShasEqual( CRYPTSHA1_T *sha1, CRYPTSHA1_T *sha2);
+int cryptShasEqual(CRYPTSHA_T *shaA, CRYPTSHA_T *shaB);
 
 
 

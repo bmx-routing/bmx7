@@ -37,8 +37,8 @@ extern int32_t vrt_frame_max_nesting;
 #define HLP_VRT_FRAME_DATA_SIZE_IN   "set maximum virtual size for other description frames"
 #define MIN_VRT_FRAME_DATA_SIZE      (MIN_DESC_ROOT_SIZE)
 // this should be nearly the max possible with a reference depth of 2:
-#define MAX_VRT_FRAME_DATA_SIZE      (32*((REF_CONTENT_BODY_SIZE_MAX / sizeof(SHA1_T)) * REF_CONTENT_BODY_SIZE_MAX))
-#define DEF_VRT_FRAME_DATA_SIZE      ( 2*((REF_CONTENT_BODY_SIZE_MAX / sizeof(SHA1_T)) * REF_CONTENT_BODY_SIZE_MAX))
+#define MAX_VRT_FRAME_DATA_SIZE      (32*((REF_CONTENT_BODY_SIZE_MAX / sizeof(CRYPTSHA_T)) * REF_CONTENT_BODY_SIZE_MAX))
+#define DEF_VRT_FRAME_DATA_SIZE      ( 2*((REF_CONTENT_BODY_SIZE_MAX / sizeof(CRYPTSHA_T)) * REF_CONTENT_BODY_SIZE_MAX))
 extern int32_t vrt_frame_data_size_in;
 extern int32_t vrt_frame_data_size_out;
 
@@ -121,7 +121,7 @@ struct msg_iid_adv {
 	IID_T transmitterIID4x;
 	DESC_SQN_T descSqn;
 	ChainLink_T chainOgm;
-	CRYPTSHA1_T nodeId;
+	CRYPTSHA_T nodeId;
 } __attribute__((packed));
 
 struct msg_iid_request {
@@ -139,7 +139,7 @@ struct schedule_dsc_req {
 };
 
 struct msg_description_request {
-	CRYPTSHA1_T kHash;
+	CRYPTSHA_T kHash;
 } __attribute__((packed));
 
 struct hdr_description_request {
@@ -181,7 +181,7 @@ void update_my_description(void);
 
 void update_orig_dhash(struct desc_content *dc);
 
-SHA1_T *nodeIdFromDescAdv(uint8_t *desc_adv);
+CRYPTSHA_T *nodeIdFromDescAdv(uint8_t *desc_adv);
 char *nodeIdAsStringFromDescAdv(uint8_t *desc_adv);
 IDM_T desc_frame_changed(struct desc_content *dcA, struct desc_content *dcB, uint8_t type);
 

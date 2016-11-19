@@ -42,7 +42,7 @@ static CRYPTRSA_T *my_PrivKey = NULL;
 #if (CRYPTLIB >= POLARSSL_MIN && CRYPTLIB <= POLARSSL_MAX)
 /******************* accessing polarssl: *************************************/
 #include "polarssl/config.h"
-#include "polarssl/sha1.h"
+#include "polarssl/sha256.h"
 
 #include "polarssl/entropy.h"
 //#include "polarssl/entropy_poll.h"
@@ -64,7 +64,7 @@ static CRYPTRSA_T *my_PrivKey = NULL;
 /******************* accessing mbedtls: *************************************/
 #include "mbedtls/compat-1.3.h"
 #include "mbedtls/config.h"
-#include "mbedtls/sha1.h"
+#include "mbedtls/sha256.h"
 #include "mbedtls/entropy.h"
 #include "mbedtls/error.h"
 #include "mbedtls/dhm.h"
@@ -77,7 +77,7 @@ static CRYPTRSA_T *my_PrivKey = NULL;
 static entropy_context entropy_ctx;
 static ctr_drbg_context ctr_drbg;
 
-static sha1_context sha_ctx;
+static sha256_context sha_ctx;
 
 
 uint8_t cryptDhmKeyTypeByLen(int len) {
@@ -705,10 +705,10 @@ int cryptRsaSign( CRYPTSHA_T *inSha, uint8_t *out, size_t outLen, CRYPTRSA_T *cr
 		return FAILURE;
 
 #if CRYPTLIB <= POLARSSL_1_2_9
-	if (rsa_pkcs1_sign(pk, ctr_drbg_random, &ctr_drbg, RSA_PRIVATE, SIG_RSA_SHA1, sizeof(CRYPTSHA_T), (uint8_t*)inSha, out))
+	if (rsa_pkcs1_sign(pk, ctr_drbg_random, &ctr_drbg, RSA_PRIVATE, SIG_RSA_SHA224, sizeof(CRYPTSHA_T), (uint8_t*)inSha, out))
 		return FAILURE;
 #elif CRYPTLIB >= POLARSSL_1_3_3
-	if (rsa_pkcs1_sign(pk, ctr_drbg_random, &ctr_drbg, RSA_PRIVATE, POLARSSL_MD_SHA1, sizeof(CRYPTSHA_T), (uint8_t*)inSha, out))
+	if (rsa_pkcs1_sign(pk, ctr_drbg_random, &ctr_drbg, RSA_PRIVATE, POLARSSL_MD_SHA224, sizeof(CRYPTSHA_T), (uint8_t*)inSha, out))
 		return FAILURE;
 #else
 # error "Please fix CRYPTLIB"
@@ -724,13 +724,13 @@ int cryptRsaVerify(uint8_t *sign, size_t signLen, CRYPTSHA_T *plainSha, CRYPTRSA
 	assertion(-502147, (signLen == pubKey->rawKeyLen));
 
 #if CRYPTLIB == POLARSSL_1_2_5
-	if (rsa_pkcs1_verify(pk, RSA_PUBLIC, SIG_RSA_SHA1, sizeof(CRYPTSHA_T), (uint8_t*)plainSha, sign))
+	if (rsa_pkcs1_verify(pk, RSA_PUBLIC, SIG_RSA_SHA224, sizeof(CRYPTSHA_T), (uint8_t*)plainSha, sign))
 		return FAILURE;
 #elif CRYPTLIB == POLARSSL_1_2_9
-	if (rsa_pkcs1_verify(pk, ctr_drbg_random, &ctr_drbg, RSA_PUBLIC, SIG_RSA_SHA1, sizeof(CRYPTSHA_T), (uint8_t*)plainSha, sign))
+	if (rsa_pkcs1_verify(pk, ctr_drbg_random, &ctr_drbg, RSA_PUBLIC, SIG_RSA_SHA224, sizeof(CRYPTSHA_T), (uint8_t*)plainSha, sign))
 		return FAILURE;
 #elif CRYPTLIB >= POLARSSL_1_3_3
-	if (rsa_pkcs1_verify(pk, ctr_drbg_random, &ctr_drbg, RSA_PUBLIC, POLARSSL_MD_SHA1, sizeof(CRYPTSHA_T), (uint8_t*)plainSha, sign))
+	if (rsa_pkcs1_verify(pk, ctr_drbg_random, &ctr_drbg, RSA_PUBLIC, POLARSSL_MD_SHA224, sizeof(CRYPTSHA_T), (uint8_t*)plainSha, sign))
 		return FAILURE;
 #else
 # error "Please fix CRYPTLIB"
@@ -802,14 +802,21 @@ void cryptRngFree( void ) {
 
 STATIC_FUNC
 void cryptShaInit( void ) {
-/*
-	InitSha(&cryptSha);
-*/
+#if CRYPTLIB < POLARSSL_1_3_9
+	memset(&sha_ctx, 0, sizeof(sha_ctx));
+#else
+	sha256_init(&sha_ctx);
+#endif
 	shaClean = YES;
 }
 
 STATIC_FUNC
 void cryptShaFree( void ) {
+#if CRYPTLIB < POLARSSL_1_3_9
+	memset(&sha_ctx, 0, sizeof(sha_ctx));
+#else
+	sha256_free(&sha_ctx);
+#endif
 }
 
 void cryptShaAtomic( void *in, int32_t len, CRYPTSHA_T *sha) {
@@ -818,14 +825,9 @@ void cryptShaAtomic( void *in, int32_t len, CRYPTSHA_T *sha) {
 	assertion(-502031, (sha));
 	assertion(-502032, (in && len>0 && !memcmp(in, in, len)));
 
-//	sha1( in, len, sha);
-
-	sha1_starts( &sha_ctx );
-	sha1_update( &sha_ctx, in, len );
-	sha1_finish( &sha_ctx, (unsigned char*)sha );
-
-	memset( &sha_ctx, 0, sizeof( sha_ctx ) );
-
+	sha256_starts( &sha_ctx, 1/*is224*/ );
+	sha256_update( &sha_ctx, in, len );
+	sha256_finish( &sha_ctx, (unsigned char*)sha );
 }
 
 void cryptShaNew( void *in, int32_t len) {
@@ -834,8 +836,8 @@ void cryptShaNew( void *in, int32_t len) {
 	assertion(-502034, (in && len>0 && !memcmp(in, in, len)));
 	shaClean = NO;
 
-	sha1_starts( &sha_ctx );
-	sha1_update( &sha_ctx, in, len );
+	sha256_starts( &sha_ctx, 1/*is224*/ );
+	sha256_update( &sha_ctx, in, len );
 }
 
 void cryptShaUpdate( void *in, int32_t len) {
@@ -843,7 +845,7 @@ void cryptShaUpdate( void *in, int32_t len) {
 	assertion(-502035, (shaClean==NO));
 	assertion(-502036, (in && len>0 && !memcmp(in, in, len)));
 
-	sha1_update( &sha_ctx, in, len );
+	sha256_update( &sha_ctx, in, len );
 }
 
 void cryptShaFinal( CRYPTSHA_T *sha) {
@@ -851,10 +853,7 @@ void cryptShaFinal( CRYPTSHA_T *sha) {
 	assertion(-502037, (shaClean==NO));
 	assertion(-502038, (sha));
 
-
-	sha1_finish( &sha_ctx, (unsigned char*)sha );
-	memset( &sha_ctx, 0, sizeof( sha_ctx ) );
-
+	sha256_finish( &sha_ctx, (unsigned char*)sha );
 	shaClean = YES;
 }
 
@@ -950,6 +949,14 @@ void init_crypt(void) {
         unsigned int random;
         cryptRand( &random, sizeof (random));
 	srand( random );
+
+	CRYPTSHA_T doubleSha[2];
+	memset(&doubleSha, 0, sizeof(doubleSha));
+	cryptShaAtomic(&random, sizeof(random), &doubleSha[0]);
+	assertion(-502763, (!is_zero(&doubleSha[0], sizeof(CRYPTSHA_T))));
+	assertion(-502764, (is_zero(&doubleSha[1], sizeof(CRYPTSHA_T))));
+
+
 }
 
 void cleanup_crypt(void) {

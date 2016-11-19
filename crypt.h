@@ -97,7 +97,7 @@
 #define CRYPT_DHM_MAX_LEN CRYPT_DHM3072_LEN
 
 
-#define CRYPT_SHA_LEN 20
+#define CRYPT_SHA_LEN (224/8)//28
 
 typedef struct CRYPTSHA_T {
 	union {

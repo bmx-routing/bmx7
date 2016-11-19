@@ -426,7 +426,7 @@ struct frame_db {
 	struct frame_handl handls[];
 };
 
-#define TX_TASK_MAX_KEY_DATA_LEN 24
+#define TX_TASK_MAX_KEY_DATA_LEN sizeof(CRYPTSHA_T)
 
 struct tx_task_key {
 

@@ -345,7 +345,7 @@ GLOBAL_ID_T *get_desc_id(uint8_t *desc_adv, uint32_t desc_len, struct dsc_msg_si
 
 			versMsg = (struct dsc_msg_version*) (desc_adv + p + sizeof(struct tlv_hdr));
 
-			if (validate_param(versMsg->comp_version, (my_compatibility-(my_conformance_tolerance?0:1)), (my_compatibility+(my_conformance_tolerance?0:1)), "compatibility version"))
+			if (validate_param(versMsg->comp_version, (my_compatibility-my_conformance_tolerance), (my_compatibility+my_conformance_tolerance), "compatibility version"))
 				return NULL;
 
 

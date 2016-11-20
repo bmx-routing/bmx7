@@ -48,23 +48,20 @@ typedef int8_t IDM_T; // smallest int which size does NOT matter
 #endif
 
 #define BMX_BRANCH "BMX7"
-#define BRANCH_VERSION "0.1-alpha" //put exactly one distinct word inside the string like "0.3-pre-alpha" or "0.3-rc1" or "0.3"
+#define BRANCH_VERSION "0.2" //put exactly one distinct word inside the string like "0.3-pre-alpha" or "0.3-rc1" or "0.3"
 
-#define cv16 16 // deployed cv16..cv16, announces 16, uses cv16, accepts 16..16, processes cv16..cv16, finished cv16=CV16     , developing CV17+
 
-#define CV16 16 // deployed cv16..CV16, announces 16, uses cv16, accepts 15..17, processes CV15..CV17, finished CV17=CV18=CV19
-#define CV17 17 // deployed CV16..CV17, announces 17, uses CV16, accepts 16..18, processes CV16..CV18, finished CV17=CV18=CV19
-#define CV18 18 // deployed CV17..CV18, announces 18, uses CV17, accepts 17..19, processes CV17..CV19, finished CV17=CV18=CV19, developing CV20+
-
-#define CV19 19 // deployed CV18..CV19, announces 19, uses CV18, accepts 18..20, processes CV18..CV20, finished CV20=CV21=CV22
-#define CV20 20 // deployed CV19..CV20, announces 20, uses CV19, accepts 19..21, processes CV19..CV21, finished CV20=CV21=CV22
-#define CV21 21 // deployed CV20..CV11, announces 21, uses CV20, accepts 20..22, processes CV20..CV22, finished CV20=CV21=CV22, developing CV23+
+#define CV19 19 // deployed CV18..CV19 xor CV19..CV20, announces CV19, processes CV18..CV20
+#define CV20 20 // deployed CV19..CV20 xor CV20..CV21, announces CV20, processes CV19..CV21
+#define CV21 21 // deployed CV20..CV21 xor CV21..CV22, announces CV21, processes CV20..CV22
+#define CV22 22 // deployed CV21..CV22 xor CV22..CV23, announces CV22, processes CV21..CV23
+#define CV23 23 // deployed CV22..CV23 xor CV23..CV24, announces CV23, processes CV22..CV24
 //and so on...
 
 
 #define MIN_COMPATIBILITY CV19
-#define MAX_COMPATIBILITY CV20
-#define DEF_COMPATIBILITY CV19
+#define MAX_COMPATIBILITY CV22
+#define DEF_COMPATIBILITY CV21
 #define ARG_COMPATIBILITY "compatibility"
 extern int32_t my_compatibility;
 

@@ -36,6 +36,9 @@
 #define ARG_KEY_PATH "keyPath"
 #define DEF_KEY_PATH "/etc/bmx7/rsa.der"
 
+#define FILE_SUPPORT_LEVEL_PATTERN ".support="
+#define FILE_TRUST_LEVEL_PATTERN   ".trust="
+
 #define ARG_SET_TRUSTED "setTrustedNode"
 #define ARG_SET_SUPPORT_LEVEL "support"
 #define ARG_SET_TRUSTED_LEVEL "trust"
@@ -144,7 +147,7 @@ extern int32_t maxDhmNeighs;
 #define HLP_LINK_SIGN_LT "Lifetime of outgoing link keys and signatures in seconds"
 
 
-#define MAX_KEY_FILE_SIZE 100
+#define MAX_KEY_FILE_SIZE (CRYPT_SHA_LEN + sizeof(FILE_TRUST_LEVEL_PATTERN) + 1 + sizeof(FILE_SUPPORT_LEVEL_PATTERN) + 1 + 1 + sizeof(CRYPT_RSA4096_NAME) + 1 + MAX_HOSTNAME_LEN + 1 ) //100
 
 #define MIN_OGM_SQN_RANGE 10
 #define MAX_OGM_SQN_RANGE 8192 // changing this will cause compatibility trouble

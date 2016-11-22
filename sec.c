@@ -1325,7 +1325,7 @@ IDM_T getTrustStringParameter(struct KeyWatchNode *tn, GLOBAL_ID_T *id, char *fi
 	int valInt;
 	IDM_T myself = cryptShasEqual(&myKey->kHash, &foundId);
 
-	if ((valPtr = rmStrKeyValue(haystack, ".trust="))) {
+	if ((valPtr = rmStrKeyValue(haystack, FILE_TRUST_LEVEL_PATTERN))) {
 		if (strlen(valPtr) == 1 && (valInt = strtol(valPtr, NULL, 10)) >= MIN_TRUST_LEVEL && valInt <= MAX_TRUST_LEVEL && valInt != TYP_TRUST_LEVEL_RECOMMENDED) {
 			if (tn)
 				tn->trust = myself ? DEF_TRUST_LEVEL : valInt;
@@ -1334,7 +1334,7 @@ IDM_T getTrustStringParameter(struct KeyWatchNode *tn, GLOBAL_ID_T *id, char *fi
 		}
 	}
 
-	if ((valPtr = rmStrKeyValue(haystack, ".support="))) {
+	if ((valPtr = rmStrKeyValue(haystack, FILE_SUPPORT_LEVEL_PATTERN))) {
 		if (strlen(valPtr) == 1 && (valInt = strtol(valPtr, NULL, 10)) >= MIN_TRUST_LEVEL && valInt <= MAX_TRUST_LEVEL && valInt != TYP_TRUST_LEVEL_RECOMMENDED) {
 			if (tn)
 				tn->support = myself ? DEF_TRUST_LEVEL : valInt;
@@ -1462,7 +1462,7 @@ int32_t opt_set_trusted (uint8_t cmd, uint8_t _save, struct opt_type *opt, struc
 		closedir(dir);
 
 		sprintf(oldFullPath, "%s/%s", dirName, kwn.fileName);
-		sprintf(newFullPath, "%s/%s.trust=%d.support=%d%s", dirName, cryptShaAsString(&kwn.global_id), kwn.trust, kwn.support, foundFileTail);
+		sprintf(newFullPath, "%s/%s%s%d%s%d%s", dirName, cryptShaAsString(&kwn.global_id), FILE_TRUST_LEVEL_PATTERN, kwn.trust, FILE_SUPPORT_LEVEL_PATTERN, kwn.support, foundFileTail);
 
 		if (cmd == OPT_APPLY) {
 

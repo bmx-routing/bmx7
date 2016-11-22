@@ -878,7 +878,7 @@ char *cryptShaAsString( CRYPTSHA_T *sha)
 
         c = (c+1) % SHAASSTR_BUFFERS;
 
-	for (i=0; i<=4; i++)
+	for (i = 0; i < (sizeof(CRYPTSHA_T) / sizeof(uint32_t)); i++)
 		sprintf(&(out[c][i*8]), "%.8X", ntohl(sha->h.u32[i]));
 
         return out[c];

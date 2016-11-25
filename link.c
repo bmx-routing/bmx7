@@ -751,7 +751,7 @@ struct link_status {
 	char* linkKey;
 	char linkKeys[MAX_LINK_KEYS_SIZE];
 	IPX_T nbLocalIp;
-	char nbMac[MAC_ADDR_LEN*3];
+	MAC_T nbMac;
 	uint16_t nbIdx;
 	IPX_T localIp;
 	IFNAME_T dev;
@@ -813,7 +813,7 @@ static const struct field_format link_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      link_status, linkKey,          1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       link_status, linkKeys,         1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_IPX,               link_status, nbLocalIp,        1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       link_status, nbMac,            1, FIELD_RELEVANCE_LOW),
+        FIELD_FORMAT_INIT(FIELD_TYPE_MAC,               link_status, nbMac,            1, FIELD_RELEVANCE_LOW),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, nbIdx,            1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_IPX,               link_status, localIp,          1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       link_status, dev,              1, FIELD_RELEVANCE_HIGH),
@@ -893,7 +893,7 @@ static int32_t link_status_creator(struct status_handl *handl, void *data)
 				status[i].linkKey = cryptRsaKeyTypeAsString(link->lastRxKey) ? cryptRsaKeyTypeAsString(link->lastRxKey) : cryptDhmKeyTypeAsString(link->lastRxKey);
 				sprintf(status[i].linkKeys, "%s", getLinkKeysAsString(on));
 				status[i].nbLocalIp = linkDev->key.llocal_ip;
-				strcpy(status[i].nbMac, strToLower(memAsHexStringSep(ip6Eui64ToMac(&linkDev->key.llocal_ip, NULL), MAC_ADDR_LEN, 1, ":")));
+				status[i].nbMac = *ip6Eui64ToMac(&linkDev->key.llocal_ip, NULL);
 				status[i].nbIdx = linkDev->key.devIdx;
 				status[i].dev = link->k.myDev->ifname_label;
 				status[i].idx = link->k.myDev->llipKey.devIdx;

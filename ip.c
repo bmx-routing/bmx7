@@ -3176,7 +3176,7 @@ struct dev_status {
 	uint8_t channel;
         UMETRIC_T rateMax;
 	uint16_t idx;
-	char localMac[MAC_ADDR_LEN*3];
+	MAC_T localMac;
         char localIp[IPX_PREFIX_STR_LEN];
         char globalIp[IPX_PREFIX_STR_LEN];
 	char multicastIp[IPX_STR_LEN];
@@ -3236,7 +3236,8 @@ static int32_t dev_status_creator(struct status_handl *handl, void* data)
 		status[i].channel = dev->channel;
                 status[i].rateMax = dev->umetric_max;
 		status[i].idx = dev->llipKey.devIdx;
-		strcpy(status[i].localMac, strToLower(memAsHexStringSep(&dev->mac, MAC_ADDR_LEN,1,":")));
+		status[i].localMac = dev->mac;
+//		strcpy(status[i].localMac, strToLower(memAsHexStringSep(&dev->mac, MAC_ADDR_LEN,1,":")));
                 sprintf(status[i].localIp, "%s/%d", dev->ip_llocal_str, dev->if_llocal_addr ? dev->if_llocal_addr->ifa.ifa_prefixlen : -1);
                 sprintf(status[i].globalIp, "%s/%d", dev->ip_global_str, dev->if_global_addr ? dev->if_global_addr->ifa.ifa_prefixlen : -1);
 		ip6ToStr(dev->if_llocal_addr ? &dev->if_llocal_addr->ip_mcast : NULL, status[i].multicastIp);

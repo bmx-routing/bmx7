@@ -245,7 +245,7 @@ struct net_key * setNet(struct net_key *netp, uint8_t family, uint8_t prefixlen,
 
 char* macAsStr(const MAC_T* mac)
 {
-        return memAsHexString( mac, sizeof(MAC_T));
+	return strToLower(memAsHexStringSep(mac, MAC_ADDR_LEN,1,":"));
 }
 
 IDM_T is_mac_equal(const MAC_T *a, const MAC_T *b)

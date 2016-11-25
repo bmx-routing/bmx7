@@ -751,7 +751,7 @@ struct link_status {
 	char* linkKey;
 	char linkKeys[MAX_LINK_KEYS_SIZE];
 	IPX_T nbLocalIp;
-	char nbMac[40];
+	char nbMac[MAC_ADDR_LEN*3];
 	uint16_t nbIdx;
 	IPX_T localIp;
 	IFNAME_T dev;
@@ -893,7 +893,7 @@ static int32_t link_status_creator(struct status_handl *handl, void *data)
 				status[i].linkKey = cryptRsaKeyTypeAsString(link->lastRxKey) ? cryptRsaKeyTypeAsString(link->lastRxKey) : cryptDhmKeyTypeAsString(link->lastRxKey);
 				sprintf(status[i].linkKeys, "%s", getLinkKeysAsString(on));
 				status[i].nbLocalIp = linkDev->key.llocal_ip;
-				strcpy(status[i].nbMac, strToLower(memAsHexStringSep(ip6Eui64ToMac(&linkDev->key.llocal_ip, NULL), 6, 1, ":")));
+				strcpy(status[i].nbMac, strToLower(memAsHexStringSep(ip6Eui64ToMac(&linkDev->key.llocal_ip, NULL), MAC_ADDR_LEN, 1, ":")));
 				status[i].nbIdx = linkDev->key.devIdx;
 				status[i].dev = link->k.myDev->ifname_label;
 				status[i].idx = link->k.myDev->llipKey.devIdx;

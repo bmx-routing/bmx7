@@ -243,7 +243,7 @@ void update_ogm_mins(struct key_node *kn, DESC_SQN_T minDescSqn, OGM_SQN_T minOg
 	if (minUMetric)
 		minFMetric = umetric_to_fmetric(*minUMetric);
 
-	if (!kn->ogmSqnFirst_sec && !kn->ogmSqnMin && minOgmSqn)
+	if (!kn->ogmSqnFirst_sec /*&& !kn->ogmSqnMin*/ && minOgmSqn)
 		kn->ogmSqnFirst_sec = bmx_time_sec;
 
 	if (!kn->ogmSqnFirst_sec || (((TIME_SEC_T) (bmx_time_sec - kn->ogmSqnFirst_sec)) < 5)) {

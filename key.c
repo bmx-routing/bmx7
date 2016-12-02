@@ -773,9 +773,11 @@ struct KeyState *keyNode_getMinMaxState(struct key_node *kn)
 					(cm=(*(keyMatrix[c][0].colMaintain))(kn))) {
 
 					deservedState = testState;
+					dbgf_all(DBGT_INFO, "testState=%s succeeded", testState->secName);
 
 				} else {
 
+					dbgf_all(DBGT_INFO, "testState=%s failed", testState->secName);
 					break;
 				}
 			}
@@ -1019,8 +1021,17 @@ struct key_node *keyNode_updCredits(GLOBAL_ID_T *kHash, struct key_node *kn, str
 	kHash = kHash ? kHash : (kn ? &kn->kHash : NULL);
 	kn = kn ? kn : (kHash ? avl_find_item(&key_tree, kHash) : NULL);
 
-	dbgf_all(DBGT_INFO, "id=%s bookedSec=%s schedSec=%s", cryptShaAsShortStr(kHash), kn ? kn->bookedState->secName : NULL,
-		kn && kn->decreasedEffectiveState ? kn->decreasedEffectiveState->secName : NULL);
+	dbgf_all(DBGT_INFO, "id=%s bookedSec=%s schedSec=%s  new vs old credits: dFriend=%d=%d nQ=%d=%d pktId=%d=%d pktSign=%d=%d neighRef=%s=%d recomm=%s=%d trustee=%s=%d",
+		cryptShaAsShortStr(kHash), kn ? kn->bookedState->secName : NULL,
+		kn && kn->decreasedEffectiveState ? kn->decreasedEffectiveState->secName : NULL,
+		(kc ? kc->dFriend : 0), (kn ? kn->dFriend : 0),
+		(kc ? kc->nQualifying : 0), (kn ? kn->nQTime: 0),
+		(kc ? kc->pktId : 0), (kn ? kn->pktIdTime: 0),
+		(kc ? kc->pktSign : 0), (kn ? kn->pktSignTime : 0),
+		(kc && kc->neighRef && kc->neighRef->nn ? kc->neighRef->nn->on->k.hostname : NULL), (kn ? kn->neighRefs_tree.items : 0),
+		(kc && kc->recom ? kc->recom->k.hostname : NULL), (kn  ? kn->recommendations_tree.items: 0),
+		(kc ? kc->trusteeRef->k.hostname : NULL), (kn ? kn->trustees_tree.items : 0)
+		);
 
 	assertion(-502404, (kHash));
 	assertion(-502560, IMPLIES(kc, kc->dFriend == TYP_TRUST_LEVEL_NONE || (kc->dFriend >= TYP_TRUST_LEVEL_DIRECT && kc->dFriend <= MAX_TRUST_LEVEL)));

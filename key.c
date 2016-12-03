@@ -1054,7 +1054,7 @@ struct key_node *keyNode_updCredits(GLOBAL_ID_T *kHash, struct key_node *kn, str
 
 		keyNode_schedLowerState(kn, keyNode_getMinMaxState(kn));
 
-		assertion(-502410, ((kn == avl_find_item(&key_tree, kHash)))); //IMO kn may disappear during prev call and should be set to NULL then!
+		assertion(-502410, ((kn == avl_find_item(&key_tree, kHash)))); //IMO kn may disappear during prev call and should be set to NULL then! But applied credits would be lost then!
 	}
 
 	uint32_t blockId = keyNodes_block_and_sync(0, NO);
@@ -1112,7 +1112,7 @@ struct key_node *keyNode_updCredits(GLOBAL_ID_T *kHash, struct key_node *kn, str
 
 
 STATIC_FUNC
-void keyNodes_updCredits(void)
+void keyNodes_triggerNonTracktedNodesBecomingTracked(void)
 {
 	struct KeyState *ks;
 
@@ -1180,7 +1180,7 @@ void keyNode_fixTimeouts()
 
 	keyNodes_block_and_sync(blockId, NO);
 
-	keyNodes_updCredits();
+	keyNodes_triggerNonTracktedNodesBecomingTracked();
 }
 
 STATIC_FUNC

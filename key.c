@@ -746,6 +746,11 @@ struct key_node *keyNode_getLeastWithinSet(struct KeyState *inSet, struct KeySta
 	return NULL;
 }
 
+STATIC_FUNC
+struct KeyState *keyState_getMin(struct KeyState *a, struct KeyState *b)
+{
+	return (a && b) ? &(keyMatrix[XMIN(a->i.c, b->i.c)][XMAX(a->i.r, b->i.r)]) : NULL;
+}
 
 
 STATIC_FUNC
@@ -759,7 +764,7 @@ struct KeyState *keyNode_getMinMaxState(struct key_node *kn)
 	dbgf_all(DBGT_INFO, "id=%s", cryptShaAsShortStr(&kn->kHash));
 	dbgf_all(DBGT_INFO, "bookedSec=%s schedSec=%s", kn->bookedState->secName, kn->decreasedEffectiveState ? kn->decreasedEffectiveState->secName : NULL);
 
-	for (r = kn->bookedState->i.r; r < KRSize; r++) {
+	for (r = 0; r < KRSize; r++) {
 
 		testState = &keyMatrix[0][r];
 
@@ -785,6 +790,8 @@ struct KeyState *keyNode_getMinMaxState(struct key_node *kn)
 		}
 	}
 
+	deservedState = keyState_getMin(kn->bookedState, deservedState);
+
 	dbgf((c <= kn->bookedState->i.c ? DBGL_SYS : DBGL_ALL), DBGT_INFO,
 		"Failed testing id=%s sec=%s from bookedSec=%s schedSec=%s rc=%d cc=%d cm=%d deservedState=%s",
 		cryptShaAsShortStr(&kn->kHash), testState->secName, kn->bookedState->secName,
@@ -794,11 +801,6 @@ struct KeyState *keyNode_getMinMaxState(struct key_node *kn)
 	return deservedState;
 }
 
-STATIC_FUNC
-struct KeyState *keyState_getMin(struct KeyState *a, struct KeyState *b)
-{
-	return (a && b) ? &(keyMatrix[XMIN(a->i.c, b->i.c)][XMAX(a->i.r, b->i.r)]) : NULL;
-}
 
 STATIC_FUNC
 void keyNode_schedLowerState(struct key_node *kn, struct KeyState *s)
@@ -1052,7 +1054,7 @@ struct key_node *keyNode_updCredits(GLOBAL_ID_T *kHash, struct key_node *kn, str
 
 		keyNode_schedLowerState(kn, keyNode_getMinMaxState(kn));
 
-		assertion(-502410, ((kn = avl_find_item(&key_tree, kHash)))); //IMO kn may disappear during prev call and should be set to NULL then!
+		assertion(-502410, ((kn == avl_find_item(&key_tree, kHash)))); //IMO kn may disappear during prev call and should be set to NULL then!
 	}
 
 	uint32_t blockId = keyNodes_block_and_sync(0, NO);

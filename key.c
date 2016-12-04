@@ -362,7 +362,7 @@ int8_t kColCond_promoted(uint8_t asRow, struct key_node *kn)
 {
 
 	if (!(kn &&
-		(asRow == KRQualifying || kn->neighRefs_tree.items || kn == myKey) &&
+		((kn->bookedState->i.r == KRQualifying && asRow == KRQualifying) || kn->neighRefs_tree.items || kn == myKey) &&
 		IMPLIES(kn->nextDesc, kn->nextDesc->descSqn >= kn->descSqnMin)))
 		return NO;
 

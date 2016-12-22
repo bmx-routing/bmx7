@@ -750,6 +750,8 @@ struct link_status {
 	char* nodeKey;
 	char* linkKey;
 	char linkKeys[MAX_LINK_KEYS_SIZE];
+	char linkRsaPk[9];
+	char linkDhmPk[9];
 	IPX_T nbLocalIp;
 	MAC_T nbMac;
 	uint16_t nbIdx;
@@ -812,6 +814,8 @@ static const struct field_format link_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      link_status, nodeKey,          1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      link_status, linkKey,          1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       link_status, linkKeys,         1, FIELD_RELEVANCE_HIGH),
+	FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       link_status, linkRsaPk,        1, FIELD_RELEVANCE_MEDI),
+	FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       link_status, linkDhmPk,        1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_IPX,               link_status, nbLocalIp,        1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_MAC,               link_status, nbMac,            1, FIELD_RELEVANCE_LOW),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, nbIdx,            1, FIELD_RELEVANCE_MEDI),
@@ -891,6 +895,10 @@ static int32_t link_status_creator(struct status_handl *handl, void *data)
 				status[i].name = strlen(on->k.hostname) ? on->k.hostname : DBG_NIL;
 				status[i].nodeKey = cryptRsaKeyTypeAsString(((struct dsc_msg_pubkey*) on->kn->content->f_body)->type);
 				status[i].linkKey = cryptRsaKeyTypeAsString(link->lastRxKey) ? cryptRsaKeyTypeAsString(link->lastRxKey) : cryptDhmKeyTypeAsString(link->lastRxKey);
+				struct dsc_msg_pubkey *linkRsaKey = contents_data(on->dc, BMX_DSC_TLV_RSA_LINK_PUBKEY);
+				struct dsc_msg_dhm_link_key *linkDhmKey = contents_data(on->dc, BMX_DSC_TLV_DHM_LINK_PUBKEY);
+				sprintf(status[i].linkRsaPk, "%s", ((linkRsaKey && cryptRsaKeyLenByType(linkRsaKey->type)) ? memAsHexString(linkRsaKey->key, XMIN(cryptRsaKeyLenByType(linkRsaKey->type), sizeof(status[i].linkRsaPk - 1))) : NULL));
+				sprintf(status[i].linkDhmPk, "%s", ((linkDhmKey && cryptDhmKeyLenByType(linkDhmKey->type)) ? memAsHexString(linkDhmKey->gx,  XMIN(cryptDhmKeyLenByType(linkDhmKey->type), sizeof(status[i].linkDhmPk - 1))) : NULL));
 				sprintf(status[i].linkKeys, "%s", getLinkKeysAsString(on));
 				status[i].nbLocalIp = linkDev->key.llocal_ip;
 				status[i].nbMac = *ip6Eui64ToMac(&linkDev->key.llocal_ip, NULL);

@@ -579,9 +579,9 @@ int32_t rx_msg_description_request(struct rx_frame_iterator *it)
 			schedule_tx_task(FRAME_TYPE_DESC_ADVS, NULL, NULL, NULL, pb->i.iif, kn->on->dc->desc_frame_len, &kn->on->dc->dHash, sizeof(kn->on->dc->dHash));
 
 		} else {
-			dbgf_sys(DBGT_WARN, "UNVERIFIED neigh=%s llip=%s or non-promoted kHash=%s on=%d nextDc=%d",
+			dbgf_sys(DBGT_WARN, "UNVERIFIED neigh=%s llip=%s or non-promoted kHash=%s kn=%d on=%d nextDc=%d",
 				pb->i.verifiedLink? cryptShaAsString(&pb->i.verifiedLink->k.linkDev->key.local->local_id) : NULL,
-				pb->i.llip_str, cryptShaAsString(&msg->kHash), !!kn->on, !!kn->nextDesc);
+				pb->i.llip_str, cryptShaAsString(&msg->kHash), !!kn, (kn && kn->on), (kn && kn->nextDesc));
 		}
 	}
 

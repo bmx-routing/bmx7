@@ -67,6 +67,8 @@ int32_t unsolicitedDescAdvs = DEF_UNSOLICITED_DESC_ADVS;
 int32_t maintainanceInterval = DEF_REF_MAINTAIN_INTERVAL;
 int32_t resolveIterations = DEF_DHASH_RSLV_ITERS;
 int32_t resolveInterval = DEF_DHASH_RSLV_INTERVAL;
+int32_t dhashRetryIterations = DEF_DHASH_RETRY_ITERS;
+int32_t dhashRetryInterval = DEF_DHASH_RETRY_INTERVAL;
 
 int32_t describeInfos = DEF_DESCRIBE_INFOS;
 
@@ -529,7 +531,8 @@ int32_t tx_msg_description_request(struct tx_frame_iterator *it)
 	int32_t ret = TLV_TX_DATA_DONE;
 
 
-	if ( ( req && kn && (req->descSqn >= kn->descSqnMin) && (req->descSqn > (kn->nextDesc ? kn->nextDesc->descSqn : 0)) && (req->descSqn > (kn->on? kn->on->dc->descSqn : 0)) ) && (
+	if ((!ref || ref->reqCnt <= dhashRetryIterations || !ref->reqTime || (((TIME_T)(bmx_time - ref->reqTime)) > (TIME_T)dhashRetryInterval)) &&
+		(req && kn && (req->descSqn >= kn->descSqnMin) && (req->descSqn > (kn->nextDesc ? kn->nextDesc->descSqn : 0)) && (req->descSqn > (kn->on ? kn->on->dc->descSqn : 0))) && (
 		((!req->iid) && kn->bookedState->i.c >= KCTracked && kn->content->f_body && (kn->bookedState->i.r <= KRQualifying || kn->bookedState->i.c >= KCNeighbor)) ||
 		(req->iid && ref && iid_get_neighIID4x_timeout_by_node(ref) && kn->bookedState->i.c >= KCTracked && kn->content->f_body && ref->inaptChainOgm && ref->inaptChainOgm->claimedChain && ref->descSqn == req->descSqn)
 		)) {
@@ -544,14 +547,19 @@ int32_t tx_msg_description_request(struct tx_frame_iterator *it)
 		}
 
 		msg->kHash = kn->kHash;
+		if (ref) {
+			ref->reqCnt++;
+			ref->reqTime = bmx_time;
+		}
 
 		ret = sizeof(struct msg_description_request);
 	}
 
-	dbgf_track(DBGT_INFO, "%s dev=%s to neigh khash=%s iterations=%d requesting kHash=%s iid=%d descSqn=%d credits=%s ret=%d",
+	dbgf_track(DBGT_INFO, "%s dev=%s to neigh khash=%s iterations=%d requesting kHash=%s iid=%d descSqn=%d credits=%s ref=%p reqCnt=%d reqTime=%d ret=%d",
 		it->db->handls[ttn->key.f.type].name, ttn->key.f.p.dev->ifname_label.str, cryptShaAsString(&ttn->key.f.groupId),
-		ttn->tx_iterations, cryptShaAsString(kn ? &kn->kHash : NULL), req->iid, req->descSqn, kn ? kn->bookedState->secName : NULL, ret);
-
+		ttn->tx_iterations, cryptShaAsString(kn ? &kn->kHash : NULL), req->iid, req->descSqn, kn ? kn->bookedState->secName : NULL, 
+		ref, ref ? (int)ref->reqCnt : -1, ref ? ref->reqTime : 0,
+		ret);
 
 	return ret;
 }
@@ -696,7 +704,8 @@ int32_t tx_msg_iid_request(struct tx_frame_iterator *it)
 	IID_T *iid = ((IID_T*) it->ttn->key.data);
 	struct NeighRef_node *ref = iid_get_node_by_neighIID4x(&it->ttn->neigh->neighIID4x_repos, *iid, NO);
 
-	if (ref && iid_get_neighIID4x_timeout_by_node(ref) && (!ref->kn || (ref->inaptChainOgm && !ref->inaptChainOgm->claimedChain))) {
+	if (ref && (ref->reqCnt <= dhashRetryIterations || !ref->reqTime || (((TIME_T)(bmx_time - ref->reqTime)) > (TIME_T)dhashRetryInterval)) &&
+		iid_get_neighIID4x_timeout_by_node(ref) && (!ref->kn || (ref->inaptChainOgm && !ref->inaptChainOgm->claimedChain))) {
 
 		if (hdr->msg == msg) {
 			assertion(-502287, (is_zero(hdr, sizeof(*hdr))));
@@ -706,12 +715,15 @@ int32_t tx_msg_iid_request(struct tx_frame_iterator *it)
 		}
 
 		msg->receiverIID4x = htons(*iid);
+		ref->reqCnt++;
+		ref->reqTime = bmx_time;
 
 		ret = sizeof(struct msg_iid_request);
 	}
 
-	dbgf_track(DBGT_INFO, "iid=%d ref=%d nodeId=%s to neighId=%s dev=%s send=%d",
-		*iid, !!ref, cryptShaAsShortStr(ref && ref->kn ? &ref->kn->kHash : NULL), cryptShaAsShortStr(&it->ttn->key.f.groupId), it->ttn->key.f.p.dev->ifname_label.str, ret);
+	dbgf_track(DBGT_INFO, "iid=%d ref=%d nodeId=%s to neighId=%s dev=%s reqCnt=%d ref=%p reqTime=%d ret=%d",
+		*iid, !!ref, cryptShaAsShortStr(ref && ref->kn ? &ref->kn->kHash : NULL), cryptShaAsShortStr(&it->ttn->key.f.groupId), it->ttn->key.f.p.dev->ifname_label.str,
+		ref, ref ? (int)ref->reqCnt : -1, ref ? ref->reqTime : 0, ret);
 
 	return ret;
 }
@@ -845,6 +857,10 @@ struct opt_type desc_options[]=
 			ARG_VALUE_FORM,	"set max tx iterations for resolving unknown descriptions"},
         {ODI,0,ARG_DHASH_RSLV_INTERVAL, 0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &resolveInterval,MIN_DHASH_RSLV_INTERVAL, MAX_DHASH_RSLV_INTERVAL,DEF_DHASH_RSLV_INTERVAL,0,    NULL,
 			ARG_VALUE_FORM,	"set tx interval for resolving unknown descriptions"},
+        {ODI,0,ARG_DHASH_RETRY_ITERS,    0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &dhashRetryIterations,MIN_DHASH_RETRY_ITERS, MAX_DHASH_RETRY_ITERS,DEF_DHASH_RETRY_ITERS,0,    NULL,
+			ARG_VALUE_FORM,	"set max tx iterations for retrying unresolved descriptions"},
+        {ODI,0,ARG_DHASH_RETRY_INTERVAL, 0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &dhashRetryInterval,MIN_DHASH_RETRY_INTERVAL, MAX_DHASH_RETRY_INTERVAL,DEF_DHASH_RETRY_INTERVAL,0,    NULL,
+			ARG_VALUE_FORM,	"set tx interval for re-retrying unresolved descriptions"},
         {ODI,0,ARG_DESCRIBE_INFOS,         0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &describeInfos,MIN_DESCRIBE_INFOS, MAX_DESCRIBE_INFOS,DEF_DESCRIBE_INFOS,0,    opt_update_description,
 			ARG_VALUE_FORM,	"publish optional node metadata via node description"},
 #endif

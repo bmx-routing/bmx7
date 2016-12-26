@@ -454,6 +454,8 @@ struct NeighRef_node {
 	AGGREG_SQN_T aggSqn;
 	uint8_t scheduled_ogm_processing;
 	uint8_t shown;
+	uint8_t reqCnt;
+	TIME_T reqTime;
 
 	struct InaptChainOgm *inaptChainOgm;
 

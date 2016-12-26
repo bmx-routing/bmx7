@@ -205,6 +205,8 @@ STATIC_FUNC
 void set_ref_ogmSqnMaxMetric(struct NeighRef_node *ref, DESC_SQN_T descSqn, OGM_SQN_T ogmSqn, struct InaptChainOgm *chainOgm)
 {
 
+	ref->reqCnt = 0;
+
 	if (chainOgm) {
 
 		ref->ogmSqnMaxClaimedMetric.val.u16 = chainOgm->claimedMetric.val.u16;
@@ -331,6 +333,8 @@ struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn
 	ref->aggSqn = (((AGGREG_SQN_T) (ref->aggSqn - aggSqn)) < AGGREG_SQN_CACHE_RANGE) ? ref->aggSqn : aggSqn;
 
 	if (kHash) {
+
+		ref->reqCnt = 0;
 
 		if (ref->kn && cryptShasEqual(&ref->kn->kHash, kHash) && ref->descSqn <= descSqn) {
 

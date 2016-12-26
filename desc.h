@@ -111,6 +111,17 @@ extern int32_t resolveIterations;
 #define ARG_DHASH_RSLV_INTERVAL "resolveInterval"
 extern int32_t resolveInterval;
 
+
+#define MIN_DHASH_RETRY_ITERS 0
+#define MAX_DHASH_RETRY_ITERS 256
+#define DEF_DHASH_RETRY_ITERS 4
+#define ARG_DHASH_RETRY_ITERS "descRetryIterations"
+
+#define MIN_DHASH_RETRY_INTERVAL 100
+#define MAX_DHASH_RETRY_INTERVAL 100000
+#define DEF_DHASH_RETRY_INTERVAL 10000
+#define ARG_DHASH_RETRY_INTERVAL "descRetryInterval"
+
 #define DEF_DESCRIBE_INFOS 1
 #define MIN_DESCRIBE_INFOS 0
 #define MAX_DESCRIBE_INFOS 1

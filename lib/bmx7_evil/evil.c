@@ -60,6 +60,8 @@
 
 static int32_t evilRouteDropping = DEF_EVIL_ROUTE_DROPPING;
 static int32_t evilDescDropping = DEF_EVIL_DESC_DROPPING;
+static int32_t evilDescSqns = DEF_EVIL_DESC_SQNS;
+static int32_t evilDhashDropping = DEF_EVIL_DHASH_DROPPING;
 static int32_t evilOgmDropping = DEF_EVIL_OGM_DROPPING;
 static int32_t evilOgmMetrics = DEF_EVIL_OGM_METRICS;
 static int32_t evilOgmSqns = DEF_EVIL_OGM_SQNS;
@@ -75,32 +77,67 @@ static int32_t (*orig_tx_frame_ogm_dhash_aggreg_advs) (struct tx_frame_iterator 
 STATIC_FUNC
 int32_t evil_tx_frame_description_adv(struct tx_frame_iterator *it)
 {
+	TRACE_FUNCTION_CALL;
 
-	if (evilDirWatch && evilDescDropping) {
+	if (evilDirWatch && (evilDescDropping || evilDescSqns)) {
 
-		struct desc_content *dc = avl_find_item(&descContent_tree, (DHASH_T*)it->ttn->key.data);
+		DHASH_T *dhash = (DHASH_T*)it->ttn->key.data;
+		struct desc_content *dc = avl_find_item(&descContent_tree, dhash);
 
-		if (dc && avl_find(&evilDirWatch->node_tree, &dc->kn->kHash))
-			return TLV_TX_DATA_DONE;
+		if (dc && avl_find(&evilDirWatch->node_tree, &dc->kn->kHash)) {
 
+			if (evilDescDropping)
+				return TLV_TX_DATA_DONE;
+
+			if (evilDescSqns) {
+
+				uint8_t *desc = tx_iterator_cache_msg_ptr(it);
+				memcpy(desc, dc->desc_frame, dc->desc_frame_len);
+				struct dsc_msg_version *verspp;
+
+				get_desc_id(desc, dc->desc_frame_len, NULL, &verspp);
+				verspp->descSqn = htonl(ntohl(verspp->descSqn) + 1);
+
+				dbgf_track(DBGT_INFO, "dhash=%s id=%s desc_size=%d INCREMENTED descSqn->%d",
+					cryptShaAsString(dhash), cryptShaAsString(&dc->kn->kHash), dc->desc_frame_len, ntohl(verspp->descSqn));
+
+				iid_get_myIID4x_by_node(dc->on);
+
+				return dc->desc_frame_len;
+			}
+		}
 	}
 
 	return (*orig_tx_frame_desc_adv)(it);
 }
 
+
+
+
 STATIC_FUNC
 int32_t evil_tx_msg_dhash_adv(struct tx_frame_iterator *it)
 {
-	IDM_T TODO;
-	return (*orig_tx_msg_dhash_adv)(it);
-}
+	TRACE_FUNCTION_CALL;
 
+	if (evilDirWatch && evilDhashDropping) {
+
+		IID_T *iid = (IID_T*) it->ttn->key.data;
+		MIID_T *in;
+
+		if ((in = iid_get_node_by_myIID4x(*iid)) && avl_find(&evilDirWatch->node_tree, &in->kn->kHash))
+			return TLV_TX_DATA_DONE;
+	}
+
+	return	(*orig_tx_msg_dhash_adv)(it);
+}
 
 
 
 STATIC_FUNC
 int32_t evil_tx_frame_ogm_aggreg_advs(struct tx_frame_iterator *it)
 {
+	TRACE_FUNCTION_CALL;
+
 	struct hdr_ogm_adv *hdr = ((struct hdr_ogm_adv*) tx_iterator_cache_hdr_ptr(it));
 	AGGREG_SQN_T *sqn = ((AGGREG_SQN_T *)it->ttn->key.data);
 	struct OgmAggreg_node *oan = getOgmAggregNode(*sqn);
@@ -290,13 +327,17 @@ static struct opt_type evil_options[] = {
 	{ODI,0,ARG_EVIL_ROUTE_DROPPING, 0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &evilRouteDropping,MIN_EVIL_ROUTE_DROPPING,MAX_EVIL_ROUTE_DROPPING,DEF_EVIL_ROUTE_DROPPING,0,opt_evil_route,
 			ARG_VALUE_FORM, "do not forward IPv6 packets towards attacked nodes"},
 	{ODI,0,ARG_EVIL_DESC_DROPPING,  0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &evilDescDropping,MIN_EVIL_DESC_DROPPING,MAX_EVIL_DESC_DROPPING,DEF_EVIL_DESC_DROPPING,0,NULL,
-			ARG_VALUE_FORM, "do not propagate description updates from attacked nodes"},
+			ARG_VALUE_FORM, "do not propagate description updates of attacked nodes"},
+	{ODI,0,ARG_EVIL_DESC_SQNS,      0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &evilDescSqns,   MIN_EVIL_DESC_SQNS,MAX_EVIL_DESC_SQNS,DEF_EVIL_DESC_SQNS,0,NULL,
+			ARG_VALUE_FORM, "do not propagate description updates of attacked nodes"},
+	{ODI,0,ARG_EVIL_DHASH_DROPPING, 0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &evilDhashDropping,MIN_EVIL_DHASH_DROPPING,MAX_EVIL_DHASH_DROPPING,DEF_EVIL_DHASH_DROPPING,0,NULL,
+			ARG_VALUE_FORM, "do not propagate description hash (Dhash) updates of attacked nodes"},
 	{ODI,0,ARG_EVIL_OGM_DROPPING,   0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &evilOgmDropping,MIN_EVIL_OGM_DROPPING,MAX_EVIL_OGM_DROPPING,DEF_EVIL_OGM_DROPPING,0,NULL,
-			ARG_VALUE_FORM, "do not propagate routing updates (OGMs) from attacked nodes"},
+			ARG_VALUE_FORM, "do not propagate routing updates (OGMs) of attacked nodes"},
 	{ODI,0,ARG_EVIL_OGM_METRICS,    0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &evilOgmMetrics, MIN_EVIL_OGM_METRICS,MAX_EVIL_OGM_METRICS,DEF_EVIL_OGM_METRICS,0,NULL,
-			ARG_VALUE_FORM, "Modify metrics of routing updates (OGMs) from attacked nodes"},
-	{ODI,0,ARG_EVIL_OGM_SQNS,       0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &evilOgmSqns,    MIN_EVIL_OGM_SQNS,MAX_EVIL_OGM_SQNS,DEF_EVIL_OGM_SQNS,0,NULL,
-			ARG_VALUE_FORM, "Modify SQNs of routing updates (OGMs) from attacked nodes"}
+			ARG_VALUE_FORM, "Modify metrics of routing updates (OGMs) of attacked nodes"},
+	{ODI,0,ARG_EVIL_OGM_SQNS,       0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &evilOgmSqns,    MIN_EVIL_OGM_SQNS,MAX_EVIL_OGM_SQNS,DEF_EVIL_OGM_SQNS,0,NULL,
+			ARG_VALUE_FORM, "Modify SQNs of routing updates (OGMs) of attacked nodes"}
 };
 
 

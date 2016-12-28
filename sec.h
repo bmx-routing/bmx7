@@ -25,7 +25,7 @@
 #include <netinet/in.h>
 
 //#define DEF_PERSISTENT_PATH "/etc/bmx7"
-#define DEF_TRUST_DIR_POLLING_INTERVAL 5000
+#define DEF_TRUST_DIR_POLLING_INTERVAL 1000
 
 #define ARG_TRUST_STATUS "trusted"
 

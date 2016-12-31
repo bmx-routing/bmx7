@@ -600,7 +600,7 @@ void process_ogm_metric(void *voidRef)
 	assertion(-502581, (ref->nn));
 
 	if (ref->scheduled_ogm_processing) {
-		ref->scheduled_ogm_processing = 0;
+		ref->scheduled_ogm_processing = NO;
 		task_remove(process_ogm_metric, (void*)ref);
 	}
 
@@ -645,8 +645,8 @@ void process_ogm_metric(void *voidRef)
 
 	if (
 		((why = "A") && (ref->ogmSqnMax >= (dc->ogmSqnMaxSend + 2))) ||
-		((why = "B") && (ref->ogmSqnMax >= (dc->ogmSqnMaxSend + 1)) && (((TIME_T) (bmx_time - ref->ogmSqnMaxTime)) >= (100 * on->mtcAlgo->ogm_sqn_late_hystere_100ms))) ||
 		((why = "C") && (ref->ogmSqnMax >= (dc->ogmSqnMaxSend + 1)) && (on->neighPath.um <= UMETRIC_MIN__NOT_ROUTABLE)) ||
+		((why = "B") && (ref->ogmSqnMax >= (dc->ogmSqnMaxSend + 1)) && (bestNeighPath->um > on->mtcAlgo->umetric_min) && (((TIME_T) (bmx_time - ref->ogmSqnMaxTime)) >= (100 * on->mtcAlgo->ogm_sqn_late_hystere_100ms))) ||
 		((why = "D") && (ref->ogmSqnMax >= (dc->ogmSqnMaxSend + 1)) && (bestNeighPath->um > on->mtcAlgo->umetric_min) && (bestNeighPath->link == on->neighPath.link)) ||
 		((why = "E") && (ref->ogmSqnMax >= (dc->ogmSqnMaxSend + 0)) && (bestNeighPath->um > ((on->neighPath.um))) && on->neighPath.um <= UMETRIC_MIN__NOT_ROUTABLE) ||
 		((why = "G") && (ref->ogmSqnMax >= (dc->ogmSqnMaxSend + 0)) && (bestNeighPath->um > ((on->neighPath.um * (100 + on->mtcAlgo->ogm_metric_hystere_old_path)) / 100)) && (bestNeighPath->link == on->neighPath.link)) ||
@@ -682,9 +682,9 @@ void process_ogm_metric(void *voidRef)
 		ref->ogmBestSinceSqn = 0;
 
 	} else {
-		if ((ref->ogmSqnMax >= (dc->ogmSqnMaxSend + 1)) && (((TIME_T) (bmx_time - ref->ogmSqnMaxTime)) < on->mtcAlgo->ogm_sqn_late_hystere_100ms)) {
-			ref->scheduled_ogm_processing++;
-			task_register((on->mtcAlgo->ogm_sqn_late_hystere_100ms - ((TIME_T) (bmx_time - ref->ogmSqnMaxTime))), process_ogm_metric, ref, -300764);
+		if ((ref->ogmSqnMax >= (dc->ogmSqnMaxSend + 1)) && (bestNeighPath->um > on->mtcAlgo->umetric_min) && (((TIME_T) (bmx_time - ref->ogmSqnMaxTime)) < (100 * on->mtcAlgo->ogm_sqn_late_hystere_100ms))) {
+			ref->scheduled_ogm_processing = YES;
+			task_register((((TIME_T)(100 * (TIME_T)on->mtcAlgo->ogm_sqn_late_hystere_100ms)) - ((TIME_T) (bmx_time - ref->ogmSqnMaxTime))), process_ogm_metric, ref, -300764);
 			dbgf_track(DBGT_INFO, "to id=%s postponed", cryptShaAsShortStr(&on->k.nodeId));
 		} else {
 			dbgf_track(DBGT_INFO, "to id=%s discarded", cryptShaAsShortStr(&on->k.nodeId));

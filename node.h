@@ -176,6 +176,7 @@ struct host_metricalgo {
 	uint8_t ogm_hop_penalty;
 	uint8_t ogm_sqn_best_hystere;
 	uint8_t ogm_sqn_late_hystere_100ms;
+	uint8_t ogm_sqn_diff_max;
 	uint16_t ogm_metric_hystere_new_path;
 	uint16_t ogm_metric_hystere_old_path;
 	uint16_t ogm_interval_sec;

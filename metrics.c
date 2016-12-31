@@ -67,6 +67,7 @@ static int32_t my_path_umetric_min = DEF_PATH_UMETRIC_MIN;
 static int32_t my_ogm_metric_hyst_new_path = DEF_OGM_METRIC_HYST_NEW_PATH;
 static int32_t my_ogm_metric_hyst_old_path = DEF_OGM_METRIC_HYST_OLD_PATH;
 static int32_t my_ogm_sqn_best_hyst = DEF_OGM_SQN_BEST_HYST;
+static int32_t my_ogm_sqn_diff_max = DEF_OGM_SQN_DIFF_MAX;
 static int32_t my_ogm_sqn_late_hyst_100ms = DEF_OGM_SQN_LATE_HYST;
 static int32_t my_ogm_hop_penalty = DEF_OGM_HOP_PENALTY;
 static int32_t my_ogm_hops_max = DEF_OGM_HOPS_MAX;
@@ -737,6 +738,7 @@ IDM_T validate_metricalgo(struct host_metricalgo *ma, struct ctrl_node *cn)
                 validate_param((ma->ogm_metric_hystere_new_path), MIN_OGM_METRIC_HYST_NEW_PATH, MAX_OGM_METRIC_HYST_NEW_PATH, ARG_OGM_METRIC_HYST_NEW_PATH) ||
                 validate_param((ma->ogm_metric_hystere_old_path), MIN_OGM_METRIC_HYST_OLD_PATH, MAX_OGM_METRIC_HYST_OLD_PATH, ARG_OGM_METRIC_HYST_OLD_PATH) ||
                 validate_param((ma->ogm_sqn_best_hystere), MIN_OGM_SQN_BEST_HYST, MAX_OGM_SQN_BEST_HYST, ARG_OGM_SQN_BEST_HYST) ||
+                validate_param((ma->ogm_sqn_diff_max), MIN_OGM_SQN_DIFF_MAX, MAX_OGM_SQN_DIFF_MAX, ARG_OGM_SQN_DIFF_MAX) ||
                 validate_param((ma->ogm_sqn_late_hystere_100ms), MIN_OGM_SQN_LATE_HYST, MAX_OGM_SQN_LATE_HYST, ARG_OGM_SQN_LATE_HYST) ||
                 validate_param((ma->ogm_hop_penalty), MIN_OGM_HOP_PENALTY, MAX_OGM_HOP_PENALTY, ARG_OGM_HOP_PENALTY) ||
                 validate_param((ma->ogm_hops_max), MIN_OGM_HOPS_MAX, MAX_OGM_HOPS_MAX, ARG_OGM_HOPS_MAX) ||
@@ -784,6 +786,7 @@ IDM_T metricalgo_tlv_to_host(struct description_tlv_metricalgo *tlv_algo, struct
 	host_algo->lq_t1_point_r255 = tlv_algo->m.lq_t1_point_r255;
 	host_algo->ogm_link_rate_efficiency = tlv_algo->m.ogm_link_rate_efficiency;
         host_algo->ogm_sqn_best_hystere = tlv_algo->m.ogm_sqn_best_hystere;
+	host_algo->ogm_sqn_diff_max = tlv_algo->m.ogm_sqn_diff_max;
         host_algo->ogm_sqn_late_hystere_100ms = tlv_algo->m.ogm_sqn_late_hystere_100ms;
         host_algo->ogm_metric_hystere_new_path = ntohs(tlv_algo->m.ogm_metric_hystere_new_path);
         host_algo->ogm_metric_hystere_old_path = ntohs(tlv_algo->m.ogm_metric_hystere_old_path);
@@ -840,6 +843,7 @@ int create_description_tlv_metricalgo(struct tx_frame_iterator *it)
         tlv_algo.m.ogm_metric_hystere_new_path = htons(my_ogm_metric_hyst_new_path);
         tlv_algo.m.ogm_metric_hystere_old_path = htons(my_ogm_metric_hyst_old_path);
         tlv_algo.m.ogm_sqn_best_hystere = my_ogm_sqn_best_hyst;
+	tlv_algo.m.ogm_sqn_diff_max = my_ogm_sqn_diff_max;
         tlv_algo.m.ogm_sqn_late_hystere_100ms = my_ogm_sqn_late_hyst_100ms;
         tlv_algo.m.hop_penalty = my_ogm_hop_penalty;
 	tlv_algo.m.hops_max = my_ogm_hops_max;
@@ -994,6 +998,9 @@ int32_t opt_path_metricalgo(uint8_t cmd, uint8_t _save, struct opt_type *opt, st
 
 		test_algo.ogm_sqn_best_hystere = (cmd == OPT_REGISTER || strcmp(opt->name, ARG_OGM_SQN_BEST_HYST)) ?
 			my_ogm_sqn_best_hyst : (val >= 0 ? val : DEF_OGM_SQN_BEST_HYST);
+
+		test_algo.ogm_sqn_diff_max = (cmd == OPT_REGISTER || strcmp(opt->name, ARG_OGM_SQN_DIFF_MAX)) ?
+			my_ogm_sqn_diff_max : (val >= 0 ? val : DEF_OGM_SQN_DIFF_MAX);
 
 		test_algo.ogm_sqn_late_hystere_100ms = (cmd == OPT_REGISTER || strcmp(opt->name, ARG_OGM_SQN_LATE_HYST)) ?
 			my_ogm_sqn_late_hyst_100ms : (val >= 0 ? val : DEF_OGM_SQN_LATE_HYST);
@@ -1222,8 +1229,11 @@ struct opt_type metrics_options[]=
 	{ODI, 0, ARG_OGM_METRIC_HYST_OLD_PATH,     0,   9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,    &my_ogm_metric_hyst_old_path,MIN_OGM_METRIC_HYST_OLD_PATH, MAX_OGM_METRIC_HYST_OLD_PATH,DEF_OGM_METRIC_HYST_OLD_PATH,0, opt_path_metricalgo,
 			ARG_VALUE_FORM,	"use metric hysteresis in % to delay ogm updates due to better path metric via old path"}
         ,
+	{ODI, 0, ARG_OGM_SQN_DIFF_MAX,0,9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,    &my_ogm_sqn_diff_max,MIN_OGM_SQN_DIFF_MAX,MAX_OGM_SQN_DIFF_MAX,DEF_OGM_SQN_DIFF_MAX,0, opt_path_metricalgo,
+		ARG_VALUE_FORM,	"always accept new OGM-SQNs with given better sqn"}
+	,
 	{ODI, 0, ARG_OGM_SQN_BEST_HYST,0,9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,    &my_ogm_sqn_best_hyst,MIN_OGM_SQN_BEST_HYST,MAX_OGM_SQN_BEST_HYST,DEF_OGM_SQN_BEST_HYST,0, opt_path_metricalgo,
-		ARG_VALUE_FORM,	"overcome metric hysteresis to force route switching after successive reception of x new OGM-SQNs with with better path metric"}
+		ARG_VALUE_FORM,	"overcome metric hysteresis to force route switching after successive reception of x new OGM-SQNs with better path metric"}
         ,
 	{ODI, 0, ARG_OGM_SQN_LATE_HYST,0,9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,    &my_ogm_sqn_late_hyst_100ms,MIN_OGM_SQN_LATE_HYST,MAX_OGM_SQN_LATE_HYST,DEF_OGM_SQN_LATE_HYST,0, opt_path_metricalgo,
 		ARG_VALUE_FORM,	"delay route switching in 100ms to next-hop neighbor due its fast OGM-SQN delivery"}

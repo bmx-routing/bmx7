@@ -119,6 +119,10 @@
 #define DEF_OGM_SQN_BEST_HYST 3
 #define ARG_OGM_SQN_BEST_HYST "pathSqnBestHysteresis"
 
+#define MIN_OGM_SQN_DIFF_MAX 0
+#define MAX_OGM_SQN_DIFF_MAX 3
+#define DEF_OGM_SQN_DIFF_MAX 2
+#define ARG_OGM_SQN_DIFF_MAX "pathSqnDiffMax"
 
 
 
@@ -183,7 +187,7 @@
 #define DEF_PATH_IFR_HOP_DISTANCE 0
 
 
-struct mandatory_tlv_metricalgo { // 16 bytes
+struct mandatory_tlv_metricalgo {
 
 	FMETRIC_U16_T fmetric_u16_min;      // 2 bytes
 
@@ -206,19 +210,35 @@ struct mandatory_tlv_metricalgo { // 16 bytes
 #else
 #error "Please fix <bits/endian.h>"
 #endif
-
 	uint8_t lq_tx_point_r255;
+
 	uint8_t lq_ty_point_r255;
 	uint8_t lq_t1_point_r255;
+
 	uint8_t ogm_link_rate_efficiency;
 	uint8_t hops_history;
 	uint8_t hops_max;
 	uint8_t hop_penalty; // 1 byte
+
 	uint8_t ogm_sqn_best_hystere;
 	uint8_t ogm_sqn_late_hystere_100ms;
 	uint16_t ogm_metric_hystere_new_path; // 2 byte
+
 	uint16_t ogm_metric_hystere_old_path; // 2 byte
 	uint16_t ogm_interval_sec;
+
+#if __BYTE_ORDER == __LITTLE_ENDIAN         // 1 byte
+	unsigned int reserved1 : 6;
+	unsigned int ogm_sqn_diff_max : 2;
+#elif __BYTE_ORDER == __BIG_ENDIAN
+	unsigned int ogm_sqn_diff_max : 2;
+	unsigned int reserved1 : 6;
+#else
+#error "Please fix <bits/endian.h>"
+#endif
+	uint8_t reserved2;
+	uint16_t reserved3;
+
 	struct path_interference_parameter pip[MAX_PATH_IFR_PARAMETERS];
 } __attribute__((packed));
 
@@ -250,6 +270,10 @@ struct description_tlv_metricalgo {
 {FIELD_TYPE_UINT, -1, 16,  0, FIELD_RELEVANCE_HIGH, ARG_OGM_METRIC_HYST_NEW_PATH},  \
 {FIELD_TYPE_UINT, -1, 16,  0, FIELD_RELEVANCE_HIGH, ARG_OGM_METRIC_HYST_OLD_PATH},  \
 {FIELD_TYPE_UINT, -1, 16,  0, FIELD_RELEVANCE_HIGH, ARG_OGM_INTERVAL},  \
+{FIELD_TYPE_UINT, -1,  2,  0, FIELD_RELEVANCE_HIGH, ARG_OGM_SQN_DIFF_MAX },   \
+{FIELD_TYPE_UINT, -1,  6,  0, FIELD_RELEVANCE_HIGH, "reserved1" },   \
+{FIELD_TYPE_UINT, -1,  8,  0, FIELD_RELEVANCE_HIGH, "reserved2"},   \
+{FIELD_TYPE_UINT, -1, 16,  0, FIELD_RELEVANCE_HIGH, "reserved3" },   \
 {FIELD_TYPE_UINT, -1,  8,  0, FIELD_RELEVANCE_HIGH, ARG_PATH_IFR_CHA_DISTANCE },   \
 {FIELD_TYPE_UINT, -1,  3,  0, FIELD_RELEVANCE_HIGH, ARG_PATH_IFR_HOP_DISTANCE },   \
 {FIELD_TYPE_UINT, -1,  5,  0, FIELD_RELEVANCE_HIGH, ARG_PATH_IFR_INDEPENDENCE },   \

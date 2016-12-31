@@ -644,9 +644,9 @@ void process_ogm_metric(void *voidRef)
 	char *why = NULL;
 
 	if (
-		((why = "A") && (ref->ogmSqnMax >= (dc->ogmSqnMaxSend + 2))) ||
-		((why = "C") && (ref->ogmSqnMax >= (dc->ogmSqnMaxSend + 1)) && (on->neighPath.um <= UMETRIC_MIN__NOT_ROUTABLE)) ||
-		((why = "B") && (ref->ogmSqnMax >= (dc->ogmSqnMaxSend + 1)) && (bestNeighPath->um > on->mtcAlgo->umetric_min) && (((TIME_T) (bmx_time - ref->ogmSqnMaxTime)) >= (100 * on->mtcAlgo->ogm_sqn_late_hystere_100ms))) ||
+		((why = "A") && (ref->ogmSqnMax >= (dc->ogmSqnMaxSend + (on->mtcAlgo->ogm_sqn_diff_max + 1)))) ||
+		((why = "B") && (ref->ogmSqnMax >= (dc->ogmSqnMaxSend + 1)) && (on->neighPath.um <= UMETRIC_MIN__NOT_ROUTABLE)) ||
+		((why = "C") && (ref->ogmSqnMax >= (dc->ogmSqnMaxSend + 1)) && (bestNeighPath->um > on->mtcAlgo->umetric_min) && (((TIME_T) (bmx_time - ref->ogmSqnMaxTime)) >= (100 * on->mtcAlgo->ogm_sqn_late_hystere_100ms))) ||
 		((why = "D") && (ref->ogmSqnMax >= (dc->ogmSqnMaxSend + 1)) && (bestNeighPath->um > on->mtcAlgo->umetric_min) && (bestNeighPath->link == on->neighPath.link)) ||
 		((why = "E") && (ref->ogmSqnMax >= (dc->ogmSqnMaxSend + 0)) && (bestNeighPath->um > ((on->neighPath.um))) && on->neighPath.um <= UMETRIC_MIN__NOT_ROUTABLE) ||
 		((why = "G") && (ref->ogmSqnMax >= (dc->ogmSqnMaxSend + 0)) && (bestNeighPath->um > ((on->neighPath.um * (100 + on->mtcAlgo->ogm_metric_hystere_old_path)) / 100)) && (bestNeighPath->link == on->neighPath.link)) ||
@@ -656,10 +656,10 @@ void process_ogm_metric(void *voidRef)
 
 		if (bestNeighPath->link != on->neighPath.link) {
 
-			dbgf_track(DBGT_INFO, "to id=%s changed route, why=%s,  %ju %d %ju %d,   %d %d %d %d,   %d %d %d %d", cryptShaAsShortStr(&ref->kn->kHash), why,
+			dbgf_track(DBGT_INFO, "to id=%s changed route, why=%s,  %ju %d %ju %d,   %d %d %d %d,   %d %d %d %d %d", cryptShaAsShortStr(&ref->kn->kHash), why,
 				bestNeighPath->um, !!bestNeighPath->link, on->neighPath.um, !!on->neighPath.link,
 				ref->ogmSqnMax, dc->ogmSqnMaxSend, ref->ogmSqnMaxTime, ref->ogmBestSinceSqn,
-				on->mtcAlgo->ogm_sqn_late_hystere_100ms, on->mtcAlgo->ogm_metric_hystere_old_path, on->mtcAlgo->ogm_metric_hystere_new_path, on->mtcAlgo->ogm_sqn_best_hystere);
+				on->mtcAlgo->ogm_sqn_diff_max, on->mtcAlgo->ogm_sqn_late_hystere_100ms, on->mtcAlgo->ogm_metric_hystere_old_path, on->mtcAlgo->ogm_metric_hystere_new_path, on->mtcAlgo->ogm_sqn_best_hystere);
 
 			if (on->neighPath.link)
 				cb_route_change_hooks(DEL, on);

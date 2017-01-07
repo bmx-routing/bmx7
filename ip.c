@@ -2699,11 +2699,11 @@ static void dev_check(void *kernel_ip_config_changed)
 
                 IDM_T iff_up = dev->if_llocal_addr && (dev->if_llocal_addr->iln->flags & IFF_UP);
 
-                assertion(-500895, (!(dev->active && !iff_up) == IMPLIES(dev->active, iff_up)));
+                assertion(-500895, ((!(dev->active && !iff_up)) == IMPLIES(dev->active, iff_up)));
                 assertion(-500896, (IMPLIES(dev->active, iff_up)));
                 assertion(-500897, (!(dev->active && !iff_up)));
 
-                assertion(-500898, (!(dev->active && iff_up && dev->hard_conf_changed) == IMPLIES(dev->active, (!iff_up || !dev->hard_conf_changed))));
+                assertion(-500898, ((!(dev->active && iff_up && dev->hard_conf_changed)) == IMPLIES(dev->active, (!iff_up || !dev->hard_conf_changed))));
                 assertion(-500901, (IMPLIES(dev->active, (!dev->hard_conf_changed))));
                 assertion(-500899, (IMPLIES(dev->active ,(!iff_up || !dev->hard_conf_changed))));
                 assertion(-500900, (!(dev->active && iff_up && dev->hard_conf_changed)));

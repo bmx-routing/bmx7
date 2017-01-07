@@ -89,7 +89,7 @@ IDM_T process_description_tlvs(struct packet_buff *pb, struct orig_node *on, str
 		return TLV_RX_DATA_DONE;
 
         struct rx_frame_iterator it = {
-                .caller = __FUNCTION__, .op = op, .pb = pb, .db = description_tlv_db, .process_filter = filter,
+                .caller = __func__, .op = op, .pb = pb, .db = description_tlv_db, .process_filter = filter,
 		.on = on, .dcOld = dcOld, .dcOp = dcOp,
 		.f_type = -1, .frames_length = 0, .frames_in = NULL
 	};
@@ -298,7 +298,7 @@ void update_my_description(void)
 
         // add all tlv options:
         struct tx_frame_iterator tx = {
-                .caller = __FUNCTION__, .db = description_tlv_db, .prev_out_type = -1,
+                .caller = __func__, .db = description_tlv_db, .prev_out_type = -1,
 		.frames_out_ptr = debugMallocReset(desc_root_size_out, -300627),
                 .frames_out_max = desc_root_size_out,
                 .frames_out_pref = desc_root_size_out,
@@ -383,7 +383,7 @@ int32_t opt_show_descriptions(uint8_t cmd, uint8_t _save, struct opt_type *opt,
 			if (!dc || !dc->contentRefs_tree.items || dc->unresolvedContentCounter)
 				continue;
 
-			struct rx_frame_iterator it = {.caller = __FUNCTION__, .on = NULL, .dcOp = dc,
+			struct rx_frame_iterator it = {.caller = __func__, .on = NULL, .dcOp = dc,
 				.op = TLV_OP_PLUGIN_MIN, .db = description_tlv_db, .process_filter = type_filter, .f_type = -1,};
 
                         int32_t result;

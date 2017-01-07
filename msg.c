@@ -918,7 +918,7 @@ void tx_packets( void *unused ) {
 	static struct packet_buff pb;
         memset(&pb.i, 0, sizeof (pb.i));
         struct tx_frame_iterator it = {
-                .caller = __FUNCTION__, .db = packet_frame_db, .prev_out_type = -1,
+                .caller = __func__, .db = packet_frame_db, .prev_out_type = -1,
                 .frames_out_ptr = (pb.p.data + sizeof (struct packet_header)),
 		.frames_out_max = PKT_FRAMES_SIZE_MAX, .frames_out_pref = PKT_FRAMES_SIZE_PREF,
 		.frame_cache_array = cache_data_array, .frame_cache_size = sizeof(cache_data_array),
@@ -1090,7 +1090,7 @@ IDM_T rx_frames(struct packet_buff *pb)
         int32_t result;
 
         struct rx_frame_iterator it = {
-                .caller = __FUNCTION__, .op = 0, .pb = pb, .dbgl = dbg_frame_types,
+                .caller = __func__, .op = 0, .pb = pb, .dbgl = dbg_frame_types,
                 .db = packet_frame_db, .process_filter = FRAME_TYPE_PROCESS_ALL,
                 .f_type = -1, .frames_in = (pb->p.data + sizeof (struct packet_header)),
                 .frames_length = (pb->i.length - sizeof (struct packet_header))

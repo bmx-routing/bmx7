@@ -532,7 +532,7 @@ void json_description_event_hook(int32_t cb_id, struct orig_node *on)
 		if (on->dhn && on->dhn->contents && on->dhn->contents->__dlen) {
 
 			struct rx_frame_iterator it = {
-				.caller = __FUNCTION__, .onOld = on, .dhnNew = on->dhn, .op = TLV_OP_PLUGIN_MIN,
+				.caller = __func__, .onOld = on, .dhnNew = on->dhn, .op = TLV_OP_PLUGIN_MIN,
 				.db = description_tlv_db, .process_filter = FRAME_TYPE_PROCESS_ALL,
 				.f_type = -1, .frames_in = on->dhn->contents->__data, .frames_length = on->dhn->contents->__dlen,
 			};

@@ -148,7 +148,7 @@ struct dbg_histogram {
 #define DBG_HIST_MUTED	0x02
 
 #ifdef  DEBUG_ALL
-#define dbgf_all( dbgt, ... ); { if ( __dbgf(DBGL_ALL) ) { _dbgf_all( dbgt, __FUNCTION__, __VA_ARGS__ ); } }
+#define dbgf_all( dbgt, ... ); { if ( __dbgf(DBGL_ALL) ) { _dbgf_all( dbgt, __func__, __VA_ARGS__ ); } }
 #define dbg_all( dbgt, ... );  { if ( __dbgf(DBGL_ALL) ) { dbg( DBGL_ALL, dbgt, __VA_ARGS__ ); } }
 #else
 #define dbgf_all(...);
@@ -156,7 +156,7 @@ struct dbg_histogram {
 #endif
 
 #ifdef  DEBUG_DUMP
-#define dbgf_dump( dbgt, ... ); _dbgf( DBGL_DUMP, dbgt, __FUNCTION__, __VA_ARGS__ );
+#define dbgf_dump( dbgt, ... ); _dbgf( DBGL_DUMP, dbgt, __func__, __VA_ARGS__ );
 #define dbg_dump( dbgt, ... ); dbg( DBGL_DUMP, dbgt, __VA_ARGS__ );
 #else
 #define dbgf_dump(...);
@@ -168,7 +168,7 @@ struct dbg_histogram {
 #define dbgf_track(...);
 #define dbg_track(...);
 #else
-#define dbgf_track( dbgt, ... ); { if ( __dbgf(DBGL_CHANGES) ) { _dbgf( DBGL_CHANGES, dbgt, __FUNCTION__, __VA_ARGS__ ); } }
+#define dbgf_track( dbgt, ... ); { if ( __dbgf(DBGL_CHANGES) ) { _dbgf( DBGL_CHANGES, dbgt, __func__, __VA_ARGS__ ); } }
 #define dbg_track( dbgt, ... );  { if ( __dbgf(DBGL_CHANGES) ) { dbg( DBGL_CHANGES, dbgt, __VA_ARGS__ ); } }
 #endif
 
@@ -176,13 +176,13 @@ struct dbg_histogram {
 #define dbgf_sys(...);
 #define dbg_sys(...);
 #else
-#define dbgf_sys( dbgt, ... ); _dbgf( DBGL_SYS, dbgt, __FUNCTION__, __VA_ARGS__ );
+#define dbgf_sys( dbgt, ... ); _dbgf( DBGL_SYS, dbgt, __func__, __VA_ARGS__ );
 #define dbg_sys( dbgt, ... ); dbg( DBGL_SYS, dbgt, __VA_ARGS__ );
 #endif
 
-#define dbgf( dbgl, dbgt, ...); { if ( __dbgf(dbgl) ) { _dbgf(         dbgl, dbgt, __FUNCTION__, __VA_ARGS__ ); } }
-#define dbgf_cn( cn, dbgl, dbgt, ...)    _dbgf_cn( cn,  dbgl, dbgt, __FUNCTION__, __VA_ARGS__ )
-#define dbgf_mute( len, dbgl, dbgt, ...) _dbgf_mute( len, dbgl, dbgt, __FUNCTION__, __VA_ARGS__ )
+#define dbgf( dbgl, dbgt, ...); { if ( __dbgf(dbgl) ) { _dbgf(         dbgl, dbgt, __func__, __VA_ARGS__ ); } }
+#define dbgf_cn( cn, dbgl, dbgt, ...)    _dbgf_cn( cn,  dbgl, dbgt, __func__, __VA_ARGS__ )
+#define dbgf_mute( len, dbgl, dbgt, ...) _dbgf_mute( len, dbgl, dbgt, __func__, __VA_ARGS__ )
 
 void dbg ( int8_t dbgl, int8_t dbgt, char *last, ... );
 void _dbgf(int8_t dbgl, int8_t dbgt, const char *f, char *last, ...);

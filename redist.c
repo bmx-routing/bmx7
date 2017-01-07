@@ -303,11 +303,11 @@ IDM_T redistribute_routes(struct avl_tree *redist_out_tree, struct avl_tree *red
                                 *(routn = debugMalloc(sizeof (routf), -300505)) = routf;
                                 avl_insert(redist_out_tree, routn, -300506);
                                 if ( __dbgf_track() ) {
-                                        redist_dbg(DBGL_CHANGES, DBGT_INFO, __FUNCTION__, rin, "parsing", "adding");
+                                        redist_dbg(DBGL_CHANGES, DBGT_INFO, __func__, rin, "parsing", "adding");
                                 }
                         } else {
                                 if ( __dbgf_track() ) {
-                                        redist_dbg(DBGL_CHANGES, DBGT_INFO, __FUNCTION__, rin, "parsing", "reusing");
+                                        redist_dbg(DBGL_CHANGES, DBGT_INFO, __func__, rin, "parsing", "reusing");
                                 }
                         }
 

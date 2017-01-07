@@ -692,7 +692,7 @@ int8_t descContent_assemble(struct desc_content *dc, IDM_T init_not_finalize)
 
 	int32_t result;
         struct rx_frame_iterator it = {
-		.caller = __FUNCTION__, .op = TLV_OP_CUSTOM_MIN, .db = description_tlv_db, .process_filter = FRAME_TYPE_PROCESS_NONE,
+		.caller = __func__, .op = TLV_OP_CUSTOM_MIN, .db = description_tlv_db, .process_filter = FRAME_TYPE_PROCESS_NONE,
 		.f_type = -1, .frames_length = dc->desc_frame_len, .frames_in = dc->desc_frame
 	};
 

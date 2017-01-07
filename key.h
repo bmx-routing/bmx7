@@ -71,11 +71,11 @@ void keyNode_schedLowerWeight(struct key_node *kn, int8_t weight);
 
 struct key_node *keyNode_updCredits(GLOBAL_ID_T *kHash, struct key_node *kn, struct key_credits *kc);
 
-#define keyNode_delCredits( a, b, c, d ) keyNode_delCredits_(__FUNCTION__, (a), (b), (c), (d) )
+#define keyNode_delCredits( a, b, c, d ) keyNode_delCredits_(__func__, (a), (b), (c), (d) )
 void keyNode_delCredits_(const char *f, GLOBAL_ID_T *kHash, struct key_node *kn, struct key_credits *kc, IDM_T reAssessState);
 #define KEYNODES_BLOCKING_ID 10
 
-#define keyNodes_block_and_sync( id, force ) keyNodes_block_and_sync_( __FUNCTION__, (id), (force) )
+#define keyNodes_block_and_sync( id, force ) keyNodes_block_and_sync_( __func__, (id), (force) )
 uint32_t keyNodes_block_and_sync_(const char *f, uint32_t id, IDM_T force);
 void keyNode_fixTimeouts(void);
 struct key_node *keyNode_get(GLOBAL_ID_T *kHask);

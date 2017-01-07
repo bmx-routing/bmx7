@@ -71,7 +71,9 @@ LDFLAGS += $(shell echo "$(CFLAGS) $(EXTRA_CFLAGS)" | grep -q "DPROFILING" && ec
 LDFLAGS += $(shell echo "$(CFLAGS) $(EXTRA_CFLAGS)" | grep -q "DBMX7_LIB_IWINFO" && echo "-liwinfo" || echo "-liw" )
 
 LDFLAGS += -lz -lm
-LDFLAGS += $(shell echo "$(CFLAGS) $(EXTRA_CFLAGS)" | grep -q "CYASSL" && echo "-lcyassl" || echo "-lpolarssl")
+LDFLAGS += $(shell echo "$(CFLAGS) $(EXTRA_CFLAGS)" | grep -q "CYASSL" && echo "-lcyassl" )
+LDFLAGS += $(shell echo "$(CFLAGS) $(EXTRA_CFLAGS)" | grep -q "POLARSSL" && echo "-lpolarssl" )
+LDFLAGS += $(shell echo "$(CFLAGS) $(EXTRA_CFLAGS)" | grep -q "MBEDTLS" && echo "-lmbedtls -lmbedcrypto" )
 
 SBINDIR = $(INSTALL_PREFIX)/usr/sbin
 

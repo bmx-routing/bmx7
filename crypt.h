@@ -31,6 +31,11 @@
 #define POLARSSL_1_3_9 1139
 #define POLARSSL_MAX   1999
 
+#define MBEDTLS_MIN    2000
+#define MBEDTLS_2_4_0  2240
+#define MBEDTLS_MAX    2999
+
+
 #ifndef CRYPTLIB
 #define CRYPTLIB POLARSSL_1_3_4
 #endif

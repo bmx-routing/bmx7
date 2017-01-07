@@ -37,9 +37,10 @@ static uint8_t shaClean = NO;
 
 static CRYPTRSA_T *my_PrivKey = NULL;
 
-#if CRYPTLIB >= POLARSSL_MIN && CRYPTLIB <= POLARSSL_MAX
-/******************* accessing polarssl: *************************************/
+#if (CRYPTLIB >= POLARSSL_MIN && CRYPTLIB <= POLARSSL_MAX) || (CRYPTLIB >= MBEDTLS_MIN && CRYPTLIB <= MBEDTLS_MAX)
 
+#if (CRYPTLIB >= POLARSSL_MIN && CRYPTLIB <= POLARSSL_MAX)
+/******************* accessing polarssl: *************************************/
 #include "polarssl/config.h"
 #include "polarssl/sha1.h"
 
@@ -57,6 +58,20 @@ static CRYPTRSA_T *my_PrivKey = NULL;
 #include "polarssl/x509write.h"
 #elif CRYPTLIB >= POLARSSL_1_3_3
 #include "polarssl/pk.h"
+#endif
+
+#elif (CRYPTLIB >= MBEDTLS_MIN && CRYPTLIB <= MBEDTLS_MAX)
+/******************* accessing mbedtls: *************************************/
+#include "mbedtls/compat-1.3.h"
+#include "mbedtls/config.h"
+#include "mbedtls/sha1.h"
+#include "mbedtls/entropy.h"
+#include "mbedtls/error.h"
+#include "mbedtls/dhm.h"
+#include "mbedtls/rsa.h"
+#include "mbedtls/ctr_drbg.h"
+#include "mbedtls/pk.h"
+
 #endif
 
 static entropy_context entropy_ctx;
@@ -160,6 +175,7 @@ CRYPTDHM_T *cryptDhmKeyMake( uint8_t keyType, uint8_t attempt) {
 	if ((keyLen = cryptDhmKeyLenByType(keyType)) <= 0)
 		goto_error(finish, "Invalid size");
 
+#if (CRYPTLIB >= POLARSSL_MIN && CRYPTLIB <= POLARSSL_MAX)
 	if( keyType == CRYPT_DHM1024_TYPE) {
 		pptr = POLARSSL_DHM_RFC5114_MODP_1024_P;
 		gptr = POLARSSL_DHM_RFC5114_MODP_1024_G;
@@ -169,6 +185,14 @@ CRYPTDHM_T *cryptDhmKeyMake( uint8_t keyType, uint8_t attempt) {
 	} else if (keyType == CRYPT_DHM3072_TYPE) {
 		pptr = POLARSSL_DHM_RFC3526_MODP_3072_P;
 		gptr = POLARSSL_DHM_RFC3526_MODP_3072_G;
+#elif (CRYPTLIB >= MBEDTLS_MIN && CRYPTLIB <= MBEDTLS_MAX)
+	if (keyType == CRYPT_DHM2048_TYPE) {
+		pptr = MBEDTLS_DHM_RFC3526_MODP_2048_P;
+		gptr = MBEDTLS_DHM_RFC3526_MODP_2048_G;
+	} else if (keyType == CRYPT_DHM3072_TYPE) {
+		pptr = MBEDTLS_DHM_RFC3526_MODP_3072_P;
+		gptr = MBEDTLS_DHM_RFC3526_MODP_3072_G;
+#endif
 	} else {
 		goto_error(finish, "Unsupported dhm type!");
 	}
@@ -308,7 +332,11 @@ CRYPTSHA1_T *cryptDhmSecretForNeigh(CRYPTDHM_T *myDhm, uint8_t *neighRawKey, uin
 	if (cryptDhmKeyCheck(myDhm) != SUCCESS)
 		goto_error(finish, "Failed key check");
 
+#if (CRYPTLIB >= POLARSSL_MIN && CRYPTLIB <= POLARSSL_MAX)
 	if ((ret = dhm_calc_secret(dhm, buff, &n, ctr_drbg_random, &ctr_drbg)) != 0)
+#elif (CRYPTLIB >= MBEDTLS_MIN && CRYPTLIB <= MBEDTLS_MAX)
+	if ((ret = dhm_calc_secret(dhm, buff, sizeof(buff), &n, ctr_drbg_random, &ctr_drbg)) != 0)
+#endif
 		goto_error(finish, "Failed calculating secret");
 
 	if (n > neighRawKeyLen || n < ((neighRawKeyLen / 4)*3))
@@ -704,7 +732,6 @@ int cryptRsaVerify(uint8_t *sign, size_t signLen, CRYPTSHA1_T *plainSha, CRYPTRS
 #elif CRYPTLIB >= POLARSSL_1_3_3
 	if (rsa_pkcs1_verify(pk, ctr_drbg_random, &ctr_drbg, RSA_PUBLIC, POLARSSL_MD_SHA1, sizeof(CRYPTSHA1_T), (uint8_t*)plainSha, sign))
 		return FAILURE;
-#elif CRYPTLIB == POLARSSL_1_3_3
 #else
 # error "Please fix CRYPTLIB"
 #endif
@@ -751,8 +778,14 @@ void cryptRngInit( void ) {
 	fflush( stdout );
 	entropy_init( &entropy_ctx );
 
+#if (CRYPTLIB >= POLARSSL_MIN && CRYPTLIB <= POLARSSL_MAX)
 	if( (ret = ctr_drbg_init( &ctr_drbg, entropy_func, &entropy_ctx, NULL, 0)) != 0 )
 		cleanup_all(-502149);
+#elif (CRYPTLIB >= MBEDTLS_MIN && CRYPTLIB <= MBEDTLS_MAX)
+	mbedtls_ctr_drbg_init(&ctr_drbg);
+	if( (ret = mbedtls_ctr_drbg_seed( &ctr_drbg, entropy_func, &entropy_ctx, NULL, 0)) != 0 )
+		cleanup_all(-502149);
+#endif
 
 	int test=0;
 

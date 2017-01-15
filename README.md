@@ -43,7 +43,7 @@ The following Linux-kernel modules are needed (depending on used bmx6 features)
 * tunnel6
 * ip6_tunnel
 
-The polorssl crypto library is needed for cryptographic operations:
+The polorssl or mbedtls crypto library is needed for cryptographic operations:
 Tested with debian and polarssl-1.3.3:
 <pre>
 wget https://polarssl.org/code/releases/polarssl-1.3.3-gpl.tgz
@@ -51,29 +51,19 @@ tar xzvf polarssl-1.3.3-gpl.tgz
 cd polarssl-1.3.3
 make
 sudo make install
-# compile bmx6 with: make EXTRA_CFLAGS="-DCRYPTLIB=POLARSSL1_3_3"
+# compile bmx6 with: make EXTRA_CFLAGS="-DCRYPTLIB=POLARSSL_1_3_3"
 </pre>
 
-
-This is obsolete:
-The cyassl embedded ssl library is needed for cryptographic operations:
-Tested with debian and cyassl-2.8.0:
+Mbedtls has been tested with debian and mbedtls-2.4.0:
 <pre>
-wget  http://www.yassl.com/cyassl-2.8.0.zip
-unzip cyassl-2.8.0.zip
-cd cyassl-2.8.0
-./configure --enable-fastmath=no --enable-ecc=yes --enable-keygen=yes
-# optionally, drop: --enable-ecc=yes --enable-keygen=yes
-# disable bmx6 private-key generation as:
-# make EXTRA_CFLAGS="-DNO_KEY_GEN" and 
-# and provide your own keys (eg. with openssl):
-# openssl genrsa -out /etc/bmx6/rsa.pem 1024
-# openssl rsa -in /etc/bmx6/rsa.pem -inform PEM -out /etc/bmx6/rsa.der -outform DER
-
+wget https://tls.mbed.org/download/mbedtls-2.4.0-gpl.tgz
+tar xzvf mbedtls-2.4.0-gpl.tgz
+cd mbedtls-2.4.0
 make
 sudo make install
-sudo ldconfig
+# compile bmx7 with: make EXTRA_CFLAGS="-DCRYPTLIB=MBEDTLS_2_4_0"
 </pre>
+
 
 ### Downloading
 

@@ -1987,11 +1987,6 @@ void cleanup_inotify(struct DirWatch *dw) {
 
 		avl_remove(&dirWatch_tree, &(dw)->ifd, -300797);
 
-		if ((dw)->iwd > -1) {
-			inotify_rm_watch((dw)->ifd, (dw)->iwd);
-			(dw)->iwd = -1;
-		}
-
 		set_fd_hook((dw)->ifd, inotify_event_hook, DEL);
 
 		close((dw)->ifd);
@@ -2006,17 +2001,19 @@ IDM_T init_inotify(struct DirWatch *dw) {
 
 	if (((dw)->ifd = inotify_init()) < 0) {
 
-		dbg_sys(DBGT_WARN, "failed init inotify socket: %s! Using %d ms polling instead! You should enable inotify support in your kernel!",
+		dbg_mute(20, DBGL_SYS, DBGT_WARN, "failed init inotify socket: %s! Using %d ms polling instead! You should enable inotify support in your kernel!",
 			strerror(errno), DEF_TRUST_DIR_POLLING_INTERVAL);
 
 	} else if (fcntl((dw)->ifd, F_SETFL, O_NONBLOCK) < 0) {
 
-		dbgf_sys(DBGT_ERR, "failed setting inotify non-blocking: %s", strerror(errno));
+		dbg_mute(20, DBGL_SYS, DBGT_ERR, "failed setting inotify non-blocking: %s", strerror(errno));
 
-	} else if (((dw)->iwd = inotify_add_watch((dw)->ifd, (dw)->pathp,
-		IN_CREATE | IN_DELETE | IN_DELETE_SELF | IN_MODIFY | IN_MOVE_SELF | IN_MOVED_FROM | IN_MOVED_TO | IN_DONT_FOLLOW | IN_IGNORED)) < 0) {
+	} else if (
+		inotify_add_watch(dw->ifd, dw->pathp, IN_CREATE | IN_DELETE | IN_DELETE_SELF | IN_MODIFY | IN_MOVE_SELF | IN_MOVED_FROM | IN_MOVED_TO) < 0 ||
+		inotify_add_watch(dw->ifd, dw->pathp, IN_CREATE | IN_DELETE | IN_DELETE_SELF | IN_MODIFY | IN_MOVE_SELF | IN_MOVED_FROM | IN_MOVED_TO | IN_DONT_FOLLOW) < 0
+		) {
 
-		dbgf_sys(DBGT_ERR, "failed adding watch for dir=%s: %s \n", (dw)->pathp, strerror(errno));
+		dbg_mute(20, DBGL_SYS, DBGT_ERR, "failed adding watches for dir=%s: %s \n", (dw)->pathp, strerror(errno));
 
 	} else {
 

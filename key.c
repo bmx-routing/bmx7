@@ -396,7 +396,9 @@ void kSetInAction_promoted(GLOBAL_ID_T *kHash, struct key_node **kn, struct KeyS
 STATIC_FUNC
 int8_t kColMaintain_promoted(struct key_node *kn)
 {
-	ASSERTION(-502356, kColCond_promoted(kn->bookedState->i.r, kn));
+//	ASSERTION(-502356, kColCond_promoted(kn->bookedState->i.r, kn));
+	if (!kColCond_promoted(kn->bookedState->i.r, kn))
+		return NO;
 
 	if (kn->nextDesc && kn->nextDesc->unresolvedContentCounter == 0) {
 

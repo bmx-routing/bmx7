@@ -548,6 +548,8 @@ int32_t tx_msg_description_request(struct tx_frame_iterator *it)
 
 		msg->kHash = kn->kHash;
 		if (ref) {
+			if (!ref->reqTime || (((TIME_T)(bmx_time - ref->reqTime)) > (TIME_T)dhashRetryInterval))
+				ref->reqCnt = 0;
 			ref->reqCnt++;
 			ref->reqTime = bmx_time;
 		}
@@ -715,15 +717,17 @@ int32_t tx_msg_iid_request(struct tx_frame_iterator *it)
 		}
 
 		msg->receiverIID4x = htons(*iid);
+		if (!ref->reqTime || (((TIME_T)(bmx_time - ref->reqTime)) > (TIME_T)dhashRetryInterval))
+			ref->reqCnt = 0;
 		ref->reqCnt++;
 		ref->reqTime = bmx_time;
 
 		ret = sizeof(struct msg_iid_request);
 	}
 
-	dbgf_track(DBGT_INFO, "iid=%d ref=%d nodeId=%s to neighId=%s dev=%s reqCnt=%d ref=%p reqTime=%d ret=%d",
+	dbgf_track(DBGT_INFO, "iid=%d ref=%d nodeId=%s to neighId=%s dev=%s ref=%p reqCnt=%d reqTime=%d %d ret=%d",
 		*iid, !!ref, cryptShaAsShortStr(ref && ref->kn ? &ref->kn->kHash : NULL), cryptShaAsShortStr(&it->ttn->key.f.groupId), it->ttn->key.f.p.dev->ifname_label.str,
-		ref, ref ? (int)ref->reqCnt : -1, ref ? ref->reqTime : 0, ret);
+		ref, ref ? (int)ref->reqCnt : -1, ref ? ref->reqTime : 0, ((TIME_T)(bmx_time - (ref ? ref->reqTime : 0))), ret);
 
 	return ret;
 }

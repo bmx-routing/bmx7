@@ -1207,9 +1207,9 @@ struct opt_type msg_options[]=
 //       ord parent long_name             shrt Attributes                            *ival              min                 max                default              *func,*syntax,*help
 
 #ifndef LESS_OPTIONS
-	{ODI,0,ARG_FREF,                  0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &dextReferencing,MIN_FREF,           MAX_FREF,          DEF_FREF,0,           opt_update_dext_method,
+	{ODI,0,ARG_FREF,                  0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &dextReferencing,MIN_FREF,           MAX_FREF,          DEF_FREF,0,           opt_update_description,
 			ARG_VALUE_FORM, HLP_FREF},
-	{ODI,0,ARG_FZIP,                  0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &dextCompression,MIN_FZIP,           MAX_FZIP,          DEF_FZIP,0,           opt_update_dext_method,
+	{ODI,0,ARG_FZIP,                  0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &dextCompression,MIN_FZIP,           MAX_FZIP,          DEF_FZIP,0,           opt_update_description,
 			ARG_VALUE_FORM, HLP_FZIP},
         {ODI,0,ARG_TX_MIN_INTERVAL,       0,  9,1, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &txMinInterval, MIN_TX_MIN_INTERVAL, MAX_TX_MIN_INTERVAL, DEF_TX_MIN_INTERVAL,0, NULL,
 			ARG_VALUE_FORM,	HLP_TX_MIN_INTERVAL},

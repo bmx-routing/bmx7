@@ -418,19 +418,6 @@ int32_t opt_show_descriptions(uint8_t cmd, uint8_t _save, struct opt_type *opt,
 
 
 
-int32_t opt_update_dext_method(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
-{
-        TRACE_FUNCTION_CALL;
-
-	if ( cmd == OPT_APPLY )
-		my_description_changed = YES;
-
-	return SUCCESS;
-}
-
-
-
-
 
 
 
@@ -834,22 +821,21 @@ int32_t opt_update_description(uint8_t cmd, uint8_t _save, struct opt_type *opt,
 	return SUCCESS;
 }
 
-
 STATIC_FUNC
 struct opt_type desc_options[]=
 {
 //       ord parent long_name             shrt Attributes                            *ival              min                 max                default              *func,*syntax,*help
 
 #ifndef LESS_OPTIONS
-	{ODI,0,ARG_DESC_ROOT_SIZE,         0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &desc_root_size_out,MIN_DESC_ROOT_SIZE, MAX_DESC_ROOT_SIZE,     DEF_DESC_ROOT_SIZE,0,      opt_update_dext_method,
+	{ODI,0,ARG_DESC_ROOT_SIZE,         0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &desc_root_size_out,MIN_DESC_ROOT_SIZE, MAX_DESC_ROOT_SIZE,     DEF_DESC_ROOT_SIZE,0,      opt_update_description,
 			ARG_VALUE_FORM, HLP_DESC_ROOT_SIZE},
-	{ODI,0,ARG_VRT_FRAME_DATA_SIZE_OUT,0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &vrt_frame_data_size_out,MIN_VRT_FRAME_DATA_SIZE,MAX_VRT_FRAME_DATA_SIZE,DEF_VRT_FRAME_DATA_SIZE,0,  opt_update_dext_method,
+	{ODI,0,ARG_VRT_FRAME_DATA_SIZE_OUT,0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &vrt_frame_data_size_out,MIN_VRT_FRAME_DATA_SIZE,MAX_VRT_FRAME_DATA_SIZE,DEF_VRT_FRAME_DATA_SIZE,0,  opt_update_description,
 			ARG_VALUE_FORM, HLP_VRT_FRAME_DATA_SIZE_OUT},
-	{ODI,0,ARG_VRT_FRAME_DATA_SIZE_IN, 0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &vrt_frame_data_size_in,MIN_VRT_FRAME_DATA_SIZE,MAX_VRT_FRAME_DATA_SIZE,DEF_VRT_FRAME_DATA_SIZE,0,  opt_update_dext_method,
+	{ODI,0,ARG_VRT_FRAME_DATA_SIZE_IN, 0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &vrt_frame_data_size_in,MIN_VRT_FRAME_DATA_SIZE,MAX_VRT_FRAME_DATA_SIZE,DEF_VRT_FRAME_DATA_SIZE,0,  opt_update_description,
 			ARG_VALUE_FORM, HLP_VRT_FRAME_DATA_SIZE_IN},
-	{ODI,0,ARG_DESC_VBODIES_SIZE_OUT,  0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &desc_vbodies_size_out,MIN_DESC_VBODIES_SIZE,MAX_DESC_VBODIES_SIZE,DEF_DESC_VBODIES_SIZE,0,   opt_update_dext_method,
+	{ODI,0,ARG_DESC_VBODIES_SIZE_OUT,  0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &desc_vbodies_size_out,MIN_DESC_VBODIES_SIZE,MAX_DESC_VBODIES_SIZE,DEF_DESC_VBODIES_SIZE,0,   opt_update_description,
 			ARG_VALUE_FORM, HLP_DESC_VBODIES_SIZE_OUT},
-	{ODI,0,ARG_DESC_VBODIES_SIZE_IN,   0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &desc_vbodies_size_in,MIN_DESC_VBODIES_SIZE,MAX_DESC_VBODIES_SIZE,DEF_DESC_VBODIES_SIZE,0,    opt_update_dext_method,
+	{ODI,0,ARG_DESC_VBODIES_SIZE_IN,   0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &desc_vbodies_size_in,MIN_DESC_VBODIES_SIZE,MAX_DESC_VBODIES_SIZE,DEF_DESC_VBODIES_SIZE,0,    opt_update_description,
 			ARG_VALUE_FORM, HLP_DESC_VBODIES_SIZE_IN},
 	{ODI,0,ARG_DESC_CHECKING,          0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &extended_desc_checking,MIN_DESC_CHECKING,MAX_DESC_CHECKING,DEF_DESC_CHECKING,          0,    NULL,
 			ARG_VALUE_FORM, HLP_DESC_CHECKING},

@@ -28,6 +28,11 @@
 #define MIN_EVIL_ROUTE_DROPPING 0
 #define MAX_EVIL_ROUTE_DROPPING 1
 
+#define ARG_EVIL_PRIMARY_IPS "evilPrimaryIps"
+#define DEF_EVIL_PRIMARY_IPS 0
+#define MIN_EVIL_PRIMARY_IPS 0
+#define MAX_EVIL_PRIMARY_IPS 1
+
 #define ARG_EVIL_DESC_DROPPING "evilDescDropping"
 #define DEF_EVIL_DESC_DROPPING 0
 #define MIN_EVIL_DESC_DROPPING 0
@@ -53,9 +58,9 @@
 #define MIN_EVIL_OGM_METRICS 0
 #define MAX_EVIL_OGM_METRICS 1
 
-#define ARG_EVIL_OGM_SQNS "evilOgmSqns"
-#define DEF_EVIL_OGM_SQNS 0
-#define MIN_EVIL_OGM_SQNS 0
-#define MAX_EVIL_OGM_SQNS 10
+#define ARG_EVIL_OGM_HASH "evilOgmHash"
+#define DEF_EVIL_OGM_HASH 0
+#define MIN_EVIL_OGM_HASH 0
+#define MAX_EVIL_OGM_HASH 10
 
 

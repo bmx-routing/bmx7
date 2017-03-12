@@ -67,6 +67,8 @@ FIELD_FORMAT_END }
 struct hna_node * find_overlapping_hna( IPX_T *ipX, uint8_t prefixlen, struct orig_node *except );
 
 struct plugin *hna_get_plugin(void);
+uint32_t create_tlv_hna(uint8_t* data, uint32_t max_size, uint32_t pos, struct net_key *net, uint8_t flags);
+
 
 
 //finally some tunnel stuff that is needed by other modules:

@@ -113,8 +113,7 @@ uint8_t set_hna_to_key(struct net_key *key, struct dsc_msg_hna6 *uhna6)
 }
 
 
-STATIC_FUNC
-uint32_t _create_tlv_hna(uint8_t* data, uint32_t max_size, uint32_t pos, struct net_key *net, uint8_t flags)
+uint32_t create_tlv_hna(uint8_t* data, uint32_t max_size, uint32_t pos, struct net_key *net, uint8_t flags)
 {
         TRACE_FUNCTION_CALL;
 	assertion(-502039, (net->af==AF_INET6));
@@ -166,7 +165,7 @@ int create_dsc_tlv_hna(struct tx_frame_iterator *it)
         if (!is_ip_set(&my_primary_ip))
                 return TLV_TX_DATA_IGNORED;
 
-        pos = _create_tlv_hna(data, max_size, pos, setNet(NULL, AF_INET6, 128, &my_primary_ip), 0);
+        pos = create_tlv_hna(data, max_size, pos, setNet(NULL, AF_INET6, 128, &my_primary_ip), 0);
 
 //	IDM_T TODO_CheckIfThisShouldBeNeeded;
         struct avl_node *an;
@@ -175,7 +174,7 @@ int create_dsc_tlv_hna(struct tx_frame_iterator *it)
 	for (an = NULL; (tin = avl_iterate_item(&tun_in_tree, &an));) {
 		if (tin->upIfIdx && tin->tun6Id >= 0) {
 			assertion(-501237, (tin->upIfIdx && tin->tun6Id >= 0));
-			pos = _create_tlv_hna(data, max_size, pos, setNet(NULL, AF_INET6, 128, &tin->remote), DESC_MSG_HNA_FLAG_NO_ROUTE);
+			pos = create_tlv_hna(data, max_size, pos, setNet(NULL, AF_INET6, 128, &tin->remote), DESC_MSG_HNA_FLAG_NO_ROUTE);
 		}
 	}
 
@@ -186,7 +185,7 @@ int create_dsc_tlv_hna(struct tx_frame_iterator *it)
 		struct net_key hna = ZERO_NETCFG_KEY;
 		str2netw(p->val, &hna.ip, NULL, &hna.mask, &hna.af, NO);
 		assertion(-502325, (is_ip_valid(&hna.ip, hna.af)));
-		pos = _create_tlv_hna(data, max_size, pos, &hna, 0);
+		pos = create_tlv_hna(data, max_size, pos, &hna, 0);
 	}
 
         return pos;

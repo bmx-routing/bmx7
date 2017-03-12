@@ -773,12 +773,11 @@ static const struct field_format bmx_status_format[] = {
 
 static int32_t bmx_status_creator(struct status_handl *handl, void *data)
 {
-	struct tun_in_node *tin = avl_first_item(&tun_in_tree);
 	struct bmx_status *status = (struct bmx_status *) (handl->data = debugRealloc(handl->data, sizeof(struct bmx_status), -300365));
 	struct dsc_msg_pubkey *pkm;
 	status->nodeId = &myKey->kHash;
 	status->shortId = &myKey->kHash;
-	status->name = strlen(my_Hostname) ? my_Hostname : DBG_NIL;
+	status->name = my_Hostname;
 	status->shortDhash = &myKey->on->dc->dHash;
 	status->dhash = &myKey->on->dc->dHash;
 	status->nodeKey = (pkm = contents_data(myKey->on->dc, BMX_DSC_TLV_NODE_PUBKEY)) ? cryptRsaKeyTypeAsString(pkm->type) : DBG_NIL;
@@ -790,8 +789,12 @@ static int32_t bmx_status_creator(struct status_handl *handl, void *data)
 	status->cv = my_compatibility;
 	snprintf(status->revision, 8, "%.7x", bmx_git_rev_u32);
 	status->primaryIp = my_primary_ip;
-	status->tun4Address = tin ? &tin->tunAddr46[1] : NULL;
-	status->tun6Address = tin ? &tin->tunAddr46[0] : NULL;
+
+	struct tun_dev_in *tin;
+	for (tin = NULL; (tin = avl_next_item(&tun_in_tree, (tin ? &tin->nameKey: NULL))) && tin->tunAddr.af != AF_INET;);
+	status->tun4Address = tin ? &tin->tunAddr : NULL;
+	for (tin = NULL; (tin = avl_next_item(&tun_in_tree, (tin ? &tin->nameKey: NULL))) && tin->tunAddr.af != AF_INET6;);
+	status->tun6Address = tin ? &tin->tunAddr : NULL;
 	status->descSqn = myKey->on->dc->descSqn;
 	status->lastDesc = (bmx_time - myKey->on->updated_timestamp) / 1000;
 	status->ogmSqn = myKey->on->dc->ogmSqnMaxSend;
@@ -955,7 +958,7 @@ static const struct field_format keys_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      orig_status, nbName,        1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           orig_status, metric,        1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       orig_status, ogmHist,       1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, hops,          1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, hops,          1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, ogmSqn,        1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, nbIid,         1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, lastRef,       1, FIELD_RELEVANCE_HIGH),

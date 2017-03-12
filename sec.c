@@ -193,7 +193,7 @@ OGM_SQN_T chainOgmFind(ChainLink_T *chainOgm, struct desc_content *dc, IDM_T sea
 	assertion(-502597, (chainOgm && dc));
 	bit_xor(&dc->chainCache.elem.u.e.link, chainOgm, &dc->chainOgmConstInputHash, sizeof(ChainLink_T));
 
-	dbgf_track(DBGT_INFO, "chainOgm=%s -> chainLink=%s maxRcvd=%d range=%d searchFullRange=%d maxDeviation=%d",
+	dbgf_all(DBGT_INFO, "chainOgm=%s -> chainLink=%s maxRcvd=%d range=%d searchFullRange=%d maxDeviation=%d",
 		memAsHexString(chainOgm, sizeof(ChainLink_T)), memAsHexString(&dc->chainCache.elem.u.e.link,
 		sizeof(ChainLink_T)), dc->ogmSqnMaxRcvd, dc->ogmSqnRange, searchFullRange, ogmSqnDeviationMax);
 
@@ -205,7 +205,7 @@ OGM_SQN_T chainOgmFind(ChainLink_T *chainOgm, struct desc_content *dc, IDM_T sea
 
 	while (sqnOffset <= maxDeviation) {
 
-		dbgf_track(DBGT_INFO, "testing chainLink-%d=%s against maxRcvd-0=%s", sqnOffset,
+		dbgf_all(DBGT_INFO, "testing chainLink-%d=%s against maxRcvd-0=%s", sqnOffset,
 			memAsHexString(&dc->chainCache.elem.u.e.link, sizeof(ChainLink_T)),
 			memAsHexString(&dc->chainLinkMaxRcvd, sizeof(ChainLink_T)));
 
@@ -238,7 +238,7 @@ OGM_SQN_T chainOgmFind(ChainLink_T *chainOgm, struct desc_content *dc, IDM_T sea
 				}
 
 				chainLinkCalc(&downTest, 1);
-				dbgf_track(DBGT_INFO, "testing chainLink-0=%s against maxRcvd-%d=%s",
+				dbgf_all(DBGT_INFO, "testing chainLink-0=%s against maxRcvd-%d=%s",
 					memAsHexString(&chainLink, sizeof(ChainLink_T)), (sqnOffset - 1), memAsHexString(&downTest.elem.u.e.link, sizeof(ChainLink_T)));
 
 				if (memcmp(&downTest, &chainLink, sizeof(ChainLink_T)) == 0) {
@@ -249,7 +249,7 @@ OGM_SQN_T chainOgmFind(ChainLink_T *chainOgm, struct desc_content *dc, IDM_T sea
 
 			if (sqnOffset <= dc->ogmSqnMaxRcvd / 2) {
 				// Testing below maxRcvd and lower half between anchor and maxRcvd:
-				dbgf_track(DBGT_INFO, "testing chainLink-%d=%s against anchor-0=%s", sqnOffset,
+				dbgf_all(DBGT_INFO, "testing chainLink-%d=%s against anchor-0=%s", sqnOffset,
 					memAsHexString(&dc->chainCache.elem.u.e.link, sizeof(ChainLink_T)),
 					memAsHexString(dc->chainAnchor, sizeof(ChainLink_T)));
 				if (memcmp(&dc->chainCache.elem.u.e.link, dc->chainAnchor, sizeof(ChainLink_T)) == 0) {
@@ -406,7 +406,7 @@ IDM_T getQualifyingPromotedOrNeighDhmSecret(struct orig_node *on, IDM_T calcSecr
 		assertion(-502736, (!avl_find_item(&qualifyingPromoteds_tree, &kn->kHash)));
 	}
 
-	dbgf_track(DBGT_INFO, "calcSecret=%d id=%s name=%s state=%s dhmSecret=%d myDhmKeyType=%d myDhmKeyLen=%d neighDhmKeyLen=%d ret=%d",
+	dbgf_all(DBGT_INFO, "calcSecret=%d id=%s name=%s state=%s dhmSecret=%d myDhmKeyType=%d myDhmKeyLen=%d neighDhmKeyLen=%d ret=%d",
 		calcSecret, cryptShaAsShortStr(&kn->kHash), kn->on ? kn->on->k.hostname : NULL, kn->bookedState->secName, kn->on && kn->on->dhmSecret,
 		(my_DhmLinkKey ? my_DhmLinkKey->rawGXType : 0), (my_DhmLinkKey ? my_DhmLinkKey->rawGXLen : 0), neighDhmLen, ret);
 
@@ -560,8 +560,7 @@ int create_packet_signature(struct tx_frame_iterator *it)
 
 		hdr = NULL;
 	}
-
-	dbgf_track(DBGT_INFO, "f_type=%d=%s sendRsaSignature=%d sendDhmSignatures=%d dhmNeighs=%d qps=%d maxDhmNeighs=%d signatureSize=%d",
+	dbgf_all(DBGT_INFO, "f_type=%d=%s sendRsaSignature=%d sendDhmSignatures=%d dhmNeighs=%d qps=%d maxDhmNeighs=%d signatureSize=%d",
 		it->frame_type, it->handl ? it->handl->name : NULL, sendRsaSignature, sendDhmSignatures, dhmNeighs, qualifyingPromoteds_tree.items, maxDhmNeighs, signatureSize);
 
 	prof_stop();

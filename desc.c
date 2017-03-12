@@ -412,6 +412,9 @@ int32_t process_dsc_tlv_info(struct rx_frame_iterator *it)
 		if (validate_name_string(name, msg->nameLen + 1, NULL) == FAILURE)
 			return TLV_RX_DATA_FAILURE;
 
+		if ((it->op==TLV_OP_NEW || it->op == TLV_OP_DEL))
+			memset(it->on->k.hostname, 0, sizeof(it->on->k.hostname));
+
 		if (it->op == TLV_OP_NEW)
 			strcpy(it->on->k.hostname, name);
 
@@ -473,8 +476,8 @@ int32_t tx_msg_description_request(struct tx_frame_iterator *it)
 
 	dbgf_track(DBGT_INFO, "%s dev=%s to neigh khash=%s iterations=%d requesting kHash=%s iid=%d descSqn=%d credits=%s ref=%p reqCnt=%d reqTime=%d ret=%d",
 		it->db->handls[ttn->key.f.type].name, ttn->key.f.p.dev->ifname_label.str, cryptShaAsString(&ttn->key.f.groupId),
-		ttn->tx_iterations, cryptShaAsString(kn ? &kn->kHash : NULL), req->iid, req->descSqn, kn ? kn->bookedState->secName : NULL,
-		ref, ref ? (int) ref->reqCnt : -1, ref ? ref->reqTime : 0,
+		ttn->tx_iterations, cryptShaAsString(kn ? &kn->kHash : NULL), req->iid, req->descSqn, kn ? kn->bookedState->secName : NULL, 
+		(void*)ref, (ref ? (int)ref->reqCnt : -1), (ref ? ref->reqTime : 0),
 		ret);
 
 	return ret;
@@ -634,7 +637,7 @@ int32_t tx_msg_iid_request(struct tx_frame_iterator *it)
 
 	dbgf_track(DBGT_INFO, "iid=%d ref=%d nodeId=%s to neighId=%s dev=%s ref=%p reqCnt=%d reqTime=%d %d ret=%d",
 		*iid, !!ref, cryptShaAsShortStr(ref && ref->kn ? &ref->kn->kHash : NULL), cryptShaAsShortStr(&it->ttn->key.f.groupId), it->ttn->key.f.p.dev->ifname_label.str,
-		ref, ref ? (int) ref->reqCnt : -1, ref ? ref->reqTime : 0, ((TIME_T) (bmx_time - (ref ? ref->reqTime : 0))), ret);
+		(void*)ref, (ref ? (int)ref->reqCnt : -1), (ref ? ref->reqTime : 0), ((TIME_T)(bmx_time - (ref ? ref->reqTime : 0))), ret);
 
 	return ret;
 }

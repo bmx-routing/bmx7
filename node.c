@@ -438,7 +438,7 @@ struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn
 finish:
 	{
 
-		dbgf_track(DBGT_INFO,
+	dbgf_all(DBGT_INFO,
 		"problem=%s neigh=%s aggSqn=%d IID=%d kHash=%s descSqn=%d chainOgm=%s ogmMtc=%d \n"
 		"REF: nodeId=%s descSqn=%d hostname=%s ogmSqnMaxRcvd=%d ogmMtcMaxRcvd=%d inaptChainOgmRcvd=%s inaptMtcRcvd=%d\n"
 		"DC: ogmSqnRange=%d  ogmSqnMaxRcvd=%d \n"

@@ -561,7 +561,7 @@ void path_metricalgo_Capacity(struct NeighPath *np, struct NeighRef_node *ref, s
 		}
 	}
 
-	dbgf_track(DBGT_INFO, "msg: linkTP=%ju pathMaxTP=%ju maxPathTime=%ju inHMax=%d o=%d p=%d",
+	dbgf_all(DBGT_INFO, "msg: linkTP=%ju pathMaxTP=%ju maxPathTime=%ju inHMax=%d o=%d p=%d",
 		linkTP, pathMaxTP, maxPathTime, inHMax, outHPos, outIfrPos);
 
 	for (inHPos = 0; inHPos < inHMax; inHPos++) {
@@ -594,7 +594,7 @@ void path_metricalgo_Capacity(struct NeighPath *np, struct NeighRef_node *ref, s
 			}
 		}
 
-		dbgf_track(DBGT_INFO, "hops linkTP=%ju pathMaxTP=%ju maxPathTime=%ju subTreeTime=%ju i=%d o=%d p=%d",
+		dbgf_all(DBGT_INFO, "hops linkTP=%ju pathMaxTP=%ju maxPathTime=%ju subTreeTime=%ju i=%d o=%d p=%d",
 			linkTP, pathMaxTP, maxPathTime, subPathArrMaxTime(subPathArr, outIfrPos, algo), inHPos, outHPos, outIfrPos);
 	}
 
@@ -642,8 +642,8 @@ struct NeighPath *apply_metric_algo(struct NeighRef_node *ref, LinkNode *link, s
 
 				(*(path_metric_algos[algo_type_bit])) (&neighPath, ref, algo);
 
-				dbgf_track(DBGT_INFO, "algo=%d in=%-12ju=%7s  out=%-12ju=%7s",
-					algo_type_bit, refMetric, umetric_to_human(refMetric), neighPath.um, umetric_to_human(neighPath.um));
+                                dbgf_all(DBGT_INFO, "algo=%d in=%-12ju=%7s  out=%-12ju=%7s",
+                                        algo_type_bit, refMetric, umetric_to_human(refMetric), neighPath.um, umetric_to_human(neighPath.um));
 
 			} else {
 				unsupported_algos |= (0x01 << algo_type_bit);

@@ -930,12 +930,12 @@ void register_option(struct opt_type *opt, const char * category_name)
 
 	assertion(-501227, (opt->name));
 
-	assertion_dbg(-501267,
-		!get_option((opt->parent_name ? get_option(NULL, NO, opt->parent_name) : NULL), NO, opt->name),
-		"%s", opt->name);
-	assertion_dbg(-501268, IMPLIES(opt->short_name,
-		!get_option((opt->parent_name ? get_option(NULL, NO, opt->parent_name) : NULL), YES, &opt->short_name)),
-		"%s", opt->name);
+        assertion_dbg(-501267,
+                !get_option((opt->parent_name ? get_option(NULL, NO, opt->parent_name) : NULL), NO, opt->name),
+                "name=%s parent=%s", opt->name, opt->parent_name);
+        assertion_dbg(-501268, IMPLIES(opt->short_name,
+                !get_option((opt->parent_name ? get_option(NULL, NO, opt->parent_name) : NULL), YES, &opt->short_name)),
+                "name=%s parent=%s", opt->name, opt->parent_name);
 
 	// arg_t A_PS0 with no function can only be YES/NO:
 	assertion(-500111, IMPLIES(opt->opt_t == A_PS0 && opt->ival, opt->imin == NO && opt->imax == YES && opt->idef == NO));

@@ -127,7 +127,7 @@ void schedule_ogm(struct orig_node *on)
 	struct desc_content *dc = on->dc;
 	UMETRIC_T um = on->neighPath.um;
 
-	dbgf_track(DBGT_INFO, "maxRcvd=%d maxSend=%d range=%d hops=%d metric=%s um=%ju ",
+	dbgf_all(DBGT_INFO, "maxRcvd=%d maxSend=%d range=%d hops=%d metric=%s um=%ju ",
 		dc->ogmSqnMaxRcvd, dc->ogmSqnMaxSend, dc->ogmSqnRange, on->ogmHopCount, umetric_to_human(um), um);
 
 	assertion(-502576, (dc->ogmSqnMaxRcvd <= dc->ogmSqnRange));
@@ -196,7 +196,7 @@ void schedule_my_originator_message(void)
 {
 	struct orig_node *on = myKey->on;
 
-	dbgf_track(DBGT_INFO, "maxSend=%d range=%d", on->dc->ogmSqnMaxSend, on->dc->ogmSqnRange);
+	dbgf_all(DBGT_INFO, "maxSend=%d range=%d", on->dc->ogmSqnMaxSend, on->dc->ogmSqnRange);
 
 	if (on->dc->ogmSqnMaxSend < on->dc->ogmSqnRange) {
 
@@ -259,7 +259,7 @@ int32_t iterate_msg_ogm_adv(uint8_t *msgs, int32_t msgs_len, int32_t pos, IDM_T 
 		uint8_t more = (m0.f.more);
 		uint8_t moreCnt = more;
 
-		dbgf_track(DBGT_INFO, "len=%d pos=%-3d more=%d metric=%-10s hopCount=%-2d iid=%d", msgs_len, pos, more, umetric_to_human(fmetric_to_umetric(fmm0)), m0.f.hopCount, m0.f.transmitterIID4x);
+		dbgf_all(DBGT_INFO, "len=%d pos=%-3d more=%d metric=%-10s hopCount=%-2d iid=%d", msgs_len, pos, more, umetric_to_human(fmetric_to_umetric(fmm0)), m0.f.hopCount, m0.f.transmitterIID4x);
 
 
 		pos += sizeof(struct msg_ogm_adv);
@@ -275,7 +275,7 @@ int32_t iterate_msg_ogm_adv(uint8_t *msgs, int32_t msgs_len, int32_t pos, IDM_T 
 					struct msg_ogm_adv_metric_t0 t0 = {.u = {.u16 = ntohs(((struct msg_ogm_adv_metric_t0*) tMore)->u.u16)}, .channel = ((struct msg_ogm_adv_metric_t0*) tMore)->channel};
 					FMETRIC_U16_T fmt0 = {.val = {.f = {.exp_fm16 = t0.u.f.metric_exp, .mantissa_fm16 = t0.u.f.metric_mantissa}}};
 
-					dbgf_track(DBGT_INFO, "len=%d pos=%-3d more=%d metric=%-10s channel=%d", msgs_len, pos, t0.u.f.more, umetric_to_human(fmetric_to_umetric(fmt0)), t0.channel);
+					dbgf_all(DBGT_INFO, "len=%d pos=%-3d more=%d metric=%-10s channel=%d", msgs_len, pos, t0.u.f.more, umetric_to_human(fmetric_to_umetric(fmt0)), t0.channel);
 
 					if (hm) {
 						hm[moreCnt - 1] = t0;
@@ -333,7 +333,7 @@ int32_t rx_frame_ogm_aggreg_sqn(struct rx_frame_iterator *it)
 	AGGREG_SQN_T sz = ntohs(((struct msg_ogm_aggreg_sqn_adv *) it->f_msg)->size);
 	struct neigh_node *nn = it->pb->i.verifiedLink->k.linkDev->key.local;
 
-	dbgf_track(DBGT_INFO, "from neigh=%s max=%d/%d sz=%d/%d time=%d",
+	dbgf_all(DBGT_INFO, "from neigh=%s max=%d/%d sz=%d/%d time=%d",
 		nn->on->k.hostname, max, nn->ogm_aggreg_max, sz, nn->ogm_aggreg_size, nn->ogm_aggreg_time);
 
 
@@ -359,7 +359,7 @@ int32_t rx_frame_ogm_aggreg_sqn(struct rx_frame_iterator *it)
 					((AGGREG_SQN_MASK)& (nn->ogm_aggreg_max + 1)), max, AGGREG_SQN_MASK);
 			}
 
-			dbgf_track(DBGT_INFO, "new ogm aggregation from neigh=%s %d/%d", nn->on->k.hostname, nn->ogm_aggreg_max, max);
+			dbgf_all(DBGT_INFO, "new ogm aggregation from neigh=%s %d/%d", nn->on->k.hostname, nn->ogm_aggreg_max, max);
 			nn->ogm_aggreg_max = max;
 			nn->ogm_aggreg_time = bmx_time;
 		}
@@ -470,8 +470,8 @@ int32_t tx_frame_ogm_aggreg_advs(struct tx_frame_iterator *it)
 		msg->u.f.transmitterIID4x = iid_get_myIID4x_by_node(on);
 		msg->u.f.more = !!on->neighPath.pathMetricsByteSize;
 
-		dbgf_track(DBGT_INFO, "name=%s nodeId=%s iid=%d sqn=%d metric=%ju more=%d hops=%lu (%d) cih=%s chainOgm=%s viaDev=%s",
-			on->k.hostname, cryptShaAsShortStr(&on->kn->kHash), msg->u.f.transmitterIID4x, on->dc->ogmSqnMaxSend,
+		dbgf_all(DBGT_INFO, "name=%s nodeId=%s iid=%d sqn=%d metric=%ju more=%d hops=%lu (%d) cih=%s chainOgm=%s viaDev=%s",
+			on->k.hostname, cryptShaAsShortStr(&on->kn->kHash), msg->u.f.transmitterIID4x,  on->dc->ogmSqnMaxSend, 
 			on->neighPath.um, msg->u.f.more, (on->neighPath.pathMetricsByteSize / sizeof(struct msg_ogm_adv_metric_t0)), on->ogmHopCount,
 			memAsHexString(&on->dc->chainOgmConstInputHash, sizeof(msg->chainOgm)),
 			memAsHexString(&msg->chainOgm, sizeof(msg->chainOgm)), it->ttn->key.f.p.dev->ifname_label.str);
@@ -486,7 +486,7 @@ int32_t tx_frame_ogm_aggreg_advs(struct tx_frame_iterator *it)
 			struct msg_ogm_adv_metric_t0 *t0In = &(on->neighPath.pathMetrics[p]);
 			FMETRIC_U16_T fm = {.val = {.f = {.exp_fm16 = t0In->u.f.metric_exp, .mantissa_fm16 = t0In->u.f.metric_mantissa}}};
 
-			dbgf_track(DBGT_INFO, "ogmHist=%d more=%d channel=%d mtc=%s", p + 1, t0In->u.f.more, t0In->channel, umetric_to_human(fmetric_to_umetric(fm)));
+			dbgf_all(DBGT_INFO, "ogmHist=%d more=%d channel=%d mtc=%s", p + 1, t0In->u.f.more, t0In->channel, umetric_to_human(fmetric_to_umetric(fm)));
 
 			assertion(-502664, (on->neighPath.pathMetrics[p].u.f.more == ((p + 1) < (on->neighPath.pathMetricsByteSize / (uint16_t)sizeof(struct msg_ogm_adv_metric_t0)))));
 			t0Out->channel = t0In->channel;
@@ -498,7 +498,7 @@ int32_t tx_frame_ogm_aggreg_advs(struct tx_frame_iterator *it)
 		msg = (struct msg_ogm_adv*) (((uint8_t*) msg) + on->ogmAggregActiveMsgLen);
 	}
 
-	dbgf_track(DBGT_INFO, "aggSqn=%d aggSqnMax=%d ogms=%d size=%d", *sqn, ogm_aggreg_sqn_max, oan->tree.items, oan->msgsLen);
+	dbgf_all(DBGT_INFO, "aggSqn=%d aggSqnMax=%d ogms=%d size=%d", *sqn, ogm_aggreg_sqn_max, oan->tree.items, oan->msgsLen);
 
 	assertion(-502666, (((uint32_t) oan->msgsLen) == ((uint32_t) (((uint8_t*) msg) - tx_iterator_cache_msg_ptr(it)))));
 	assertion(-502667, IMPLIES(oan->msgsLen, iterate_msg_ogm_adv(tx_iterator_cache_msg_ptr(it), oan->msgsLen, 0, YES, NULL, NULL) == oan->msgsLen));
@@ -530,7 +530,7 @@ struct NeighPath *lndev_best_via_router(struct NeighRef_node *ref)
 	bestNeighPath.pathMetricsByteSize = 0;
 	bestNeighPath.um = UMETRIC_MIN__NOT_ROUTABLE;
 
-	dbgf_track(refMetric <= on->mtcAlgo->umetric_min ? DBGT_WARN : DBGT_INFO,
+	dbgf_all(refMetric <= on->mtcAlgo->umetric_min ? DBGT_WARN : DBGT_INFO,
 		"orig=%s descSqn=%d via neigh=%s trusted=%d newOgmMin=%d (knDescSqn=%d refDescSqn=%d knOgmSqn=%d refOgmSqn=%d knMetricMin=%d refMetric=%d ogmSqnFirstSec=%d nowSec=%d) hops=%d refMtc=%ju refOgmHist=%d/%d minMtc=%ju ogmSqnRcvd=%d ogmSqnMaxSend=%d onSendMtc=%ju onSqnHystere=%d onMtcHystere=%d RefSqnBestSince=%d",
 		cryptShaAsShortStr(&on->k.nodeId), dc->descSqn, cryptShaAsShortStr(&nn->k.nodeId),
 		neighTrust, newOgmMins, ref->kn->descSqnMin, ref->descSqn, ref->kn->ogmSqnMin, ref->ogmSqnMax, ref->kn->ogmMetricMin.val.u16, umetric_to_fmetric(refMetric).val.u16, ref->kn->ogmSqnFirst_sec, bmx_time_sec,
@@ -649,7 +649,6 @@ void process_ogm_metric(void *voidRef)
 				dbgf_track(DBGT_INFO, "to id=%s best unchanged path", cryptShaAsShortStr(&on->k.nodeId));
 			}
 
-
 			on->dc->ogmSqnMaxSend = ref->ogmSqnMax;
 			on->neighPath = *bestNeighPath;
 			on->ogmHopCount = ref->ogmSqnMaxClaimedHops;
@@ -686,7 +685,7 @@ int32_t rx_frame_ogm_aggreg_advs(struct rx_frame_iterator *it)
 	IDM_T new = ((AGGREG_SQN_T) (nn->ogm_aggreg_max - aggSqn)) < nn->ogm_aggreg_size && !bit_get(nn->ogm_aggreg_sqns, AGGREG_SQN_CACHE_RANGE, aggSqn);
 	int32_t processed;
 
-	dbgf_track(DBGT_INFO, "new=%d neigh=%s aggSqn=%d/%d/%d size=%d",
+	dbgf_all(DBGT_INFO, "new=%d neigh=%s aggSqn=%d/%d/%d size=%d",
 		new, nn->on->k.hostname, aggSqn, nn->ogm_aggreg_max, nn->ogm_aggreg_size, it->f_msgs_len);
 
 	if (new) {
@@ -697,7 +696,7 @@ int32_t rx_frame_ogm_aggreg_advs(struct rx_frame_iterator *it)
 			return TLV_RX_DATA_PROCESSED;
 
 		if ((processed = iterate_msg_ogm_adv(it->f_msg, it->f_msgs_len, 0, YES, NULL, NULL)) != it->f_msgs_len) {
-			dbgf_track(DBGT_INFO, "Ignoreing ogm with non-matching hop-metrics history (processed=%d f_msgs_len=%d", processed, it->f_msgs_len);
+			dbgf_track(DBGT_WARN, "Ignoreing ogm with non-matching hop-metrics history (processed=%d f_msgs_len=%d", processed, it->f_msgs_len);
 			return TLV_RX_DATA_PROCESSED;
 		}
 
@@ -722,7 +721,7 @@ int32_t rx_frame_ogm_aggreg_advs(struct rx_frame_iterator *it)
 			chainOgm->claimedMetric.val.f.mantissa_fm16 = tmp.u.f.metric_mantissa;
 			chainOgm->pathMetricsByteSize = moreCnt * sizeof(struct msg_ogm_adv_metric_t0);
 
-			dbgf_track(DBGT_INFO, "iid=%d ogmMtc=%d ogmHist=%d hops=%d", tmp.u.f.transmitterIID4x, chainOgm->claimedMetric.val.u16, moreCnt, tmp.u.f.hopCount + 1);
+			dbgf_all(DBGT_INFO, "iid=%d ogmMtc=%d ogmHist=%d hops=%d", tmp.u.f.transmitterIID4x, chainOgm->claimedMetric.val.u16, moreCnt, tmp.u.f.hopCount+1);
 
 			neighRef_update(nn, aggSqn, tmp.u.f.transmitterIID4x, NULL, 0, chainOgm);
 

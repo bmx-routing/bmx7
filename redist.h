@@ -84,7 +84,6 @@
 #define MIN_REDIST_HYSTERESIS 0
 #define MAX_REDIST_HYSTERESIS XMIN(100000, (UMETRIC_MULTIPLY_MAX - 100))
 
-#define NETWORK_NAME_LEN 32
 
 struct redist_out_key {
 	IFNAME_T tunInDev;

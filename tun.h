@@ -46,24 +46,40 @@
 
 
 #define ARG_TUN_DEV  "tunDev"
-#define ARG_TUN_DEV_ADDR4 "tun4Address"
-#define HLP_TUN_DEV_ADDR4  "specify default IPv4 tunnel address and announced range"
-#define ARG_TUN_DEV_ADDR6 "tun6Address"
-#define HLP_TUN_DEV_ADDR6  "specify default IPv6 tunnel address and announced range"
+#define ARG_TUN_DEV_ADDR "tunAddress"
+#define HLP_TUN_DEV_ADDR  "specify default IP tunnel address and announced range"
 
 
-#define ARG_TUN_DEV_REMOTE "remote"
+#define ARG_TUN_DEV_REMOTE_DUMMY "remoteDummyAddress"
 
-#define ARG_TUN_DEV_INGRESS4 "ingress4Prefix"
-#define ARG_TUN_DEV_INGRESS6 "ingress6Prefix"
-
-#define ARG_TUN_DEV_SRC4_TYPE "src4Type"
-#define ARG_TUN_DEV_SRC4_MIN "src4PrefixMin"
-
-#define ARG_TUN_DEV_SRC6_TYPE "src6Type"
-#define ARG_TUN_DEV_SRC6_MIN "src6PrefixMin"
+#define ARG_TUN_DEV_INGRESS "ingressPrefix"
+#define HLP_TUN_DEV_INGRESS "limit allowed source-address range routable via this tunnel"
 
 
+#define ARG_TUN_DEV_MODE_REMOTEPREFIX "remotePrefix"
+#define HLP_TUN_DEV_MODE_REMOTEXPREFIX "remote source prefix (for address allocation)"
+
+#define ARG_TUN_DEV_MODE_REMOTE "remoteMode"
+#define HLP_TUN_DEV_MODE_REMOTEX "required remote source address configuration mode (0 = unspecified, 1 = manual, 2 = auto)"
+#define MIN_TUN_DEV_MODE           0x00
+#define TYP_TUN_DEV_MODE_UNDEFINED 0x00
+#define TYP_TUN_DEV_MODE_MANUAL    0x01
+#define TYP_TUN_DEV_MODE_AUTO      0x02
+#define MAX_TUN_DEV_MODE           0x02
+#define DEF_TUN_DEV_MODE           TYP_TUN_DEV_MODE_UNDEFINED
+
+#define ARG_TUN_DEV_MODE_REMOTE_MIN "remoteMin"
+#define HLP_TUN_DEV_MODE_REMOTEX_MIN "minimum allowed remote source prefix length for address (auto) configuration (0 = NO autoconfig)"
+
+
+#define ARG_TUN_DEV_MODE_LOCALPREFIX "localPrefix"
+#define HLP_TUN_DEV_MODE_LOCALXPREFIX "local source prefix (for address allocation)"
+
+#define ARG_TUN_DEV_MODE_LOCAL "localMode"
+#define HLP_TUN_DEV_MODE_LOCAL  "desired local tunnel source address configuraion mode (0 = unspecified, 1 = manual, 2 = auto)"
+
+#define ARG_TUN_DEV_MODE_LOCAL_MAX "localMax"
+#define HLP_TUN_DEV_MODE_LOCALX_MAX "desired local source prefix length for address (auto) configuration (0 = NO autoconfig)"
 
 #define ARG_TUN_IN "tunIn"
 
@@ -79,7 +95,6 @@
 #define ARG_TUN_OUT          "tunOut"
 #define ARG_TUN_OUT_NET      "network"
 #define ARG_TUN_OUT_SRCRT    "srcNet"
-#define ARG_TUN_OUT_TYPE     "srcType"
 #define ARG_TUN_OUT_PREFIX   "srcRangeMin"
 
 #define ARG_TUN_OUT_IPMETRIC "ipMetric"
@@ -152,15 +167,13 @@ struct dsc_msg_tun6 {
 	IP6_T localIp;
 } __attribute__((packed));
 
-
 #define DESCRIPTION_MSG_TUN6_ADV_FORMAT { \
 {FIELD_TYPE_IPX6,     -1, 128, 1, FIELD_RELEVANCE_HIGH, "localIp" },  \
 FIELD_FORMAT_END }
 
+
 struct dsc_msg_tun4in6ingress {
 	uint8_t tun6Id;
-	//        uint8_t srcType;
-	//        uint8_t srcPrefixMin;
 	uint8_t ingressPrefixLen;
 	IP4_T ingressPrefix;
 } __attribute__((packed));
@@ -173,8 +186,6 @@ FIELD_FORMAT_END }
 
 struct dsc_msg_tun6in6ingress {
 	uint8_t tun6Id;
-	//        uint8_t srcType;
-	//        uint8_t srcPrefixMin;
 	uint8_t ingressPrefixLen;
 	IP6_T ingressPrefix;
 } __attribute__((packed));
@@ -187,40 +198,63 @@ FIELD_FORMAT_END }
 
 
 
-#define TUN_SRC_TYPE_MIN           0x00
-#define TUN_SRC_TYPE_UNDEF         0x00
-#define TUN_SRC_TYPE_STATIC        0x01
-#define TUN_SRC_TYPE_AUTO          0x02
-#define TUN_SRC_TYPE_AHCP          0x03
-#define TUN_SRC_TYPE_MAX           0x03
-
-struct dsc_msg_tun4in6src {
+struct dsc_msg_tun4in6remote {
 	uint8_t tun6Id;
-	uint8_t srcType;
+
+	struct {
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+		unsigned int reserved : 4;
+		unsigned int exhausted : 1;
+		unsigned int srcType : 3;
+#elif __BYTE_ORDER == __BIG_ENDIAN
+		unsigned int srcType : 3;
+		unsigned int exhausted : 1;
+		unsigned int reserved : 4;
+#else
+#error "Please fix <bits/endian.h>"
+#endif
+	} __attribute__((packed)) mode;
 	uint8_t srcPrefixMin;
 	uint8_t srcPrefixLen;
 	IP4_T srcPrefix;
 } __attribute__((packed));
 
-#define DESCRIPTION_MSG_TUN4IN6_SRC_ADV_FORMAT { \
+#define DESCRIPTION_MSG_TUN4IN6_REMOTE_ADV_FORMAT { \
 {FIELD_TYPE_UINT,     -1,   8, 0, FIELD_RELEVANCE_MEDI, "tun6Id" },  \
-{FIELD_TYPE_UINT,     -1,   8, 0, FIELD_RELEVANCE_HIGH, "srcType" },  \
+{FIELD_TYPE_UINT,     -1,   3, 0, FIELD_RELEVANCE_HIGH, "srcType" },  \
+{FIELD_TYPE_UINT,     -1,   1, 0, FIELD_RELEVANCE_HIGH, "exhausted" },  \
+{FIELD_TYPE_UINT,     -1,   4, 0, FIELD_RELEVANCE_LOW,  "reserved" },  \
 {FIELD_TYPE_UINT,     -1,   8, 0, FIELD_RELEVANCE_HIGH, "srcPrefixMin" },  \
 {FIELD_TYPE_UINT,     -1,   8, 0, FIELD_RELEVANCE_HIGH, "srcPrefixLen" },  \
 {FIELD_TYPE_IP4,      -1,  32, 0, FIELD_RELEVANCE_HIGH, "srcPrefix" },  \
 FIELD_FORMAT_END }
 
-struct dsc_msg_tun6in6src {
+struct dsc_msg_tun6in6remote {
 	uint8_t tun6Id;
-	uint8_t srcType;
+
+	struct {
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+		unsigned int reserved : 4;
+		unsigned int exhausted : 1;
+		unsigned int srcType : 3;
+#elif __BYTE_ORDER == __BIG_ENDIAN
+		unsigned int srcType : 3;
+		unsigned int exhausted : 1;
+		unsigned int reserved : 4;
+#else
+#error "Please fix <bits/endian.h>"
+#endif
+	} __attribute__((packed)) mode;
 	uint8_t srcPrefixMin;
 	uint8_t srcPrefixLen;
 	IP6_T srcPrefix;
 } __attribute__((packed));
 
-#define DESCRIPTION_MSG_TUN6IN6_SRC_ADV_FORMAT { \
+#define DESCRIPTION_MSG_TUN6IN6_REMOTE_ADV_FORMAT { \
 {FIELD_TYPE_UINT,     -1,   8, 0, FIELD_RELEVANCE_MEDI, "tun6Id" },  \
-{FIELD_TYPE_UINT,     -1,   8, 0, FIELD_RELEVANCE_HIGH, "srcType" },  \
+{FIELD_TYPE_UINT,     -1,   3, 0, FIELD_RELEVANCE_HIGH, "srcType" },  \
+{FIELD_TYPE_UINT,     -1,   1, 0, FIELD_RELEVANCE_HIGH, "exhausted" },  \
+{FIELD_TYPE_UINT,     -1,   4, 0, FIELD_RELEVANCE_LOW,  "reserved" },  \
 {FIELD_TYPE_UINT,     -1,   8, 0, FIELD_RELEVANCE_HIGH, "srcPrefixMin" },  \
 {FIELD_TYPE_UINT,     -1,   8, 0, FIELD_RELEVANCE_HIGH, "srcPrefixLen" },  \
 {FIELD_TYPE_IPX6,     -1, 128, 0, FIELD_RELEVANCE_HIGH, "srcPrefix" },  \
@@ -313,7 +347,7 @@ extern struct list_head tunXin6_net_adv_list_list;
 
 struct tun_bit_key_nodes {
 	struct tun_search_node *tsn;
-	struct tun_net_node *tnn;
+	struct tun_net_offer *tnn;
 } __attribute__((packed));
 
 struct tun_bit_key {
@@ -328,7 +362,7 @@ struct tun_bit_node {
 	struct tun_bit_key tunBitKey;
 
 	//uint8_t active; //REMOVE
-	struct tun_dev_node *active_tdn;
+	struct tun_dev_out *active_tdn;
 
 	uint32_t ipTable;
 	IDM_T possible;
@@ -364,13 +398,10 @@ struct tun_search_node {
 	uint32_t iptable;
 	uint32_t iprule;
 
-	GLOBAL_ID_T global_id;
+	GLOBAL_ID_T gwId;
 	char gwName[MAX_HOSTNAME_LEN];
 	struct net_key srcRtNet;
-	//	IFNAME_T tunName;
-
-	uint8_t srcType;
-	uint8_t srcPrefixMin;
+	IFNAME_T tunInNameKey;
 
 	//        uint8_t shown;
 
@@ -382,19 +413,18 @@ struct tun_search_node {
 
 };
 
-struct tun_net_key {
+struct tun_net_offer_key {
 	uint8_t bmx7RouteType;
 	uint8_t bmx7RouteType__REMOVE;
 	struct net_key netKey;
-	struct tun_out_node *ton;
+	struct tun_dev_offer *ton;
 } __attribute__((packed));
 
-struct tun_net_node {
-	struct tun_net_key tunNetKey;
+struct tun_net_offer {
+	struct tun_net_offer_key tunNetKey;
 
-	uint32_t eval_counter;
-	uint32_t tlv_new_counter;
-
+	uint8_t updated;
+	uint8_t tbn_added;
 	FMETRIC_U8_T bandwidth;
 
 	UMETRIC_T e2eMetric;
@@ -402,29 +432,28 @@ struct tun_net_node {
 	struct avl_tree tun_bit_tree;
 };
 
-struct tun_out_key {
+struct tun_dev_offer_key {
 	struct orig_node *on;
 	int16_t tun6Id;
 } __attribute__((packed));
 
-struct tun_out_node {
+struct tun_dev_offer {
 	// the advertised part (by description_msg_tun6_adv):
 	IP6_T localIp; // key for tunnel_in_tree
-	IP6_T remoteIp; // the primary IP of the remote tunnel end
 
 	// the advertised part (by description_msg_src6in6_adv):
-	struct net_key ingressPrefix[2];
+	struct net_key ingressPrefix46[2];
 
-	uint8_t srcType[2];
-	uint8_t srcPrefixMin[2];
-
+	struct net_key remotePrefix46[2];
+	uint8_t remoteMode46[2];
+	uint8_t remotePrefixMin46[2];
+	uint8_t updated46[2];
 
 	//the status:
-	struct tun_out_key tunOutKey; // key for tunnel_out_tree
-
-	//struct tun_dev_node *tdnUP[2]; //0:ipv6, 1:ipv4 //REMOVE
-	struct tun_dev_node *tdnDedicated[2]; //0:ipv6, 1:ipv4
-	struct tun_dev_node *tdnCatchAll[2]; //0:ipv6, 1:ipv4
+	struct tun_dev_offer_key tunOutKey; // key for tunnel_out_tree
+	struct tun_dev_in *tin46[2];
+	struct tun_dev_out *tdnDedicated46[2];
+	struct tun_dev_out *tdnCatchAll46[2];
 
 	//TIME_SEC_T tdnLastUsed_ts;
 
@@ -433,10 +462,10 @@ struct tun_out_node {
 
 struct tun_catch_key {
 	uint8_t afKey; //only set if registered in tun_catch_tree
-	struct tun_in_node *tin;
+	struct tun_dev_in *tin;
 } __attribute__((packed));
 
-struct tun_dev_node {
+struct tun_dev_out {
 	IFNAME_T nameKey;
 	struct tun_catch_key tunCatchKey;
 	int32_t tunCatch_fd;

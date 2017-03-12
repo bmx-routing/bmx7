@@ -63,7 +63,7 @@
 
 static AVL_TREE(global_uhna_tree, struct hna_node, key);
 //static AVL_TREE(local_uhna_tree, struct hna_node, key );
-AVL_TREE(tun_in_tree, struct tun_in_node, nameKey); // configured tun_in tunnels
+AVL_TREE(tun_in_tree, struct tun_dev_in, nameKey); // configured tun_in tunnels
 
 IFNAME_T tun_name_prefix = { {DEF_TUN_NAME_PREFIX } };
 
@@ -159,16 +159,17 @@ int create_dsc_tlv_hna(struct tx_frame_iterator *it)
 
 	pos = create_tlv_hna(data, max_size, pos, setNet(NULL, AF_INET6, 128, &my_primary_ip), 0);
 
-	//	IDM_T TODO_CheckIfThisShouldBeNeeded;
-	struct avl_node *an;
+	IDM_T TODO_what_about_adding_these;
+	/*
+	IDM_T tun6Id;
 	struct tun_in_node *tin;
-
-	for (an = NULL; (tin = avl_iterate_item(&tun_in_tree, &an));) {
-		if (tin->upIfIdx && tin->tun6Id >= 0) {
+	for (tun6Id = 0; tun6Id <= get_max_tun6Id(); tun6Id++) {
+		if ((tin = get_tun6Id_node(tun6Id)) && tin->upIfIdx && tin->tun6Id >= 0 && is_ip_set(&tin->remoteDummyIp6)) {
 			assertion(-501237, (tin->upIfIdx && tin->tun6Id >= 0));
-			pos = create_tlv_hna(data, max_size, pos, setNet(NULL, AF_INET6, 128, &tin->remote), DESC_MSG_HNA_FLAG_NO_ROUTE);
+			pos = create_tlv_hna(data, max_size, pos, setNet(NULL, AF_INET6, 128, &tin->remoteDummyIp6), DESC_MSG_HNA_FLAG_NO_ROUTE);
 		}
 	}
+	*/
 
 //	for (an = NULL; (un = avl_iterate_item(&local_uhna_tree, &an));)
 //		pos = _create_tlv_hna(data, max_size, pos, &un->key, 0);

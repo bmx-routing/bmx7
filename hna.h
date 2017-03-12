@@ -18,6 +18,7 @@
 
 #define ARG_UHNA "unicastHna"
 
+#define NETWORK_NAME_LEN 32
 
 
 #define HNA6_PREFIXLEN_MIN 32
@@ -79,28 +80,35 @@ extern IFNAME_T tun_name_prefix;
 #define ARG_TUNS "tunnels"
 #define  DESC_MSG_HNA_FLAG_NO_ROUTE 0x01
 
-struct tun_in_node {
+struct tun_dev_in {
 	IFNAME_T nameKey; // key for tunnel_in_tree
 	uint8_t name_auto;
-	uint8_t remote_manual;
+	uint8_t remoteDummy_manual;
+
+	uint8_t af;
 
 	// the advertised part (by description_msg_tun6_adv):
-	IP6_T remote;
-	struct net_key tunAddr46[2];
+	IP6_T remoteDummyIp6;
+	struct net_key tunAddr;
+	struct net_key localPrefix;
+	uint8_t localPrefixMode;
+	uint8_t localPrefixMax;
+	char tunSearchNameKey[NETWORK_NAME_LEN];
 
 
-	// the advertised part (by description_msg_src6in6_adv):
-	struct net_key ingressPrefix46[2];
+	// the advertised part (by description_msg_ingress6in6_adv):
+	struct net_key ingressPrefix;
+	// the advertised part (by description_msg_remote6in6_adv):
+	struct net_key remotePrefix;
+	uint8_t remotePrefixMode;
+	uint8_t remotePrefixMin;
 
-	uint8_t srcType46[2];
-	uint8_t srcPrefixMin46[2];
 	uint8_t advProto;
 
 	//the status:
 	int16_t tun6Id;
 	int32_t upIfIdx;
-
-	struct avl_tree tun_dev_tree;
+	struct avl_tree tun_dev_offer_tree;
 };
 
 extern void (*set_tunXin6_net_adv_list) (uint8_t, void**);

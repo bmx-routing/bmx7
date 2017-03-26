@@ -52,6 +52,8 @@ static struct uci_context *net_ctx = NULL;
 
 static struct opt_type tmp_conf_opt;
 
+static int32_t configSync = DEF_SYNC_CONFIG;
+
 
 static void signal_hup_handler( int32_t sig ) {
 	
@@ -377,7 +379,7 @@ int bmx_save_config ( uint8_t del, struct opt_type *opt, char *p_val, char *c_va
 	
 	assertion( -500102, opt );
 	
-	if ( !bmx_ctx  ||  !bmx_conf_name  ||  opt->cfg_t == A_ARG  )
+	if ( !configSync || !strcmp(opt->name, ARG_SYNC_CONFIG) || !bmx_ctx  ||  !bmx_conf_name  ||  opt->cfg_t == A_ARG  )
 		return SUCCESS;
 	
 	if ( opt->opt_t == A_PS1 ) {
@@ -879,6 +881,9 @@ static struct opt_type config_options[]= {
 	
 	{ODI,0,ARG_SHOW_CONFIG,	        0,  9,1,A_PS0,A_ADM,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_show_conf,
 			0,		"show current config as it could be saved to " ARG_CONFIG_FILE }
+	,
+	{ODI,0,ARG_SYNC_CONFIG,	        0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&configSync,	0, 		1,		DEF_SYNC_CONFIG,0,NULL,
+			ARG_VALUE_FORM,	ARG_SYNC_CONFIG	 }
 };
 
 

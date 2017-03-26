@@ -25,5 +25,10 @@
 #define ARG_SHOW_CONFIG		"configShow"
 #define ARG_RELOAD_CONFIG	"configReload"
 
+#define ARG_SYNC_CONFIG         "configSync"
+#define DEF_SYNC_CONFIG         1
+#define HLP_SYNC_CONFIG         "Automatically sync bmx (init and dynamically-applied) parameters with reversible uci data base"
+
+
 #define ARG_NO_CONFIG_FILE      "0"
 

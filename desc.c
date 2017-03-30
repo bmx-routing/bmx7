@@ -466,6 +466,9 @@ int32_t process_dsc_tlv_info(struct rx_frame_iterator *it)
 
 	uint32_t msgInfoPos = 0;
 
+	if ((it->op==TLV_OP_NEW || it->op == TLV_OP_DEL))
+		memset(it->on->k.hostname, 0, sizeof(it->on->k.hostname));
+
 	if (msg->nameLen) {
 		char name[MAX_HOSTNAME_LEN];
 		memcpy(name, &msg->info[msgInfoPos], msg->nameLen);
@@ -473,9 +476,6 @@ int32_t process_dsc_tlv_info(struct rx_frame_iterator *it)
 
 		if (validate_name_string(name, msg->nameLen + 1, NULL) == FAILURE)
 			return TLV_RX_DATA_FAILURE;
-
-		if ((it->op==TLV_OP_NEW || it->op == TLV_OP_DEL))
-			memset(it->on->k.hostname, 0, sizeof(it->on->k.hostname));
 
 		if (it->op == TLV_OP_NEW)
 			strcpy(it->on->k.hostname, name);

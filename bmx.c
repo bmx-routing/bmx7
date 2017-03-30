@@ -830,7 +830,7 @@ static int32_t bmx_status_creator(struct status_handl *handl, void *data)
 	struct dsc_msg_pubkey *pkm;
 	status->nodeId = &myKey->kHash;
 	status->shortId = &myKey->kHash;
-	status->name = my_Hostname;
+	status->name = strlen(my_Hostname) ? my_Hostname : DBG_NIL;
 	status->shortDhash = &myKey->on->dc->dHash;
 	status->dhash = &myKey->on->dc->dHash;
 	status->nodeKey = (pkm = contents_data(myKey->on->dc, BMX_DSC_TLV_NODE_PUBKEY)) ? cryptRsaKeyTypeAsString(pkm->type) : DBG_NIL;
@@ -1486,28 +1486,57 @@ int32_t opt_flush_all(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct o
 }
 
 
+STATIC_FUNC
+IDM_T set_hostname(char *hostname, IDM_T set, struct ctrl_node *cn)
+{
+	char test[MAX_HOSTNAME_LEN];
+	memset(test, 0, MAX_HOSTNAME_LEN);
+
+	if (!hostname) {
+		if (gethostname(test, MAX_HOSTNAME_LEN)) {
+			dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "Problem getting hostname %s from system", test);
+			return FAILURE;
+		}
+	} else {
+		if (strcmp(hostname, "none"))
+			strcpy(test, hostname);
+		else
+			memset(test, 0, MAX_HOSTNAME_LEN);
+	}
+	
+	test[MAX_HOSTNAME_LEN - 1] = 0;
+
+	if (strlen(test) && validate_name_string(test, MAX_HOSTNAME_LEN, NULL) == FAILURE) {
+		dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "Illegal hostname %s", test);
+		return FAILURE;
+	}
+
+	if (set && memcmp(my_Hostname, test, MAX_HOSTNAME_LEN)) {
+		memcpy(my_Hostname, test, MAX_HOSTNAME_LEN);
+		my_description_changed = YES;
+	}
+	return SUCCESS;
+}
 
 
 STATIC_FUNC
 int32_t opt_hostname(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
 {
-	static uint8_t checked = NO;
+	if (cmd == OPT_SET_POST || cmd == OPT_CHECK || cmd == OPT_APPLY) {
 
-	if ( (cmd == OPT_SET_POST) && initializing && !checked ) {
+		struct opt_parent *tmp = list_get_first(&opt->d.parents_instance_list);
+		char *applied = (tmp ? tmp->val : NULL);
+		char *val = (patch ? patch->val : NULL);
 
-		checked = YES;
+//		dbgf_cn(cn, DBGL_ALL, DBGT_INFO, "cmd=%-14s given=%-14s stored=%s", opt_cmd2str[cmd], val, applied);
 
-		if (gethostname(my_Hostname, MAX_HOSTNAME_LEN))
-			return FAILURE;
+		if (cmd == OPT_CHECK || cmd == OPT_APPLY)
+			return set_hostname(val, cmd == OPT_APPLY, cn);
 
-		my_Hostname[MAX_HOSTNAME_LEN - 1] = 0;
+		if (cmd == OPT_SET_POST && applied == NULL)
+			set_hostname(NULL, YES, cn);
 
-		if (validate_name_string(my_Hostname, MAX_HOSTNAME_LEN, NULL) == FAILURE) {
-			dbg_sys(DBGT_ERR, "illegal hostname %s", my_Hostname);
-			return FAILURE;
-		}
 	}
-
 	return SUCCESS;
 }
 
@@ -1600,7 +1629,7 @@ static struct opt_type bmx_options[]=
         {ODI,0,ARG_COMPATIBILITY,       0,  3,1,A_PS1,A_ADM,A_INI,A_CFA,A_ANY,   &my_compatibility,MIN_COMPATIBILITY,MAX_COMPATIBILITY,DEF_COMPATIBILITY,0, 0,
 			ARG_VALUE_FORM,	"set (elastic) compatibility version"},
 //order must be after ARG_KEY_PATH and before ARG_AUTO_IP6_PREFIX and ARG_TUN_IN_DEV (which use self, initialized from init_self, called from opt_hostname):
-	{ODI,0,ARG_HOSTNAME,		0,  5,0,A_PS1,A_ADM,A_INI,A_CFA,A_ANY,	0,		0,		        0,		        0,0,	opt_hostname,
+	{ODI,0,ARG_HOSTNAME,		0,  5,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		        0,		        0,0,	opt_hostname,
 			ARG_VALUE_FORM,	"set advertised hostname of node"},
 
 	{ODI,0,ARG_LIST,		0  , 9,1,A_PS1 ,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_list_show,

@@ -38,7 +38,7 @@
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
 
-#include <netinet/ip.h>
+#include <linux/ip.h>
 #include <net/if.h>
 #include <net/if_arp.h>
 #include <linux/if_tunnel.h>

@@ -23,7 +23,7 @@
 #include <netinet/in.h>
 //#include <linux/if.h>
 #include <linux/rtnetlink.h>
-#include <netinet/ip.h>
+#include <linux/ip.h>
 #include <netinet/ip6.h>
 #include <netinet/udp.h>
 

@@ -34,7 +34,7 @@
 //#include <linux/if_tun.h> /* TUNSETPERSIST, ... */
 //#include <linux/if.h>     /* ifr_if, ifr_tun */
 #include <fcntl.h>        /* open(), O_RDWR */
-#include <netinet/ip.h>
+#include <linux/ip.h>
 #include <netinet/ip6.h>
 
 #include "list.h"

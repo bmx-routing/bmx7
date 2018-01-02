@@ -1615,7 +1615,7 @@ int32_t opt_connect_client_to_daemon(uint8_t cmd, struct opt_type *opt, struct c
 		if ( cmd == OPT_CHECK )
 			return SUCCESS;
 			
-			Client_mode = YES;
+		Client_mode = YES;
 		
 		do {
 			

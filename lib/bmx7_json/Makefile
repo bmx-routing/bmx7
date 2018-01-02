@@ -1,5 +1,5 @@
 
-CFLAGS +=	$(CORE_CFLAGS) -fpic -I../../
+CFLAGS +=	$(CORE_CFLAGS) -fpic -I../../ -I/usr/include/json-c/ -I/usr/include/json/
 LDFLAGS +=	
 #-Wl,-soname,bmxd_config 
 

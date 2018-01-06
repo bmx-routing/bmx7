@@ -27,7 +27,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <stdint.h>
-#include <json.h>
+#include <json-c/json.h>
 //#include <dirent.h>
 //#include <sys/inotify.h>
 

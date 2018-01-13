@@ -121,7 +121,7 @@ However, to let this simple command work as expected also check the following ba
 * `bmx7` must be executed in root context (with super user permissions). If you are not already root, prepend all commands with sudo (eg: `sudo bmx7 dev=eth1` ).
 
 * No IP address needs to be configured. By default bmx7 assumes IPv6
-  and autoconfigures a [ULA](http://www.wikipedia.com)-based IPv6
+  and autoconfigures a [ULA](https://en.wikipedia.org/wiki/Unique_local_address)-based IPv6
   address for each interface based on the MAC address of the
   device. The only pre-requisite is that the interfaces must be in the
   `up` state, E.G.: `ip link set wlan0 up`. 

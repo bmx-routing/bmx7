@@ -55,7 +55,7 @@ tar xzvf polarssl-1.3.3-gpl.tgz
 cd polarssl-1.3.3
 make
 sudo make install
-# compile bmx6 with: make EXTRA_CFLAGS="-DCRYPTLIB=POLARSSL_1_3_3"
+# compile bmx7 with: make EXTRA_CFLAGS="-DCRYPTLIB=POLARSSL_1_3_3"
 </pre>
 
 Mbedtls has been tested with debian and mbedtls-2.4.0:
@@ -80,7 +80,7 @@ cd bmx7
 
 ### Compile and Install
 
-To only compile the main bmx6 daemon (no bmx7 plugins):
+To only compile the main bmx7 daemon (no bmx7 plugins):
 <pre>
 make EXTRA_CFLAGS="-DCRYPTLIB=MBEDTLS_2_4_0"
 sudo make install 
@@ -98,7 +98,7 @@ opkg install bmx7 bmx7-uci-config
 
 If you are compiling your own OpenWRT, you can add the routing feed (already enabled by default) which can be found here: https://github.com/openwrt-routing/packages
 
-Then run "make menuconfig" and select the bmx6 package in Networking -> Routing and redirection
+Then run "make menuconfig" and select the bmx7 package in Networking -> Routing and redirection
 
 It is recommended to select also, at least, the uci plugin (bmx7-uci-config)
 
@@ -572,7 +572,8 @@ idea can be straight translated to IPv6).
     bmx7 -c tunOut=v4Default /network=0.0.0.0/0 /maxPrefixLen=0 /hysteresis=30 # refine the above configured v4 tunnel search
 </pre>
 
-* In case my node is directly connected to a DSL gateway and gets a automatically (dhcp) configured default route in the main routing table (use: ip route show table main ). then this route should be preferred and should NOT clash with default tunnel routes configured by bmx6.
+* In case my node is directly connected to a DSL gateway and gets a automatically (dhcp) configured default route in the main routing table (use: ip route show table main ). then this route 
+should be preferred and should NOT clash with default tunnel routes configured by bmx7.
 * Therefore move all bmx7 tunnel routes to 0.0.0.0/0 into a separate routing table with lower lookup prioriy (check with: ip rule show; ip route show table 150)
 <pre>
     bmx7 -c tunOut=v4Default /network=0.0.0.0/0 /maxPrefixLen=0 /hysteresis=30 /tableRule=50000/150 # again refine the above default search

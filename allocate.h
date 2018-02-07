@@ -26,6 +26,7 @@
 extern uint32_t debugMalloc_bytes;
 extern uint32_t debugMalloc_objects;
 
+uint64_t getProcMemory(void);
 
 #ifdef DEBUG_MALLOC
 

@@ -17,6 +17,7 @@
  *
  */
 
+#include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -29,6 +30,22 @@
 
 uint32_t debugMalloc_bytes = 0;
 uint32_t debugMalloc_objects = 0;
+
+typedef struct {
+    long size,resident,share,text,lib,data,dt;
+} statm_t;
+
+uint64_t getProcMemory(void) {
+	static statm_t s;
+	FILE *f = fopen("/proc/self/statm", "r");
+	if (!f)
+		return 0;
+	if (fscanf(f, "%ld %ld %ld %ld %ld %ld %ld", &s.size, &s.resident, &s.share, &s.text, &s.lib, &s.data, &s.dt) != 7)
+		return 0;
+
+	return (s.size * getpagesize());
+}
+
 
 #ifdef DEBUG_MALLOC
 
@@ -360,10 +377,12 @@ void _debugFreeReset(void **mem, size_t resetSize, int tag)
 #else
 
 void * _malloc( size_t length ) {
+	debugMalloc_objects += 1;
 	return malloc( length );
 }
 
 void * _calloc( size_t length ) {
+	debugMalloc_objects += 1;
 	void *mem = malloc( length );
 	memset( mem, 0, length);
 	return mem;
@@ -374,6 +393,7 @@ void * _realloc( void *mem, size_t length ) {
 }
 
 void _free( void *mem ) {
+	debugMalloc_objects -= 1;
 	if (!terminating)
 		free( mem );
 }
@@ -381,6 +401,8 @@ void _free( void *mem ) {
 void _freeReset( void **mem, size_t resetSize ) {
 
 	if (mem) {
+		debugMalloc_objects -= 1;
+
 		if (resetSize)
 			memset(*mem, 0, resetSize);
 

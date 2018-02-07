@@ -779,7 +779,7 @@ struct bmx_status {
 	AGGREG_SQN_T aggSend;
 	char *uptime;
 	char cpu[32];
-	char mem[22];
+	char mem[32];
 	char rxBpP[12];
 	char txBpP[12];
 	char txQ[12];
@@ -852,7 +852,8 @@ static int32_t bmx_status_creator(struct status_handl *handl, void *data)
 	status->aggSend = ogm_aggreg_sqn_send;
 	status->uptime = get_human_uptime(0);
 	snprintf(status->cpu, sizeof(status->cpu), "%d.%1d", s_curr_avg_cpu_load / 10, s_curr_avg_cpu_load % 10);
-	snprintf(status->mem, sizeof(status->mem), "%dK/%d", debugMalloc_bytes / 1000, debugMalloc_objects);
+//	snprintf(status->mem, sizeof(status->mem), "%dK/%d", debugMalloc_bytes / 1024, debugMalloc_objects);
+	snprintf(status->mem, sizeof(status->mem), "%juK/%d", getProcMemory() / 1024, debugMalloc_objects);
 	snprintf(status->rxBpP, sizeof(status->rxBpP), "%d/%.1f", (udpRxBytesMean / DEVSTAT_PRECISION), (((float) udpRxPacketsMean) / DEVSTAT_PRECISION));
 	snprintf(status->txBpP, sizeof(status->txBpP), "%d/%.1f", (udpTxBytesMean / DEVSTAT_PRECISION), (((float) udpTxPacketsMean) / DEVSTAT_PRECISION));
 	snprintf(status->txQ, sizeof(status->txQ), "%d/%d", txBucket / BUCKET_COIN_SCALE, txBucketSize);

@@ -40,8 +40,13 @@ uint64_t getProcMemory(void) {
 	FILE *f = fopen("/proc/self/statm", "r");
 	if (!f)
 		return 0;
-	if (fscanf(f, "%ld %ld %ld %ld %ld %ld %ld", &s.size, &s.resident, &s.share, &s.text, &s.lib, &s.data, &s.dt) != 7)
+
+	if (fscanf(f, "%ld %ld %ld %ld %ld %ld %ld", &s.size, &s.resident, &s.share, &s.text, &s.lib, &s.data, &s.dt) != 7) {
+		fclose(f);
 		return 0;
+	}
+
+	fclose(f);
 
 	return (s.size * getpagesize());
 }

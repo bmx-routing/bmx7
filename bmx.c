@@ -778,7 +778,7 @@ struct bmx_status {
 	AGGREG_SQN_T aggMax;
 	AGGREG_SQN_T aggSend;
 	char *uptime;
-	char cpu[6];
+	char cpu[32];
 	char mem[22];
 	char rxBpP[12];
 	char txBpP[12];

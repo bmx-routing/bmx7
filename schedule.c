@@ -343,7 +343,7 @@ loop4Event:
 
                         last_interrupted_syscall = bmx_time;
 
-			wait_sec_msec( 0, 1 );
+			wait_sec_usec( 0, 1000 );
 			upd_bmx_time( NULL );
 			
 			goto wait4Event_end;

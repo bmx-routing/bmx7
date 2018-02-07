@@ -700,7 +700,7 @@ void dbg_printf(struct ctrl_node *cn, char *last, ...)
 
         if (vdprintf(cn->fd, last, ap) < 0) {
                 int err = errno;
-                wait_sec_msec(0, 100);
+                wait_sec_usec(0, 100000);
                 dprintf(cn->fd, "\nERROR: %s !\n", strerror(err));
         }
 
@@ -726,7 +726,7 @@ void dbg_printf(struct ctrl_node *cn, char *last, ...)
                 }
                 tries++;
 
-                wait_sec_msec(0, 10);
+                wait_sec_msec(0, 10000);
 
                 if (w > 0)
                         out += w;
@@ -1740,7 +1740,7 @@ int32_t opt_connect_client_to_daemon(uint8_t cmd, struct opt_type *opt, struct c
 			unix_sock = 0;
 
                         if (loop_mode && !terminating)
-				wait_sec_msec( loop_interval/1000, loop_interval%1000 );
+				wait_sec_usec( loop_interval/1000, (loop_interval*1000)%1000000 );
 			
 
                 } while (loop_mode && !terminating);

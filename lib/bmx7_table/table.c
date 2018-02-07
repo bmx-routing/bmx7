@@ -346,7 +346,7 @@ int32_t resync_routes(int32_t rtevent_sk)
 
 
 
-		wait_sec_msec(0, 500);
+		wait_sec_usec(0, 500000);
 		dbgf_sys(DBGT_WARN, "now");
 
 		rtevent_sk = register_netlink_event_hook(nlgroups, netlinkBuffSize, recv_rtevent_netlink_sk);

@@ -620,7 +620,7 @@ void trace_function_call(const char *);
 #endif
 
 
-void wait_sec_msec( TIME_SEC_T sec, TIME_T msec );
+void wait_sec_usec(TIME_SEC_T sec, TIME_T usec);
 
 void cleanup_all( int32_t status );
 

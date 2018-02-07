@@ -171,7 +171,7 @@ char *get_human_uptime(uint32_t reference)
 }
 
 
-void wait_sec_msec(TIME_SEC_T sec, TIME_T msec)
+void wait_sec_usec(TIME_SEC_T sec, TIME_T usec)
 {
 
         TRACE_FUNCTION_CALL;
@@ -179,8 +179,8 @@ void wait_sec_msec(TIME_SEC_T sec, TIME_T msec)
 
 	//no debugging here because this is called from debug_output() -> dbg_fprintf() which may case a loop!
 
-	time.tv_sec = sec + (msec/1000) ;
-	time.tv_usec = ( msec * 1000 ) % 1000000;
+	time.tv_sec = sec + (usec/1000000) ;
+	time.tv_usec = usec % 1000000;
 
 	select( 0, NULL, NULL, NULL, &time );
 

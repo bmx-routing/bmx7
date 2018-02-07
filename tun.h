@@ -138,6 +138,10 @@
 #define MIN_TUN_OUT_MTU 1280
 #define MAX_TUN_OUT_MTU 65535
 
+#define ARG_TUN_OUT_DELAY "tunCatchDelay"
+#define DEF_TUN_OUT_DELAY 100
+#define MIN_TUN_OUT_DELAY 0
+#define MAX_TUN_OUT_DELAY 1000000
 
 #define ARG_EXPORT_ONLY   "exportOnly"
 #define DEF_EXPORT_ONLY   0

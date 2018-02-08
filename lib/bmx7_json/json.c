@@ -604,7 +604,7 @@ int32_t opt_json_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
 
         if (cmd == OPT_CHECK || cmd == OPT_APPLY) {
 
-                uint8_t relevance = DEF_RELEVANCE;
+                uint8_t relevance = FIELD_RELEVANCE_MEDI;
                 struct opt_child *c = NULL;
 
                 while ((c = list_iterate(&patch->childs_instance_list, c))) {
@@ -727,7 +727,7 @@ static struct opt_type json_options[]= {
 	{ODI,0,ARG_JSON_STATUS,		0,  9,2,A_PS1N,A_USR,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_json_status,
 			0,		"show status in json format\n"}
         ,
-	{ODI,ARG_JSON_STATUS,ARG_RELEVANCE,'r',9,1,A_CS1,A_USR,A_DYI,A_ARG,A_ANY,0,	       MIN_RELEVANCE,   MAX_RELEVANCE,  DEF_RELEVANCE,0, opt_json_status,
+	{ODI,ARG_JSON_STATUS,ARG_RELEVANCE,'r',9,1,A_CS1,A_USR,A_DYI,A_ARG,A_ANY,0,	       MIN_RELEVANCE,   MAX_RELEVANCE,  FIELD_RELEVANCE_MEDI,0, opt_json_status,
 			ARG_VALUE_FORM,	HLP_ARG_RELEVANCE}
 };
 

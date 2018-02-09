@@ -492,42 +492,56 @@ void json_description_event_hook(int32_t cb_id, struct orig_node *on)
                 json_object *jorig = json_object_new_object();
                 json_object_object_add(jorig, "descSha", json_object_new_string(cryptShaAsString(&on->dc->dHash)));
 
-/*
-                json_object *jblocked = json_object_new_int(on->blocked);
-                json_object_object_add(jorig, "blocked", jblocked);
+		struct desc_content *dc = on->dc;
+		if (dc && dc->contentRefs_tree.items && !dc->unresolvedContentCounter) {
 
-		if (on->dhn && on->dhn->contents && on->dhn->contents->__dlen) {
+			dbgf_sys(DBGT_INFO, "descSha=%s nodeId=%s name=%s state=%s contents=%d/%d neighRefs=%d:",
+				cryptShaAsString(&dc->dHash), cryptShaAsString(dc ? &dc->kn->kHash : NULL),
+				dc && dc->on ? dc->on->k.hostname : NULL, dc ? dc->kn->bookedState->secName : NULL,
+				dc ? dc->contentRefs_tree.items : 0, dc ? (int) (dc->unresolvedContentCounter + dc->contentRefs_tree.items) : -1,
+				dc->kn->neighRefs_tree.items);
 
-			struct rx_frame_iterator it = {
-				.caller = __func__, .onOld = on, .dhnNew = on->dhn, .op = TLV_OP_PLUGIN_MIN,
-				.db = description_tlv_db, .process_filter = FRAME_TYPE_PROCESS_ALL,
-				.f_type = -1, .frames_in = on->dhn->contents->__data, .frames_length = on->dhn->contents->__dlen,
-			};
 
+			struct rx_frame_iterator it = {.caller = __func__, .on = NULL, .dcOp = dc,
+				.op = TLV_OP_PLUGIN_MIN, .db = description_tlv_db, .process_filter = DEF_DESCRIPTION_TYPE, .f_type = -1,};
+
+			int32_t result;
 			json_object *jextensions = NULL;
+			while ((result = rx_frame_iterate(&it)) > TLV_RX_DATA_DONE) {
 
-			while (rx_frame_iterate(&it) > TLV_RX_DATA_DONE) {
+				dbgf_sys(DBGT_INFO, "%s=%d (%s%s length=%d%s):",
+					it.f_handl ? it.f_handl->name : "DSC_UNKNOWN", it.f_type_expanded,
+					dc->final[it.f_type].desc_tlv_body_len ? "inline" : "ref=",
+					dc->final[it.f_type].desc_tlv_body_len ? "" : cryptShaAsString(&dc->final[it.f_type].u.cun->k.content->chash),
+					dc->final[it.f_type].desc_tlv_body_len ? dc->final[it.f_type].desc_tlv_body_len : dc->final[it.f_type].u.cun->k.content->f_body_len,
+					it.f_handl && it.f_handl->msg_format ? "" : " UNKNOWN_FORMAT"
+					);
 
-				json_object * jext_fields;
+				if (it.f_msg && it.f_handl && it.f_msgs_len) {
+					json_object * jext_fields;
 
-				if (it.handl && it.handl->min_msg_size && (jext_fields = fields_dbg_json(
-					FIELD_RELEVANCE_MEDI, YES, it.f_mlen, it.f_msg,
-					it.f_handl->min_msg_size, it.f_handl->msg_format))) {
+					if (it.f_handl->msg_format && it.f_handl->min_msg_size && (jext_fields = fields_dbg_json(
+						FIELD_RELEVANCE_MEDI, YES, it.f_msgs_len, it.f_msg, it.f_handl->min_msg_size, it.f_handl->msg_format))) {
+						
+						json_object *jext = json_object_new_object();
+						json_object_object_add(jext, it.f_handl->name, jext_fields);
+						jextensions = jextensions ? jextensions : json_object_new_array();
+						json_object_array_add(jextensions, jext);
 
-					json_object *jext = json_object_new_object();
-					json_object_object_add(jext, it.f_handl->name, jext_fields);
+					} /*else {
+						json_object *jext = json_object_new_object();
+						jext_fields = json_object_new_string(memAsHexStringSep(it.f_msg, it.f_msgs_len, it.f_handl->min_msg_size, " "));
+						json_object_object_add(jext, it.f_handl->name, jext_fields);
+						jextensions = jextensions ? jextensions : json_object_new_array();
+						json_object_array_add(jextensions, jext);
+					}*/
 
-					jextensions = jextensions ? jextensions : json_object_new_array();
-
-					json_object_array_add(jextensions, jext);
 				}
 			}
-
 			if (jextensions)
 				json_object_object_add(jorig, "extensions", jextensions);
 
 		}
-*/
                 dprintf(fd, "%s\n", json_object_to_json_string(jorig));
 
                 dbgf_all(DBGT_INFO, "creating json-description=%s", path_name);

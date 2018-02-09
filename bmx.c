@@ -1129,6 +1129,7 @@ static int32_t origs_status_creator(struct status_handl *handl, void *data)
 	if (data) {
 		struct key_node *kn = data;
 		handl->data = key_status_page(handl->data, 0, kn->on, (!kn->on ? kn->nextDesc : NULL), ((!kn->on && !kn->nextDesc) ? kn : NULL));
+		i++;
 	} else {
 		struct avl_node *it;
 		struct orig_node *on;
@@ -1150,6 +1151,7 @@ static int32_t keys_status_creator(struct status_handl *handl, void *data)
 	if (data) {
 		struct key_node *kn = data;
 		handl->data = key_status_page(handl->data, 0, kn->on, (!kn->on ? kn->nextDesc : NULL), ((!kn->on && !kn->nextDesc) ? kn : NULL));
+		i++;
 	} else {
 		struct avl_node *it;
 		struct key_node *kn;

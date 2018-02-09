@@ -418,24 +418,25 @@ void json_originator_event_hook(int32_t cb_id, struct orig_node *orig)
 
                                 struct ctrl_node *cn = create_ctrl_node(fd, NULL, YES/*we are root*/);
                                 struct status_handl *handl = NULL;
-                                uint32_t data_len;
+                                uint32_t data_len = 0;
 				char status_name[sizeof (((struct status_handl *) NULL)->status_name)] = {0};
 				strncpy(status_name, ARG_ORIGINATORS, sizeof (status_name));
+				json_object *jdesc_fields = NULL;
 
                                 if ((handl = avl_find_item(&status_tree, status_name)) &&
-                                        (data_len = ((*(handl->frame_creator))(handl, on->kn)))) {
+                                        (data_len = ((*(handl->frame_creator))(handl, on->kn))) && 
+                                        (jdesc_fields = fields_dbg_json(FIELD_RELEVANCE_HIGH, NO,
+					data_len, handl->data, handl->min_msg_size, handl->format))) {
 
-                                        json_object *jdesc_fields = NULL;
+					dbg_printf(cn, "%s\n", json_object_to_json_string(jdesc_fields));
+					json_object_put(jdesc_fields);
 
-                                        if ((jdesc_fields = fields_dbg_json(FIELD_RELEVANCE_HIGH, NO,
-                                                data_len, handl->data, handl->min_msg_size, handl->format))) {
+					dbgf_sys(DBGT_INFO, "creating json-originator=%s", path_name);
 
-                                                dbg_printf(cn, "%s\n", json_object_to_json_string(jdesc_fields));
-                                                json_object_put(jdesc_fields);
-
-                                                dbgf_all(DBGT_INFO, "creating json-originator=%s", path_name);
-                                        }
-                                }
+                                } else {
+					dbgf_sys(DBGT_ERR, "Failed creating json-%s=%s (handl=%d data_len=%d jdesc_fields=%d)!",
+						status_name, path_name, !!handl, data_len, !!jdesc_fields);
+				}
 
                                 close_ctrl_node(CTRL_CLOSE_STRAIGHT, cn);
                         }

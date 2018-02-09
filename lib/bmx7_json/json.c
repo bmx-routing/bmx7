@@ -314,11 +314,9 @@ int32_t update_json_options(IDM_T show_options, IDM_T show_parameters, char *fil
 
 
 
-
 STATIC_FUNC
-void json_dev_event_hook(int32_t cb_id, void* data)
+void json_generic_event_hook(int32_t cb_id, void* data, char *statusKey)
 {
-
         if (!json_update_interval || terminating)
                 return;
 
@@ -326,7 +324,7 @@ void json_dev_event_hook(int32_t cb_id, void* data)
 
         int fd;
         char path_name[MAX_PATH_SIZE + 20] = "";
-        sprintf(path_name, "%s/%s", json_dir, ARG_INTERFACES);
+        sprintf(path_name, "%s/%s", json_dir, statusKey);
 
         if ((fd = open(path_name, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) < 0) {
 
@@ -336,10 +334,17 @@ void json_dev_event_hook(int32_t cb_id, void* data)
 
                 struct ctrl_node *cn = create_ctrl_node(fd, NULL, YES/*we are root*/);
 
-                check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_JSON_STATUS), ARG_INTERFACES, cn);
+                check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_JSON_STATUS), statusKey, cn);
 
                 close_ctrl_node(CTRL_CLOSE_STRAIGHT, cn);
         }
+}
+
+
+STATIC_FUNC
+void json_dev_event_hook(int32_t cb_id, void* data)
+{
+	json_generic_event_hook(cb_id, data, ARG_INTERFACES);
 }
 
 STATIC_FUNC
@@ -358,54 +363,16 @@ void json_config_event_hook(int32_t cb_id, void *data)
 STATIC_FUNC
 void json_status_event_hook(int32_t cb_id, void* data)
 {
-        if (!json_update_interval || terminating)
-                return;
-
-        TRACE_FUNCTION_CALL;
-
-        int fd;
-        char path_name[MAX_PATH_SIZE + 20] = "";
-        sprintf(path_name, "%s/%s", json_dir, ARG_STATUS);
-
-        if ((fd = open(path_name, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) < 0) {
-
-                dbgf_sys(DBGT_ERR, "could not open %s - %s", path_name, strerror(errno));
-
-        } else {
-
-                struct ctrl_node *cn = create_ctrl_node(fd, NULL, YES/*we are root*/);
-
-                check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_JSON_STATUS), ARG_STATUS, cn);
-
-                close_ctrl_node(CTRL_CLOSE_STRAIGHT, cn);
-        }
+	json_generic_event_hook(cb_id, data, ARG_STATUS);
 }
+
 
 STATIC_FUNC
 void json_links_event_hook(int32_t cb_id, void* data)
 {
-        if (!json_update_interval || terminating)
-                return;
-
-        TRACE_FUNCTION_CALL;
-
-        int fd;
-        char path_name[MAX_PATH_SIZE + 20] = "";
-        sprintf(path_name, "%s/%s", json_dir, ARG_LINKS);
-
-        if ((fd = open(path_name, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) < 0) {
-
-                dbgf_sys(DBGT_ERR, "could not open %s - %s", path_name, strerror(errno));
-
-        } else {
-
-                struct ctrl_node *cn = create_ctrl_node(fd, NULL, YES/*we are root*/);
-
-                check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_JSON_STATUS), ARG_LINKS, cn);
-
-                close_ctrl_node(CTRL_CLOSE_STRAIGHT, cn);
-        }
+	json_generic_event_hook(cb_id, data, ARG_LINKS);
 }
+
 
 STATIC_FUNC
 void json_originator_event_hook(int32_t cb_id, struct orig_node *orig)
@@ -450,11 +417,10 @@ void json_originator_event_hook(int32_t cb_id, struct orig_node *orig)
                         } else {
 
                                 struct ctrl_node *cn = create_ctrl_node(fd, NULL, YES/*we are root*/);
-
                                 struct status_handl *handl = NULL;
                                 uint32_t data_len;
-
-                                char status_name[sizeof (((struct status_handl *) NULL)->status_name)] = ARG_ORIGINATORS;
+				char status_name[sizeof (((struct status_handl *) NULL)->status_name)] = {0};
+				strncpy(status_name, ARG_ORIGINATORS, sizeof (status_name));
 
                                 if ((handl = avl_find_item(&status_tree, status_name)) &&
                                         (data_len = ((*(handl->frame_creator))(handl, on->kn)))) {
@@ -479,7 +445,6 @@ void json_originator_event_hook(int32_t cb_id, struct orig_node *orig)
                 }
         }
 }
-
 
 STATIC_FUNC
 void json_route_change_hook(uint8_t del, struct orig_node *on)
@@ -766,7 +731,6 @@ struct plugin* get_plugin( void ) {
         json_plugin.cb_plugin_handler[PLUGIN_CB_DESCRIPTION_CREATED] = (void (*) (int32_t, void*)) json_description_event_hook;
         json_plugin.cb_plugin_handler[PLUGIN_CB_DESCRIPTION_DESTROY] = (void (*) (int32_t, void*)) json_description_event_hook;
         json_plugin.cb_plugin_handler[PLUGIN_CB_CONF] = json_config_event_hook;
-//      json_plugin.cb_plugin_handler[PLUGIN_CB_CONF] = json_dev_event_hook;
         json_plugin.cb_plugin_handler[PLUGIN_CB_BMX_DEV_EVENT] = json_dev_event_hook;
         json_plugin.cb_plugin_handler[PLUGIN_CB_STATUS] = json_status_event_hook;
         json_plugin.cb_plugin_handler[PLUGIN_CB_LINKS_EVENT] = json_links_event_hook;

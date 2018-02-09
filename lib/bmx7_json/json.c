@@ -425,7 +425,7 @@ void json_originator_event_hook(int32_t cb_id, struct orig_node *orig)
 
                                 if ((handl = avl_find_item(&status_tree, status_name)) &&
                                         (data_len = ((*(handl->frame_creator))(handl, on->kn))) && 
-                                        (jdesc_fields = fields_dbg_json(FIELD_RELEVANCE_HIGH, NO,
+                                        (jdesc_fields = fields_dbg_json(FIELD_RELEVANCE_MEDI, NO,
 					data_len, handl->data, handl->min_msg_size, handl->format))) {
 
 					dbg_printf(cn, "%s\n", json_object_to_json_string(jdesc_fields));
@@ -450,7 +450,8 @@ void json_originator_event_hook(int32_t cb_id, struct orig_node *orig)
 STATIC_FUNC
 void json_route_change_hook(uint8_t del, struct orig_node *on)
 {
-        json_originator_event_hook(del ? PLUGIN_CB_DESCRIPTION_DESTROY : PLUGIN_CB_DESCRIPTION_CREATED, on);
+	if(!del)
+		json_originator_event_hook(PLUGIN_CB_DESCRIPTION_CREATED, on);
 }
 
 STATIC_FUNC

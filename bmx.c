@@ -1571,7 +1571,7 @@ DESC_SQN_T newDescriptionSqn( char* newPath, uint8_t exitIfFailure )
 				((ret = fprintf(file, "%u", currSqn)) > 0) &&
 				(fclose(file) == 0) && !(file = NULL) && (truncate(path, ret) == 0)) {
 
-				dbgf_sys(DBGT_INFO, "Updating existing %s=%s descSqn=%d", ARG_DSQN_PATH, path, currSqn );
+				dbgf_track(DBGT_INFO, "Updating existing %s=%s descSqn=%d", ARG_DSQN_PATH, path, currSqn );
 
 			} else {
 				goto_error(finish, "has illegal content");

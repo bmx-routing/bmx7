@@ -322,7 +322,7 @@ void update_my_description(void)
 
 	assertion(-502316, (dcNew));
 
-	dbgf_sys(DBGT_INFO, "nodeId=%s dhashOld=%s dhashNew=%s descSqn=%d",
+	dbgf_track(DBGT_INFO, "nodeId=%s dhashOld=%s dhashNew=%s descSqn=%d",
 		cryptShaAsString(&myKey->kHash), cryptShaAsString(&oldDHash), cryptShaAsString(&dcNew->dHash), dcNew->descSqn);
 
 	assertion(-502317, (dcNew->kn == myKey && !myKey->nextDesc));

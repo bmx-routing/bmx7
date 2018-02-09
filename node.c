@@ -537,7 +537,7 @@ void neigh_destroy(struct orig_node *on)
 	if (on->kn == myKey)
 		return;
 
-	dbgf_sys(DBGT_INFO, "purging local_id=%s curr_rx_packet=%d thisNeighsPacket=%d verified_link=%d",
+	dbgf_track(DBGT_INFO, "purging local_id=%s curr_rx_packet=%d thisNeighsPacket=%d verified_link=%d",
 		cryptShaAsString(&local->local_id), !!curr_rx_packet,
 		(curr_rx_packet && curr_rx_packet->i.claimedKey == local->on->kn),
 		(curr_rx_packet && curr_rx_packet->i.verifiedLink));
@@ -629,7 +629,7 @@ struct neigh_node *neigh_create(struct orig_node *on)
 
 void destroy_orig_node(struct orig_node *on)
 {
-	dbgf_sys(DBGT_INFO, "id=%s name=%s", cryptShaAsString(&on->k.nodeId), on->k.hostname);
+	dbgf_track(DBGT_INFO, "id=%s name=%s", cryptShaAsString(&on->k.nodeId), on->k.hostname);
 
 	assertion(-502474, (on && on->dc && on->kn && on->dc->descSqn));
 	assertion(-502475, (on->dc->on == on && on->dc->kn == on->kn && on->kn->on == on));

@@ -431,10 +431,10 @@ void json_originator_event_hook(int32_t cb_id, struct orig_node *orig)
 					dbg_printf(cn, "%s\n", json_object_to_json_string(jdesc_fields));
 					json_object_put(jdesc_fields);
 
-					dbgf_sys(DBGT_INFO, "creating json-originator=%s", path_name);
+					dbgf_track(DBGT_INFO, "creating json-originator=%s", path_name);
 
                                 } else {
-					dbgf_sys(DBGT_ERR, "Failed creating json-%s=%s (handl=%d data_len=%d jdesc_fields=%d)!",
+					dbgf_mute(30, DBGL_SYS, DBGT_ERR, "Failed creating json-%s=%s (handl=%d data_len=%d jdesc_fields=%d)!",
 						status_name, path_name, !!handl, data_len, !!jdesc_fields);
 				}
 
@@ -495,7 +495,7 @@ void json_description_event_hook(int32_t cb_id, struct orig_node *on)
 		struct desc_content *dc = on->dc;
 		if (dc && dc->contentRefs_tree.items && !dc->unresolvedContentCounter) {
 
-			dbgf_sys(DBGT_INFO, "descSha=%s nodeId=%s name=%s state=%s contents=%d/%d neighRefs=%d:",
+			dbgf_track(DBGT_INFO, "descSha=%s nodeId=%s name=%s state=%s contents=%d/%d neighRefs=%d:",
 				cryptShaAsString(&dc->dHash), cryptShaAsString(dc ? &dc->kn->kHash : NULL),
 				dc && dc->on ? dc->on->k.hostname : NULL, dc ? dc->kn->bookedState->secName : NULL,
 				dc ? dc->contentRefs_tree.items : 0, dc ? (int) (dc->unresolvedContentCounter + dc->contentRefs_tree.items) : -1,
@@ -509,7 +509,7 @@ void json_description_event_hook(int32_t cb_id, struct orig_node *on)
 			json_object *jextensions = NULL;
 			while ((result = rx_frame_iterate(&it)) > TLV_RX_DATA_DONE) {
 
-				dbgf_sys(DBGT_INFO, "%s=%d (%s%s length=%d%s):",
+				dbgf_track(DBGT_INFO, "%s=%d (%s%s length=%d%s):",
 					it.f_handl ? it.f_handl->name : "DSC_UNKNOWN", it.f_type_expanded,
 					dc->final[it.f_type].desc_tlv_body_len ? "inline" : "ref=",
 					dc->final[it.f_type].desc_tlv_body_len ? "" : cryptShaAsString(&dc->final[it.f_type].u.cun->k.content->chash),

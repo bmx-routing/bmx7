@@ -511,6 +511,7 @@ CRYPTRSA_T *cryptRsaKeyFromDer( char *keyPath ) {
 #elif CRYPTLIB >= POLARSSL_1_3_3
 	pk_context pk;
 	pk_init(&pk);
+	rsa_init(rsa, RSA_PKCS_V15, 0);
 
 	if (
 		((ret = pk_parse_keyfile(&pk, keyPath, "")) != 0) ||

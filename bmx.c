@@ -836,7 +836,7 @@ static int32_t bmx_status_creator(struct status_handl *handl, void *data)
 	status->nodeKey = (pkm = contents_data(myKey->on->dc, BMX_DSC_TLV_NODE_PUBKEY)) ? cryptRsaKeyTypeAsString(pkm->type) : DBG_NIL;
 	struct dsc_msg_pubkey *rsaMsg = contents_data(myKey->on->dc, BMX_DSC_TLV_RSA_LINK_PUBKEY);
 	struct dsc_msg_dhm_link_key *dhmMsg = contents_data(myKey->on->dc, BMX_DSC_TLV_DHM_LINK_PUBKEY);
-	sprintf(status->linkKeys, "%s%s%s", (rsaMsg ? cryptRsaKeyTypeAsString(rsaMsg->type) : (dhmMsg ? cryptDhmKeyTypeAsString(dhmMsg->type) : DBG_NIL)),
+	snprintf(status->linkKeys, sizeof(status->linkKeys), "%s%s%s", (rsaMsg ? cryptRsaKeyTypeAsString(rsaMsg->type) : (dhmMsg ? cryptDhmKeyTypeAsString(dhmMsg->type) : DBG_NIL)),
 		(rsaMsg && dhmMsg ? "," : ""), (rsaMsg && dhmMsg ? cryptDhmKeyTypeAsString(dhmMsg->type) : ""));
 	snprintf(status->version, sizeof(status->version), "%s-%s", BMX_BRANCH, BRANCH_VERSION);
 	status->cv = my_compatibility;
@@ -1086,7 +1086,7 @@ uint8_t *key_status_page(uint8_t *sOut, uint32_t i, struct orig_node *on, struct
 	if (on) {
 		struct dsc_msg_pubkey *rsaMsg = contents_data(on->dc, BMX_DSC_TLV_RSA_LINK_PUBKEY);
 		struct dsc_msg_dhm_link_key *dhmMsg = contents_data(on->dc, BMX_DSC_TLV_DHM_LINK_PUBKEY);
-		sprintf(os->linkKeys, "%s%s%s", (rsaMsg ? cryptRsaKeyTypeAsString(rsaMsg->type) : (dhmMsg ? cryptDhmKeyTypeAsString(dhmMsg->type) : DBG_NIL)),
+		snprintf(os->linkKeys, sizeof(os->linkKeys), "%s%s%s", (rsaMsg ? cryptRsaKeyTypeAsString(rsaMsg->type) : (dhmMsg ? cryptDhmKeyTypeAsString(dhmMsg->type) : DBG_NIL)),
 			(rsaMsg && dhmMsg ? "," : ""), (rsaMsg && dhmMsg ? cryptDhmKeyTypeAsString(dhmMsg->type) : ""));
 		os->name = strlen(on->k.hostname) ? on->k.hostname : DBG_NIL;
 		os->primaryIp = on->primary_ip;

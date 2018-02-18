@@ -3227,7 +3227,7 @@ static int32_t dev_status_creator(struct status_handl *handl, void* data)
 		status[i].linkKey = cryptRsaKeyTypeAsString(dev->lastTxKey) ? cryptRsaKeyTypeAsString(dev->lastTxKey) : cryptDhmKeyTypeAsString(dev->lastTxKey);
 		struct dsc_msg_pubkey *rsaMsg = myKey->on ? contents_data(myKey->on->dc, BMX_DSC_TLV_RSA_LINK_PUBKEY) : NULL;
 		struct dsc_msg_dhm_link_key *dhmMsg = myKey->on ? contents_data(myKey->on->dc, BMX_DSC_TLV_DHM_LINK_PUBKEY) : NULL;
-		sprintf(status[i].linkKeys, "%s%s%s", (rsaMsg ? cryptRsaKeyTypeAsString(rsaMsg->type) : (dhmMsg ? cryptDhmKeyTypeAsString(dhmMsg->type) : DBG_NIL)),
+		snprintf(status[i].linkKeys, sizeof(status[i].linkKeys), "%s%s%s", (rsaMsg ? cryptRsaKeyTypeAsString(rsaMsg->type) : (dhmMsg ? cryptDhmKeyTypeAsString(dhmMsg->type) : DBG_NIL)),
 			(rsaMsg && dhmMsg ? "," : ""), (rsaMsg && dhmMsg ? cryptDhmKeyTypeAsString(dhmMsg->type) : ""));
                 status[i].type = !dev->active ? "INACTIVE" :
                         (dev->linklayer == TYP_DEV_LL_LO ? "loopback" :
@@ -3238,14 +3238,14 @@ static int32_t dev_status_creator(struct status_handl *handl, void* data)
 		status[i].idx = dev->llipKey.devIdx;
 		status[i].localMac = dev->mac;
 //		strcpy(status[i].localMac, strToLower(memAsHexStringSep(&dev->mac, MAC_ADDR_LEN,1,":")));
-                sprintf(status[i].localIp, "%s/%d", dev->ip_llocal_str, dev->if_llocal_addr ? dev->if_llocal_addr->ifa.ifa_prefixlen : -1);
-                sprintf(status[i].globalIp, "%s/%d", dev->ip_global_str, dev->if_global_addr ? dev->if_global_addr->ifa.ifa_prefixlen : -1);
+		snprintf(status[i].localIp, sizeof(status[i].localIp), "%s/%d", dev->ip_llocal_str, dev->if_llocal_addr ? dev->if_llocal_addr->ifa.ifa_prefixlen : -1);
+		snprintf(status[i].globalIp, sizeof(status[i].globalIp), "%s/%d", dev->ip_global_str, dev->if_global_addr ? dev->if_global_addr->ifa.ifa_prefixlen : -1);
 		ip6ToStr(dev->if_llocal_addr ? &dev->if_llocal_addr->ip_mcast : NULL, status[i].multicastIp);
                 status[i].helloSqn = dev->link_hello_sqn;
 		status[i].rts = dev->totalOrigRoutes;
-		sprintf(status[i].rxBpP,  "%d/%.1f", (dev->udpRxBytesMean / DEVSTAT_PRECISION), (((float)dev->udpRxPacketsMean) / DEVSTAT_PRECISION));
-		sprintf(status[i].txBpP, "%d/%.1f", (dev->udpTxBytesMean / DEVSTAT_PRECISION), (((float)dev->udpTxPacketsMean) / DEVSTAT_PRECISION));
-		sprintf(status[i].txTasks, "%d/%d", dev->tx_task_items, txTaskTreeSizeMax);
+		snprintf(status[i].rxBpP, sizeof(status[i].rxBpP), "%d/%.1f", (dev->udpRxBytesMean / DEVSTAT_PRECISION), (((float)dev->udpRxPacketsMean) / DEVSTAT_PRECISION));
+		snprintf(status[i].txBpP, sizeof(status[i].txBpP), "%d/%.1f", (dev->udpTxBytesMean / DEVSTAT_PRECISION), (((float)dev->udpTxPacketsMean) / DEVSTAT_PRECISION));
+		snprintf(status[i].txTasks, sizeof(status[i].txTasks), "%d/%d", dev->tx_task_items, txTaskTreeSizeMax);
 
                 i++;
         }

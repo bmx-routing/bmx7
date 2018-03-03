@@ -727,7 +727,6 @@ IDM_T validate_metricalgo(struct host_metricalgo *ma, struct ctrl_node *cn)
 		validate_param((ma->ogm_link_rate_efficiency), MIN_OGM_LINK_RATE_EFFICIENCY, MAX_OGM_LINK_RATE_EFFICIENCY, ARG_OGM_LINK_RATE_EFFICIENCY) ||
 		validate_param((ma->ogm_link_throughput_efficiency), MIN_OGM_LINK_TP_EFFICIENCY, MAX_OGM_LINK_TP_EFFICIENCY, ARG_OGM_LINK_TP_EFFICIENCY) ||
 		validate_param((ma->ogm_interval_sec), MIN_OGM_INTERVAL/1000, MAX_OGM_INTERVAL/1000, ARG_OGM_INTERVAL) ||
-		ma->lq_t1_point_r255 <= ma->lq_tx_point_r255 ||
                 !is_umetric_valid(&ma->umetric_min) || !is_fmetric_valid(ma->fmetric_u16_min) ||
                 ma->umetric_min != fmetric_to_umetric(ma->fmetric_u16_min) || ma->umetric_min < UMETRIC_MIN__NOT_ROUTABLE ||
 
@@ -816,7 +815,7 @@ int create_description_tlv_metricalgo(struct tx_frame_iterator *it)
         tlv_algo.m.rp_exp_divisor = my_path_rp_exp_divisor;
         tlv_algo.m.tp_exp_numerator = my_path_tp_exp_numerator;
         tlv_algo.m.tp_exp_divisor = my_path_tp_exp_divisor;
-	tlv_algo.m.lq_tx_point_r255 = my_path_lq_tx_r255;
+	tlv_algo.m.lq_tx_point_r255 = XMIN(my_path_lq_tx_r255, my_path_lq_t1_r255 - 1);
 	tlv_algo.m.lq_ty_point_r255 = my_path_lq_ty_r255;
 	tlv_algo.m.lq_t1_point_r255 = my_path_lq_t1_r255;
 	tlv_algo.m.ogm_link_rate_efficiency = my_ogm_link_rate_efficiency;

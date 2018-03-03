@@ -63,7 +63,7 @@
 #define MAX_LINK_BURST_BYTES 1000000
 
 #define ARG_LINK_RATE_AVG_WEIGHT "linkAvgWeight"
-#define HLP_LINK_RATE_AVG_WEIGHT "weight for averaging out old link-rate probes"
+#define HLP_LINK_RATE_AVG_WEIGHT "inverse weight (1/x) for averaging out old link-rate probes"
 #define DEF_LINK_RATE_AVG_WEIGHT 10
 #define MIN_LINK_RATE_AVG_WEIGHT 1
 #define MAX_LINK_RATE_AVG_WEIGHT 100

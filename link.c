@@ -788,6 +788,7 @@ struct link_status {
 
 	UMETRIC_T wTxRateAvg;
 	UMETRIC_T wTxRate;
+	UMETRIC_T wTxThrAvg;
 	UMETRIC_T wTxThr;
 	uint32_t cnt;
 	int8_t mcs;
@@ -834,7 +835,7 @@ static const struct field_format link_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, bestRq,           1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, tq,               1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, bestTq,           1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           link_status, rxRate,           1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           link_status, rxRate,           1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           link_status, txRate,           1, FIELD_RELEVANCE_HIGH),
 
 	FIELD_FORMAT_INIT(FIELD_TYPE_FLOAT,             link_status, wLastUpd,         1, FIELD_RELEVANCE_MEDI),
@@ -851,6 +852,7 @@ static const struct field_format link_status_format[] = {
 
         FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           link_status, wTxRateAvg,       1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           link_status, wTxRate,          1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           link_status, wTxThrAvg,        1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           link_status, wTxThr,           1, FIELD_RELEVANCE_HIGH),
 	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, cnt,              1, FIELD_RELEVANCE_MEDI),
 	FIELD_FORMAT_INIT(FIELD_TYPE_INT,               link_status, mcs,              1, FIELD_RELEVANCE_HIGH),
@@ -912,7 +914,9 @@ static int32_t link_status_creator(struct status_handl *handl, void *data)
 				status[i].bestRq = (link == local->best_rq_link);
 				status[i].tq = ((link->timeaware_tq_probe * 100) / LQ_MAX);
 				status[i].bestTq = (link == local->best_tq_link);
-				status[i].txRate = link->wifiStats.txRateAvg ? link->wifiStats.txRateAvg : ((link->timeaware_tq_probe * link->k.myDev->umetric_max) / LQ_MAX);
+				status[i].txRate = link->wifiStats.expTpAvg ? link->wifiStats.expTpAvg : 
+					(link->wifiStats.txRateAvg ? ((link->wifiStats.txRateAvg * ((UMETRIC_T) (link->k.myDev->linklayer == TYP_DEV_LL_WIFI ? DEF_OGM_LINK_RATE_EFFICIENCY : 100))) / 100) : 
+						((link->timeaware_tq_probe * link->k.myDev->umetric_max) / LQ_MAX));
 				status[i].rxRate = ((link->timeaware_rq_probe * (link->wifiStats.rxRate ? link->wifiStats.rxRate : link->k.myDev->umetric_max)) / LQ_MAX);
 
 				status[i].wLastUpd = link->wifiStats.updatedTime ? ((float)(((TIME_T)(bmx_time - link->wifiStats.updatedTime))/1000)) : -1;
@@ -926,6 +930,7 @@ static int32_t link_status_creator(struct status_handl *handl, void *data)
 				status[i].wTxRate = link->wifiStats.txRate;
 				status[i].wTxRateAvg = link->wifiStats.txRateAvg;
 				status[i].wTxThr = link->wifiStats.expectedThroughput;
+				status[i].wTxThrAvg = link->wifiStats.expTpAvg;
 				status[i].cnt = link->wifiStats.txPackets;
 				status[i].mcs = link->wifiStats.txMcs;
 				status[i].mhz = link->wifiStats.txMhz;

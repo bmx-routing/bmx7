@@ -131,7 +131,7 @@ void get_link_rate(struct dev_node *tDev)
 
 							oLink->wifiStats.txRate = e->tx_rate.rate * 1000;
 							oLink->wifiStats.txRateAvg = oLink->wifiStats.txRateAvg + (oLink->wifiStats.txRate / linkAvgRateWeight) - (oLink->wifiStats.txRateAvg / linkAvgRateWeight);
-							oLink->wifiStats.txRateExpected = e->thr;
+							oLink->wifiStats.txRateExpected = e->thr * 1000; 
 							oLink->wifiStats.tx40mhz = e->tx_rate.is_40mhz;
 							//link->linkStats.txHt = e->tx_rate.is_ht;
 							oLink->wifiStats.txMcs = e->tx_rate.mcs;

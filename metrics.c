@@ -441,8 +441,8 @@ void path_metricalgo_ExpectedBandwidth(struct NeighPath *np, struct NeighRef_nod
 
 	UMETRIC_T linkBandwidth;
 
-	if (np->link->wifiStats.txRateExpected)
-		linkBandwidth = umetric_multiply_normalized(np->link->wifiStats.txRateExpected, lq);
+	if (np->link->wifiStats.expectedThroughput)
+		linkBandwidth = umetric_multiply_normalized(np->link->wifiStats.expectedThroughput, lq);
 	else
 		linkBandwidth = ((umetric_multiply_normalized(np->link->k.myDev->umetric_max, lq)* ((UMETRIC_T) (np->link->k.myDev->linklayer == TYP_DEV_LL_WIFI ? algo->ogm_link_rate_efficiency: 100))) / 100);
 
@@ -459,8 +459,8 @@ void path_metricalgo_VectorBandwidth(struct NeighPath *np, struct NeighRef_node 
         UMETRIC_T linkTP;
 
 
-	if (np->link->wifiStats.txRateExpected) {
-		linkTP = np->link->wifiStats.txRateExpected;
+	if (np->link->wifiStats.expectedThroughput) {
+		linkTP = np->link->wifiStats.expectedThroughput;
 	} else if (np->link->wifiStats.txRateAvg) {
 		linkTP = ((np->link->wifiStats.txRateAvg * ((UMETRIC_T) (np->link->k.myDev->linklayer == TYP_DEV_LL_WIFI ? algo->ogm_link_rate_efficiency: 100))) / 100);
 	} else {
@@ -581,8 +581,8 @@ void path_metricalgo_Capacity(struct NeighPath *np, struct NeighRef_node *ref, s
 	UMETRIC_T lq = apply_lq_threshold_curve(umetric_multiply_normalized(tq, rq), algo);
 
 
-	if (np->link->wifiStats.txRateExpected) {
-		linkTP = umetric_multiply_normalized(np->link->wifiStats.txRateExpected, lq);
+	if (np->link->wifiStats.expectedThroughput) {
+		linkTP = umetric_multiply_normalized(np->link->wifiStats.expectedThroughput, lq);
 	} else if (np->link->wifiStats.txRateAvg) {
 		//linkTP = ((np->link->wifiStats.txRateAvg * ((UMETRIC_T)(np->link->k.myDev->linklayer == TYP_DEV_LL_WIFI ? algo->ogm_link_rate_efficiency: 100))) / 100);
 

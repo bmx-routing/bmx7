@@ -788,7 +788,7 @@ struct link_status {
 
 	UMETRIC_T wTxRateAvg;
 	UMETRIC_T wTxRate;
-	UMETRIC_T wTxRateExpected;
+	UMETRIC_T wTxThr;
 	uint32_t cnt;
 	int8_t mcs;
 	uint8_t mhz;
@@ -851,7 +851,7 @@ static const struct field_format link_status_format[] = {
 
         FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           link_status, wTxRateAvg,       1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           link_status, wTxRate,          1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           link_status, wTxRateExpected,  1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           link_status, wTxThr,           1, FIELD_RELEVANCE_HIGH),
 	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, cnt,              1, FIELD_RELEVANCE_MEDI),
 	FIELD_FORMAT_INIT(FIELD_TYPE_INT,               link_status, mcs,              1, FIELD_RELEVANCE_HIGH),
 	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, mhz,              1, FIELD_RELEVANCE_LOW),
@@ -925,7 +925,7 @@ static int32_t link_status_creator(struct status_handl *handl, void *data)
 				status[i].wSnr = link->wifiStats.signal - link->wifiStats.noise;
 				status[i].wTxRate = link->wifiStats.txRate;
 				status[i].wTxRateAvg = link->wifiStats.txRateAvg;
-				status[i].wTxRateExpected = link->wifiStats.txRateExpected;
+				status[i].wTxThr = link->wifiStats.expectedThroughput;
 				status[i].cnt = link->wifiStats.txPackets;
 				status[i].mcs = link->wifiStats.txMcs;
 				status[i].mhz = link->wifiStats.txMhz;

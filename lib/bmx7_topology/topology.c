@@ -242,7 +242,7 @@ void check_local_topology_cache(void *nothing)
 		if (link->timeaware_tq_probe) {
 
 			struct local_topology_key key = {
-				.nbId = link->k.linkDev->key.local->local_id,
+				.nbId = link->k.linkDev->key.local->k.nodeId,
 				.myIdx = link->k.myDev->llipKey.devIdx,
 				.nbIdx = link->k.linkDev->key.devIdx
 			};
@@ -336,7 +336,7 @@ int create_description_topology(struct tx_frame_iterator *it)
 			struct local_topology_node *ltn = debugMallocReset(sizeof(struct local_topology_node), -300786);
 
 			set_local_topology_node(ltn, link);
-			ltn->k.nbId = link->k.linkDev->key.local->local_id;
+			ltn->k.nbId = link->k.linkDev->key.local->k.nodeId;
 			ltn->k.myIdx = link->k.myDev->llipKey.devIdx;
 			ltn->k.nbIdx = link->k.linkDev->key.devIdx;
 			avl_insert(&local_topology_tree, ltn, -300787);

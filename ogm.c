@@ -388,7 +388,7 @@ void schedule_ogm_req(void)
 {
 	struct neigh_node *nn = NULL;
 
-	while ((nn = avl_next_item(&local_tree, nn ? &nn->local_id : NULL))) {
+	while ((nn = avl_next_item(&local_tree, nn ? &nn->k.nodeId : NULL))) {
 
 		if (/*nn->orig_routes &&*/ nn->best_tq_link && (nn->ogm_aggreg_time || nn->ogm_aggreg_max)) { //ever updated:
 
@@ -400,7 +400,7 @@ void schedule_ogm_req(void)
 
 				if (!bit_get(nn->ogm_aggreg_sqns, AGGREG_SQN_CACHE_RANGE, sqn)) {
 					struct dev_node *dev = nn->best_tq_link->k.myDev;
-					schedule_tx_task(FRAME_TYPE_OGM_REQ, NULL, &nn->local_id, nn, dev, SCHEDULE_MIN_MSG_SIZE, &sqn, sizeof(sqn));
+					schedule_tx_task(FRAME_TYPE_OGM_REQ, NULL, &nn->k.nodeId, nn, dev, SCHEDULE_MIN_MSG_SIZE, &sqn, sizeof(sqn));
 				}
 			}
 		}
@@ -554,7 +554,7 @@ struct NeighPath *lndev_best_via_router(struct NeighRef_node *ref)
 
 	dbgf_track(refMetric <= on->mtcAlgo->umetric_min ? DBGT_WARN : DBGT_INFO,
 		"orig=%s descSqn=%d via neigh=%s trusted=%d newOgmMin=%d (knDescSqn=%d refDescSqn=%d knOgmSqn=%d refOgmSqn=%d knMetricMin=%d refMetric=%d ogmSqnFirstSec=%d nowSec=%d) hops=%d refMtc=%ju refOgmHist=%d/%d minMtc=%ju ogmSqnRcvd=%d ogmSqnMaxSend=%d onSendMtc=%ju onSqnHystere=%d onMtcHystere=%d RefSqnBestSince=%d",
-		cryptShaAsShortStr(&on->k.nodeId), dc->descSqn, cryptShaAsShortStr(&nn->local_id),
+		cryptShaAsShortStr(&on->k.nodeId), dc->descSqn, cryptShaAsShortStr(&nn->k.nodeId),
 		neighTrust, newOgmMins, ref->kn->descSqnMin, ref->descSqn, ref->kn->ogmSqnMin, ref->ogmSqnMax, ref->kn->ogmMetricMin.val.u16, umetric_to_fmetric(refMetric).val.u16, ref->kn->ogmSqnFirst_sec, bmx_time_sec,
 		ref->ogmSqnMaxClaimedHops, refMetric,
 		(int)(ref->ogmSqnMaxPathMetricsByteSize / sizeof(struct msg_ogm_adv_metric_t0)), on->mtcAlgo->ogm_hop_history,

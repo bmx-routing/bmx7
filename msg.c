@@ -1039,7 +1039,7 @@ void schedule_tx_task(uint8_t f_type, LinkNode *unicast, CRYPTSHA_T *groupId, st
 
 	dbgf((dbg_frame_types & (1<<f_type) ? DBGL_CHANGES : DBGL_ALL), DBGT_INFO,
 		 "type=%s groupId=%s neigh=%s dev=%s msgs_len=%d data=%s len=%d",
-		 handl->name, cryptShaAsString(groupId), neigh ? cryptShaAsShortStr(&neigh->local_id) : NULL,
+		 handl->name, cryptShaAsString(groupId), neigh ? cryptShaAsShortStr(&neigh->k.nodeId) : NULL,
 		 dev ? dev->ifname_label.str : NULL, f_msgs_len, memAsHexString(keyData, keyLen), keyLen);
 
 	if (dev->tx_task_items >= txTaskTreeSizeMax) {

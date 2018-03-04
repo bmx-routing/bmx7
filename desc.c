@@ -241,6 +241,11 @@ void update_orig_dhash(struct desc_content *dcNew)
 	if (dcOld)
 		descContent_destroy(dcOld);
 
+	if (on->neigh) {
+		assertion(-500000, cryptShasEqual(&on->neigh->k.nodeId, &on->k.nodeId));
+		on->neigh->k = on->k;
+	}
+
 	on->updated_timestamp = bmx_time;
 
 	cb_plugin_hooks(PLUGIN_CB_DESCRIPTION_CREATED, on);
@@ -577,7 +582,7 @@ int32_t rx_msg_description_request(struct rx_frame_iterator *it)
 
 		} else {
 			dbgf_sys(DBGT_WARN, "UNVERIFIED neigh=%s llip=%s or non-promoted kHash=%s kn=%d on=%d nextDc=%d",
-				pb->i.verifiedLink? cryptShaAsString(&pb->i.verifiedLink->k.linkDev->key.local->local_id) : NULL,
+				pb->i.verifiedLink? cryptShaAsString(&pb->i.verifiedLink->k.linkDev->key.local->k.nodeId) : NULL,
 				pb->i.llip_str, cryptShaAsString(&msg->kHash), !!kn, (kn && kn->on), (kn && kn->nextDesc));
 		}
 	}

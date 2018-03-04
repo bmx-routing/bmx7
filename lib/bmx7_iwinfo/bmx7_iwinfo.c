@@ -185,7 +185,7 @@ void get_link_rate(struct dev_node *tDev)
 
 							struct tp_test_key tk = {.duration = linkBurstDuration, .endTime = 0, .packetSize = linkBurstPacketSize, .totalSend = 0};
 
-							schedule_tx_task(FRAME_TYPE_TRASH_ADV, oLink, &oLink->k.linkDev->key.local->local_id, oLink->k.linkDev->key.local, oLink->k.myDev,
+							schedule_tx_task(FRAME_TYPE_TRASH_ADV, oLink, &oLink->k.linkDev->key.local->k.nodeId, oLink->k.linkDev->key.local, oLink->k.myDev,
 								tk.packetSize, &tk, sizeof(tk));
 
 
@@ -198,7 +198,7 @@ void get_link_rate(struct dev_node *tDev)
 
 							struct tp_test_key tk = {.duration = 0, .endTime = 0, .packetSize = linkProbePacketSize, .totalSend = 0};
 
-							schedule_tx_task(FRAME_TYPE_TRASH_ADV, oLink, &oLink->k.linkDev->key.local->local_id, oLink->k.linkDev->key.local, oLink->k.myDev,
+							schedule_tx_task(FRAME_TYPE_TRASH_ADV, oLink, &oLink->k.linkDev->key.local->k.nodeId, oLink->k.linkDev->key.local, oLink->k.myDev,
 								tk.packetSize, &tk, sizeof(tk));
 
 						}
@@ -301,7 +301,7 @@ int32_t tx_frame_trash_adv(struct tx_frame_iterator *it)
 
 		TK.totalSend += TK.packetSize;
 
-		schedule_tx_task(FRAME_TYPE_TRASH_ADV, link, &link->k.linkDev->key.local->local_id, link->k.linkDev->key.local, link->k.myDev, TK.packetSize, &TK, sizeof(TK) );
+		schedule_tx_task(FRAME_TYPE_TRASH_ADV, link, &link->k.linkDev->key.local->k.nodeId, link->k.linkDev->key.local, link->k.myDev, TK.packetSize, &TK, sizeof(TK) );
 	}
 
 	link->wifiStats.txBurstPackets++;

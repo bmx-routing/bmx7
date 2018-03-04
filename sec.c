@@ -1681,7 +1681,7 @@ void update_neighTrust(struct neigh_node *onlyNn, struct orig_node *on, struct d
 
 	while ((nn = (onlyNn ? onlyNn : avl_iterate_item(&local_tree, &an)))) {
 
-		if (setted_pubkey(dcNew, BMX_DSC_TLV_TRUSTS, &nn->local_id, 0) != TYP_TRUST_LEVEL_NONE) {
+		if (setted_pubkey(dcNew, BMX_DSC_TLV_TRUSTS, &nn->k.nodeId, 0) != TYP_TRUST_LEVEL_NONE) {
 
 			bit_set((uint8_t*) on->trustedNeighsBitArray, internalNeighId_u32s * 32, nn->internalNeighId, 1);
 

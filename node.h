@@ -218,6 +218,11 @@ struct metric_record {
 typedef CRYPTSHA_T DHASH_T;
 typedef CRYPTSHA_T GLOBAL_ID_T;
 
+typedef struct {
+	char hostname[MAX_HOSTNAME_LEN];
+	GLOBAL_ID_T nodeId;
+} __attribute__((packed)) GLOBAL_NAME_ID_T;
+
 typedef uint8_t DEVIDX_T;
 #define DEVIDX_INVALID 0
 #define DEVIDX_MIN 1
@@ -311,7 +316,8 @@ typedef struct {
 } LinkNode;
 
 struct neigh_node {
-	GLOBAL_ID_T local_id;
+
+	GLOBAL_NAME_ID_T k;
 	struct avl_tree linkDev_tree;
 	LinkNode *best_rq_link;
 	LinkNode *best_tq_link;
@@ -483,11 +489,7 @@ struct NeighRef_node {
 struct orig_node {
 	// filled in by validate_new_link_desc0():
 
-	struct {
-		char hostname[MAX_HOSTNAME_LEN];
-
-		GLOBAL_ID_T nodeId;
-	} __attribute__((packed)) k;
+	GLOBAL_NAME_ID_T k;
 
 	//	struct dhash_node *dhn; //TODO: remove
 	//	int32_t currKeySupportsPerOrig;

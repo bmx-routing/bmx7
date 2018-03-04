@@ -500,7 +500,7 @@ void content_resolve_(struct key_node *kn, struct content_node *cn, struct neigh
 		return;
 
 	if (viaNeigh) {
-		schedule_tx_task(FRAME_TYPE_CONTENT_REQ, NULL, &viaNeigh->local_id, viaNeigh, viaNeigh->best_tq_link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &cn->chash, sizeof(CRYPTSHA_T));
+		schedule_tx_task(FRAME_TYPE_CONTENT_REQ, NULL, &viaNeigh->k.nodeId, viaNeigh, viaNeigh->best_tq_link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &cn->chash, sizeof(CRYPTSHA_T));
 	} else if (kn->pktIdTime) {
 		schedule_tx_task(FRAME_TYPE_CONTENT_REQ, NULL, &kn->kHash, NULL, NULL, SCHEDULE_MIN_MSG_SIZE, &cn->chash, sizeof(CRYPTSHA_T));
 	}
@@ -1014,7 +1014,7 @@ int32_t rx_msg_content_request(struct rx_frame_iterator *it)
 			 schedule_tx_task(FRAME_TYPE_CONTENT_ADV, NULL, NULL, NULL, pb->i.iif, cn->f_body_len, &cn->chash, sizeof(CRYPTSHA_T));
 		 } else {
 			dbgf_sys(DBGT_WARN, "UNVERIFIED neigh=%s llip=%s or UNKNOWN chash=%s refn=%p refn_usage=%d",
-				 pb->i.verifiedLink ? cryptShaAsString(&pb->i.verifiedLink->k.linkDev->key.local->local_id) : NULL,
+				 pb->i.verifiedLink ? cryptShaAsString(&pb->i.verifiedLink->k.linkDev->key.local->k.nodeId) : NULL,
 				 pb->i.llip_str, cryptShaAsString(&msg->chash), (void*)cn, cn->usage_tree.items );
 		 }
 	 }

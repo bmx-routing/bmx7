@@ -216,7 +216,7 @@ struct prof_status *prof_status_iterate(struct prof_ctx *pn, struct prof_status 
 {
 	dbgf_all(DBGT_INFO, "dbg pn=%s status=%p", pn->name, (void*)status);
 
-	status->neighId = pn->k.neigh ? &pn->k.neigh->local_id: NULL;
+	status->neighId = pn->k.neigh ? &pn->k.neigh->k.nodeId: NULL;
 	status->origId = pn->k.orig ? &pn->k.orig->k.nodeId : NULL;
 	status->parent = pn->parent ? pn->parent->name : NULL;
 	status->name = pn->name;

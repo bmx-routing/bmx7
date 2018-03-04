@@ -65,7 +65,7 @@ AVL_TREE(link_tree, LinkNode, k);
 
 AVL_TREE(link_dev_tree, LinkDevNode, key);
 
-AVL_TREE(local_tree, struct neigh_node, local_id);
+AVL_TREE(local_tree, struct neigh_node, k.nodeId);
 
 AVL_TREE(descContent_tree, struct desc_content, dHash);
 
@@ -153,13 +153,13 @@ struct NeighRef_node *neighRef_resolve_or_destroy(struct NeighRef_node *ref, IDM
 
 		if (!kn || (ref->inaptChainOgm && !ref->inaptChainOgm->claimedChain)) {
 
-			schedule_tx_task(FRAME_TYPE_IID_REQ, NULL, &nn->local_id, nn, nn->best_tq_link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &iid, sizeof(iid));
+			schedule_tx_task(FRAME_TYPE_IID_REQ, NULL, &nn->k.nodeId, nn, nn->best_tq_link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &iid, sizeof(iid));
 
 		} else if (kn->bookedState->i.c >= KCTracked && kn->content->f_body && ref->inaptChainOgm && ref->inaptChainOgm->claimedChain  &&
 			(ref->descSqn >= kn->descSqnMin) && (ref->descSqn > (kn->nextDesc ? kn->nextDesc->descSqn : 0)) && (ref->descSqn > (kn->on ? kn->on->dc->descSqn : 0))) {
 
 			struct schedule_dsc_req req = {.iid = iid, .descSqn = ref->descSqn};
-			schedule_tx_task(FRAME_TYPE_DESC_REQ, NULL, &nn->local_id, nn, nn->best_tq_link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &req, sizeof(req));
+			schedule_tx_task(FRAME_TYPE_DESC_REQ, NULL, &nn->k.nodeId, nn, nn->best_tq_link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &req, sizeof(req));
 
 		} else if (kn->bookedState->i.c >= KCTracked) {
 
@@ -190,7 +190,7 @@ void neighRefs_resolve_or_destroy(void)
 		return;
 
 	while ((nn = avl_next_item(&local_tree, &nid))) {
-		nid = nn->local_id;
+		nid = nn->k.nodeId;
 
 		for (iid = 0; iid < nn->neighIID4x_repos.max_free; iid++) {
 
@@ -415,7 +415,7 @@ struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn
 
 			if (kn == myKey && ((ref->ogmSqnMax > dc->ogmSqnMaxSend) || (ref->ogmSqnMax == dc->ogmSqnMaxSend && fmetric_to_umetric(ref->ogmSqnMaxClaimedMetric) >= myKey->on->neighPath.um))) {
 				dbgf_mute(70, DBGL_SYS, DBGT_WARN, "OGM SQN or metric attack on myself, rcvd via neigh=%s, rcvdSqn=%d sendSqn=%d rcvdMetric=%ju sendMetric=%ju",
-					cryptShaAsShortStr(&nn->local_id), ref->ogmSqnMax, dc->ogmSqnMaxSend, fmetric_to_umetric(ref->ogmSqnMaxClaimedMetric), myKey->on->neighPath.um);
+					cryptShaAsShortStr(&nn->k.nodeId), ref->ogmSqnMax, dc->ogmSqnMaxSend, fmetric_to_umetric(ref->ogmSqnMaxClaimedMetric), myKey->on->neighPath.um);
 
 				update_ogm_mins(nn->on->kn, nn->on->dc->descSqn + 1, 0, NULL);
 				keyNode_schedLowerWeight(nn->on->kn, KCListed);
@@ -508,7 +508,7 @@ int purge_orig_router(struct orig_node *onlyOrig, struct neigh_node *onlyNeigh, 
 				onlyLink ? ip6AsStr(&onlyLink->k.linkDev->key.llocal_ip) : DBG_NIL,
 				onlyLink ? onlyLink->k.myDev->ifname_label.str : DBG_NIL,
 				onlyUseless, umetric_to_human(on->neighPath.um),
-				cryptShaAsString(&on->neighPath.link->k.linkDev->key.local->local_id),
+				cryptShaAsString(&on->neighPath.link->k.linkDev->key.local->k.nodeId),
 				ip6AsStr(&on->neighPath.link->k.linkDev->key.llocal_ip),
 				on->neighPath.link->k.myDev->ifname_label.str);
 
@@ -538,7 +538,7 @@ void neigh_destroy(struct orig_node *on)
 		return;
 
 	dbgf_track(DBGT_INFO, "purging local_id=%s curr_rx_packet=%d thisNeighsPacket=%d verified_link=%d",
-		cryptShaAsString(&local->local_id), !!curr_rx_packet,
+		cryptShaAsString(&local->k.nodeId), !!curr_rx_packet,
 		(curr_rx_packet && curr_rx_packet->i.claimedKey == local->on->kn),
 		(curr_rx_packet && curr_rx_packet->i.verifiedLink));
 
@@ -573,7 +573,7 @@ void neigh_destroy(struct orig_node *on)
 
 	free_internalNeighId(local->internalNeighId);
 
-	avl_remove(&local_tree, &local->local_id, -300331);
+	avl_remove(&local_tree, &local->k.nodeId, -300331);
 	debugFree(local, -300333);
 }
 
@@ -587,7 +587,7 @@ struct neigh_node *neigh_create(struct orig_node *on)
 		return NULL;
 
 	struct neigh_node *nn = (on->neigh = debugMallocReset(sizeof(struct neigh_node), -300757));
-	nn->local_id = on->k.nodeId;
+	nn->k = on->k;
 	avl_insert(&local_tree, nn, -300758);
 	struct dsc_msg_pubkey *rsaKey;
 	int rsaMsgLen, rsaKeyLen;

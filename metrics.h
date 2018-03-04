@@ -91,12 +91,18 @@
 #define DEF_PATH_LQ_T1_R255  ((255*9)/10)
 #define ARG_PATH_LQ_T1_R255  "pathLq1Threshold"
 
-#define MIN_OGM_LINK_RATE_EFFICIENCY 1
+#define MIN_OGM_LINK_RATE_EFFICIENCY 1 //Must be one for backwards compatibility of validate_metricalgo()
 #define MAX_OGM_LINK_RATE_EFFICIENCY 255
 #define DEF_OGM_LINK_RATE_EFFICIENCY 40
 #define ARG_OGM_LINK_RATE_EFFICIENCY "linkRateEfficiency"
 #define HLP_OGM_LINK_RATE_EFFICIENCY "set to-be considered efficiency in percent of probed wireless layer-2 link rate regarding its expected user (e.g. TCP) throughput"
 
+#define MIN_OGM_LINK_TP_EFFICIENCY 0
+#define MAX_OGM_LINK_TP_EFFICIENCY 255
+#define DEF_OGM_LINK_TP_EFFICIENCY_OFF 0
+#define DEF_OGM_LINK_TP_EFFICIENCY_ON 70
+#define ARG_OGM_LINK_TP_EFFICIENCY "linkThroughputEfficiency"
+#define HLP_OGM_LINK_TP_EFFICIENCY "enable and set to-be considered efficiency in percent (e.g. 70) of probed wireless layer-2 link throughput regarding its expected user (e.g. TCP) throughput"
 
 
 #define MIN_OGM_METRIC_HYST_NEW_PATH 0
@@ -186,6 +192,7 @@
 #define MAX_PATH_IFR_HOP_DISTANCE ((1<<TYP_PATH_IFR_HOP_DISTANCE_BITS)-1)
 #define DEF_PATH_IFR_HOP_DISTANCE 0
 
+extern struct host_metricalgo my_hostmetricalgo;
 
 struct mandatory_tlv_metricalgo {
 
@@ -211,11 +218,10 @@ struct mandatory_tlv_metricalgo {
 #error "Please fix <bits/endian.h>"
 #endif
 	uint8_t lq_tx_point_r255;
-
 	uint8_t lq_ty_point_r255;
 	uint8_t lq_t1_point_r255;
-
 	uint8_t ogm_link_rate_efficiency;
+	
 	uint8_t hops_history;
 	uint8_t hops_max;
 	uint8_t hop_penalty; // 1 byte
@@ -223,7 +229,6 @@ struct mandatory_tlv_metricalgo {
 	uint8_t ogm_sqn_best_hystere;
 	uint8_t ogm_sqn_late_hystere_100ms;
 	uint16_t ogm_metric_hystere_new_path; // 2 byte
-
 	uint16_t ogm_metric_hystere_old_path; // 2 byte
 	uint16_t ogm_interval_sec;
 
@@ -236,7 +241,7 @@ struct mandatory_tlv_metricalgo {
 #else
 #error "Please fix <bits/endian.h>"
 #endif
-	uint8_t reserved2;
+	uint8_t ogm_link_throughput_efficiency;
 	uint16_t reserved3;
 
 	struct path_interference_parameter pip[MAX_PATH_IFR_PARAMETERS];
@@ -272,7 +277,7 @@ struct description_tlv_metricalgo {
 {FIELD_TYPE_UINT, -1, 16,  0, FIELD_RELEVANCE_HIGH, ARG_OGM_INTERVAL},  \
 {FIELD_TYPE_UINT, -1,  2,  0, FIELD_RELEVANCE_HIGH, ARG_OGM_SQN_DIFF_MAX },   \
 {FIELD_TYPE_UINT, -1,  6,  0, FIELD_RELEVANCE_HIGH, "reserved1" },   \
-{FIELD_TYPE_UINT, -1,  8,  0, FIELD_RELEVANCE_HIGH, "reserved2"},   \
+{FIELD_TYPE_UINT, -1,  8,  0, FIELD_RELEVANCE_HIGH, ARG_OGM_LINK_TP_EFFICIENCY},   \
 {FIELD_TYPE_UINT, -1, 16,  0, FIELD_RELEVANCE_HIGH, "reserved3" },   \
 {FIELD_TYPE_UINT, -1,  8,  0, FIELD_RELEVANCE_HIGH, ARG_PATH_IFR_CHA_DISTANCE },   \
 {FIELD_TYPE_UINT, -1,  3,  0, FIELD_RELEVANCE_HIGH, ARG_PATH_IFR_HOP_DISTANCE },   \
@@ -318,6 +323,7 @@ IDM_T fmetric_cmp(FMETRIC_U16_T a, unsigned char cmp, FMETRIC_U16_T b);
 // some core hooks:
 //void apply_metric_algo(UMETRIC_T *out, struct link_dev_node *link, const UMETRIC_T *path, struct host_metricalgo *algo);
 
+UMETRIC_T get_link_throughput(LinkNode *link, struct host_metricalgo *algo, uint8_t force);
 struct NeighPath *apply_metric_algo(struct NeighRef_node *ref, LinkNode *link, struct host_metricalgo *algo);
 
 

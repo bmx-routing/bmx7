@@ -786,10 +786,12 @@ struct link_status {
 	int8_t wRxHt;
 	int8_t wRxVht;
 
-	UMETRIC_T wTxRateAvg;
 	UMETRIC_T wTxRate;
-	UMETRIC_T wTxThrAvg;
+	UMETRIC_T wTxRateAvg;
+	UMETRIC_T wTxRateEff;
 	UMETRIC_T wTxThr;
+	UMETRIC_T wTxThrAvg;
+	UMETRIC_T wTxThrEff;
 	uint32_t cnt;
 	int8_t mcs;
 	uint8_t mhz;
@@ -850,10 +852,12 @@ static const struct field_format link_status_format[] = {
 	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wRxHt,            1, FIELD_RELEVANCE_LOW),
 	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, wRxVht,           1, FIELD_RELEVANCE_LOW),
 
-        FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           link_status, wTxRateAvg,       1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           link_status, wTxRate,          1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           link_status, wTxThrAvg,        1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           link_status, wTxThr,           1, FIELD_RELEVANCE_HIGH),
+	FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           link_status, wTxRate,          1, FIELD_RELEVANCE_HIGH),
+	FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           link_status, wTxRateAvg,       1, FIELD_RELEVANCE_MEDI),
+	FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           link_status, wTxRateEff,       1, FIELD_RELEVANCE_HIGH),
+	FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           link_status, wTxThr,           1, FIELD_RELEVANCE_HIGH),
+	FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           link_status, wTxThrAvg,        1, FIELD_RELEVANCE_MEDI),
+	FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           link_status, wTxThrEff,        1, FIELD_RELEVANCE_HIGH),
 	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, cnt,              1, FIELD_RELEVANCE_MEDI),
 	FIELD_FORMAT_INIT(FIELD_TYPE_INT,               link_status, mcs,              1, FIELD_RELEVANCE_HIGH),
 	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              link_status, mhz,              1, FIELD_RELEVANCE_LOW),
@@ -914,11 +918,6 @@ static int32_t link_status_creator(struct status_handl *handl, void *data)
 				status[i].bestRq = (link == local->best_rq_link);
 				status[i].tq = ((link->timeaware_tq_probe * 100) / LQ_MAX);
 				status[i].bestTq = (link == local->best_tq_link);
-				status[i].txRate = link->wifiStats.expTpAvg ? link->wifiStats.expTpAvg : 
-					(link->wifiStats.txRateAvg ? ((link->wifiStats.txRateAvg * ((UMETRIC_T) (link->k.myDev->linklayer == TYP_DEV_LL_WIFI ? DEF_OGM_LINK_RATE_EFFICIENCY : 100))) / 100) : 
-						((link->timeaware_tq_probe * link->k.myDev->umetric_max) / LQ_MAX));
-				status[i].rxRate = ((link->timeaware_rq_probe * (link->wifiStats.rxRate ? link->wifiStats.rxRate : link->k.myDev->umetric_max)) / LQ_MAX);
-
 				status[i].wLastUpd = link->wifiStats.updatedTime ? ((float)(((TIME_T)(bmx_time - link->wifiStats.updatedTime))/1000)) : -1;
 				status[i].wTxLastProbe = link->wifiStats.txTriggTime ? ((float)(((TIME_T)(bmx_time - link->wifiStats.txTriggTime))/1000)) : -1;
 				status[i].wTxProbe = link->wifiStats.txTriggCnt;
@@ -927,10 +926,15 @@ static int32_t link_status_creator(struct status_handl *handl, void *data)
 				status[i].wSignal = link->wifiStats.signal;
 				status[i].wNoise = link->wifiStats.noise;
 				status[i].wSnr = link->wifiStats.signal - link->wifiStats.noise;
-				status[i].wTxRate = link->wifiStats.txRate;
-				status[i].wTxRateAvg = link->wifiStats.txRateAvg;
 				status[i].wTxThr = link->wifiStats.expectedThroughput;
 				status[i].wTxThrAvg = link->wifiStats.expTpAvg;
+				status[i].wTxThrEff = get_link_throughput(link, &my_hostmetricalgo, 1);
+				status[i].wTxRate = link->wifiStats.txRate;
+				status[i].wTxRateAvg = link->wifiStats.txRateAvg;
+				status[i].wTxRateEff = get_link_throughput(link, &my_hostmetricalgo, 2);
+				status[i].txRate = get_link_throughput(link, &my_hostmetricalgo, 0);
+				status[i].rxRate = ((link->timeaware_rq_probe * (link->wifiStats.rxRate ? link->wifiStats.rxRate : link->k.myDev->umetric_max)) / LQ_MAX);
+
 				status[i].cnt = link->wifiStats.txPackets;
 				status[i].mcs = link->wifiStats.txMcs;
 				status[i].mhz = link->wifiStats.txMhz;

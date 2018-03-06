@@ -29,6 +29,8 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <ctype.h>
+#include <glob.h>
+#include <limits.h>
 
 
 #include "list.h"
@@ -718,6 +720,67 @@ uint32_t log_bin(uint32_t v)
 }
 #endif
 
+/* recurse down layer-2 interfaces until we hit a layer-1 interface using Linux' sysfs */
+int interface_get_lowest(char *hwifname, const char *ifname) {
+	int ret;
+	glob_t globbuf;
+	char *lowentry = NULL;
+	char *buf, *phypath;
+	char *fnamebuf = debugMalloc(1 + strlen(VIRTIF_PREFIX) + IF_NAMESIZE + strlen(LOWERGLOB_SUFFIX), -300321);
+	ssize_t len;
+
+	sprintf(fnamebuf, "%s%s%s", VIRTIF_PREFIX, ifname, LOWERGLOB_SUFFIX);
+	glob(fnamebuf, GLOB_NOSORT | GLOB_NOESCAPE, NULL, &globbuf);
+
+	if (globbuf.gl_pathc == 1) {
+		lowentry = debugMalloc(1 + strlen(globbuf.gl_pathv[0]), -300322);
+		strncpy(lowentry, globbuf.gl_pathv[0], 1 + strlen(globbuf.gl_pathv[0]));
+	}
+
+	globfree(&globbuf);
+	debugFree(fnamebuf, -300321);
+
+	if (!lowentry) {
+		/* no lower interface found, check if physical interface exists */
+		phypath = debugMalloc(1 + strlen(NETIF_PREFIX) + strlen(ifname), -300323);
+		sprintf(phypath, "%s%s", NETIF_PREFIX, ifname);
+
+		ret = access(phypath, F_OK);
+		debugFree(phypath, -300323);
+
+		if (ret != 0)
+			return FAILURE;
+
+		strncpy(hwifname, ifname, IF_NAMESIZE - 1);
+		dbgf_sys(DBGT_INFO, "got %s", hwifname);
+		return SUCCESS;
+
+	} else {
+		/* lower interface found, recurse down */
+		buf = debugMalloc(PATH_MAX, -300324);
+
+		len = readlink(lowentry, buf, PATH_MAX - 1);
+		debugFree(lowentry, -300322);
+
+		if (len != -1) {
+			buf[len] = '\0';
+		} else {
+			/* readlink failed */
+			debugFree(buf, -300324);
+			return FAILURE;
+		}
+
+		if (strncmp(buf, "../", 3) == 0) {
+			ret = interface_get_lowest(hwifname, strrchr(buf, '/') + 1);
+			debugFree(buf, -300324);
+			return ret;
+		} else {
+			debugFree(buf, -300324);
+			return FAILURE;
+		}
+
+	}
+}
 
 
 void init_tools( void )

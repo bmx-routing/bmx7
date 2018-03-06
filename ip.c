@@ -3455,12 +3455,8 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
                         strcpy(dev->ifname_label.str, patch->val);
                         strcpy(dev->ifname_device.str, ifname_vlan);
 
-			IDM_T TODO_use_proc_for_getting_parent_ifname;
-			strcpy(dev->ifname_phy.str, ifname_vlan);
-			// if given interface is a vlan then truncate to physical interface name:
-			if ((cptr = strchr(dev->ifname_phy.str, '.')) != NULL)
-				*cptr = '\0';
-
+			if (interface_get_lowest(dev->ifname_phy.str, ifname_vlan) == FAILURE)
+				strcpy(dev->ifname_phy.str, ifname_vlan);
 
                         avl_insert(&dev_name_tree, dev, -300144);
 

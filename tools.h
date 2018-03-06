@@ -44,6 +44,9 @@ static inline uint64_t ntoh64(uint64_t x) {
 #define hton64 ntoh64
 
 
+#define NETIF_PREFIX "/sys/class/net/"
+#define VIRTIF_PREFIX "/sys/devices/virtual/net/"
+#define LOWERGLOB_SUFFIX "/lower_*"
 
 
 
@@ -93,6 +96,8 @@ int32_t check_dir(char *path, uint8_t create, uint8_t write, uint8_t onlyBasePat
 int32_t rm_dir_content(char* dir_name, char* prefix);
 
 uint8_t *find_array_data(uint8_t *arr, uint32_t arrLen, uint8_t *element, uint32_t elemLen);
+
+int interface_get_lowest(char *hwifname, const char *ifname);
 
 void init_tools(void);
 

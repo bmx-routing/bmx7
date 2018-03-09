@@ -725,9 +725,8 @@ int interface_get_lowest(char *hwifname, const char *ifname) {
 	int ret;
 	glob_t globbuf = {.gl_offs = 1};
 	char *lowentry = NULL;
-	char *buf, *phypath;
 	char *fnamebuf = debugMalloc(1 + strlen(VIRTIF_PREFIX) + IF_NAMESIZE + strlen(LOWERGLOB_SUFFIX), -300840);
-	ssize_t len;
+	char path[PATH_MAX];
 
 	sprintf(fnamebuf, "%s%s%s", VIRTIF_PREFIX, ifname, LOWERGLOB_SUFFIX);
 	glob(fnamebuf, GLOB_NOSORT | GLOB_NOESCAPE, NULL, &globbuf);
@@ -740,46 +739,30 @@ int interface_get_lowest(char *hwifname, const char *ifname) {
 	globfree(&globbuf);
 	debugFree(fnamebuf, -300842);
 
-	if (!lowentry) {
-		/* no lower interface found, check if physical interface exists */
-		phypath = debugMalloc(1 + strlen(NETIF_PREFIX) + strlen(ifname), -300843);
-		sprintf(phypath, "%s%s", NETIF_PREFIX, ifname);
-
-		ret = access(phypath, F_OK);
-		debugFree(phypath, -300844);
-
-		if (ret != 0)
-			return FAILURE;
-
-		strncpy(hwifname, ifname, IF_NAMESIZE - 1);
-		dbgf_sys(DBGT_INFO, "got %s", hwifname);
-		return SUCCESS;
-
-	} else {
+	if (lowentry) {
+		ssize_t len;
 		/* lower interface found, recurse down */
-		buf = debugMalloc(PATH_MAX, -300845);
 
-		len = readlink(lowentry, buf, PATH_MAX - 1);
+		len = readlink(lowentry, path, PATH_MAX - 1);
 		debugFree(lowentry, -300846);
 
-		if (len != -1) {
-			buf[len] = '\0';
-		} else {
-			/* readlink failed */
-			debugFree(buf, -300847);
-			return FAILURE;
+		if (len != -1 && strncmp(path, "../", 3) == 0) {
+			path[len] = '\0';
+			return interface_get_lowest(hwifname, strrchr(path, '/') + 1);
 		}
 
-		if (strncmp(buf, "../", 3) == 0) {
-			ret = interface_get_lowest(hwifname, strrchr(buf, '/') + 1);
-			debugFree(buf, -300848);
-			return ret;
-		} else {
-			debugFree(buf, -300849);
-			return FAILURE;
-		}
+	} else {
+		/* no lower interface found, check if physical interface exists */
+		sprintf(path, "%s%s", NETIF_PREFIX, ifname);
 
+		if (access(path, F_OK) == 0) {
+			strncpy(hwifname, ifname, IF_NAMESIZE - 1);
+			dbgf_sys(DBGT_INFO, "got %s", hwifname);
+			return SUCCESS;
+		}
 	}
+
+	return FAILURE;
 }
 
 

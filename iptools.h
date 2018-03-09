@@ -24,7 +24,12 @@
 #define IP4_MAX_PREFIXLEN 32
 #define IP6_MAX_PREFIXLEN 128
 
-extern const IP6_T   IP6_LOOPBACK_ADDR;
+#define NETIF_PREFIX "/sys/class/net/"
+#define VIRTIF_PREFIX "/sys/devices/virtual/net/"
+#define LOWERGLOB_SUFFIX "/lower_*"
+
+
+extern const IP6_T IP6_LOOPBACK_ADDR;
 
 
 IDM_T str2netw(char* args, IPX_T *ipX, struct ctrl_node *cn, uint8_t *maskp, uint8_t *familyp, uint8_t is_addr);
@@ -59,4 +64,6 @@ IDM_T is_ip_valid( const IPX_T *ip, const uint8_t family );
 IDM_T ip_netmask_validate(IPX_T *ipX, uint8_t mask, uint8_t family, uint8_t force);
 
 IDM_T is_ip_net_equal(const IPX_T *netA, const IPX_T *netB, const uint8_t plen, const uint8_t family);
+
+int interface_get_lowest(char *hwifname, const char *ifname);
 

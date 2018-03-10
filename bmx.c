@@ -657,7 +657,7 @@ uint32_t fields_dbg_lines(struct ctrl_node *cn, uint16_t relevance, uint32_t dat
         return msgs_size;
 }
 
-void fields_dbg_table(struct ctrl_node *cn, uint16_t relevance, uint32_t data_size, uint8_t *data,
+uint32_t fields_dbg_table(struct ctrl_node *cn, uint16_t relevance, uint32_t data_size, uint8_t *data,
                           uint32_t min_msg_size, const struct field_format *format)
 {
         TRACE_FUNCTION_CALL;
@@ -738,6 +738,7 @@ void fields_dbg_table(struct ctrl_node *cn, uint16_t relevance, uint32_t data_si
         out[pos++] = '\0';
         dbg_printf(cn, "%s", out);
         debugFree(out, -300384);
+	return pos;
 }
 
 
@@ -755,6 +756,18 @@ void register_status_handl(uint16_t min_msg_size, IDM_T multiline, const struct 
 
         assertion(-501224, !avl_find(&status_tree, &handl->status_name));
         avl_insert(&status_tree, (void*) handl, -300357);
+}
+
+struct status_handl * get_status_handl(char *name)
+{
+	struct status_handl *handl = NULL;
+	char status_name[sizeof (((struct status_handl *) NULL)->status_name)] = {0};
+	strncpy(status_name, name, sizeof (status_name));
+
+	if ((handl = avl_closest_item(&status_tree, status_name)) && !strncmp(handl->status_name, status_name, strlen(status_name)))
+		return handl;
+
+	return NULL;
 }
 
 struct bmx_status {
@@ -1370,27 +1383,24 @@ int32_t opt_version(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt
         return SUCCESS;
  }
 
-int32_t opt_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
+int32_t opt_status_generic(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn,
+	uint32_t (fields_dbg_func) (struct ctrl_node *cn, uint16_t relevance, uint32_t data_size, uint8_t *data, uint32_t min_msg_size, const struct field_format *format)
+)
 {
         TRACE_FUNCTION_CALL;
 
         if ( cmd == OPT_CHECK || cmd == OPT_APPLY) {
 
                 int32_t relevance = get_opt_child_val_int(opt, patch, ARG_RELEVANCE);
-                struct avl_node *it = NULL;
-                struct status_handl *handl = NULL;
-                uint32_t data_len;
-                char status_name[sizeof (((struct status_handl *) NULL)->status_name)] = {0};
-                if (patch->val)
-                        strncpy(status_name, patch->val, sizeof (status_name));
-                else
-                        strncpy(status_name, opt->name, sizeof (status_name));
+                struct status_handl *handl;
 
-                if ((handl = avl_closest_item(&status_tree, status_name)) && !strncmp(handl->status_name, status_name, strlen(status_name))) {
+                if ((handl = get_status_handl(patch->val ? patch->val : opt->name))) {
 
                         if (cmd == OPT_APPLY) {
 
-				prof_start( opt_status, main);
+				uint32_t data_len;
+
+				prof_start( opt_status_generic, main);
 
 				if ((data_len = ((*(handl->frame_creator))(handl, NULL)))) {
 					uint16_t i;
@@ -1398,7 +1408,7 @@ int32_t opt_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_
 					for(i=0; (i <= strlen(handl->status_name)); i++)
 						upper[i] = toupper(handl->status_name[i]);
 					dbg_printf(cn, "%s:\n", upper);
-					fields_dbg_table(cn, relevance, data_len, handl->data, handl->min_msg_size, handl->format);
+					fields_dbg_func(cn, relevance, data_len, handl->data, handl->min_msg_size, handl->format);
 				}
 
 				prof_stop();
@@ -1406,6 +1416,7 @@ int32_t opt_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_
 
                 } else {
 
+			struct avl_node *it = NULL;
                         dbg_printf(cn, "requested %s must be one of: ", ARG_VALUE_FORM);
                         while ((handl = avl_iterate_item(&status_tree, &it))) {
                                 dbg_printf(cn, "%s ", handl->status_name);
@@ -1417,51 +1428,14 @@ int32_t opt_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_
 	return SUCCESS;
 }
 
+int32_t opt_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
+{
+	return opt_status_generic(cmd, _save, opt, patch, cn, fields_dbg_table);
+}
 
 int32_t opt_list_show(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
 {
-        TRACE_FUNCTION_CALL;
-
-        if ( cmd == OPT_CHECK || cmd == OPT_APPLY) {
-
-                int32_t relevance = MIN_RELEVANCE;
-
-                struct avl_node *it = NULL;
-                struct status_handl *handl = NULL;
-                uint32_t data_len;
-                char status_name[sizeof (((struct status_handl *) NULL)->status_name)] = {0};
-                if (patch->val)
-                        strncpy(status_name, patch->val, sizeof (status_name));
-                else
-                        strncpy(status_name, opt->name, sizeof (status_name));
-
-                if ((handl = avl_find_item(&status_tree, status_name))) {
-
-                        if (cmd == OPT_APPLY) {
-
-				prof_start( opt_list_show, main);
-
-				if ((data_len = ((*(handl->frame_creator))(handl, NULL)))) {
-					dbg_printf(cn, "%s:", handl->status_name);
-					fields_dbg_lines(cn, relevance, data_len, handl->data, handl->min_msg_size, handl->format);
-					dbg_printf(cn, "\n");
-				}
-
-				prof_stop();
-                        }
-
-
-                } else {
-
-                        dbg_printf(cn, "requested %s must be one of: ", ARG_VALUE_FORM);
-                        while ((handl = avl_iterate_item(&status_tree, &it))) {
-                                dbg_printf(cn, "%s ", handl->status_name);
-                        }
-                        dbg_printf(cn, "\n");
-                        return FAILURE;
-                }
-	}
-	return SUCCESS;
+	return opt_status_generic(cmd, _save, opt, patch, cn, fields_dbg_lines);
 }
 
 
@@ -1624,8 +1598,11 @@ static struct opt_type bmx_options[]=
 	{ODI,0,ARG_HOSTNAME,		0,  5,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		        0,		        0,0,	opt_hostname,
 			ARG_VALUE_FORM,	"set advertised hostname of node"},
 
-	{ODI,0,ARG_LIST,		0  , 9,1,A_PS1 ,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_list_show,
+	{ODI,0,ARG_LIST,		0  , 9,1,A_PS1N ,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_list_show,
 			ARG_VALUE_FORM,		"list status information about given context. E.g.:" ARG_STATUS ", " ARG_INTERFACES ", " ARG_LINKS ", " ARG_ORIGINATORS " " ARG_CREDITS ", ..." "\n"},
+	{ODI,ARG_LIST,ARG_RELEVANCE,'r',9,1,A_CS1,A_USR,A_DYN,A_ARG,A_ANY,	0,	       MIN_RELEVANCE,   MAX_RELEVANCE,  DEF_RELEVANCE,0, opt_list_show,
+			ARG_VALUE_FORM,	HLP_ARG_RELEVANCE}
+	,
 	{ODI,0,ARG_SHOW,		's', 9,1,A_PS1N,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
 			ARG_VALUE_FORM,		"show status information about given context. E.g.:" ARG_STATUS ", " ARG_INTERFACES ", " ARG_LINKS ", " ARG_ORIGINATORS " " ARG_CREDITS ", ..." "\n"},
 	{ODI,ARG_SHOW,ARG_RELEVANCE,'r',9,1,A_CS1,A_USR,A_DYN,A_ARG,A_ANY,	0,	       MIN_RELEVANCE,   MAX_RELEVANCE,  DEF_RELEVANCE,0, opt_status,

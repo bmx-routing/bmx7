@@ -636,6 +636,6 @@ DESC_SQN_T newDescriptionSqn( char* newPath, uint8_t ass );
 
 
 IDM_T validate_param(int32_t probe, int32_t min, int32_t max, char *name);
-
+struct status_handl * get_status_handl(char *name);
 int32_t opt_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn);
 int32_t opt_flush_all(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn);

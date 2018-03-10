@@ -1170,19 +1170,63 @@ struct opt_child *get_opt_child(struct opt_type *opt, struct opt_parent *p)
 	struct list_node *pos;
 	
 	assertion( -500026, ( opt->opt_t == A_CS1 ) );
-
         assertion(-500119, (p));
-	
-	
+
 	list_for_each( pos, &(p->childs_instance_list) ) {
 		
 		struct opt_child *c = list_entry( pos, struct opt_child, list );
 		
 		if ( c->opt == opt )
 			return c;
-		
+
 	}
+
+	return NULL;
+}
+
+int32_t get_opt_child_val_int(struct opt_type *parentOpt, struct opt_parent *patch, char *optName)
+{
+        struct opt_child *c = NULL;
+	struct list_node *pos;
+
+	while (patch->diff != DEL && (c = list_iterate(&patch->childs_instance_list, c))) {
+
+                if ((!strcmp(c->opt->name, optName)) && c->val)
+                        return strtol(c->val, NULL, 10);
+        }
+
+	list_for_each( pos, &parentOpt->d.childs_type_list ) {
+
+		struct opt_type *c_opt = (struct opt_type *)list_entry( pos, struct opt_data, list );
+
+		if (!strcmp(c_opt->name, optName))
+			return c_opt->idef;
+	}
+	assertion(-500000, 0);
+	return FAILURE;
+}
+
+
+char * get_opt_child_val_str(struct opt_type *parentOpt, struct opt_parent *patch, char *optName)
+{
+        struct opt_child *c = NULL;
+	struct list_node *pos;
+
+	while (patch->diff != DEL && (c = list_iterate(&patch->childs_instance_list, c))) {
+
+                if ((!strcmp(c->opt->name, optName)) && c->val)
+			return c->val;
+        }
 	
+	list_for_each( pos, &parentOpt->d.childs_type_list ) {
+
+		struct opt_type *c_opt = (struct opt_type *)list_entry( pos, struct opt_data, list );
+
+		if (!strcmp(c_opt->name, optName))
+			return c_opt->sdef;
+	}
+
+	assertion(-500000, 0);
 	return NULL;
 }
 
@@ -2773,18 +2817,8 @@ int32_t opt_help(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
 	if ( !cn  )
 		return FAILURE;
 
-        uint8_t relevance = DEF_RELEVANCE;
         uint8_t verbose = !strcmp(opt->name, ARG_VERBOSE_HELP);
-        struct opt_child *c = NULL;
-
-        while ((c = list_iterate(&patch->childs_instance_list, c))) {
-
-                if (!strcmp(c->opt->name, ARG_RELEVANCE)) {
-                        relevance = strtol(c->val, NULL, 10);
-                }
-        }
-
-
+	int32_t relevance = get_opt_child_val_int(opt, patch, ARG_RELEVANCE);
 
         struct list_node *list_pos;
         const char *category = NULL;

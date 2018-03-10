@@ -356,23 +356,9 @@ int32_t opt_show_descriptions(uint8_t cmd, uint8_t _save, struct opt_type *opt,
 
                 struct avl_node *an = NULL;
 		struct desc_content *dc;
-		char *name = NULL;
-                int32_t type_filter = DEF_DESCRIPTION_TYPE;
-                int32_t relevance = DEF_RELEVANCE;
-                struct opt_child *c = NULL;
-
-                while ((c = list_iterate(&patch->childs_instance_list, c))) {
-
-                        if (!strcmp(c->opt->name, ARG_DESCRIPTION_TYPE)) {
-                                type_filter = strtol(c->val, NULL, 10);
-
-                        } else if (!strcmp(c->opt->name, ARG_RELEVANCE)) {
-                                relevance = strtol(c->val, NULL, 10);
-
-                        } else if (!strcmp(c->opt->name, ARG_DESCRIPTION_NAME)) {
-                                name = c->val;
-			}
-		}
+		char *name = get_opt_child_val_str(opt, patch, ARG_DESCRIPTION_NAME);
+                int32_t type_filter = get_opt_child_val_int(opt, patch, ARG_DESCRIPTION_TYPE);
+		int32_t relevance = get_opt_child_val_int(opt, patch, ARG_RELEVANCE);
 
 		dbg_printf( cn, "DESCRIPTIONS:" );
 

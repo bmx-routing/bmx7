@@ -1376,17 +1376,7 @@ int32_t opt_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_
 
         if ( cmd == OPT_CHECK || cmd == OPT_APPLY) {
 
-                int32_t relevance = DEF_RELEVANCE;
-                struct opt_child *c = NULL;
-
-                while ((c = list_iterate(&patch->childs_instance_list, c))) {
-
-                        if (!strcmp(c->opt->name, ARG_RELEVANCE)) {
-                                relevance = strtol(c->val, NULL, 10);
-                        }
-                }
-
-
+                int32_t relevance = get_opt_child_val_int(opt, patch, ARG_RELEVANCE);
                 struct avl_node *it = NULL;
                 struct status_handl *handl = NULL;
                 uint32_t data_len;

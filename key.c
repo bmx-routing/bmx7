@@ -1379,28 +1379,8 @@ int32_t opt_set_credits(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
 
 	if (cmd == OPT_APPLY) {
 
-		if ( patch->diff == DEL ) {
-
-			ks->i.setMaxConf = 0;
-			ks->i.setPrefConf = 0;
-
-                } else {
-
-			struct opt_child *c = NULL;
-			while ((c = list_iterate(&patch->childs_instance_list, c))) {
-
-				int cval = c->val ? strtol(c->val, NULL, 10) : 0;
-
-				if (!strcmp(c->opt->name, ARG_SET_CREDITS_MAX)) {
-
-					ks->i.setMaxConf = cval;
-
-				} else if (!strcmp(c->opt->name, ARG_SET_CREDITS_PREF)) {
-
-					ks->i.setPrefConf = cval;
-				}
-			}
-		}
+		ks->i.setMaxConf = get_opt_child_val_int(opt, patch, ARG_SET_CREDITS_MAX);
+		ks->i.setPrefConf = get_opt_child_val_int(opt, patch, ARG_SET_CREDITS_PREF);
 
 		uint32_t blockId = keyNodes_block_and_sync(0, NO);
 		keyNode_initMatrix();

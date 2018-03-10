@@ -51,6 +51,8 @@
 #include "ip.h"
 #include "allocate.h"
 #include "prof.h"
+#include "iptools.h"
+#include "../bmx7_topology/topology.h"
 
 
 #define CODE_CATEGORY_NAME "json"
@@ -61,6 +63,7 @@ static int32_t current_update_interval = 0;
 static char *json_dir = NULL;
 static char *json_desc_dir = NULL;
 static char *json_orig_dir = NULL;
+static char *json_netjson_dir = NULL;
 
 
 STATIC_FUNC
@@ -130,24 +133,36 @@ json_object * fields_dbg_json(uint8_t relevance, uint8_t force_array, uint16_t d
 }
 
 
+STATIC_FUNC
+void json_write_file(json_object *jobj, char *dirName, char *fileName) {
+
+        assertion(-501275, (dirName));
+        char path_name[MAX_PATH_SIZE];
+        sprintf(path_name, "%s/%s", dirName, fileName);
+
+	if (jobj) {
+		int fd;
+
+		if ((fd = open(path_name, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) >= 0) { //check permissions of generated file
+			dbgf_all(DBGT_INFO, "writing json data to: %s", path_name);
+			dprintf(fd, "%s\n", json_object_to_json_string(jobj));
+			close(fd);
+		} else {
+			dbgf_sys(DBGT_ERR, "could not open %s - %s", path_name, strerror(errno));
+		}
+	} else {
+		if (remove(path_name) != 0) {
+			dbgf_sys(DBGT_ERR, "could not remove %s: %s \n", path_name, strerror(errno));
+		} else {
+			dbgf_all(DBGT_INFO, "removing destroyed json-description=%s", path_name);
+                }
+	}
+}
 
 
 STATIC_FUNC
 int32_t update_json_options(IDM_T show_options, IDM_T show_parameters, char *file_name)
 {
-        assertion(-501271, (json_dir));
-
-        int fd;
-        char path_name[MAX_PATH_SIZE + 20] = "";
-
-        sprintf(path_name, "%s/%s", json_dir, file_name);
-
-        if ((fd = open(path_name, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) < 0) { //check permissions of generated file
-
-		dbgf_sys(DBGT_ERR, "could not open %s - %s", path_name, strerror(errno) );
-		return FAILURE;
-	}
-
 
         struct opt_type * p_opt = NULL;
         json_object *jopts = json_object_new_array();
@@ -300,10 +315,9 @@ int32_t update_json_options(IDM_T show_options, IDM_T show_parameters, char *fil
 
         json_object_object_add(jobj, "OPTIONS", jopts);
 
-        dprintf(fd, "%s\n", json_object_to_json_string(jobj));
+	json_write_file(jobj, json_dir, file_name);
 
         json_object_put(jobj);
-        close(fd);
  	return SUCCESS;
 }
 
@@ -313,30 +327,24 @@ int32_t update_json_options(IDM_T show_options, IDM_T show_parameters, char *fil
 
 
 
-
 STATIC_FUNC
-void json_generic_event_hook(int32_t cb_id, void* data, char *statusKey)
+void json_generic_event_hook(char *statusKey)
 {
         if (!json_update_interval || terminating)
                 return;
 
         TRACE_FUNCTION_CALL;
 
-        int fd;
-        char path_name[MAX_PATH_SIZE + 20] = "";
+        char path_name[MAX_PATH_SIZE];
         sprintf(path_name, "%s/%s", json_dir, statusKey);
+        int fd;
 
-        if ((fd = open(path_name, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) < 0) {
-
-                dbgf_sys(DBGT_ERR, "could not open %s - %s", path_name, strerror(errno));
-
-        } else {
-
+        if ((fd = open(path_name, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) >= 0) {
                 struct ctrl_node *cn = create_ctrl_node(fd, NULL, YES/*we are root*/);
-
                 check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_JSON_STATUS), statusKey, cn);
-
                 close_ctrl_node(CTRL_CLOSE_STRAIGHT, cn);
+        } else {
+                dbgf_sys(DBGT_ERR, "could not open %s - %s", path_name, strerror(errno));
         }
 }
 
@@ -344,7 +352,7 @@ void json_generic_event_hook(int32_t cb_id, void* data, char *statusKey)
 STATIC_FUNC
 void json_dev_event_hook(int32_t cb_id, void* data)
 {
-	json_generic_event_hook(cb_id, data, ARG_INTERFACES);
+	json_generic_event_hook(ARG_INTERFACES);
 }
 
 STATIC_FUNC
@@ -356,21 +364,20 @@ void json_config_event_hook(int32_t cb_id, void *data)
         TRACE_FUNCTION_CALL;
 
         update_json_options(0, 1, JSON_PARAMETERS_FILE);
-
-        json_dev_event_hook(cb_id, data);
+	json_generic_event_hook(ARG_INTERFACES);
 }
 
 STATIC_FUNC
 void json_status_event_hook(int32_t cb_id, void* data)
 {
-	json_generic_event_hook(cb_id, data, ARG_STATUS);
+	json_generic_event_hook(ARG_STATUS);
 }
 
 
 STATIC_FUNC
 void json_links_event_hook(int32_t cb_id, void* data)
 {
-	json_generic_event_hook(cb_id, data, ARG_LINKS);
+	json_generic_event_hook(ARG_LINKS);
 }
 
 
@@ -383,66 +390,32 @@ void json_originator_event_hook(int32_t cb_id, struct orig_node *orig)
         assertion(-501347, (cb_id == PLUGIN_CB_DESCRIPTION_DESTROY || cb_id == PLUGIN_CB_DESCRIPTION_CREATED));
 
         struct orig_node *on;
-        char path_name[MAX_PATH_SIZE];
-        int fd;
 
         if (cb_id == PLUGIN_CB_DESCRIPTION_DESTROY) {
 
-                if ((on = orig)) {
-
-                        sprintf(path_name, "%s/%s", json_orig_dir, cryptShaAsString(&on->k.nodeId));
-
-                        if ((fd = open(path_name, O_RDONLY)) > 0 && close(fd) == 0) {
-                                
-                                dbgf_all(DBGT_INFO, "removing destroyed json-originator=%s", path_name);
-
-                                if (remove(path_name) != 0) {
-                                        dbgf_sys(DBGT_ERR, "could not remove %s: %s \n", path_name, strerror(errno));
-                                }
-                        }
-                }
-                return;
+                if ((on = orig))
+			json_write_file(NULL, json_orig_dir, cryptShaAsString(&on->k.nodeId));
 
         } else {
 
                 struct avl_node *it = NULL;
                 while ((on = orig ? orig : avl_iterate_item(&orig_tree, &it))) {
 
-                        sprintf(path_name, "%s/%s", json_orig_dir, cryptShaAsString(&on->k.nodeId));
+			struct status_handl *handl;
+			uint32_t data_len;
+			json_object *jorig_fields;
 
-                        if ((fd = open(path_name, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) < 0) {
+			if ((handl = get_status_handl(ARG_ORIGINATORS)) &&
+				(data_len = ((*(handl->frame_creator))(handl, on->kn))) &&
+				(jorig_fields = fields_dbg_json(FIELD_RELEVANCE_MEDI, NO,
+				data_len, handl->data, handl->min_msg_size, handl->format))) {
 
-                                dbgf_sys(DBGT_ERR, "could not open %s - %s", path_name, strerror(errno));
+				json_write_file(jorig_fields, json_orig_dir, cryptShaAsString(&on->k.nodeId));
+				json_object_put(jorig_fields);
+			}
 
-                        } else {
-
-                                struct ctrl_node *cn = create_ctrl_node(fd, NULL, YES/*we are root*/);
-                                struct status_handl *handl = NULL;
-                                uint32_t data_len = 0;
-				char status_name[sizeof (((struct status_handl *) NULL)->status_name)] = {0};
-				strncpy(status_name, ARG_ORIGINATORS, sizeof (status_name));
-				json_object *jdesc_fields = NULL;
-
-                                if ((handl = avl_find_item(&status_tree, status_name)) &&
-                                        (data_len = ((*(handl->frame_creator))(handl, on->kn))) && 
-                                        (jdesc_fields = fields_dbg_json(FIELD_RELEVANCE_MEDI, NO,
-					data_len, handl->data, handl->min_msg_size, handl->format))) {
-
-					dbg_printf(cn, "%s\n", json_object_to_json_string(jdesc_fields));
-					json_object_put(jdesc_fields);
-
-					dbgf_track(DBGT_INFO, "creating json-originator=%s", path_name);
-
-                                } else {
-					dbgf_mute(30, DBGL_SYS, DBGT_ERR, "Failed creating json-%s=%s (handl=%d data_len=%d jdesc_fields=%d)!",
-						status_name, path_name, !!handl, data_len, !!jdesc_fields);
-				}
-
-                                close_ctrl_node(CTRL_CLOSE_STRAIGHT, cn);
-                        }
-
-                        if (orig)
-                                break;
+			if (orig)
+				break;
                 }
         }
 }
@@ -452,6 +425,80 @@ void json_route_change_hook(uint8_t del, struct orig_node *on)
 {
 	if(!del)
 		json_originator_event_hook(PLUGIN_CB_DESCRIPTION_CREATED, on);
+}
+
+
+STATIC_FUNC
+void json_netjson_event_hook(void)
+{
+        TRACE_FUNCTION_CALL;
+
+	json_object *jgraph = json_object_new_object();
+
+	// Create header:
+	json_object_object_add(jgraph, "type", json_object_new_string("NetworkGraph"));
+	json_object_object_add(jgraph, "label", json_object_new_string("BMX7 network"));
+	json_object_object_add(jgraph, "protocol", json_object_new_string(BMX_BRANCH));
+	json_object_object_add(jgraph, "version", json_object_new_string(BRANCH_VERSION));
+	char revision[8];
+	snprintf(revision, sizeof(revision), "%.7x", bmx_git_rev_u32);
+	json_object_object_add(jgraph, "revision", json_object_new_string(revision));
+	json_object_object_add(jgraph, "metric", json_object_new_string("MBitTime"));
+	json_object_object_add(jgraph, "router_id", json_object_new_string(cryptShaAsString(&myKey->kHash)));
+
+	// Create nodes array:
+	json_object *jnodes = json_object_new_array();
+	struct orig_node *on;
+	for (on = NULL; (on = avl_next_item(&orig_tree, (on ? &on->k.nodeId : NULL)));) {
+
+		json_object *jnode = json_object_new_object();
+		json_object_object_add(jnode, "id", json_object_new_string(cryptShaAsString(&on->k.nodeId)));
+
+		char label[MAX_HOSTNAME_LEN + 10];
+		snprintf(label, sizeof(label), "%s.%s", on->k.hostname, cryptShaAsShortStr(&on->k.nodeId));
+		json_object_object_add(jnode, "label", json_object_new_string(label));
+
+		json_object *jaddresses = json_object_new_array();
+		json_object_array_add(jaddresses, json_object_new_string(ip6AsStr(&on->primary_ip)));
+		json_object_object_add(jnode, "local_addresses", jaddresses);
+
+		json_object *jproperties = json_object_new_object();
+		json_object_object_add(jproperties, "hostname", json_object_new_string(on->k.hostname));
+		json_object_object_add(jproperties, "lastRef", json_object_new_int((bmx_time - on->dc->referred_by_others_timestamp) / 1000));
+		json_object_object_add(jproperties, "descSqn", json_object_new_int(on->dc->descSqn));
+		json_object_object_add(jnode, "properties", jproperties);
+
+		json_object_array_add(jnodes, jnode);
+	}
+	json_object_object_add(jgraph, "nodes", jnodes);
+
+	// Create links array:
+	json_object *jlinks = json_object_new_array();
+	struct status_handl *topoHandl;
+	uint32_t topoLen;
+	if ((topoHandl = get_status_handl(ARG_TOPOLOGY)) &&
+		(topoLen = ((*(topoHandl->frame_creator))(topoHandl, NULL)))) {
+		
+		assertion(-500000, (topoHandl->min_msg_size == sizeof(struct topology_status)));
+		assertion(-500000, (!(topoLen % sizeof(struct topology_status))));
+
+		struct topology_status *s = (struct topology_status *) topoHandl->data;
+		uint32_t topoMsgs = topoLen / sizeof(struct topology_status);
+		uint32_t m ;
+
+		for (m = 0; m < topoMsgs; m++) {
+			json_object *jlink = json_object_new_object();
+			json_object_object_add(jlink, "source", json_object_new_string(cryptShaAsString(s[m].id)));
+			json_object_object_add(jlink, "target", json_object_new_string(cryptShaAsString(s[m].neighId)));
+			json_object_object_add(jlink, "cost", json_object_new_double(((double) (1000*1000))/((double)(s[m].txRate))));
+			json_object_object_add(jlink, "cost_text", json_object_new_string(umetric_to_human(s[m].txRate)));
+			json_object_array_add(jlinks, jlink);
+		}
+	}
+	json_object_object_add(jgraph, "links", jlinks);
+
+	json_write_file(jgraph, json_netjson_dir, "network-graph.json");
+	json_object_put(jgraph);
 }
 
 STATIC_FUNC
@@ -466,29 +513,11 @@ void json_description_event_hook(int32_t cb_id, struct orig_node *on)
 
         dbgf_all(DBGT_INFO, "cb_id=%d", cb_id);
 
-        int fd;
-        char path_name[MAX_PATH_SIZE];
-        sprintf(path_name, "%s/%s", json_desc_dir, cryptShaAsString(&on->k.nodeId));
-
         if (cb_id == PLUGIN_CB_DESCRIPTION_DESTROY) {
 
-                if ((fd = open(path_name, O_RDONLY)) > 0 && close(fd) == 0) {
-
-                        dbgf_all(DBGT_INFO, "removing destroyed json-description=%s", path_name);
-
-                        if (remove(path_name) != 0) {
-                                dbgf_sys(DBGT_ERR, "could not remove %s: %s \n", path_name, strerror(errno));
-                        }
-                }
+		json_write_file(NULL, json_desc_dir, cryptShaAsString(&on->k.nodeId));
 
         } else {
-
-                if ((fd = open(path_name, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) < 0) { //check permissions of generated file
-
-                        dbgf_sys(DBGT_ERR, "could not open %s - %s", path_name, strerror(errno));
-                        return;
-                }
-
                 json_object *jorig = json_object_new_object();
                 json_object_object_add(jorig, "descSha", json_object_new_string(cryptShaAsString(&on->dc->dHash)));
 
@@ -542,15 +571,14 @@ void json_description_event_hook(int32_t cb_id, struct orig_node *on)
 				json_object_object_add(jorig, "extensions", jextensions);
 
 		}
-                dprintf(fd, "%s\n", json_object_to_json_string(jorig));
 
-                dbgf_all(DBGT_INFO, "creating json-description=%s", path_name);
+		json_write_file(jorig, json_desc_dir, cryptShaAsString(&on->k.nodeId));
 
                 json_object_put(jorig);
-                close(fd);
         }
 
         json_originator_event_hook(cb_id, on);
+	json_netjson_event_hook();
 }
 
 
@@ -585,41 +613,28 @@ int32_t opt_json_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
 
         if (cmd == OPT_CHECK || cmd == OPT_APPLY) {
 
-                uint8_t relevance = FIELD_RELEVANCE_MEDI;
-                struct opt_child *c = NULL;
-
-                while ((c = list_iterate(&patch->childs_instance_list, c))) {
-
-                        if (!strcmp(c->opt->name, ARG_RELEVANCE))
-                                relevance = strtol(c->val, NULL, 10);
-                }
-
+                int8_t relevance = get_opt_child_val_int(opt, patch, ARG_RELEVANCE);
                 struct status_handl *handl = NULL;
-                uint32_t data_len;
-                char status_name[sizeof (((struct status_handl *) NULL)->status_name)] = {0};
 
-                strncpy(status_name, patch->val, sizeof (status_name));
+		if ((handl = get_status_handl(patch->val))) {
 
-                if ((handl = avl_find_item(&status_tree, status_name))) {
+			uint32_t data_len;
 
                         if (cmd == OPT_APPLY && (data_len = ((*(handl->frame_creator))(handl, NULL)))) {
 
-                                json_object *jorig = json_object_new_object();
-                                json_object *jdesc_fields = NULL;
+                                json_object *jstat = json_object_new_object();
+                                json_object *jstat_fields = NULL;
 
-                                if ((jdesc_fields = fields_dbg_json(relevance, handl->multiline,
+                                if ((jstat_fields = fields_dbg_json(relevance, handl->multiline,
                                         data_len, handl->data, handl->min_msg_size, handl->format))) {
 
-                                        json_object_object_add(jorig, handl->status_name, jdesc_fields);
+                                        json_object_object_add(jstat, handl->status_name, jstat_fields);
                                 }
 
-                                const char * data = json_object_to_json_string(jorig);
+				if (cn)
+					dbg_printf(cn, "%s\n", json_object_to_json_string(jstat));
 
-                                if (cn)
-                                        dbg_printf(cn, "%s\n", data);
-
-                                json_object_put(jorig);
-
+                                json_object_put(jstat);
                         }
 
                 } else {
@@ -642,12 +657,14 @@ int32_t opt_json_update_interval(uint8_t cmd, uint8_t _save, struct opt_type *op
                 static char tmp_json_dir[MAX_PATH_SIZE];
                 static char tmp_desc_dir[MAX_PATH_SIZE];
                 static char tmp_orig_dir[MAX_PATH_SIZE];
+                static char tmp_netjson_dir[MAX_PATH_SIZE];
 
                 assertion(-501277, (strlen(run_dir) > 3));
 
                 sprintf(tmp_json_dir, "%s/%s", run_dir, DEF_JSON_SUBDIR);
                 sprintf(tmp_orig_dir, "%s/%s", tmp_json_dir, DEF_JSON_ORIG_SUBDIR);
                 sprintf(tmp_desc_dir, "%s/%s", tmp_json_dir, DEF_JSON_DESC_SUBDIR);
+                sprintf(tmp_netjson_dir, "%s/%s", tmp_json_dir, DEF_JSON_NETJSON_SUBDIR);
 
                 if (check_dir(run_dir, YES/*create*/, YES/*writable*/, NO) == FAILURE)
                         return FAILURE;
@@ -661,20 +678,26 @@ int32_t opt_json_update_interval(uint8_t cmd, uint8_t _save, struct opt_type *op
                 if (check_dir(tmp_desc_dir, YES/*create*/, YES/*writable*/, NO) == FAILURE)
                         return FAILURE;
 
+                if (check_dir(tmp_netjson_dir, YES/*create*/, YES/*writable*/, NO) == FAILURE)
+                        return FAILURE;
+
                 json_dir =  tmp_json_dir;
                 json_orig_dir = tmp_orig_dir;
                 json_desc_dir = tmp_desc_dir;
-
+                json_netjson_dir = tmp_netjson_dir;
         }
 
         if (initializing && cmd == OPT_SET_POST) {
 
-                assertion(-501308, (json_dir && json_orig_dir && json_desc_dir));
+                assertion(-501308, (json_dir && json_orig_dir && json_desc_dir && json_netjson_dir));
 
                 if (rm_dir_content(json_orig_dir, NULL) == FAILURE)
                         return FAILURE;
 
                 if (rm_dir_content(json_desc_dir, NULL) == FAILURE)
+                        return FAILURE;
+
+		if (rm_dir_content(json_netjson_dir, NULL) == FAILURE)
                         return FAILURE;
 
                 update_json_options(1, 0, JSON_OPTIONS_FILE);

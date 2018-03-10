@@ -22,8 +22,10 @@
 #define JSON_PARAMETERS_FILE "parameters"
 #define DEF_JSON_DESC_SUBDIR "descriptions"
 #define DEF_JSON_ORIG_SUBDIR "originators"
+#define DEF_JSON_NETJSON_SUBDIR "netjson"
 
 #define ARG_JSON_STATUS         "jshow"
+#define ARG_TOPOLOGY "topology"
 
 
 

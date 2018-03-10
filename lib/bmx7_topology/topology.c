@@ -68,28 +68,6 @@ struct description_msg_topology *topology_msg;
 uint32_t topology_msgs;
 
 
-struct topology_status {
-        GLOBAL_ID_T *id;
-        char* name;
-        IPX_T *primaryIp;
-	DEVIDX_T idx;
-
-        GLOBAL_ID_T *neighId;
-	DESC_SQN_T neighDescSqnDiff;
-        char* neighName;
-        IPX_T *neighIp;
-	DEVIDX_T neighIdx;
-
-	uint32_t lastDesc;
-	int8_t signal;
-	int8_t noise;
-	int8_t snr;
-	uint8_t channel;
-	uint8_t rq;
-	uint8_t tq;
-        UMETRIC_T rxRate;
-        UMETRIC_T txRate;
-};
 
 static const struct field_format topology_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, topology_status, id,            1, FIELD_RELEVANCE_HIGH),

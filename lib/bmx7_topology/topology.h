@@ -89,3 +89,26 @@ struct local_topology_node {
 	uint8_t channel;
 	uint8_t updated;
 };
+
+struct topology_status {
+	GLOBAL_ID_T *id;
+	char* name;
+	IPX_T *primaryIp;
+	DEVIDX_T idx;
+
+	GLOBAL_ID_T *neighId;
+	DESC_SQN_T neighDescSqnDiff;
+	char* neighName;
+	IPX_T *neighIp;
+	DEVIDX_T neighIdx;
+
+	uint32_t lastDesc;
+	int8_t signal;
+	int8_t noise;
+	int8_t snr;
+	uint8_t channel;
+	uint8_t rq;
+	uint8_t tq;
+	UMETRIC_T rxRate;
+	UMETRIC_T txRate;
+};

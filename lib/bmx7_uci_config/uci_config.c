@@ -54,761 +54,754 @@ static struct opt_type tmp_conf_opt;
 
 static int32_t configSync = DEF_SYNC_CONFIG;
 
+static void signal_hup_handler(int32_t sig)
+{
 
-static void signal_hup_handler( int32_t sig ) {
-	
-	dbgf_sys(DBGT_INFO, "reloading config" );
-	
-	struct ctrl_node *cn = create_ctrl_node( STDOUT_FILENO, NULL, YES/*we are root*/ );
-	
-	if ( (apply_stream_opts( ARG_RELOAD_CONFIG, OPT_CHECK, NO/*no cfg by default*/, cn ) == FAILURE)  ||
-	     (apply_stream_opts( ARG_RELOAD_CONFIG, OPT_APPLY, NO/*no cfg by default*/, cn ) == FAILURE)  ) 
-	{
-		close_ctrl_node( CTRL_CLOSE_STRAIGHT, cn );	
-		dbg_sys(DBGT_ERR, "reloading config failed! FIX your config NOW!"  );
+	dbgf_sys(DBGT_INFO, "reloading config");
+
+	struct ctrl_node *cn = create_ctrl_node(STDOUT_FILENO, NULL, YES/*we are root*/);
+
+	if ((apply_stream_opts(ARG_RELOAD_CONFIG, OPT_CHECK, NO/*no cfg by default*/, cn) == FAILURE) ||
+		(apply_stream_opts(ARG_RELOAD_CONFIG, OPT_APPLY, NO/*no cfg by default*/, cn) == FAILURE)) {
+		close_ctrl_node(CTRL_CLOSE_STRAIGHT, cn);
+		dbg_sys(DBGT_ERR, "reloading config failed! FIX your config NOW!");
 		return;
 	}
-	
-	close_ctrl_node( CTRL_CLOSE_STRAIGHT, cn );	
-	
-	respect_opt_order( OPT_APPLY, 0, 99, NULL, NO/*load_cofig*/, OPT_POST, 0/*probably closed*/ );
 
-        cb_plugin_hooks(PLUGIN_CB_CONF, NULL);
-	
+	close_ctrl_node(CTRL_CLOSE_STRAIGHT, cn);
+
+	respect_opt_order(OPT_APPLY, 0, 99, NULL, NO/*load_cofig*/, OPT_POST, 0/*probably closed*/);
+
+	cb_plugin_hooks(PLUGIN_CB_CONF, NULL);
+
 }
 
-
-
 STATIC_FUNC
-int8_t uci_reload_package( struct uci_context *ctx, struct uci_ptr *ptr, char* package ) {
-	
+int8_t uci_reload_package(struct uci_context *ctx, struct uci_ptr *ptr, char* package)
+{
+
 	uci_unload(ctx, ptr->p);
-	
-	memset( ptr, 0, sizeof( struct uci_ptr ) );
+
+	memset(ptr, 0, sizeof( struct uci_ptr));
 	ptr->package = package;
-	
-	if ( uci_lookup_ptr( ctx, ptr, NULL, false) != SUCCESS ) {
-		uci_get_errorstr( ctx, &uci_err, "" );
-		dbgf_sys(DBGT_ERR, "%s", uci_err );
+
+	if (uci_lookup_ptr(ctx, ptr, NULL, false) != SUCCESS) {
+		uci_get_errorstr(ctx, &uci_err, "");
+		dbgf_sys(DBGT_ERR, "%s", uci_err);
 		return FAILURE;
 	}
-	
+
 	return SUCCESS;
 }
 
-
-
 STATIC_FUNC
-struct uci_element *uci_lookup( struct uci_context *ctx, struct uci_ptr *ptr, char *name ) {
-	
-	dbgf_all( DBGT_INFO, "%s", name );
-	
-	if ( name )
-		memset( ptr, 0, sizeof( struct uci_ptr ) );
-	
-	if ( uci_lookup_ptr( ctx, ptr, name, false) != SUCCESS ) {
-		uci_get_errorstr( ctx, &uci_err, "" );
-		dbgf_sys(DBGT_ERR, "%s %s", name, uci_err );
+struct uci_element *uci_lookup(struct uci_context *ctx, struct uci_ptr *ptr, char *name)
+{
+
+	dbgf_all(DBGT_INFO, "%s", name);
+
+	if (name)
+		memset(ptr, 0, sizeof( struct uci_ptr));
+
+	if (uci_lookup_ptr(ctx, ptr, name, false) != SUCCESS) {
+		uci_get_errorstr(ctx, &uci_err, "");
+		dbgf_sys(DBGT_ERR, "%s %s", name, uci_err);
 		return NULL;
 	}
 	struct uci_element *e = ptr->last;
-	
-	if ( !( ptr->flags & UCI_LOOKUP_COMPLETE ) ) {
-		dbgf_all( DBGT_INFO, "%s %s %s %s  is not configured", 
-		     name, ptr->package, ptr->section, ptr->option );
+
+	if (!(ptr->flags & UCI_LOOKUP_COMPLETE)) {
+		dbgf_all(DBGT_INFO, "%s %s %s %s  is not configured",
+			name, ptr->package, ptr->section, ptr->option);
 		return NULL;
 	}
-	
+
 	return e;
 }
 
-
-
 STATIC_FUNC
-int uci_save_option( struct uci_context *ctx, char *conf_name, char *sect_name, char *opt_name, char *opt_val, struct ctrl_node *cn ) {
+int uci_save_option(struct uci_context *ctx, char *conf_name, char *sect_name, char *opt_name, char *opt_val, struct ctrl_node *cn)
+{
 
-	dbgf_cn( cn, DBGL_CHANGES, DBGT_INFO, "%s.%s.%s=%s",
-	      conf_name, sect_name, opt_name, opt_val );
-	
+	dbgf_cn(cn, DBGL_CHANGES, DBGT_INFO, "%s.%s.%s=%s",
+		conf_name, sect_name, opt_name, opt_val);
+
 	struct uci_ptr ptr;
 	memset(&ptr, 0, sizeof(ptr));
 	ptr.package = conf_name;
 	ptr.section = sect_name;
-	
-	if ( uci_lookup_ptr( ctx, &ptr, NULL, false ) != SUCCESS ) {
-		uci_get_errorstr( ctx, &uci_err, "" );
-		dbgf_cn( cn, DBGL_SYS, DBGT_ERR, "uci_lookup_str( %s.%s ): %s", 
-		        conf_name, sect_name, uci_err );
+
+	if (uci_lookup_ptr(ctx, &ptr, NULL, false) != SUCCESS) {
+		uci_get_errorstr(ctx, &uci_err, "");
+		dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "uci_lookup_str( %s.%s ): %s",
+			conf_name, sect_name, uci_err);
 		return FAILURE;
 	}
-	
+
 	ptr.option = opt_name;
 	ptr.value = opt_val;
-	
-	if ( uci_set( ctx, &ptr ) != SUCCESS ) {
-		uci_get_errorstr( ctx, &uci_err, "" );
-		dbgf_cn( cn, DBGL_SYS, DBGT_ERR, "uci_set( %s.%s.%s=%s ): %s",
-		        conf_name, sect_name, opt_name, opt_val, uci_err );
+
+	if (uci_set(ctx, &ptr) != SUCCESS) {
+		uci_get_errorstr(ctx, &uci_err, "");
+		dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "uci_set( %s.%s.%s=%s ): %s",
+			conf_name, sect_name, opt_name, opt_val, uci_err);
 		return FAILURE;
 	}
-	
-	if ( uci_save( ctx, ptr.p ) != SUCCESS ) {
-		uci_get_errorstr( ctx, &uci_err, "" );
-		dbgf_cn( cn, DBGL_SYS, DBGT_ERR, "uci_save( %s.%s.%s=%s ): %s", 
-		        conf_name, sect_name, opt_name, opt_val, uci_err );
+
+	if (uci_save(ctx, ptr.p) != SUCCESS) {
+		uci_get_errorstr(ctx, &uci_err, "");
+		dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "uci_save( %s.%s.%s=%s ): %s",
+			conf_name, sect_name, opt_name, opt_val, uci_err);
 		return FAILURE;
 	}
-	
+
 	return SUCCESS;
 }
 
-
-
 STATIC_FUNC
-int uci_create_section(  struct uci_context *ctx, char *conf_name, char *sect_name, char *opt_name, struct ctrl_node *cn ) {
+int uci_create_section(struct uci_context *ctx, char *conf_name, char *sect_name, char *opt_name, struct ctrl_node *cn)
+{
 
-	
+
 	struct uci_ptr ptr;
-	
+
 	memset(&ptr, 0, sizeof(ptr));
 	ptr.package = conf_name;
-	
-	if ( wordlen( sect_name ) )
+
+	if (wordlen(sect_name))
 		ptr.section = sect_name;
-	
-	
-	if ( uci_lookup_ptr( ctx, &ptr, NULL, false ) != SUCCESS ) {
-		uci_get_errorstr( ctx, &uci_err, "" );
-		dbgf_cn( cn, DBGL_SYS, DBGT_ERR, "%s %s uci_lookup_str(): %s", 
-		        conf_name, opt_name, uci_err );
+
+
+	if (uci_lookup_ptr(ctx, &ptr, NULL, false) != SUCCESS) {
+		uci_get_errorstr(ctx, &uci_err, "");
+		dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "%s %s uci_lookup_str(): %s",
+			conf_name, opt_name, uci_err);
 		return FAILURE;
 	}
 
-	if ( uci_add_section( ctx, ptr.p, opt_name, &ptr.s ) != SUCCESS ) {
-		uci_get_errorstr( ctx, &uci_err, "" );
-		dbgf_cn( cn, DBGL_SYS, DBGT_ERR, "%s %s uci_add_section(): %s", 
-		        conf_name, opt_name, uci_err );
+	if (uci_add_section(ctx, ptr.p, opt_name, &ptr.s) != SUCCESS) {
+		uci_get_errorstr(ctx, &uci_err, "");
+		dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "%s %s uci_add_section(): %s",
+			conf_name, opt_name, uci_err);
 		return FAILURE;
 	}
-	
+
 	/*
 	if ( uci_save( ctx, ptr.p ) != SUCCESS ) {
 		uci_get_errorstr( ctx, &uci_err, "" );
 		dbgf_fd( fd, DBGL_SYS, DBGT_ERR, "uci_save(): %s", uci_err );
 		return FAILURE;
 	}
-	*/
-	
-	if ( !wordlen( sect_name ) )
-		strcpy( sect_name, ptr.s->e.name );
-	
-	dbgf_cn( cn, DBGL_CHANGES, DBGT_INFO, "%s.%s=%s",
-	        conf_name, ptr.s->e.name, opt_name );
-	
+	 */
+
+	if (!wordlen(sect_name))
+		strcpy(sect_name, ptr.s->e.name);
+
+	dbgf_cn(cn, DBGL_CHANGES, DBGT_INFO, "%s.%s=%s",
+		conf_name, ptr.s->e.name, opt_name);
+
 	return SUCCESS;
 }
 
-
-
 STATIC_FUNC
-int uci_remove(  struct uci_context *ctx, char *conf_name, char *sect_name, char *opt_name, struct ctrl_node *cn ) {
-	
-	dbgf_cn( cn, DBGL_CHANGES, DBGT_INFO, "%s.%s %s", conf_name, sect_name, opt_name );
-	
+int uci_remove(struct uci_context *ctx, char *conf_name, char *sect_name, char *opt_name, struct ctrl_node *cn)
+{
+
+	dbgf_cn(cn, DBGL_CHANGES, DBGT_INFO, "%s.%s %s", conf_name, sect_name, opt_name);
+
 	struct uci_ptr ptr;
-	
+
 	memset(&ptr, 0, sizeof(ptr));
 	ptr.package = conf_name;
 	ptr.section = sect_name;
-	
-	if ( uci_lookup_ptr( ctx, &ptr, NULL, false ) != SUCCESS ) {
-		uci_get_errorstr( ctx, &uci_err, "" );
-		dbgf_cn( cn, DBGL_SYS, DBGT_ERR, "uci_lookup_str(): %s", uci_err );
+
+	if (uci_lookup_ptr(ctx, &ptr, NULL, false) != SUCCESS) {
+		uci_get_errorstr(ctx, &uci_err, "");
+		dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "uci_lookup_str(): %s", uci_err);
 		return FAILURE;
 	}
-	
+
 	ptr.option = opt_name;
-	
-	if ( uci_delete( ctx, &ptr ) != SUCCESS ) {
-		uci_get_errorstr( ctx, &uci_err, "" );
-		dbgf_cn( cn, DBGL_SYS, DBGT_ERR, "uci_delete(): %s", uci_err );
+
+	if (uci_delete(ctx, &ptr) != SUCCESS) {
+		uci_get_errorstr(ctx, &uci_err, "");
+		dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "uci_delete(): %s", uci_err);
 		return FAILURE;
 	}
-	
-	if ( uci_save( ctx, ptr.p ) != SUCCESS ) {
-		uci_get_errorstr( ctx, &uci_err, "" );
-		dbgf_cn( cn, DBGL_SYS, DBGT_ERR, "uci_save(): %s", uci_err );
+
+	if (uci_save(ctx, ptr.p) != SUCCESS) {
+		uci_get_errorstr(ctx, &uci_err, "");
+		dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "uci_save(): %s", uci_err);
 		return FAILURE;
 	}
-	
+
 	// without doing this we get double free or corruption after config-reload or uci_remove()
-	uci_reload_package( ctx, &bmx_pptr, conf_name );
-	
+	uci_reload_package(ctx, &bmx_pptr, conf_name);
+
 	return SUCCESS;
-	
+
 }
 
-
-
 STATIC_FUNC
-int uci_get_sect_name( uint8_t create, struct ctrl_node *cn, struct uci_context *ctx, 
-                       char *conf_name, char *sect_name, char *sect_type,  char *opt_name, char *opt_val ) 
+int uci_get_sect_name(uint8_t create, struct ctrl_node *cn, struct uci_context *ctx,
+	char *conf_name, char *sect_name, char *sect_type, char *opt_name, char *opt_val)
 {
-	
+
 	struct uci_element *e;
 	struct uci_element *se;
-	int found=0;
+	int found = 0;
 	struct uci_ptr ptr;
-	
-	dbgf_all( DBGT_INFO, "%s %s %s.*.%s==%s",
-	     create?"create":"get", sect_name, conf_name, opt_name, opt_val );
-	
-	assertion( -500020, ( conf_name  &&  sect_type  &&  sect_name  ) );
-	
+
+	dbgf_all(DBGT_INFO, "%s %s %s.*.%s==%s",
+		create ? "create" : "get", sect_name, conf_name, opt_name, opt_val);
+
+	assertion(-500020, (conf_name && sect_type && sect_name));
+
 	uint8_t named_section = wordlen(sect_name) ? YES : NO;
-		
-	
-	if ( !(e=uci_lookup( ctx, &ptr, conf_name )) )
+
+
+	if (!(e = uci_lookup(ctx, &ptr, conf_name)))
 		return FAILURE;
-	
-	if ( e->type != UCI_TYPE_PACKAGE )
+
+	if (e->type != UCI_TYPE_PACKAGE)
 		return FAILURE;
-	
-	
-	uci_foreach_element( &(ptr.p->sections), se) {
-		
+
+	uci_foreach_element(&(ptr.p->sections), se)
+	{
+
 		struct uci_section *s = uci_to_section(se);
 		struct uci_ptr sptr;
 		char name[MAX_ARG_SIZE];
-		
-		if ( strcmp( sect_type, s->type ) )
+
+		if (strcmp(sect_type, s->type))
 			continue;
-		
-		if ( opt_name ) {
-		
-			sprintf( name, "%s.%s.%s", conf_name, s->e.name, opt_name );
-			
-			if ( !(e=uci_lookup( ctx, &sptr, name )) )
+
+		if (opt_name) {
+
+			sprintf(name, "%s.%s.%s", conf_name, s->e.name, opt_name);
+
+			if (!(e = uci_lookup(ctx, &sptr, name)))
 				continue;
-			
-			if ( opt_val  &&  !wordsEqual( sptr.o->v.string, opt_val ) )
+
+			if (opt_val && !wordsEqual(sptr.o->v.string, opt_val))
 				continue;
-			
+
 		}
-		
-		if ( !found  &&  !named_section )
-			strcpy( sect_name, s->e.name );
-		
-		else if ( wordsEqual( sect_name, s->e.name ) )
+
+		if (!found && !named_section)
+			strcpy(sect_name, s->e.name);
+
+		else if (wordsEqual(sect_name, s->e.name))
 			return SUCCESS;
-			
+
 		found++;
 	}
-	
-	
-	if ( found == 0  &&  create ) {
-		
-		if (  named_section  &&  uci_save_option( ctx, conf_name, sect_name, NULL, sect_type, cn ) != SUCCESS )
+
+
+	if (found == 0 && create) {
+
+		if (named_section && uci_save_option(ctx, conf_name, sect_name, NULL, sect_type, cn) != SUCCESS)
 			return FAILURE;
-		
-		if ( !named_section  &&  uci_create_section( ctx, conf_name, sect_name, sect_type, cn ) != SUCCESS )
+
+		if (!named_section && uci_create_section(ctx, conf_name, sect_name, sect_type, cn) != SUCCESS)
 			return FAILURE;
-			
-		if ( opt_name  &&  opt_val ) {
-			
-			if ( uci_save_option( ctx, conf_name, sect_name, opt_name, opt_val, cn ) == SUCCESS )
+
+		if (opt_name && opt_val) {
+
+			if (uci_save_option(ctx, conf_name, sect_name, opt_name, opt_val, cn) == SUCCESS)
 				return SUCCESS;
-			
+
 			return FAILURE;
-			
+
 		} else {
-			
+
 			return SUCCESS;
 		}
-			
-			
+
+
 		return FAILURE;
-	
-	} else if ( found == 1 ) {
-		
+
+	} else if (found == 1) {
+
 		return SUCCESS;
-		
+
 	} else {
-		
-		dbgf_cn( cn, DBGL_SYS, DBGT_ERR, 
+
+		dbgf_cn(cn, DBGL_SYS, DBGT_ERR,
 			"Found %d matching section with %s.*.%s==%s ! FIX your config NOW!",
-			found, conf_name, opt_name, opt_val );
-	
+			found, conf_name, opt_name, opt_val);
+
 		return FAILURE;
 	}
 
 }
 
-
 STATIC_FUNC
-int bmx_derive_config ( char *reference, char *derivation, struct ctrl_node *cn ) {
+int bmx_derive_config(char *reference, char *derivation, struct ctrl_node *cn)
+{
 
 	struct uci_ptr sptr;
 	char name[MAX_ARG_SIZE];
 	struct uci_element *e;
-	
-	wordCopy( name, reference + strlen( REFERENCE_KEY_WORD ) );
-	
-	dbgf_all(  DBGT_INFO, "going to lookup %s", name );
-	
-	if ( !(e=uci_lookup( net_ctx, &sptr, name )) )
-		return FAILURE;	
-		
-	if ( sptr.o  &&  wordlen( sptr.o->v.string ) &&  wordlen( sptr.o->v.string ) < MAX_ARG_SIZE )
-		wordCopy( derivation, sptr.o->v.string );
-	else 
+
+	wordCopy(name, reference + strlen(REFERENCE_KEY_WORD));
+
+	dbgf_all(DBGT_INFO, "going to lookup %s", name);
+
+	if (!(e = uci_lookup(net_ctx, &sptr, name)))
 		return FAILURE;
-	
+
+	if (sptr.o && wordlen(sptr.o->v.string) && wordlen(sptr.o->v.string) < MAX_ARG_SIZE)
+		wordCopy(derivation, sptr.o->v.string);
+	else
+		return FAILURE;
+
 	uci_unload(net_ctx, sptr.p);
-	
+
 	return SUCCESS;
 }
 
-
 STATIC_FUNC
-int bmx_save_config ( uint8_t del, struct opt_type *opt, char *p_val, char *c_val, struct ctrl_node *cn ) {
-	
-	dbgf( DBGL_CHANGES, DBGT_INFO, "%s p=%s c=%s", opt->name, p_val, c_val );
-	
-	char sect_name[MAX_ARG_SIZE]="";
-	
-	assertion( -500102, opt );
-	
-	if ( !configSync || !strcmp(opt->name, ARG_SYNC_CONFIG) || !bmx_ctx  ||  !bmx_conf_name  ||  opt->cfg_t == A_ARG  )
-		return SUCCESS;
-	
-	if ( opt->opt_t == A_PS1 ) {
-		
-		// for all general options like ogm_interval, dad_timeout, ...
-		
-		if ( del ) {
-			
-			return uci_remove( bmx_ctx, bmx_conf_name, DEF_SECT_NAME, opt->name, cn );
-		
-		} else {
-			
-			uci_get_sect_name( YES/*create*/, cn, bmx_ctx, bmx_conf_name, DEF_SECT_NAME, DEF_SECT_TYPE, NULL, NULL );
-			return uci_save_option( bmx_ctx, bmx_conf_name, DEF_SECT_NAME, opt->name, c_val, cn );
-                }
+int bmx_save_config(uint8_t del, struct opt_type *opt, char *p_val, char *c_val, struct ctrl_node *cn)
+{
 
-        } else if (opt->opt_t == A_PS1N || opt->opt_t == A_PM1N) {
-		
+	dbgf(DBGL_CHANGES, DBGT_INFO, "%s p=%s c=%s", opt->name, p_val, c_val);
+
+	char sect_name[MAX_ARG_SIZE] = "";
+
+	assertion(-500102, opt);
+
+	if (!configSync || !strcmp(opt->name, ARG_SYNC_CONFIG) || !bmx_ctx || !bmx_conf_name || opt->cfg_t == A_ARG)
+		return SUCCESS;
+
+	if (opt->opt_t == A_PS1) {
+
+		// for all general options like ogm_interval, dad_timeout, ...
+
+		if (del) {
+
+			return uci_remove(bmx_ctx, bmx_conf_name, DEF_SECT_NAME, opt->name, cn);
+
+		} else {
+
+			uci_get_sect_name(YES/*create*/, cn, bmx_ctx, bmx_conf_name, DEF_SECT_NAME, DEF_SECT_TYPE, NULL, NULL);
+			return uci_save_option(bmx_ctx, bmx_conf_name, DEF_SECT_NAME, opt->name, c_val, cn);
+		}
+
+	} else if (opt->opt_t == A_PS1N || opt->opt_t == A_PM1N) {
+
 		// all A_PMN-options are saved as sections 
 		// some with only one argument like HNAs, throw-rule, plugin, service
 		// section->options are processed in the following block 
-		
-		if ( uci_get_sect_name( ( del ? NO : YES/*create*/ ),
-		                        cn, bmx_ctx, 
-		                        bmx_conf_name, sect_name, opt->name,
-		                        opt->name, p_val ) == FAILURE )
-		{
-			
-			dbgf_cn( cn, DBGL_SYS, DBGT_ERR, "unknown sect_name %s for %s %s",
-			        sect_name, opt->name, p_val );
-			
-			if ( del )
+
+		if (uci_get_sect_name((del ? NO : YES/*create*/),
+			cn, bmx_ctx,
+			bmx_conf_name, sect_name, opt->name,
+			opt->name, p_val) == FAILURE) {
+
+			dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "unknown sect_name %s for %s %s",
+				sect_name, opt->name, p_val);
+
+			if (del)
 				return SUCCESS;
-			
+
 			return FAILURE;
 		}
-		
-		if ( del )
-			return uci_remove( bmx_ctx, bmx_conf_name, sect_name, NULL, cn );
-		
+
+		if (del)
+			return uci_remove(bmx_ctx, bmx_conf_name, sect_name, NULL, cn);
+
 		else
-			return uci_save_option( bmx_ctx, bmx_conf_name, sect_name, opt->name, c_val, cn );
-		
-		
-	} else if ( opt->opt_t == A_CS1  &&  p_val ) {
-	
+			return uci_save_option(bmx_ctx, bmx_conf_name, sect_name, opt->name, c_val, cn);
+
+
+	} else if (opt->opt_t == A_CS1 && p_val) {
+
 		// all A_CS1-child options  like \ttl=20  from --dev eth0
-		
-		if ( uci_get_sect_name( NO/*create*/, cn, bmx_ctx, 
-		                        bmx_conf_name, sect_name, opt->d.parent_opt->name,
-		                        opt->d.parent_opt->name, p_val ) == FAILURE )
-		{
-			
-			dbgf_cn( cn, DBGL_SYS, DBGT_ERR, 
-			        "unknown A_1 sect_name %s  sn %s %s  on %s %s",
-			        sect_name, opt->d.parent_opt->name, p_val, opt->name, c_val );
-			
-			if ( del )
+
+		if (uci_get_sect_name(NO/*create*/, cn, bmx_ctx,
+			bmx_conf_name, sect_name, opt->d.parent_opt->name,
+			opt->d.parent_opt->name, p_val) == FAILURE) {
+
+			dbgf_cn(cn, DBGL_SYS, DBGT_ERR,
+				"unknown A_1 sect_name %s  sn %s %s  on %s %s",
+				sect_name, opt->d.parent_opt->name, p_val, opt->name, c_val);
+
+			if (del)
 				return SUCCESS;
-			
-			sect_name[0]=0;
-			if ( uci_get_sect_name( YES/*create*/, cn, bmx_ctx,
-			                        bmx_conf_name, sect_name, opt->d.parent_opt->name,
-			                        opt->d.parent_opt->name, p_val ) == FAILURE )
+
+			sect_name[0] = 0;
+			if (uci_get_sect_name(YES/*create*/, cn, bmx_ctx,
+				bmx_conf_name, sect_name, opt->d.parent_opt->name,
+				opt->d.parent_opt->name, p_val) == FAILURE)
 				return FAILURE;
-			
+
 		}
-		
-		if ( del )
-			return uci_remove( bmx_ctx, bmx_conf_name, sect_name, opt->name, cn );
-		
+
+		if (del)
+			return uci_remove(bmx_ctx, bmx_conf_name, sect_name, opt->name, cn);
+
 		else
-			return uci_save_option( bmx_ctx, bmx_conf_name, sect_name, opt->name, c_val, cn );
-		
-		
+			return uci_save_option(bmx_ctx, bmx_conf_name, sect_name, opt->name, c_val, cn);
+
+
 	} else {
-		
-		dbgf_cn( cn, DBGL_SYS, DBGT_ERR, "%20s %20s -- %20s %s",
-		        opt->d.parent_opt?opt->d.parent_opt->name:"--", p_val, opt->name, c_val  );
-		
-		cleanup_all( -501004 );
+
+		dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "%20s %20s -- %20s %s",
+			opt->d.parent_opt ? opt->d.parent_opt->name : "--", p_val, opt->name, c_val);
+
+		cleanup_all(-501004);
 	}
-	
+
 	return SUCCESS;
 }
 
-
 STATIC_FUNC
-int bmx_load_config ( uint8_t cmd, struct opt_type *opt, struct ctrl_node *cn ) {
-	
-	char name[MAX_PATH_SIZE]="";
+int bmx_load_config(uint8_t cmd, struct opt_type *opt, struct ctrl_node *cn)
+{
+
+	char name[MAX_PATH_SIZE] = "";
 	struct uci_ptr sptr, optr;
 
-        dbgf_all(DBGT_INFO, "cmd=%s opt_name=%s bmx_ctx=%p bmx_conf_name=%s opt_cfg_t=%d",
-                opt_cmd2str[ cmd ], opt->name, (void*)bmx_ctx, bmx_conf_name, opt->cfg_t);
+	dbgf_all(DBGT_INFO, "cmd=%s opt_name=%s bmx_ctx=%p bmx_conf_name=%s opt_cfg_t=%d",
+		opt_cmd2str[ cmd ], opt->name, (void*) bmx_ctx, bmx_conf_name, opt->cfg_t);
 
-	
-	if ( !bmx_ctx  ||  !bmx_conf_name )
-		return SUCCESS;
-		
-	if ( !opt->name  ||  opt->cfg_t == A_ARG  )
+
+	if (!bmx_ctx || !bmx_conf_name)
 		return SUCCESS;
 
-        assertion(-500138, (cmd == OPT_CHECK || cmd == OPT_APPLY));
-	
-	
-	if ( opt->opt_t == A_PS1 ) {
-		
-		sprintf( name, "%s.%s.%s", bmx_conf_name, DEF_SECT_NAME, opt->name );
-		
-		dbgf_all( DBGT_INFO, "loading A_PS1-option: %s", name );
-		
-		if ( !( uci_lookup( bmx_ctx, &optr, name ) ) ) {
-			
-			if ( !initializing  &&  //no need to reset a configuration during init
-			     check_apply_parent_option( DEL, cmd, NO/*save*/, opt, 0, cn ) == FAILURE ) 
-			{
-				dbgf_cn( cn, DBGL_SYS, DBGT_ERR, 
-				     "resetting A_PS1 %s.%s.%s to defaults failed", 
-				        bmx_conf_name, DEF_SECT_NAME, opt->name );
-				
+	if (!opt->name || opt->cfg_t == A_ARG)
+		return SUCCESS;
+
+	assertion(-500138, (cmd == OPT_CHECK || cmd == OPT_APPLY));
+
+
+	if (opt->opt_t == A_PS1) {
+
+		sprintf(name, "%s.%s.%s", bmx_conf_name, DEF_SECT_NAME, opt->name);
+
+		dbgf_all(DBGT_INFO, "loading A_PS1-option: %s", name);
+
+		if (!(uci_lookup(bmx_ctx, &optr, name))) {
+
+			if (!initializing && //no need to reset a configuration during init
+				check_apply_parent_option(DEL, cmd, NO/*save*/, opt, 0, cn) == FAILURE) {
+				dbgf_cn(cn, DBGL_SYS, DBGT_ERR,
+					"resetting A_PS1 %s.%s.%s to defaults failed",
+					bmx_conf_name, DEF_SECT_NAME, opt->name);
+
 				return FAILURE;
 			}
-		
-		} else if ( !optr.o || !optr.o->v.string ) {
-			
+
+		} else if (!optr.o || !optr.o->v.string) {
+
 			return FAILURE;
-		
-		} else if ( check_apply_parent_option( ADD, cmd, NO/*save*/, opt, optr.o->v.string, cn ) == FAILURE ) {
-		
-			dbgf_cn( cn, DBGL_SYS, DBGT_ERR, "loading A_PS1 %s.%s.%s=%s failed", 
-			        bmx_conf_name, DEF_SECT_NAME, opt->name, optr.o->v.string );
-			
+
+		} else if (check_apply_parent_option(ADD, cmd, NO/*save*/, opt, optr.o->v.string, cn) == FAILURE) {
+
+			dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "loading A_PS1 %s.%s.%s=%s failed",
+				bmx_conf_name, DEF_SECT_NAME, opt->name, optr.o->v.string);
+
 			return FAILURE;
 		}
 
 
-        } else if (opt->opt_t == A_PS1N || opt->opt_t == A_PM1N) {
-		
-		dbgf_all( DBGT_INFO, "loading A_PSN/A_PMN-option: %s", opt->name );
-		
+	} else if (opt->opt_t == A_PS1N || opt->opt_t == A_PM1N) {
+
+		dbgf_all(DBGT_INFO, "loading A_PSN/A_PMN-option: %s", opt->name);
+
 		struct uci_element *e;
 		struct uci_element *se;
 		struct opt_parent *p_tmp;
-		
+
 		struct list_node *pos;
-		
-		if ( !(e=uci_lookup( bmx_ctx, &sptr, bmx_conf_name )) )
+
+		if (!(e = uci_lookup(bmx_ctx, &sptr, bmx_conf_name)))
 			return SUCCESS;
-		
-		if ( e->type != UCI_TYPE_PACKAGE )
+
+		if (e->type != UCI_TYPE_PACKAGE)
 			return SUCCESS;
-		
+
 		// temporary cache all currently configured parents/sections
 		// so that we can later reset all of them which were not reloaded
-		del_opt_parent( &tmp_conf_opt, NULL );
-		list_for_each( pos, &(opt->d.parents_instance_list) ) {
-			p_tmp = list_entry( pos, struct opt_parent, list );
-			
+		del_opt_parent(&tmp_conf_opt, NULL);
+
+		list_for_each(pos, &(opt->d.parents_instance_list))
+		{
+			p_tmp = list_entry(pos, struct opt_parent, list);
+
 			struct opt_parent *p_dup = add_opt_parent(&tmp_conf_opt);
-			set_opt_parent_val ( p_dup, p_tmp->val );
-			set_opt_parent_ref ( p_dup, p_tmp->ref );
+			set_opt_parent_val(p_dup, p_tmp->val);
+			set_opt_parent_ref(p_dup, p_tmp->ref);
 		}
-		
-		uci_foreach_element( &(sptr.p->sections), se) {
-			
+
+		uci_foreach_element(&(sptr.p->sections), se)
+		{
+
 			struct uci_section *s = uci_to_section(se);
-			
-			if ( strcmp( opt->name, s->type ) )
+
+			if (strcmp(opt->name, s->type))
 				continue;
-			
-			sprintf( name, "%s.%s.%s", bmx_conf_name, s->e.name, opt->name );
-			
-			dbgf_all( DBGT_INFO, "looking up: %s", name );
-			
-			
-			if ( !(e=uci_lookup( bmx_ctx, &optr, name )) ) {
-				
-				if ( cmd == OPT_APPLY ) {
-					dbgf_cn( cn, DBGL_SYS, DBGT_WARN, 
-					        "looking up %s.%s.%s failed", 
-					        bmx_conf_name, s->e.name, opt->name );
+
+			sprintf(name, "%s.%s.%s", bmx_conf_name, s->e.name, opt->name);
+
+			dbgf_all(DBGT_INFO, "looking up: %s", name);
+
+
+			if (!(e = uci_lookup(bmx_ctx, &optr, name))) {
+
+				if (cmd == OPT_APPLY) {
+					dbgf_cn(cn, DBGL_SYS, DBGT_WARN,
+						"looking up %s.%s.%s failed",
+						bmx_conf_name, s->e.name, opt->name);
 				}
-				
+
 				continue;
 			}
-			
+
 			char config_sect_val[MAX_ARG_SIZE];
-			strcpy( config_sect_val, optr.o->v.string );
-			
-			
-			struct opt_parent *patch = add_opt_parent( &Patch_opt );
-			
-			if ( call_option( ADD, OPT_PATCH, NO/*save*/, opt, patch, config_sect_val, cn ) == FAILURE ) {
-				
-				dbgf_cn( cn, DBGL_SYS, DBGT_ERR, "setting sect %s.%s.%s=%s failed", 
-				        bmx_conf_name, s->e.name, opt->name, config_sect_val );
-				
-				del_opt_parent( &Patch_opt, patch );
+			strcpy(config_sect_val, optr.o->v.string);
+
+
+			struct opt_parent *patch = add_opt_parent(&Patch_opt);
+
+			if (call_option(ADD, OPT_PATCH, NO/*save*/, opt, patch, config_sect_val, cn) == FAILURE) {
+
+				dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "setting sect %s.%s.%s=%s failed",
+					bmx_conf_name, s->e.name, opt->name, config_sect_val);
+
+				del_opt_parent(&Patch_opt, patch);
 				return FAILURE;
 			}
-			
-			
-			list_for_each( pos, &opt->d.childs_type_list ) {
-				
-				struct opt_type *opt_arg = (struct opt_type*)list_entry( pos, struct opt_data, list );
-				
-				sprintf( name, "%s.%s.%s", bmx_conf_name, s->e.name, opt_arg->name );
-				dbgf_all( DBGT_INFO, "looking up: %s", name );
-				
+
+			list_for_each(pos, &opt->d.childs_type_list)
+			{
+
+				struct opt_type *opt_arg = (struct opt_type*) list_entry(pos, struct opt_data, list);
+
+				sprintf(name, "%s.%s.%s", bmx_conf_name, s->e.name, opt_arg->name);
+				dbgf_all(DBGT_INFO, "looking up: %s", name);
+
 				uint8_t del;
 				char config_sect_opt_val[MAX_ARG_SIZE];
-				
-				if ( (e=uci_lookup( bmx_ctx, &optr, name )) ) {
-					
-					strcpy( config_sect_opt_val, optr.o->v.string );
+
+				if ((e = uci_lookup(bmx_ctx, &optr, name))) {
+
+					strcpy(config_sect_opt_val, optr.o->v.string);
 					del = ADD;
-					
+
 				} else {
-					
-					if ( initializing )
+
+					if (initializing)
 						continue; //no need to reset a configuration during init
-					
+
 					config_sect_opt_val[0] = 0;
 					del = DEL;
 				}
-				
-				if ( call_option( del, OPT_PATCH, NO/*save*/, opt_arg, patch, config_sect_opt_val, cn ) == FAILURE ) {
-					
-					dbgf_cn( cn, DBGL_SYS, DBGT_ERR, 
-					        "setting opt %s %s %s.%s.%s=%s failed", 
-					        opt->name, config_sect_val,
-					        bmx_conf_name, s->e.name, opt_arg->name, config_sect_opt_val );
-					
-					del_opt_parent( &Patch_opt, patch );
+
+				if (call_option(del, OPT_PATCH, NO/*save*/, opt_arg, patch, config_sect_opt_val, cn) == FAILURE) {
+
+					dbgf_cn(cn, DBGL_SYS, DBGT_ERR,
+						"setting opt %s %s %s.%s.%s=%s failed",
+						opt->name, config_sect_val,
+						bmx_conf_name, s->e.name, opt_arg->name, config_sect_opt_val);
+
+					del_opt_parent(&Patch_opt, patch);
 					return FAILURE;
-					
+
 				} else {
-					
-					dbgf_all( DBGT_INFO, 
-					        "patched opt %s %s %s.%s.%s=%s", 
-					        opt->name, config_sect_val,
-					        bmx_conf_name, s->e.name, opt_arg->name, config_sect_opt_val );
+
+					dbgf_all(DBGT_INFO,
+						"patched opt %s %s %s.%s.%s=%s",
+						opt->name, config_sect_val,
+						bmx_conf_name, s->e.name, opt_arg->name, config_sect_opt_val);
 				}
-				
+
 			}
-			
-			if ( call_option( ADD, OPT_ADJUST, NO/*save*/, opt, patch, config_sect_val, cn ) == FAILURE ||
-			     call_option( ADD, cmd,        NO/*save*/, opt, patch, config_sect_val, cn ) == FAILURE ) {
-				
-				dbgf_cn( cn, DBGL_SYS, DBGT_ERR,
+
+			if (call_option(ADD, OPT_ADJUST, NO/*save*/, opt, patch, config_sect_val, cn) == FAILURE ||
+				call_option(ADD, cmd, NO/*save*/, opt, patch, config_sect_val, cn) == FAILURE) {
+
+				dbgf_cn(cn, DBGL_SYS, DBGT_ERR,
 					"configuring section %s.%s=%s failed",
-					bmx_conf_name, s->e.name, opt->name );
-				
-				     del_opt_parent( &Patch_opt, patch );
-				     return FAILURE;
-			     }
+					bmx_conf_name, s->e.name, opt->name);
+
+				del_opt_parent(&Patch_opt, patch);
+				return FAILURE;
+			}
 
 			// remove all (re)loaded opts from the cached list. They dont have to be resetted later on
-                        if ((p_tmp = get_opt_parent_ref(&tmp_conf_opt, config_sect_val)) ||
-                                (p_tmp = get_opt_parent_val(&tmp_conf_opt, patch->val)))
-                                del_opt_parent(&tmp_conf_opt, p_tmp);
+			if ((p_tmp = get_opt_parent_ref(&tmp_conf_opt, config_sect_val)) ||
+				(p_tmp = get_opt_parent_val(&tmp_conf_opt, patch->val)))
+				del_opt_parent(&tmp_conf_opt, p_tmp);
 
-			
-			del_opt_parent( &Patch_opt, patch );
+
+			del_opt_parent(&Patch_opt, patch);
 		}
-		
+
 		// finally we have to reset all options which were configured previously  but not reloaded
-		list_for_each( pos, &tmp_conf_opt.d.parents_instance_list ) {
-			
-			p_tmp = list_entry( pos, struct opt_parent, list );
-			
-			if ( wordsEqual( p_tmp->val, BMX_LIB_CONFIG ) ) {
-				
-				dbg_mute( 40, DBGL_SYS, DBGT_WARN, "missing section %s with option %s %s in %s",
-				          ARG_PLUGIN, ARG_PLUGIN, BMX_LIB_CONFIG, bmx_conf_name );
-				
-			} else if ( check_apply_parent_option( DEL, cmd, NO, opt, p_tmp->val, cn ) == FAILURE ) {
-				
-				dbgf_cn( cn, DBGL_SYS, DBGT_ERR, "calling %s %s failed", opt->name, p_tmp->val );
-				
+
+		list_for_each(pos, &tmp_conf_opt.d.parents_instance_list)
+		{
+
+			p_tmp = list_entry(pos, struct opt_parent, list);
+
+			if (wordsEqual(p_tmp->val, BMX_LIB_CONFIG)) {
+
+				dbg_mute(40, DBGL_SYS, DBGT_WARN, "missing section %s with option %s %s in %s",
+					ARG_PLUGIN, ARG_PLUGIN, BMX_LIB_CONFIG, bmx_conf_name);
+
+			} else if (check_apply_parent_option(DEL, cmd, NO, opt, p_tmp->val, cn) == FAILURE) {
+
+				dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "calling %s %s failed", opt->name, p_tmp->val);
+
 				return FAILURE;
 			}
 		}
-		
+
 	} else {
 
-                dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "opt: %s illegal implementation!", opt->name);
-		
-		cleanup_all( -500137 );
-		
+		dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "opt: %s illegal implementation!", opt->name);
+
+		cleanup_all(-500137);
+
 	}
-	
+
 	return SUCCESS;
 }
 
-
-
 STATIC_FUNC
-int32_t opt_conf_reload ( uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn ) {
-	
-	if ( cmd == OPT_CHECK  || cmd == OPT_APPLY ) {
-		
+int32_t opt_conf_reload(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
+{
+
+	if (cmd == OPT_CHECK || cmd == OPT_APPLY) {
+
 		Load_config = 1;
-		
-		if ( cmd == OPT_CHECK  &&  bmx_ctx ) {
-			
+
+		if (cmd == OPT_CHECK && bmx_ctx) {
+
 			// without doing this we get double free or corruption after config-reload or uci_remove()
-			uci_reload_package( bmx_ctx, &bmx_pptr, bmx_conf_name );
+			uci_reload_package(bmx_ctx, &bmx_pptr, bmx_conf_name);
 		}
 	}
-	
+
 	return SUCCESS;
 }
 
-
-
 STATIC_FUNC
-int32_t opt_conf_file ( uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn ) {
+int32_t opt_conf_file(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
+{
 
 	char tmp_path[MAX_PATH_SIZE] = "";
-	
-	if ( !initializing )
+
+	if (!initializing)
 		return SUCCESS;
-	
-	
-	if ( cmd == OPT_REGISTER ) {
-		
-		sprintf( conf_path, "%s/%s", UCI_CONFDIR, DEF_CONF_NAME );
-		bmx_conf_name = strrchr( conf_path, '/') + 1;
-		*(strrchr( conf_path, '/'))=0;
-		
-		
-	} else if ( cmd == OPT_CHECK  ||  cmd == OPT_APPLY ) {
-	
-		if ( patch->diff == DEL )
+
+
+	if (cmd == OPT_REGISTER) {
+
+		sprintf(conf_path, "%s/%s", UCI_CONFDIR, DEF_CONF_NAME);
+		bmx_conf_name = strrchr(conf_path, '/') + 1;
+		*(strrchr(conf_path, '/')) = 0;
+
+
+	} else if (cmd == OPT_CHECK || cmd == OPT_APPLY) {
+
+		if (patch->diff == DEL)
 			return FAILURE;
-		
+
 		char *f = patch->val;
-		
-		if ( wordlen(f)+1 +strlen(UCI_CONFDIR)+1 >= MAX_PATH_SIZE )
+
+		if (wordlen(f) + 1 + strlen(UCI_CONFDIR) + 1 >= MAX_PATH_SIZE)
 			return FAILURE;
-		
-		if ( wordsEqual( f, ARG_NO_CONFIG_FILE ) ) {
-			
-			if ( cmd == OPT_APPLY )
+
+		if (wordsEqual(f, ARG_NO_CONFIG_FILE)) {
+
+			if (cmd == OPT_APPLY)
 				bmx_conf_name = NULL;
-			
+
 			return SUCCESS;
-		
-		} else if ( f[0] == '/' ) {
-			
-			wordCopy( tmp_path, f );
-			
-			char *tmp_name = strrchr( tmp_path, '/');
-			
-			if ( !tmp_name  ||  tmp_name == tmp_path  ||
-                                check_file(tmp_path, YES/*regular*/, YES/*read*/, YES/*writable*/, NO/*executable*/) == FAILURE)
+
+		} else if (f[0] == '/') {
+
+			wordCopy(tmp_path, f);
+
+			char *tmp_name = strrchr(tmp_path, '/');
+
+			if (!tmp_name || tmp_name == tmp_path ||
+				check_file(tmp_path, YES/*regular*/, YES/*read*/, YES/*writable*/, NO/*executable*/) == FAILURE)
 				return FAILURE;
-			
-		} else if ( strchr( f, '/') == NULL  ||  strchr( f, '/') >= f+wordlen(f) ) {
-			
-			snprintf( tmp_path, strlen(UCI_CONFDIR)+1+wordlen(f)+1, "%s/%s", UCI_CONFDIR, f );
-			
-			if ( check_file( tmp_path, YES/*regular*/, YES/*read*/, YES/*writable*/, NO/*executable*/ ) == FAILURE )
+
+		} else if (strchr(f, '/') == NULL || strchr(f, '/') >= f + wordlen(f)) {
+
+			snprintf(tmp_path, strlen(UCI_CONFDIR) + 1 + wordlen(f) + 1, "%s/%s", UCI_CONFDIR, f);
+
+			if (check_file(tmp_path, YES/*regular*/, YES/*read*/, YES/*writable*/, NO/*executable*/) == FAILURE)
 				return FAILURE;
-				
-			
+
+
 		} else {
-			
+
 			return FAILURE;
 		}
-		
-		if ( cmd == OPT_APPLY ) {
-			
-			strcpy( conf_path, tmp_path );
-			bmx_conf_name = strrchr( conf_path, '/') + 1;
-			*(strrchr( conf_path, '/'))=0;
-			
+
+		if (cmd == OPT_APPLY) {
+
+			strcpy(conf_path, tmp_path);
+			bmx_conf_name = strrchr(conf_path, '/') + 1;
+			*(strrchr(conf_path, '/')) = 0;
+
 		}
-		
+
 		return SUCCESS;
-		
-		
-	} else if ( cmd == OPT_SET_POST  &&  bmx_conf_name ) {
-		
-		sprintf( tmp_path, "%s/%s", conf_path, bmx_conf_name );
-		
-		if ( check_file( tmp_path, YES/*regular*/, YES/*read*/, YES/*writable*/, NO/*executable*/ ) == FAILURE )
+
+
+	} else if (cmd == OPT_SET_POST && bmx_conf_name) {
+
+		sprintf(tmp_path, "%s/%s", conf_path, bmx_conf_name);
+
+		if (check_file(tmp_path, YES/*regular*/, YES/*read*/, YES/*writable*/, NO/*executable*/) == FAILURE)
 			return SUCCESS; //no config file used
 
 		bmx_ctx = uci_alloc_context();
-		uci_set_confdir( bmx_ctx, conf_path );
-		
-		dbg( DBGL_CHANGES, DBGT_INFO, 
-		     "loading uci bmx7 backend: file://%s/%s succeeded", conf_path, bmx_conf_name );
-		
+		uci_set_confdir(bmx_ctx, conf_path);
+
+		dbg(DBGL_CHANGES, DBGT_INFO,
+			"loading uci bmx7 backend: file://%s/%s succeeded", conf_path, bmx_conf_name);
+
 		//initially lookup the bmx package so that we can save future changes
 		memset(&bmx_pptr, 0, sizeof(bmx_pptr));
 		bmx_pptr.package = bmx_conf_name;
-		uci_lookup_ptr( bmx_ctx, &bmx_pptr, NULL, false);
-		
+		uci_lookup_ptr(bmx_ctx, &bmx_pptr, NULL, false);
+
 		net_ctx = uci_alloc_context();
-		uci_set_confdir( net_ctx, conf_path );
-		
+		uci_set_confdir(net_ctx, conf_path);
+
 		load_config_cb = bmx_load_config;
 		save_config_cb = bmx_save_config;
 		derive_config = bmx_derive_config;
-		
+
 		// we are already at OPT_SET_POST order>1 but 
 		// we have nothing OPT_TESTed nor OPT_SET order=0 options, so load it now!
 		// order > 1 will be OPT_TEST and OPT_SET automatically via load_config_cb = bmx_load_config function
 		struct list_node *list_pos;
-		
-		int8_t test = 1;
-		while ( test >= 0 && test <= 1 ) {
-		
-			list_for_each( list_pos, &opt_list ) {
-				
-				struct opt_type *on = (struct opt_type*)list_entry( list_pos, struct opt_data, list );
-				
-				if ( (test && on->order != 1 ) || (!test && on->order == 0) ) {
 
-                                        if (bmx_load_config(test ? OPT_CHECK : OPT_APPLY, on, cn) != SUCCESS) {
-						
-						dbgf_all(  DBGT_ERR, 
-							"bmx_load_config() %s %s failed", 
-						        test?"OPT_TEST":"OPT_SET",on->name );
-						
+		int8_t test = 1;
+		while (test >= 0 && test <= 1) {
+
+			list_for_each(list_pos, &opt_list)
+			{
+
+				struct opt_type *on = (struct opt_type*) list_entry(list_pos, struct opt_data, list);
+
+				if ((test && on->order != 1) || (!test && on->order == 0)) {
+
+					if (bmx_load_config(test ? OPT_CHECK : OPT_APPLY, on, cn) != SUCCESS) {
+
+						dbgf_all(DBGT_ERR,
+							"bmx_load_config() %s %s failed",
+							test ? "OPT_TEST" : "OPT_SET", on->name);
+
 						return FAILURE;
 					}
 				}
@@ -816,8 +809,8 @@ int32_t opt_conf_file ( uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
 			test--;
 		}
 	}
-	
-	signal( SIGHUP, signal_hup_handler );
+
+	signal(SIGHUP, signal_hup_handler);
 
 	return SUCCESS;
 }
@@ -826,47 +819,47 @@ STATIC_FUNC
 int32_t opt_show_conf(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
 {
 
-        if (cmd == OPT_APPLY) {
+	if (cmd == OPT_APPLY) {
 
-                int8_t show_sections = 0;
+		int8_t show_sections = 0;
 
-                dbg_printf(cn, "config '%s' '%s'\n", DEF_SECT_TYPE, DEF_SECT_NAME);
+		dbg_printf(cn, "config '%s' '%s'\n", DEF_SECT_TYPE, DEF_SECT_NAME);
 
-                do {
-                        struct opt_type *opt = NULL;
+		do {
+			struct opt_type *opt = NULL;
 
-                        while ((opt = list_iterate(&opt_list, opt))) {
-                                struct opt_parent *p = NULL;
+			while ((opt = list_iterate(&opt_list, opt))) {
+				struct opt_parent *p = NULL;
 
-                                while (opt->name && (p = list_iterate(&opt->d.parents_instance_list, p))) {
-                                        struct opt_child *c = NULL;
+				while (opt->name && (p = list_iterate(&opt->d.parents_instance_list, p))) {
+					struct opt_child *c = NULL;
 
-                                        if (!show_sections && opt->opt_t == A_PS1) {
+					if (!show_sections && opt->opt_t == A_PS1) {
 
-                                                dbg_printf(cn, "\toption '%s' '%s'\n",
-                                                        opt->name, (p->ref ? p->ref : p->val));
+						dbg_printf(cn, "\toption '%s' '%s'\n",
+							opt->name, (p->ref ? p->ref : p->val));
 
-                                        } else if (show_sections && (opt->opt_t == A_PS1N || opt->opt_t == A_PM1N)) {
+					} else if (show_sections && (opt->opt_t == A_PS1N || opt->opt_t == A_PM1N)) {
 
-                                                dbg_printf(cn, "\nconfig '%s'\n", opt->name);
-                                                dbg_printf(cn, "\toption '%s' '%s'\n",
-                                                        opt->name, (p->ref ? p->ref : p->val));
-                                        }
+						dbg_printf(cn, "\nconfig '%s'\n", opt->name);
+						dbg_printf(cn, "\toption '%s' '%s'\n",
+							opt->name, (p->ref ? p->ref : p->val));
+					}
 
-                                        while (show_sections && (c = list_iterate(&p->childs_instance_list, c))) {
+					while (show_sections && (c = list_iterate(&p->childs_instance_list, c))) {
 
-                                                dbg_printf(cn, "\toption '%s' '%s'\n",
-                                                        c->opt->name, (c->ref ? c->ref : c->val));
+						dbg_printf(cn, "\toption '%s' '%s'\n",
+							c->opt->name, (c->ref ? c->ref : c->val));
 
-                                        }
-                                }
-                        }
-                } while ((show_sections++) < 1);
+					}
+				}
+			}
+		} while ((show_sections++) < 1);
 
-                dbg_printf(cn, "\n");
-        }
+		dbg_printf(cn, "\n");
+	}
 
-        return SUCCESS;
+	return SUCCESS;
 }
 
 static struct opt_type config_options[]= {
@@ -886,48 +879,46 @@ static struct opt_type config_options[]= {
 			ARG_VALUE_FORM,	ARG_SYNC_CONFIG	 }
 };
 
-
-
 STATIC_FUNC
-void cleanup_conf( void ) {
-	
-	del_opt_parent( &tmp_conf_opt, NULL );
-	
+void cleanup_conf(void)
+{
+
+	del_opt_parent(&tmp_conf_opt, NULL);
+
 	load_config_cb = NULL;
 	save_config_cb = NULL;
-	
-	if ( bmx_ctx )
-		uci_free_context( bmx_ctx );
 
-	if ( net_ctx )
-		uci_free_context( net_ctx );
-	
+	if (bmx_ctx)
+		uci_free_context(bmx_ctx);
+
+	if (net_ctx)
+		uci_free_context(net_ctx);
+
 }
 
 STATIC_FUNC
-int32_t init_conf( void ) {
+int32_t init_conf(void)
+{
 
-	memset( &tmp_conf_opt, 0, sizeof( struct opt_type ) );
-	LIST_INIT_HEAD( tmp_conf_opt.d.childs_type_list, struct opt_data, list, list );
-	LIST_INIT_HEAD( tmp_conf_opt.d.parents_instance_list, struct opt_parent, list, list );
-	
-	register_options_array( config_options, sizeof( config_options ), CODE_CATEGORY_NAME );
-	
+	memset(&tmp_conf_opt, 0, sizeof( struct opt_type));
+	LIST_INIT_HEAD(tmp_conf_opt.d.childs_type_list, struct opt_data, list, list);
+	LIST_INIT_HEAD(tmp_conf_opt.d.parents_instance_list, struct opt_parent, list, list);
+
+	register_options_array(config_options, sizeof( config_options), CODE_CATEGORY_NAME);
+
 	return SUCCESS;
 }
 
+struct plugin* get_plugin(void)
+{
 
-
-struct plugin* get_plugin( void ) {
-	
 	static struct plugin conf_plugin;
-        memset( &conf_plugin, 0, sizeof( conf_plugin));
-	
+	memset(&conf_plugin, 0, sizeof( conf_plugin));
+
 	conf_plugin.plugin_name = CODE_CATEGORY_NAME;
-	conf_plugin.plugin_size = sizeof ( struct plugin );
+	conf_plugin.plugin_size = sizeof( struct plugin);
 	conf_plugin.cb_init = init_conf;
 	conf_plugin.cb_cleanup = cleanup_conf;
 
 	return &conf_plugin;
 }
-

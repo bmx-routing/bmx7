@@ -44,12 +44,8 @@
 
 
 
-
-
-
 #define CRYPT_KEY_N_MOD 128
 #define CRYPT_KEY_E_VAL 65537
-
 
 
 
@@ -100,6 +96,7 @@
 #define CRYPT_SHA_LEN (224/8)//28
 
 typedef struct CRYPTSHA_T {
+
 	union {
 		uint8_t u8[CRYPT_SHA_LEN];
 		uint32_t u32[CRYPT_SHA_LEN / sizeof(uint32_t)];
@@ -120,9 +117,8 @@ typedef struct CRYPTSHA112_T {
 	uint8_t u8[CRYPT_SHA112_BITSIZE / 8];
 } CRYPTSHA112_T;
 
-
 typedef struct CRYPTRSA_T {
-    TIME_SEC_T endOfLife;
+	TIME_SEC_T endOfLife;
 	uint8_t rawKeyType;
 	uint16_t rawKeyLen;
 	//	uint8_t __nativeBackendKey;
@@ -176,8 +172,8 @@ char *cryptRsaKeyTypeAsString(int type);
 void cryptRand(void *out, uint32_t outLen);
 
 void cryptShaAtomic(void *in, int32_t len, CRYPTSHA_T *sha);
-void cryptShaNew( void *in, int32_t len);
-void cryptShaUpdate( void *in, int32_t len);
+void cryptShaNew(void *in, int32_t len);
+void cryptShaUpdate(void *in, int32_t len);
 void cryptShaFinal(CRYPTSHA_T *sha);
 
 char *cryptShaAsString(CRYPTSHA_T *sha);
@@ -190,4 +186,3 @@ int cryptShasEqual(CRYPTSHA_T *shaA, CRYPTSHA_T *shaB);
 
 void init_crypt(void);
 void cleanup_crypt(void);
-

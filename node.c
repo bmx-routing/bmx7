@@ -81,21 +81,20 @@ void inaptChainOgm_destroy_(struct NeighRef_node *ref)
 	}
 }
 
-
 STATIC_FUNC
 void inaptChainOgm_update_(struct NeighRef_node *ref, struct InaptChainOgm *inaptChainOgm, uint8_t claimedChain)
 {
 	assertion(-502657, (ref && inaptChainOgm));
 
 	if (ref->inaptChainOgm != inaptChainOgm) {
-		
+
 		if (!ref->inaptChainOgm || (
 			memcmp(&ref->inaptChainOgm->chainOgm, &inaptChainOgm->chainOgm, sizeof(ChainLink_T)) == 0 &&
 			(ref->inaptChainOgm->claimedMetric.val.u16 < inaptChainOgm->claimedMetric.val.u16)
 			)) {
 
-			ref->inaptChainOgm = debugRealloc(ref->inaptChainOgm, ((sizeof(struct InaptChainOgm) + inaptChainOgm->pathMetricsByteSize)), -300824);
-			memcpy(ref->inaptChainOgm, inaptChainOgm, ((sizeof(struct InaptChainOgm) + inaptChainOgm->pathMetricsByteSize)));
+			ref->inaptChainOgm = debugRealloc(ref->inaptChainOgm, ((sizeof(struct InaptChainOgm) +inaptChainOgm->pathMetricsByteSize)), -300824);
+			memcpy(ref->inaptChainOgm, inaptChainOgm, ((sizeof(struct InaptChainOgm) +inaptChainOgm->pathMetricsByteSize)));
 		}
 	}
 
@@ -108,12 +107,12 @@ void neighRef_destroy(struct NeighRef_node *ref, IDM_T reAssessState)
 	struct key_node *kn = ref->kn;
 
 	if (ref->scheduled_ogm_processing)
-		task_remove(process_ogm_metric, (void*)ref);
+		task_remove(process_ogm_metric, (void*) ref);
 
 	iid_free(&ref->nn->neighIID4x_repos, iid_get_neighIID4x_by_node(ref));
 
 	if (kn) {
-		struct key_credits kc = {.neighRef = ref};
+		struct key_credits kc = { .neighRef = ref };
 		keyNode_delCredits(NULL, kn, &kc, (reAssessState && kn != ref->nn->on->kn));
 	}
 
@@ -124,7 +123,6 @@ void neighRef_destroy(struct NeighRef_node *ref, IDM_T reAssessState)
 
 	debugFree(ref, -300721);
 }
-
 
 STATIC_FUNC
 struct NeighRef_node *neighRef_create_(struct neigh_node *neigh, AGGREG_SQN_T aggSqn, IID_T neighIID4x)
@@ -141,7 +139,6 @@ struct NeighRef_node *neighRef_create_(struct neigh_node *neigh, AGGREG_SQN_T ag
 	return ref;
 }
 
-
 struct NeighRef_node *neighRef_resolve_or_destroy(struct NeighRef_node *ref, IDM_T reassessState)
 {
 	IID_T iid;
@@ -155,10 +152,10 @@ struct NeighRef_node *neighRef_resolve_or_destroy(struct NeighRef_node *ref, IDM
 
 			schedule_tx_task(FRAME_TYPE_IID_REQ, NULL, &nn->k.nodeId, nn, nn->best_tq_link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &iid, sizeof(iid));
 
-		} else if (kn->bookedState->i.c >= KCTracked && kn->content->f_body && ref->inaptChainOgm && ref->inaptChainOgm->claimedChain  &&
+		} else if (kn->bookedState->i.c >= KCTracked && kn->content->f_body && ref->inaptChainOgm && ref->inaptChainOgm->claimedChain &&
 			(ref->descSqn >= kn->descSqnMin) && (ref->descSqn > (kn->nextDesc ? kn->nextDesc->descSqn : 0)) && (ref->descSqn > (kn->on ? kn->on->dc->descSqn : 0))) {
 
-			struct schedule_dsc_req req = {.iid = iid, .descSqn = ref->descSqn};
+			struct schedule_dsc_req req = { .iid = iid, .descSqn = ref->descSqn };
 			schedule_tx_task(FRAME_TYPE_DESC_REQ, NULL, &nn->k.nodeId, nn, nn->best_tq_link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &req, sizeof(req));
 
 		} else if (kn->bookedState->i.c >= KCTracked) {
@@ -174,9 +171,6 @@ struct NeighRef_node *neighRef_resolve_or_destroy(struct NeighRef_node *ref, IDM
 		return NULL;
 	}
 }
-
-
-
 
 void neighRefs_resolve_or_destroy(void)
 {
@@ -233,15 +227,15 @@ void set_ref_ogmSqnMaxMetric(struct NeighRef_node *ref, DESC_SQN_T descSqn, OGM_
 	}
 }
 
-
 void update_ogm_mins(struct key_node *kn, DESC_SQN_T minDescSqn, OGM_SQN_T minOgmSqn, UMETRIC_T *minUMetric)
 {
 	assertion(-502727, (kn));
 	assertion(-502728, (minDescSqn));
 	assertion(-502729, IMPLIES(minUMetric, minOgmSqn));
 
-	FMETRIC_U16_T minFMetric = {.val = {.u16 = 0}};
-		
+	FMETRIC_U16_T minFMetric = { .val =
+		{.u16 = 0 } };
+
 	if (minUMetric)
 		minFMetric = umetric_to_fmetric(*minUMetric);
 
@@ -282,7 +276,8 @@ IDM_T is_new_ogm_mins(struct key_node *kn, DESC_SQN_T minDescSqn, OGM_SQN_T minO
 	assertion(-502731, (minDescSqn));
 	assertion(-502732, IMPLIES(minUMetric, minOgmSqn));
 
-	FMETRIC_U16_T minFMetric = {.val = {.u16 = 0}};
+	FMETRIC_U16_T minFMetric = { .val =
+		{.u16 = 0 } };
 
 	if (minUMetric)
 		minFMetric = umetric_to_fmetric(*minUMetric);
@@ -309,7 +304,6 @@ IDM_T is_new_ogm_mins(struct key_node *kn, DESC_SQN_T minDescSqn, OGM_SQN_T minO
 	return NO;
 }
 
-
 struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn, IID_T neighIID4x, CRYPTSHA_T *kHash, DESC_SQN_T descSqn, struct InaptChainOgm *inChainOgm)
 {
 	assertion(-502459, (nn));
@@ -328,7 +322,7 @@ struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn
 		goto_error_return(finish, "oversized IID", NULL);
 
 	if (!(ref = iid_get_node_by_neighIID4x(&nn->neighIID4x_repos, neighIID4x, !!inChainOgm)) && !(ref = neighRef_create_(nn, aggSqn, neighIID4x)))
-		goto_error_return( finish, "No neighRef!!!", NULL);
+		goto_error_return(finish, "No neighRef!!!", NULL);
 
 	ref->aggSqn = (((AGGREG_SQN_T) (ref->aggSqn - aggSqn)) < AGGREG_SQN_CACHE_RANGE) ? ref->aggSqn : aggSqn;
 
@@ -357,11 +351,11 @@ struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn
 				ref = neighRef_create_(nn, aggSqn, neighIID4x);
 			}
 
-			struct key_credits kc = {.neighRef = ref};
+			struct key_credits kc = { .neighRef = ref };
 			if (!(kn = keyNode_updCredits(kHash, NULL, &kc))) {
 				neighRef_destroy(ref, YES);
 				ref = NULL;
-				goto_error_return( finish, "Insufficient credits", NULL);
+				goto_error_return(finish, "Insufficient credits", NULL);
 			}
 		}
 
@@ -387,11 +381,11 @@ struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn
 			assertion(-502571, (ref->descSqn <= dc->descSqn));
 
 			if (ref->descSqn < dc->descSqn)
-				set_ref_ogmSqnMaxMetric( ref, dc->descSqn, 0, NULL);
+				set_ref_ogmSqnMaxMetric(ref, dc->descSqn, 0, NULL);
 
 
 			if (ref->ogmSqnMax < ogmSqn)
-				set_ref_ogmSqnMaxMetric( ref, dc->descSqn, ogmSqn, NULL);
+				set_ref_ogmSqnMaxMetric(ref, dc->descSqn, ogmSqn, NULL);
 			else if (ref->ogmSqnMax > ogmSqn)
 				goto_error_return(finish, "Outdated ogmSqn", NULL);
 
@@ -399,14 +393,13 @@ struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn
 			if (ref->inaptChainOgm && ref->inaptChainOgm != chainOgm &&
 				memcmp(&ref->inaptChainOgm->chainOgm, &chainOgm->chainOgm, sizeof(ChainLink_T)) == 0 &&
 				ref->inaptChainOgm->claimedMetric.val.u16 > ref->ogmSqnMaxClaimedMetric.val.u16 &&
-				ref->inaptChainOgm->claimedMetric.val.u16 > chainOgm->claimedMetric.val.u16)
-			{
+				ref->inaptChainOgm->claimedMetric.val.u16 > chainOgm->claimedMetric.val.u16) {
 
-				set_ref_ogmSqnMaxMetric( ref, dc->descSqn, ogmSqn, ref->inaptChainOgm);
+				set_ref_ogmSqnMaxMetric(ref, dc->descSqn, ogmSqn, ref->inaptChainOgm);
 
 			} else if (chainOgm->claimedMetric.val.u16 > ref->ogmSqnMaxClaimedMetric.val.u16) {
 
-				set_ref_ogmSqnMaxMetric( ref, dc->descSqn, ogmSqn, chainOgm);
+				set_ref_ogmSqnMaxMetric(ref, dc->descSqn, ogmSqn, chainOgm);
 			}
 
 			dc->referred_by_others_timestamp = bmx_time;
@@ -441,34 +434,35 @@ struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn
 
 	if (ref)
 		process_ogm_metric(ref);
-	
-finish: {
 
-	dbgf_track(DBGT_INFO, 
+finish:
+	{
+
+		dbgf_track(DBGT_INFO,
 		"problem=%s neigh=%s aggSqn=%d IID=%d kHash=%s descSqn=%d chainOgm=%s ogmMtc=%d \n"
 		"REF: nodeId=%s descSqn=%d hostname=%s ogmSqnMaxRcvd=%d ogmMtcMaxRcvd=%d inaptChainOgmRcvd=%s inaptMtcRcvd=%d\n"
 		"DC: ogmSqnRange=%d  ogmSqnMaxRcvd=%d \n"
 		"OUT: ogmSqn=%d ",
 		goto_error_code, ((nn && nn->on) ? nn->on->k.hostname : NULL), aggSqn, neighIID4x, cryptShaAsShortStr(kHash), descSqn,
-		memAsHexString(inChainOgm ? &inChainOgm->chainOgm : NULL, sizeof(ChainLink_T)), (inChainOgm ? (int)inChainOgm->claimedMetric.val.u16 : -1),
+		memAsHexString(inChainOgm ? &inChainOgm->chainOgm : NULL, sizeof(ChainLink_T)), (inChainOgm ? (int) inChainOgm->claimedMetric.val.u16 : -1),
 
 		cryptShaAsShortStr(ref && ref->kn ? &ref->kn->kHash : NULL),
-		(ref ? (int)ref->descSqn : -1 ),
+		(ref ? (int) ref->descSqn : -1),
 		(ref && ref->kn && ref->kn->on ? ref->kn->on->k.hostname : NULL),
-		(ref ? (int)ref->ogmSqnMax : -1),
-		(ref ? (int)ref->ogmSqnMaxClaimedMetric.val.u16 : -1),
-		(ref && ref->inaptChainOgm ? memAsHexString(&ref->inaptChainOgm->chainOgm, sizeof(ChainLink_T)): NULL),
-		(ref && ref->inaptChainOgm? (int)ref->inaptChainOgm->claimedMetric.val.u16 : -1),
+		(ref ? (int) ref->ogmSqnMax : -1),
+		(ref ? (int) ref->ogmSqnMaxClaimedMetric.val.u16 : -1),
+		(ref && ref->inaptChainOgm ? memAsHexString(&ref->inaptChainOgm->chainOgm, sizeof(ChainLink_T)) : NULL),
+		(ref && ref->inaptChainOgm ? (int) ref->inaptChainOgm->claimedMetric.val.u16 : -1),
 
-		(dc ? (int)dc->ogmSqnRange : -1), (dc ? (int)dc->ogmSqnMaxRcvd : -1),
+		(dc ? (int) dc->ogmSqnRange : -1), (dc ? (int) dc->ogmSqnMaxRcvd : -1),
 		ogmSqn);
 
 
-	return goto_error_ret;
-}
+		return goto_error_ret; }
 }
 
-void neighRefs_update(struct key_node *kn) {
+void neighRefs_update(struct key_node *kn)
+{
 
 	assertion(-502572, (kn && (kn->nextDesc || kn->on)));
 
@@ -486,7 +480,6 @@ void neighRefs_update(struct key_node *kn) {
 			neighRef_destroy(nref, YES);
 	}
 }
-
 
 int purge_orig_router(struct orig_node *onlyOrig, struct neigh_node *onlyNeigh, LinkNode *onlyLink, IDM_T onlyUseless)
 {
@@ -524,10 +517,6 @@ int purge_orig_router(struct orig_node *onlyOrig, struct neigh_node *onlyNeigh, 
 
 	return removed;
 }
-
-
-
-
 
 void neigh_destroy(struct orig_node *on)
 {
@@ -577,10 +566,6 @@ void neigh_destroy(struct orig_node *on)
 	debugFree(local, -300333);
 }
 
-
-
-
-
 struct neigh_node *neigh_create(struct orig_node *on)
 {
 	if (on->kn == myKey)
@@ -596,14 +581,14 @@ struct neigh_node *neigh_create(struct orig_node *on)
 
 	nn->internalNeighId = allocate_internalNeighId(nn);
 
-	if ((rsaKey  = contents_data(on->dc, BMX_DSC_TLV_RSA_LINK_PUBKEY)) && 
+	if ((rsaKey = contents_data(on->dc, BMX_DSC_TLV_RSA_LINK_PUBKEY)) &&
 		(rsaMsgLen = contents_dlen(on->dc, BMX_DSC_TLV_RSA_LINK_PUBKEY)) &&
 		(rsaKey->type) && (rsaKeyLen = cryptRsaKeyLenByType(rsaKey->type)) &&
-		(rsaMsgLen == (rsaKeyLen + (int)sizeof(struct dsc_msg_pubkey)))) {
+		(rsaMsgLen == (rsaKeyLen + (int) sizeof(struct dsc_msg_pubkey)))) {
 
 		nn->rsaLinkKey = cryptRsaPubKeyFromRaw(rsaKey->key, rsaKeyLen);
 	}
-/*
+	/*
 	struct dsc_msg_dhm_link_key *neighDhmKey;
 	int neighDhmLen;
 	if (my_DhmLinkKey &&
@@ -613,19 +598,10 @@ struct neigh_node *neigh_create(struct orig_node *on)
 
 		nn->on->dhmSecret = cryptDhmSecretForNeigh(my_DhmLinkKey, neighDhmKey->gx, neighDhmLen);
 	}
-*/
+	 */
 	nn->on = on;
 	return nn;
 }
-
-
-
-
-
-
-
-
-
 
 void destroy_orig_node(struct orig_node *on)
 {
@@ -643,8 +619,8 @@ void destroy_orig_node(struct orig_node *on)
 	process_description_tlvs(NULL, on, NULL, on->dc, TLV_OP_DEL, FRAME_TYPE_PROCESS_ALL);
 
 	assertion(-502758, (!on->dhmSecret));
-//	if (on->dhmSecret)
-//		debugFreeReset(&on->dhmSecret, sizeof(CRYPTSHA_T), -300835);
+	//	if (on->dhmSecret)
+	//		debugFreeReset(&on->dhmSecret, sizeof(CRYPTSHA_T), -300835);
 
 
 	if (on->trustedNeighsBitArray)
@@ -679,18 +655,17 @@ void init_self(void)
 	assertion(-502094, (my_NodeKey && my_NodeKey->rawKeyType && my_NodeKey->rawKeyLen));
 	assertion(-502477, (!myKey));
 
-	struct key_credits friend_kc = {.dFriend = TYP_TRUST_LEVEL_IMPORT};
-	struct dsc_msg_pubkey *msg = debugMallocReset(sizeof(struct dsc_msg_pubkey) + my_NodeKey->rawKeyLen, -300631);
+	struct key_credits friend_kc = { .dFriend = TYP_TRUST_LEVEL_IMPORT };
+	struct dsc_msg_pubkey *msg = debugMallocReset(sizeof(struct dsc_msg_pubkey) +my_NodeKey->rawKeyLen, -300631);
 	int ret = cryptRsaPubKeyGetRaw(my_NodeKey, msg->key, my_NodeKey->rawKeyLen);
 
-	assertion(-502733, (ret==SUCCESS));
+	assertion(-502733, (ret == SUCCESS));
 
 	msg->type = my_NodeKey->rawKeyType;
 
-	struct content_node *cn = content_add_body((uint8_t*)msg, sizeof(struct dsc_msg_pubkey) + my_NodeKey->rawKeyLen, 0, 0, YES);
+	struct content_node *cn = content_add_body((uint8_t*) msg, sizeof(struct dsc_msg_pubkey) +my_NodeKey->rawKeyLen, 0, 0, YES);
 
 	myKey = keyNode_updCredits(&cn->chash, NULL, &friend_kc);
 
 	debugFree(msg, -300600);
 }
-

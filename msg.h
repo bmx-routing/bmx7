@@ -173,10 +173,6 @@ extern int32_t txTaskTreeSizeMax;
 
 extern BURST_SQN_T myBurstSqn;
 
-
-
-
-
 struct tlv_hdr_virtual { // 6 bytes
 	uint8_t type;
 	uint8_t mbz;
@@ -317,10 +313,6 @@ struct frame_hdr_signature {
 	DEVIDX_T devIdx;
 } __attribute__((packed));
 
-
-
-
-
 /*
  * this iterator is given the beginning of a frame area (e.g. the end of the packet_header)
  * then it iterates over the frames in that area */
@@ -356,7 +348,6 @@ struct rx_frame_iterator {
 
 	// allocated by handl[].rx_tlv_handler and freed by calling function of rx_frame_iterate() (e.g. process_description_tlvs())
 };
-
 
 /*
  * this iterator is given a fr_type and a set of handlers,
@@ -505,4 +496,3 @@ void cleanup_msg(void);
 
 uint8_t use_compression(struct frame_handl *handl);
 uint8_t use_refLevel(struct frame_handl *handl);
-

@@ -59,8 +59,7 @@
  ************************************************************/
 
 
-struct iid_repos my_iid_repos = {0, 0, 0, 0,
-	{NULL}};
+struct iid_repos my_iid_repos = {0, 0, 0, 0, {NULL}};
 
 void iid_extend_repos(struct iid_repos *rep)
 {
@@ -115,9 +114,9 @@ void iid_free(struct iid_repos *rep, IID_T iid)
 	assertion(-500229, (ref->referred_timestamp));
 
 	if (rep == &my_iid_repos)
-		((MIID_T*)(ref->iidn))->__myIID4x = 0;
+		((MIID_T*) (ref->iidn))->__myIID4x = 0;
 	else
-		((NIID_T*)(ref->iidn))->__neighIID4x = 0;
+		((NIID_T*) (ref->iidn))->__neighIID4x = 0;
 
 	ref->iidn = NULL;
 	ref->referred_timestamp = 0;
@@ -130,7 +129,7 @@ void iid_free(struct iid_repos *rep, IID_T iid)
 
 		for (i = iid; i > IID_MIN_USED_FOR_SELF; i--) {
 
-			if (rep->arr.r[i-1].referred_timestamp)
+			if (rep->arr.r[i - 1].referred_timestamp)
 				break;
 		}
 
@@ -178,11 +177,9 @@ MIID_T* iid_get_node_by_myIID4x(IID_T myIID4x)
 		assertion(-502543, (ref->__myIID4x == myIID4x));
 		my_iid_repos.arr.r[myIID4x].referred_timestamp = bmx_time;
 	}
-	
+
 	return ref;
 }
-
-
 
 IID_T iid_get_neighIID4x_timeout_by_node(NIID_T *niidn)
 {
@@ -195,7 +192,7 @@ IID_T iid_get_neighIID4x_timeout_by_node(NIID_T *niidn)
 	TIME_T to = ((TIME_T) ((bmx_time - niidn->nn->neighIID4x_repos.arr.r[niidn->__neighIID4x].referred_timestamp)));
 
 	if (to < NB_IID_TIMEOUT)
-		return (NB_IID_TIMEOUT - to);
+		return(NB_IID_TIMEOUT - to);
 	else
 		return 0;
 }
@@ -205,8 +202,7 @@ IID_T iid_get_neighIID4x_by_node(NIID_T *niidn)
 	return niidn ? niidn->__neighIID4x : IID_RSVD_MAX;
 }
 
-
-NIID_T* iid_get_node_by_neighIID4x(struct iid_repos *rep, IID_T neighIID4x, IDM_T update )
+NIID_T* iid_get_node_by_neighIID4x(struct iid_repos *rep, IID_T neighIID4x, IDM_T update)
 {
 	TRACE_FUNCTION_CALL;
 	struct iid_ref *ref = NULL;
@@ -218,10 +214,10 @@ NIID_T* iid_get_node_by_neighIID4x(struct iid_repos *rep, IID_T neighIID4x, IDM_
 
 	} else {
 
-		assertion(-502549, (((NIID_T*)(ref->iidn))->__neighIID4x == neighIID4x));
+		assertion(-502549, (((NIID_T*) (ref->iidn))->__neighIID4x == neighIID4x));
 		if (update)
 			ref->referred_timestamp = bmx_time;
-		return ((NIID_T*)(ref->iidn));
+		return((NIID_T*) (ref->iidn));
 	}
 
 	return NULL;
@@ -327,5 +323,3 @@ void iid_set_neighIID4x(struct iid_repos *rep, IID_T neighIID4x, NIID_T *niidn)
 
 	_iid_set(rep, neighIID4x, niidn, NULL);
 }
-
-

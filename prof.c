@@ -41,15 +41,15 @@
 
 static AVL_TREE(prof_tree, struct prof_ctx, k);
 
-void prof_init( struct prof_ctx *sp)
+void prof_init(struct prof_ctx *sp)
 {
 	assertion(-502112, (!sp->initialized));
-	assertion(-502113, (sp && sp->k.func && sp->name && strlen(sp->name)< 100));
+	assertion(-502113, (sp && sp->k.func && sp->name && strlen(sp->name) < 100));
 	assertion(-502114, (!(sp->k.orig && sp->k.neigh)));
 	assertion(-502115, (!avl_find_item(&prof_tree, &sp->k)));
 
 	if (sp->parent_func) {
-		struct prof_ctx_key pk = {.func=sp->parent_func};
+		struct prof_ctx_key pk = { .func = sp->parent_func };
 		struct prof_ctx *pp = avl_find_item(&prof_tree, &pk);
 
 		assertion(-502116, (pp));
@@ -65,16 +65,16 @@ void prof_init( struct prof_ctx *sp)
 
 }
 
-void prof_free( struct prof_ctx *p)
+void prof_free(struct prof_ctx *p)
 {
 	assertion(-502117, (p));
 	assertion(-502118, (p->initialized));
 	assertion(-502119, (!(p->childs_tree.items)));
 	assertion(-502120, (avl_find_item(&prof_tree, &p->k)));
-//	assertion(-502121, !((*p)->timeBefore));
+	//	assertion(-502121, !((*p)->timeBefore));
 
 	p->initialized = 0;
-	
+
 	avl_remove(&prof_tree, &p->k, -300646);
 
 	if (p->parent)
@@ -92,20 +92,20 @@ int prof_check(struct prof_ctx *p, int childs)
 		return SUCCESS;
 
 	dbgf_sys(DBGT_ERR, "func=%d name=%s parent_func=%d neigh=%p orig=%p parent_active_childs=%d childs=%d",
-		!!p->k.func, p->name, !!p->parent_func, (void*)p->k.neigh, (void*)p->k.orig, p->active_childs, childs);
+		!!p->k.func, p->name, !!p->parent_func, (void*) p->k.neigh, (void*) p->k.orig, p->active_childs, childs);
 
 	return FAILURE;
 }
 
-void prof_start_( struct prof_ctx *p)
+void prof_start_(struct prof_ctx *p)
 {
 	assertion_dbg(-502122, (!p->active_prof && !p->clockBeforePStart && !p->active_childs),
-		"func=%s %d %ju %d", p->name, p->active_prof, (uintmax_t)p->clockBeforePStart, p->active_childs);
+		"func=%s %d %ju %d", p->name, p->active_prof, (uintmax_t) p->clockBeforePStart, p->active_childs);
 
 	if (!p->initialized)
 		prof_init(p);
 
-	p->clockBeforePStart = (TIME_T)clock();
+	p->clockBeforePStart = (TIME_T) clock();
 	p->active_prof = 1;
 
 	if (p->parent)
@@ -114,22 +114,20 @@ void prof_start_( struct prof_ctx *p)
 	ASSERTION(-502125, (prof_check(p, 0) == SUCCESS));
 }
 
-
-
-void prof_stop_( struct prof_ctx *p)
+void prof_stop_(struct prof_ctx *p)
 {
 	TIME_T clockAfter = clock();
 	TIME_T clockPeriod = (clockAfter - p->clockBeforePStart);
 
 	assertion_dbg(-502126, (p->active_prof && !p->active_childs),
-		"func=%s %d %d %ju %d %d", p->name, p->active_prof, p->active_childs, (uintmax_t)p->clockBeforePStart, clockAfter, clockPeriod);
+		"func=%s %d %d %ju %d %d", p->name, p->active_prof, p->active_childs, (uintmax_t) p->clockBeforePStart, clockAfter, clockPeriod);
 
 	ASSERTION(-502127, (prof_check(p, 0) == SUCCESS));
 
 //	IDM_T TODO_Fix_this_for_critical_system_time_drifts;
 //	assertion(-502128, (clockPeriod < ((~((TIME_T)0))>>1)) ); //this wraps around some time..
 
-	if (clockPeriod < ((~((TIME_T)0))>>1))
+	if (clockPeriod < ((~((TIME_T) 0)) >> 1))
 		p->clockRunningPeriod += clockPeriod;
 
 	p->clockBeforePStart = 0;
@@ -143,19 +141,20 @@ static uint64_t durationPrevPeriod = 0;
 static uint64_t timeAfterPrevPeriod = 0;
 
 STATIC_FUNC
-void prof_update_all( void *unused) {
+void prof_update_all(void *unused)
+{
 
-	struct avl_node *an=NULL;
+	struct avl_node *an = NULL;
 	struct prof_ctx *pn;
 
 	struct timeval tvAfterRunningPeriod;
 	upd_time(&tvAfterRunningPeriod);
-	uint64_t timeAfterRunningPeriod = (((uint64_t)tvAfterRunningPeriod.tv_sec) * 1000000) + tvAfterRunningPeriod.tv_usec;
+	uint64_t timeAfterRunningPeriod = (((uint64_t) tvAfterRunningPeriod.tv_sec) * 1000000) + tvAfterRunningPeriod.tv_usec;
 
 	durationPrevPeriod = (timeAfterRunningPeriod - timeAfterPrevPeriod);
 
 	assertion(-502129, (durationPrevPeriod > 0));
-	assertion(-502130, (durationPrevPeriod < 10*1000000));
+	assertion(-502130, (durationPrevPeriod < 10 * 1000000));
 
 	prof_check_disabled = YES;
 
@@ -184,13 +183,12 @@ void prof_update_all( void *unused) {
 	task_register(5000, prof_update_all, NULL, -300648);
 }
 
-
 struct prof_status {
-        GLOBAL_ID_T *neighId;
-        GLOBAL_ID_T *origId;
+	GLOBAL_ID_T *neighId;
+	GLOBAL_ID_T *origId;
 	const char* parent;
-        const char* name;
-//	uint32_t total;
+	const char* name;
+	//	uint32_t total;
 	char sysCurrCpu[10];
 	char relCurrCpu[10];
 	char sysAvgCpu[10];
@@ -208,15 +206,15 @@ static const struct field_format prof_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       prof_status, relCurrCpu,    1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       prof_status, sysAvgCpu,     1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       prof_status, relAvgCpu,     1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_END
+	FIELD_FORMAT_END
 };
 
 STATIC_FUNC
 struct prof_status *prof_status_iterate(struct prof_ctx *pn, struct prof_status *status)
 {
-	dbgf_all(DBGT_INFO, "dbg pn=%s status=%p", pn->name, (void*)status);
+	dbgf_all(DBGT_INFO, "dbg pn=%s status=%p", pn->name, (void*) status);
 
-	status->neighId = pn->k.neigh ? &pn->k.neigh->k.nodeId: NULL;
+	status->neighId = pn->k.neigh ? &pn->k.neigh->k.nodeId : NULL;
 	status->origId = pn->k.orig ? &pn->k.orig->k.nodeId : NULL;
 	status->parent = pn->parent ? pn->parent->name : NULL;
 	status->name = pn->name;
@@ -262,50 +260,48 @@ struct prof_status *prof_status_iterate(struct prof_ctx *pn, struct prof_status 
 		sprintf(status->relAvgCpu, "ERR");
 
 
-prof_status_iterate_childs: {
+prof_status_iterate_childs:
+	{
 
-	status = &(status[1]);
+		status = &(status[1]);
 
-	struct avl_node *an = NULL;
-	struct prof_ctx *cn;
-	while ((cn=avl_iterate_item(&pn->childs_tree, &an))) {
-		status = prof_status_iterate(cn, status);
-	}
-}
+		struct avl_node *an = NULL;
+		struct prof_ctx *cn;
+		while ((cn = avl_iterate_item(&pn->childs_tree, &an))) {
+			status = prof_status_iterate(cn, status);
+		} }
 	return status;
 }
 
 STATIC_FUNC
 int32_t prof_status_creator(struct status_handl *handl, void *data)
 {
-        struct avl_node *it = NULL;
-        struct prof_ctx *pn;
-        uint32_t status_size = (prof_tree.items) * sizeof (struct prof_status);
-        struct prof_status *status = ((struct prof_status*) (handl->data = debugRealloc(handl->data, status_size, -300366)));
-        memset(status, 0, status_size);
+	struct avl_node *it = NULL;
+	struct prof_ctx *pn;
+	uint32_t status_size = (prof_tree.items) * sizeof(struct prof_status);
+	struct prof_status *status = ((struct prof_status*) (handl->data = debugRealloc(handl->data, status_size, -300366)));
+	memset(status, 0, status_size);
 
 	while ((pn = avl_iterate_item(&prof_tree, &it))) {
 
 		if (!pn->parent) {
 			status = prof_status_iterate(pn, status);
 		}
-        }
+	}
 
-        return status_size;
+	return status_size;
 }
 
 
-static struct opt_type prof_options[]=
-{
-//        ord parent long_name          shrt Attributes				*ival		min		max		default		*func,*syntax,*help
-	{ODI,0,ARG_CPU_PROFILING,        0,  9,1,A_PS0N,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
+static struct opt_type prof_options[] ={
+//       ord parent long_name          shrt Attributes				*ival		min		max		default		*func,*syntax,*help
+	{ODI,0,ARG_CPU_PROFILING,      0,  9,1,A_PS0N,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
 			0,		"show cpu usage of relevant functions\n"}
 };
 
-
-void init_prof( void )
+void init_prof(void)
 {
-	register_status_handl(sizeof (struct prof_status), 1, prof_status_format, ARG_CPU_PROFILING, prof_status_creator);
+	register_status_handl(sizeof(struct prof_status), 1, prof_status_format, ARG_CPU_PROFILING, prof_status_creator);
 	register_options_array(prof_options, sizeof( prof_options), CODE_CATEGORY_NAME);
 
 	task_register(5000, prof_update_all, NULL, -300649);
@@ -315,13 +311,13 @@ void init_prof( void )
 void cleanup_prof(void)
 {
 
-        struct avl_node *it = NULL;
-        struct prof_ctx *pn;
+	struct avl_node *it = NULL;
+	struct prof_ctx *pn;
 
 	for (it = NULL; (pn = avl_iterate_item(&prof_tree, &it));) {
 		pn->parent = NULL;
 		while ((avl_remove_first_item(&(pn->childs_tree), -300650)));
-        }
+	}
 
 	while ((avl_remove_first_item(&prof_tree, -300651)));
 }

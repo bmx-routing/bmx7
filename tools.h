@@ -33,11 +33,12 @@
                 }                                                               \
         } while(0)
 
-static inline uint64_t ntoh64(uint64_t x) {
+static inline uint64_t ntoh64(uint64_t x)
+{
 #if __BYTE_ORDER == __LITTLE_ENDIAN
-        return (((uint64_t) ntohl(x & (uint64_t) 0xFFFFFFFFULL)) << 32) | ((uint64_t) ntohl((x & (uint64_t) 0xFFFFFFFF00000000ULL) >> 32));
+	return(((uint64_t) ntohl(x & (uint64_t) 0xFFFFFFFFULL)) << 32) | ((uint64_t) ntohl((x & (uint64_t) 0xFFFFFFFF00000000ULL) >> 32));
 #else
-        return x;
+	return x;
 #endif
 }
 
@@ -50,18 +51,18 @@ static inline uint64_t ntoh64(uint64_t x) {
 char *strToLower(char *s);
 char* rmStrKeyValue(char* str, char* key);
 IDM_T hexStrToMem(char *s, uint8_t *m, uint16_t mLen, uint8_t strict);
-char* memAsHexString( const void* mem, uint32_t len);
-char* memAsHexStringSep( const void* mem, uint32_t len, uint16_t seperationLen, char *seperator);
-char* memAsCharString( const char* mem, uint32_t len);
+char* memAsHexString(const void* mem, uint32_t len);
+char* memAsHexStringSep(const void* mem, uint32_t len, uint16_t seperationLen, char *seperator);
+char* memAsCharString(const char* mem, uint32_t len);
 
 IDM_T check_string(char*s, char *okChars, char replaceChar);
-IDM_T validate_char_string (const char* data, uint32_t len);
+IDM_T validate_char_string(const char* data, uint32_t len);
 IDM_T validate_name_string(char* name, uint32_t field_len, char* exceptions);
 
 
 
-int32_t max_i32( int32_t a, int32_t b );
-int32_t min_i32( int32_t a, int32_t b );
+int32_t max_i32(int32_t a, int32_t b);
+int32_t min_i32(int32_t a, int32_t b);
 
 float fast_inverse_sqrt(float x);
 
@@ -85,9 +86,9 @@ uint8_t is_zero(void *data, int len);
 
 
 
-int8_t wordsEqual ( char *a, char *b );
-void wordCopy( char *out, char *in );
-uint32_t wordlen ( char *s );
+int8_t wordsEqual(char *a, char *b);
+void wordCopy(char *out, char *in);
+uint32_t wordlen(char *s);
 int32_t check_file(char *path, uint8_t regular, uint8_t read, uint8_t write, uint8_t exec);
 int32_t check_dir(char *path, uint8_t create, uint8_t write, uint8_t onlyBasePath);
 int32_t rm_dir_content(char* dir_name, char* prefix);

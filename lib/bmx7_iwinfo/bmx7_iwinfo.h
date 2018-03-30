@@ -68,7 +68,6 @@
 #define MIN_LINK_RATE_AVG_WEIGHT 1
 #define MAX_LINK_RATE_AVG_WEIGHT 100
 
-
 struct tp_test_key {
 	uint32_t packetSize;
 	uint32_t totalSend;

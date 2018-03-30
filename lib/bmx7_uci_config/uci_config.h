@@ -20,10 +20,10 @@
 #define DEF_SECT_NAME "general"
 #define DEF_SECT_TYPE "bmx7"
 
-#define ARG_CONFIG_FILE		"configFile"
-#define ARG_SAVE_CONFIG		"configSave"
-#define ARG_SHOW_CONFIG		"configShow"
-#define ARG_RELOAD_CONFIG	"configReload"
+#define ARG_CONFIG_FILE  "configFile"
+#define ARG_SAVE_CONFIG  "configSave"
+#define ARG_SHOW_CONFIG  "configShow"
+#define ARG_RELOAD_CONFIG "configReload"
 
 #define ARG_SYNC_CONFIG         "configSync"
 #define DEF_SYNC_CONFIG         1
@@ -31,4 +31,3 @@
 
 
 #define ARG_NO_CONFIG_FILE      "0"
-

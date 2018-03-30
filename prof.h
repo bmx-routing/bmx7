@@ -17,35 +17,35 @@
 #define ARG_CPU_PROFILING "cpu"
 
 struct prof_ctx_key {
-    struct neigh_node *neigh;
-    struct orig_node *orig;
-    void (* func) (void);
+	struct neigh_node *neigh;
+	struct orig_node *orig;
+	void (* func) (void);
 } __attribute__((packed));
 
 struct prof_ctx {
-    // must be initialized:
-    struct prof_ctx_key k;
-    const char *name;
-    void (* parent_func) (void);
-    // updated by first prof_start() -> prof_init():
-    struct prof_ctx *parent;
-    struct avl_tree childs_tree;
-    int8_t initialized;
-    
-    int8_t active_childs;
-    int8_t active_prof;
-    
-    clock_t clockBeforePStart;
-    
-    // updated by prof_stop():
-    clock_t clockRunningPeriod;
-    clock_t clockPrevPeriod;
-    uint64_t clockPrevTotal;
+	// must be initialized:
+	struct prof_ctx_key k;
+	const char *name;
+	void (* parent_func) (void);
+	// updated by first prof_start() -> prof_init():
+	struct prof_ctx *parent;
+	struct avl_tree childs_tree;
+	int8_t initialized;
+
+	int8_t active_childs;
+	int8_t active_prof;
+
+	clock_t clockBeforePStart;
+
+	// updated by prof_stop():
+	clock_t clockRunningPeriod;
+	clock_t clockPrevPeriod;
+	uint64_t clockPrevTotal;
 };
 
 //void prof_init( struct prof_ctx *sp);
 
-void prof_free( struct prof_ctx *p);
+void prof_free(struct prof_ctx *p);
 
 void prof_start_(struct prof_ctx *p);
 void prof_stop_(struct prof_ctx *p);
@@ -60,5 +60,5 @@ void prof_stop_(struct prof_ctx *p);
 
 
 
-void init_prof( void );
+void init_prof(void);
 void cleanup_prof(void);

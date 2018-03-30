@@ -32,10 +32,9 @@
 
 #define AVL_MAX_HEIGHT 128
 
-
 struct avl_node {
-        void *item;
-        int balance;
+	void *item;
+	int balance;
 	struct avl_node * up;
 	struct avl_node * down[2];
 #ifdef AVL_5XLINKED
@@ -96,28 +95,29 @@ struct avl_tree {
 #define avl_max(a,b) ((a) > (b) ? (a) : (b))
 
 
-struct avl_node *avl_find( struct avl_tree *tree, void *key );
-void            *avl_find_item( struct avl_tree *tree, void *key );
-void            *avl_next_item(struct avl_tree *tree, void *key);
-void            *avl_closest_item(struct avl_tree *tree, void *key);
-void            *avl_first_item(struct avl_tree *tree);
-void            *avl_iterate_item(struct avl_tree *tree, struct avl_node **it );
-void           *_avl_find_item_by_field(struct avl_tree *tree, void *value, unsigned long offset, uint32_t size);
+struct avl_node *avl_find(struct avl_tree *tree, void *key);
+void *avl_find_item(struct avl_tree *tree, void *key);
+void *avl_next_item(struct avl_tree *tree, void *key);
+void *avl_closest_item(struct avl_tree *tree, void *key);
+void *avl_first_item(struct avl_tree *tree);
+void *avl_iterate_item(struct avl_tree *tree, struct avl_node **it);
+void *_avl_find_item_by_field(struct avl_tree *tree, void *value, unsigned long offset, uint32_t size);
 #define          avl_find_item_by_field(tree,val,s,field) _avl_find_item_by_field( tree, val, (unsigned long)((&(((struct s*)0)->field))), sizeof(((struct s*)0)->field) )
-void             avl_insert(struct avl_tree *tree, void *node, int32_t tag);
-void            *avl_remove(struct avl_tree *tree, void *key, int32_t tag);
-void            *avl_remove_first_item(struct avl_tree *tree, int32_t tag);
-void             init_avl(void);
+void avl_insert(struct avl_tree *tree, void *node, int32_t tag);
+void *avl_remove(struct avl_tree *tree, void *key, int32_t tag);
+void *avl_remove_first_item(struct avl_tree *tree, int32_t tag);
+void init_avl(void);
 
 #ifdef AVL_DEBUG
+
 struct avl_iterator {
 	struct avl_node * up[AVL_MAX_HEIGHT];
 	int upd[AVL_MAX_HEIGHT];
 	int top;
 };
 
-struct avl_node *avl_iter(struct avl_tree *tree, struct avl_iterator *it );
-void avl_debug( struct avl_tree *tree );
+struct avl_node *avl_iter(struct avl_tree *tree, struct avl_iterator *it);
+void avl_debug(struct avl_tree *tree);
 void avl_test(int m);
 #endif
 

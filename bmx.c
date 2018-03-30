@@ -86,9 +86,6 @@ const IDM_T CONST_NO = NO;
 
 
 
-
-
-
 TIME_T bmx_time = 0;
 TIME_SEC_T bmx_time_sec = 0;
 
@@ -100,53 +97,48 @@ int32_t totalOrigRoutes = 0;
 
 AVL_TREE(status_tree, struct status_handl, status_name);
 
-
+// TODO: move to tools.c/h
 IDM_T validate_param(int32_t probe, int32_t min, int32_t max, char *name)
 {
-
-        if ( probe < min || probe > max ) {
-
-                dbgf_sys(DBGT_ERR, "Illegal %s parameter value %d ( min %d  max %d )", name, probe, min, max);
-
-                return FAILURE;
-        }
-
-        return SUCCESS;
+	if (probe < min || probe > max) {
+		dbgf_sys(DBGT_ERR, "Illegal %s parameter value %d ( min %d  max %d )", name, probe, min, max);
+		return FAILURE;
+	}
+	return SUCCESS;
 }
 
 
 
 /***********************************************************
  Runtime Infrastructure
-************************************************************/
+ ************************************************************/
 
 
 #ifndef NO_TRACE_FUNCTION_CALLS
-static char* function_call_buffer_name_array[FUNCTION_CALL_BUFFER_SIZE] = {0};
-static TIME_T function_call_buffer_time_array[FUNCTION_CALL_BUFFER_SIZE] = {0};
+static char* function_call_buffer_name_array[FUNCTION_CALL_BUFFER_SIZE] = { 0 };
+static TIME_T function_call_buffer_time_array[FUNCTION_CALL_BUFFER_SIZE] = { 0 };
 static uint8_t function_call_buffer_pos = 0;
 
 static void debug_function_calls(void)
 {
-        uint8_t i;
-        for (i = function_call_buffer_pos + 1; i != function_call_buffer_pos; i = ((i+1) % FUNCTION_CALL_BUFFER_SIZE)) {
+	uint8_t i;
+	for (i = function_call_buffer_pos + 1; i != function_call_buffer_pos; i = ((i + 1) % FUNCTION_CALL_BUFFER_SIZE)) {
 
-                if (!function_call_buffer_name_array[i])
-                        continue;
+		if (!function_call_buffer_name_array[i])
+			continue;
 
-                dbgf_sys(DBGT_ERR, "%10d %s()", function_call_buffer_time_array[i], function_call_buffer_name_array[i]);
+		dbgf_sys(DBGT_ERR, "%10d %s()", function_call_buffer_time_array[i], function_call_buffer_name_array[i]);
 
-        }
+	}
 }
-
 
 void trace_function_call(const char *func)
 {
-        if (function_call_buffer_name_array[function_call_buffer_pos] != func) {
-                function_call_buffer_time_array[function_call_buffer_pos] = bmx_time;
-                function_call_buffer_name_array[function_call_buffer_pos] = (char*)func;
-                function_call_buffer_pos = ((function_call_buffer_pos+1) % FUNCTION_CALL_BUFFER_SIZE);
-        }
+	if (function_call_buffer_name_array[function_call_buffer_pos] != func) {
+		function_call_buffer_time_array[function_call_buffer_pos] = bmx_time;
+		function_call_buffer_name_array[function_call_buffer_pos] = (char*) func;
+		function_call_buffer_pos = ((function_call_buffer_pos + 1) % FUNCTION_CALL_BUFFER_SIZE);
+	}
 }
 
 
@@ -155,34 +147,33 @@ void trace_function_call(const char *func)
 char *get_human_uptime(uint32_t reference)
 {
 	//                  DD:HH:MM:SS
-	static char ut[32]="00:00:00:00";
+	static char ut[32] = "00:00:00:00";
 
-	sprintf( ut, "%i:%i%i:%i%i:%i%i",
-	         (((bmx_time_sec-reference)/86400)),
-	         (((bmx_time_sec-reference)%86400)/36000)%10,
-	         (((bmx_time_sec-reference)%86400)/3600)%10,
-	         (((bmx_time_sec-reference)%3600)/600)%10,
-	         (((bmx_time_sec-reference)%3600)/60)%10,
-	         (((bmx_time_sec-reference)%60)/10)%10,
-	         (((bmx_time_sec-reference)%60))%10
-	       );
+	sprintf(ut, "%i:%i%i:%i%i:%i%i",
+		(((bmx_time_sec - reference) / 86400)),
+		(((bmx_time_sec - reference) % 86400) / 36000) % 10,
+		(((bmx_time_sec - reference) % 86400) / 3600) % 10,
+		(((bmx_time_sec - reference) % 3600) / 600) % 10,
+		(((bmx_time_sec - reference) % 3600) / 60) % 10,
+		(((bmx_time_sec - reference) % 60) / 10) % 10,
+		(((bmx_time_sec - reference) % 60)) % 10
+		);
 
 	return ut;
 }
 
-
 void wait_sec_usec(TIME_SEC_T sec, TIME_T usec)
 {
 
-        TRACE_FUNCTION_CALL;
+	TRACE_FUNCTION_CALL;
 	struct timeval time;
 
-	//no debugging here because this is called from debug_output() -> dbg_fprintf() which may case a loop!
+	// no debugging here because this is called from debug_output() -> dbg_fprintf() which may case a loop!
 
-	time.tv_sec = sec + (usec/1000000) ;
+	time.tv_sec = sec + (usec / 1000000);
 	time.tv_usec = usec % 1000000;
 
-	select( 0, NULL, NULL, NULL, &time );
+	select(0, NULL, NULL, NULL, &time);
 
 	return;
 }
@@ -190,81 +181,76 @@ void wait_sec_usec(TIME_SEC_T sec, TIME_T usec)
 static void handler(int32_t sig)
 {
 
-        TRACE_FUNCTION_CALL;
-	if ( !Client_mode ) {
-                dbgf_sys(DBGT_ERR, "called with signal %d", sig);
+	TRACE_FUNCTION_CALL;
+	if (!Client_mode) {
+		dbgf_sys(DBGT_ERR, "called with signal %d", sig);
 	}
 
-	printf("\n");// to have a newline after ^C
+	printf("\n"); // to have a newline after ^C
 
 	terminating = YES;
 }
 
-
-
-
-
 static void segmentation_fault(int32_t sig)
 {
-        TRACE_FUNCTION_CALL;
-        static int segfault = NO;
+	TRACE_FUNCTION_CALL;
+	static int segfault = NO;
 
-        if (!segfault) {
+	if (!segfault) {
 
-                segfault = YES;
+		segfault = YES;
 
-                dbg_sys(DBGT_ERR, "First SIGSEGV %d received, try cleaning up...", sig);
+		dbg_sys(DBGT_ERR, "First SIGSEGV %d received, try cleaning up...", sig);
 
 #ifndef NO_TRACE_FUNCTION_CALLS
-                debug_function_calls();
+		debug_function_calls();
 #endif
 
-                dbg(DBGL_SYS, DBGT_ERR, "Terminating with error code %d (%s-%s-rev%.7x)! Please notify a developer",
-                        sig, BMX_BRANCH, BRANCH_VERSION, bmx_git_rev_u32);
+		dbg(DBGL_SYS, DBGT_ERR, "Terminating with error code %d (%s-%s-rev%.7x)! Please notify a developer",
+			sig, BMX_BRANCH, BRANCH_VERSION, bmx_git_rev_u32);
 
-                if (initializing) {
-                        dbg_sys(DBGT_ERR,
-                        "check up-to-dateness of bmx libs in default lib path %s or customized lib path defined by %s !",
-                        BMX_DEF_LIB_PATH, BMX_ENV_LIB_PATH);
-                }
+		if (initializing) {
+			dbg_sys(DBGT_ERR,
+				"check up-to-dateness of bmx libs in default lib path %s or customized lib path defined by %s !",
+				BMX_DEF_LIB_PATH, BMX_ENV_LIB_PATH);
+		}
 
-                if (!cleaning_up)
-                        cleanup_all(CLEANUP_RETURN);
+		if (!cleaning_up)
+			cleanup_all(CLEANUP_RETURN);
 
-                dbg_sys(DBGT_ERR, "raising SIGSEGV again ...");
+		dbg_sys(DBGT_ERR, "raising SIGSEGV again ...");
 
-        } else {
-                dbg(DBGL_SYS, DBGT_ERR, "Second SIGSEGV %d received, giving up! core contains second SIGSEV!", sig);
-        }
+	} else {
+		dbg(DBGL_SYS, DBGT_ERR, "Second SIGSEGV %d received, giving up! core contains second SIGSEV!", sig);
+	}
 
-        signal(SIGSEGV, SIG_DFL);
-        errno=0;
-	if ( raise( SIGSEGV ) ) {
-		dbg_sys(DBGT_ERR, "raising SIGSEGV failed: %s...", strerror(errno) );
-        }
+	signal(SIGSEGV, SIG_DFL);
+	errno = 0;
+	if (raise(SIGSEGV)) {
+		dbg_sys(DBGT_ERR, "raising SIGSEGV failed: %s...", strerror(errno));
+	}
 }
-
 
 void cleanup_all(int32_t status)
 {
-        TRACE_FUNCTION_CALL;
+	TRACE_FUNCTION_CALL;
 
-        if (status < 0) {
-                segmentation_fault(status);
-        }
+	if (status < 0) {
+		segmentation_fault(status);
+	}
 
-        if (!cleaning_up) {
+	if (!cleaning_up) {
 
-                dbgf_all(DBGT_INFO, "cleaning up (status %d)...", status);
+		dbgf_all(DBGT_INFO, "cleaning up (status %d)...", status);
 
-                cleaning_up = YES;
-                terminating = YES;
+		cleaning_up = YES;
+		terminating = YES;
 
-//		cleanup_schedule();
-//              purge_link_route_orig_nodes(NULL);
+		//		cleanup_schedule();
+		//              purge_link_route_orig_nodes(NULL);
 		keyNodes_cleanup(KCNull, NULL);
 
-                cb_plugin_hooks(PLUGIN_CB_TERM, NULL);
+		cb_plugin_hooks(PLUGIN_CB_TERM, NULL);
 
 		while (status_tree.items) {
 			struct status_handl *handl = avl_remove_first_item(&status_tree, -300357);
@@ -276,30 +262,30 @@ void cleanup_all(int32_t status)
 		cleanup_plugin();
 		cleanup_sec();
 		cleanup_msg();
-//		cleanup_node();
-                cleanup_ip();
+		// cleanup_node();
+		cleanup_ip();
 		cleanup_crypt();
 		cleanup_config();
 		cleanup_prof();
-//		cleanup_avl();
-//		cleanup_tools();
+		// cleanup_avl();
+		// cleanup_tools();
 		cleanup_schedule();
 
 		// last, close debugging system and check for forgotten resources...
 		cleanup_control();
 
-                checkLeak();
+		checkLeak();
 
-                if (status == CLEANUP_SUCCESS)
-                        exit(EXIT_SUCCESS);
+		if (status == CLEANUP_SUCCESS)
+			exit(EXIT_SUCCESS);
 
-                dbgf_all(DBGT_INFO, "...cleaning up done");
+		dbgf_all(DBGT_INFO, "...cleaning up done");
 
-                if (status == CLEANUP_RETURN)
-                        return;
+		if (status == CLEANUP_RETURN)
+			return;
 
-                exit(EXIT_FAILURE);
-        }
+		exit(EXIT_FAILURE);
+	}
 }
 
 
@@ -314,7 +300,7 @@ void cleanup_all(int32_t status)
 
 /***********************************************************
  Configuration data and handlers
-************************************************************/
+ ************************************************************/
 
 
 
@@ -346,29 +332,29 @@ int64_t field_get_value(const struct field_format *format, uint32_t min_msg_size
 
 	result = host_order ? result : ntohl(result);
 
-        if (bits == 8 || bits == 16 || bits == 32) {
+	if (bits == 8 || bits == 16 || bits == 32) {
 
 		uint32_t check;
 
 		assertion(-501168, ((pos_bit % 8) == 0));
 
-                if (bits == 8) {
+		if (bits == 8) {
 
-                        check = data[pos_bit / 8];
+			check = data[pos_bit / 8];
 
-                } else if (bits == 16) {
-
-			if (host_order)
-                                check = *((uint16_t*) & data[pos_bit / 8]);
-                        else
-                                check = ntohs(*((uint16_t*) & data[pos_bit / 8]));
-
-                } else {
+		} else if (bits == 16) {
 
 			if (host_order)
-                                check = *((uint32_t*) & data[pos_bit / 8]);
-                        else
-                                check = ntohl(*((uint32_t*) & data[pos_bit / 8]));
+				check = *((uint16_t*) & data[pos_bit / 8]);
+			else
+				check = ntohs(*((uint16_t*) & data[pos_bit / 8]));
+
+		} else {
+
+			if (host_order)
+				check = *((uint32_t*) & data[pos_bit / 8]);
+			else
+				check = ntohl(*((uint32_t*) & data[pos_bit / 8]));
 		}
 
 		assertion(-502757, (check == result));
@@ -380,14 +366,14 @@ int64_t field_get_value(const struct field_format *format, uint32_t min_msg_size
 char *field_dbg_value(const struct field_format *format, uint32_t min_msg_size, uint8_t *data, uint32_t pos_bit, uint32_t bits)
 {
 
-        assertion(-501200, (format && min_msg_size && data));
+	assertion(-501200, (format && min_msg_size && data));
 
-        uint8_t field_type = format->field_type;
-        char *val = NULL;
-        void *p = (void*) (data + (pos_bit / 8));
-        void **pp = (void**) (data + (pos_bit / 8)); // There is problem with pointer to pointerpointer casting!!!!
+	uint8_t field_type = format->field_type;
+	char *val = NULL;
+	void *p = (void*) (data + (pos_bit / 8));
+	void **pp = (void**) (data + (pos_bit / 8)); // There is problem with pointer to pointerpointer casting!!!!
 
-        uint32_t bytes = bits / 8;
+	uint32_t bytes = bits / 8;
 
 	if (field_type == FIELD_TYPE_UINT || field_type == FIELD_TYPE_HEX || field_type == FIELD_TYPE_STRING_SIZE || (field_type == FIELD_TYPE_INT && bits != 8 && bits != 16 && bits != 32)) {
 
@@ -397,164 +383,163 @@ char *field_dbg_value(const struct field_format *format, uint32_t min_msg_size, 
 
 		} else if (bits <= 32) {
 
-                        static char uint32_out[ 16 ] = {0};
+			static char uint32_out[ 16 ] = { 0 };
 
-                        int64_t field_val = field_get_value(format, min_msg_size, data, pos_bit, bits);
+			int64_t field_val = field_get_value(format, min_msg_size, data, pos_bit, bits);
 
-                        if (format->field_type == FIELD_TYPE_HEX)
-                                snprintf(uint32_out, sizeof (uint32_out), "%jX", field_val);
-                        else
-                                snprintf(uint32_out, sizeof (uint32_out), "%ji", field_val);
+			if (format->field_type == FIELD_TYPE_HEX)
+				snprintf(uint32_out, sizeof(uint32_out), "%jX", field_val);
+			else
+				snprintf(uint32_out, sizeof(uint32_out), "%ji", field_val);
 
-                        assertion(-501243, (strlen(uint32_out) < sizeof (uint32_out)));
-                        val = uint32_out;
+			assertion(-501243, (strlen(uint32_out) < sizeof(uint32_out)));
+			val = uint32_out;
 
 
-                } else {
-                        val = memAsHexString(p, bytes);
-                }
+		} else {
+			val = memAsHexString(p, bytes);
+		}
 
-        } else if (field_type == FIELD_TYPE_INT) {
+	} else if (field_type == FIELD_TYPE_INT) {
 
-		static char int32_out[ 16 ] = {0};
+		static char int32_out[ 16 ] = { 0 };
 		val = int32_out;
 
 		if (bits == 8)
-			snprintf(int32_out, sizeof (int32_out), "%d", *((int8_t*) p));
+			snprintf(int32_out, sizeof(int32_out), "%d", *((int8_t*) p));
 		else if (bits == 16)
-			snprintf(int32_out, sizeof (int32_out), "%d", *((int16_t*) p));
+			snprintf(int32_out, sizeof(int32_out), "%d", *((int16_t*) p));
 		else if (bits == 32)
-			snprintf(int32_out, sizeof (int32_out), "%d", *((int32_t*) p));
+			snprintf(int32_out, sizeof(int32_out), "%d", *((int32_t*) p));
 		else
 			val = DBG_NIL;
 
-        } else if (field_type == FIELD_TYPE_FLOAT) {
+	} else if (field_type == FIELD_TYPE_FLOAT) {
 
-		static char float_out[ 32 ] = {0};
+		static char float_out[ 32 ] = { 0 };
 		val = float_out;
 
-		if (bits == (8*sizeof(float)))
-			snprintf(float_out, sizeof (float_out), "%.2f", *((float*) p));
+		if (bits == (8 * sizeof(float)))
+			snprintf(float_out, sizeof(float_out), "%.2f", *((float*) p));
 		else
 			val = DBG_NIL;
 
-        } else if (field_type == FIELD_TYPE_IP4) {
+	} else if (field_type == FIELD_TYPE_IP4) {
 
-                val = ip4AsStr(*((IP4_T*) p));
+		val = ip4AsStr(*((IP4_T*) p));
 
-        } else if (field_type == FIELD_TYPE_IPX4) {
+	} else if (field_type == FIELD_TYPE_IPX4) {
 
-                val =  ipXAsStr(AF_INET, (IPX_T*) p);
+		val = ipXAsStr(AF_INET, (IPX_T*) p);
 
-        } else if (field_type == FIELD_TYPE_IPX6) {
+	} else if (field_type == FIELD_TYPE_IPX6) {
 
-                val = ip6AsStr((IPX_T*) p);
+		val = ip6AsStr((IPX_T*) p);
 
-        } else if (field_type == FIELD_TYPE_IPX) {
+	} else if (field_type == FIELD_TYPE_IPX) {
 
-                val = ip6AsStr((IPX_T*) p);
+		val = ip6AsStr((IPX_T*) p);
 
-        } else if (field_type == FIELD_TYPE_NETP) {
+	} else if (field_type == FIELD_TYPE_NETP) {
 
-                val = *pp ? netAsStr(*((struct net_key**) pp)) : DBG_NIL;
+		val = *pp ? netAsStr(*((struct net_key**) pp)) : DBG_NIL;
 
-        } else if (field_type == FIELD_TYPE_MAC) {
+	} else if (field_type == FIELD_TYPE_MAC) {
 
-                val = macAsStr((MAC_T*) p);
+		val = macAsStr((MAC_T*) p);
 
-        } else if (field_type == FIELD_TYPE_STRING_BINARY) {
+	} else if (field_type == FIELD_TYPE_STRING_BINARY) {
 
-                val =  memAsHexString(p, bytes);
+		val = memAsHexString(p, bytes);
 
-        } else if (field_type == FIELD_TYPE_STRING_CHAR) {
+	} else if (field_type == FIELD_TYPE_STRING_CHAR) {
 
-                val = memAsCharString((char*)p, bytes);
+		val = memAsCharString((char*) p, bytes);
 
-        } else if (field_type == FIELD_TYPE_GLOBAL_ID) {
+	} else if (field_type == FIELD_TYPE_GLOBAL_ID) {
 
-                val = cryptShaAsString(((GLOBAL_ID_T*) p));
+		val = cryptShaAsString(((GLOBAL_ID_T*) p));
 
-        } else if (field_type == FIELD_TYPE_UMETRIC) {
+	} else if (field_type == FIELD_TYPE_UMETRIC) {
 
-                val = umetric_to_human(*((UMETRIC_T*) p));
+		val = umetric_to_human(*((UMETRIC_T*) p));
 
-        } else if (field_type == FIELD_TYPE_FMETRIC8) {
+	} else if (field_type == FIELD_TYPE_FMETRIC8) {
 
-                val = umetric_to_human(fmetric_u8_to_umetric(*((FMETRIC_U8_T*) p)));
+		val = umetric_to_human(fmetric_u8_to_umetric(*((FMETRIC_U8_T*) p)));
 
-        } else if (field_type == FIELD_TYPE_IPX6P) {
+	} else if (field_type == FIELD_TYPE_IPX6P) {
 
-                val = *pp ? ip6AsStr(*((IPX_T**) pp)) : DBG_NIL;
+		val = *pp ? ip6AsStr(*((IPX_T**) pp)) : DBG_NIL;
 
-        } else if (field_type == FIELD_TYPE_POINTER_CHAR) {
+	} else if (field_type == FIELD_TYPE_POINTER_CHAR) {
 
-                val = *pp ? memAsCharString(*((char**) pp), strlen(*((char**) pp))) : DBG_NIL;
+		val = *pp ? memAsCharString(*((char**) pp), strlen(*((char**) pp))) : DBG_NIL;
 
-        } else if (field_type == FIELD_TYPE_POINTER_GLOBAL_ID) {
+	} else if (field_type == FIELD_TYPE_POINTER_GLOBAL_ID) {
 
-                val = *pp ? cryptShaAsString(*((GLOBAL_ID_T**)pp)) : DBG_NIL;
+		val = *pp ? cryptShaAsString(*((GLOBAL_ID_T**) pp)) : DBG_NIL;
 
-        } else if (field_type == FIELD_TYPE_POINTER_SHORT_ID) {
+	} else if (field_type == FIELD_TYPE_POINTER_SHORT_ID) {
 
-                val = *pp ? cryptShaAsShortStr(*((GLOBAL_ID_T**)pp)) : DBG_NIL;
+		val = *pp ? cryptShaAsShortStr(*((GLOBAL_ID_T**) pp)) : DBG_NIL;
 
-        } else if (field_type == FIELD_TYPE_POINTER_UMETRIC) {
+	} else if (field_type == FIELD_TYPE_POINTER_UMETRIC) {
 
-                val = *pp ? umetric_to_human(**((UMETRIC_T**) pp)) : DBG_NIL;
+		val = *pp ? umetric_to_human(**((UMETRIC_T**) pp)) : DBG_NIL;
 
-        } else {
+	} else {
 
-                assertion(-501202, 0);
-        }
+		assertion(-501202, 0);
+	}
 
-        return val ? val : "ERROR";
+	return val ? val : "ERROR";
 }
-
 
 uint32_t field_iterate(struct field_iterator *it)
 {
-        TRACE_FUNCTION_CALL;
-        assertion(-501171, IMPLIES(it->data_size, it->data));
+	TRACE_FUNCTION_CALL;
+	assertion(-501171, IMPLIES(it->data_size, it->data));
 
-        const struct field_format *format;
+	const struct field_format *format;
 
 
-        it->field = (it->field_bits || it->field) ? (it->field + 1) : 0;
+	it->field = (it->field_bits || it->field) ? (it->field + 1) : 0;
 
-        format = &(it->format[it->field]);
+	format = &(it->format[it->field]);
 
-        if (format->field_type == FIELD_TYPE_END) {
+	if (format->field_type == FIELD_TYPE_END) {
 
-                it->field = 0;
-                it->msg_bit_pos += ((it->min_msg_size * 8) + it->var_bits);
-                it->var_bits = 0;
-                format = &(it->format[0]);
-        }
+		it->field = 0;
+		it->msg_bit_pos += ((it->min_msg_size * 8) + it->var_bits);
+		it->var_bits = 0;
+		format = &(it->format[0]);
+	}
 
-        it->field_bit_pos = (format->field_pos == -1) ?
-                it->field_bit_pos + it->field_bits : it->msg_bit_pos + format->field_pos;
+	it->field_bit_pos = (format->field_pos == -1) ?
+		it->field_bit_pos + it->field_bits : it->msg_bit_pos + format->field_pos;
 
 
 	if (!format->field_bits && !it->var_bits)
-		it->var_bits = it->data_size ? ((8*it->data_size)-it->field_bit_pos) : 0;
+		it->var_bits = it->data_size ? ((8 * it->data_size) - it->field_bit_pos) : 0;
 
-        uint8_t field_type = format->field_type;
-        uint32_t field_bits = format->field_bits ? format->field_bits : it->var_bits;
-        int32_t std_bits = field_standard_sizes[field_type];
+	uint8_t field_type = format->field_type;
+	uint32_t field_bits = format->field_bits ? format->field_bits : it->var_bits;
+	int32_t std_bits = field_standard_sizes[field_type];
 
-        dbgf_all(DBGT_INFO,
-                "fmt.field_name=%s data_size_bits=%d min_msg_size_bits=%d msg_bit_pos=%d data=%p "
-                "it.field=%d it.field_bits=%d it.field_bit_pos=%d it.var_bits=%d field_bits=%d "
-                "fmt.field_type=%d fmt.field_bits=%d std_bits=%d",
-                format->field_name, (8 * it->data_size), (8 * it->min_msg_size), it->msg_bit_pos, it->data,
-                it->field, it->field_bits, it->field_bit_pos, it->var_bits, field_bits,
-                field_type, format->field_bits, std_bits);
+	dbgf_all(DBGT_INFO,
+		"fmt.field_name=%s data_size_bits=%d min_msg_size_bits=%d msg_bit_pos=%d data=%p "
+		"it.field=%d it.field_bits=%d it.field_bit_pos=%d it.var_bits=%d field_bits=%d "
+		"fmt.field_type=%d fmt.field_bits=%d std_bits=%d",
+		format->field_name, (8 * it->data_size), (8 * it->min_msg_size), it->msg_bit_pos, it->data,
+		it->field, it->field_bits, it->field_bit_pos, it->var_bits, field_bits,
+		field_type, format->field_bits, std_bits);
 
 
-        if (it->msg_bit_pos + (it->min_msg_size * 8) + it->var_bits <=
-                8 * (it->data_size ? it->data_size : it->min_msg_size)) {
+	if (it->msg_bit_pos + (it->min_msg_size * 8) + it->var_bits <=
+		8 * (it->data_size ? it->data_size : it->min_msg_size)) {
 
-                //printf("msg_name=%s field_name=%s\n", handl->name, format->msg_field_name);
+		//printf("msg_name=%s field_name=%s\n", handl->name, format->msg_field_name);
 
 		assertion(-501172, IMPLIES(field_type == FIELD_TYPE_STRING_SIZE, !it->var_bits));
 		assertion(-501203, IMPLIES(field_type == FIELD_TYPE_UINT, (field_bits <= 32)));
@@ -580,61 +565,58 @@ uint32_t field_iterate(struct field_iterator *it)
 //		assertion(-501191, IMPLIES(!format->field_host_order, (field_type == FIELD_TYPE_UINT || field_type == FIELD_TYPE_HEX || field_type == FIELD_TYPE_STRING_SIZE)));
 		assertion(-501192, IMPLIES((field_type == FIELD_TYPE_UINT || field_type == FIELD_TYPE_HEX || field_type == FIELD_TYPE_STRING_SIZE), field_bits <= 32));
 
-                if (it->data_size) {
+		if (it->data_size) {
 
-                        if (field_type == FIELD_TYPE_STRING_SIZE) {
-                                int64_t var_bytes = field_get_value(format, it->min_msg_size, it->data, it->field_bit_pos, field_bits);
-                                assertion(-501207, (var_bytes >= SUCCESS));
-                                it->var_bits = 8 * var_bytes;
-                        }
+			if (field_type == FIELD_TYPE_STRING_SIZE) {
+				int64_t var_bytes = field_get_value(format, it->min_msg_size, it->data, it->field_bit_pos, field_bits);
+				assertion(-501207, (var_bytes >= SUCCESS));
+				it->var_bits = 8 * var_bytes;
+			}
 
-                        //msg_field_dbg(it->handl, it->field, it->data, it->pos_bit, field_bits, cn);
-                }
+			// msg_field_dbg(it->handl, it->field, it->data, it->pos_bit, field_bits, cn);
+		}
 
-                it->field_bits = field_bits;
+		it->field_bits = field_bits;
 
+		return SUCCESS;
+	}
 
-                //dbgf_all(DBGT_INFO,
+	assertion(-501163, IMPLIES(!it->data_size, (it->field_bit_pos % (it->min_msg_size * 8) == 0)));
+	assertion(-501164, IMPLIES(it->data_size, it->data_size * 8 == it->field_bit_pos));
+	assertion(-501208, ((it->field_bit_pos % 8) == 0));
 
-                return SUCCESS;
-        }
-
-        assertion(-501163, IMPLIES(!it->data_size, (it->field_bit_pos % (it->min_msg_size * 8) == 0)));
-        assertion(-501164, IMPLIES(it->data_size, it->data_size * 8 == it->field_bit_pos));
-        assertion(-501208, ((it->field_bit_pos % 8) == 0));
-
-//        return (it->msg_bit_pos / 8);
-        return (it->field_bit_pos / 8);
+	return(it->field_bit_pos / 8);
 }
 
-int16_t field_format_get_items(const struct field_format *format) {
+int16_t field_format_get_items(const struct field_format *format)
+{
 
-        int16_t i=-1;
+	int16_t i = -1;
 
-        while (format[++i].field_type != FIELD_TYPE_END) {
-                assertion(-501244, (i < FIELD_FORMAT_MAX_ITEMS));
-        }
+	while (format[++i].field_type != FIELD_TYPE_END) {
+		assertion(-501244, (i < FIELD_FORMAT_MAX_ITEMS));
+	}
 
-        return i;
+	return i;
 }
 
 uint32_t fields_dbg_lines(struct ctrl_node *cn, uint16_t relevance, uint32_t data_size, uint8_t *data,
 	uint32_t min_msg_size, const struct field_format *format)
 {
-        TRACE_FUNCTION_CALL;
-        assertion(-501209, format);
+	TRACE_FUNCTION_CALL;
+	assertion(-501209, format);
 
-        uint32_t msgs_size = 0;
-        struct field_iterator it = {.format = format, .data = data, .data_size = data_size, .min_msg_size = min_msg_size};
+	uint32_t msgs_size = 0;
+	struct field_iterator it = { .format = format, .data = data, .data_size = data_size, .min_msg_size = min_msg_size };
 
-        while ((msgs_size = field_iterate(&it)) == SUCCESS) {
+	while ((msgs_size = field_iterate(&it)) == SUCCESS) {
 
-                if (data) {
+		if (data) {
 
-                        if (cn && it.field == 0)
-                                dbg_printf(cn, "\n   ");
+			if (cn && it.field == 0)
+				dbg_printf(cn, "\n   ");
 
-                        if (format[it.field].field_relevance >= relevance) {
+			if (format[it.field].field_relevance >= relevance) {
 				if (cn) {
 					dbg_printf(cn, " %s=%s", format[it.field].field_name,
 						field_dbg_value(&format[it.field], min_msg_size, data, it.field_bit_pos, it.field_bits));
@@ -642,127 +624,123 @@ uint32_t fields_dbg_lines(struct ctrl_node *cn, uint16_t relevance, uint32_t dat
 					dbgf_track(DBGT_INFO, " %s=%s", format[it.field].field_name,
 						field_dbg_value(&format[it.field], min_msg_size, data, it.field_bit_pos, it.field_bits));
 				}
-                        }
+			}
+			/*
+			if (format[it.field + 1].field_type == FIELD_TYPE_END)
+				dbg_printf(cn, "\n");
+			*/
+		}
+	}
 
-/*
-                        if (format[it.field + 1].field_type == FIELD_TYPE_END)
-                                dbg_printf(cn, "\n");
-*/
+	assertion(-501210, (data_size ? msgs_size == data_size : msgs_size == min_msg_size));
 
-                }
-        }
-
-        assertion(-501210, (data_size ? msgs_size == data_size : msgs_size == min_msg_size));
-
-        return msgs_size;
+	return msgs_size;
 }
 
 uint32_t fields_dbg_table(struct ctrl_node *cn, uint16_t relevance, uint32_t data_size, uint8_t *data,
-                          uint32_t min_msg_size, const struct field_format *format)
+	uint32_t min_msg_size, const struct field_format *format)
 {
-        TRACE_FUNCTION_CALL;
-        assertion(-501255, (format && data && cn));
+	TRACE_FUNCTION_CALL;
+	assertion(-501255, (format && data && cn));
 
-        uint16_t field_string_sizes[FIELD_FORMAT_MAX_ITEMS] = {0};
-        uint32_t columns = field_format_get_items(format);
-        uint32_t rows = 1/*the headline*/, bytes_per_row = 1/*the trailing '\n' or '\0'*/;
+	uint16_t field_string_sizes[FIELD_FORMAT_MAX_ITEMS] = { 0 };
+	uint32_t columns = field_format_get_items(format);
+	uint32_t rows = 1/*the headline*/, bytes_per_row = 1/*the trailing '\n' or '\0'*/;
 
-        assertion(-501256, (columns && columns <= FIELD_FORMAT_MAX_ITEMS));
+	assertion(-501256, (columns && columns <= FIELD_FORMAT_MAX_ITEMS));
 
-        struct field_iterator i1 = {.format = format, .data = data, .data_size = data_size, .min_msg_size = min_msg_size};
+	struct field_iterator i1 = { .format = format, .data = data, .data_size = data_size, .min_msg_size = min_msg_size };
 
-        while (field_iterate(&i1) == SUCCESS) {
+	while (field_iterate(&i1) == SUCCESS) {
 
-                if (format[i1.field].field_relevance >= relevance) {
+		if (format[i1.field].field_relevance >= relevance) {
 
-                        char *val = field_dbg_value(&format[i1.field], min_msg_size, data, i1.field_bit_pos, i1.field_bits);
+			char *val = field_dbg_value(&format[i1.field], min_msg_size, data, i1.field_bit_pos, i1.field_bits);
 
-                        field_string_sizes[i1.field] = max_i32(field_string_sizes[i1.field], strlen(val));
+			field_string_sizes[i1.field] = max_i32(field_string_sizes[i1.field], strlen(val));
 
-                        if (i1.field == 0) {
-                                rows++;
-                                bytes_per_row = 1;
-                        }
+			if (i1.field == 0) {
+				rows++;
+				bytes_per_row = 1;
+			}
 
-                        if (rows == 2) {
-                                field_string_sizes[i1.field] =
-                                        max_i32(field_string_sizes[i1.field], strlen(format[i1.field].field_name));
-                        }
+			if (rows == 2) {
+				field_string_sizes[i1.field] =
+					max_i32(field_string_sizes[i1.field], strlen(format[i1.field].field_name));
+			}
 
-                        bytes_per_row += field_string_sizes[i1.field] + 1/* the separating ' '*/;
-                }
-        }
+			bytes_per_row += field_string_sizes[i1.field] + 1/* the separating ' '*/;
+		}
+	}
 
-        char * out = debugMalloc(((rows * bytes_per_row) + 1), -300383);
-        memset(out, ' ', (rows * bytes_per_row));
+	char * out = debugMalloc(((rows * bytes_per_row) + 1), -300383);
+	memset(out, ' ', (rows * bytes_per_row));
 
-        uint32_t i = 0, pos = 0;
+	uint32_t i = 0, pos = 0;
 
-        for (i = 0; i < columns; i++) {
+	for (i = 0; i < columns; i++) {
 
-                if (format[i].field_relevance >= relevance) {
+		if (format[i].field_relevance >= relevance) {
 
-                        memcpy(&out[pos], format[i].field_name, strlen(format[i].field_name));
-                        pos += field_string_sizes[i] + 1;
+			memcpy(&out[pos], format[i].field_name, strlen(format[i].field_name));
+			pos += field_string_sizes[i] + 1;
 
-                        //dbg_printf(cn, "%s", format[i].field_name);
-                        //dbg_spaces(cn, field_string_sizes[i] - strlen(format[i].field_name) + (i == columns - 1 ? 0 : 1));
-                }
-                if (i == columns - 1) {
-                        out[pos++] = '\n';
-                        //dbg_printf(cn, "\n");
-                }
-        }
+			//dbg_printf(cn, "%s", format[i].field_name);
+			//dbg_spaces(cn, field_string_sizes[i] - strlen(format[i].field_name) + (i == columns - 1 ? 0 : 1));
+		}
+		if (i == columns - 1) {
+			out[pos++] = '\n';
+			//dbg_printf(cn, "\n");
+		}
+	}
 
 
 
-        struct field_iterator i2 = {.format = format, .data = data, .data_size = data_size, .min_msg_size = min_msg_size};
-        while(field_iterate(&i2) == SUCCESS) {
+	struct field_iterator i2 = { .format = format, .data = data, .data_size = data_size, .min_msg_size = min_msg_size };
+	while (field_iterate(&i2) == SUCCESS) {
 
-                if (format[i2.field].field_relevance >= relevance) {
+		if (format[i2.field].field_relevance >= relevance) {
 
-                        char *val = field_dbg_value(&format[i2.field], min_msg_size, data, i2.field_bit_pos, i2.field_bits);
+			char *val = field_dbg_value(&format[i2.field], min_msg_size, data, i2.field_bit_pos, i2.field_bits);
 
-                        memcpy(&out[pos], val, strlen(val));
-                        pos += field_string_sizes[i2.field]+ (i2.field == columns - 1 ? 0 : 1);
+			memcpy(&out[pos], val, strlen(val));
+			pos += field_string_sizes[i2.field]+ (i2.field == columns - 1 ? 0 : 1);
 
-                        //dbg_spaces(cn, field_string_sizes[i2.field] - strlen(val));
-                        //dbg_printf(cn, "%s%s", val, (i2.field == columns - 1 ? "" : " "));
-                }
+			//dbg_spaces(cn, field_string_sizes[i2.field] - strlen(val));
+			//dbg_printf(cn, "%s%s", val, (i2.field == columns - 1 ? "" : " "));
+		}
 
-                if (i2.field == columns - 1) {
-                        out[pos++] = '\n';
-                        //dbg_printf(cn, "\n");
-                }
-        }
-        out[pos++] = '\0';
-        dbg_printf(cn, "%s", out);
-        debugFree(out, -300384);
+		if (i2.field == columns - 1) {
+			out[pos++] = '\n';
+			//dbg_printf(cn, "\n");
+		}
+	}
+	out[pos++] = '\0';
+	dbg_printf(cn, "%s", out);
+	debugFree(out, -300384);
 	return pos;
 }
 
-
-
 void register_status_handl(uint16_t min_msg_size, IDM_T multiline, const struct field_format* format, char *name,
-                            int32_t(*creator) (struct status_handl *status_handl, void *data))
+	int32_t(*creator) (struct status_handl *status_handl, void *data))
 {
-        struct status_handl *handl = debugMallocReset(sizeof (struct status_handl), -300364);
+	struct status_handl *handl = debugMallocReset(sizeof(struct status_handl), -300364);
 
-        handl->multiline = multiline;
-        handl->min_msg_size = min_msg_size;
-        handl->format = format;
-        strcpy(handl->status_name, name);
-        handl->frame_creator = creator;
+	handl->multiline = multiline;
+	handl->min_msg_size = min_msg_size;
+	handl->format = format;
+	strcpy(handl->status_name, name);
+	handl->frame_creator = creator;
 
-        assertion(-501224, !avl_find(&status_tree, &handl->status_name));
-        avl_insert(&status_tree, (void*) handl, -300357);
+	assertion(-501224, !avl_find(&status_tree, &handl->status_name));
+	avl_insert(&status_tree, (void*) handl, -300357);
 }
 
 struct status_handl * get_status_handl(char *name)
 {
 	struct status_handl *handl = NULL;
-	char status_name[sizeof (((struct status_handl *) NULL)->status_name)] = {0};
-	strncpy(status_name, name, sizeof (status_name));
+	char status_name[sizeof(((struct status_handl *) NULL)->status_name)] = { 0 };
+	strncpy(status_name, name, sizeof(status_name));
 
 	if ((handl = avl_closest_item(&status_tree, status_name)) && !strncmp(handl->status_name, status_name, strlen(status_name)))
 		return handl;
@@ -799,7 +777,7 @@ struct bmx_status {
 	uint32_t nbs;
 	uint32_t rts;
 	char nodes[24];
-	char descRefs[2*16];
+	char descRefs[2 * 16];
 };
 
 static const struct field_format bmx_status_format[] = {
@@ -833,7 +811,7 @@ static const struct field_format bmx_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              bmx_status, rts,           1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       bmx_status, nodes,         1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       bmx_status, descRefs,      1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_END
+	FIELD_FORMAT_END
 };
 
 static int32_t bmx_status_creator(struct status_handl *handl, void *data)
@@ -901,8 +879,8 @@ struct orig_status {
 	DESC_SQN_T descSqnMin;
 	DESC_SQN_T descSqnNext;
 	uint32_t lastDesc;
-	char descSize[2*20];
-	char descRefs[2*12]; //contentRefs
+	char descSize[2 * 20];
+	char descRefs[2 * 12]; //contentRefs
 	uint32_t unresolveds;
 	uint32_t uniques;
 	int16_t cv;
@@ -974,7 +952,7 @@ static const struct field_format orig_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, nbIid,         1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, lastRef,       1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, nbs,           1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_END
+	FIELD_FORMAT_END
 };
 
 static const struct field_format keys_status_format[] = {
@@ -1025,9 +1003,8 @@ static const struct field_format keys_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, nbIid,         1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, lastRef,       1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, nbs,           1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_END
+	FIELD_FORMAT_END
 };
-
 
 STATIC_FUNC
 uint8_t *key_status_page(uint8_t *sOut, uint32_t i, struct orig_node *on, struct desc_content *dc, struct key_node *kn)
@@ -1076,9 +1053,9 @@ uint8_t *key_status_page(uint8_t *sOut, uint32_t i, struct orig_node *on, struct
 		os->s[0] = (s = setted_pubkey(dc, BMX_DSC_TLV_SUPPORTS, &myKey->kHash, 0)) == -1 ? 'A' : (s + '0');
 		os->t[0] = (t = setted_pubkey(dc, BMX_DSC_TLV_TRUSTS, &myKey->kHash, 0)) == -1 ? 'A' : (t + '0');
 		if (dmi)
-			snprintf(os->revision, (sizeof(os->revision)-1), "%.7x", ntohl(dmi->codeRevision));
+			snprintf(os->revision, (sizeof(os->revision) - 1), "%.7x", ntohl(dmi->codeRevision));
 		else
-			snprintf(os->revision, (sizeof(os->revision)-1), DBG_NIL);
+			snprintf(os->revision, (sizeof(os->revision) - 1), DBG_NIL);
 
 		os->descSqn = dc->descSqn;
 		snprintf(os->descSize, (sizeof(os->descSize) - 1), "%d+%d", dc->desc_frame_len, dc->countedVirtDescSizes.f.length);
@@ -1091,9 +1068,9 @@ uint8_t *key_status_page(uint8_t *sOut, uint32_t i, struct orig_node *on, struct
 	} else {
 		os->s[0] = '-';
 		os->t[0] = '-';
-		snprintf(os->descRefs, (sizeof(os->descRefs)-1), DBG_NIL);
-		snprintf(os->revision, (sizeof(os->revision)-1), DBG_NIL);
-		snprintf(os->descSize, (sizeof(os->descSize)-1), DBG_NIL);
+		snprintf(os->descRefs, (sizeof(os->descRefs) - 1), DBG_NIL);
+		snprintf(os->revision, (sizeof(os->revision) - 1), DBG_NIL);
+		snprintf(os->descSize, (sizeof(os->descSize) - 1), DBG_NIL);
 	}
 
 	if (on) {
@@ -1112,10 +1089,12 @@ uint8_t *key_status_page(uint8_t *sOut, uint32_t i, struct orig_node *on, struct
 		os->nbNodeId = os->nbShortId;
 		os->nbName = (link && strlen(link->k.linkDev->key.local->on->k.hostname) ? link->k.linkDev->key.local->on->k.hostname : DBG_NIL);
 		os->metric = on->neighPath.um;
-		snprintf(os->ogmHist, (sizeof(os->ogmHist)-1), "%d/%d", (int)(on->neighPath.pathMetricsByteSize / sizeof(struct msg_ogm_adv_metric_t0)), on->mtcAlgo->ogm_hop_history);
+		snprintf(os->ogmHist, (sizeof(os->ogmHist) - 1), "%d/%d", (int) (on->neighPath.pathMetricsByteSize / sizeof(struct msg_ogm_adv_metric_t0)), on->mtcAlgo->ogm_hop_history);
 		uint16_t i;
 		for (i = 0; i < (on->neighPath.pathMetricsByteSize / sizeof(struct msg_ogm_adv_metric_t0)); i++) {
-			FMETRIC_U16_T fm = {.val = {.f = {.exp_fm16 = on->neighPath.pathMetrics[i].u.f.metric_exp, .mantissa_fm16 = on->neighPath.pathMetrics[i].u.f.metric_mantissa}}};
+			FMETRIC_U16_T fm = { .val =
+				{.f =
+					{.exp_fm16 = on->neighPath.pathMetrics[i].u.f.metric_exp, .mantissa_fm16 = on->neighPath.pathMetrics[i].u.f.metric_mantissa } } };
 			snprintf((os->ogmHist + strlen(os->ogmHist)), (sizeof(os->ogmHist) - (1 + strlen(os->ogmHist))), "%s%s%s",
 				(i ? "" : ":"), umetric_to_human(fmetric_to_umetric(fm)), ((i + 1)<(on->neighPath.pathMetricsByteSize / (uint16_t)sizeof(struct msg_ogm_adv_metric_t0)) ? "," : ""));
 		}
@@ -1126,7 +1105,7 @@ uint8_t *key_status_page(uint8_t *sOut, uint32_t i, struct orig_node *on, struct
 		struct NeighRef_node *nref = on->neighPath.link ? avl_find_item(&kn->neighRefs_tree, &on->neighPath.link->k.linkDev->key.local) : NULL;
 		os->nbIid = nref ? iid_get_neighIID4x_by_node(nref) : 0;
 	} else {
-		snprintf(os->ogmHist, (sizeof(os->ogmHist)-1), DBG_NIL);
+		snprintf(os->ogmHist, (sizeof(os->ogmHist) - 1), DBG_NIL);
 		sprintf(os->linkKeys, DBG_NIL);
 	}
 
@@ -1187,7 +1166,6 @@ static int32_t keys_status_creator(struct status_handl *handl, void *data)
 	return((i) * sizeof(struct orig_status));
 }
 
-
 struct ref_status {
 	GLOBAL_ID_T *shortId;
 	GLOBAL_ID_T *nodeId;
@@ -1225,7 +1203,7 @@ static const struct field_format ref_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              ref_status, rootLen,       1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              ref_status, virtLen,       1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              ref_status, unresolveds,   1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_END
+	FIELD_FORMAT_END
 };
 
 STATIC_FUNC
@@ -1333,7 +1311,7 @@ static int32_t ref_status_creator(struct status_handl *handl, void *data)
 		IID_T iid;
 
 		for (iid = 0; (iid < nn->neighIID4x_repos.max_free && (ref = iid_get_node_by_neighIID4x(&nn->neighIID4x_repos, iid, NO))); iid++) {
-			
+
 			if (ref->kn)
 				droppedDRefs++;
 			else
@@ -1345,7 +1323,7 @@ static int32_t ref_status_creator(struct status_handl *handl, void *data)
 	}
 
 
-//	dbgf((droppedSRefs || (allRefs != i)) ? DBGL_CHANGES : DBGL_ALL, droppedSRefs ? DBGT_WARN : DBGT_INFO,
+	//dbgf((droppedSRefs || (allRefs != i)) ? DBGL_CHANGES : DBGL_ALL, droppedSRefs ? DBGT_WARN : DBGT_INFO,
 	dbgf_track(DBGT_INFO,
 		"all=%d shown=%d != (%d = (named=%d + desc=%d + claimed=%d)) dDropped=%d sDropped=%d",
 		allRefs, i, (namedRefs + descRefs + claimedRefs), namedRefs, descRefs, claimedRefs, droppedDRefs, droppedSRefs);
@@ -1355,75 +1333,68 @@ static int32_t ref_status_creator(struct status_handl *handl, void *data)
 	return((i) * sizeof(struct ref_status));
 }
 
-
-
-
-
-
-
-
 STATIC_FUNC
 int32_t opt_version(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
 {
-        TRACE_FUNCTION_CALL;
+	TRACE_FUNCTION_CALL;
 
-	if ( cmd != OPT_APPLY )
+	if (cmd != OPT_APPLY)
 		return SUCCESS;
 
-        assertion(-501257, !strcmp(opt->name, ARG_VERSION));
+	assertion(-501257, !strcmp(opt->name, ARG_VERSION));
 
-        dbg_printf(cn, "version=%s-%s compatibility=%d revision=%.7x id=%s nodeKey=%s linkKeys=%s descSqn=%d ip=%s hostname=%s\n",
+	dbg_printf(cn, "version=%s-%s compatibility=%d revision=%.7x id=%s nodeKey=%s linkKeys=%s descSqn=%d ip=%s hostname=%s\n",
 		BMX_BRANCH, BRANCH_VERSION, my_compatibility, bmx_git_rev_u32, cryptShaAsString(&myKey->kHash),
 		cryptRsaKeyTypeAsString(((struct dsc_msg_pubkey*) myKey->content->f_body)->type),
 		getLinkKeysAsString(myKey->on), myKey->on ? (int) myKey->on->dc->descSqn : -1, ip6AsStr(&my_primary_ip), my_Hostname);
 
-        if (initializing)
-                cleanup_all(CLEANUP_SUCCESS);
+	if (initializing)
+		cleanup_all(CLEANUP_SUCCESS);
 
-        return SUCCESS;
- }
+	return SUCCESS;
+}
 
 int32_t opt_status_generic(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn,
-	uint32_t (fields_dbg_func) (struct ctrl_node *cn, uint16_t relevance, uint32_t data_size, uint8_t *data, uint32_t min_msg_size, const struct field_format *format)
-)
+	uint32_t(fields_dbg_func) (struct ctrl_node *cn, uint16_t relevance, uint32_t data_size, uint8_t *data, uint32_t min_msg_size, const struct field_format *format)
+	)
 {
-        TRACE_FUNCTION_CALL;
+	TRACE_FUNCTION_CALL;
 
-        if ( cmd == OPT_CHECK || cmd == OPT_APPLY) {
+	if (cmd == OPT_CHECK || cmd == OPT_APPLY) {
 
-                int32_t relevance = get_opt_child_val_int(opt, patch, ARG_RELEVANCE);
-                struct status_handl *handl;
+		int32_t relevance = get_opt_child_val_int(opt, patch, ARG_RELEVANCE);
+		struct status_handl *handl;
 
-                if ((handl = get_status_handl(patch->val ? patch->val : opt->name))) {
+		if ((handl = get_status_handl(patch->val ? patch->val : opt->name))) {
 
-                        if (cmd == OPT_APPLY) {
+			if (cmd == OPT_APPLY) {
 
 				uint32_t data_len;
 
-				prof_start( opt_status_generic, main);
+				prof_start(opt_status_generic, main);
 
 				if ((data_len = ((*(handl->frame_creator))(handl, NULL)))) {
 					uint16_t i;
-					char upper[strlen(handl->status_name)+1];
-					for(i=0; (i <= strlen(handl->status_name)); i++)
+					char upper[strlen(handl->status_name) + 1];
+					for (i = 0; (i <= strlen(handl->status_name)); i++)
 						upper[i] = toupper(handl->status_name[i]);
 					dbg_printf(cn, "%s:\n", upper);
 					fields_dbg_func(cn, relevance, data_len, handl->data, handl->min_msg_size, handl->format);
 				}
 
 				prof_stop();
-                        }
+			}
 
-                } else {
+		} else {
 
 			struct avl_node *it = NULL;
-                        dbg_printf(cn, "requested %s must be one of: ", ARG_VALUE_FORM);
-                        while ((handl = avl_iterate_item(&status_tree, &it))) {
-                                dbg_printf(cn, "%s ", handl->status_name);
-                        }
-                        dbg_printf(cn, "\n");
-                        return FAILURE;
-                }
+			dbg_printf(cn, "requested %s must be one of: ", ARG_VALUE_FORM);
+			while ((handl = avl_iterate_item(&status_tree, &it))) {
+				dbg_printf(cn, "%s ", handl->status_name);
+			}
+			dbg_printf(cn, "\n");
+			return FAILURE;
+		}
 	}
 	return SUCCESS;
 }
@@ -1438,7 +1409,6 @@ int32_t opt_list_show(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct o
 	return opt_status_generic(cmd, _save, opt, patch, cn, fields_dbg_lines);
 }
 
-
 int32_t opt_flush_all(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
 {
 	TRACE_FUNCTION_CALL;
@@ -1450,7 +1420,6 @@ int32_t opt_flush_all(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct o
 
 	return SUCCESS;
 }
-
 
 STATIC_FUNC
 IDM_T set_hostname(char *hostname, IDM_T set, struct ctrl_node *cn)
@@ -1469,7 +1438,7 @@ IDM_T set_hostname(char *hostname, IDM_T set, struct ctrl_node *cn)
 		else
 			memset(test, 0, MAX_HOSTNAME_LEN);
 	}
-	
+
 	test[MAX_HOSTNAME_LEN - 1] = 0;
 
 	if (strlen(test) && validate_name_string(test, MAX_HOSTNAME_LEN, NULL) == FAILURE) {
@@ -1484,7 +1453,6 @@ IDM_T set_hostname(char *hostname, IDM_T set, struct ctrl_node *cn)
 	return SUCCESS;
 }
 
-
 STATIC_FUNC
 int32_t opt_hostname(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
 {
@@ -1494,7 +1462,7 @@ int32_t opt_hostname(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct op
 		char *applied = (tmp ? tmp->val : NULL);
 		char *val = (patch ? patch->val : NULL);
 
-//		dbgf_cn(cn, DBGL_ALL, DBGT_INFO, "cmd=%-14s given=%-14s stored=%s", opt_cmd2str[cmd], val, applied);
+		//		dbgf_cn(cn, DBGL_ALL, DBGT_INFO, "cmd=%-14s given=%-14s stored=%s", opt_cmd2str[cmd], val, applied);
 
 		if (cmd == OPT_CHECK || cmd == OPT_APPLY)
 			return set_hostname(val, cmd == OPT_APPLY, cn);
@@ -1506,7 +1474,7 @@ int32_t opt_hostname(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct op
 	return SUCCESS;
 }
 
-DESC_SQN_T newDescriptionSqn( char* newPath, uint8_t exitIfFailure )
+DESC_SQN_T newDescriptionSqn(char* newPath, uint8_t exitIfFailure)
 {
 	static DESC_SQN_T currSqn = 0;
 	static char path[MAX_PATH_SIZE];
@@ -1514,7 +1482,7 @@ DESC_SQN_T newDescriptionSqn( char* newPath, uint8_t exitIfFailure )
 	int ret = 0;
 	char *goto_error_code = NULL;
 
-	assertion(-502014, XOR(newPath, strlen(path) ));
+	assertion(-502014, XOR(newPath, strlen(path)));
 
 	if (!strlen(path)) {
 
@@ -1527,7 +1495,7 @@ DESC_SQN_T newDescriptionSqn( char* newPath, uint8_t exitIfFailure )
 			goto_error(finish, "dir can not be created");
 	}
 
-	if (currSqn==0) {
+	if (currSqn == 0) {
 
 		if ((file = fopen(path, "r+"))) {
 			if ((fscanf(file, "%u", &currSqn) == 1) && (fseek(file, 0, SEEK_SET) == 0) &&
@@ -1535,7 +1503,7 @@ DESC_SQN_T newDescriptionSqn( char* newPath, uint8_t exitIfFailure )
 				((ret = fprintf(file, "%u", currSqn)) > 0) &&
 				(fclose(file) == 0) && !(file = NULL) && (truncate(path, ret) == 0)) {
 
-				dbgf_track(DBGT_INFO, "Updating existing %s=%s descSqn=%d", ARG_DSQN_PATH, path, currSqn );
+				dbgf_track(DBGT_INFO, "Updating existing %s=%s descSqn=%d", ARG_DSQN_PATH, path, currSqn);
 
 			} else {
 				goto_error(finish, "has illegal content");
@@ -1544,7 +1512,7 @@ DESC_SQN_T newDescriptionSqn( char* newPath, uint8_t exitIfFailure )
 			if (
 				(currSqn = DESC_SQN_REBOOT_ADDS) &&
 				(ret = fprintf(file, "%u", currSqn)) > 0) {
-				dbgf_sys(DBGT_WARN, "Created new %s=%s starting with descSqn=%d", ARG_DSQN_PATH, path, currSqn );
+				dbgf_sys(DBGT_WARN, "Created new %s=%s starting with descSqn=%d", ARG_DSQN_PATH, path, currSqn);
 			} else {
 				goto_error(finish, "new file can not be updated!");
 			}
@@ -1552,7 +1520,7 @@ DESC_SQN_T newDescriptionSqn( char* newPath, uint8_t exitIfFailure )
 			goto_error(finish, "can not be created!");
 		}
 
-	} else if ((++currSqn)%DESC_SQN_SAVE_INTERVAL) {
+	} else if ((++currSqn) % DESC_SQN_SAVE_INTERVAL) {
 
 		dbgf_track(DBGT_INFO, "Not Updating existing %s=%s", ARG_DSQN_PATH, path);
 
@@ -1564,73 +1532,70 @@ DESC_SQN_T newDescriptionSqn( char* newPath, uint8_t exitIfFailure )
 		goto_error(finish, "old file can not be updated!");
 	}
 
-finish: {
+finish:
+	{
 
-	if(file)
-		fclose(file);
+		if (file)
+			fclose(file);
 
-	if (goto_error_code) {
-		dbgf_sys(DBGT_ERR, "Failed storing descSqn=%d in %s=%s %s! ret=%d errno=%s",
-			currSqn, ARG_DSQN_PATH, path, goto_error_code, ret, strerror(errno));
+		if (goto_error_code) {
+			dbgf_sys(DBGT_ERR, "Failed storing descSqn=%d in %s=%s %s! ret=%d errno=%s",
+				currSqn, ARG_DSQN_PATH, path, goto_error_code, ret, strerror(errno));
 
-		if (exitIfFailure)
-			cleanup_all(-502015);
-		return 0;
-	}
+			if (exitIfFailure)
+				cleanup_all(-502015);
+			return 0;
+		}
 
-	dbgf_track(DBGT_INFO, "New descSqn=%d", currSqn);
-	return currSqn;
+		dbgf_track(DBGT_INFO, "New descSqn=%d", currSqn);
+		return currSqn; }
 }
-}
 
 
 
-static struct opt_type bmx_options[]=
-{
-//        ord parent long_name          shrt Attributes				*ival		min		max		default		*func,*syntax,*help
+static struct opt_type bmx_options[] ={
+	//        ord parent long_name          shrt Attributes			*ival		min		max		default		*func,*syntax,*help
 
 	{ODI,0,ARG_VERSION,		'v',9,2,A_PS0,A_USR,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_version,
 			0,		"show version"},
 
-        {ODI,0,ARG_COMPATIBILITY,       0,  3,1,A_PS1,A_ADM,A_INI,A_CFA,A_ANY,   &my_compatibility,MIN_COMPATIBILITY,MAX_COMPATIBILITY,DEF_COMPATIBILITY,0, 0,
+        {ODI,0,ARG_COMPATIBILITY,       0,  3,1,A_PS1,A_ADM,A_INI,A_CFA,A_ANY,  &my_compatibility,MIN_COMPATIBILITY,MAX_COMPATIBILITY,DEF_COMPATIBILITY,0, 0,
 			ARG_VALUE_FORM,	"set (elastic) compatibility version"},
-//order must be after ARG_KEY_PATH and before ARG_AUTO_IP6_PREFIX and ARG_TUN_IN_DEV (which use self, initialized from init_self, called from opt_hostname):
-	{ODI,0,ARG_HOSTNAME,		0,  5,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		        0,		        0,0,	opt_hostname,
+	//order must be after ARG_KEY_PATH and before ARG_AUTO_IP6_PREFIX and ARG_TUN_IN_DEV (which use self, initialized from init_self, called from opt_hostname):
+	{ODI,0,ARG_HOSTNAME,		0,  5,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_hostname,
 			ARG_VALUE_FORM,	"set advertised hostname of node"},
 
-	{ODI,0,ARG_LIST,		0  , 9,1,A_PS1N ,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_list_show,
+	{ODI,0,ARG_LIST,		0  , 9,1,A_PS1N ,A_USR,A_DYN,A_ARG,A_ANY,0,		0, 		0,		0,0, 		opt_list_show,
 			ARG_VALUE_FORM,		"list status information about given context. E.g.:" ARG_STATUS ", " ARG_INTERFACES ", " ARG_LINKS ", " ARG_ORIGINATORS " " ARG_CREDITS ", ..." "\n"},
 	{ODI,ARG_LIST,ARG_RELEVANCE,'r',9,1,A_CS1,A_USR,A_DYN,A_ARG,A_ANY,	0,	       MIN_RELEVANCE,   MAX_RELEVANCE,  DEF_RELEVANCE,0, opt_list_show,
 			ARG_VALUE_FORM,	HLP_ARG_RELEVANCE}
 	,
-	{ODI,0,ARG_SHOW,		's', 9,1,A_PS1N,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
+	{ODI,0,ARG_SHOW,		's', 9,1,A_PS1N,A_USR,A_DYN,A_ARG,A_ANY,0,		0, 		0,		0,0, 		opt_status,
 			ARG_VALUE_FORM,		"show status information about given context. E.g.:" ARG_STATUS ", " ARG_INTERFACES ", " ARG_LINKS ", " ARG_ORIGINATORS " " ARG_CREDITS ", ..." "\n"},
 	{ODI,ARG_SHOW,ARG_RELEVANCE,'r',9,1,A_CS1,A_USR,A_DYN,A_ARG,A_ANY,	0,	       MIN_RELEVANCE,   MAX_RELEVANCE,  DEF_RELEVANCE,0, opt_status,
 			ARG_VALUE_FORM,	HLP_ARG_RELEVANCE}
-        ,
+	,
 
 	{ODI,0,ARG_STATUS,		0,  9,1,A_PS0,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
 			0,		"show status\n"},
 
 	{ODI,0,ARG_ORIGINATORS,	        0,  9,1,A_PS0N,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
 			0,		"show originators\n"}
-        ,
+	,
 	{ODI,0,ARG_KEYS,	        0,  9,1,A_PS0N,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
 			0,		"show keys and their description references\n"}
-        ,
+	,
 	{ODI,0,ARG_DESCREFS,	        0,  9,1,A_PS0N,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
 			0,		"show description references\n"}
-        ,
+	,
 	{ODI,0,"flushAll",		0,  9,1,A_PS0,A_ADM,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_flush_all,
 			0,		"purge all neighbors and routes on the fly"}
-        ,
+	,
 #ifndef LESS_OPTIONS
 	{ODI,0,ARG_DAD_TO,        	0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&dad_to,	MIN_DAD_TO,	MAX_DAD_TO,	DEF_DAD_TO,0,	0,
 			ARG_VALUE_FORM,	"duplicate address (DAD) detection timout in ms"}
 #endif
 };
-
-
 
 STATIC_FUNC
 void bmx(void)
@@ -1642,31 +1607,31 @@ void bmx(void)
 
 	frequent_timeout = seldom_timeout = bmx_time;
 
-        update_my_description();
+	update_my_description();
 
-        initializing = NO;
+	initializing = NO;
 
-        while (!terminating) {
+	while (!terminating) {
 
-		TIME_T wait = task_next( );
+		TIME_T wait = task_next();
 
-		if ( wait )
-			wait4Event( XMIN( wait, MAX_SELECT_TIMEOUT_MS ) );
+		if (wait)
+			wait4Event(XMIN(wait, MAX_SELECT_TIMEOUT_MS));
 
-//                if (my_description_changed)
-//                        update_my_description_adv();
+		//                if (my_description_changed)
+		//                        update_my_description_adv();
 
 		// The regular tasks...
-		if ( U32_LT( frequent_timeout + 1000,  bmx_time ) ) {
+		if (U32_LT(frequent_timeout + 1000, bmx_time)) {
 
 			// check for changed interface konfigurations...
-			sysctl_config( NULL );
+			sysctl_config(NULL);
 
 
-			close_ctrl_node( CTRL_CLEANUP, NULL );
+			close_ctrl_node(CTRL_CLEANUP, NULL);
 
-/*
-	                struct list_node *list_pos;
+			/*
+			struct list_node *list_pos;
 			list_for_each( list_pos, &dbgl_clients[DBGL_ALL] ) {
 
 				struct ctrl_node *cn = (list_entry( list_pos, struct dbgl_node, list ))->cn;
@@ -1676,17 +1641,17 @@ void bmx(void)
 				check_apply_parent_option( ADD, OPT_APPLY, 0, get_option( 0, 0, ARG_STATUS ), 0, cn );
 				check_apply_parent_option( ADD, OPT_APPLY, 0, get_option( 0, 0, ARG_LINKS ), 0, cn );
 				check_apply_parent_option( ADD, OPT_APPLY, 0, get_option( 0, 0, ARG_LOCALS ), 0, cn );
-                                check_apply_parent_option( ADD, OPT_APPLY, 0, get_option( 0, 0, ARG_ORIGINATORS ), 0, cn );
+				check_apply_parent_option( ADD, OPT_APPLY, 0, get_option( 0, 0, ARG_ORIGINATORS ), 0, cn );
 				dbg_printf( cn, "--------------- END DEBUG ---------------\n" );
 			}
-*/
+			 */
 
 			/* preparing the next debug_timeout */
 			frequent_timeout = bmx_time;
 		}
 
 
-		if ( U32_LT( seldom_timeout + 5000, bmx_time ) ) {
+		if (U32_LT(seldom_timeout + 5000, bmx_time)) {
 
 			//node_tasks();
 
@@ -1695,8 +1660,8 @@ void bmx(void)
 
 
 			/* generating cpu load statistics... */
-			s_curr_cpu_time = (TIME_T)clock();
-			s_curr_avg_cpu_load = ( (s_curr_cpu_time - s_last_cpu_time) / (TIME_T)(bmx_time - seldom_timeout) );
+			s_curr_cpu_time = (TIME_T) clock();
+			s_curr_avg_cpu_load = ((s_curr_cpu_time - s_last_cpu_time) / (TIME_T) (bmx_time - seldom_timeout));
 			s_last_cpu_time = s_curr_cpu_time;
 
 			seldom_timeout = bmx_time;
@@ -1710,10 +1675,10 @@ int main(int argc, char *argv[])
 #include <sys/time.h>
 #include <sys/resource.h>
 
-        sscanf(GIT_REV, "%7X", &bmx_git_rev_u32);
+	sscanf(GIT_REV, "%7X", &bmx_git_rev_u32);
 
 
-	struct rlimit rlim = {.rlim_cur = (CORE_LIMIT * 1024), .rlim_max = (CORE_LIMIT * 1024) };
+	struct rlimit rlim = { .rlim_cur = (CORE_LIMIT * 1024), .rlim_max = (CORE_LIMIT * 1024) };
 
 	if (setrlimit(RLIMIT_CORE, &rlim) != 0) {
 		printf("setrlimit RLIMIT_CORE=%d failed: %s\n", (CORE_LIMIT * 1024), strerror(errno));
@@ -1723,50 +1688,50 @@ int main(int argc, char *argv[])
 	My_pid = getpid();
 
 
-	signal( SIGINT, handler );
-	signal( SIGTERM, handler );
-	signal( SIGPIPE, SIG_IGN );
-	signal( SIGSEGV, segmentation_fault );
+	signal(SIGINT, handler);
+	signal(SIGTERM, handler);
+	signal(SIGPIPE, SIG_IGN);
+	signal(SIGSEGV, segmentation_fault);
 
 #ifdef TEST_DEBUG_MALLOC
-        debugMalloc(1, -300525); //testing debugMalloc
+	debugMalloc(1, -300525); //testing debugMalloc
 #endif
 
 
 	init_control();
 	init_schedule();
 
-        init_tools();
-        init_avl();
+	init_tools();
+	init_avl();
 
 	init_prof();
-//	init_config();
+	// init_config();
 	init_crypt();
-        init_ip();
+	init_ip();
 	init_msg();
 	init_desc();
 	init_content();
 	init_sec();
 	init_key();
-//	init_node();
+	// init_node();
 	init_ogm();
-	
-        if (init_plugin() == SUCCESS) {
 
-                activate_plugin((metrics_get_plugin()), NULL, NULL);
-                activate_plugin((link_get_plugin()), NULL, NULL);
-                activate_plugin((hna_get_plugin()), NULL, NULL);
+	if (init_plugin() == SUCCESS) {
+
+		activate_plugin((metrics_get_plugin()), NULL, NULL);
+		activate_plugin((link_get_plugin()), NULL, NULL);
+		activate_plugin((hna_get_plugin()), NULL, NULL);
 
 #ifdef TRAFFIC_DUMP
-                struct plugin * dump_get_plugin(void);
-                activate_plugin((dump_get_plugin()), NULL, NULL);
+		struct plugin * dump_get_plugin(void);
+		activate_plugin((dump_get_plugin()), NULL, NULL);
 #endif
 
-        } else {
-                assertion(-500809, (0));
+	} else {
+		assertion(-500809, (0));
 	}
 
-	prof_start( main, NULL );
+	prof_start(main, NULL);
 
 	register_options_array(bmx_options, sizeof( bmx_options), CODE_CATEGORY_NAME);
 
@@ -1777,13 +1742,11 @@ int main(int argc, char *argv[])
 
 
 
-	apply_init_args( argc, argv );
+	apply_init_args(argc, argv);
 
-        bmx();
+	bmx();
 
-	cleanup_all( CLEANUP_SUCCESS );
+	cleanup_all(CLEANUP_SUCCESS);
 
 	return -1;
 }
-
-

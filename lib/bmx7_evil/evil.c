@@ -72,12 +72,11 @@ static struct DirWatch *evilDirWatch = NULL;
 static int32_t evil_tun_fd = 0;
 static int32_t evil_tun_idx = 0;
 
-static int32_t (*orig_tx_frame_desc_adv) (struct tx_frame_iterator *) = NULL;
-static int32_t (*orig_tx_msg_dhash_adv) (struct tx_frame_iterator *) = NULL;
-static int32_t (*orig_tx_frame_ogm_dhash_aggreg_advs) (struct tx_frame_iterator *) = NULL;
-static int32_t (*orig_tx_dsc_tlv_hna) (struct tx_frame_iterator *) = NULL;
-static int32_t (*orig_rx_dsc_tlv_hna) (struct rx_frame_iterator *);
-
+static int32_t(*orig_tx_frame_desc_adv) (struct tx_frame_iterator *) = NULL;
+static int32_t(*orig_tx_msg_dhash_adv) (struct tx_frame_iterator *) = NULL;
+static int32_t(*orig_tx_frame_ogm_dhash_aggreg_advs) (struct tx_frame_iterator *) = NULL;
+static int32_t(*orig_tx_dsc_tlv_hna) (struct tx_frame_iterator *) = NULL;
+static int32_t(*orig_rx_dsc_tlv_hna) (struct rx_frame_iterator *);
 
 STATIC_FUNC
 int32_t evil_tx_frame_description_adv(struct tx_frame_iterator *it)
@@ -86,7 +85,7 @@ int32_t evil_tx_frame_description_adv(struct tx_frame_iterator *it)
 
 	if (evilDirWatch && (evilDescDropping || evilDescSqns)) {
 
-		DHASH_T *dhash = (DHASH_T*)it->ttn->key.data;
+		DHASH_T *dhash = (DHASH_T*) it->ttn->key.data;
 		struct desc_content *dc = avl_find_item(&descContent_tree, dhash);
 
 		if (dc && avl_find(&evilDirWatch->node_tree, &dc->kn->kHash)) {
@@ -113,11 +112,8 @@ int32_t evil_tx_frame_description_adv(struct tx_frame_iterator *it)
 		}
 	}
 
-	return (*orig_tx_frame_desc_adv)(it);
+	return(*orig_tx_frame_desc_adv)(it);
 }
-
-
-
 
 STATIC_FUNC
 int32_t evil_tx_msg_dhash_adv(struct tx_frame_iterator *it)
@@ -133,10 +129,8 @@ int32_t evil_tx_msg_dhash_adv(struct tx_frame_iterator *it)
 			return TLV_TX_DATA_DONE;
 	}
 
-	return	(*orig_tx_msg_dhash_adv)(it);
+	return(*orig_tx_msg_dhash_adv)(it);
 }
-
-
 
 STATIC_FUNC
 int32_t evil_tx_frame_ogm_aggreg_advs(struct tx_frame_iterator *it)
@@ -144,14 +138,14 @@ int32_t evil_tx_frame_ogm_aggreg_advs(struct tx_frame_iterator *it)
 	TRACE_FUNCTION_CALL;
 
 	struct hdr_ogm_adv *hdr = ((struct hdr_ogm_adv*) tx_iterator_cache_hdr_ptr(it));
-	AGGREG_SQN_T *sqn = ((AGGREG_SQN_T *)it->ttn->key.data);
+	AGGREG_SQN_T *sqn = ((AGGREG_SQN_T *) it->ttn->key.data);
 	struct OgmAggreg_node *oan = getOgmAggregNode(*sqn);
 	struct avl_node *an = NULL;
 	struct orig_node *on;
 	struct msg_ogm_adv *msg = (struct msg_ogm_adv*) tx_iterator_cache_msg_ptr(it);
 
 	if (!(evilDirWatch && (evilOgmDropping || evilOgmMetrics || evilOgmHash)))
-		return (*orig_tx_frame_ogm_dhash_aggreg_advs)(it);
+		return(*orig_tx_frame_ogm_dhash_aggreg_advs)(it);
 
 	if (tx_iterator_cache_data_space_max(it, 0, 0) < oan->msgsLen)
 		return TLV_TX_DATA_FULL;
@@ -181,7 +175,7 @@ int32_t evil_tx_frame_ogm_aggreg_advs(struct tx_frame_iterator *it)
 		msg->u.f.more = (tn && evilOgmMetrics) ? 0 : !!on->neighPath.pathMetricsByteSize;
 
 		dbgf_track(DBGT_INFO, "name=%s nodeId=%s iid=%d sqn=%d metric=%ju more=%d hops=%lu (%d) cih=%s chainOgm=%s viaDev=%s",
-			on->k.hostname, cryptShaAsShortStr(&on->kn->kHash), msg->u.f.transmitterIID4x,  on->dc->ogmSqnMaxSend,
+			on->k.hostname, cryptShaAsShortStr(&on->kn->kHash), msg->u.f.transmitterIID4x, on->dc->ogmSqnMaxSend,
 			on->neighPath.um, msg->u.f.more, (on->neighPath.pathMetricsByteSize / sizeof(struct msg_ogm_adv_metric_t0)), on->ogmHopCount,
 			memAsHexString(&on->dc->chainOgmConstInputHash, sizeof(msg->chainOgm)),
 			memAsHexString(&msg->chainOgm, sizeof(msg->chainOgm)), it->ttn->key.f.p.dev->ifname_label.str);
@@ -197,14 +191,17 @@ int32_t evil_tx_frame_ogm_aggreg_advs(struct tx_frame_iterator *it)
 
 				struct msg_ogm_adv_metric_t0 *t0Out = ((struct msg_ogm_adv_metric_t0*) &(msg->mt0[p]));
 				struct msg_ogm_adv_metric_t0 *t0In = &(on->neighPath.pathMetrics[p]);
-				FMETRIC_U16_T fm = {.val = {.f = {.exp_fm16 = t0In->u.f.metric_exp, .mantissa_fm16 = t0In->u.f.metric_mantissa}}};
+				FMETRIC_U16_T fm = { .val =
+					{.f =
+						{.exp_fm16 = t0In->u.f.metric_exp, .mantissa_fm16 = t0In->u.f.metric_mantissa } } };
 
 				dbgf_track(DBGT_INFO, "ogmHist=%d more=%d channel=%d origMtc=%s", p + 1, t0In->u.f.more, t0In->channel, umetric_to_human(fmetric_to_umetric(fm)));
 
 				assertion(-502664, (on->neighPath.pathMetrics[p].u.f.more == ((p + 1) < (on->neighPath.pathMetricsByteSize / (uint16_t)sizeof(struct msg_ogm_adv_metric_t0)))));
 				t0Out->channel = t0In->channel;
 				if (tn && evilOgmMetrics) {
-					struct msg_ogm_adv_metric_t0 t0Evil = {.u = {.u16 = t0In->u.u16}};
+					struct msg_ogm_adv_metric_t0 t0Evil = { .u =
+						{.u16 = t0In->u.u16 } };
 					t0Evil.u.f.directional = 1;
 					t0Evil.u.f.metric_exp = fm16.val.f.exp_fm16;
 					t0Evil.u.f.metric_mantissa = fm16.val.f.mantissa_fm16;
@@ -214,7 +211,7 @@ int32_t evil_tx_frame_ogm_aggreg_advs(struct tx_frame_iterator *it)
 				}
 			}
 
-			assertion(-502665, (on->ogmAggregActiveMsgLen == ((int)(sizeof(struct msg_ogm_adv) + (p * sizeof(struct msg_ogm_adv_metric_t0))))));
+			assertion(-502665, (on->ogmAggregActiveMsgLen == ((int) (sizeof(struct msg_ogm_adv) + (p * sizeof(struct msg_ogm_adv_metric_t0))))));
 			msg = (struct msg_ogm_adv*) (((uint8_t*) msg) + on->ogmAggregActiveMsgLen);
 		}
 	}
@@ -222,7 +219,7 @@ int32_t evil_tx_frame_ogm_aggreg_advs(struct tx_frame_iterator *it)
 	dbgf_track(DBGT_INFO, "aggSqn=%d aggSqnMax=%d ogms=%d evilSize=%d origSize=%d",
 		*sqn, ogm_aggreg_sqn_max, oan->tree.items, ((uint32_t) (((uint8_t*) msg) - tx_iterator_cache_msg_ptr(it))), oan->msgsLen);
 
-	return ((uint32_t) (((uint8_t*) msg) - tx_iterator_cache_msg_ptr(it)));
+	return((uint32_t) (((uint8_t*) msg) - tx_iterator_cache_msg_ptr(it)));
 }
 
 STATIC_FUNC
@@ -234,7 +231,7 @@ void idChanged_Evil(IDM_T del, struct KeyWatchNode *kwn, struct DirWatch *dw)
 	if (!kwn)
 		return;
 
-	struct net_key routeKey = {.af = AF_INET6, .mask = 128, .ip = create_crypto_IPv6(&autoconf_prefix_cfg, &kwn->global_id)};
+	struct net_key routeKey = { .af = AF_INET6, .mask = 128, .ip = create_crypto_IPv6(&autoconf_prefix_cfg, &kwn->global_id) };
 
 #define KWN_MISC_ROUTE_DROPPING 0x01
 #define KWN_MISC_IP_HIJACKING   0x02
@@ -250,7 +247,7 @@ void idChanged_Evil(IDM_T del, struct KeyWatchNode *kwn, struct DirWatch *dw)
 		kwn->misc &= (~KWN_MISC_ROUTE_DROPPING);
 	}
 
-	
+
 	if (!del && !(kwn->misc & KWN_MISC_IP_HIJACKING) && evilPrimaryIps) {
 
 		my_description_changed = YES;
@@ -303,10 +300,10 @@ int32_t opt_evil_watch(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
 
 	assertion(-502520, ((strcmp(opt->name, ARG_ATTACKED_NODES_DIR) == 0)));
 
-        if (cmd == OPT_CHECK && patch->diff == ADD && check_dir(patch->val, YES/*create*/, YES/*writable*/, NO) == FAILURE)
-			return FAILURE;
+	if (cmd == OPT_CHECK && patch->diff == ADD && check_dir(patch->val, YES/*create*/, YES/*writable*/, NO) == FAILURE)
+		return FAILURE;
 
-        if (cmd == OPT_APPLY) {
+	if (cmd == OPT_APPLY) {
 
 		if (patch->diff == DEL)
 			cleanup_dir_watch(&evilDirWatch);
@@ -315,9 +312,9 @@ int32_t opt_evil_watch(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
 			assertion(-501286, (patch->val));
 			return init_dir_watch(&evilDirWatch, patch->val, idChanged_Evil);
 		}
-        }
+	}
 
-        return SUCCESS;
+	return SUCCESS;
 }
 
 STATIC_FUNC
@@ -329,7 +326,7 @@ int32_t opt_evil_init(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct o
 
 	if (cmd == OPT_SET_POST && initializing) {
 
-		evil_tun_idx = kernel_dev_tun_add( DEF_EVIL_TUN_NAME, &evil_tun_fd, NO);
+		evil_tun_idx = kernel_dev_tun_add(DEF_EVIL_TUN_NAME, &evil_tun_fd, NO);
 		set_fd_hook(evil_tun_fd, tun_out_devZero_hook, ADD);
 
 		ip_flush_routes(AF_INET6, DEF_EVIL_IP_TABLE);
@@ -342,12 +339,11 @@ int32_t opt_evil_init(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct o
 	return SUCCESS;
 }
 
-
 STATIC_FUNC
 int evil_rx_dsc_tlv_hna(struct rx_frame_iterator *it)
 {
-        TRACE_FUNCTION_CALL;
-        ASSERTION(-500357, (it->f_type == BMX_DSC_TLV_HNA6));
+	TRACE_FUNCTION_CALL;
+	ASSERTION(-500357, (it->f_type == BMX_DSC_TLV_HNA6));
 	assertion(-502326, (it->dcOp && it->dcOp->kn));
 
 	if (it->dcOp->kn == myKey)
@@ -356,23 +352,21 @@ int evil_rx_dsc_tlv_hna(struct rx_frame_iterator *it)
 		return orig_rx_dsc_tlv_hna(it);
 }
 
-
-
 STATIC_FUNC
 int evil_tx_dsc_tlv_hna(struct tx_frame_iterator *it)
 {
-        TRACE_FUNCTION_CALL;
+	TRACE_FUNCTION_CALL;
 
-	dbgf_sys(DBGT_INFO, "enabled=%d attacked nodes=%d", evilPrimaryIps, evilDirWatch ? (int)evilDirWatch->node_tree.items : -1);
+	dbgf_sys(DBGT_INFO, "enabled=%d attacked nodes=%d", evilPrimaryIps, evilDirWatch ? (int) evilDirWatch->node_tree.items : -1);
 
 	if (!evilPrimaryIps || !evilDirWatch || !evilDirWatch->node_tree.items)
-		return ((*orig_tx_dsc_tlv_hna)(it));
+		return((*orig_tx_dsc_tlv_hna)(it));
 
-        assertion(-500765, (it->frame_type == BMX_DSC_TLV_HNA6));
+	assertion(-500765, (it->frame_type == BMX_DSC_TLV_HNA6));
 
-        uint8_t *data = tx_iterator_cache_msg_ptr(it);
-        uint32_t max_size = tx_iterator_cache_data_space_pref(it, 0, 0);
-        uint32_t pos = 0;
+	uint8_t *data = tx_iterator_cache_msg_ptr(it);
+	uint32_t max_size = tx_iterator_cache_data_space_pref(it, 0, 0);
+	uint32_t pos = 0;
 	struct avl_node *an = NULL;
 
 	struct KeyWatchNode *kwn;
@@ -431,11 +425,9 @@ static struct opt_type evil_options[] = {
 			ARG_VALUE_FORM, "Randomize hash-chain value of routing updates (OGMs) of attacked nodes"}
 };
 
-
-
-static int32_t evil_init( void )
+static int32_t evil_init(void)
 {
-        register_options_array(evil_options, sizeof ( evil_options), CODE_CATEGORY_NAME);
+	register_options_array(evil_options, sizeof( evil_options), CODE_CATEGORY_NAME);
 
 	orig_tx_frame_desc_adv = packet_frame_db->handls[FRAME_TYPE_DESC_ADVS].tx_frame_handler;
 	packet_frame_db->handls[FRAME_TYPE_DESC_ADVS].tx_frame_handler = evil_tx_frame_description_adv;
@@ -455,8 +447,7 @@ static int32_t evil_init( void )
 	return SUCCESS;
 }
 
-
-static void evil_cleanup( void )
+static void evil_cleanup(void)
 {
 	packet_frame_db->handls[FRAME_TYPE_DESC_ADVS].tx_frame_handler = orig_tx_frame_desc_adv;
 	packet_frame_db->handls[FRAME_TYPE_IID_ADV].tx_msg_handler = orig_tx_msg_dhash_adv;
@@ -478,20 +469,18 @@ static void evil_cleanup( void )
 	}
 }
 
+struct plugin* get_plugin(void)
+{
 
-struct plugin* get_plugin( void ) {
-	
 	static struct plugin evil_plugin;
-	
-	memset( &evil_plugin, 0, sizeof ( struct plugin ) );
-	
+
+	memset(&evil_plugin, 0, sizeof( struct plugin));
+
 
 	evil_plugin.plugin_name = CODE_CATEGORY_NAME;
-	evil_plugin.plugin_size = sizeof ( struct plugin );
+	evil_plugin.plugin_size = sizeof( struct plugin);
 	evil_plugin.cb_init = evil_init;
 	evil_plugin.cb_cleanup = evil_cleanup;
 
 	return &evil_plugin;
 }
-
-

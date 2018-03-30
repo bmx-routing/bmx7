@@ -30,7 +30,7 @@
 #define DEF_EXPORT_ONLY   0
 #define MIN_EXPORT_ONLY   0
 #define MAX_EXPORT_ONLY   1
-*/
+ */
 
 
 
@@ -86,31 +86,27 @@
 
 #define NETWORK_NAME_LEN 32
 
-
-
-
-
 struct redist_out_key {
-        IFNAME_T tunInDev;
+	IFNAME_T tunInDev;
 	uint8_t proto_type;
-        FMETRIC_U8_T bandwidth;
-        struct net_key net;
-        uint8_t must_be_one; // to find_next route_type and bandwidth if net is zero
+	FMETRIC_U8_T bandwidth;
+	struct net_key net;
+	uint8_t must_be_one; // to find_next route_type and bandwidth if net is zero
 } __attribute__((packed));
 
 struct redist_out_node {
-        struct redist_out_key k;
-        uint8_t minAggregatePrefixLen;
-        uint8_t old;
-        uint8_t new;
+	struct redist_out_key k;
+	uint8_t minAggregatePrefixLen;
+	uint8_t old;
+	uint8_t new;
 };
 
 struct redist_in_key {
-        struct net_key net;
-        IPX_T via;
+	struct net_key net;
+	IPX_T via;
 	uint32_t table;
-        uint32_t ifindex;
-        uint8_t proto_type;
+	uint32_t ifindex;
+	uint8_t proto_type;
 } __attribute__((packed));
 
 struct redist_in_node {
@@ -127,16 +123,16 @@ struct redist_in_node {
 };
 
 struct redistr_opt_node {
-        char nameKey[NETWORK_NAME_LEN];
-        struct net_key net;
-        uint32_t hysteresis;
+	char nameKey[NETWORK_NAME_LEN];
+	struct net_key net;
+	uint32_t hysteresis;
 	uint32_t table;
 	uint16_t searchProto;
 	uint16_t advProto;
 	uint8_t netPrefixMin;
-        uint8_t netPrefixMax;
-        uint8_t minAggregatePrefixLen;
-        FMETRIC_U8_T bandwidth;
+	uint8_t netPrefixMax;
+	uint8_t minAggregatePrefixLen;
+	FMETRIC_U8_T bandwidth;
 	char *tunInDev;
 };
 
@@ -146,4 +142,3 @@ IDM_T redistribute_routes(struct avl_tree *redist_out_tree, struct avl_tree *zro
 
 int32_t opt_redist(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn, struct avl_tree *redist_opt_tree, uint8_t *changed);
 struct redistr_opt_node *matching_redist_opt(struct redist_in_node *rin, struct avl_tree *redist_opt_tree);
-

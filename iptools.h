@@ -38,8 +38,8 @@ char *family2Str(uint8_t family);
 
 
 char *ipXAsStr(int family, const IPX_T *addr);
-char *ip4AsStr( IP4_T addr );
-void  ipXToStr(int family, const IPX_T *addr, char *str);
+char *ip4AsStr(IP4_T addr);
+void ipXToStr(int family, const IPX_T *addr, char *str);
 void ip6ToStr(const IPX_T *addr, char *str);
 char *netAsStr(const struct net_key *net);
 
@@ -59,11 +59,10 @@ IDM_T is_mac_equal(const MAC_T *a, const MAC_T *b);
 IDM_T is_ip_equal(const IPX_T *a, const IPX_T *b);
 IDM_T is_ip_set(const IPX_T *ip);
 
-IDM_T is_ip_valid( const IPX_T *ip, const uint8_t family );
+IDM_T is_ip_valid(const IPX_T *ip, const uint8_t family);
 
 IDM_T ip_netmask_validate(IPX_T *ipX, uint8_t mask, uint8_t family, uint8_t force);
 
 IDM_T is_ip_net_equal(const IPX_T *netA, const IPX_T *netB, const uint8_t plen, const uint8_t family);
 
 int interface_get_lowest(char *hwifname, const char *ifname);
-

@@ -79,41 +79,42 @@ static ctr_drbg_context ctr_drbg;
 
 static sha256_context sha_ctx;
 
-
-uint8_t cryptDhmKeyTypeByLen(int len) {
-	return 	len == CRYPT_DHM1024_LEN ? CRYPT_DHM1024_TYPE : (
+uint8_t cryptDhmKeyTypeByLen(int len)
+{
+	return len == CRYPT_DHM1024_LEN ? CRYPT_DHM1024_TYPE : (
 		len == CRYPT_DHM2048_LEN ? CRYPT_DHM2048_TYPE : (
 		len == CRYPT_DHM3072_LEN ? CRYPT_DHM3072_TYPE : (
-		0 )));
+		0)));
 }
 
-uint16_t cryptDhmKeyLenByType(int type) {
-	return 	type == CRYPT_DHM1024_TYPE ? CRYPT_DHM1024_LEN : (
+uint16_t cryptDhmKeyLenByType(int type)
+{
+	return type == CRYPT_DHM1024_TYPE ? CRYPT_DHM1024_LEN : (
 		type == CRYPT_DHM2048_TYPE ? CRYPT_DHM2048_LEN : (
 		type == CRYPT_DHM3072_TYPE ? CRYPT_DHM3072_LEN : (
-		0 )));
+		0)));
 }
 
-char *cryptDhmKeyTypeAsString(int type) {
-	return 	type == CRYPT_DHM1024_TYPE ? CRYPT_DHM1024_NAME : (
+char *cryptDhmKeyTypeAsString(int type)
+{
+	return type == CRYPT_DHM1024_TYPE ? CRYPT_DHM1024_NAME : (
 		type == CRYPT_DHM2048_TYPE ? CRYPT_DHM2048_NAME : (
 		type == CRYPT_DHM3072_TYPE ? CRYPT_DHM3072_NAME : (
-		NULL )));
+		NULL)));
 }
 
-
-void cryptDhmKeyFree( CRYPTDHM_T **cryptKey ) {
+void cryptDhmKeyFree(CRYPTDHM_T **cryptKey)
+{
 
 	if (!*cryptKey)
 		return;
 
 	if ((*cryptKey)->backendKey) {
-		dhm_free((dhm_context*)((*cryptKey)->backendKey));
+		dhm_free((dhm_context*) ((*cryptKey)->backendKey));
 		debugFree((*cryptKey)->backendKey, -300828);
 	}
 
-
-	debugFree( (*cryptKey), -300614);
+	debugFree((*cryptKey), -300614);
 
 	*cryptKey = NULL;
 }
@@ -149,8 +150,8 @@ static int _cryptDhmCheckRange(const mpi *param, const mpi *P)
 	return( ret);
 }
 
-
-CRYPTDHM_T *cryptDhmKeyMake( uint8_t keyType, uint8_t attempt) {
+CRYPTDHM_T *cryptDhmKeyMake(uint8_t keyType, uint8_t attempt)
+{
 
 	int ret = 0;
 	char *goto_error_code = NULL;
@@ -166,7 +167,7 @@ CRYPTDHM_T *cryptDhmKeyMake( uint8_t keyType, uint8_t attempt) {
 
 #if CRYPTLIB >= POLARSSL_1_3_9
 	// in older versions, if dhm_init() exist, it only zero-memsets the dhm context
-	dhm_init( dhm );
+	dhm_init(dhm);
 #endif
 	key->backendKey = dhm;
 
@@ -176,7 +177,7 @@ CRYPTDHM_T *cryptDhmKeyMake( uint8_t keyType, uint8_t attempt) {
 		goto_error(finish, "Invalid size");
 
 #if (CRYPTLIB >= POLARSSL_MIN && CRYPTLIB <= POLARSSL_MAX)
-	if( keyType == CRYPT_DHM1024_TYPE) {
+	if (keyType == CRYPT_DHM1024_TYPE) {
 		pptr = POLARSSL_DHM_RFC5114_MODP_1024_P;
 		gptr = POLARSSL_DHM_RFC5114_MODP_1024_G;
 	} else if (keyType == CRYPT_DHM2048_TYPE) {
@@ -211,7 +212,7 @@ CRYPTDHM_T *cryptDhmKeyMake( uint8_t keyType, uint8_t attempt) {
 		if ((ret = mpi_fill_random(&dhm->X, pSize, ctr_drbg_random, &ctr_drbg)) != 0)
 			goto_error(finish, "Failed allocating randomness");
 
-		while( mpi_cmp_mpi( &dhm->X, &dhm->P ) >= 0 ) {
+		while (mpi_cmp_mpi(&dhm->X, &dhm->P) >= 0) {
 			if ((ret = mpi_shift_r(&dhm->X, 1)) != 0)
 				goto_error(finish, "Failed shifting dhm->X param");
 		}
@@ -230,7 +231,7 @@ CRYPTDHM_T *cryptDhmKeyMake( uint8_t keyType, uint8_t attempt) {
 		goto_error(finish, "Invalid X size");
 	if ((gxSize = mpi_size(&dhm->GX)) != keyLen)
 		goto_error(finish, "Invalid GX size");
-	if ((ret=_cryptDhmCheckRange(&dhm->GX, &dhm->P)) != SUCCESS)
+	if ((ret = _cryptDhmCheckRange(&dhm->GX, &dhm->P)) != SUCCESS)
 		goto_error(finish, "Invalid GX range");
 
 	key->rawGXType = keyType;
@@ -267,7 +268,6 @@ void cryptDhmPubKeyGetRaw(CRYPTDHM_T* key, uint8_t* buff, uint16_t buffLen)
 	mpi_write_binary(&dhm->GX, buff, key->rawGXLen);
 }
 
-
 STATIC_FUNC
 IDM_T cryptDhmKeyCheck(CRYPTDHM_T *key)
 {
@@ -286,7 +286,7 @@ IDM_T cryptDhmKeyCheck(CRYPTDHM_T *key)
 		goto_error(finish, "Missing type");
 	if ((keyLen = cryptDhmKeyLenByType(keyType)) <= 0)
 		goto_error(finish, "Invalid size");
-	if ((int)dhm->len != keyLen)
+	if ((int) dhm->len != keyLen)
 		goto_error(finish, "Invalid len");
 	if ((pSize = mpi_size(&dhm->P)) != keyLen)
 		goto_error(finish, "Invalid P size");
@@ -345,55 +345,57 @@ CRYPTSHA_T *cryptDhmSecretForNeigh(CRYPTDHM_T *myDhm, uint8_t *neighRawKey, uint
 	secret = debugMallocReset(sizeof(CRYPTSHA_T), -300831);
 	cryptShaAtomic(buff, n, secret);
 
-	
-finish:{
-	dbgf(((goto_error_code || n != neighRawKeyLen) ? DBGL_SYS : DBGL_CHANGES), ((goto_error_code || n != neighRawKeyLen) ? DBGT_WARN : DBGT_INFO),
+
+finish:
+	{
+		dbgf(((goto_error_code || n != neighRawKeyLen) ? DBGL_SYS : DBGL_CHANGES), ((goto_error_code || n != neighRawKeyLen) ? DBGT_WARN : DBGT_INFO),
 		"%s n=%zd neighKeyLen=%d myKeyLen=%d", goto_error_code, n, neighRawKeyLen, myDhm->rawGXLen);
 
-	mpi_free(&dhm->GY);
-	mpi_free(&dhm->K);
-	memset(buff, 0, sizeof(buff));
-	return secret;
-}
+		mpi_free(&dhm->GY);
+		mpi_free(&dhm->K);
+		memset(buff, 0, sizeof(buff));
+		return secret; }
 }
 
-
-void cryptRsaKeyFree( CRYPTRSA_T **cryptKey ) {
+void cryptRsaKeyFree(CRYPTRSA_T **cryptKey)
+{
 
 	if (!*cryptKey)
 		return;
 
 	if ((*cryptKey)->backendKey) {
-		rsa_free((rsa_context*)((*cryptKey)->backendKey));
+		rsa_free((rsa_context*) ((*cryptKey)->backendKey));
 		debugFree((*cryptKey)->backendKey, -300612);
 	}
 
-//	if ((*cryptKey)->__rawKey) {
-//		debugFree((*cryptKey)->__rawKey, -300613);
-//	}
+	//	if ((*cryptKey)->__rawKey) {
+	//		debugFree((*cryptKey)->__rawKey, -300613);
+	//	}
 
-	debugFree( (*cryptKey), -300614);
+	debugFree((*cryptKey), -300614);
 
 	*cryptKey = NULL;
 }
 
-int cryptRsaPubKeyGetRaw(CRYPTRSA_T *key, uint8_t *buff, uint16_t buffLen) {
-	
+int cryptRsaPubKeyGetRaw(CRYPTRSA_T *key, uint8_t *buff, uint16_t buffLen)
+{
+
 	rsa_context *rsa;
 	if (!key || !buff || !buffLen ||
 		!key->rawKeyType || (buffLen != key->rawKeyLen) ||
-		!(rsa=(rsa_context*)key->backendKey) || buffLen != mpi_size(&rsa->N) || buffLen != rsa->len ) {
-		
+		!(rsa = (rsa_context*) key->backendKey) || buffLen != mpi_size(&rsa->N) || buffLen != rsa->len) {
+
 		return FAILURE;
 	}
-	
+
 	if (mpi_write_binary(&rsa->N, buff, buffLen) != 0)
 		return FAILURE;
 
 	return SUCCESS;
 }
 
-CRYPTRSA_T *cryptRsaPubKeyFromRaw( uint8_t *rawKey, uint16_t rawKeyLen ) {
+CRYPTRSA_T *cryptRsaPubKeyFromRaw(uint8_t *rawKey, uint16_t rawKeyLen)
+{
 
 	assertion(-502024, (rawKey && cryptRsaKeyTypeByLen(rawKeyLen)));
 
@@ -403,15 +405,15 @@ CRYPTRSA_T *cryptRsaPubKeyFromRaw( uint8_t *rawKey, uint16_t rawKeyLen ) {
 
 	cryptKey->backendKey = debugMalloc(sizeof(rsa_context), -300620);
 
-	rsa_context *rsa = (rsa_context*)cryptKey->backendKey;
+	rsa_context *rsa = (rsa_context*) cryptKey->backendKey;
 
 	rsa_init(rsa, RSA_PKCS_V15, 0);
 
 
 	if (
 		(mpi_read_binary(&rsa->N, rawKey, rawKeyLen)) ||
-		(mpi_read_binary(&rsa->E, (uint8_t*)&e, sizeof(e)))
-		 ) {
+		(mpi_read_binary(&rsa->E, (uint8_t*) & e, sizeof(e)))
+		) {
 		cryptRsaKeyFree(&cryptKey);
 		return NULL;
 	}
@@ -430,20 +432,21 @@ CRYPTRSA_T *cryptRsaPubKeyFromRaw( uint8_t *rawKey, uint16_t rawKeyLen ) {
 #endif
 
 
-//	cryptKey->__rawKey = debugMalloc(rawKeyLen,-300618);
-//	memcpy(cryptKey->__rawKey, rawKey, rawKeyLen);
+	//	cryptKey->__rawKey = debugMalloc(rawKeyLen,-300618);
+	//	memcpy(cryptKey->__rawKey, rawKey, rawKeyLen);
 
 	return cryptKey;
 }
 
-int cryptRsaPubKeyCheck( CRYPTRSA_T *pubKey) {
+int cryptRsaPubKeyCheck(CRYPTRSA_T *pubKey)
+{
 	assertion(-502141, (pubKey));
 	assertion(-502142, (pubKey->backendKey));
 
-	rsa_context *rsa = (rsa_context*)pubKey->backendKey;
+	rsa_context *rsa = (rsa_context*) pubKey->backendKey;
 
-	if (!rsa->len || (int)rsa->len != cryptRsaKeyLenByType(pubKey->rawKeyType) || rsa->len != pubKey->rawKeyLen || rsa->len != mpi_size(&rsa->N) ||
-		rsa_check_pubkey((rsa_context*)pubKey->backendKey)) {
+	if (!rsa->len || (int) rsa->len != cryptRsaKeyLenByType(pubKey->rawKeyType) || rsa->len != pubKey->rawKeyLen || rsa->len != mpi_size(&rsa->N) ||
+		rsa_check_pubkey((rsa_context*) pubKey->backendKey)) {
 
 		return FAILURE;
 	}
@@ -482,10 +485,11 @@ void cryptKeyAddRaw( CRYPTRSA_T *cryptKey) {
 	cryptKey->__rawKeyLen = rawLen;
 	cryptKey->rawKeyType = cryptRsaKeyTypeByLen(rawLen);
 }
-*/
+ */
 
 
-CRYPTRSA_T *cryptRsaKeyFromDer( char *keyPath ) {
+CRYPTRSA_T *cryptRsaKeyFromDer(char *keyPath)
+{
 
 	assertion(-502029, (!my_PrivKey));
 
@@ -500,9 +504,9 @@ CRYPTRSA_T *cryptRsaKeyFromDer( char *keyPath ) {
 	uint8_t keyBuff[CRYPT_RSA_MAX_LEN];
 
 #if CRYPTLIB <= POLARSSL_1_2_9
-	if(
-		(ret=x509parse_keyfile(rsa, keyPath, "")) ||
-		(ret=rsa_check_privkey(rsa))
+	if (
+		(ret = x509parse_keyfile(rsa, keyPath, "")) ||
+		(ret = rsa_check_privkey(rsa))
 		) {
 		dbgf_sys(DBGT_ERR, "failed opening private key=%s err=%d", keyPath, ret);
 		cryptRsaKeyFree(&privKey);
@@ -526,7 +530,7 @@ CRYPTRSA_T *cryptRsaKeyFromDer( char *keyPath ) {
 	pk_free(&pk);
 
 #else
-# error "Please fix CRYPTLIB"
+#error "Please fix CRYPTLIB"
 #endif
 
 	//cryptKeyAddRaw(ckey);
@@ -537,7 +541,7 @@ CRYPTRSA_T *cryptRsaKeyFromDer( char *keyPath ) {
 		!(privKey->rawKeyType = keyType) ||
 		!(privKey->rawKeyLen = keyLen) ||
 		(cryptRsaPubKeyGetRaw(privKey, keyBuff, keyLen) != SUCCESS) ||
-		!(pubKey = cryptRsaPubKeyFromRaw(keyBuff, keyLen)) ) {
+		!(pubKey = cryptRsaPubKeyFromRaw(keyBuff, keyLen))) {
 
 		cryptRsaKeyFree(&privKey);
 		return NULL;
@@ -562,7 +566,8 @@ CRYPTRSA_T *cryptRsaKeyFromDer( char *keyPath ) {
 // extract public key with openssl:
 //    openssl rsa -in rsa-test/key.der -inform DER -pubout -out rsa-test/openssl.der.pub -outform DER
 
-int cryptRsaKeyMakeDer( int32_t keyType, char *path ) {
+int cryptRsaKeyMakeDer(int32_t keyType, char *path)
+{
 
 	int32_t keyBitSize = (cryptRsaKeyLenByType(keyType) * 8);
 	FILE* keyFile = NULL;
@@ -577,15 +582,15 @@ int cryptRsaKeyMakeDer( int32_t keyType, char *path ) {
 	rsa_context rsa;
 	rsa_init(&rsa, RSA_PKCS_V15, 0);
 
-        if ((ret = rsa_gen_key( &rsa, ctr_drbg_random, &ctr_drbg, keyBitSize, CRYPT_KEY_E_VAL )))
+	if ((ret = rsa_gen_key(&rsa, ctr_drbg_random, &ctr_drbg, keyBitSize, CRYPT_KEY_E_VAL)))
 		goto_error(finish, "Failed making rsa key! ret=%d");
 
 	if ((derSz = x509_write_key_der(derBuf, sizeof(derBuf), &rsa)) < 0)
 		goto_error(finish, "Failed translating rsa key to der! derSz=%d");
 #elif CRYPTLIB >= POLARSSL_1_3_3
 	pk_context pk;
-	pk_init( &pk );
-	pk_init_ctx( &pk, pk_info_from_type( POLARSSL_PK_RSA ) );
+	pk_init(&pk);
+	pk_init_ctx(&pk, pk_info_from_type(POLARSSL_PK_RSA));
 
 	if ((ret = rsa_gen_key(pk_rsa(pk), ctr_drbg_random, &ctr_drbg, keyBitSize, CRYPT_KEY_E_VAL)) ||
 		(ret = rsa_check_privkey(pk_rsa(pk))))
@@ -594,39 +599,40 @@ int cryptRsaKeyMakeDer( int32_t keyType, char *path ) {
 	if ((derSz = pk_write_key_der(&pk, derBuf, sizeof(derBuf))) <= 0)
 		goto_error(finish, "Failed translating rsa key to der! derSz=%d");
 #else
-# error "Please fix CRYPTLIB"
+#error "Please fix CRYPTLIB"
 #endif
 
 	unsigned char *derStart = derBuf + sizeof(derBuf) - derSz;
 
 
-	if (!(keyFile = fopen(path, "wb")) || ((int)fwrite(derStart, 1, derSz, keyFile)) != derSz )
+	if (!(keyFile = fopen(path, "wb")) || ((int) fwrite(derStart, 1, derSz, keyFile)) != derSz)
 		goto_error(finish, "Failed writing");
 
-finish: {
-	memset(derBuf, 0, CRYPT_DER_BUF_SZ);
+finish:
+	{
+		memset(derBuf, 0, CRYPT_DER_BUF_SZ);
 
 #if CRYPTLIB <= POLARSSL_1_2_9
-	rsa_free( &rsa );
+		rsa_free(&rsa);
 #elif CRYPTLIB >= POLARSSL_1_3_3
-	pk_free(&pk);
+		pk_free(&pk);
 #else
-# error "Please fix CRYPTLIB"
+#error "Please fix CRYPTLIB"
 #endif
 
-	if (keyFile)
-		fclose(keyFile);
+		if (keyFile)
+			fclose(keyFile);
 
-	if (goto_error_code) {
-		dbgf_sys(DBGT_ERR, "%s ret=%d derSz=%d path=%s", goto_error_code, ret, derSz, path);
-		return FAILURE;
-	}
-	
-	return SUCCESS;
-}
+		if (goto_error_code) {
+			dbgf_sys(DBGT_ERR, "%s ret=%d derSz=%d path=%s", goto_error_code, ret, derSz, path);
+			return FAILURE;
+		}
+
+		return SUCCESS; }
 }
 
-CRYPTRSA_T *cryptRsaKeyMake( uint8_t keyType ) {
+CRYPTRSA_T *cryptRsaKeyMake(uint8_t keyType)
+{
 
 	int32_t keyLen = cryptRsaKeyLenByType(keyType);
 	int ret = 0;
@@ -636,30 +642,30 @@ CRYPTRSA_T *cryptRsaKeyMake( uint8_t keyType ) {
 	rsa_context *rsa = debugMallocReset(sizeof(rsa_context), -300643);
 	rsa_init(rsa, RSA_PKCS_V15, 0);
 
-        if ((ret = rsa_gen_key( rsa, ctr_drbg_random, &ctr_drbg, (keyLen * 8), CRYPT_KEY_E_VAL )))
+	if ((ret = rsa_gen_key(rsa, ctr_drbg_random, &ctr_drbg, (keyLen * 8), CRYPT_KEY_E_VAL)))
 		goto_error(finish, "Failed making rsa key!");
 
 	key->backendKey = rsa;
 	key->rawKeyType = keyType;
 	key->rawKeyLen = keyLen;
-//	cryptKeyAddRaw(key);
+	//	cryptKeyAddRaw(key);
 
-finish: {
-	if (goto_error_code) {
+finish:
+	{
+		if (goto_error_code) {
 
-		cryptRsaKeyFree(&key);
+			cryptRsaKeyFree(&key);
 
-		dbgf_sys(DBGT_ERR, "%s ret=%d", goto_error_code, ret);
-		return NULL;
-	}
+			dbgf_sys(DBGT_ERR, "%s ret=%d", goto_error_code, ret);
+			return NULL;
+		}
 
-	return key;
-}
+		return key; }
 }
 #endif
 
-
-int cryptRsaEncrypt( uint8_t *in, size_t inLen, uint8_t *out, size_t *outLen, CRYPTRSA_T *pubKey) {
+int cryptRsaEncrypt(uint8_t *in, size_t inLen, uint8_t *out, size_t *outLen, CRYPTRSA_T *pubKey)
+{
 
 	rsa_context *pk = pubKey->backendKey;
 
@@ -675,7 +681,8 @@ int cryptRsaEncrypt( uint8_t *in, size_t inLen, uint8_t *out, size_t *outLen, CR
 
 }
 
-int cryptRsaDecrypt(uint8_t *in, size_t inLen, uint8_t *out, size_t *outLen) {
+int cryptRsaDecrypt(uint8_t *in, size_t inLen, uint8_t *out, size_t *outLen)
+{
 
 	rsa_context *pk = my_PrivKey->backendKey;
 
@@ -688,14 +695,15 @@ int cryptRsaDecrypt(uint8_t *in, size_t inLen, uint8_t *out, size_t *outLen) {
 	if (rsa_pkcs1_decrypt(pk, ctr_drbg_random, &ctr_drbg, RSA_PRIVATE, &inLen, in, out, *outLen))
 		return FAILURE;
 #else
-# error "Please fix CRYPTLIB"
+#error "Please fix CRYPTLIB"
 #endif
 	*outLen = inLen;
 
 	return SUCCESS;
 }
 
-int cryptRsaSign( CRYPTSHA_T *inSha, uint8_t *out, size_t outLen, CRYPTRSA_T *cryptKey) {
+int cryptRsaSign(CRYPTSHA_T *inSha, uint8_t *out, size_t outLen, CRYPTRSA_T *cryptKey)
+{
 
 	if (!cryptKey)
 		cryptKey = my_PrivKey;
@@ -706,57 +714,57 @@ int cryptRsaSign( CRYPTSHA_T *inSha, uint8_t *out, size_t outLen, CRYPTRSA_T *cr
 		return FAILURE;
 
 #if CRYPTLIB <= POLARSSL_1_2_9
-	if (rsa_pkcs1_sign(pk, ctr_drbg_random, &ctr_drbg, RSA_PRIVATE, SIG_RSA_SHA224, sizeof(CRYPTSHA_T), (uint8_t*)inSha, out))
+	if (rsa_pkcs1_sign(pk, ctr_drbg_random, &ctr_drbg, RSA_PRIVATE, SIG_RSA_SHA224, sizeof(CRYPTSHA_T), (uint8_t*) inSha, out))
 		return FAILURE;
 #elif CRYPTLIB >= POLARSSL_1_3_3
-	if (rsa_pkcs1_sign(pk, ctr_drbg_random, &ctr_drbg, RSA_PRIVATE, POLARSSL_MD_SHA224, sizeof(CRYPTSHA_T), (uint8_t*)inSha, out))
+	if (rsa_pkcs1_sign(pk, ctr_drbg_random, &ctr_drbg, RSA_PRIVATE, POLARSSL_MD_SHA224, sizeof(CRYPTSHA_T), (uint8_t*) inSha, out))
 		return FAILURE;
 #else
-# error "Please fix CRYPTLIB"
+#error "Please fix CRYPTLIB"
 #endif
 
 	return SUCCESS;
 }
 
-int cryptRsaVerify(uint8_t *sign, size_t signLen, CRYPTSHA_T *plainSha, CRYPTRSA_T *pubKey) {
+int cryptRsaVerify(uint8_t *sign, size_t signLen, CRYPTSHA_T *plainSha, CRYPTRSA_T *pubKey)
+{
 
 	rsa_context *pk = pubKey->backendKey;
 
 	assertion(-502147, (signLen == pubKey->rawKeyLen));
 
 #if CRYPTLIB == POLARSSL_1_2_5
-	if (rsa_pkcs1_verify(pk, RSA_PUBLIC, SIG_RSA_SHA224, sizeof(CRYPTSHA_T), (uint8_t*)plainSha, sign))
+	if (rsa_pkcs1_verify(pk, RSA_PUBLIC, SIG_RSA_SHA224, sizeof(CRYPTSHA_T), (uint8_t*) plainSha, sign))
 		return FAILURE;
 #elif CRYPTLIB == POLARSSL_1_2_9
-	if (rsa_pkcs1_verify(pk, ctr_drbg_random, &ctr_drbg, RSA_PUBLIC, SIG_RSA_SHA224, sizeof(CRYPTSHA_T), (uint8_t*)plainSha, sign))
+	if (rsa_pkcs1_verify(pk, ctr_drbg_random, &ctr_drbg, RSA_PUBLIC, SIG_RSA_SHA224, sizeof(CRYPTSHA_T), (uint8_t*) plainSha, sign))
 		return FAILURE;
 #elif CRYPTLIB >= POLARSSL_1_3_3
-	if (rsa_pkcs1_verify(pk, ctr_drbg_random, &ctr_drbg, RSA_PUBLIC, POLARSSL_MD_SHA224, sizeof(CRYPTSHA_T), (uint8_t*)plainSha, sign))
+	if (rsa_pkcs1_verify(pk, ctr_drbg_random, &ctr_drbg, RSA_PUBLIC, POLARSSL_MD_SHA224, sizeof(CRYPTSHA_T), (uint8_t*) plainSha, sign))
 		return FAILURE;
 #else
-# error "Please fix CRYPTLIB"
+#error "Please fix CRYPTLIB"
 #endif
 
 
 	return SUCCESS;
 }
 
-
-
-void cryptRand( void *out, uint32_t outLen) {
+void cryptRand(void *out, uint32_t outLen)
+{
 
 	assertion(-502139, ENTROPY_BLOCK_SIZE > sizeof(CRYPTSHA_T));
 
 	if (outLen <= sizeof(CRYPTSHA_T)) {
 
-		if (entropy_func( &entropy_ctx, out, outLen) != 0)
+		if (entropy_func(&entropy_ctx, out, outLen) != 0)
 			cleanup_all(-502148);
 	} else {
 
 		CRYPTSHA_T seed[2];
 		uint32_t outPos;
 
-		if (entropy_func( &entropy_ctx, (void*)&seed[0], sizeof(CRYPTSHA_T)) != 0)
+		if (entropy_func(&entropy_ctx, (void*) &seed[0], sizeof(CRYPTSHA_T)) != 0)
 			cleanup_all(-502140);
 
 		cryptShaAtomic(&seed[0], sizeof(CRYPTSHA_T), &seed[1]);
@@ -772,37 +780,38 @@ void cryptRand( void *out, uint32_t outLen) {
 }
 
 STATIC_FUNC
-void cryptRngInit( void ) {
+void cryptRngInit(void)
+{
 
 	int ret;
 
-	fflush( stdout );
-	entropy_init( &entropy_ctx );
+	fflush(stdout);
+	entropy_init(&entropy_ctx);
 
 #if (CRYPTLIB >= POLARSSL_MIN && CRYPTLIB <= POLARSSL_MAX)
-	if( (ret = ctr_drbg_init( &ctr_drbg, entropy_func, &entropy_ctx, NULL, 0)) != 0 )
+	if ((ret = ctr_drbg_init(&ctr_drbg, entropy_func, &entropy_ctx, NULL, 0)) != 0)
 		cleanup_all(-502149);
 #elif (CRYPTLIB >= MBEDTLS_MIN && CRYPTLIB <= MBEDTLS_MAX)
 	mbedtls_ctr_drbg_init(&ctr_drbg);
-	if( (ret = mbedtls_ctr_drbg_seed( &ctr_drbg, entropy_func, &entropy_ctx, NULL, 0)) != 0 )
+	if ((ret = mbedtls_ctr_drbg_seed(&ctr_drbg, entropy_func, &entropy_ctx, NULL, 0)) != 0)
 		cleanup_all(-502149);
 #endif
 
-	int test=0;
+	int test = 0;
 
-	cryptRand( &test, sizeof(test));
-	assertion( -500525, (test));
+	cryptRand(&test, sizeof(test));
+	assertion(-500525, (test));
 }
 
 STATIC_FUNC
-void cryptRngFree( void ) {
-//    entropy_free( &entropy_ctx );
+void cryptRngFree(void)
+{
+	//    entropy_free( &entropy_ctx );
 }
 
-
-
 STATIC_FUNC
-void cryptShaInit( void ) {
+void cryptShaInit(void)
+{
 #if CRYPTLIB < POLARSSL_1_3_9
 	memset(&sha_ctx, 0, sizeof(sha_ctx));
 #else
@@ -812,7 +821,8 @@ void cryptShaInit( void ) {
 }
 
 STATIC_FUNC
-void cryptShaFree( void ) {
+void cryptShaFree(void)
+{
 #if CRYPTLIB < POLARSSL_1_3_9
 	memset(&sha_ctx, 0, sizeof(sha_ctx));
 #else
@@ -820,41 +830,45 @@ void cryptShaFree( void ) {
 #endif
 }
 
-void cryptShaAtomic( void *in, int32_t len, CRYPTSHA_T *sha) {
+void cryptShaAtomic(void *in, int32_t len, CRYPTSHA_T *sha)
+{
 
-	assertion(-502030, (shaClean==YES));
+	assertion(-502030, (shaClean == YES));
 	assertion(-502031, (sha));
-	assertion(-502032, (in && len>0 && !memcmp(in, in, len)));
+	assertion(-502032, (in && len > 0 && !memcmp(in, in, len)));
 
-	sha256_starts( &sha_ctx, 1/*is224*/ );
-	sha256_update( &sha_ctx, in, len );
-	sha256_finish( &sha_ctx, (unsigned char*)sha );
+	sha256_starts(&sha_ctx, 1/*is224*/);
+	sha256_update(&sha_ctx, in, len);
+	sha256_finish(&sha_ctx, (unsigned char*) sha);
 }
 
-void cryptShaNew( void *in, int32_t len) {
+void cryptShaNew(void *in, int32_t len)
+{
 
-	assertion(-502033, (shaClean==YES));
-	assertion(-502034, (in && len>0 && !memcmp(in, in, len)));
+	assertion(-502033, (shaClean == YES));
+	assertion(-502034, (in && len > 0 && !memcmp(in, in, len)));
 	shaClean = NO;
 
-	sha256_starts( &sha_ctx, 1/*is224*/ );
-	sha256_update( &sha_ctx, in, len );
+	sha256_starts(&sha_ctx, 1/*is224*/);
+	sha256_update(&sha_ctx, in, len);
 }
 
-void cryptShaUpdate( void *in, int32_t len) {
+void cryptShaUpdate(void *in, int32_t len)
+{
 
-	assertion(-502035, (shaClean==NO));
-	assertion(-502036, (in && len>0 && !memcmp(in, in, len)));
+	assertion(-502035, (shaClean == NO));
+	assertion(-502036, (in && len > 0 && !memcmp(in, in, len)));
 
-	sha256_update( &sha_ctx, in, len );
+	sha256_update(&sha_ctx, in, len);
 }
 
-void cryptShaFinal( CRYPTSHA_T *sha) {
+void cryptShaFinal(CRYPTSHA_T *sha)
+{
 
-	assertion(-502037, (shaClean==NO));
+	assertion(-502037, (shaClean == NO));
 	assertion(-502038, (sha));
 
-	sha256_finish( &sha_ctx, (unsigned char*)sha );
+	sha256_finish(&sha_ctx, (unsigned char*) sha);
 	shaClean = YES;
 }
 
@@ -862,52 +876,53 @@ void cryptShaFinal( CRYPTSHA_T *sha) {
 
 /*****************************************************************************/
 #else
-# error "Please fix CRYPTLIB"
+#error "Please fix CRYPTLIB"
 #endif
 
-char *cryptShaAsString( CRYPTSHA_T *sha)
+char *cryptShaAsString(CRYPTSHA_T *sha)
 {
 #define SHAASSTR_BUFF_SIZE ((2*sizeof(CRYPTSHA_T))+1)
 #define SHAASSTR_BUFFERS 4
-	static uint8_t c=0;
-        static char out[SHAASSTR_BUFFERS][SHAASSTR_BUFF_SIZE];
-        uint8_t i;
+	static uint8_t c = 0;
+	static char out[SHAASSTR_BUFFERS][SHAASSTR_BUFF_SIZE];
+	uint8_t i;
 
-        if (!sha)
-                return NULL;
+	if (!sha)
+		return NULL;
 
-        c = (c+1) % SHAASSTR_BUFFERS;
+	c = (c + 1) % SHAASSTR_BUFFERS;
 
 	for (i = 0; i < (sizeof(CRYPTSHA_T) / sizeof(uint32_t)); i++)
-		sprintf(&(out[c][i*8]), "%.8X", ntohl(sha->h.u32[i]));
+		sprintf(&(out[c][i * 8]), "%.8X", ntohl(sha->h.u32[i]));
 
-        return out[c];
+	return out[c];
 }
 
-char *cryptShaAsShortStr( CRYPTSHA_T *sha)
+char *cryptShaAsShortStr(CRYPTSHA_T *sha)
 {
 #define SHAASSHORT_BUFF_SIZE ((2*sizeof(uint32_t))+1)
 #define SHAASSHORT_BUFFERS 4
-	static uint8_t c=0;
-        static char out[SHAASSHORT_BUFFERS][SHAASSHORT_BUFF_SIZE];
+	static uint8_t c = 0;
+	static char out[SHAASSHORT_BUFFERS][SHAASSHORT_BUFF_SIZE];
 
-        if (!sha)
-                return NULL;
+	if (!sha)
+		return NULL;
 
-        c = (c+1) % SHAASSHORT_BUFFERS;
+	c = (c + 1) % SHAASSHORT_BUFFERS;
 
 	sprintf(out[c], "%.8X", ntohl(sha->h.u32[0]));
 
-        return out[c];
+	return out[c];
 }
 
-int cryptShasEqual( CRYPTSHA_T *shaA, CRYPTSHA_T *shaB)
+int cryptShasEqual(CRYPTSHA_T *shaA, CRYPTSHA_T *shaB)
 {
 	return !memcmp(shaA, shaB, sizeof(CRYPTSHA_T));
 }
 
-uint8_t cryptRsaKeyTypeByLen(int len) {
-	return 	len == CRYPT_RSA512_LEN ? CRYPT_RSA512_TYPE : (
+uint8_t cryptRsaKeyTypeByLen(int len)
+{
+	return len == CRYPT_RSA512_LEN ? CRYPT_RSA512_TYPE : (
 		len == CRYPT_RSA768_LEN ? CRYPT_RSA768_TYPE : (
 		len == CRYPT_RSA896_LEN ? CRYPT_RSA896_TYPE : (
 		len == CRYPT_RSA1024_LEN ? CRYPT_RSA1024_TYPE : (
@@ -915,11 +930,12 @@ uint8_t cryptRsaKeyTypeByLen(int len) {
 		len == CRYPT_RSA2048_LEN ? CRYPT_RSA2048_TYPE : (
 		len == CRYPT_RSA3072_LEN ? CRYPT_RSA3072_TYPE : (
 		len == CRYPT_RSA4096_LEN ? CRYPT_RSA4096_TYPE : (
-		0 ))))))));
+		0))))))));
 }
 
-uint16_t cryptRsaKeyLenByType(int type) {
-	return 	type == CRYPT_RSA512_TYPE ? CRYPT_RSA512_LEN : (
+uint16_t cryptRsaKeyLenByType(int type)
+{
+	return type == CRYPT_RSA512_TYPE ? CRYPT_RSA512_LEN : (
 		type == CRYPT_RSA768_TYPE ? CRYPT_RSA768_LEN : (
 		type == CRYPT_RSA896_TYPE ? CRYPT_RSA896_LEN : (
 		type == CRYPT_RSA1024_TYPE ? CRYPT_RSA1024_LEN : (
@@ -927,11 +943,12 @@ uint16_t cryptRsaKeyLenByType(int type) {
 		type == CRYPT_RSA2048_TYPE ? CRYPT_RSA2048_LEN : (
 		type == CRYPT_RSA3072_TYPE ? CRYPT_RSA3072_LEN : (
 		type == CRYPT_RSA4096_TYPE ? CRYPT_RSA4096_LEN : (
-		0 ))))))));
+		0))))))));
 }
 
-char *cryptRsaKeyTypeAsString(int type) {
-	return 	type == CRYPT_RSA512_TYPE ? CRYPT_RSA512_NAME : (
+char *cryptRsaKeyTypeAsString(int type)
+{
+	return type == CRYPT_RSA512_TYPE ? CRYPT_RSA512_NAME : (
 		type == CRYPT_RSA768_TYPE ? CRYPT_RSA768_NAME : (
 		type == CRYPT_RSA896_TYPE ? CRYPT_RSA896_NAME : (
 		type == CRYPT_RSA1024_TYPE ? CRYPT_RSA1024_NAME : (
@@ -939,17 +956,17 @@ char *cryptRsaKeyTypeAsString(int type) {
 		type == CRYPT_RSA2048_TYPE ? CRYPT_RSA2048_NAME : (
 		type == CRYPT_RSA3072_TYPE ? CRYPT_RSA3072_NAME : (
 		type == CRYPT_RSA4096_TYPE ? CRYPT_RSA4096_NAME : (
-		NULL ))))))));
+		NULL))))))));
 }
 
-void init_crypt(void) {
-	
+void init_crypt(void)
+{
 	cryptRngInit();
 	cryptShaInit();
 
-        unsigned int random;
-        cryptRand( &random, sizeof (random));
-	srand( random );
+	unsigned int random;
+	cryptRand(&random, sizeof(random));
+	srand(random);
 
 	CRYPTSHA_T doubleSha[2];
 	memset(&doubleSha, 0, sizeof(doubleSha));
@@ -960,9 +977,9 @@ void init_crypt(void) {
 
 }
 
-void cleanup_crypt(void) {
-
-        cryptRsaKeyFree(&my_PrivKey);
+void cleanup_crypt(void)
+{
+	cryptRsaKeyFree(&my_PrivKey);
 
 	cryptRngFree();
 	cryptShaFree();

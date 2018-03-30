@@ -26,14 +26,14 @@ struct task_node {
 };
 
 
-void upd_time( struct timeval *precise_tv );
+void upd_time(struct timeval *precise_tv);
 
-void init_schedule( void );
-void change_selects( void );
-void cleanup_schedule( void );
-void task_register( TIME_T timeout, void (* task) (void *), void *data, int32_t tag );
+void init_schedule(void);
+void change_selects(void);
+void cleanup_schedule(void);
+void task_register(TIME_T timeout, void (* task) (void *), void *data, int32_t tag);
 IDM_T task_remove(void (* task) (void *), void *data);
-TIME_T task_next( void );
-void wait4Event( TIME_T timeout );
+TIME_T task_next(void);
+void wait4Event(TIME_T timeout);
 
 IDM_T doNowOrLater(TIME_T *nextScheduled, TIME_T interval, IDM_T now);

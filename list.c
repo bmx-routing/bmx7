@@ -41,26 +41,26 @@
  */
 void * list_iterate(struct list_head *head, void *node)
 {
-        struct list_node *ln = (node ?
-                ((struct list_node*) (((char*) node) + head->list_node_offset)) :
-                ((struct list_node*) head));
+	struct list_node *ln = (node ?
+		((struct list_node*) (((char*) node) + head->list_node_offset)) :
+		((struct list_node*) head));
 
-        assertion(-501044, (IMPLIES((!node && head->last == ln), !head->items)));
+	assertion(-501044, (IMPLIES((!node && head->last == ln), !head->items)));
 
-        if (ln->next == ((struct list_node*) head))
-                return NULL;
+	if (ln->next == ((struct list_node*) head))
+		return NULL;
 
-        return (((char*) ln->next) - head->list_node_offset);
+	return(((char*) ln->next) - head->list_node_offset);
 }
 
 void *list_find_next(struct list_head *head, void* key, void *node)
 {
-        while ((node = list_iterate(head, node))) {
+	while ((node = list_iterate(head, node))) {
 
-                if (memcmp(((char*)node) + head->key_node_offset, key, head->key_length) == 0)
-                        return node;
-        }
-        return NULL;
+		if (memcmp(((char*) node) + head->key_node_offset, key, head->key_length) == 0)
+			return node;
+	}
+	return NULL;
 }
 
 /**
@@ -71,16 +71,15 @@ void *list_find_next(struct list_head *head, void* key, void *node)
 void list_add_head(struct list_head *head, struct list_node *new)
 {
 
-        new->next = head->next;
-        head->next = new;
+	new->next = head->next;
+	head->next = new;
 
-        if (head->last == (struct list_node *) head)
-                head->last = new;
+	if (head->last == (struct list_node *) head)
+		head->last = new;
 
-        head->items++;
+	head->items++;
 
 }
-
 
 /**
  * list_add_tail - add a new entry
@@ -88,30 +87,25 @@ void list_add_head(struct list_head *head, struct list_node *new)
  * @new: new entry to be added
  */
 
-void list_add_tail(struct list_head *head, struct list_node *new )
+void list_add_tail(struct list_head *head, struct list_node *new)
 {
-        new->next = (struct list_node *) head;
-        head->last->next = new;
+	new->next = (struct list_node *) head;
+	head->last->next = new;
 
-        head->last = new;
-        head->items++;
+	head->last = new;
+	head->items++;
 }
-
 
 void list_add_after(struct list_head *head, struct list_node *ln, struct list_node *new)
 {
-        new->next = ln->next;
-        ln->next = new;
+	new->next = ln->next;
+	ln->next = new;
 
-        if (head->last == ln)
-                head->last = new;
+	if (head->last == ln)
+		head->last = new;
 
-        head->items++;
+	head->items++;
 }
-
-
-
-
 
 /**
  * list_del_next - deletes next entry from list.
@@ -120,28 +114,28 @@ void list_add_after(struct list_head *head, struct list_node *ln, struct list_no
  */
 void list_del_next(struct list_head *head, struct list_node *ln)
 {
-        assertion(-502641, (ln->next != (struct list_node*) head));
+	assertion(-502641, (ln->next != (struct list_node*) head));
 
-        struct list_node *rem = ln->next;
+	struct list_node *rem = ln->next;
 
-        if (head->last == rem)
-                head->last = ln;
+	if (head->last == rem)
+		head->last = ln;
 
-        ln->next = rem->next;
+	ln->next = rem->next;
 
-        head->items--;
+	head->items--;
 }
 
 void *list_del_head(struct list_head *head)
 {
-        if (LIST_EMPTY(head))
-                return NULL;
+	if (LIST_EMPTY(head))
+		return NULL;
 
-        struct list_node* entry = head->next;
+	struct list_node* entry = head->next;
 
-        list_del_next(head, (struct list_node*) head);
+	list_del_next(head, (struct list_node*) head);
 
-        return (((char*) entry) - head->list_node_offset);
+	return(((char*) entry) - head->list_node_offset);
 }
 
 
@@ -151,49 +145,50 @@ void *list_del_head(struct list_head *head)
  * @head: list head of maintained nodes
  * @@pnode: MBZ at beginning!  pointing to current plist_node in list
  */
+
 /* UNTESTED
 void * plist_iterate(struct list_head *head, struct plist_node **pln)
 {
 
-        if (head->last == (struct list_node*)
-                (*pln = *pln ? (struct plist_node*) ((*pln)->list.next) : (struct plist_node*) (head->next)))
-                return NULL;
+	if (head->last == (struct list_node*)
+		(*pln = *pln ? (struct plist_node*) ((*pln)->list.next) : (struct plist_node*) (head->next)))
+		return NULL;
 
-        return (*pln)->item;
+	return (*pln)->item;
 
 }
-*/
+ */
 
 
 static struct plist_node *plist_node_create(void *item)
 {
-        assertion(-500266, (item));
-        struct plist_node *plh = debugMalloc(sizeof ( struct plist_node), -300113);
+	assertion(-500266, (item));
+	struct plist_node *plh = debugMalloc(sizeof( struct plist_node), -300113);
 
-        plh->item = item;
-        return plh;
+	plh->item = item;
+	return plh;
 }
 
 void plist_add_head(struct list_head *head, void *item)
 {
-        list_add_head(head, &((plist_node_create(item))->list));
+	list_add_head(head, &((plist_node_create(item))->list));
 }
 
 void plist_add_tail(struct list_head *head, void *item)
 {
-        list_add_tail(head, &((plist_node_create(item))->list));
+	list_add_tail(head, &((plist_node_create(item))->list));
 }
 
 void * plist_del_head(struct list_head *head)
 {
-        struct plist_node *pln = list_del_head(head);
+	struct plist_node *pln = list_del_head(head);
 
-        if ( !pln )
-                return NULL;
+	if (!pln)
+		return NULL;
 
-        void *item = pln->item;
-        
-        debugFree( pln, -300114 );
+	void *item = pln->item;
 
-        return item;
+	debugFree(pln, -300114);
+
+	return item;
 }

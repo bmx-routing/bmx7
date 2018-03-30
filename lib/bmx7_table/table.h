@@ -28,6 +28,3 @@
 
 #define ARG_REDIST        "redistTable"
 #define HLP_REDIST        "arbitrary but unique name for redistributed table network(s) depending on sub criterias"
-
-
-

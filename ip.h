@@ -23,10 +23,10 @@
  */
 
 #ifndef IFA_F_DADFAILED
-#define IFA_F_DADFAILED		0x08
+#define IFA_F_DADFAILED  0x08
 #endif
 
-#ifndef	INFINITY_LIFE_TIME
+#ifndef INFINITY_LIFE_TIME
 #define INFINITY_LIFE_TIME      0xFFFFFFFFU
 #endif
 
@@ -40,9 +40,9 @@
 #endif
 
 // from <linux/rtnetlink.h>:
-#define RTMGRP_IPV4_RULE	0x80
-#define RTMGRP_IPV6_IFINFO	0x800
-#define RTMGRP_IPV6_PREFIX	0x20000
+#define RTMGRP_IPV4_RULE 0x80
+#define RTMGRP_IPV6_IFINFO 0x800
+#define RTMGRP_IPV6_PREFIX 0x20000
 
 #define RTNL_RCV_MAX 16640
 
@@ -68,7 +68,7 @@ enum {
 	FRA_DST, /* destination address */
 	FRA_SRC, /* source address */
 	FRA_IIFNAME, /* interface name */
-#define FRA_IFNAME	FRA_IIFNAME
+#define FRA_IFNAME FRA_IIFNAME
 	FRA_GOTO, /* target to jump to (FR_ACT_GOTO) */
 	FRA_UNUSED2,
 	FRA_PRIORITY, /* priority/preference */
@@ -125,7 +125,7 @@ extern int32_t devStatRegression;
 #define ARG_INTERFACES "interfaces"
 
 
-#define ARG_DEV  		"dev"
+#define ARG_DEV    "dev"
 #define HLP_DEV                 "add or change interface device or its configuration"
 
 #define ARG_DEV_LLOCAL_PREFIX   "llocalPrefix"
@@ -141,16 +141,16 @@ extern int32_t devStatRegression;
 #define DEF_DEV_BLSOCK 0
 #define HLP_DEV_BLSOCK "use blocking sockets"
 
-#define ARG_DEV_LL		"linklayer"
+#define ARG_DEV_LL  "linklayer"
 #define DEF_DEV_LL              0
 #define MIN_DEV_LL              0
-#define TYP_DEV_LL_LO		0
-#define TYP_DEV_LL_LAN		1
-#define TYP_DEV_LL_WIFI		2
+#define TYP_DEV_LL_LO  0
+#define TYP_DEV_LL_LAN  1
+#define TYP_DEV_LL_WIFI  2
 #define MAX_DEV_LL              2
 #define HLP_DEV_LL              "manually set device type for linklayer specific optimization (1=lan, 2=wlan)"
 
-#define ARG_DEV_CHANNEL		  "channel"
+#define ARG_DEV_CHANNEL    "channel"
 #define MIN_DEV_CHANNEL           0
 #define TYP_DEV_CHANNEL_EXCLUSIVE 0
 #define TYP_DEV_CHANNEL_SHARED    255
@@ -258,9 +258,6 @@ extern int32_t base_port;
 
 
 
-
-
-
 //#define IPV6_MC_ALL_ROUTERS "FF02::2"
 
 //#define IPV6_LINK_LOCAL_UNICAST_U32 0xFE800000
@@ -276,12 +273,12 @@ extern IPX_T my_primary_ip;
 #define AF_CFG AF_INET6
 #define ZERO_NETCFG_KEY ZERO_NET6_KEY
 
-extern const IP6_T   IP6_ALLROUTERS_MC_ADDR;
+extern const IP6_T IP6_ALLROUTERS_MC_ADDR;
 
-extern const IP6_T   IP6_LINKLOCAL_UC_PREF;
+extern const IP6_T IP6_LINKLOCAL_UC_PREF;
 extern const uint8_t IP6_LINKLOCAL_UC_PLEN;
 
-extern const IP6_T   IP6_MC_PREF;
+extern const IP6_T IP6_MC_PREF;
 extern const uint8_t IP6_MC_PLEN;
 
 
@@ -313,7 +310,7 @@ extern struct avl_tree dev_name_tree;
 
 //extern IDM_T dev_soft_conf_changed; // temporary enabled to trigger changed interface configuration
 
-#define IFCONFIG_PATH_PROCNET_DEV		"/proc/net/dev"
+#define IFCONFIG_PATH_PROCNET_DEV  "/proc/net/dev"
 
 struct user_net_device_stats {
 	unsigned long long rx_packets; /* total packets received       */
@@ -344,17 +341,14 @@ struct user_net_device_stats {
 	//	unsigned long tx_window_errors;
 };
 
-
-
 struct nlh_req {
 	struct nlmsghdr nlh;
 };
 
 struct iplink_req {
-	struct nlmsghdr	nlh;
+	struct nlmsghdr nlh;
 	struct ifinfomsg ifi;
 };
-
 
 struct ip_req {
 	struct nlmsghdr nlh;
@@ -364,23 +358,22 @@ struct ip_req {
 #define RT_REQ_BUFFSIZE 256
 
 struct rtmsg_req {
-        struct nlmsghdr nlh;
-        struct rtmsg rtm;
-        char buff[RT_REQ_BUFFSIZE];
+	struct nlmsghdr nlh;
+	struct rtmsg rtm;
+	char buff[RT_REQ_BUFFSIZE];
 };
 
 struct ifamsg_req {
-        struct nlmsghdr nlh;
-        struct ifaddrmsg ifa;
-        char buf[RT_REQ_BUFFSIZE];
+	struct nlmsghdr nlh;
+	struct ifaddrmsg ifa;
+	char buf[RT_REQ_BUFFSIZE];
 };
 
-
 struct rtnl_handle {
-	int			fd;
-	struct sockaddr_nl	local;
-	__u32			seq;
-	uint8_t                 busy;
+	int fd;
+	struct sockaddr_nl local;
+	__u32 seq;
+	uint8_t busy;
 };
 
 
@@ -405,55 +398,50 @@ struct rtnl_handle {
 
  */
 
-#define DEFAULT_TNL_HOP_LIMIT	(64)
-
-
+#define DEFAULT_TNL_HOP_LIMIT (64)
 
 struct if_link_node {
-	uint16_t        update_sqn;
-	uint16_t        changed;
-	int             index;
-	int		type;
-	int		alen;
-	unsigned	flags;
+	uint16_t update_sqn;
+	uint16_t changed;
+	int index;
+	int type;
+	int alen;
+	unsigned flags;
 
-	ADDR_T          addr;
-	IFNAME_T        name;
+	ADDR_T addr;
+	IFNAME_T name;
 
 	struct avl_tree if_addr_tree;
 
-	struct nlmsghdr  nlmsghdr[];
+	struct nlmsghdr nlmsghdr[];
 };
 
 struct if_addr_node {
 	struct if_link_node *iln;
-	struct dev_node     *dev;
-	struct rtattr       *rta_tb[IFA_MAX + 1];
-	
-	IPX_T                ip_addr;
-	IPX_T                ip_mcast;
+	struct dev_node *dev;
+	struct rtattr *rta_tb[IFA_MAX + 1];
 
-	uint16_t             update_sqn;
-	uint16_t             changed;
-	struct ifaddrmsg     ifa;
-	IFNAME_T             label;
-        
-	struct nlmsghdr      nlmsghdr[];
+	IPX_T ip_addr;
+	IPX_T ip_mcast;
+
+	uint16_t update_sqn;
+	uint16_t changed;
+	struct ifaddrmsg ifa;
+	IFNAME_T label;
+
+	struct nlmsghdr nlmsghdr[];
 };
 
-
-
 struct dev_node {
-
 	struct if_link_node *if_link;
-	struct if_addr_node *if_llocal_addr;  // non-zero but might be global for ipv4 or loopback interfaces
-	struct if_addr_node *if_global_addr;  // might be zero for non-primary interfaces
+	struct if_addr_node *if_llocal_addr; // non-zero but might be global for ipv4 or loopback interfaces
+	struct if_addr_node *if_global_addr; // might be zero for non-primary interfaces
 	int32_t tx_task_items;
-	
+
 	int8_t hard_conf_changed;
 	int8_t soft_conf_changed;
-        struct net_key autoIP6Configured;
-        int autoIP6IfIndex;
+	struct net_key autoIP6Configured;
+	int autoIP6IfIndex;
 	uint8_t active;
 	uint8_t activate_again;
 	uint8_t activate_cancelled;
@@ -476,7 +464,7 @@ struct dev_node {
 	IFNAME_T ifname_device; // includes vlan dots, without colons, key for dev_name_tree
 	IFNAME_T ifname_phy; // without dots and colons
 
-        LinkNode dummyLink;
+	LinkNode dummyLink;
 
 	DevKey llipKey;
 	MAC_T mac;
@@ -503,20 +491,14 @@ struct dev_node {
 	int16_t channel;
 
 	UMETRIC_T umetric_max_conf;
-//	UMETRIC_T umetric_max_configured;
+	//	UMETRIC_T umetric_max_configured;
 	UMETRIC_T umetric_max;
 
 	void(*upd_link_capacities) (struct dev_node *dev);
 	uint16_t(*get_iw_channel) (struct dev_node *dev);
 	TIME_T upd_link_capacities_time;
 
-        struct net_key llocal_prefix_conf_;
-
-//	IPX_T global_prefix_conf;
-//	int16_t global_prefix_length_conf;
-//
-//	IPX_T llocal_prefix_conf;
-//	int16_t llocal_prefix_length_conf;
+	struct net_key llocal_prefix_conf_;
 
 	//size of plugin data is defined during intialization and depends on registered PLUGIN_DATA_DEV hooks
 	void *plugin_data[];
@@ -544,7 +526,7 @@ struct dev_node {
 
 
 //iproute() commands:
-#define	IP_NOP             00
+#define IP_NOP             00
 
 #define IP_LINK_DEL        01
 
@@ -559,7 +541,7 @@ struct dev_node {
 #define IP_RULE_FLUSH      21
 #define IP_RULE_DEFAULT    22 //basic rules to interfaces, host, and networks routing tables
 #define IP_RULE_TEST       23
-#define	IP_RULE_MAX        24
+#define IP_RULE_MAX        24
 
 #define IP_ROUTES          30
 #define IP_ROUTE_FLUSH_ALL 31
@@ -570,17 +552,13 @@ struct dev_node {
 #define IP_ROUTE_HOST      36
 #define IP_ROUTE_HNA       37
 #define IP_ROUTE_TUNS      38
-#define	IP_ROUTE_MAX       (IP_ROUTE_TUNS + TYP_TUN_PROTO_ALL)
-
-
-
+#define IP_ROUTE_MAX       (IP_ROUTE_TUNS + TYP_TUN_PROTO_ALL)
 
 struct route_export {
-        uint32_t exportDistance;
-        uint8_t exportOnly;
+	uint32_t exportDistance;
+	uint8_t exportOnly;
 	uint8_t ipexport;
 };
-
 
 struct track_key {
 	struct net_key net;
@@ -592,8 +570,8 @@ struct track_key {
 } __attribute__((packed));
 
 struct track_node {
-        struct track_key k;
-        uint32_t items;
+	struct track_key k;
+	uint32_t items;
 	int16_t cmd;
 	uint32_t tmp;
 	struct route_export rt_exp;
@@ -602,13 +580,12 @@ struct track_node {
 	IPX_T src;
 };
 
-
 struct rtnl_get_node {
-        struct list_node list;
+	struct list_node list;
 	uint16_t nlmsg_type;
-        uint32_t rtm_table;
-        uint32_t rta_type;
-        struct net_key net;
+	uint32_t rtm_table;
+	uint32_t rta_type;
+	struct net_key net;
 };
 
 
@@ -633,11 +610,11 @@ IDM_T kernel_dev_exists(char *name);
 int32_t kernel_tun_add(char *name, uint8_t proto, IPX_T *local, IPX_T *remote);
 IDM_T kernel_tun_del(char *name);
 
-void kernel_dev_tun_del( char *name, int32_t fd );
-int32_t kernel_dev_tun_add( char *name, int32_t *fdp, IDM_T accept_local_ipv4 );
+void kernel_dev_tun_del(char *name, int32_t fd);
+int32_t kernel_dev_tun_add(char *name, int32_t *fdp, IDM_T accept_local_ipv4);
 
 uint32_t kernel_get_mtu(char *name);
-int32_t kernel_get_ifidx( char *name );
+int32_t kernel_get_ifidx(char *name);
 IDM_T kernel_set_mtu(char *name, uint16_t mtu);
 IDM_T kernel_get_route(uint8_t quiet, uint8_t family, uint16_t type, uint32_t table, void (*func) (struct nlmsghdr *nh, void *data));
 
@@ -645,10 +622,10 @@ IDM_T kernel_get_route(uint8_t quiet, uint8_t family, uint16_t type, uint32_t ta
 IDM_T kernel_get_ifstats(struct user_net_device_stats *stats, char *target);
 
 struct sockaddr_storage set_sockaddr_storage(uint8_t af, IPX_T *ipx, int32_t port);
-void set_ipexport( void (*func) (int8_t del, const struct net_key *dst, uint32_t oif_idx, IPX_T *via, uint32_t metric, uint8_t distance) );
+void set_ipexport(void (*func) (int8_t del, const struct net_key *dst, uint32_t oif_idx, IPX_T *via, uint32_t metric, uint8_t distance));
 
 IDM_T iproute(uint16_t cmd, int8_t del, uint8_t quiet, const struct net_key *dst, int32_t table_macro, int32_t prio_macro,
-        int oif_idx, IPX_T *via, IPX_T *src, uint32_t metric, struct route_export *rte);
+	int oif_idx, IPX_T *via, IPX_T *src, uint32_t metric, struct route_export *rte);
 
 void ip_flush_routes(uint8_t family, int32_t table_macro);
 void ip_flush_rules(uint8_t family, int32_t table_macro);
@@ -659,7 +636,7 @@ void sysctl_config(struct dev_node *dev_node);
 
 
 int8_t track_rule_and_proceed(uint32_t network, int16_t mask, uint32_t prio, int16_t rt_table, char* iif,
-                                      int16_t rule_type, int8_t del, int8_t cmd);
+	int16_t rule_type, int8_t del, int8_t cmd);
 
 IDM_T is_ip_local(IPX_T *ip);
 
@@ -667,4 +644,3 @@ IDM_T is_ip_local(IPX_T *ip);
 void init_ip(void);
 
 void cleanup_ip(void);
-

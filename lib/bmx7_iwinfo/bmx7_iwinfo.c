@@ -76,16 +76,15 @@ static int32_t linkProbePacketSize = DEF_LINK_PROBE_PACKETSZ;
 
 static int32_t linkAvgRateWeight = DEF_LINK_RATE_AVG_WEIGHT;
 
-
 void get_link_rate(struct dev_node *tDev)
 {
 	IDM_T TODO_use_nl_tiny_lib_instead;
 
-	if (tDev->linklayer == TYP_DEV_LL_WIFI  && tDev->active && (
+	if (tDev->linklayer == TYP_DEV_LL_WIFI && tDev->active && (
 		(linkProbeInterval && (!tDev->upd_link_capacities_time || (((TIME_T) (bmx_time - tDev->upd_link_capacities_time)) >= (TIME_T) linkProbeInterval))) ||
 		(linkBurstInterval && (!tDev->upd_link_capacities_time || (((TIME_T) (bmx_time - tDev->upd_link_capacities_time)) >= (TIME_T) linkBurstInterval)))
 		)) {
-		
+
 		dbgf_track(DBGT_INFO, "dev=%s phy=%s probeInterval=%d burstInterval=%d last=%d",
 			tDev->ifname_label.str, tDev->ifname_phy.str, linkProbeInterval, linkBurstInterval, tDev->upd_link_capacities_time);
 
@@ -112,7 +111,7 @@ void get_link_rate(struct dev_node *tDev)
 
 				e = (struct iwinfo_assoclist_entry *) &buf[i];
 
-				for (oLAn = NULL;(oLink = avl_iterate_item(&link_tree, &oLAn));) {
+				for (oLAn = NULL; (oLink = avl_iterate_item(&link_tree, &oLAn));) {
 
 					MAC_T *oMac = ip6Eui64ToMac(&oLink->k.linkDev->key.llocal_ip, NULL);
 
@@ -183,7 +182,7 @@ void get_link_rate(struct dev_node *tDev)
 							oLink->wifiStats.txBurstTime = bmx_time;
 							oLink->wifiStats.txBurstCnt++;
 
-							struct tp_test_key tk = {.duration = linkBurstDuration, .endTime = 0, .packetSize = linkBurstPacketSize, .totalSend = 0};
+							struct tp_test_key tk = { .duration = linkBurstDuration, .endTime = 0, .packetSize = linkBurstPacketSize, .totalSend = 0 };
 
 							schedule_tx_task(FRAME_TYPE_TRASH_ADV, oLink, &oLink->k.linkDev->key.local->k.nodeId, oLink->k.linkDev->key.local, oLink->k.myDev,
 								tk.packetSize, &tk, sizeof(tk));
@@ -196,7 +195,7 @@ void get_link_rate(struct dev_node *tDev)
 							oLink->wifiStats.txTriggTime = bmx_time;
 							oLink->wifiStats.txTriggCnt++;
 
-							struct tp_test_key tk = {.duration = 0, .endTime = 0, .packetSize = linkProbePacketSize, .totalSend = 0};
+							struct tp_test_key tk = { .duration = 0, .endTime = 0, .packetSize = linkProbePacketSize, .totalSend = 0 };
 
 							schedule_tx_task(FRAME_TYPE_TRASH_ADV, oLink, &oLink->k.linkDev->key.local->k.nodeId, oLink->k.linkDev->key.local, oLink->k.myDev,
 								tk.packetSize, &tk, sizeof(tk));
@@ -209,7 +208,7 @@ void get_link_rate(struct dev_node *tDev)
 			}
 		}
 
-		for (oLAn = NULL;(oLink = avl_iterate_item(&link_tree, &oLAn));) {
+		for (oLAn = NULL; (oLink = avl_iterate_item(&link_tree, &oLAn));) {
 
 			if (!strcmp(tDev->ifname_phy.str, oLink->k.myDev->ifname_phy.str) && oLink->wifiStats.updSqn != wifiStatsUpdSqn) {
 				memset(&oLink->wifiStats, 0, sizeof(oLink->wifiStats));
@@ -245,42 +244,40 @@ STATIC_FUNC
 void init_iwinfo_handler(int32_t cb_id, void* devp)
 {
 	struct dev_node *dev = devp;
-//	struct avl_node *an;
-//	for (an = NULL; (dev = avl_iterate_item(&dev_name_tree, &an));) {
+	//	struct avl_node *an;
+	//	for (an = NULL; (dev = avl_iterate_item(&dev_name_tree, &an));) {
 
-		if (dev->active) {
-			
-			if (!dev->upd_link_capacities)
-				dev->upd_link_capacities = get_link_rate;
+	if (dev->active) {
 
-
-			if (!dev->get_iw_channel)
-				dev->get_iw_channel = iwi_get_channel;
+		if (!dev->upd_link_capacities)
+			dev->upd_link_capacities = get_link_rate;
 
 
-		} else {
+		if (!dev->get_iw_channel)
+			dev->get_iw_channel = iwi_get_channel;
 
-			if (dev->get_iw_channel == iwi_get_channel)
-				dev->get_iw_channel = NULL;
 
-			if (dev->upd_link_capacities == get_link_rate)
-				dev->upd_link_capacities = NULL;
-		}
-//	}
+	} else {
+
+		if (dev->get_iw_channel == iwi_get_channel)
+			dev->get_iw_channel = NULL;
+
+		if (dev->upd_link_capacities == get_link_rate)
+			dev->upd_link_capacities = NULL;
+	}
+	//	}
 }
-
-
 
 STATIC_FUNC
 int32_t tx_frame_trash_adv(struct tx_frame_iterator *it)
 {
-        TRACE_FUNCTION_CALL;
+	TRACE_FUNCTION_CALL;
 
 	LinkNode *link = it->ttn->key.f.p.unicast;
 	struct tp_test_key *tk = (struct tp_test_key*) it->ttn->key.data;
 	static struct timeval tmp;
 	upd_time(&tmp);
-	TIME_T now = ( (tmp.tv_sec * 1000) + (tmp.tv_usec / 1000) );
+	TIME_T now = ((tmp.tv_sec * 1000) + (tmp.tv_usec / 1000));
 
 	// WARNING: Using more verbose debuglevel here distorts link-capacity measurements !!!
 	dbgf_all(DBGT_INFO, "size=%d total=%d duration=%d endTime=%d   iterations=%d dev=%s myIdx=%d src=%s unicast=%d, dst=%s nbIdx=%d neigh=%s neighId=%s",
@@ -292,7 +289,7 @@ int32_t tx_frame_trash_adv(struct tx_frame_iterator *it)
 		cryptShaAsString(&it->ttn->key.f.groupId));
 
 	if (link && linkBurstInterval && linkBurstDuration && linkBurstPacketSize &&
-		((tk->totalSend + tk->packetSize) <= (uint32_t)linkBurstBytes) && (!tk->endTime || (((TIME_T)(tk->endTime - now)) < tk->duration))) {
+		((tk->totalSend + tk->packetSize) <= (uint32_t) linkBurstBytes) && (!tk->endTime || (((TIME_T) (tk->endTime - now)) < tk->duration))) {
 
 		struct tp_test_key TK = *tk;
 
@@ -301,7 +298,7 @@ int32_t tx_frame_trash_adv(struct tx_frame_iterator *it)
 
 		TK.totalSend += TK.packetSize;
 
-		schedule_tx_task(FRAME_TYPE_TRASH_ADV, link, &link->k.linkDev->key.local->k.nodeId, link->k.linkDev->key.local, link->k.myDev, TK.packetSize, &TK, sizeof(TK) );
+		schedule_tx_task(FRAME_TYPE_TRASH_ADV, link, &link->k.linkDev->key.local->k.nodeId, link->k.linkDev->key.local, link->k.myDev, TK.packetSize, &TK, sizeof(TK));
 	}
 
 	link->wifiStats.txBurstPackets++;
@@ -310,11 +307,10 @@ int32_t tx_frame_trash_adv(struct tx_frame_iterator *it)
 	return tk->packetSize;
 }
 
-
 STATIC_FUNC
 int32_t rx_frame_trash_adv(struct rx_frame_iterator *it)
 {
-        TRACE_FUNCTION_CALL;
+	TRACE_FUNCTION_CALL;
 
 	// WARNING: Using more verbose debuglevel here distorts link-capacity measurements !!!
 	dbgf_all(DBGT_INFO, "size=%d dev=%s unicast=%d src=%s claimedId=%s",
@@ -344,53 +340,44 @@ static struct opt_type capacity_options[]= {
 
 	{ODI,0,ARG_LINK_RATE_AVG_WEIGHT,0,9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,&linkAvgRateWeight,MIN_LINK_RATE_AVG_WEIGHT,MAX_LINK_RATE_AVG_WEIGHT, DEF_LINK_RATE_AVG_WEIGHT,0,0,
 			ARG_VALUE_FORM, HLP_LINK_RATE_AVG_WEIGHT},
-
-
 };
-
-
-static void capacity_cleanup( void )
+static void capacity_cleanup(void)
 {
 }
 
-
-
-static int32_t capacity_init( void )
+static int32_t capacity_init(void)
 {
 
-        struct frame_handl handl;
-        memset(&handl, 0, sizeof ( handl));
+	struct frame_handl handl;
+	memset(&handl, 0, sizeof( handl));
 
-        handl.name = "TRASH_ADV";
+	handl.name = "TRASH_ADV";
 	handl.rx_processUnVerifiedLink = 1;
-        handl.min_msg_size = 1;
-        handl.fixed_msg_size = 0;
-        handl.tx_frame_handler = tx_frame_trash_adv;
-        handl.rx_frame_handler = rx_frame_trash_adv;
-        register_frame_handler(packet_frame_db, FRAME_TYPE_TRASH_ADV, &handl);
+	handl.min_msg_size = 1;
+	handl.fixed_msg_size = 0;
+	handl.tx_frame_handler = tx_frame_trash_adv;
+	handl.rx_frame_handler = rx_frame_trash_adv;
+	register_frame_handler(packet_frame_db, FRAME_TYPE_TRASH_ADV, &handl);
 
 
-        register_options_array(capacity_options, sizeof ( capacity_options), CODE_CATEGORY_NAME);
+	register_options_array(capacity_options, sizeof( capacity_options), CODE_CATEGORY_NAME);
 
 	return SUCCESS;
 }
 
+struct plugin* get_plugin(void)
+{
 
-
-struct plugin* get_plugin( void ) {
-	
 	static struct plugin capacity_plugin;
-	
-	memset( &capacity_plugin, 0, sizeof ( struct plugin ) );
-	
+
+	memset(&capacity_plugin, 0, sizeof( struct plugin));
+
 
 	capacity_plugin.plugin_name = CODE_CATEGORY_NAME;
-	capacity_plugin.plugin_size = sizeof ( struct plugin );
+	capacity_plugin.plugin_size = sizeof( struct plugin);
 	capacity_plugin.cb_init = capacity_init;
 	capacity_plugin.cb_cleanup = capacity_cleanup;
 	capacity_plugin.cb_plugin_handler[PLUGIN_CB_BMX_DEV_EVENT] = init_iwinfo_handler;
 
 	return &capacity_plugin;
 }
-
-

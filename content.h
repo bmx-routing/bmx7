@@ -20,8 +20,6 @@
 #include <netinet/in.h>
 
 
-
-
 //TODO: set REQ_TO to 1 (in a non-packet-loss testenvironment this may be set to 1000 for testing)
 #define DEF_TX_CONTENT_REQ_TO   ((DEF_TX_MIN_INTERVAL*3)/2)
 #define DEF_TX_CONTENT_ADV_TO   200
@@ -109,7 +107,6 @@ struct hdr_content_req { // 20 bytes
 	struct msg_content_req msg[];
 } __attribute__((packed));
 
-
 struct desc_content {
 	DHASH_T dHash;
 
@@ -151,6 +148,5 @@ struct content_node * content_add_hash(CRYPTSHA_T *chash);
 struct content_node * content_add_body(uint8_t *body, uint32_t body_len, uint8_t compressed, uint8_t nested, uint8_t force);
 int32_t create_chash_tlv(struct tlv_hdr *tlv, uint8_t *f_data, uint32_t f_len, uint8_t f_type, uint8_t fzip, uint8_t level, union content_sizes *virtDescSizes);
 void content_purge_unused(struct content_node *onlyCn);
-
 
 void init_content(void);

@@ -127,7 +127,6 @@ extern int32_t resolveInterval;
 #define MAX_DESCRIBE_INFOS 1
 #define ARG_DESCRIBE_INFOS "describeNodeInfos"
 
-
 struct msg_iid_adv {
 	IID_T transmitterIID4x;
 	DESC_SQN_T descSqn;
@@ -171,7 +170,6 @@ struct hdr_description_request {
 {FIELD_TYPE_STRING_BINARY, -1, 0,     0, FIELD_RELEVANCE_HIGH,  "variableInfoFields" }, \
 FIELD_FORMAT_END }
 
-
 struct description_msg_info {
 	uint8_t type;
 	uint8_t infoOffset;
@@ -199,5 +197,3 @@ IDM_T desc_frame_changed(struct desc_content *dcA, struct desc_content *dcB, uin
 int32_t opt_update_description(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn);
 
 void init_desc(void);
-
-

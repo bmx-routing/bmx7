@@ -110,27 +110,25 @@ typedef struct in6_addr IP6_T;
 typedef IP6_T IPX_T;
 
 struct net_key {
-        uint8_t af;   //family
+	uint8_t af; //family
 	uint8_t mask; //prefixlen
-	IPX_T ip;     //address
+	IPX_T ip; //address
 } __attribute__((packed));
 
-
 typedef union {
-	uint8_t   u8[GEN_ADDR_LEN];
+	uint8_t u8[GEN_ADDR_LEN];
 	uint16_t u16[GEN_ADDR_LEN / sizeof(uint16_t)];
 	uint32_t u32[GEN_ADDR_LEN / sizeof(uint32_t)];
 	uint64_t u64[GEN_ADDR_LEN / sizeof(uint64_t)];
 } ADDR_T;
 
-
 typedef union {
-	uint8_t   u8[MAC_ADDR_LEN];
+	uint8_t u8[MAC_ADDR_LEN];
 	uint16_t u16[MAC_ADDR_LEN / sizeof(uint16_t)];
 } MAC_T;
 
-extern const IPX_T  ZERO_IP;
-extern const MAC_T  ZERO_MAC;
+extern const IPX_T ZERO_IP;
+extern const MAC_T ZERO_MAC;
 extern const ADDR_T ZERO_ADDR;
 
 #define ZERO_NET_KEY_INIT {.af = 0}
@@ -155,13 +153,6 @@ extern const struct net_key ZERO_NET6_KEY;
 
 #define ARG_HOSTNAME "hostname"
 
-
-
-
-
-
-
-
 #define MY_DESC_CAPABILITIES_CV16 0x0200 //capability flag for compatibility with CV16 txInterval field
 #define MY_DESC_CAPABILITIES (MY_DESC_CAPABILITIES_CV16 | 0)
 extern uint16_t my_desc_capabilities;
@@ -171,9 +162,6 @@ extern uint16_t my_desc_capabilities;
 #define MAX_DAD_TO 360000000
 #define ARG_DAD_TO "dadTimeout"
 extern int32_t dad_to;
-
-
-
 
 
 
@@ -212,18 +200,10 @@ typedef uint16_t AGGREG_SQN_T;
 #define AGGREG_SQN_CACHE_MASK  0xFF
 #define AGGREG_SQN_CACHE_RANGE (AGGREG_SQN_CACHE_MASK+1)
 
-
-
-
 typedef uint16_t INT_NEIGH_ID_T;
 #define INT_NEIGH_ID_BIT_SIZE (12)
 
 #define LOCALS_MAX (1<<INT_NEIGH_ID_BIT_SIZE) // because each local needs a bit to be indicated in the ogm.dest_field
-
-
-
-
-
 
 
 // hello and hello reply messages:
@@ -242,18 +222,12 @@ typedef uint16_t HELLO_SQN_T;
 //extern int32_t my_link_window; // my link window size used to quantify the link qualities to direct neighbors
 //#define RP_PURGE_ITERATIONS MAX_LINK_WINDOW
 
-
-
 typedef uint32_t BURST_SQN_T;
-
 
 // descriptions 
 typedef uint32_t DESC_SQN_T;
 #define DESC_SQN_SAVE_INTERVAL 100
 #define DESC_SQN_REBOOT_ADDS 10
-
-
-
 
 
 #define FRAME_TYPE_BIT_SIZE    (5)
@@ -267,23 +241,7 @@ typedef uint32_t DESC_SQN_T;
 #define BMX_DSC_TLV_INVALID     (FRAME_TYPE_ARRSZ)
 
 
-
-
-
-
 #define MAX_UDPD_SIZE (1280 /*min IPv6 MTU*/ - sizeof(struct ip6_hdr) - sizeof(struct udphdr))
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 #define BMX_ENV_LIB_PATH "BMX7_LIB_PATH"
@@ -292,17 +250,13 @@ typedef uint32_t DESC_SQN_T;
 #define BMX_ENV_DEBUG "BMX7_DEBUG"
 
 
+#define ARG_HELP  "help"
+#define ARG_VERBOSE_HELP "verboseHelp"
 
+#define ARG_VERSION  "version"
 
-
-#define ARG_HELP		"help"
-#define ARG_VERBOSE_HELP	"verboseHelp"
-
-#define ARG_VERSION		"version"
-
-#define ARG_TEST		"test"
-#define ARG_SHOW_PARAMETER 	"parameters"
-
+#define ARG_TEST  "test"
+#define ARG_SHOW_PARAMETER  "parameters"
 
 
 #define ARG_LIST "list"
@@ -323,8 +277,6 @@ enum NoYes {
 
 extern const IDM_T CONST_YES;
 extern const IDM_T CONST_NO;
-
-
 
 enum ADGSN {
 	ADD,
@@ -377,8 +329,6 @@ enum ADGSN {
 #define UXX_GET_MAX(mask, a, b ) ( (UXX_GT( (mask), (a), (b) )) ? (a) : (b) )
 
 
-
-
 #define WARNING_PERIOD 20000
 
 #define MAX_PATH_SIZE 300
@@ -397,8 +347,6 @@ extern uint32_t s_curr_avg_cpu_load;
 
 extern IDM_T my_description_changed;
 
-
-
 /**
  * The most important data structures
  */
@@ -410,12 +358,12 @@ enum {
 	FIELD_TYPE_STRING_CHAR,
 	FIELD_TYPE_STRING_BINARY,
 	FIELD_TYPE_POINTER_CHAR,
-        FIELD_TYPE_POINTER_GLOBAL_ID,
-        FIELD_TYPE_POINTER_SHORT_ID,
-        FIELD_TYPE_GLOBAL_ID,
-        FIELD_TYPE_UMETRIC,
-        FIELD_TYPE_POINTER_UMETRIC,
-        FIELD_TYPE_FMETRIC8,
+	FIELD_TYPE_POINTER_GLOBAL_ID,
+	FIELD_TYPE_POINTER_SHORT_ID,
+	FIELD_TYPE_GLOBAL_ID,
+	FIELD_TYPE_UMETRIC,
+	FIELD_TYPE_POINTER_UMETRIC,
+	FIELD_TYPE_FMETRIC8,
 	FIELD_TYPE_IP4,
 	FIELD_TYPE_IPX,
 	FIELD_TYPE_IPX4,
@@ -436,10 +384,11 @@ enum {
 // negative values mean size must be multiple of negativ value, positive values mean absolute bit sizes
 
 #define FIELD_FORMAT_MAX_ITEMS 100
+
 enum {
-        FIELD_RELEVANCE_LOW,
-        FIELD_RELEVANCE_MEDI,
-        FIELD_RELEVANCE_HIGH
+	FIELD_RELEVANCE_LOW,
+	FIELD_RELEVANCE_MEDI,
+	FIELD_RELEVANCE_HIGH
 };
 
 #define ARG_RELEVANCE "relevance"
@@ -448,13 +397,12 @@ enum {
 #define MIN_RELEVANCE FIELD_RELEVANCE_LOW
 #define HLP_ARG_RELEVANCE        "filter for given minimum relevance"
 
-
 struct field_format {
 	uint16_t field_type;
-        int32_t field_pos; // -1 means relative to previous 
+	int32_t field_pos; // -1 means relative to previous
 	uint32_t field_bits;
 	uint8_t field_host_order;
-        uint8_t field_relevance;
+	uint8_t field_relevance;
 	const char * field_name;
 };
 
@@ -470,28 +418,24 @@ struct field_format {
 }
 
 struct field_iterator {
-        const struct field_format *format;
-//        char * msg_name;
-        uint8_t *data;
-        uint32_t data_size;
-        uint32_t min_msg_size;
-//        uint8_t fixed_msg_size;
-
-        uint32_t field;
-        uint32_t field_bits;
-        uint32_t var_bits;
-        uint32_t field_bit_pos;
-        uint32_t msg_bit_pos;
-
+	const struct field_format *format;
+	uint8_t *data;
+	uint32_t data_size;
+	uint32_t min_msg_size;
+	uint32_t field;
+	uint32_t field_bits;
+	uint32_t var_bits;
+	uint32_t field_bit_pos;
+	uint32_t msg_bit_pos;
 };
 
 struct status_handl {
-        uint16_t min_msg_size;
-        IDM_T multiline;
-        char status_name[16];
-        uint8_t *data;
+	uint16_t min_msg_size;
+	IDM_T multiline;
+	char status_name[16];
+	uint8_t *data;
 
-	int32_t (*frame_creator) (struct status_handl *status_handl, void *data);
+	int32_t(*frame_creator) (struct status_handl *status_handl, void *data);
 
 	const struct field_format *format;
 };
@@ -512,18 +456,10 @@ uint32_t fields_dbg_lines(struct ctrl_node *cn, uint16_t relevance, uint32_t dat
 uint32_t field_iterate(struct field_iterator *it);
 
 void register_status_handl(uint16_t min_msg_size, IDM_T multiline, const struct field_format* format, char *name,
-                            int32_t(*creator) (struct status_handl *status_handl, void *data));
-
-
-
-
-
-
+	int32_t(*creator) (struct status_handl *status_handl, void *data));
 
 
 #define timercpy(d, a) (d)->tv_sec = (a)->tv_sec; (d)->tv_usec = (a)->tv_usec;
-
-
 
 enum {
 	CLEANUP_SUCCESS,
@@ -536,7 +472,7 @@ enum {
 
 /***********************************************************
  Runtime Infrastructure
-************************************************************/
+ ************************************************************/
 
 
 #define goto_error( where, what ) do { goto_error_code=what; goto where; }while(0)
@@ -622,16 +558,16 @@ void trace_function_call(const char *);
 
 void wait_sec_usec(TIME_SEC_T sec, TIME_T usec);
 
-void cleanup_all( int32_t status );
+void cleanup_all(int32_t status);
 
-char *get_human_uptime( uint32_t reference );
+char *get_human_uptime(uint32_t reference);
 
-DESC_SQN_T newDescriptionSqn( char* newPath, uint8_t ass );
+DESC_SQN_T newDescriptionSqn(char* newPath, uint8_t ass);
 
 
 /***********************************************************
  Configuration data and handlers
-************************************************************/
+ ************************************************************/
 
 
 

@@ -29,7 +29,6 @@
 
 #define TLV_OP_CUSTOM_TOPOLOGY (TLV_OP_CUSTOM_MIN + 1)
 
-
 struct description_msg_topology {
 	GLOBAL_ID_T nbId;
 	DESC_SQN_T nbDescSqn;

@@ -169,9 +169,6 @@ extern CRYPTRSA_T *my_NodeKey;
 extern CRYPTRSA_T *my_RsaLinkKey;
 extern CRYPTDHM_T *my_DhmLinkKey;
 
-
-
-
 typedef struct {
 	uint8_t u8[sizeof(CRYPTSHA112_T)];
 } __attribute__((packed)) ChainLink_T;
@@ -214,7 +211,6 @@ struct ChainAnchorKey {
 	struct key_node *kn;
 	DESC_SQN_T descSqnNetOrder;
 } __attribute__((packed));
-
 
 struct InaptChainOgm {
 	ChainLink_T chainOgm;
@@ -333,7 +329,6 @@ struct dsc_msg_trust {
 {FIELD_TYPE_UINT,          -1, 21,                             0, FIELD_RELEVANCE_HIGH, "descSize" }, \
 {FIELD_TYPE_UINT,          -1, 11,                             0, FIELD_RELEVANCE_HIGH, "descContents" }, \
 FIELD_FORMAT_END}
-
 
 struct dsc_msg_version {
 	uint8_t comp_version;

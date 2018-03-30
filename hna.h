@@ -41,18 +41,16 @@
 #define TLV_OP_CUSTOM_HNA_ROUTE_DEL (TLV_OP_CUSTOM_MIN + 2)
 #define TLV_OP_CUSTOM_HNA_MAX       (TLV_OP_CUSTOM_MIN + 2)
 
-
-
 struct hna_node {
 	struct net_key key;
 	struct orig_node *on;
-        uint8_t flags;
+	uint8_t flags;
 };
 
 struct dsc_msg_hna6 {
 	uint8_t prefixlen;
 	uint8_t flags;
-	IP6_T    ip6;
+	IP6_T ip6;
 } __attribute__((packed));
 
 #define DESCRIPTION_MSG_HNA6_FORMAT { \
@@ -64,7 +62,7 @@ FIELD_FORMAT_END }
 
 
 
-struct hna_node * find_overlapping_hna( IPX_T *ipX, uint8_t prefixlen, struct orig_node *except );
+struct hna_node * find_overlapping_hna(IPX_T *ipX, uint8_t prefixlen, struct orig_node *except);
 
 struct plugin *hna_get_plugin(void);
 uint32_t create_tlv_hna(uint8_t* data, uint32_t max_size, uint32_t pos, struct net_key *net, uint8_t flags);

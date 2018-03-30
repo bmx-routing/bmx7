@@ -62,5 +62,3 @@
 #define DEF_EVIL_OGM_HASH 0
 #define MIN_EVIL_OGM_HASH 0
 #define MAX_EVIL_OGM_HASH 10
-
-

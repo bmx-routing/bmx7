@@ -137,8 +137,6 @@ typedef uint16_t ALGO_T;
 #define TYP_PATH_IFR_INDEPENDENCE_BITS 5
 #define TYP_PATH_IFR_HOP_DISTANCE_BITS 3
 
-
-
 struct path_interference_parameter {
 	uint8_t channelDistance;
 #if __BYTE_ORDER == __LITTLE_ENDIAN         // 1 byte
@@ -151,8 +149,6 @@ struct path_interference_parameter {
 #error "Please fix <bits/endian.h>"
 #endif
 } __attribute__((packed));
-
-
 
 struct host_metricalgo {
 	FMETRIC_U16_T fmetric_u16_min;
@@ -241,7 +237,6 @@ typedef struct {
 	struct neigh_node *local; // set immediately
 } __attribute__((packed)) LinkDevKey;
 
-
 typedef struct {
 	LinkDevKey key;
 	uint8_t purge;
@@ -316,7 +311,6 @@ typedef struct {
 } LinkNode;
 
 struct neigh_node {
-
 	GLOBAL_NAME_ID_T k;
 	struct avl_tree linkDev_tree;
 	LinkNode *best_rq_link;
@@ -456,9 +450,6 @@ struct NeighPath {
 	struct msg_ogm_adv_metric_t0 pathMetrics[MAX_OGM_HOP_HISTORY_SZ];
 };
 
-
-
-
 struct NeighRef_node {
 	AGGREG_SQN_T aggSqn;
 	uint8_t scheduled_ogm_processing;
@@ -524,7 +515,6 @@ struct orig_node {
 	void *plugin_data[];
 
 };
-
 
 struct key_credits {
 	uint8_t nQualifying;
@@ -665,6 +655,3 @@ void neigh_destroy(struct orig_node *on);
 struct neigh_node *neigh_create(struct orig_node *on);
 void destroy_orig_node(struct orig_node *on);
 void init_self(void);
-
-
-

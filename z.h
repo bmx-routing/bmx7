@@ -18,5 +18,5 @@
 #define Z_CHUNK_SIZE (2*16384)
 
 
-int32_t z_compress( uint8_t *src, int32_t slen, uint8_t **dst, uint32_t dpos, uint8_t *darr, int32_t darr_max_size);
+int32_t z_compress(uint8_t *src, int32_t slen, uint8_t **dst, uint32_t dpos, uint8_t *darr, int32_t darr_max_size);
 int32_t z_decompress(uint8_t *src, uint32_t slen, uint8_t *dstB, uint32_t dstBlen);

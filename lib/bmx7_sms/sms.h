@@ -34,10 +34,9 @@
 #define ARG_SMS_FREF "refSms"
 #define DEF_SMS_FREF TYP_FREF_DO2
 
-
 struct sms_node {
 	char name[MAX_SMS_NAME_LEN];
-        uint16_t stale;
+	uint16_t stale;
 	uint32_t dataLen;
 	char data[];
 };
@@ -53,5 +52,3 @@ struct description_msg_sms {
 {FIELD_TYPE_STRING_SIZE,   -1, 32,                        0, FIELD_RELEVANCE_LOW,  "len"},  \
 {FIELD_TYPE_STRING_BINARY, -1, 0,                         1, FIELD_RELEVANCE_LOW,  "data" },  \
 FIELD_FORMAT_END }
-
-

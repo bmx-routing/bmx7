@@ -195,12 +195,11 @@
 extern struct host_metricalgo my_hostmetricalgo;
 
 struct mandatory_tlv_metricalgo {
-
-	FMETRIC_U16_T fmetric_u16_min;      // 2 bytes
+	FMETRIC_U16_T fmetric_u16_min; // 2 bytes
 
 	uint16_t reserved0; // 2 bytes
 
-	ALGO_T algo_type;                   // 2 bytes
+	ALGO_T algo_type; // 2 bytes
 
 	uint16_t flags; // 2 bytes
 
@@ -221,7 +220,7 @@ struct mandatory_tlv_metricalgo {
 	uint8_t lq_ty_point_r255;
 	uint8_t lq_t1_point_r255;
 	uint8_t ogm_link_rate_efficiency;
-	
+
 	uint8_t hops_history;
 	uint8_t hops_max;
 	uint8_t hop_penalty; // 1 byte
@@ -246,7 +245,6 @@ struct mandatory_tlv_metricalgo {
 
 	struct path_interference_parameter pip[MAX_PATH_IFR_PARAMETERS];
 } __attribute__((packed));
-
 
 struct description_tlv_metricalgo {
 	struct mandatory_tlv_metricalgo m;
@@ -311,9 +309,9 @@ UMETRIC_T umetric(uint8_t mantissa, uint8_t exp);
 UMETRIC_T fmetric_to_umetric(FMETRIC_U16_T fm);
 FMETRIC_U16_T umetric_to_fmetric(UMETRIC_T val);
 char *umetric_to_human(UMETRIC_T val);
-FMETRIC_U16_T fmetric_u8_to_fmu16( FMETRIC_U8_T fmu8 );
-UMETRIC_T fmetric_u8_to_umetric( FMETRIC_U8_T fmu8 );
-FMETRIC_U8_T umetric_to_fmu8( UMETRIC_T *um );
+FMETRIC_U16_T fmetric_u8_to_fmu16(FMETRIC_U8_T fmu8);
+UMETRIC_T fmetric_u8_to_umetric(FMETRIC_U8_T fmu8);
+FMETRIC_U8_T umetric_to_fmu8(UMETRIC_T *um);
 
 IDM_T is_fmetric_valid(FMETRIC_U16_T fm);
 
@@ -329,4 +327,4 @@ struct NeighPath *apply_metric_algo(struct NeighRef_node *ref, LinkNode *link, s
 
 // plugin hooks:
 
-struct plugin *metrics_get_plugin( void );
+struct plugin *metrics_get_plugin(void);

@@ -148,7 +148,6 @@
 #define MIN_EXPORT_ONLY   0
 #define MAX_EXPORT_ONLY   1
 
-
 struct dsc_msg_tun6 {
 	IP6_T localIp;
 } __attribute__((packed));
@@ -451,5 +450,3 @@ struct tun_dev_node {
 
 	struct avl_tree tun_bit_tree[2];
 };
-
-

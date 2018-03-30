@@ -27,7 +27,7 @@ enum {
 	PLUGIN_CB_CONF,
 	PLUGIN_CB_BMX_DEV_EVENT,
 	PLUGIN_CB_SYS_DEV_EVENT,
-        PLUGIN_CB_LINKS_EVENT,
+	PLUGIN_CB_LINKS_EVENT,
 	PLUGIN_CB_DESCRIPTION_CREATED,
 	PLUGIN_CB_DESCRIPTION_DESTROY,
 	PLUGIN_CB_TERM,
@@ -42,18 +42,18 @@ void cb_plugin_hooks(int32_t cb_id, void* data);
 //for registering data hooks (attaching plugin data to bmx data structures)
 
 enum {
- PLUGIN_DATA_ORIG,
- PLUGIN_DATA_DEV,
- PLUGIN_DATA_SIZE
+	PLUGIN_DATA_ORIG,
+	PLUGIN_DATA_DEV,
+	PLUGIN_DATA_SIZE
 };
 
 
 extern int32_t plugin_data_registries[PLUGIN_DATA_SIZE];
 
 
-int32_t get_plugin_data_registry( uint8_t data_type );
+int32_t get_plugin_data_registry(uint8_t data_type);
 
-void **get_plugin_data( void *data, uint8_t data_type, int32_t registry );
+void **get_plugin_data(void *data, uint8_t data_type, int32_t registry);
 
 
 
@@ -61,10 +61,11 @@ void **get_plugin_data( void *data, uint8_t data_type, int32_t registry );
 
 
 // for registering thread hooks (often and fast-to-be-done hooks)
+
 struct cb_node {
 	struct list_node list;
 	int32_t cb_type;
-	void (*cb_handler) ( void );
+	void (*cb_handler) (void);
 };
 
 struct cb_fd_node {
@@ -76,8 +77,7 @@ struct cb_fd_node {
 extern struct list_head cb_fd_list;
 // cb_fd_handler is called when fd received data
 // called function may remove itself
-void set_fd_hook( int32_t fd, void (*cb_fd_handler) (int32_t fd), int8_t del );
-
+void set_fd_hook(int32_t fd, void (*cb_fd_handler) (int32_t fd), int8_t del);
 
 struct cb_route_change_node {
 	struct list_node list;
@@ -87,8 +87,6 @@ struct cb_route_change_node {
 
 void set_route_change_hooks(void (*cb_route_change_handler) (uint8_t del, struct orig_node *dest), uint8_t del);
 void cb_route_change_hooks(uint8_t del, struct orig_node *dest);
-
-
 
 struct cb_packet_node {
 	struct list_node list;
@@ -109,13 +107,12 @@ void cb_packet_hooks(struct packet_buff *pb);
 struct plugin {
 	uint32_t plugin_size;
 	char *plugin_name;
-	int32_t (*cb_init) ( void );
-	void    (*cb_cleanup) ( void );
+	int32_t(*cb_init) (void);
+	void (*cb_cleanup) (void);
 	//some more advanced (rarely called) callbacks hooks
 	void (*cb_plugin_handler[PLUGIN_CB_SIZE]) (int32_t, void*);
 
 };
-
 
 struct plugin_node {
 	struct list_node list;
@@ -128,5 +125,4 @@ struct plugin_node {
 int activate_plugin(struct plugin *p, void *dlhandle, const char *dl_name);
 
 IDM_T init_plugin(void);
-void cleanup_plugin( void );
-
+void cleanup_plugin(void);

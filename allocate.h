@@ -45,7 +45,7 @@ void _debugFreeReset(void **memoryParameter, size_t resetSize, int32_t tag);
 
 void checkIntegrity(void);
 void checkLeak(void);
-void debugMemory( struct ctrl_node *cn );
+void debugMemory(struct ctrl_node *cn);
 
 #else
 
@@ -59,9 +59,9 @@ void debugMemory( struct ctrl_node *cn );
 #define checkLeak()
 #define debugMemory( c )
 
-void * _malloc( size_t length );
-void * _calloc( size_t length );
-void * _realloc( void *mem, size_t length );
+void * _malloc(size_t length);
+void * _calloc(size_t length);
+void * _realloc(void *mem, size_t length);
 void _free(void *mem);
 void _freeReset(void **mem, size_t resetLength);
 

@@ -88,8 +88,7 @@ static int32_t ogmSqnRange = DEF_OGM_SQN_RANGE;
 int32_t ogmSqnDeviationMax = DEF_OGM_SQN_DEVIATION;
 int32_t ogmSqnRandom = DEF_OGM_SQN_RANDOM;
 
-
-void chainLinkCalc(ChainInputs_T *i,  OGM_SQN_T diff)
+void chainLinkCalc(ChainInputs_T *i, OGM_SQN_T diff)
 {
 
 	ChainElem_T chainElem;
@@ -135,7 +134,7 @@ ChainElem_T myChainLinkCache(OGM_SQN_T sqn, DESC_SQN_T descSqn)
 
 	} else if (descSqn != lastDescSqn) {
 
-		assertion(-502593, (sqn == (OGM_SQN_T)ogmSqnRange));
+		assertion(-502593, (sqn == (OGM_SQN_T) ogmSqnRange));
 		assertion(-502594, (descSqn > lastDescSqn));
 
 		if (chainLinks)
@@ -174,7 +173,6 @@ ChainElem_T myChainLinkCache(OGM_SQN_T sqn, DESC_SQN_T descSqn)
 
 	return stack.elem;
 }
-
 
 ChainLink_T chainOgmCalc(struct desc_content *dc, OGM_SQN_T ogmSqn)
 {
@@ -226,8 +224,8 @@ OGM_SQN_T chainOgmFind(ChainLink_T *chainOgm, struct desc_content *dc, IDM_T sea
 			}
 		}
 
-		if (dc->ogmSqnMaxRcvd > 0 ) {
-			
+		if (dc->ogmSqnMaxRcvd > 0) {
+
 			if (sqnOffset < dc->ogmSqnMaxRcvd / 2) {
 
 				// Testing below maxRcvd and upper half between anchor and maxRcvd:
@@ -265,7 +263,7 @@ OGM_SQN_T chainOgmFind(ChainLink_T *chainOgm, struct desc_content *dc, IDM_T sea
 		}
 
 
-		if (((++sqnOffset) + dc->ogmSqnMaxRcvd <= dc->ogmSqnRange) || (sqnOffset <= dc->ogmSqnMaxRcvd/2))
+		if (((++sqnOffset) + dc->ogmSqnMaxRcvd <= dc->ogmSqnRange) || (sqnOffset <= dc->ogmSqnMaxRcvd / 2))
 			chainLinkCalc(&dc->chainCache, 1);
 		else
 			break;
@@ -278,7 +276,8 @@ OGM_SQN_T chainOgmFind(ChainLink_T *chainOgm, struct desc_content *dc, IDM_T sea
 	return sqnReturn;
 }
 
-IDM_T verify_crypto_ip6_suffix( IPX_T *ip, uint8_t mask, CRYPTSHA_T *id) {
+IDM_T verify_crypto_ip6_suffix(IPX_T *ip, uint8_t mask, CRYPTSHA_T *id)
+{
 
 	if (mask % 8)
 		return FAILURE;
@@ -298,10 +297,8 @@ IPX_T create_crypto_IPv6(struct net_key *prefix, GLOBAL_ID_T *id)
 /*	if (is_zero(&self->global_id.pkid, sizeof(self->global_id.pkid)/2))
 		memcpy(&self->primary_ip.s6_addr[(autoconf_prefix_cfg.mask/8)], &self->global_id.pkid.u8[sizeof(self->global_id.pkid)/2],
 			XMIN((128-autoconf_prefix_cfg.mask)/8, sizeof(self->global_id.pkid)/2));
-*/
+ */
 }
-
-
 
 GLOBAL_ID_T *get_desc_id(uint8_t *desc_adv, uint32_t desc_len, struct dsc_msg_signature **signpp, struct dsc_msg_version **verspp)
 {
@@ -311,11 +308,11 @@ GLOBAL_ID_T *get_desc_id(uint8_t *desc_adv, uint32_t desc_len, struct dsc_msg_si
 	GLOBAL_ID_T *id = NULL;
 	struct dsc_msg_signature *signMsg = NULL;
 	struct dsc_msg_version *versMsg = NULL;
-	uint32_t p=0, i=0;
+	uint32_t p = 0, i = 0;
 
 	for (; (p + sizeof(struct tlv_hdr)) < desc_len; i++) {
 
-		struct tlv_hdr tlvHdr = {.u.u16 = ntohs(((struct tlv_hdr*) (desc_adv + p))->u.u16)};
+		struct tlv_hdr tlvHdr = { .u.u16 = ntohs(((struct tlv_hdr*) (desc_adv + p))->u.u16) };
 
 		if (p + tlvHdr.u.tlv.length > desc_len)
 			return NULL;
@@ -332,7 +329,7 @@ GLOBAL_ID_T *get_desc_id(uint8_t *desc_adv, uint32_t desc_len, struct dsc_msg_si
 			id = &(((struct dsc_hdr_chash*) (desc_adv + p + sizeof(struct tlv_hdr)))->expanded_chash);
 
 
-		} else if (i==1 && tlvHdr.u.tlv.type == BMX_DSC_TLV_DSC_SIGNATURE &&
+		} else if (i == 1 && tlvHdr.u.tlv.type == BMX_DSC_TLV_DSC_SIGNATURE &&
 			tlvHdr.u.tlv.length > (sizeof(struct tlv_hdr) + sizeof(struct dsc_msg_signature))) {
 
 			signMsg = (struct dsc_msg_signature*) (desc_adv + p + sizeof(struct tlv_hdr));
@@ -340,12 +337,12 @@ GLOBAL_ID_T *get_desc_id(uint8_t *desc_adv, uint32_t desc_len, struct dsc_msg_si
 				tlvHdr.u.tlv.length == sizeof(struct tlv_hdr) + sizeof(struct dsc_msg_signature) +cryptRsaKeyLenByType(signMsg->type)))
 				return NULL;
 
-		} else if (i==2 && tlvHdr.u.tlv.type == BMX_DSC_TLV_VERSION &&
+		} else if (i == 2 && tlvHdr.u.tlv.type == BMX_DSC_TLV_VERSION &&
 			tlvHdr.u.tlv.length == (sizeof(struct tlv_hdr) + sizeof(struct dsc_msg_version))) {
 
 			versMsg = (struct dsc_msg_version*) (desc_adv + p + sizeof(struct tlv_hdr));
 
-			if (validate_param(versMsg->comp_version, (my_compatibility-my_conformance_tolerance), (my_compatibility+my_conformance_tolerance), "compatibility version"))
+			if (validate_param(versMsg->comp_version, (my_compatibility - my_conformance_tolerance), (my_compatibility + my_conformance_tolerance), "compatibility version"))
 				return NULL;
 
 
@@ -357,7 +354,7 @@ GLOBAL_ID_T *get_desc_id(uint8_t *desc_adv, uint32_t desc_len, struct dsc_msg_si
 		p = p + tlvHdr.u.tlv.length;
 	}
 
-	if (p!=desc_len || !id  || !signMsg || !versMsg)
+	if (p != desc_len || !id || !signMsg || !versMsg)
 		return NULL;
 
 
@@ -390,7 +387,7 @@ IDM_T getQualifyingPromotedOrNeighDhmSecret(struct orig_node *on, IDM_T calcSecr
 
 		} else if (my_DhmLinkKey &&
 			(neighDhmKey = contents_data(on->dc, BMX_DSC_TLV_DHM_LINK_PUBKEY)) &&
-			(neighDhmLen = ((int)contents_dlen(on->dc, BMX_DSC_TLV_DHM_LINK_PUBKEY) - sizeof(struct dsc_msg_dhm_link_key))) &&
+			(neighDhmLen = ((int) contents_dlen(on->dc, BMX_DSC_TLV_DHM_LINK_PUBKEY) - sizeof(struct dsc_msg_dhm_link_key))) &&
 			(neighDhmLen == my_DhmLinkKey->rawGXLen) && (neighDhmKey->type == my_DhmLinkKey->rawGXType)) {
 
 			if (calcSecret && !(on->dhmSecret = cryptDhmSecretForNeigh(my_DhmLinkKey, neighDhmKey->gx, neighDhmLen))) {
@@ -424,7 +421,7 @@ void setQualifyingPromotedOrNeigh(IDM_T in, struct key_node *kn)
 
 	if (kn == myKey)
 		return;
-	
+
 	struct orig_node *qon = avl_find_item(&qualifyingPromoteds_tree, &kn->kHash);
 
 	assertion(-502702, IMPLIES(qon, kn->on && qon == kn->on));
@@ -442,8 +439,6 @@ void setQualifyingPromotedOrNeigh(IDM_T in, struct key_node *kn)
 	assertion(-502703, IMPLIES(in && kn->on, avl_find_item(&qualifyingPromoteds_tree, &kn->kHash)));
 	assertion(-502704, IMPLIES(!in || !kn->on, !avl_find_item(&qualifyingPromoteds_tree, &kn->kHash)));
 }
-
-
 
 STATIC_FUNC
 int create_packet_signature(struct tx_frame_iterator *it)
@@ -473,8 +468,8 @@ int create_packet_signature(struct tx_frame_iterator *it)
 
 		assertion(-502445, (be64toh(hdr->sqn.u64) == (((uint64_t) myKey->on->dc->descSqn) << 32) + myBurstSqn));
 		struct frame_msg_signature *msg = (struct frame_msg_signature *) &(hdr[1]);
-		assertion(-502517, ((uint8_t*)msg == tx_iterator_cache_msg_ptr(it)));
-		
+		assertion(-502517, ((uint8_t*) msg == tx_iterator_cache_msg_ptr(it)));
+
 		for (an = NULL; (on = avl_iterate_item(&qualifyingPromoteds_tree, &an));)
 			dhmNeighs += getQualifyingPromotedOrNeighDhmSecret(on, NO);
 
@@ -512,7 +507,7 @@ int create_packet_signature(struct tx_frame_iterator *it)
 				hdr = NULL;
 				signatureSize = 0;
 			}
-			
+
 		} else {
 			hdr = NULL;
 			signatureSize = 0;
@@ -566,7 +561,7 @@ int create_packet_signature(struct tx_frame_iterator *it)
 
 		hdr = NULL;
 	}
-	
+
 	dbgf_track(DBGT_INFO, "f_type=%d=%s sendRsaSignature=%d sendDhmSignatures=%d dhmNeighs=%d qps=%d maxDhmNeighs=%d signatureSize=%d",
 		it->frame_type, it->handl ? it->handl->name : NULL, sendRsaSignature, sendDhmSignatures, dhmNeighs, qualifyingPromoteds_tree.items, maxDhmNeighs, signatureSize);
 
@@ -577,7 +572,7 @@ int create_packet_signature(struct tx_frame_iterator *it)
 STATIC_FUNC
 int process_packet_signature(struct rx_frame_iterator *it)
 {
-	struct frame_hdr_signature *hdr = (struct frame_hdr_signature*)(it->f_data);
+	struct frame_hdr_signature *hdr = (struct frame_hdr_signature*) (it->f_data);
 	struct packet_buff *pb = it->pb;
 	DESC_SQN_T descSqn = ntohl(hdr->sqn.u32.descSqn);
 	BURST_SQN_T burstSqn = ntohl(hdr->sqn.u32.burstSqn);
@@ -586,7 +581,8 @@ int process_packet_signature(struct rx_frame_iterator *it)
 	uint8_t *data = it->f_data + it->f_dlen;
 	int32_t dataLen = it->frames_length - (it->f_data - it->frames_in) - it->f_dlen;
 	struct desc_content *dc = NULL;
-	CRYPTSHA_T packetSha = {.h.u32={0}};
+	CRYPTSHA_T packetSha = { .h.u32 =
+		{0 } };
 	CRYPTRSA_T *pkey = NULL, *pkeyTmp = NULL;
 	struct dsc_msg_pubkey *pkey_msg = NULL;
 	uint8_t *llip_data = NULL;
@@ -602,13 +598,13 @@ int process_packet_signature(struct rx_frame_iterator *it)
 	uint16_t rsaSize = 0;
 	uint16_t dhmKeySize = 0;
 
-	prof_start( process_packet_signature, rx_packet);
+	prof_start(process_packet_signature, rx_packet);
 
 	if (dataLen <= (int) sizeof(struct tlv_hdr))
-		goto_error_return( finish, "Invalid length of signed data!", TLV_RX_DATA_FAILURE);
+		goto_error_return(finish, "Invalid length of signed data!", TLV_RX_DATA_FAILURE);
 
 	if (!claimedKey || claimedKey->bookedState->i.c < KCTracked || (claimedKey->bookedState->i.r > KRQualifying && claimedKey->bookedState->i.c < KCNeighbor))
-		goto_error_return( finish, "< KCTracked || (> KRQualifying && < KCNeighbor)", TLV_RX_DATA_PROCESSED);
+		goto_error_return(finish, "< KCTracked || (> KRQualifying && < KCNeighbor)", TLV_RX_DATA_PROCESSED);
 
 	assertion(-502480, (claimedKey->content));
 
@@ -616,30 +612,30 @@ int process_packet_signature(struct rx_frame_iterator *it)
 		(descSqn < claimedKey->descSqnMin) ||
 		(claimedKey->nextDesc && descSqn < claimedKey->nextDesc->descSqn) ||
 		(claimedKey->on && (descSqn < claimedKey->on->dc->descSqn)))
-		goto_error_return( finish, "outdated descSqn", TLV_RX_DATA_PROCESSED);
+		goto_error_return(finish, "outdated descSqn", TLV_RX_DATA_PROCESSED);
 
 	if (!claimedKey->content->f_body) {
 		content_resolve(claimedKey, NULL);
-		goto_error_return( finish, "unresolved key", TLV_RX_DATA_PROCESSED);
+		goto_error_return(finish, "unresolved key", TLV_RX_DATA_PROCESSED);
 	}
 
 	if (!(dc = (claimedKey->nextDesc ?
 		((claimedKey->nextDesc->descSqn == descSqn) ? claimedKey->nextDesc : NULL) :
 		((claimedKey->on && claimedKey->on->dc->descSqn == descSqn) ? claimedKey->on->dc : NULL)))) {
 
-		struct schedule_dsc_req req = {.iid = 0, .descSqn = descSqn};
+		struct schedule_dsc_req req = { .iid = 0, .descSqn = descSqn };
 		schedule_tx_task(FRAME_TYPE_DESC_REQ, NULL, &claimedKey->kHash, NULL, pb->i.iif, SCHEDULE_MIN_MSG_SIZE, &req, sizeof(req));
-		goto_error_return( finish, "unknown desc", TLV_RX_DATA_PROCESSED);
+		goto_error_return(finish, "unknown desc", TLV_RX_DATA_PROCESSED);
 	} else {
 		dc->referred_by_others_timestamp = bmx_time;
 	}
 
 	if (claimedKey->bookedState->i.c < KCCertified || (claimedKey->bookedState->i.r > KRQualifying && claimedKey->bookedState->i.c < KCNeighbor))
-		goto_error_return( finish, "< KCCertified || (> KRQualifying && < KCNeighbor)", TLV_RX_DATA_PROCESSED);
+		goto_error_return(finish, "< KCCertified || (> KRQualifying && < KCNeighbor)", TLV_RX_DATA_PROCESSED);
 
 	if (dc->unresolvedContentCounter) {
 		content_resolve(claimedKey, NULL);
-		goto_error_return( finish, "unresovled desc content", TLV_RX_DATA_PROCESSED);
+		goto_error_return(finish, "unresovled desc content", TLV_RX_DATA_PROCESSED);
 	}
 
 	if (!(
@@ -647,7 +643,7 @@ int process_packet_signature(struct rx_frame_iterator *it)
 		(llip_dlen = contents_dlen(dc, BMX_DSC_TLV_LLIP)) &&
 		(find_array_data(llip_data, llip_dlen, (uint8_t*) & pb->i.llip, sizeof(struct dsc_msg_llip))))) {
 
-		goto_error_return( finish, "Missing or Invalid src llip", TLV_RX_DATA_FAILURE);
+		goto_error_return(finish, "Missing or Invalid src llip", TLV_RX_DATA_FAILURE);
 	}
 
 	cryptShaNew(&it->pb->i.llip, sizeof(IPX_T));
@@ -657,17 +653,17 @@ int process_packet_signature(struct rx_frame_iterator *it)
 
 	for (;
 		(!verified && !(rsaSize = 0) && !(dhmKeySize = 0) && it->f_msg && msgPos < it->f_msgs_len &&
-		(msg = (struct frame_msg_signature*)(&it->f_msg[msgPos])) &&
+		(msg = (struct frame_msg_signature*) (&it->f_msg[msgPos])) &&
 		(msgType = msg->type) &&
 		((rsaSize = cryptRsaKeyLenByType(msgType)) || (dhmKeySize = cryptDhmKeyLenByType(msgType))) &&
-		(msgSize = (rsaSize ? (sizeof(struct frame_msg_signature) + rsaSize) : sizeof(struct frame_msg_dhMac112))) &&
+		(msgSize = (rsaSize ? (sizeof(struct frame_msg_signature) +rsaSize) : sizeof(struct frame_msg_dhMac112))) &&
 		((msgPos + msgSize) <= it->f_msgs_len)
 		); msgPos += msgSize) {
 
 		dbgf_all(DBGT_INFO, "msgType=%d linkRsaSignTypes=%x linkDhmSignType=%d msgSize=%d msgPos=%d rsaSize=%d dhmSize=%d frameSize=%d",
 			msgType, linkRsaRxSignTypes, linkDhmSignType, msgSize, msgPos, rsaSize, dhmKeySize, it->f_msgs_len);
 
-		if (rsaSize && ((1<<msgType) & linkRsaRxSignTypes)) {
+		if (rsaSize && ((1 << msgType) & linkRsaRxSignTypes)) {
 
 			if (dc->on && dc->on->neigh) {
 				pkey = dc->on->neigh->rsaLinkKey;
@@ -706,7 +702,7 @@ int process_packet_signature(struct rx_frame_iterator *it)
 
 	if (!goto_error_ret && verified) {
 
-		struct key_credits kc = {.pktId = 1, .pktSign = 1};
+		struct key_credits kc = { .pktId = 1, .pktSign = 1 };
 		if (!(claimedKey = keyNode_updCredits(NULL, claimedKey, &kc)) || claimedKey->bookedState->i.c < KCNeighbor)
 			goto_error_return(finish, "< KCNeighbor", TLV_RX_DATA_PROCESSED);
 
@@ -725,9 +721,10 @@ int process_packet_signature(struct rx_frame_iterator *it)
 	}
 
 
-finish:{
+finish:
+	{
 
-	dbgf(
+		dbgf(
 		goto_error_ret != TLV_RX_DATA_PROCESSED ? DBGL_SYS : (verified ? DBGL_ALL : DBGL_CHANGES),
 		goto_error_ret != TLV_RX_DATA_PROCESSED ? DBGT_ERR : DBGT_INFO,
 		"%s problem=%s linkVerification=%d nodeId=%s credits=%s data_len=%d data_sha=%s msgType=%d linkRsaSignTypes=%x linkDhmSignType=%d msgSize=%d msgPos=%d rsaSize=%d dhmSize=%d frameSize=%d "
@@ -738,38 +735,35 @@ finish:{
 		dataLen, cryptShaAsString(&packetSha), msgType, linkRsaRxSignTypes, linkDhmSignType, msgSize, msgPos, rsaSize, dhmKeySize, it->f_msgs_len,
 		pkey_msg ? pkey_msg->type : -1, pkey ? pkey->rawKeyType : -1,
 		pb->i.iif->ifname_label.str, pb->i.llip_str, (llip_dlen ? memAsHexStringSep(llip_data, llip_dlen, sizeof(struct dsc_msg_llip), " ") : NULL),
-		burstSqn, (nn ? (int)nn->burstSqn : -1),
-		descSqn, (claimedKey && claimedKey->on ? (int)claimedKey->on->dc->descSqn : -1), (claimedKey && claimedKey->nextDesc ? (int)claimedKey->nextDesc->descSqn : -1), (claimedKey ? (int)claimedKey->descSqnMin : -1)
+		burstSqn, (nn ? (int) nn->burstSqn : -1),
+		descSqn, (claimedKey && claimedKey->on ? (int) claimedKey->on->dc->descSqn : -1), (claimedKey && claimedKey->nextDesc ? (int) claimedKey->nextDesc->descSqn : -1), (claimedKey ? (int) claimedKey->descSqnMin : -1)
 		);
 
-	if (pkeyTmp)
-		cryptRsaKeyFree(&pkeyTmp);
+		if (pkeyTmp)
+			cryptRsaKeyFree(&pkeyTmp);
 
-	prof_stop();
+		prof_stop();
 
-	return goto_error_ret;
-
-	if (goto_error_code)
 		return goto_error_ret;
-	else
-		return TLV_RX_DATA_PROCESSED;
-}
-}
 
-
+		if (goto_error_code)
+			return goto_error_ret;
+		else
+			return TLV_RX_DATA_PROCESSED; }
+}
 
 STATIC_FUNC
 int32_t create_dsc_tlv_version(struct tx_frame_iterator *it)
 {
-        TRACE_FUNCTION_CALL;
+	TRACE_FUNCTION_CALL;
 
-	struct dsc_msg_version *dsc = (struct dsc_msg_version *)tx_iterator_cache_msg_ptr(it);
-	DESC_SQN_T descSqn = newDescriptionSqn( NULL, 1);
+	struct dsc_msg_version *dsc = (struct dsc_msg_version *) tx_iterator_cache_msg_ptr(it);
+	DESC_SQN_T descSqn = newDescriptionSqn(NULL, 1);
 
-        dsc->capabilities = htons(my_desc_capabilities);
+	dsc->capabilities = htons(my_desc_capabilities);
 
-        dsc->comp_version = my_compatibility;
-        dsc->descSqn = htonl(descSqn);
+	dsc->comp_version = my_compatibility;
+	dsc->descSqn = htonl(descSqn);
 	dsc->bootSqn = (myKey->on) ? ((struct dsc_msg_version*) (contents_data(myKey->on->dc, BMX_DSC_TLV_VERSION)))->bootSqn : dsc->descSqn;
 
 	dsc->ogmHChainAnchor = myChainLinkCache(ogmSqnRange, descSqn);
@@ -781,13 +775,13 @@ int32_t create_dsc_tlv_version(struct tx_frame_iterator *it)
 STATIC_FUNC
 int32_t process_dsc_tlv_version(struct rx_frame_iterator *it)
 {
-        TRACE_FUNCTION_CALL;
+	TRACE_FUNCTION_CALL;
 	assertion(-502321, IMPLIES(it->op == TLV_OP_NEW || it->op == TLV_OP_DEL, it->on));
 
 	if (it->op != TLV_OP_TEST && it->op != TLV_OP_NEW)
 		return it->f_dlen;
 
-	struct dsc_msg_version *msg = ((struct dsc_msg_version*)it->f_data);
+	struct dsc_msg_version *msg = ((struct dsc_msg_version*) it->f_data);
 
 	// already tested during rx_frame_desc_adv:
 	assertion(-502676, IMPLIES(it->dcOld, msg->bootSqn == ((struct dsc_msg_version*) (contents_data(it->dcOld, BMX_DSC_TLV_VERSION)))->bootSqn));
@@ -814,37 +808,33 @@ int32_t process_dsc_tlv_version(struct rx_frame_iterator *it)
 	return sizeof(struct dsc_msg_version);
 }
 
-
-
 STATIC_FUNC
 int create_dsc_tlv_nodeKey(struct tx_frame_iterator *it)
 {
-        TRACE_FUNCTION_CALL;
+	TRACE_FUNCTION_CALL;
 
 	assertion(-502742, (my_NodeKey));
 
 	struct dsc_msg_pubkey *msg = ((struct dsc_msg_pubkey*) tx_iterator_cache_msg_ptr(it));
 
-	if ((int) (sizeof(struct dsc_msg_pubkey) + my_NodeKey->rawKeyLen) > tx_iterator_cache_data_space_pref(it, 0, 0))
+	if ((int) (sizeof(struct dsc_msg_pubkey) +my_NodeKey->rawKeyLen) > tx_iterator_cache_data_space_pref(it, 0, 0))
 		return TLV_TX_DATA_FULL;
 
 	int ret = cryptRsaPubKeyGetRaw(my_NodeKey, msg->key, my_NodeKey->rawKeyLen);
 
-	assertion(-502743, (ret==SUCCESS));
+	assertion(-502743, (ret == SUCCESS));
 
 	msg->type = my_NodeKey->rawKeyType;
 
 	dbgf_track(DBGT_INFO, "added description rsa description pubkey len=%d", my_NodeKey->rawKeyLen);
 
-	return(sizeof(struct dsc_msg_pubkey) + my_NodeKey->rawKeyLen);
+	return(sizeof(struct dsc_msg_pubkey) +my_NodeKey->rawKeyLen);
 }
-
 
 void update_dsc_tlv_dhmLinkKey(void*unused)
 {
 	my_description_changed = YES;
 }
-
 
 STATIC_FUNC
 void freeMyDhmLinkKey(void)
@@ -886,7 +876,6 @@ void createMyDhmLinkKey(IDM_T randomLifetime)
 	my_description_changed = YES;
 }
 
-
 STATIC_FUNC
 int create_dsc_tlv_dhmLinkKey(struct tx_frame_iterator *it)
 {
@@ -908,7 +897,7 @@ int create_dsc_tlv_dhmLinkKey(struct tx_frame_iterator *it)
 
 	// renew pktKey if approaching last quarter of pktKey lifetime:
 	if (my_DhmLinkKey && linkSignLifetime && (((TIME_SEC_T) ((5 * (my_DhmLinkKey->endOfLife - (bmx_time_sec + 1))) / 4)) >= MAX_LINK_SIGN_LT))
-			freeMyDhmLinkKey();
+		freeMyDhmLinkKey();
 
 	if (!my_DhmLinkKey)
 		createMyDhmLinkKey(first);
@@ -923,24 +912,24 @@ int create_dsc_tlv_dhmLinkKey(struct tx_frame_iterator *it)
 
 	prof_stop();
 
-	return (sizeof(struct dsc_msg_dhm_link_key) + myKeyLen);
+	return(sizeof(struct dsc_msg_dhm_link_key) +myKeyLen);
 }
 
 STATIC_FUNC
 int process_dsc_tlv_dhmLinkKey(struct rx_frame_iterator *it)
 {
 
-        TRACE_FUNCTION_CALL;
+	TRACE_FUNCTION_CALL;
 	char *goto_error_code = NULL;
 	int32_t msgLen = it->f_dlen;
 	struct dsc_msg_dhm_link_key *msg = (struct dsc_msg_dhm_link_key*) (it->f_data);
 
-	if (it->op == TLV_OP_TEST ) {
+	if (it->op == TLV_OP_TEST) {
 
 		if (!msg)
 			goto_error(finish, "1");
 
-		if (cryptDhmKeyTypeAsString(msg->type) && ((int)(cryptDhmKeyLenByType(msg->type) + sizeof(struct dsc_msg_dhm_link_key))) != msgLen)
+		if (cryptDhmKeyTypeAsString(msg->type) && ((int) (cryptDhmKeyLenByType(msg->type) + sizeof(struct dsc_msg_dhm_link_key))) != msgLen)
 			goto_error(finish, "2");
 
 	} else if ((it->op == TLV_OP_NEW || it->op == TLV_OP_DEL) && it->f_type == BMX_DSC_TLV_DHM_LINK_PUBKEY &&
@@ -949,18 +938,18 @@ int process_dsc_tlv_dhmLinkKey(struct rx_frame_iterator *it)
 		debugFreeReset(&it->on->dhmSecret, sizeof(CRYPTSHA_T), -300836);
 	}
 
-finish: {
-	dbgf(goto_error_code ? DBGL_SYS : DBGL_ALL, goto_error_code ? DBGT_ERR : DBGT_INFO,
+finish:
+	{
+		dbgf(goto_error_code ? DBGL_SYS : DBGL_ALL, goto_error_code ? DBGT_ERR : DBGT_INFO,
 		"%s %s %s type=%s msg_key_len=%d+1 == msgLen=%d problem?=%s",
-		tlv_op_str(it->op), goto_error_code?"Failed":"Succeeded", it->f_handl->name,
+		tlv_op_str(it->op), goto_error_code ? "Failed" : "Succeeded", it->f_handl->name,
 		msg ? cryptDhmKeyTypeAsString(msg->type) : NULL,
 		msg ? cryptDhmKeyLenByType(msg->type) : -1, msgLen, goto_error_code);
 
-	if (goto_error_code)
-		return TLV_RX_DATA_FAILURE;
-	else
-		return it->f_dlen;
-}
+		if (goto_error_code)
+			return TLV_RX_DATA_FAILURE;
+		else
+			return it->f_dlen; }
 
 }
 
@@ -998,7 +987,6 @@ void createMyRsaLinkKey(IDM_T randomLifetime)
 	my_description_changed = YES;
 }
 
-
 STATIC_FUNC
 int create_dsc_tlv_rsaLinkKey(struct tx_frame_iterator *it)
 {
@@ -1015,12 +1003,12 @@ int create_dsc_tlv_rsaLinkKey(struct tx_frame_iterator *it)
 	struct dsc_msg_pubkey *msg = ((struct dsc_msg_pubkey*) tx_iterator_cache_msg_ptr(it));
 	uint8_t first = my_RsaLinkKey ? NO : YES;
 
-	assertion(-502749, ((int) (sizeof(struct dsc_msg_pubkey) + rawKeyLen) <= tx_iterator_cache_data_space_pref(it, 0, 0)));
+	assertion(-502749, ((int) (sizeof(struct dsc_msg_pubkey) +rawKeyLen) <= tx_iterator_cache_data_space_pref(it, 0, 0)));
 	assertion(-502204, IMPLIES(my_RsaLinkKey && linkSignLifetime, my_RsaLinkKey->endOfLife));
 
 	// renew pktKey if approaching last quarter of pktKey lifetime:
 	if (my_RsaLinkKey && linkSignLifetime && (((TIME_SEC_T) ((5 * (my_RsaLinkKey->endOfLife - (bmx_time_sec + 1))) / 4)) >= MAX_LINK_SIGN_LT))
-			freeMyRsaLinkKey();		
+		freeMyRsaLinkKey();
 
 	if (!my_RsaLinkKey)
 		createMyRsaLinkKey(first);
@@ -1029,7 +1017,7 @@ int create_dsc_tlv_rsaLinkKey(struct tx_frame_iterator *it)
 
 	int ret = cryptRsaPubKeyGetRaw(my_RsaLinkKey, msg->key, rawKeyLen);
 
-	assertion(-502751, (ret==SUCCESS));
+	assertion(-502751, (ret == SUCCESS));
 
 	msg->type = my_RsaLinkKey->rawKeyType;
 
@@ -1037,22 +1025,20 @@ int create_dsc_tlv_rsaLinkKey(struct tx_frame_iterator *it)
 
 	prof_stop();
 
-	return(sizeof(struct dsc_msg_pubkey) + rawKeyLen);
+	return(sizeof(struct dsc_msg_pubkey) +rawKeyLen);
 }
-
-
 
 STATIC_FUNC
 int process_dsc_tlv_pubKey(struct rx_frame_iterator *it)
 {
-        TRACE_FUNCTION_CALL;
+	TRACE_FUNCTION_CALL;
 
 	char *goto_error_code = NULL;
 	CRYPTRSA_T *pkey = NULL;
 	int32_t key_len = it->f_dlen - sizeof(struct dsc_msg_pubkey);
 	struct dsc_msg_pubkey *msg = (struct dsc_msg_pubkey*) (it->f_data);
 
-	if (it->op == TLV_OP_TEST ) {
+	if (it->op == TLV_OP_TEST) {
 
 		if (!msg || !cryptRsaKeyTypeAsString(msg->type) || cryptRsaKeyLenByType(msg->type) != key_len)
 			goto_error(finish, "1");
@@ -1073,34 +1059,33 @@ int process_dsc_tlv_pubKey(struct rx_frame_iterator *it)
 		if (it->on->neigh->rsaLinkKey)
 			cryptRsaKeyFree(&it->on->neigh->rsaLinkKey);
 
-		if(msg) {
+		if (msg) {
 			it->on->neigh->rsaLinkKey = cryptRsaPubKeyFromRaw(msg->key, cryptRsaKeyLenByType(msg->type));
 			assertion(-502206, (it->on->neigh->rsaLinkKey && cryptRsaPubKeyCheck(it->on->neigh->rsaLinkKey) == SUCCESS));
 		}
 	}
 
-finish: {
-	dbgf(goto_error_code ? DBGL_SYS : DBGL_ALL, goto_error_code ? DBGT_ERR : DBGT_INFO,
+finish:
+	{
+		dbgf(goto_error_code ? DBGL_SYS : DBGL_ALL, goto_error_code ? DBGT_ERR : DBGT_INFO,
 		"%s %s %s type=%s msg_key_len=%d == key_len=%d problem?=%s",
-		tlv_op_str(it->op), goto_error_code?"Failed":"Succeeded", it->f_handl->name,
+		tlv_op_str(it->op), goto_error_code ? "Failed" : "Succeeded", it->f_handl->name,
 		msg ? cryptRsaKeyTypeAsString(msg->type) : NULL,
 		msg ? cryptRsaKeyLenByType(msg->type) : -1, key_len, goto_error_code);
 
-	if (pkey)
-		cryptRsaKeyFree(&pkey);
+		if (pkey)
+			cryptRsaKeyFree(&pkey);
 
-	if (goto_error_code)
-		return TLV_RX_DATA_FAILURE;
-	else
-		return it->f_dlen;
+		if (goto_error_code)
+			return TLV_RX_DATA_FAILURE;
+		else
+			return it->f_dlen; }
 }
-}
-
 
 STATIC_FUNC
 int create_dsc_tlv_signature(struct tx_frame_iterator *it)
 {
-        TRACE_FUNCTION_CALL;
+	TRACE_FUNCTION_CALL;
 
 	static struct dsc_msg_signature *signMsg = NULL;
 	static int32_t dataOffset = 0;
@@ -1111,9 +1096,9 @@ int create_dsc_tlv_signature(struct tx_frame_iterator *it)
 
 		signMsg = (struct dsc_msg_signature*) (it->frames_out_ptr + it->frames_out_pos + sizeof(struct tlv_hdr));
 
-		dataOffset = it->frames_out_pos + sizeof(struct tlv_hdr) + sizeof(struct dsc_msg_signature) + my_NodeKey->rawKeyLen;
+		dataOffset = it->frames_out_pos + sizeof(struct tlv_hdr) + sizeof(struct dsc_msg_signature) +my_NodeKey->rawKeyLen;
 
-		return sizeof(struct dsc_msg_signature) + my_NodeKey->rawKeyLen;
+		return sizeof(struct dsc_msg_signature) +my_NodeKey->rawKeyLen;
 
 	} else {
 		assertion(-502230, (it->frame_type == BMX_DSC_TLV_SIGNATURE_DUMMY));
@@ -1131,7 +1116,7 @@ int create_dsc_tlv_signature(struct tx_frame_iterator *it)
 
 		assertion(-502752, (dmk));
 		assertion(-502753, (cryptShasEqual(dmk, &myKey->kHash)));
-		assertion(-502754, ((uint8_t*)dmv == data + sizeof(struct tlv_hdr)));
+		assertion(-502754, ((uint8_t*) dmv == data + sizeof(struct tlv_hdr)));
 		assertion(-502755, (signMsg == dms));
 
 		dmv->virtDescSizes.u32 = htonl(it->virtDescSizes.u32);
@@ -1143,7 +1128,7 @@ int create_dsc_tlv_signature(struct tx_frame_iterator *it)
 		cryptRsaSign(&dataSha, signMsg->signature, keySpace, NULL);
 
 		dbgf_track(DBGT_INFO, "fixed RSA%zd type=%d signature=%s of dataSha=%s over dataLen=%d data=%s (dataOffset=%d desc_frames_len=%d)",
-			(keySpace*8), signMsg->type, memAsHexString(signMsg->signature, keySpace),
+			(keySpace * 8), signMsg->type, memAsHexString(signMsg->signature, keySpace),
 			cryptShaAsString(&dataSha), dataLen, memAsHexString(data, dataLen), dataOffset, it->frames_out_pos);
 
 		signMsg = NULL;
@@ -1155,15 +1140,13 @@ int create_dsc_tlv_signature(struct tx_frame_iterator *it)
 STATIC_FUNC
 int process_dsc_tlv_signature(struct rx_frame_iterator *it)
 {
-        TRACE_FUNCTION_CALL;
+	TRACE_FUNCTION_CALL;
 
 	ASSERTION(-502482, IMPLIES(it->f_type == BMX_DSC_TLV_DSC_SIGNATURE && it->op == TLV_OP_TEST,
 		test_description_signature(it->dcOp->desc_frame, it->dcOp->desc_frame_len)));
 
 	return TLV_RX_DATA_PROCESSED;
 }
-
-
 
 struct content_node *test_description_signature(uint8_t *desc, uint32_t desc_len)
 {
@@ -1186,20 +1169,20 @@ struct content_node *test_description_signature(uint8_t *desc, uint32_t desc_len
 	if (!(nodeId = get_desc_id(desc, desc_len, &signMsg, &versMsg)))
 		goto_error(finish, "Invalid desc structure");
 
-	if ((!(dataOffset = (((uint32_t)(((uint8_t*)versMsg) - desc)) - sizeof(struct tlv_hdr))) || dataOffset >= desc_len))
+	if ((!(dataOffset = (((uint32_t) (((uint8_t*) versMsg) - desc)) - sizeof(struct tlv_hdr))) || dataOffset >= desc_len))
 		goto_error(finish, "Non-matching description length");
 
 
-	if (!(signLen = cryptRsaKeyLenByType(signMsg->type)) || !((1<<signMsg->type) & nodeRsaRxSignTypes)) {
-		goto_error( finish, "Unsupported signature length");
+	if (!(signLen = cryptRsaKeyLenByType(signMsg->type)) || !((1 << signMsg->type) & nodeRsaRxSignTypes)) {
+		goto_error(finish, "Unsupported signature length");
 	}
 
 	if (!(pkeyRef = content_find(nodeId))) {
 		goto_error(finish, "Unresolved signature content");
 	}
 
-	if (!(pkeyRef->f_body_len == sizeof(struct dsc_msg_pubkey) + signLen &&
-		 (pkeyMsg = (struct dsc_msg_pubkey*) pkeyRef->f_body) && pkeyMsg->type == signMsg->type))
+	if (!(pkeyRef->f_body_len == sizeof(struct dsc_msg_pubkey) +signLen &&
+		(pkeyMsg = (struct dsc_msg_pubkey*) pkeyRef->f_body) && pkeyMsg->type == signMsg->type))
 		goto_error(finish, "Invalid pkey content");
 
 	cryptShaAtomic((data = desc + dataOffset), (dataLen = desc_len - dataOffset), &dataSha);
@@ -1210,51 +1193,50 @@ struct content_node *test_description_signature(uint8_t *desc, uint32_t desc_len
 	assertion(-502207, (pkey && cryptRsaPubKeyCheck(pkey) == SUCCESS));
 
 
-	if (nodeVerify && cryptRsaVerify(signMsg->signature, signLen , &dataSha, pkey) != SUCCESS )
-		goto_error( finish, "Invalid signature");
+	if (nodeVerify && cryptRsaVerify(signMsg->signature, signLen, &dataSha, pkey) != SUCCESS)
+		goto_error(finish, "Invalid signature");
 
 	goto_return_code = pkeyRef;
 
-finish: {
+finish:
+	{
 
-	dbgf(
+		dbgf(
 		(goto_return_code ? DBGL_ALL : DBGL_SYS),
 		(goto_return_code ? DBGT_INFO : DBGT_ERR),
 		"%s verifying  descLen=%d nodeId=%s dataOffset=%d dataLen=%d data=%s dataSha=%s \n"
 		"signType=%d signLen=%d signature=%s %s=%X\n"
 		"msg_pkey_type=%s msg_pkey_len=%d pkey_type=%s \n"
 		"problem?=%s",
-		goto_error_code?"Failed":"Succeeded", desc_len, cryptShaAsString(nodeId),
+		goto_error_code ? "Failed" : "Succeeded", desc_len, cryptShaAsString(nodeId),
 		dataOffset, dataLen, memAsHexString(data, dataLen), cryptShaAsString(&dataSha),
 		(signMsg ? signMsg->type : 0), signLen, signMsg ? memAsHexString(signMsg->signature, signLen) : NULL, ARG_NODE_RSA_RX_TYPES, nodeRsaRxSignTypes,
 		pkeyMsg ? cryptRsaKeyTypeAsString(pkeyMsg->type) : NULL, pkeyMsg ? cryptRsaKeyLenByType(pkeyMsg->type) : 0,
 		pkey ? cryptRsaKeyTypeAsString(pkey->rawKeyType) : NULL,
 		goto_error_code);
 
-	if (pkey)
-		cryptRsaKeyFree(&pkey);
+		if (pkey)
+			cryptRsaKeyFree(&pkey);
 
-	prof_stop();
+		prof_stop();
 
-	return goto_return_code;
+		return goto_return_code; }
 }
-}
 
-
-
-int32_t rsa_load( char *tmp_path ) {
+int32_t rsa_load(char *tmp_path)
+{
 
 	// test with: ./bmx7 f=0 d=0 --keyDir=$(pwdd)/rsa-test/key.der
 
 
 	dbgf_track(DBGT_INFO, "testing %s=%s", ARG_KEY_PATH, tmp_path);
 
-	if (!(my_NodeKey = cryptRsaKeyFromDer( tmp_path ))) {
+	if (!(my_NodeKey = cryptRsaKeyFromDer(tmp_path))) {
 		return FAILURE;
 	}
 
 	uint8_t in[] = "Everyone gets Friday off.";
-	size_t inLen = strlen((char*)in);
+	size_t inLen = strlen((char*) in);
 	CRYPTSHA_T inSha;
 	uint8_t enc[CRYPT_RSA_MAX_LEN];
 	size_t encLen = sizeof(enc);
@@ -1265,14 +1247,14 @@ int32_t rsa_load( char *tmp_path ) {
 
 	if (cryptRsaEncrypt(in, inLen, enc, &encLen, my_NodeKey) != SUCCESS) {
 		dbgf_sys(DBGT_ERR, "Failed Encrypt inLen=%zd outLen=%zd inData=%s outData=%s",
-			inLen, encLen, memAsHexString((char*)in, inLen), memAsHexString((char*)enc, encLen));
+			inLen, encLen, memAsHexString((char*) in, inLen), memAsHexString((char*) enc, encLen));
 		return FAILURE;
 	}
 
 	if (cryptRsaDecrypt(enc, encLen, plain, &plainLen) != SUCCESS ||
 		inLen != plainLen || memcmp(plain, in, inLen)) {
 		dbgf_sys(DBGT_ERR, "Failed Decrypt inLen=%zd outLen=%zd inData=%s outData=%s",
-			encLen, plainLen, memAsHexString((char*)enc, encLen), memAsHexString((char*)plain, plainLen));
+			encLen, plainLen, memAsHexString((char*) enc, encLen), memAsHexString((char*) plain, plainLen));
 		return FAILURE;
 	}
 
@@ -1281,7 +1263,7 @@ int32_t rsa_load( char *tmp_path ) {
 
 	if (cryptRsaSign(&inSha, enc, my_NodeKey->rawKeyLen, NULL) != SUCCESS) {
 		dbgf_sys(DBGT_ERR, "Failed Sign inLen=%zd outLen=%zd inData=%s outData=%s",
-			inLen, encLen, memAsHexString((char*)in, inLen), memAsHexString((char*)enc, my_NodeKey->rawKeyLen));
+			inLen, encLen, memAsHexString((char*) in, inLen), memAsHexString((char*) enc, my_NodeKey->rawKeyLen));
 		return FAILURE;
 	}
 
@@ -1293,7 +1275,6 @@ int32_t rsa_load( char *tmp_path ) {
 
 	return SUCCESS;
 }
-
 
 STATIC_FUNC
 IDM_T getTrustStringParameter(struct KeyWatchNode *tn, GLOBAL_ID_T *id, char *fileName, char *misc, struct ctrl_node *cn)
@@ -1356,7 +1337,7 @@ getTrustStringParameter_error:
 }
 
 STATIC_FUNC
-int32_t opt_reset_node (uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
+int32_t opt_reset_node(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
 {
 	char *goto_error_code = NULL;
 	struct opt_child *c = NULL;
@@ -1399,32 +1380,32 @@ opt_reset_node_finish:
 }
 
 STATIC_FUNC
-int32_t opt_set_trusted (uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
+int32_t opt_set_trusted(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
 {
 	char *goto_error_code = NULL;
 	struct opt_child *c = NULL;
 	char *dirName = trustedDirWatch ? trustedDirWatch->pathp : DEF_TRUSTED_NODES_DIR;
 	DIR *dir;
 	struct dirent *dirEntry;
-	char foundFileTail[MAX_KEY_FILE_SIZE] = {0};
-	struct KeyWatchNode kwn = {.trust = DEF_TRUST_LEVEL, .support = DEF_TRUST_LEVEL};
+	char foundFileTail[MAX_KEY_FILE_SIZE] = { 0 };
+	struct KeyWatchNode kwn = { .trust = DEF_TRUST_LEVEL, .support = DEF_TRUST_LEVEL };
 	int found = 0;
-	char newFullPath[MAX_PATH_SIZE] = {0}, oldFullPath[MAX_PATH_SIZE] = {0};
+	char newFullPath[MAX_PATH_SIZE] = { 0 }, oldFullPath[MAX_PATH_SIZE] = { 0 };
 
 	if (cmd == OPT_CHECK || cmd == OPT_APPLY) {
 
 
-		if (strlen(patch->val) != (int)(2 * sizeof(kwn.global_id)))
+		if (strlen(patch->val) != (int) (2 * sizeof(kwn.global_id)))
 			goto_error(opt_set_trusted_error, "Invalid Id hex length!");
 
-		if (hexStrToMem(patch->val, (uint8_t*)&kwn.global_id, sizeof(kwn.global_id), YES/*strict*/) != SUCCESS)
+		if (hexStrToMem(patch->val, (uint8_t*) & kwn.global_id, sizeof(kwn.global_id), YES/*strict*/) != SUCCESS)
 			goto_error(opt_set_trusted_error, "Invalid Id hex value!");
 
-                while ((c = list_iterate(&patch->childs_instance_list, c))) {
+		while ((c = list_iterate(&patch->childs_instance_list, c))) {
 
-                        if (!strcmp(c->opt->name, ARG_TRUSTED_NODES_DIR)) {
+			if (!strcmp(c->opt->name, ARG_TRUSTED_NODES_DIR)) {
 
-				if ( wordlen( c->val )+1 >= MAX_PATH_SIZE  ||  c->val[0] != '/' )
+				if (wordlen(c->val) + 1 >= MAX_PATH_SIZE || c->val[0] != '/')
 					goto_error(opt_set_trusted_error, "Invalid trustedNodesDir");
 
 				dirName = c->val;
@@ -1448,12 +1429,12 @@ int32_t opt_set_trusted (uint8_t cmd, uint8_t _save, struct opt_type *opt, struc
 			}
 		}
 
-                while (!cryptShasEqual(&myKey->kHash, &kwn.global_id) && (c = list_iterate(&patch->childs_instance_list, c))) {
+		while (!cryptShasEqual(&myKey->kHash, &kwn.global_id) && (c = list_iterate(&patch->childs_instance_list, c))) {
 
 			if (!strcmp(c->opt->name, ARG_SET_TRUSTED_LEVEL))
-                                kwn.trust = c->val ? strtol(c->val, NULL, 10) : DEF_TRUST_LEVEL;
+				kwn.trust = c->val ? strtol(c->val, NULL, 10) : DEF_TRUST_LEVEL;
 			if (!strcmp(c->opt->name, ARG_SET_SUPPORT_LEVEL))
-                                kwn.support = c->val ? strtol(c->val, NULL, 10) : DEF_TRUST_LEVEL;
+				kwn.support = c->val ? strtol(c->val, NULL, 10) : DEF_TRUST_LEVEL;
 
 			if (kwn.support == TYP_TRUST_LEVEL_RECOMMENDED || kwn.trust == TYP_TRUST_LEVEL_RECOMMENDED)
 				goto_error(opt_set_trusted_error, "Invalid trust or support parameter");
@@ -1477,7 +1458,7 @@ int32_t opt_set_trusted (uint8_t cmd, uint8_t _save, struct opt_type *opt, struc
 					goto_error(opt_set_trusted_error, "Failed renaming oldTrustFile");
 			} else if (!found && patch->diff == ADD) {
 				int fd;
-				if ((fd=open(newFullPath, O_RDWR | O_CREAT, S_IRUSR | S_IRGRP | S_IROTH)) < 0)
+				if ((fd = open(newFullPath, O_RDWR | O_CREAT, S_IRUSR | S_IRGRP | S_IROTH)) < 0)
 					goto_error(opt_set_trusted_error, "Failed creating newTrustFile");
 				else
 					close(fd);
@@ -1512,25 +1493,25 @@ int32_t opt_key_path(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct op
 			return FAILURE;
 	}
 
-	if ( (cmd == OPT_CHECK || cmd == OPT_SET_POST) && initializing && !done ) {
+	if ((cmd == OPT_CHECK || cmd == OPT_SET_POST) && initializing && !done) {
 
 		struct opt_child *c = patch ? list_iterate(&patch->childs_instance_list, NULL) : NULL;
 
 		if (cmd == OPT_CHECK && c && c->val) {
-			if ( wordlen( c->val )+1 >= MAX_PATH_SIZE  ||  c->val[0] != '/' )
+			if (wordlen(c->val) + 1 >= MAX_PATH_SIZE || c->val[0] != '/')
 				return FAILURE;
 
-			snprintf( tmp_path, wordlen(c->val)+1, "%s", c->val );
+			snprintf(tmp_path, wordlen(c->val) + 1, "%s", c->val);
 		} else {
-			strcpy( tmp_path, key_path );
+			strcpy(tmp_path, key_path);
 		}
 
-		if ( check_dir( tmp_path, YES, YES, YES) == FAILURE )
+		if (check_dir(tmp_path, YES, YES, YES) == FAILURE)
 			return FAILURE;
 
 
 #ifndef NO_KEY_GEN
-		if ( check_file( tmp_path, YES/*regular*/,YES/*read*/, NO/*writable*/, NO/*executable*/ ) == FAILURE ) {
+		if (check_file(tmp_path, YES/*regular*/, YES/*read*/, NO/*writable*/, NO/*executable*/) == FAILURE) {
 
 			dbgf_sys(DBGT_WARN, "key=%s does not exist! Creating %s private key. This can take a while...", tmp_path, cryptRsaKeyTypeAsString(keyType));
 
@@ -1540,7 +1521,7 @@ int32_t opt_key_path(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct op
 			}
 		}
 #endif
-		if (rsa_load( tmp_path ) == SUCCESS && my_NodeKey->rawKeyLen == cryptRsaKeyLenByType(keyType)) {
+		if (rsa_load(tmp_path) == SUCCESS && my_NodeKey->rawKeyLen == cryptRsaKeyLenByType(keyType)) {
 			dbgf_sys(DBGT_INFO, "Successfully initialized RSA%d key=%s !", (my_NodeKey->rawKeyLen * 8), tmp_path);
 		} else {
 			dbgf_sys(DBGT_ERR, "key=%s (length?) invalid!", tmp_path);
@@ -1552,16 +1533,16 @@ int32_t opt_key_path(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct op
 		init_self();
 
 		done = YES;
-        }
+	}
 
 	return SUCCESS;
 }
 
 int32_t opt_linkSigning(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
 {
-        TRACE_FUNCTION_CALL;
+	TRACE_FUNCTION_CALL;
 
-	if ( cmd == OPT_CHECK || cmd == OPT_APPLY) {
+	if (cmd == OPT_CHECK || cmd == OPT_APPLY) {
 
 
 		if (!strcmp(opt->name, ARG_LINK_RSA_TX_TYPE)) {
@@ -1627,7 +1608,7 @@ int32_t opt_linkSigning(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
 
 
 
-static uint8_t internalNeighId_array[(LOCALS_MAX/8) + (!!(LOCALS_MAX%8))];
+static uint8_t internalNeighId_array[(LOCALS_MAX / 8) + (!!(LOCALS_MAX % 8))];
 static int32_t internalNeighId_max = -1;
 static uint16_t internalNeighId_u32s = 0;
 
@@ -1636,15 +1617,16 @@ IDM_T setted_pubkey(struct desc_content *dc, uint8_t type, GLOBAL_ID_T *globalId
 	assertion(-502603, (type == BMX_DSC_TLV_TRUSTS || type == BMX_DSC_TLV_SUPPORTS));
 	struct dsc_msg_trust *msg = contents_data(dc, type);
 	uint32_t msgs = contents_dlen(dc, type) / sizeof(struct dsc_msg_trust);
-	uint32_t m =0;
+	uint32_t m = 0;
 	struct orig_node *on;
 
 	if (!msgs)
-		return (isRecommendedDc ? TYP_TRUST_LEVEL_NONE : TYP_TRUST_LEVEL_ALL);
+		return(isRecommendedDc ? TYP_TRUST_LEVEL_NONE : TYP_TRUST_LEVEL_ALL);
 
 	for (m = 0; m < msgs; m++) {
 
-		struct desc_msg_trust_fields f = {.u = {.u16 = ntohs(msg[m].f.u.u16)}};
+		struct desc_msg_trust_fields f = { .u =
+			{.u16 = ntohs(msg[m].f.u.u16) } };
 		if (f.u.f.trustLevel >= TYP_TRUST_LEVEL_DIRECT && cryptShasEqual(&msg[m].nodeId, globalId))
 			return f.u.f.trustLevel;
 	}
@@ -1654,7 +1636,8 @@ IDM_T setted_pubkey(struct desc_content *dc, uint8_t type, GLOBAL_ID_T *globalId
 
 	for (m = 0; m < msgs; m++) {
 
-		struct desc_msg_trust_fields f = {.u = {.u16 = ntohs(msg[m].f.u.u16)}};
+		struct desc_msg_trust_fields f = { .u =
+			{.u16 = ntohs(msg[m].f.u.u16) } };
 
 		if (
 			(f.u.f.trustLevel >= TYP_TRUST_LEVEL_IMPORT) &&
@@ -1700,10 +1683,10 @@ void update_neighTrust(struct neigh_node *onlyNn, struct orig_node *on, struct d
 	}
 }
 
+uint32_t *init_neighTrust(struct orig_node *on)
+{
 
-uint32_t *init_neighTrust(struct orig_node *on) {
-
-	on->trustedNeighsBitArray = debugMallocReset(internalNeighId_u32s*4, -300654);
+	on->trustedNeighsBitArray = debugMallocReset(internalNeighId_u32s * 4, -300654);
 
 	update_neighTrust(NULL, on, NULL);
 
@@ -1712,24 +1695,25 @@ uint32_t *init_neighTrust(struct orig_node *on) {
 
 IDM_T verify_neighTrust(struct orig_node *on, struct neigh_node *neigh)
 {
-	return bit_get((uint8_t*)on->trustedNeighsBitArray, (internalNeighId_u32s * 32), neigh->internalNeighId );
+	return bit_get((uint8_t*) on->trustedNeighsBitArray, (internalNeighId_u32s * 32), neigh->internalNeighId);
 }
 
-INT_NEIGH_ID_T allocate_internalNeighId(struct neigh_node *nn) {
+INT_NEIGH_ID_T allocate_internalNeighId(struct neigh_node *nn)
+{
 
 	int32_t ini;
 	struct orig_node *on;
 	struct avl_node *an = NULL;
 
-	for (ini=0; ini<LOCALS_MAX && bit_get(internalNeighId_array, (sizeof(internalNeighId_array)*8), ini); ini++);
+	for (ini = 0; ini < LOCALS_MAX && bit_get(internalNeighId_array, (sizeof(internalNeighId_array)*8), ini); ini++);
 
-	assertion(-502228, (ini < LOCALS_MAX && ini <= (int)local_tree.items));
+	assertion(-502228, (ini < LOCALS_MAX && ini <= (int) local_tree.items));
 	bit_set(internalNeighId_array, (sizeof(internalNeighId_array)*8), ini, 1);
 	nn->internalNeighId = ini;
 
 	if (ini > internalNeighId_max) {
 
-		uint16_t u32s_needed = (((ini+1)/32) + (!!((ini+1)%32)));
+		uint16_t u32s_needed = (((ini + 1) / 32) + (!!((ini + 1) % 32)));
 		uint16_t u32s_allocated = internalNeighId_u32s;
 
 		internalNeighId_u32s = u32s_needed;
@@ -1754,28 +1738,27 @@ INT_NEIGH_ID_T allocate_internalNeighId(struct neigh_node *nn) {
 	return ini;
 }
 
-
-void free_internalNeighId(INT_NEIGH_ID_T ini) {
+void free_internalNeighId(INT_NEIGH_ID_T ini)
+{
 
 	struct orig_node *on;
 	struct avl_node *an = NULL;
 
 	while ((on = avl_iterate_item(&orig_tree, &an)))
-		bit_set((uint8_t*)on->trustedNeighsBitArray, internalNeighId_u32s * 32, ini, 0);
+		bit_set((uint8_t*) on->trustedNeighsBitArray, internalNeighId_u32s * 32, ini, 0);
 
-	bit_set(internalNeighId_array, (sizeof(internalNeighId_array)*8),ini,0);
+	bit_set(internalNeighId_array, (sizeof(internalNeighId_array)*8), ini, 0);
 }
-
 
 STATIC_FUNC
 int test_dsc_tlv_trust(uint8_t type, struct desc_content *dc)
 {
-	if ((type != BMX_DSC_TLV_SUPPORTS && type != BMX_DSC_TLV_TRUSTS) )
+	if ((type != BMX_DSC_TLV_SUPPORTS && type != BMX_DSC_TLV_TRUSTS))
 		return FAILURE;
 
 	struct dsc_msg_trust *trustList = contents_data(dc, type);
 	uint32_t msgs = contents_dlen(dc, type) / sizeof(struct dsc_msg_trust);
-	uint32_t m =0;
+	uint32_t m = 0;
 
 	assertion(-502483, (type <= description_tlv_db->handl_max));
 	assertion(-502484, (description_tlv_db->handls[type].fixed_msg_size));
@@ -1787,7 +1770,8 @@ int test_dsc_tlv_trust(uint8_t type, struct desc_content *dc)
 		CRYPTSHA_T sha = ZERO_CYRYPSHA;
 		for (m = 0; m < msgs; m++) {
 
-			struct desc_msg_trust_fields f = {.u = {.u16 = ntohs(trustList[m].f.u.u16)}};
+			struct desc_msg_trust_fields f = { .u =
+				{.u16 = ntohs(trustList[m].f.u.u16) } };
 
 			if (memcmp(&trustList[m].nodeId, &sha, sizeof(sha)) <= 0) {
 				dbgf_sys(DBGT_ERR, "dscTlvType=%s msg=%d nodeId=%s is less or equal than previous nodeId=%s",
@@ -1797,7 +1781,7 @@ int test_dsc_tlv_trust(uint8_t type, struct desc_content *dc)
 
 			if (f.u.f.trustLevel > MAX_TRUST_LEVEL)
 				return FAILURE;
-	
+
 			sha = trustList[m].nodeId;
 		}
 	}
@@ -1805,9 +1789,9 @@ int test_dsc_tlv_trust(uint8_t type, struct desc_content *dc)
 	return SUCCESS;
 }
 
-void apply_trust_changes(int8_t f_type, struct orig_node *on, struct desc_content* dcOld, struct desc_content *dcNew )
+void apply_trust_changes(int8_t f_type, struct orig_node *on, struct desc_content* dcOld, struct desc_content *dcNew)
 {
-//	assertion(-502605, (desc_frame_changed(dcOld, dcNew, f_type)));
+	//	assertion(-502605, (desc_frame_changed(dcOld, dcNew, f_type)));
 	assertion(-502606, (f_type == BMX_DSC_TLV_TRUSTS || f_type == BMX_DSC_TLV_SUPPORTS));
 	assertion(-502607, (on && on->kn));
 
@@ -1828,7 +1812,8 @@ void apply_trust_changes(int8_t f_type, struct orig_node *on, struct desc_conten
 
 	for (m = 0; m < oldMsgs; m++) {
 
-		struct desc_msg_trust_fields f = {.u = {.u16 = ntohs(oldMsg[m].f.u.u16)}};
+		struct desc_msg_trust_fields f = { .u =
+			{.u16 = ntohs(oldMsg[m].f.u.u16) } };
 
 		if (f_type == BMX_DSC_TLV_TRUSTS && f.u.f.trustLevel < TYP_TRUST_LEVEL_IMPORT)
 			continue;
@@ -1836,18 +1821,20 @@ void apply_trust_changes(int8_t f_type, struct orig_node *on, struct desc_conten
 		if (cryptShasEqual(&on->kn->kHash, &oldMsg[m].nodeId))
 			continue;
 
-//			if(!cryptShasEqual(&oldMsg[m].nodeId, &myKey->kHash) && !cryptShasEqual(&oldMsg[m].nodeId, &it->on->key->kHash))
+//		if(!cryptShasEqual(&oldMsg[m].nodeId, &myKey->kHash) && !cryptShasEqual(&oldMsg[m].nodeId, &it->on->key->kHash))
 		avl_insert(&tmp_tree, &oldMsg[m], -300794);
 	}
 
 	for (m = 0; m < newMsgs; m++) {
 
-		struct desc_msg_trust_fields f = {.u = {.u16 = ntohs(newMsg[m].f.u.u16)}};
+		struct desc_msg_trust_fields f = { .u =
+			{.u16 = ntohs(newMsg[m].f.u.u16) } };
 
 		if (f_type == BMX_DSC_TLV_TRUSTS && f.u.f.trustLevel < TYP_TRUST_LEVEL_IMPORT)
 			continue;
-//			if(cryptShasEqual(&opMsg[m].nodeId, &myKey->kHash) || cryptShasEqual(&opMsg[m].nodeId, &it->on->key->kHash))
-//				continue;
+
+//		if(cryptShasEqual(&opMsg[m].nodeId, &myKey->kHash) || cryptShasEqual(&opMsg[m].nodeId, &it->on->key->kHash))
+//			continue;
 
 		if (cryptShasEqual(&on->kn->kHash, &newMsg[m].nodeId))
 			continue;
@@ -1875,17 +1862,16 @@ int process_dsc_tlv_supports(struct rx_frame_iterator *it)
 
 		if (it->on->kn->dFriend >= TYP_TRUST_LEVEL_IMPORT)
 			apply_trust_changes(BMX_DSC_TLV_SUPPORTS, it->on, (add ? it->dcOld : it->dcOp), (add ? it->dcOp : NULL));
-			
+
 	}
 	return TLV_RX_DATA_PROCESSED;
 }
 
-
 STATIC_FUNC
 int create_dsc_tlv_trusts(struct tx_frame_iterator *it)
 {
-        struct dsc_msg_trust *msg = (struct dsc_msg_trust *)tx_iterator_cache_msg_ptr(it);
-        int32_t max_size = tx_iterator_cache_data_space_pref(it, 0, 0);
+	struct dsc_msg_trust *msg = (struct dsc_msg_trust *) tx_iterator_cache_msg_ptr(it);
+	int32_t max_size = tx_iterator_cache_data_space_pref(it, 0, 0);
 
 	assertion(-502487, (it->frame_type == BMX_DSC_TLV_SUPPORTS || it->frame_type == BMX_DSC_TLV_TRUSTS));
 
@@ -1920,10 +1906,8 @@ int create_dsc_tlv_trusts(struct tx_frame_iterator *it)
 			return pos;
 	}
 
-        return TLV_TX_DATA_IGNORED;
+	return TLV_TX_DATA_IGNORED;
 }
-
-
 
 STATIC_FUNC
 int process_dsc_tlv_trusts(struct rx_frame_iterator *it)
@@ -1931,7 +1915,7 @@ int process_dsc_tlv_trusts(struct rx_frame_iterator *it)
 	if (it->op == TLV_OP_TEST && test_dsc_tlv_trust(it->f_type, it->dcOp) != SUCCESS)
 		return TLV_RX_DATA_FAILURE;
 
-	if ((it->op == TLV_OP_NEW || it->op == TLV_OP_DEL) && desc_frame_changed( it->dcOld, it->dcOp, it->f_type )) {
+	if ((it->op == TLV_OP_NEW || it->op == TLV_OP_DEL) && desc_frame_changed(it->dcOld, it->dcOp, it->f_type)) {
 
 		IDM_T add = (it->op == TLV_OP_NEW);
 
@@ -1941,7 +1925,7 @@ int process_dsc_tlv_trusts(struct rx_frame_iterator *it)
 
 		struct orig_node *on;
 		struct avl_node *an = NULL;
-		while((on = avl_iterate_item(&it->on->kn->trustees_tree, &an))) {
+		while ((on = avl_iterate_item(&it->on->kn->trustees_tree, &an))) {
 			update_neighTrust(NULL, on, on->dc);
 		}
 
@@ -1951,7 +1935,8 @@ int process_dsc_tlv_trusts(struct rx_frame_iterator *it)
 	return TLV_RX_DATA_PROCESSED;
 }
 
-IDM_T supportedKnownKey( CRYPTSHA_T *pkhash ) {
+IDM_T supportedKnownKey(CRYPTSHA_T *pkhash)
+{
 
 	struct KeyWatchNode *tn;
 	struct avl_node *an = NULL;
@@ -1961,7 +1946,7 @@ IDM_T supportedKnownKey( CRYPTSHA_T *pkhash ) {
 
 	if (!trustedDirWatch)
 		return TYP_TRUST_LEVEL_ALL;
-		
+
 	if ((tn = avl_find_item(&trustedDirWatch->node_tree, pkhash)) && tn->support >= TYP_TRUST_LEVEL_DIRECT)
 		return tn->support;
 
@@ -1971,7 +1956,7 @@ IDM_T supportedKnownKey( CRYPTSHA_T *pkhash ) {
 		if (tn->support >= TYP_TRUST_LEVEL_IMPORT) {
 			struct orig_node *on = avl_find_item(&orig_tree, &tn->global_id);
 
-			if (on && setted_pubkey( on->dc, BMX_DSC_TLV_SUPPORTS, pkhash, 1) >= TYP_TRUST_LEVEL_DIRECT)
+			if (on && setted_pubkey(on->dc, BMX_DSC_TLV_SUPPORTS, pkhash, 1) >= TYP_TRUST_LEVEL_DIRECT)
 				return TYP_TRUST_LEVEL_RECOMMENDED;
 		}
 	}
@@ -1979,7 +1964,8 @@ IDM_T supportedKnownKey( CRYPTSHA_T *pkhash ) {
 	return TYP_TRUST_LEVEL_NONE;
 }
 
-void cleanup_inotify(struct DirWatch *dw) {
+void cleanup_inotify(struct DirWatch *dw)
+{
 
 	assertion(-500000, (dw));
 
@@ -1994,8 +1980,8 @@ void cleanup_inotify(struct DirWatch *dw) {
 	}
 }
 
-
-IDM_T init_inotify(struct DirWatch *dw) {
+IDM_T init_inotify(struct DirWatch *dw)
+{
 
 	assertion(-500000, (dw && dw->ifd == -1));
 
@@ -2057,7 +2043,7 @@ void check_nodes_dir(void *dirWatchPtr)
 				continue;
 
 			if (correct == -1 || ((kwn = avl_find_item(&dw->node_tree, &kwt.global_id)) && kwn->updated)) {
-				char oldFullPath[MAX_PATH_SIZE] = {0};
+				char oldFullPath[MAX_PATH_SIZE] = { 0 };
 				sprintf(oldFullPath, "%s/%s", dw->pathp, dirEntry->d_name);
 				dbgf_sys(DBGT_ERR, "Removing duplicate or invalid trustFile=%s", oldFullPath);
 				remove(oldFullPath);
@@ -2122,48 +2108,47 @@ void check_nodes_dir(void *dirWatchPtr)
 
 void inotify_event_hook(int fd)
 {
-        TRACE_FUNCTION_CALL;
+	TRACE_FUNCTION_CALL;
 
 	struct DirWatch *dw = avl_find_item(&dirWatch_tree, &fd);
-        assertion(-501278, (fd > -1 && dw && dw->ifd == fd));
+	assertion(-501278, (fd > -1 && dw && dw->ifd == fd));
 
 	dbgf_track(DBGT_INFO, "detected changes in directory: %s", dw->pathp);
 
 
-        int ilen = 1024;
-        char *ibuff = debugMalloc(ilen, -300375);
-        int rcvd;
-        int processed = 0;
+	int ilen = 1024;
+	char *ibuff = debugMalloc(ilen, -300375);
+	int rcvd;
+	int processed = 0;
 
-        while ((rcvd = read(fd, ibuff, ilen)) == 0 || rcvd == EINVAL) {
+	while ((rcvd = read(fd, ibuff, ilen)) == 0 || rcvd == EINVAL) {
 
-                ibuff = debugRealloc(ibuff, (ilen = ilen * 2), -300376);
-                assertion(-501279, (ilen <= (1024 * 16)));
-        }
+		ibuff = debugRealloc(ibuff, (ilen = ilen * 2), -300376);
+		assertion(-501279, (ilen <= (1024 * 16)));
+	}
 
-        if (rcvd > 0) {
+	if (rcvd > 0) {
 
-                while (processed < rcvd) {
+		while (processed < rcvd) {
 
-                        struct inotify_event *ievent = (struct inotify_event *) &ibuff[processed];
+			struct inotify_event *ievent = (struct inotify_event *) &ibuff[processed];
 
-                        processed += (sizeof (struct inotify_event) +ievent->len);
+			processed += (sizeof(struct inotify_event) +ievent->len);
 
-                        if (ievent->mask & (IN_DELETE_SELF)) {
+			if (ievent->mask & (IN_DELETE_SELF)) {
 				dbgf_sys(DBGT_ERR, "directory %s has been removed \n", dw->pathp);
-//                                cleanup_all(-502490);
-                        }
-                }
+				//                                cleanup_all(-502490);
+			}
+		}
 
-        } else {
-                dbgf_sys(DBGT_ERR, "read()=%d: %s \n", rcvd, strerror(errno));
-        }
+	} else {
+		dbgf_sys(DBGT_ERR, "read()=%d: %s \n", rcvd, strerror(errno));
+	}
 
-        debugFree(ibuff, -300377);
+	debugFree(ibuff, -300377);
 
 	check_nodes_dir(dw);
 }
-
 
 void cleanup_dir_watch(struct DirWatch **dw)
 {
@@ -2193,7 +2178,7 @@ STATIC_FUNC
 void idChanged_Trusted(IDM_T del, struct KeyWatchNode *kwn, struct DirWatch *dw)
 {
 	if (!kwn) {
-		if (!del){
+		if (!del) {
 			kwn = debugMallocReset(sizeof(struct KeyWatchNode), -300800);
 			kwn->global_id = myKey->kHash;
 			kwn->trust = DEF_TRUST_LEVEL;
@@ -2214,7 +2199,7 @@ void idChanged_Trusted(IDM_T del, struct KeyWatchNode *kwn, struct DirWatch *dw)
 	dbgf_sys(DBGT_INFO, "%s nodeId=%s!", (del ? "removing" : "adding"), cryptShaAsString(&kwn->global_id));
 
 
-	struct KeyWatchNode kwt = { .trust = DEF_TRUST_LEVEL, .support = DEF_TRUST_LEVEL};
+	struct KeyWatchNode kwt = { .trust = DEF_TRUST_LEVEL, .support = DEF_TRUST_LEVEL };
 	getTrustStringParameter(&kwt, &kwn->global_id, kwn->fileName, NULL, NULL);
 
 
@@ -2227,11 +2212,11 @@ void idChanged_Trusted(IDM_T del, struct KeyWatchNode *kwn, struct DirWatch *dw)
 
 		uint8_t prevSupport = kwn->support;
 
-		kwn->support = (del ? TYP_TRUST_LEVEL_NONE: kwt.support);
+		kwn->support = (del ? TYP_TRUST_LEVEL_NONE : kwt.support);
 
 		if ((prevSupport != kwn->support) && !terminating) {
 
-			struct key_credits friend_kc = {.dFriend = (del ? TYP_TRUST_LEVEL_DIRECT : kwt.support)};
+			struct key_credits friend_kc = { .dFriend = (del ? TYP_TRUST_LEVEL_DIRECT : kwt.support) };
 
 			if (del)
 				keyNode_delCredits(&kwn->global_id, NULL, &friend_kc, YES);
@@ -2272,15 +2257,14 @@ IDM_T init_dir_watch(struct DirWatch **dw, char *path, void (* idChangedTask) (I
 	return SUCCESS;
 }
 
-
 STATIC_FUNC
 int32_t opt_trust_watch(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
 {
 
-        if (cmd == OPT_CHECK && patch->diff == ADD && check_dir(patch->val, YES/*create*/, YES/*writable*/, NO) == FAILURE)
+	if (cmd == OPT_CHECK && patch->diff == ADD && check_dir(patch->val, YES/*create*/, YES/*writable*/, NO) == FAILURE)
 		return FAILURE;
 
-        if (cmd == OPT_APPLY) {
+	if (cmd == OPT_APPLY) {
 
 		my_description_changed = YES;
 
@@ -2291,11 +2275,10 @@ int32_t opt_trust_watch(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
 			assertion(-501286, (patch->val));
 			return init_dir_watch(&trustedDirWatch, patch->val, idChanged_Trusted);
 		}
-        }
+	}
 
-        return SUCCESS;
+	return SUCCESS;
 }
-
 
 struct trust_status {
 	GLOBAL_ID_T *shortId;
@@ -2330,7 +2313,7 @@ static int32_t trust_status_creator(struct status_handl *handl, void *data)
 	struct trust_status *status = ((struct trust_status*) (handl->data = debugRealloc(handl->data, max_size, -300809)));
 	memset(status, 0, max_size);
 
-	while((kwn = avl_iterate_item(&trustedDirWatch->node_tree, &an))) {
+	while ((kwn = avl_iterate_item(&trustedDirWatch->node_tree, &an))) {
 
 		status[i].nodeId = &kwn->global_id;
 		status[i].shortId = &kwn->global_id;
@@ -2395,77 +2378,76 @@ struct opt_type sec_options[]=
 
 };
 
-
-void init_sec( void )
+void init_sec(void)
 {
-	register_options_array( sec_options, sizeof( sec_options ), CODE_CATEGORY_NAME );
+	register_options_array(sec_options, sizeof( sec_options), CODE_CATEGORY_NAME);
 	register_status_handl(sizeof(struct trust_status), 1, trust_status_format, ARG_TRUST_STATUS, trust_status_creator);
 
-        struct frame_handl handl;
-        memset(&handl, 0, sizeof ( handl));
+	struct frame_handl handl;
+	memset(&handl, 0, sizeof( handl));
 
 	static const struct field_format frame_signature_format[] = FRAME_MSG_SIGNATURE_FORMAT;
-        handl.name = "SIGNATURE_ADV";
+	handl.name = "SIGNATURE_ADV";
 	handl.positionMandatory = 1;
 	handl.rx_processUnVerifiedLink = 1;
 	handl.data_header_size = sizeof(struct frame_hdr_signature);
 	handl.min_msg_size = sizeof(struct frame_msg_signature);
-        handl.fixed_msg_size = 0;
-        handl.tx_frame_handler = create_packet_signature;
-        handl.rx_frame_handler = process_packet_signature;
+	handl.fixed_msg_size = 0;
+	handl.tx_frame_handler = create_packet_signature;
+	handl.rx_frame_handler = process_packet_signature;
 	handl.msg_format = frame_signature_format;
-        register_frame_handler(packet_frame_db, FRAME_TYPE_SIGNATURE_ADV, &handl);
+	register_frame_handler(packet_frame_db, FRAME_TYPE_SIGNATURE_ADV, &handl);
 
 	static const struct field_format version_format[] = VERSION_MSG_FORMAT;
-        handl.name = "DSC_VERSION";
+	handl.name = "DSC_VERSION";
 	handl.alwaysMandatory = 1;
-	handl.min_msg_size = sizeof (struct dsc_msg_version);
-        handl.fixed_msg_size = 1;
-	handl.dextReferencing = (int32_t*)&fref_never;
-	handl.dextCompression = (int32_t*)&never_fzip;
-        handl.tx_frame_handler = create_dsc_tlv_version;
-        handl.rx_frame_handler = process_dsc_tlv_version;
-        handl.msg_format = version_format;
-        register_frame_handler(description_tlv_db, BMX_DSC_TLV_VERSION, &handl);
+	handl.min_msg_size = sizeof(struct dsc_msg_version);
+	handl.fixed_msg_size = 1;
+	handl.dextReferencing = (int32_t*) & fref_never;
+	handl.dextCompression = (int32_t*) & never_fzip;
+	handl.tx_frame_handler = create_dsc_tlv_version;
+	handl.rx_frame_handler = process_dsc_tlv_version;
+	handl.msg_format = version_format;
+	register_frame_handler(description_tlv_db, BMX_DSC_TLV_VERSION, &handl);
 
 
 
 	static const struct field_format pubkey_format[] = DESCRIPTION_MSG_PUBKEY_FORMAT;
-        handl.name = "DSC_NODE_KEY";
+	handl.name = "DSC_NODE_KEY";
 	handl.alwaysMandatory = 1;
-        handl.min_msg_size = sizeof(struct dsc_msg_pubkey);
-        handl.fixed_msg_size = 0;
-	handl.dextReferencing = (int32_t*)&fref_always_l1;
-	handl.dextCompression = (int32_t*)&never_fzip;
-        handl.tx_frame_handler = create_dsc_tlv_nodeKey;
-        handl.rx_frame_handler = process_dsc_tlv_pubKey;
+	handl.min_msg_size = sizeof(struct dsc_msg_pubkey);
+	handl.fixed_msg_size = 0;
+	handl.dextReferencing = (int32_t*) & fref_always_l1;
+	handl.dextCompression = (int32_t*) & never_fzip;
+	handl.tx_frame_handler = create_dsc_tlv_nodeKey;
+	handl.rx_frame_handler = process_dsc_tlv_pubKey;
 	handl.msg_format = pubkey_format;
-        register_frame_handler(description_tlv_db, BMX_DSC_TLV_NODE_PUBKEY, &handl);
+	register_frame_handler(description_tlv_db, BMX_DSC_TLV_NODE_PUBKEY, &handl);
 
 	static const struct field_format dsc_signature_format[] = DESCRIPTION_MSG_SIGNATURE_FORMAT;
-        handl.name = "DSC_SIGNATURE";
+	handl.name = "DSC_SIGNATURE";
 	handl.alwaysMandatory = 1;
 	handl.min_msg_size = sizeof(struct dsc_msg_signature);
-        handl.fixed_msg_size = 0;
-	handl.dextReferencing = (int32_t*)&fref_never;
-	handl.dextCompression = (int32_t*)&never_fzip;
-        handl.tx_frame_handler = create_dsc_tlv_signature;
-        handl.rx_frame_handler = process_dsc_tlv_signature;
+	handl.fixed_msg_size = 0;
+	handl.dextReferencing = (int32_t*) & fref_never;
+	handl.dextCompression = (int32_t*) & never_fzip;
+	handl.tx_frame_handler = create_dsc_tlv_signature;
+	handl.rx_frame_handler = process_dsc_tlv_signature;
 	handl.msg_format = dsc_signature_format;
-        register_frame_handler(description_tlv_db, BMX_DSC_TLV_DSC_SIGNATURE, &handl);
+	register_frame_handler(description_tlv_db, BMX_DSC_TLV_DSC_SIGNATURE, &handl);
 
-        handl.name = "DSC_SIGNATURE_DUMMY";
+	handl.name = "DSC_SIGNATURE_DUMMY";
 	handl.rx_processUnVerifiedLink = 1;
-        handl.tx_frame_handler = create_dsc_tlv_signature;
-        handl.rx_frame_handler = process_dsc_tlv_signature;
-        register_frame_handler(description_tlv_db, BMX_DSC_TLV_SIGNATURE_DUMMY, &handl);
+	handl.tx_frame_handler = create_dsc_tlv_signature;
+	handl.rx_frame_handler = process_dsc_tlv_signature;
+	register_frame_handler(description_tlv_db, BMX_DSC_TLV_SIGNATURE_DUMMY, &handl);
 
 	handl.name = "DSC_RSA_LINK_KEY";
 	handl.alwaysMandatory = 0;
 	handl.min_msg_size = sizeof(struct dsc_msg_pubkey);
 	handl.fixed_msg_size = 0;
-	handl.dextReferencing = (int32_t*) &fref_always_l1;
-	handl.dextCompression = (int32_t*) &never_fzip;
+	handl.dextReferencing = (int32_t*) & fref_always_l1;
+	handl.dextCompression = (int32_t*) & never_fzip;
 	handl.tx_frame_handler = create_dsc_tlv_rsaLinkKey;
 	handl.rx_frame_handler = process_dsc_tlv_pubKey;
 	handl.msg_format = pubkey_format;
@@ -2477,8 +2459,8 @@ void init_sec( void )
 	handl.alwaysMandatory = 0;
 	handl.min_msg_size = sizeof(struct dsc_msg_dhm_link_key);
 	handl.fixed_msg_size = 0;
-	handl.dextReferencing = (int32_t*) &fref_always_l1;
-	handl.dextCompression = (int32_t*) &never_fzip;
+	handl.dextReferencing = (int32_t*) & fref_always_l1;
+	handl.dextCompression = (int32_t*) & never_fzip;
 	handl.tx_frame_handler = create_dsc_tlv_dhmLinkKey;
 	handl.rx_frame_handler = process_dsc_tlv_dhmLinkKey;
 	handl.msg_format = dhm_format;
@@ -2486,37 +2468,37 @@ void init_sec( void )
 
 
 	static const struct field_format trust_format[] = DESCRIPTION_MSG_TRUST_FORMAT;
-        handl.name = "DSC_TRUSTS";
+	handl.name = "DSC_TRUSTS";
 	handl.alwaysMandatory = 0;
-        handl.min_msg_size = sizeof(struct dsc_msg_trust);
-        handl.fixed_msg_size = 1;
-	handl.dextReferencing = (int32_t*)&fref_always_l2;
-	handl.dextCompression = (int32_t*)&never_fzip;
-        handl.tx_frame_handler = create_dsc_tlv_trusts;
-        handl.rx_frame_handler = process_dsc_tlv_trusts;
+	handl.min_msg_size = sizeof(struct dsc_msg_trust);
+	handl.fixed_msg_size = 1;
+	handl.dextReferencing = (int32_t*) & fref_always_l2;
+	handl.dextCompression = (int32_t*) & never_fzip;
+	handl.tx_frame_handler = create_dsc_tlv_trusts;
+	handl.rx_frame_handler = process_dsc_tlv_trusts;
 	handl.msg_format = trust_format;
-        register_frame_handler(description_tlv_db, BMX_DSC_TLV_TRUSTS, &handl);
+	register_frame_handler(description_tlv_db, BMX_DSC_TLV_TRUSTS, &handl);
 
-        handl.name = "DSC_SUPPORTS";
+	handl.name = "DSC_SUPPORTS";
 	handl.alwaysMandatory = 0;
-        handl.min_msg_size = sizeof(struct dsc_msg_trust);
-        handl.fixed_msg_size = 1;
-	handl.dextReferencing = (int32_t*)&fref_always_l2;
-	handl.dextCompression = (int32_t*)&never_fzip;
-        handl.tx_frame_handler = create_dsc_tlv_trusts;
-        handl.rx_frame_handler = process_dsc_tlv_supports;
+	handl.min_msg_size = sizeof(struct dsc_msg_trust);
+	handl.fixed_msg_size = 1;
+	handl.dextReferencing = (int32_t*) & fref_always_l2;
+	handl.dextCompression = (int32_t*) & never_fzip;
+	handl.tx_frame_handler = create_dsc_tlv_trusts;
+	handl.rx_frame_handler = process_dsc_tlv_supports;
 	handl.msg_format = trust_format;
-        register_frame_handler(description_tlv_db, BMX_DSC_TLV_SUPPORTS, &handl);
+	register_frame_handler(description_tlv_db, BMX_DSC_TLV_SUPPORTS, &handl);
 
 }
 
-void cleanup_sec( void )
+void cleanup_sec(void)
 {
 
 	freeMyRsaLinkKey();
 	freeMyDhmLinkKey();
 
-        cryptRsaKeyFree(&my_NodeKey);
+	cryptRsaKeyFree(&my_NodeKey);
 
 	cleanup_dir_watch(&trustedDirWatch);
 

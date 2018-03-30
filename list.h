@@ -32,7 +32,6 @@
 
 #include <stdint.h>
 
-
 struct list_node {
 	struct list_node *next;
 };
@@ -76,12 +75,12 @@ struct plist_node {
 #define list_get_first(head) ((void*)((LIST_EMPTY(head)) ? NULL : (((char*) (head)->next) - (head)->list_node_offset) ))
 #define list_get_last(head) ((void*)((LIST_EMPTY(head)) ? NULL : (((char*) (head)->last) - (head)->list_node_offset) ))
 
-void *list_iterate( struct list_head *head, void *node );
+void *list_iterate(struct list_head *head, void *node);
 void *list_find_next(struct list_head *head, void* key, void *node);
 
-void list_add_head(struct list_head *head, struct list_node *new);
-void list_add_tail(struct list_head *head, struct list_node *new );
-void list_add_after(struct list_head *head, struct list_node *pos, struct list_node *new);
+void list_add_head(struct list_head *head, struct list_node * new);
+void list_add_tail(struct list_head *head, struct list_node * new);
+void list_add_after(struct list_head *head, struct list_node *pos, struct list_node * new);
 void list_del_next(struct list_head *head, struct list_node *pos);
 void *list_del_head(struct list_head *head);
 

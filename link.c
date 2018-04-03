@@ -862,9 +862,9 @@ static int32_t link_status_creator(struct status_handl *handl, void *data)
 	AVL_TREE(link_name_tree, struct neigh_node, k);
 
 	for (local_it = NULL; (local = avl_iterate_item(&local_tree, &local_it));)
-		avl_insert(&link_name_tree, local, -300000);
+		avl_insert(&link_name_tree, local, -300850);
 
-	while ((local = avl_remove_first_item(&link_name_tree, -300000))) {
+	while ((local = avl_remove_first_item(&link_name_tree, -300851))) {
 
 		struct orig_node *on = local->on;
 		assertion(-502210, (on));

@@ -1947,7 +1947,7 @@ IDM_T supportedKnownKey(CRYPTSHA_T *pkhash)
 void cleanup_inotify(struct DirWatch *dw)
 {
 
-	assertion(-500000, (dw));
+	assertion(-502775, (dw));
 
 	if ((dw)->ifd > -1) {
 
@@ -1963,7 +1963,7 @@ void cleanup_inotify(struct DirWatch *dw)
 IDM_T init_inotify(struct DirWatch *dw)
 {
 
-	assertion(-500000, (dw && dw->ifd == -1));
+	assertion(-502776, (dw && dw->ifd == -1));
 
 	if (((dw)->ifd = inotify_init()) < 0) {
 
@@ -2005,7 +2005,7 @@ void check_nodes_dir(void *dirWatchPtr)
 	DIR *dir;
 
 	cleanup_inotify(dw);
-	assertion(-500000, (task_remove(check_nodes_dir, dirWatchPtr) == FAILURE));
+	assertion(-502777, (task_remove(check_nodes_dir, dirWatchPtr) == FAILURE));
 
 	if ((dir = opendir(dw->pathp))) {
 

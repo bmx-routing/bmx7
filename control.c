@@ -1227,7 +1227,7 @@ char * get_opt_child_val_str(struct opt_type *parentOpt, struct opt_parent *patc
 			return c_opt->sdef;
 	}
 
-	assertion(-500000, (dflt != FAILURE_PTR));
+	assertion(-502773, (dflt != FAILURE_PTR));
 	return dflt;
 }
 

@@ -458,8 +458,8 @@ void json_netjson_event_hook(void)
 	if ((topoHandl = get_status_handl(ARG_TOPOLOGY)) &&
 		(topoLen = ((*(topoHandl->frame_creator))(topoHandl, NULL)))) {
 
-		assertion(-500000, (topoHandl->min_msg_size == sizeof(struct topology_status)));
-		assertion(-500000, (!(topoLen % sizeof(struct topology_status))));
+		assertion(-502770, (topoHandl->min_msg_size == sizeof(struct topology_status)));
+		assertion(-502771, (!(topoLen % sizeof(struct topology_status))));
 
 		struct topology_status *s = (struct topology_status *) topoHandl->data;
 		uint32_t topoMsgs = topoLen / sizeof(struct topology_status);

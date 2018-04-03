@@ -212,7 +212,7 @@ void update_orig_dhash(struct desc_content *dcNew)
 		descContent_destroy(dcOld);
 
 	if (on->neigh) {
-		assertion(-500000, cryptShasEqual(&on->neigh->k.nodeId, &on->k.nodeId));
+		assertion(-502774, cryptShasEqual(&on->neigh->k.nodeId, &on->k.nodeId));
 		on->neigh->k = on->k;
 	}
 

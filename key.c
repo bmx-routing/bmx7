@@ -1317,8 +1317,6 @@ static int32_t credits_creator(struct status_handl *handl, void *data)
 STATIC_FUNC
 int32_t opt_set_credits(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
 {
-	TRACE_FUNCTION_CALL;
-
 	struct KeyState *ks = NULL;
 	uint8_t kc, kr;
 

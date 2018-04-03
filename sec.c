@@ -443,7 +443,6 @@ void setQualifyingPromotedOrNeigh(IDM_T in, struct key_node *kn)
 STATIC_FUNC
 int create_packet_signature(struct tx_frame_iterator *it)
 {
-	TRACE_FUNCTION_CALL;
 	extern void tx_packets(void *devp);
 	prof_start(create_packet_signature, tx_packets);
 
@@ -755,8 +754,6 @@ finish:
 STATIC_FUNC
 int32_t create_dsc_tlv_version(struct tx_frame_iterator *it)
 {
-	TRACE_FUNCTION_CALL;
-
 	struct dsc_msg_version *dsc = (struct dsc_msg_version *) tx_iterator_cache_msg_ptr(it);
 	DESC_SQN_T descSqn = newDescriptionSqn(NULL, 1);
 
@@ -775,7 +772,6 @@ int32_t create_dsc_tlv_version(struct tx_frame_iterator *it)
 STATIC_FUNC
 int32_t process_dsc_tlv_version(struct rx_frame_iterator *it)
 {
-	TRACE_FUNCTION_CALL;
 	assertion(-502321, IMPLIES(it->op == TLV_OP_NEW || it->op == TLV_OP_DEL, it->on));
 
 	if (it->op != TLV_OP_TEST && it->op != TLV_OP_NEW)
@@ -811,8 +807,6 @@ int32_t process_dsc_tlv_version(struct rx_frame_iterator *it)
 STATIC_FUNC
 int create_dsc_tlv_nodeKey(struct tx_frame_iterator *it)
 {
-	TRACE_FUNCTION_CALL;
-
 	assertion(-502742, (my_NodeKey));
 
 	struct dsc_msg_pubkey *msg = ((struct dsc_msg_pubkey*) tx_iterator_cache_msg_ptr(it));
@@ -879,8 +873,6 @@ void createMyDhmLinkKey(IDM_T randomLifetime)
 STATIC_FUNC
 int create_dsc_tlv_dhmLinkKey(struct tx_frame_iterator *it)
 {
-	TRACE_FUNCTION_CALL;
-
 	if (!linkDhmSignType) {
 		assertion(-502745, (!my_DhmLinkKey));
 		return TLV_TX_DATA_IGNORED;
@@ -918,8 +910,6 @@ int create_dsc_tlv_dhmLinkKey(struct tx_frame_iterator *it)
 STATIC_FUNC
 int process_dsc_tlv_dhmLinkKey(struct rx_frame_iterator *it)
 {
-
-	TRACE_FUNCTION_CALL;
 	char *goto_error_code = NULL;
 	int32_t msgLen = it->f_dlen;
 	struct dsc_msg_dhm_link_key *msg = (struct dsc_msg_dhm_link_key*) (it->f_data);
@@ -990,8 +980,6 @@ void createMyRsaLinkKey(IDM_T randomLifetime)
 STATIC_FUNC
 int create_dsc_tlv_rsaLinkKey(struct tx_frame_iterator *it)
 {
-	TRACE_FUNCTION_CALL;
-
 	if (!linkRsaSignType) {
 		assertion(-502203, (!my_RsaLinkKey));
 		return TLV_TX_DATA_DONE;
@@ -1031,8 +1019,6 @@ int create_dsc_tlv_rsaLinkKey(struct tx_frame_iterator *it)
 STATIC_FUNC
 int process_dsc_tlv_pubKey(struct rx_frame_iterator *it)
 {
-	TRACE_FUNCTION_CALL;
-
 	char *goto_error_code = NULL;
 	CRYPTRSA_T *pkey = NULL;
 	int32_t key_len = it->f_dlen - sizeof(struct dsc_msg_pubkey);
@@ -1085,8 +1071,6 @@ finish:
 STATIC_FUNC
 int create_dsc_tlv_signature(struct tx_frame_iterator *it)
 {
-	TRACE_FUNCTION_CALL;
-
 	static struct dsc_msg_signature *signMsg = NULL;
 	static int32_t dataOffset = 0;
 
@@ -1140,8 +1124,6 @@ int create_dsc_tlv_signature(struct tx_frame_iterator *it)
 STATIC_FUNC
 int process_dsc_tlv_signature(struct rx_frame_iterator *it)
 {
-	TRACE_FUNCTION_CALL;
-
 	ASSERTION(-502482, IMPLIES(it->f_type == BMX_DSC_TLV_DSC_SIGNATURE && it->op == TLV_OP_TEST,
 		test_description_signature(it->dcOp->desc_frame, it->dcOp->desc_frame_len)));
 
@@ -1540,8 +1522,6 @@ int32_t opt_key_path(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct op
 
 int32_t opt_linkSigning(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
 {
-	TRACE_FUNCTION_CALL;
-
 	if (cmd == OPT_CHECK || cmd == OPT_APPLY) {
 
 
@@ -2108,8 +2088,6 @@ void check_nodes_dir(void *dirWatchPtr)
 
 void inotify_event_hook(int fd)
 {
-	TRACE_FUNCTION_CALL;
-
 	struct DirWatch *dw = avl_find_item(&dirWatch_tree, &fd);
 	assertion(-501278, (fd > -1 && dw && dw->ifd == fd));
 

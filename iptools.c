@@ -284,8 +284,6 @@ IDM_T is_ip_set(const IPX_T *ip)
 
 IDM_T is_ip_valid(const IPX_T *ip, const uint8_t family)
 {
-	TRACE_FUNCTION_CALL;
-
 	if (!is_ip_set(ip))
 		return NO;
 
@@ -309,7 +307,6 @@ IDM_T is_ip_valid(const IPX_T *ip, const uint8_t family)
 
 IDM_T ip_netmask_validate(IPX_T *ipX, uint8_t mask, uint8_t family, uint8_t force)
 {
-	TRACE_FUNCTION_CALL;
 	uint8_t nmask = mask;
 	int i;
 	IP4_T ip32 = 0, m32 = 0;

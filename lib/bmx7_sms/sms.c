@@ -171,8 +171,6 @@ void check_for_changed_sms(void *unused)
 STATIC_FUNC
 void inotify_sms_event_hook(int fd)
 {
-	TRACE_FUNCTION_CALL;
-
 	dbgf_track(DBGT_INFO, "detected changes in directory: %s", smsTx_dir);
 
 	assertion(-501278, (fd > -1 && fd == inotify_fd));

@@ -295,7 +295,6 @@ uint32_t get_if_index(IFNAME_T *name)
 STATIC_FUNC
 void add_rtattr(struct nlmsghdr *nlh, int rta_type, char *data, uint16_t data_len, uint16_t family)
 {
-	TRACE_FUNCTION_CALL;
 	IP4_T ip4;
 	if (family == AF_INET) {
 		ip4 = ipXto4((*((IPX_T*) data)));
@@ -604,7 +603,6 @@ IDM_T rtnl_talk(struct rtnl_handle *iprth, struct nlmsghdr *nlh, uint16_t cmd, u
 STATIC_FUNC
 IDM_T kernel_get_if_config_post(IDM_T purge_all, uint16_t curr_sqn)
 {
-	TRACE_FUNCTION_CALL;
 	uint16_t changed = 0;
 	struct if_link_node *iln;
 	int index = 0;
@@ -686,7 +684,6 @@ IDM_T kernel_get_if_config_post(IDM_T purge_all, uint16_t curr_sqn)
 STATIC_FUNC
 void kernel_get_if_addr_config(struct nlmsghdr *nh, void *index_sqnp)
 {
-	TRACE_FUNCTION_CALL;
 	uint16_t index_sqn = *((uint16_t*) index_sqnp);
 	struct ifaddrmsg *if_addr = NLMSG_DATA(nh);
 	int index = if_addr->ifa_index;
@@ -874,8 +871,6 @@ IDM_T is_ip_local(IPX_T *ip)
 STATIC_FUNC
 void kernel_get_if_link_config(struct nlmsghdr *nh, void *update_sqnp)
 {
-	TRACE_FUNCTION_CALL;
-
 	uint16_t update_sqn = *((uint16_t*) update_sqnp);
 
 	struct ifinfomsg *if_link_info = NLMSG_DATA(nh);
@@ -977,8 +972,6 @@ void kernel_get_if_link_config(struct nlmsghdr *nh, void *update_sqnp)
 
 static IDM_T kernel_get_if_config(void)
 {
-	TRACE_FUNCTION_CALL;
-
 	static uint16_t index_sqn = 0;
 	int ai;
 
@@ -1676,7 +1669,6 @@ IDM_T iptrack(const struct net_key *net, uint16_t cmd, uint8_t quiet, int8_t del
 
 	// DONT USE setNet() here (because return pointer is static)!!!!!!!!!!!!!
 
-	TRACE_FUNCTION_CALL;
 	assertion(-501232, (net));
 	assertion(-500628, (cmd != IP_NOP));
 	assertion(-500629, (cmd != IP_ROUTE_FLUSH && cmd != IP_RULE_FLUSH && cmd != IP_RULE_TEST));
@@ -1789,7 +1781,6 @@ IDM_T iproute(uint16_t cmd, int8_t del, uint8_t quiet, const struct net_key *dst
 {
 	// DONT USE setNet() here (because return pointer is static)!!!!!!!!!!!!!
 
-	TRACE_FUNCTION_CALL;
 	assertion(-501518, (cmd != IP_RULE_FLUSH && cmd != IP_ROUTE_FLUSH && cmd != IP_RULE_TEST));
 	assertion(-501234, (dst));
 	assertion(-500650, IMPLIES(is_ip_set(&dst->ip), is_ip_valid(&dst->ip, dst->af)));
@@ -1839,7 +1830,6 @@ IDM_T iproute(uint16_t cmd, int8_t del, uint8_t quiet, const struct net_key *dst
 
 IDM_T check_proc_sys_net(char *file, int32_t desired, IDM_T force)
 {
-	TRACE_FUNCTION_CALL;
 	FILE *f;
 	int32_t state = 0;
 	char filename[MAX_PATH_SIZE];
@@ -1885,8 +1875,6 @@ IDM_T check_proc_sys_net(char *file, int32_t desired, IDM_T force)
 
 void sysctl_config(struct dev_node *onlyDev)
 {
-	TRACE_FUNCTION_CALL;
-
 	static TIME_T checkstamp = -1;
 	char filename[100];
 	struct avl_node *an;
@@ -1940,8 +1928,6 @@ int8_t dev_bind_sock(int32_t sock, IFNAME_T *name)
 STATIC_FUNC
 void dev_reconfigure_soft(struct dev_node *dev)
 {
-	TRACE_FUNCTION_CALL;
-
 	assertion(-500611, (dev->active));
 	assertion(-500612, (dev->if_llocal_addr));
 	assertion(-500613, (dev->if_global_addr));
@@ -2007,8 +1993,6 @@ void dev_reconfigure_soft(struct dev_node *dev)
 STATIC_FUNC
 void dev_deactivate(struct dev_node *dev)
 {
-	TRACE_FUNCTION_CALL;
-
 	dbgf_sys(DBGT_WARN, "deactivating %s=%s llocal=%s global=%s",
 		ARG_DEV, dev->ifname_label.str, dev->ip_llocal_str, dev->ip_global_str);
 
@@ -2079,8 +2063,6 @@ void dev_deactivate(struct dev_node *dev)
 
 struct sockaddr_storage set_sockaddr_storage(uint8_t af, IPX_T *ipx, int32_t port)
 {
-	TRACE_FUNCTION_CALL;
-
 	union {
 		struct sockaddr_storage sosa;
 		struct sockaddr_in soin4;
@@ -2100,7 +2082,6 @@ STATIC_FUNC
 IDM_T dev_init_sockets(struct dev_node *dev)
 {
 
-	TRACE_FUNCTION_CALL;
 	assertion(-500618, (dev->linklayer != TYP_DEV_LL_LO));
 
 	int set_on = 1;
@@ -2204,8 +2185,6 @@ DEVIDX_T get_free_devidx(void)
 STATIC_FUNC
 void dev_activate(struct dev_node *dev)
 {
-	TRACE_FUNCTION_CALL;
-
 	assertion(-500575, (dev && !dev->active && dev->if_llocal_addr && dev->if_llocal_addr->iln->flags & IFF_UP));
 	assertion(-500593, (AF_INET6 == dev->if_llocal_addr->ifa.ifa_family));
 	assertion(-500599, (is_ip_set(&dev->if_llocal_addr->ip_addr) && dev->if_llocal_addr->ifa.ifa_prefixlen));
@@ -2331,8 +2310,6 @@ void del_route_list_nlhdr(struct nlmsghdr *nh, void *tablep)
 
 void ip_flush_routes(uint8_t family, int32_t table_macro)
 {
-	TRACE_FUNCTION_CALL;
-
 	uint32_t table = table_macro_to_table(table_macro);
 
 	if (table == DEF_IP_TABLE_MAIN || policy_routing != POLICY_RT_ENABLED || !ip_prio_rules_cfg)
@@ -2343,8 +2320,6 @@ void ip_flush_routes(uint8_t family, int32_t table_macro)
 
 void ip_flush_rules(uint8_t family, int32_t table_macro)
 {
-	TRACE_FUNCTION_CALL;
-
 	struct net_key net = family == AF_INET ? ZERO_NET4_KEY : ZERO_NET6_KEY;
 
 	uint32_t table = table_macro_to_table(table_macro);
@@ -2360,7 +2335,6 @@ void ip_flush_rules(uint8_t family, int32_t table_macro)
 STATIC_FUNC
 void ip_flush_tracked(uint16_t cmd)
 {
-	TRACE_FUNCTION_CALL;
 	struct avl_node *an;
 	struct track_node *tn;
 
@@ -2383,7 +2357,6 @@ int update_interface_rules(void)
 {
 	//	IDM_T TODO_instead_of_throwing_my_nets_only_announced_nets_are_hna_allowed_or_discarded;
 
-	TRACE_FUNCTION_CALL;
 	assertion(-501130, (policy_routing != POLICY_RT_UNSET));
 
 	//        ip_flush_tracked(IP_THROW_MY_HNA);
@@ -2479,8 +2452,6 @@ struct net_key bmx7AutoEUI64Ip6(ADDR_T mac, struct net_key *prefix)
 STATIC_INLINE_FUNC
 void dev_if_fix(void)
 {
-	TRACE_FUNCTION_CALL;
-
 	assertion(-502042, (myKey && is_ip_set(&my_primary_ip)));
 
 	struct if_link_node *iln = avl_first_item(&if_link_tree);
@@ -2622,7 +2593,6 @@ void dev_if_fix(void)
 
 static void dev_check(void *kernel_ip_config_changed)
 {
-	TRACE_FUNCTION_CALL;
 	prof_start(dev_check, main);
 
 	struct avl_node *an;
@@ -2720,7 +2690,6 @@ static void dev_check(void *kernel_ip_config_changed)
 
 static void recv_ifevent_netlink_sk(int sk)
 {
-	TRACE_FUNCTION_CALL;
 	char buf[4096]; //test this with a very small value !!
 	struct sockaddr_nl sa;
 	struct iovec iov = { .iov_base = buf, .iov_len = sizeof(buf) };
@@ -2946,8 +2915,6 @@ static void get_rule_list_nlhdr(struct nlmsghdr *nh, void *unused)
 
 static void recv_ruleEvent_netlink_sk(int sk)
 {
-	TRACE_FUNCTION_CALL;
-
 	dbgf_track(DBGT_INFO, "detected changed rules! Going to check...");
 
 	if (rtnl_rcv(sk, 0, 0, IP_ROUTE_GET, NO, NULL, NULL) != SUCCESS) {
@@ -2982,7 +2949,6 @@ static void recv_ruleEvent_netlink_sk(int sk)
 STATIC_FUNC
 int32_t opt_ip_version(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
 {
-	TRACE_FUNCTION_CALL;
 	static int nl_rule_event_sk = 0;
 
 	if (cmd == OPT_CHECK) {
@@ -3187,9 +3153,6 @@ static int32_t dev_status_creator(struct status_handl *handl, void* data)
 STATIC_FUNC
 int32_t opt_dev_prefix(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
 {
-	TRACE_FUNCTION_CALL;
-
-
 	if ((cmd == OPT_ADJUST || cmd == OPT_CHECK || cmd == OPT_APPLY)) {
 
 		struct net_key prefix = ZERO_NETCFG_KEY;
@@ -3241,9 +3204,6 @@ int32_t opt_dev_prefix(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
 STATIC_FUNC
 int32_t opt_auto_prefix(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
 {
-	TRACE_FUNCTION_CALL;
-
-
 	if (cmd == OPT_REGISTER) {
 
 		autoconf_prefix_cfg = ZERO_NET6_KEY;
@@ -3311,8 +3271,6 @@ void dev_destroy(struct dev_node *dev)
 STATIC_FUNC
 int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
 {
-	TRACE_FUNCTION_CALL;
-
 	struct dev_node *dev = NULL;
 
 	if (cmd == OPT_ADJUST || cmd == OPT_CHECK || cmd == OPT_APPLY) {

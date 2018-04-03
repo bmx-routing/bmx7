@@ -110,7 +110,6 @@ uint8_t set_hna_to_key(struct net_key *key, struct dsc_msg_hna6 *uhna6)
 
 uint32_t create_tlv_hna(uint8_t* data, uint32_t max_size, uint32_t pos, struct net_key *net, uint8_t flags)
 {
-	TRACE_FUNCTION_CALL;
 	assertion(-502039, (net->af == AF_INET6));
 	uint32_t i;
 
@@ -147,7 +146,6 @@ uint32_t create_tlv_hna(uint8_t* data, uint32_t max_size, uint32_t pos, struct n
 STATIC_FUNC
 int create_dsc_tlv_hna(struct tx_frame_iterator *it)
 {
-	TRACE_FUNCTION_CALL;
 	assertion(-500765, (it->frame_type == BMX_DSC_TLV_HNA6));
 
 	uint8_t *data = tx_iterator_cache_msg_ptr(it);
@@ -217,7 +215,6 @@ struct hna_node * find_overlapping_hna(IPX_T *ipX, uint8_t prefixlen, struct ori
 STATIC_FUNC
 void configure_hna_(IDM_T del, struct net_key* key, struct orig_node *on, uint8_t flags)
 {
-	TRACE_FUNCTION_CALL;
 	struct hna_node *un = avl_find_item(&global_uhna_tree, key);
 
 	assertion(-500236, ((del && un) != (!del && !un)));
@@ -279,7 +276,6 @@ static uint32_t hna_net_key_elements = 0;
 STATIC_FUNC
 int process_dsc_tlv_hna(struct rx_frame_iterator *it)
 {
-	TRACE_FUNCTION_CALL;
 	ASSERTION(-500357, (it->f_type == BMX_DSC_TLV_HNA6));
 
 	struct orig_node *on = it->on;
@@ -411,8 +407,6 @@ int process_dsc_tlv_hna(struct rx_frame_iterator *it)
 STATIC_FUNC
 int32_t opt_uhna(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
 {
-	TRACE_FUNCTION_CALL;
-
 	if (cmd == OPT_ADJUST || cmd == OPT_CHECK || cmd == OPT_APPLY) {
 
 		struct net_key hna = ZERO_NETCFG_KEY;
@@ -487,8 +481,6 @@ STATIC_FUNC
 STATIC_FUNC
 void hna_route_change_hook(uint8_t del, struct orig_node *on)
 {
-	TRACE_FUNCTION_CALL;
-
 	dbgf_all(DBGT_INFO, "nodeId=%s", cryptShaAsString(&on->k.nodeId));
 
 	if (!is_ip_set(&on->primary_ip))
@@ -501,8 +493,6 @@ void hna_route_change_hook(uint8_t del, struct orig_node *on)
 STATIC_FUNC
 void hna_cleanup(void)
 {
-	TRACE_FUNCTION_CALL;
-
 	set_route_change_hooks(hna_route_change_hook, DEL);
 
 	if (hna_net_keys)
@@ -512,8 +502,6 @@ void hna_cleanup(void)
 STATIC_FUNC
 int32_t hna_init(void)
 {
-	TRACE_FUNCTION_CALL;
-
 	static const struct field_format hna6_format[] = DESCRIPTION_MSG_HNA6_FORMAT;
 
 	struct frame_handl tlv_handl;

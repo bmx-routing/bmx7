@@ -543,21 +543,6 @@ enum {
 #endif
 
 
-#ifndef NO_TRACE_FUNCTION_CALLS
-
-#define FUNCTION_CALL_BUFFER_SIZE 64
-
-void trace_function_call(const char *);
-
-#define TRACE_FUNCTION_CALL trace_function_call ( __func__ )
-
-#else
-
-#define TRACE_FUNCTION_CALL
-
-#endif
-
-
 void wait_sec_usec(TIME_SEC_T sec, TIME_T usec);
 
 void cleanup_all(int32_t status);

@@ -214,8 +214,6 @@ void free_frame_db(struct frame_db **db)
 
 void register_frame_handler(struct frame_db *db, int pos, struct frame_handl *handl)
 {
-	TRACE_FUNCTION_CALL;
-
 	assertion(-500659, (pos <= db->handl_max));
 	assertion(-500660, (!db->handls[pos].name)); // the pos MUST NOT be used yet
 	assertion(-500661, (handl && handl->name));
@@ -273,7 +271,6 @@ int8_t missed_mandatory_frames(struct rx_frame_iterator *it, int8_t f_start, int
 
 int32_t rx_frame_iterate(struct rx_frame_iterator *it)
 {
-	TRACE_FUNCTION_CALL;
 	char *goto_error_code = NULL;
 	it->f_type_expanded = ((it->f_type == -1) ? -1 : it->f_type_expanded); //avoids init to -1
 	int8_t f_type_prev = it->f_type_expanded;
@@ -498,8 +495,6 @@ rx_frame_iterate_error:
 STATIC_FUNC
 int8_t send_bmx_packet(LinkNode *unicast, struct packet_buff *pb, struct dev_node *dev, int len)
 {
-	TRACE_FUNCTION_CALL;
-
 	if (!dev->active || dev->linklayer == TYP_DEV_LL_LO)
 		return 0;
 
@@ -650,7 +645,6 @@ int32_t _tx_iterator_cache_data_space(struct tx_frame_iterator *it, IDM_T max, i
 STATIC_FUNC
 void tx_frame_iterate_finish_(struct tx_frame_iterator *it)
 {
-	TRACE_FUNCTION_CALL;
 	struct frame_handl *handl = &(it->db->handls[it->frame_type]);
 	int32_t fdata_len = it->frame_cache_msgs_size + handl->data_header_size;
 	struct tlv_hdr *tlv = (struct tlv_hdr *) (it->frames_out_ptr + it->frames_out_pos);
@@ -693,8 +687,6 @@ void tx_frame_iterate_finish_(struct tx_frame_iterator *it)
  * iterates over to be created frames and stores them (including frame_header) in it->frames_out  */
 int32_t tx_frame_iterate(IDM_T iterate_msg, struct tx_frame_iterator *it)
 {
-	TRACE_FUNCTION_CALL;
-
 	if (it->ttn)
 		it->frame_type = it->ttn->key.f.type;
 
@@ -764,8 +756,6 @@ int32_t tx_frame_iterate(IDM_T iterate_msg, struct tx_frame_iterator *it)
 
 IDM_T purge_tx_task_tree(LinkNode *onlyUnicast, struct neigh_node *onlyNeigh, struct dev_node *onlyDev, struct tx_task_node *onlyTtn, IDM_T force)
 {
-	TRACE_FUNCTION_CALL;
-
 	assertion(-502654, ((!!onlyUnicast + !!onlyNeigh + !!onlyDev + !!onlyTtn) <= 1));
 
 
@@ -836,8 +826,6 @@ TIME_T nextBucketSchedule(TIME_T minInterval, TIME_T drainInterval, TIME_T maxIn
 
 void tx_packets(void *unused)
 {
-
-	TRACE_FUNCTION_CALL;
 	static TIME_T txCasualNext = 0;
 	static TIME_T txBucketLast = 0;
 	struct tx_task_node *nextTask = NULL;
@@ -978,8 +966,6 @@ void tx_packets(void *unused)
 
 void schedule_tx_task(uint8_t f_type, LinkNode *unicast, CRYPTSHA_T *groupId, struct neigh_node *neigh, struct dev_node *dev, int16_t f_msgs_len, void *keyData, uint32_t keyLen)
 {
-	TRACE_FUNCTION_CALL;
-
 	assertion(-502447, (f_type <= FRAME_TYPE_MAX));
 	assertion(-502448, IMPLIES(dev, dev->active && dev->linklayer != TYP_DEV_LL_LO));
 	assertion(-501047, (!cleaning_up)); // this function MUST NOT be called during cleanup
@@ -1049,7 +1035,6 @@ void schedule_tx_task(uint8_t f_type, LinkNode *unicast, CRYPTSHA_T *groupId, st
 STATIC_FUNC
 IDM_T rx_frames(struct packet_buff *pb)
 {
-	TRACE_FUNCTION_CALL;
 	int32_t result;
 
 	struct rx_frame_iterator it = {
@@ -1077,7 +1062,6 @@ struct packet_buff *curr_rx_packet = NULL;
 
 void rx_packet(struct packet_buff *pb)
 {
-	TRACE_FUNCTION_CALL;
 	prof_start(rx_packet, main);
 	char *goto_error_code = NULL;
 

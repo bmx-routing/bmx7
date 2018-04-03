@@ -271,8 +271,6 @@ void init_iwinfo_handler(int32_t cb_id, void* devp)
 STATIC_FUNC
 int32_t tx_frame_trash_adv(struct tx_frame_iterator *it)
 {
-	TRACE_FUNCTION_CALL;
-
 	LinkNode *link = it->ttn->key.f.p.unicast;
 	struct tp_test_key *tk = (struct tp_test_key*) it->ttn->key.data;
 	static struct timeval tmp;
@@ -310,8 +308,6 @@ int32_t tx_frame_trash_adv(struct tx_frame_iterator *it)
 STATIC_FUNC
 int32_t rx_frame_trash_adv(struct rx_frame_iterator *it)
 {
-	TRACE_FUNCTION_CALL;
-
 	// WARNING: Using more verbose debuglevel here distorts link-capacity measurements !!!
 	dbgf_all(DBGT_INFO, "size=%d dev=%s unicast=%d src=%s claimedId=%s",
 		it->f_dlen, it->pb->i.iif->ifname_label.str, it->pb->i.unicast, it->pb->i.llip_str, cryptShaAsShortStr(&it->pb->p.hdr.keyHash));

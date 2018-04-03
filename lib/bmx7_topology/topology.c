@@ -339,8 +339,6 @@ int create_description_topology(struct tx_frame_iterator *it)
 STATIC_FUNC
 int32_t opt_topology(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
 {
-	TRACE_FUNCTION_CALL;
-
 	static int32_t scheduled_period = MIN_TOPOLOGY_PERIOD;
 
 	if (!terminating && cmd == OPT_POST && my_topology_period_sec != scheduled_period) {

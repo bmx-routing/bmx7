@@ -314,8 +314,6 @@ int32_t sync_redist_routes(IDM_T cleanup, IDM_T resync);
 
 static void recv_rtevent_netlink_sk(int sk)
 {
-	TRACE_FUNCTION_CALL;
-
 	dbgf_all(DBGT_INFO, "detected changed routes! Going to check...");
 
 	int result = rtnl_rcv(sk, 0, 0, IP_ROUTE_GET, NO, get_route_list_nlhdr, NULL);
@@ -418,7 +416,6 @@ int32_t sync_redist_routes(IDM_T cleanup, IDM_T resync)
 STATIC_FUNC
 int32_t opt_redistribute(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
 {
-	TRACE_FUNCTION_CALL;
 	static uint8_t changed = NO;
 	static uint8_t initialized = NO;
 

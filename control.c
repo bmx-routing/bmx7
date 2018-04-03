@@ -253,8 +253,6 @@ void activate_debug_system(void)
 
 struct ctrl_node *create_ctrl_node(int fd, void (*cn_fd_handler) (struct ctrl_node *), uint8_t authorized)
 {
-	TRACE_FUNCTION_CALL;
-
 	struct ctrl_node *cn = debugMallocReset(sizeof(struct ctrl_node), -300010);
 
 	list_add_tail(&ctrl_list, &cn->list);

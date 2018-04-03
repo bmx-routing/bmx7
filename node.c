@@ -483,7 +483,6 @@ void neighRefs_update(struct key_node *kn)
 
 int purge_orig_router(struct orig_node *onlyOrig, struct neigh_node *onlyNeigh, LinkNode *onlyLink, IDM_T onlyUseless)
 {
-	TRACE_FUNCTION_CALL;
 	int removed = 0;
 	struct orig_node *on;
 	struct avl_node *an = NULL;

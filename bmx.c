@@ -114,37 +114,6 @@ IDM_T validate_param(int32_t probe, int32_t min, int32_t max, char *name)
  Runtime Infrastructure
  ************************************************************/
 
-
-#ifndef NO_TRACE_FUNCTION_CALLS
-static char* function_call_buffer_name_array[FUNCTION_CALL_BUFFER_SIZE] = { 0 };
-static TIME_T function_call_buffer_time_array[FUNCTION_CALL_BUFFER_SIZE] = { 0 };
-static uint8_t function_call_buffer_pos = 0;
-
-static void debug_function_calls(void)
-{
-	uint8_t i;
-	for (i = function_call_buffer_pos + 1; i != function_call_buffer_pos; i = ((i + 1) % FUNCTION_CALL_BUFFER_SIZE)) {
-
-		if (!function_call_buffer_name_array[i])
-			continue;
-
-		dbgf_sys(DBGT_ERR, "%10d %s()", function_call_buffer_time_array[i], function_call_buffer_name_array[i]);
-
-	}
-}
-
-void trace_function_call(const char *func)
-{
-	if (function_call_buffer_name_array[function_call_buffer_pos] != func) {
-		function_call_buffer_time_array[function_call_buffer_pos] = bmx_time;
-		function_call_buffer_name_array[function_call_buffer_pos] = (char*) func;
-		function_call_buffer_pos = ((function_call_buffer_pos + 1) % FUNCTION_CALL_BUFFER_SIZE);
-	}
-}
-
-
-#endif
-
 char *get_human_uptime(uint32_t reference)
 {
 	//                  DD:HH:MM:SS
@@ -165,8 +134,6 @@ char *get_human_uptime(uint32_t reference)
 
 void wait_sec_usec(TIME_SEC_T sec, TIME_T usec)
 {
-
-	TRACE_FUNCTION_CALL;
 	struct timeval time;
 
 	// no debugging here because this is called from debug_output() -> dbg_fprintf() which may case a loop!
@@ -182,7 +149,6 @@ void wait_sec_usec(TIME_SEC_T sec, TIME_T usec)
 static void handler(int32_t sig)
 {
 
-	TRACE_FUNCTION_CALL;
 	if (!Client_mode) {
 		dbgf_sys(DBGT_ERR, "called with signal %d", sig);
 	}
@@ -194,7 +160,6 @@ static void handler(int32_t sig)
 
 static void segmentation_fault(int32_t sig)
 {
-	TRACE_FUNCTION_CALL;
 	static int segfault = NO;
 
 	if (!segfault) {
@@ -202,10 +167,6 @@ static void segmentation_fault(int32_t sig)
 		segfault = YES;
 
 		dbg_sys(DBGT_ERR, "First SIGSEGV %d received, try cleaning up...", sig);
-
-#ifndef NO_TRACE_FUNCTION_CALLS
-		debug_function_calls();
-#endif
 
 		dbg(DBGL_SYS, DBGT_ERR, "Terminating with error code %d (%s-%s-rev%.7x)! Please notify a developer",
 			sig, BMX_BRANCH, BRANCH_VERSION, bmx_git_rev_u32);
@@ -234,8 +195,6 @@ static void segmentation_fault(int32_t sig)
 
 void cleanup_all(int32_t status)
 {
-	TRACE_FUNCTION_CALL;
-
 	if (status < 0) {
 		segmentation_fault(status);
 	}
@@ -499,7 +458,6 @@ char *field_dbg_value(const struct field_format *format, uint32_t min_msg_size, 
 
 uint32_t field_iterate(struct field_iterator *it)
 {
-	TRACE_FUNCTION_CALL;
 	assertion(-501171, IMPLIES(it->data_size, it->data));
 
 	const struct field_format *format;
@@ -604,7 +562,6 @@ int16_t field_format_get_items(const struct field_format *format)
 uint32_t fields_dbg_lines(struct ctrl_node *cn, uint16_t relevance, uint32_t data_size, uint8_t *data,
 	uint32_t min_msg_size, const struct field_format *format)
 {
-	TRACE_FUNCTION_CALL;
 	assertion(-501209, format);
 
 	uint32_t msgs_size = 0;
@@ -641,7 +598,6 @@ uint32_t fields_dbg_lines(struct ctrl_node *cn, uint16_t relevance, uint32_t dat
 uint32_t fields_dbg_table(struct ctrl_node *cn, uint16_t relevance, uint32_t data_size, uint8_t *data,
 	uint32_t min_msg_size, const struct field_format *format)
 {
-	TRACE_FUNCTION_CALL;
 	assertion(-501255, (format && data && cn));
 
 	uint16_t field_string_sizes[FIELD_FORMAT_MAX_ITEMS] = { 0 };
@@ -1337,8 +1293,6 @@ static int32_t ref_status_creator(struct status_handl *handl, void *data)
 STATIC_FUNC
 int32_t opt_version(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
 {
-	TRACE_FUNCTION_CALL;
-
 	if (cmd != OPT_APPLY)
 		return SUCCESS;
 
@@ -1359,8 +1313,6 @@ int32_t opt_status_generic(uint8_t cmd, uint8_t _save, struct opt_type *opt, str
 	uint32_t(fields_dbg_func) (struct ctrl_node *cn, uint16_t relevance, uint32_t data_size, uint8_t *data, uint32_t min_msg_size, const struct field_format *format)
 	)
 {
-	TRACE_FUNCTION_CALL;
-
 	if (cmd == OPT_CHECK || cmd == OPT_APPLY) {
 
 		int32_t relevance = get_opt_child_val_int(opt, patch, ARG_RELEVANCE, DEF_RELEVANCE);
@@ -1412,8 +1364,6 @@ int32_t opt_list_show(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct o
 
 int32_t opt_flush_all(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
 {
-	TRACE_FUNCTION_CALL;
-
 	if (cmd == OPT_APPLY) {
 		purge_tx_task_tree(NULL, NULL, NULL, NULL, YES);
 		keyNodes_cleanup(KCNull, myKey);

@@ -111,8 +111,6 @@ void upd_timeaware_tq_probe(LinkNode *link)
 STATIC_FUNC
 void lndev_assign_best(struct neigh_node *onlyLocal, LinkNode *onlyLink)
 {
-	TRACE_FUNCTION_CALL;
-
 	assertion(-501133, (IMPLIES(onlyLink, onlyLocal && onlyLocal == onlyLink->k.linkDev->key.local)));
 	ASSERTION(-500792, (IMPLIES(onlyLink, onlyLink->k.linkDev == avl_find_item(&onlyLocal->linkDev_tree, &onlyLink->k.linkDev->key.devIdx))));
 
@@ -189,8 +187,6 @@ void lndev_assign_best(struct neigh_node *onlyLocal, LinkNode *onlyLink)
 
 uint16_t purge_linkDevs(LinkDevNode *onlyLinkDev, struct dev_node *onlyDev, LinkNode *onlyLink, IDM_T onlyExpired, IDM_T purgeLocal)
 {
-	TRACE_FUNCTION_CALL;
-
 	uint16_t removed = 0;
 	LinkDevNode *linkDev;
 	LinkDevKey linkDevKey;
@@ -324,8 +320,6 @@ IDM_T updateNeighDevId(struct neigh_node *nn, struct desc_content *contents)
 
 LinkNode *getLinkNode(struct dev_node *dev, IPX_T *llip, DEVIDX_T idx, struct neigh_node *verifiedNeigh)
 {
-	TRACE_FUNCTION_CALL;
-
 	LinkNode *link = NULL;
 	LinkDevNode *linkDev = NULL;
 
@@ -389,8 +383,6 @@ LinkNode *getLinkNode(struct dev_node *dev, IPX_T *llip, DEVIDX_T idx, struct ne
 STATIC_FUNC
 void update_link_probe_record(LinkNode *link, HELLO_SQN_T sqn, uint8_t probe)
 {
-
-	TRACE_FUNCTION_CALL;
 	LinkDevNode *linkDev = link->k.linkDev;
 	struct lndev_probe_record *lpr = &link->rq_probe_record;
 
@@ -469,7 +461,6 @@ void update_link_probe_record(LinkNode *link, HELLO_SQN_T sqn, uint8_t probe)
 STATIC_FUNC
 int32_t opt_link_metric(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
 {
-	TRACE_FUNCTION_CALL;
 	static int32_t my_link_window_prev = DEF_HELLO_SQN_WINDOW;
 
 	if (cmd == OPT_APPLY && !strcmp(opt->name, ARG_HELLO_SQN_WINDOW)) {
@@ -510,7 +501,6 @@ int32_t opt_link_metric(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
 STATIC_FUNC
 int process_dsc_tlv_llip(struct rx_frame_iterator *it)
 {
-	TRACE_FUNCTION_CALL;
 	uint8_t op = it->op;
 
 	if (op == TLV_OP_TEST) {
@@ -544,8 +534,6 @@ int process_dsc_tlv_llip(struct rx_frame_iterator *it)
 STATIC_FUNC
 int create_dsc_tlv_llip(struct tx_frame_iterator *it)
 {
-	TRACE_FUNCTION_CALL;
-
 	struct dsc_msg_llip *msg = (struct dsc_msg_llip *) tx_iterator_cache_msg_ptr(it);
 	int m = 0;
 	struct avl_node *an = NULL;
@@ -568,7 +556,6 @@ int create_dsc_tlv_llip(struct tx_frame_iterator *it)
 STATIC_FUNC
 int32_t tx_msg_hello_adv(struct tx_frame_iterator *it)
 {
-	TRACE_FUNCTION_CALL;
 	assertion(-500771, (tx_iterator_cache_data_space_pref(it, 0, 0) >= ((int) sizeof(struct msg_hello_adv))));
 
 	struct tx_task_node *ttn = it->ttn;
@@ -626,7 +613,6 @@ void schedule_hello_adv(void)
 STATIC_FUNC
 int32_t rx_msg_hello_adv(struct rx_frame_iterator *it)
 {
-	TRACE_FUNCTION_CALL;
 	struct packet_buff *pb = it->pb;
 	assertion(-502427, (pb->i.verifiedLink));
 	LinkNode *link = pb->i.verifiedLink;
@@ -657,7 +643,6 @@ void schedule_hello_reply(void)
 STATIC_FUNC
 int32_t tx_msg_hello_reply(struct tx_frame_iterator *it)
 {
-	TRACE_FUNCTION_CALL;
 	DEVIDX_T *nbDevIdx = ((DEVIDX_T*) it->ttn->key.data);
 	struct neigh_node *neigh = it->ttn->neigh;
 	LinkDevNode *ldn = avl_find_item(&neigh->linkDev_tree, nbDevIdx);
@@ -690,7 +675,6 @@ int32_t tx_msg_hello_reply(struct tx_frame_iterator *it)
 STATIC_FUNC
 int32_t rx_msg_hello_reply(struct rx_frame_iterator *it)
 {
-	TRACE_FUNCTION_CALL;
 	struct packet_buff *pb = it->pb;
 	assertion(-502431, (pb->i.verifiedLink));
 	struct msg_hello_reply_dhash *msg = (struct msg_hello_reply_dhash *) it->f_msg;

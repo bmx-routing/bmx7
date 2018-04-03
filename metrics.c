@@ -157,8 +157,6 @@ IDM_T fmetric_cmp(FMETRIC_U16_T a, unsigned char cmp, FMETRIC_U16_T b)
 
 UMETRIC_T fmetric_to_umetric(FMETRIC_U16_T fm)
 {
-	TRACE_FUNCTION_CALL;
-
 	assertion(-500680, (is_fmetric_valid(fm)));
 
 	return(((UMETRIC_T) 1) << (fm.val.f.exp_fm16 + OGM_EXPONENT_OFFSET)) +
@@ -167,8 +165,6 @@ UMETRIC_T fmetric_to_umetric(FMETRIC_U16_T fm)
 
 FMETRIC_U16_T umetric_to_fmetric(UMETRIC_T val)
 {
-
-	TRACE_FUNCTION_CALL;
 
 	FMETRIC_U16_T fm = { .val.u16 = 0 };
 
@@ -619,7 +615,6 @@ void register_path_metricalgo(uint8_t algo_type_bit, void (*algo) (struct NeighP
 
 struct NeighPath *apply_metric_algo(struct NeighRef_node *ref, LinkNode *link, struct host_metricalgo *algo)
 {
-	TRACE_FUNCTION_CALL;
 	UMETRIC_T refMetric = fmetric_to_umetric(ref->ogmSqnMaxClaimedMetric);
 
 	assertion(-500823, (link->k.myDev->umetric_max));
@@ -689,8 +684,6 @@ struct NeighPath *apply_metric_algo(struct NeighRef_node *ref, LinkNode *link, s
 STATIC_FUNC
 IDM_T validate_metricalgo(struct host_metricalgo *ma, struct ctrl_node *cn)
 {
-	TRACE_FUNCTION_CALL;
-
 	if (
 		validate_param((ma->algo_type), MIN_METRIC_ALGO, MAX_METRIC_ALGO_RESERVED, ARG_PATH_METRIC_ALGO) ||
 		validate_param((ma->algo_rp_exp_numerator), MIN_PATH_XP_EXP_NUMERATOR, MAX_PATH_XP_EXP_NUMERATOR, ARG_PATH_RP_EXP_NUMERATOR) ||
@@ -729,7 +722,6 @@ IDM_T validate_metricalgo(struct host_metricalgo *ma, struct ctrl_node *cn)
 STATIC_FUNC
 IDM_T metricalgo_tlv_to_host(struct description_tlv_metricalgo *tlv_algo, struct host_metricalgo *host_algo, uint16_t size)
 {
-	TRACE_FUNCTION_CALL;
 	memset(host_algo, 0, sizeof(struct host_metricalgo));
 
 	if (size < sizeof(struct mandatory_tlv_metricalgo))
@@ -781,7 +773,6 @@ IDM_T metricalgo_tlv_to_host(struct description_tlv_metricalgo *tlv_algo, struct
 STATIC_FUNC
 int create_description_tlv_metricalgo(struct tx_frame_iterator *it)
 {
-	TRACE_FUNCTION_CALL;
 	struct description_tlv_metricalgo tlv_algo;
 
 	dbgf_track(DBGT_INFO, " size %zu", sizeof(struct description_tlv_metricalgo));
@@ -865,8 +856,6 @@ void metricalgo_assign(struct orig_node *on, struct host_metricalgo *host_algo)
 STATIC_FUNC
 void metrics_description_event_hook(int32_t cb_id, struct orig_node *on)
 {
-	TRACE_FUNCTION_CALL;
-
 	assertion(-501306, (on));
 	assertion(-501270, IMPLIES(cb_id == PLUGIN_CB_DESCRIPTION_CREATED, (on)));
 	assertion(-501273, (cb_id == PLUGIN_CB_DESCRIPTION_DESTROY || cb_id == PLUGIN_CB_DESCRIPTION_CREATED));
@@ -890,7 +879,6 @@ void metrics_description_event_hook(int32_t cb_id, struct orig_node *on)
 STATIC_FUNC
 int process_description_tlv_metricalgo(struct rx_frame_iterator *it)
 {
-	TRACE_FUNCTION_CALL;
 	assertion(-500683, (it->f_type == BMX_DSC_TLV_METRIC));
 
 	uint8_t op = it->op;
@@ -918,8 +906,6 @@ int process_description_tlv_metricalgo(struct rx_frame_iterator *it)
 STATIC_FUNC
 int32_t opt_path_metricalgo(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
 {
-	TRACE_FUNCTION_CALL;
-
 	if (cmd == OPT_REGISTER || cmd == OPT_CHECK || cmd == OPT_APPLY) {
 
 		struct host_metricalgo test_algo;

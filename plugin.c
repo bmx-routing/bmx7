@@ -46,7 +46,6 @@ int32_t plugin_data_registries[PLUGIN_DATA_SIZE];
 
 void cb_plugin_hooks(int32_t cb_id, void* data)
 {
-	TRACE_FUNCTION_CALL;
 	struct list_node *list_pos;
 	struct plugin_node *pn, *prev_pn = NULL;
 
@@ -119,7 +118,6 @@ void set_route_change_hooks(void (*cb_route_change_handler) (uint8_t del, struct
 
 void cb_route_change_hooks(uint8_t del, struct orig_node *dest)
 {
-	TRACE_FUNCTION_CALL;
 	struct list_node *list_pos;
 	struct cb_route_change_node *con, *prev_con = NULL;
 	struct neigh_node *local_router = dest->neighPath.link->k.linkDev->key.local;
@@ -155,8 +153,6 @@ void set_packet_hook(void (*cb_packet_handler) (struct packet_buff *), int8_t de
 
 void cb_packet_hooks(struct packet_buff *pb)
 {
-	TRACE_FUNCTION_CALL;
-
 	struct list_node *list_pos;
 	struct cb_packet_node *cpn, *prev_cpn = NULL;
 
@@ -189,8 +185,6 @@ void set_fd_hook(int32_t fd, void (*cb_fd_handler) (int32_t fd), int8_t del)
 
 int32_t get_plugin_data_registry(uint8_t data_type)
 {
-	TRACE_FUNCTION_CALL;
-
 	static int is_plugin_data_initialized = NO;
 
 	if (!is_plugin_data_initialized) {
@@ -207,8 +201,6 @@ int32_t get_plugin_data_registry(uint8_t data_type)
 
 void **get_plugin_data(void *data, uint8_t data_type, int32_t registry)
 {
-	TRACE_FUNCTION_CALL;
-
 	assertion(-501284, (data_type < PLUGIN_DATA_SIZE));
 	assertion(-501285, (registry < plugin_data_registries[data_type]));
 

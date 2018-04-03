@@ -123,7 +123,6 @@ STATIC_FUNC
 void schedule_ogm(struct orig_node *on)
 {
 	//	assertion(-502281, (on && ogmSqn && um));
-	TRACE_FUNCTION_CALL;
 	assertion(-502281, (on && on->neighPath.um));
 	struct desc_content *dc = on->dc;
 	UMETRIC_T um = on->neighPath.um;
@@ -195,7 +194,6 @@ void schedule_ogm(struct orig_node *on)
 STATIC_FUNC
 void schedule_my_originator_message(void)
 {
-	TRACE_FUNCTION_CALL;
 	struct orig_node *on = myKey->on;
 
 	dbgf_track(DBGT_INFO, "maxSend=%d range=%d", on->dc->ogmSqnMaxSend, on->dc->ogmSqnRange);
@@ -312,7 +310,6 @@ int32_t iterate_msg_ogm_adv(uint8_t *msgs, int32_t msgs_len, int32_t pos, IDM_T 
 STATIC_FUNC
 int32_t tx_frame_ogm_aggreg_sqn(struct tx_frame_iterator *it)
 {
-	TRACE_FUNCTION_CALL;
 	assertion(-500771, (tx_iterator_cache_data_space_pref(it, 0, 0) >= ((int) sizeof(struct msg_ogm_aggreg_sqn_adv))));
 
 	dbgf_all(DBGT_INFO, "max=%d size=%d", ogm_aggreg_sqn_max, ogm_aggreg_sqn_max_window_size);
@@ -428,8 +425,6 @@ int32_t tx_msg_ogm_aggreg_request(struct tx_frame_iterator *it)
 STATIC_FUNC
 int32_t rx_msg_ogm_aggreg_request(struct rx_frame_iterator *it)
 {
-	TRACE_FUNCTION_CALL;
-
 	struct hdr_ogm_aggreg_req *hdr = (struct hdr_ogm_aggreg_req*) (it->f_data);
 	struct msg_ogm_aggreg_req *msg = (struct msg_ogm_aggreg_req*) (it->f_msg);
 	AGGREG_SQN_T sqn = ntohs(msg->sqn);
@@ -743,8 +738,6 @@ int32_t rx_frame_ogm_aggreg_advs(struct rx_frame_iterator *it)
 
 int32_t opt_fake_agg_sqns(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
 {
-	TRACE_FUNCTION_CALL;
-
 	if (cmd == OPT_APPLY) {
 
 		int32_t val = patch->val ? strtol(patch->val, NULL, 10) : 0;

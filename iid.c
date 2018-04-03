@@ -63,8 +63,6 @@ struct iid_repos my_iid_repos = {0, 0, 0, 0, {NULL}};
 
 void iid_extend_repos(struct iid_repos *rep)
 {
-	TRACE_FUNCTION_CALL;
-
 	assertion(-500217, (rep != &my_iid_repos || rep->tot_used == rep->arr_size));
 
 	if (rep->arr_size + IID_REPOS_SIZE_BLOCK >= IID_REPOS_SIZE_WARN) {
@@ -93,8 +91,6 @@ void iid_extend_repos(struct iid_repos *rep)
 
 void iid_purge_repos(struct iid_repos *rep)
 {
-	TRACE_FUNCTION_CALL;
-
 	if (rep->arr.u8)
 		debugFree(rep->arr.u8, -300135);
 
@@ -104,7 +100,6 @@ void iid_purge_repos(struct iid_repos *rep)
 
 void iid_free(struct iid_repos *rep, IID_T iid)
 {
-	TRACE_FUNCTION_CALL;
 	rep = rep ? rep : &my_iid_repos;
 
 	assertion(-500330, (iid > IID_RSVD_MAX));
@@ -166,8 +161,6 @@ IID_T iid_get_myIID4x_by_node(MIID_T* miidn)
 
 MIID_T* iid_get_node_by_myIID4x(IID_T myIID4x)
 {
-	TRACE_FUNCTION_CALL;
-
 	if (my_iid_repos.max_free <= myIID4x)
 		return NULL;
 
@@ -204,7 +197,6 @@ IID_T iid_get_neighIID4x_by_node(NIID_T *niidn)
 
 NIID_T* iid_get_node_by_neighIID4x(struct iid_repos *rep, IID_T neighIID4x, IDM_T update)
 {
-	TRACE_FUNCTION_CALL;
 	struct iid_ref *ref = NULL;
 
 
@@ -226,7 +218,6 @@ NIID_T* iid_get_node_by_neighIID4x(struct iid_repos *rep, IID_T neighIID4x, IDM_
 STATIC_FUNC
 void _iid_set(struct iid_repos *rep, IID_T IIDpos, NIID_T *nbn, MIID_T *myn)
 {
-	TRACE_FUNCTION_CALL;
 	assertion(-500530, (rep));
 	assertion(-500535, (IIDpos >= IID_MIN_USED_FOR_SELF));
 	assertion(-502550, (XOR(nbn, myn))); // eihter the one ore the other !!
@@ -269,7 +260,6 @@ void _iid_set(struct iid_repos *rep, IID_T IIDpos, NIID_T *nbn, MIID_T *myn)
 
 IID_T iid_new_myIID4x(MIID_T *on)
 {
-	TRACE_FUNCTION_CALL;
 	IID_T mid;
 
 	assertion(-500216, (my_iid_repos.tot_used <= my_iid_repos.arr_size));
@@ -287,7 +277,6 @@ IID_T iid_new_myIID4x(MIID_T *on)
 
 void iid_set_neighIID4x(struct iid_repos *rep, IID_T neighIID4x, NIID_T *niidn)
 {
-	TRACE_FUNCTION_CALL;
 	assertion(-500326, (neighIID4x > IID_RSVD_MAX));
 	assertion(-500327, (niidn));
 	assertion(-500384, (rep && rep != &my_iid_repos));

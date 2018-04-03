@@ -81,7 +81,6 @@ static int32_t(*orig_rx_dsc_tlv_hna) (struct rx_frame_iterator *);
 STATIC_FUNC
 int32_t evil_tx_frame_description_adv(struct tx_frame_iterator *it)
 {
-	TRACE_FUNCTION_CALL;
 
 	if (evilDirWatch && (evilDescDropping || evilDescSqns)) {
 
@@ -118,7 +117,6 @@ int32_t evil_tx_frame_description_adv(struct tx_frame_iterator *it)
 STATIC_FUNC
 int32_t evil_tx_msg_dhash_adv(struct tx_frame_iterator *it)
 {
-	TRACE_FUNCTION_CALL;
 
 	if (evilDirWatch && evilDhashDropping) {
 
@@ -135,8 +133,6 @@ int32_t evil_tx_msg_dhash_adv(struct tx_frame_iterator *it)
 STATIC_FUNC
 int32_t evil_tx_frame_ogm_aggreg_advs(struct tx_frame_iterator *it)
 {
-	TRACE_FUNCTION_CALL;
-
 	struct hdr_ogm_adv *hdr = ((struct hdr_ogm_adv*) tx_iterator_cache_hdr_ptr(it));
 	AGGREG_SQN_T *sqn = ((AGGREG_SQN_T *) it->ttn->key.data);
 	struct OgmAggreg_node *oan = getOgmAggregNode(*sqn);
@@ -342,7 +338,6 @@ int32_t opt_evil_init(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct o
 STATIC_FUNC
 int evil_rx_dsc_tlv_hna(struct rx_frame_iterator *it)
 {
-	TRACE_FUNCTION_CALL;
 	ASSERTION(-500357, (it->f_type == BMX_DSC_TLV_HNA6));
 	assertion(-502326, (it->dcOp && it->dcOp->kn));
 
@@ -355,8 +350,6 @@ int evil_rx_dsc_tlv_hna(struct rx_frame_iterator *it)
 STATIC_FUNC
 int evil_tx_dsc_tlv_hna(struct tx_frame_iterator *it)
 {
-	TRACE_FUNCTION_CALL;
-
 	dbgf_sys(DBGT_INFO, "enabled=%d attacked nodes=%d", evilPrimaryIps, evilDirWatch ? (int) evilDirWatch->node_tree.items : -1);
 
 	if (!evilPrimaryIps || !evilDirWatch || !evilDirWatch->node_tree.items)

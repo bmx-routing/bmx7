@@ -74,7 +74,6 @@ int32_t describeInfos = DEF_DESCRIBE_INFOS;
 
 IDM_T process_description_tlvs(struct packet_buff *pb, struct orig_node *on, struct desc_content *dcOld, struct desc_content *dcOp, uint8_t op, uint8_t filter)
 {
-	TRACE_FUNCTION_CALL;
 	assertion(-500370, (op == TLV_OP_DEL || op == TLV_OP_TEST || op == TLV_OP_NEW || op == TLV_OP_DEBUG ||
 		(op >= TLV_OP_CUSTOM_MIN && op <= TLV_OP_CUSTOM_MAX) || (op >= TLV_OP_PLUGIN_MIN && op <= TLV_OP_PLUGIN_MAX)));
 
@@ -256,7 +255,6 @@ void update_my_description(void)
 	if (!my_description_changed)
 		return;
 
-	TRACE_FUNCTION_CALL;
 	prof_start(update_my_description, main);
 
 	assertion(-502082, (!terminating));
@@ -310,8 +308,6 @@ STATIC_FUNC
 int32_t opt_show_descriptions(uint8_t cmd, uint8_t _save, struct opt_type *opt,
 	struct opt_parent *patch, struct ctrl_node *cn)
 {
-	TRACE_FUNCTION_CALL;
-
 	if (cmd == OPT_APPLY) {
 
 		struct avl_node *an = NULL;
@@ -368,8 +364,6 @@ int32_t opt_show_descriptions(uint8_t cmd, uint8_t _save, struct opt_type *opt,
 STATIC_FUNC
 int32_t create_dsc_tlv_info(struct tx_frame_iterator *it)
 {
-	TRACE_FUNCTION_CALL;
-
 	if (!describeInfos)
 		return TLV_TX_DATA_IGNORED;
 
@@ -395,8 +389,6 @@ int32_t create_dsc_tlv_info(struct tx_frame_iterator *it)
 STATIC_FUNC
 int32_t process_dsc_tlv_info(struct rx_frame_iterator *it)
 {
-	TRACE_FUNCTION_CALL;
-
 	dbgf_all(DBGT_INFO, "op=%s", tlv_op_str(it->op));
 
 	struct description_msg_info *msg = (struct description_msg_info *) it->f_msg;
@@ -444,8 +436,6 @@ int32_t process_dsc_tlv_info(struct rx_frame_iterator *it)
 STATIC_FUNC
 int32_t tx_msg_description_request(struct tx_frame_iterator *it)
 {
-	TRACE_FUNCTION_CALL;
-
 	struct tx_task_node *ttn = it->ttn;
 	struct hdr_description_request *hdr = ((struct hdr_description_request*) tx_iterator_cache_hdr_ptr(it));
 	struct msg_description_request *msg = ((struct msg_description_request*) tx_iterator_cache_msg_ptr(it));
@@ -493,8 +483,6 @@ int32_t tx_msg_description_request(struct tx_frame_iterator *it)
 STATIC_FUNC
 int32_t rx_msg_description_request(struct rx_frame_iterator *it)
 {
-	TRACE_FUNCTION_CALL;
-
 	struct packet_buff *pb = it->pb;
 	struct hdr_description_request *hdr = (struct hdr_description_request*) (it->f_data);
 	struct msg_description_request *msg = (struct msg_description_request*) (it->f_msg);
@@ -525,7 +513,6 @@ int32_t rx_msg_description_request(struct rx_frame_iterator *it)
 STATIC_FUNC
 int32_t tx_frame_description_adv(struct tx_frame_iterator *it)
 {
-	TRACE_FUNCTION_CALL;
 	DHASH_T *dhash = (DHASH_T*) it->ttn->key.data;
 	struct desc_content *dc = avl_find_item(&descContent_tree, dhash);
 
@@ -549,8 +536,6 @@ int32_t tx_frame_description_adv(struct tx_frame_iterator *it)
 STATIC_FUNC
 int32_t rx_frame_description_adv(struct rx_frame_iterator *it)
 {
-	TRACE_FUNCTION_CALL;
-
 	char *goto_error_code = NULL;
 	int32_t goto_error_ret = TLV_RX_DATA_FAILURE;
 	GLOBAL_ID_T *nodeId = NULL;
@@ -620,8 +605,6 @@ finish:
 STATIC_FUNC
 int32_t tx_msg_iid_request(struct tx_frame_iterator *it)
 {
-	TRACE_FUNCTION_CALL;
-
 	struct hdr_iid_request *hdr = ((struct hdr_iid_request*) tx_iterator_cache_hdr_ptr(it));
 	struct msg_iid_request *msg = ((struct msg_iid_request*) tx_iterator_cache_msg_ptr(it));
 
@@ -659,8 +642,6 @@ int32_t tx_msg_iid_request(struct tx_frame_iterator *it)
 STATIC_FUNC
 int32_t rx_frame_iid_request(struct rx_frame_iterator *it)
 {
-	TRACE_FUNCTION_CALL;
-
 	struct neigh_node *nn = it->pb->i.verifiedLink->k.linkDev->key.local;
 	struct hdr_iid_request *hdr = (struct hdr_iid_request*) (it->f_data);
 	struct msg_iid_request *msg = (struct msg_iid_request*) (it->f_msg);
@@ -686,8 +667,6 @@ int32_t rx_frame_iid_request(struct rx_frame_iterator *it)
 STATIC_FUNC
 int32_t tx_msg_iid_adv(struct tx_frame_iterator *it)
 {
-	TRACE_FUNCTION_CALL;
-
 	struct msg_iid_adv *msg = ((struct msg_iid_adv*) tx_iterator_cache_msg_ptr(it));
 	IID_T *iid = (IID_T*) it->ttn->key.data;
 	MIID_T *in;
@@ -710,8 +689,6 @@ int32_t tx_msg_iid_adv(struct tx_frame_iterator *it)
 STATIC_FUNC
 int32_t rx_msg_iid_adv(struct rx_frame_iterator *it)
 {
-	TRACE_FUNCTION_CALL;
-
 	struct msg_iid_adv *msg = (struct msg_iid_adv*) (it->f_msg);
 	struct neigh_node *nn = it->pb->i.verifiedLink->k.linkDev->key.local;
 	AGGREG_SQN_T aggSqnInvalidMax = (nn->ogm_aggreg_max - AGGREG_SQN_CACHE_RANGE);
@@ -749,8 +726,6 @@ int32_t opt_dsqn_path(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct o
 
 int32_t opt_update_description(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
 {
-	TRACE_FUNCTION_CALL;
-
 	if (cmd == OPT_APPLY)
 		my_description_changed = YES;
 

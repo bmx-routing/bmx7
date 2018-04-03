@@ -69,7 +69,6 @@ STATIC_FUNC
 json_object * fields_dbg_json(uint8_t relevance, uint8_t force_array, uint16_t data_size, uint8_t *data,
 	uint16_t min_msg_size, const struct field_format *format)
 {
-	TRACE_FUNCTION_CALL;
 	assertion(-501300, (format && data));
 
 	uint32_t msgs_size = 0;
@@ -325,8 +324,6 @@ void json_generic_event_hook(char *statusKey)
 	if (!json_update_interval || terminating)
 		return;
 
-	TRACE_FUNCTION_CALL;
-
 	char path_name[MAX_PATH_SIZE];
 	sprintf(path_name, "%s/%s", json_dir, statusKey);
 	int fd;
@@ -352,8 +349,6 @@ void json_config_event_hook(int32_t cb_id, void *data)
 	if (!json_update_interval || terminating)
 		return;
 
-	TRACE_FUNCTION_CALL;
-
 	update_json_options(0, 1, JSON_PARAMETERS_FILE);
 	json_generic_event_hook(ARG_INTERFACES);
 }
@@ -373,8 +368,6 @@ void json_links_event_hook(int32_t cb_id, void* data)
 STATIC_FUNC
 void json_originator_event_hook(int32_t cb_id, struct orig_node *orig)
 {
-	TRACE_FUNCTION_CALL;
-
 	assertion(-501272, (json_orig_dir));
 	assertion(-501347, (cb_id == PLUGIN_CB_DESCRIPTION_DESTROY || cb_id == PLUGIN_CB_DESCRIPTION_CREATED));
 
@@ -419,8 +412,6 @@ void json_route_change_hook(uint8_t del, struct orig_node *on)
 STATIC_FUNC
 void json_netjson_event_hook(void)
 {
-	TRACE_FUNCTION_CALL;
-
 	json_object *jgraph = json_object_new_object();
 
 	// Create header:
@@ -492,8 +483,6 @@ void json_netjson_event_hook(void)
 STATIC_FUNC
 void json_description_event_hook(int32_t cb_id, struct orig_node *on)
 {
-	TRACE_FUNCTION_CALL;
-
 	assertion(-501306, (on));
 	assertion(-501273, (cb_id == PLUGIN_CB_DESCRIPTION_DESTROY || cb_id == PLUGIN_CB_DESCRIPTION_CREATED));
 	assertion(-501274, IMPLIES(initializing, cb_id == PLUGIN_CB_DESCRIPTION_CREATED));
@@ -588,8 +577,6 @@ void update_json_status(void *data)
 STATIC_FUNC
 int32_t opt_json_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
 {
-	TRACE_FUNCTION_CALL;
-
 	if (cmd == OPT_CHECK || cmd == OPT_APPLY) {
 
 		int8_t relevance = get_opt_child_val_int(opt, patch, ARG_RELEVANCE, FAILURE);

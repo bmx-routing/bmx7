@@ -928,22 +928,18 @@ struct desc_content* descContent_create(uint8_t *dsc, uint32_t dlen, struct key_
 STATIC_FUNC
 int create_tlv_content_hash(struct tx_frame_iterator *it)
 {
-	TRACE_FUNCTION_CALL;
 	return TLV_TX_DATA_IGNORED;
 }
 
 STATIC_FUNC
 int process_tlv_content_hash(struct rx_frame_iterator *it)
 {
-	TRACE_FUNCTION_CALL;
 	return TLV_RX_DATA_FAILURE;
 }
 
 STATIC_FUNC
 int32_t tx_msg_content_request(struct tx_frame_iterator *it)
 {
-	TRACE_FUNCTION_CALL;
-
 	CRYPTSHA_T *cHash = (CRYPTSHA_T *) it->ttn->key.data;
 	struct hdr_content_req *hdr = (struct hdr_content_req *) tx_iterator_cache_hdr_ptr(it);
 	struct msg_content_req *msg = (struct msg_content_req *) tx_iterator_cache_msg_ptr(it);
@@ -969,7 +965,6 @@ int32_t tx_msg_content_request(struct tx_frame_iterator *it)
 STATIC_FUNC
 int32_t rx_msg_content_request(struct rx_frame_iterator *it)
 {
-	TRACE_FUNCTION_CALL;
 	struct packet_buff *pb = it->pb;
 	struct hdr_content_req *hdr = (struct hdr_content_req*) (it->f_data);
 	struct msg_content_req *msg = (struct msg_content_req*) (it->f_msg);
@@ -995,8 +990,6 @@ int32_t rx_msg_content_request(struct rx_frame_iterator *it)
 STATIC_FUNC
 int32_t tx_frame_content_adv(struct tx_frame_iterator *it)
 {
-	TRACE_FUNCTION_CALL;
-
 	struct content_node *cn = content_find((CRYPTSHA_T *) it->ttn->key.data);
 
 	if (cn && cn->f_body && cn->usage_tree.items) {
@@ -1024,8 +1017,6 @@ int32_t tx_frame_content_adv(struct tx_frame_iterator *it)
 STATIC_FUNC
 int32_t rx_frame_content_adv(struct rx_frame_iterator *it)
 {
-	TRACE_FUNCTION_CALL;
-
 	struct frame_hdr_content_adv *adv = (struct frame_hdr_content_adv*) it->f_data;
 
 	dbgf_track(DBGT_INFO, "unresolveds=%d msgs_len=%d gzip=%d maxNesting=%d",

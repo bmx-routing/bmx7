@@ -48,17 +48,7 @@ The following Linux-kernel modules are needed (depending on used bmx7 features)
 * ip6_tunnel
 
 The mbed TLS or PolarSSL crypto library is needed for cryptographic operations:
-Tested with debian and polarssl-1.3.3:
-<pre>
-wget https://polarssl.org/code/releases/polarssl-1.3.3-gpl.tgz
-tar xzvf polarssl-1.3.3-gpl.tgz 
-cd polarssl-1.3.3
-make
-sudo make install
-# compile bmx7 with: make EXTRA_CFLAGS="-DCRYPTLIB=POLARSSL_1_3_3"
-</pre>
-
-Mbedtls has been tested with debian and mbedtls-2.4.0:
+Most tested with debian or mbedtls-2.4.0:
 <pre>
 wget https://tls.mbed.org/download/mbedtls-2.4.0-gpl.tgz
 tar xzvf mbedtls-2.4.0-gpl.tgz

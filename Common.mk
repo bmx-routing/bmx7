@@ -2,7 +2,7 @@ GIT_REV ?= $(shell [ -r .git ] && git --no-pager log -n 1 --oneline | cut -d " "
 
 CFLAGS += -pedantic -W -Wall -Wstrict-prototypes -Wno-unused-parameter -Os -g3 -std=gnu99 -DGIT_REV=\"$(GIT_REV)\"
 # CFLAGS += -DHAVE_CONFIG_H
-# CFLAGS += -DCRYPTLIB=POLARSSL_1_3_4 # POLARSSL_1_2_5 POLARSSL_1_2_9 POLARSSL_1_3_3 POLARSSL_1_3_4 CYASSL_2_8_0
+# CFLAGS += -DCRYPTLIB=MBEDTLS_2_4_0 # POLARSSL_1_2_5 POLARSSL_1_2_9 POLARSSL_1_3_3 POLARSSL_1_3_4 CYASSL_2_8_0
 
 # optinal defines:
 # CFLAGS += -static
@@ -42,7 +42,6 @@ CFLAGS += -DAVL_5XLINKED
 # CFLAGS += -DTEST_DEBUG
 # CFLAGS += -DWITH_DEVEL          # (includes debug, yet unused, and buggy stuff)
 # CFLAGS += -DPROFILING           # (no static functions -> better profiling and cores)
-# CFLAGS += -DNO_CTAOCRYPT_DIR    # for backward compatibility with old cyassl versions
 # CFLAGS += -DCORE_LIMIT=20000    # equals ulimit -c 20000
 
 #EXTRA_CFLAGS +=
@@ -71,9 +70,7 @@ LDFLAGS += $(shell echo "$(CFLAGS) $(EXTRA_CFLAGS)" | grep -q "DPROFILING" && ec
 LDFLAGS += $(shell echo "$(CFLAGS) $(EXTRA_CFLAGS)" | grep -q "DBMX7_LIB_IWINFO" && echo "-liwinfo" || echo "-liw" )
 
 LDFLAGS += -lz -lm
-LDFLAGS += $(shell echo "$(CFLAGS) $(EXTRA_CFLAGS)" | grep -q "CYASSL" && echo "-lcyassl" )
-LDFLAGS += $(shell echo "$(CFLAGS) $(EXTRA_CFLAGS)" | grep -q "POLARSSL" && echo "-lpolarssl" )
-LDFLAGS += $(shell echo "$(CFLAGS) $(EXTRA_CFLAGS)" | grep -q "MBEDTLS" && echo "-lmbedcrypto" )
+LDFLAGS += $(shell echo "$(CFLAGS) $(EXTRA_CFLAGS)" | grep -q "POLARSSL" && echo "-lpolarssl" || echo "-lmbedcrypto" )
 
 SBINDIR = $(INSTALL_PREFIX)/usr/sbin
 

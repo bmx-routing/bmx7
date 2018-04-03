@@ -20,7 +20,6 @@
  * libtomcrypt, gcrypt, cyassl
  */
 
-//#define CRYPT_POLARSSL
 
 
 #define POLARSSL_MIN   1000
@@ -37,7 +36,7 @@
 
 
 #ifndef CRYPTLIB
-#define CRYPTLIB POLARSSL_1_3_4
+#define CRYPTLIB MBEDTLS_2_4_0
 #endif
 
 #define CRYPT_DER_BUF_SZ 16000

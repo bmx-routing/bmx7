@@ -290,6 +290,8 @@ enum ADGSN {
 #define SUCCESS 0
 #define FAILURE -1
 
+const void* FAILURE_PTR;
+
 
 #define MAX_SELECT_TIMEOUT_MS 1100 /* MUST be smaller than (1000/2) to fit into max tv_usec */
 #define MAX_SELECT_SAFETY_MS 200 /* MUST be smaller than (1000/2) to fit into max tv_usec */

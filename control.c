@@ -1186,7 +1186,7 @@ struct opt_child *get_opt_child(struct opt_type *opt, struct opt_parent *p)
 	return NULL;
 }
 
-int32_t get_opt_child_val_int(struct opt_type *parentOpt, struct opt_parent *patch, char *optName)
+int32_t get_opt_child_val_int(struct opt_type *parentOpt, struct opt_parent *patch, char *optName, int32_t dflt)
 {
 	struct opt_child *c = NULL;
 	struct list_node *pos;
@@ -1205,11 +1205,11 @@ int32_t get_opt_child_val_int(struct opt_type *parentOpt, struct opt_parent *pat
 		if (!strcmp(c_opt->name, optName))
 			return c_opt->idef;
 	}
-	assertion(-500000, 0);
-	return FAILURE;
+	assertion(-502772, (dflt > FAILURE));
+	return dflt;
 }
 
-char * get_opt_child_val_str(struct opt_type *parentOpt, struct opt_parent *patch, char *optName)
+char * get_opt_child_val_str(struct opt_type *parentOpt, struct opt_parent *patch, char *optName, char *dflt)
 {
 	struct opt_child *c = NULL;
 	struct list_node *pos;
@@ -1229,8 +1229,8 @@ char * get_opt_child_val_str(struct opt_type *parentOpt, struct opt_parent *patc
 			return c_opt->sdef;
 	}
 
-	assertion(-500000, 0);
-	return NULL;
+	assertion(-500000, (dflt != FAILURE_PTR));
+	return dflt;
 }
 
 void set_opt_child_val(struct opt_child *c, char *val)
@@ -2810,7 +2810,7 @@ int32_t opt_help(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
 		return FAILURE;
 
 	uint8_t verbose = !strcmp(opt->name, ARG_VERBOSE_HELP);
-	int32_t relevance = get_opt_child_val_int(opt, patch, ARG_RELEVANCE);
+	int32_t relevance = get_opt_child_val_int(opt, patch, ARG_RELEVANCE, FAILURE);
 
 	struct list_node *list_pos;
 	const char *category = NULL;

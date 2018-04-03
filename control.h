@@ -423,8 +423,8 @@ int32_t check_apply_parent_option(uint8_t del, uint8_t cmd, uint8_t _save, struc
 struct opt_type *get_option(struct opt_type *parent_opt, uint8_t short_opt, char *s);
 
 
-int32_t get_opt_child_val_int(struct opt_type *parentOpt, struct opt_parent *patch, char *optName);
-char * get_opt_child_val_str(struct opt_type *parentOpt, struct opt_parent *patch, char *optName);
+int32_t get_opt_child_val_int(struct opt_type *parentOpt, struct opt_parent *patch, char *optName, int32_t dflt);
+char * get_opt_child_val_str(struct opt_type *parentOpt, struct opt_parent *patch, char *optName, char *dflt);
 void set_opt_child_val(struct opt_child *c, char *val);
 struct opt_child * get_opt_child(struct opt_type *opt, struct opt_parent *p);
 

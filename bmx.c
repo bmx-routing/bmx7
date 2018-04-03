@@ -84,6 +84,7 @@ IDM_T cleaning_up = NO;
 const IDM_T CONST_YES = YES;
 const IDM_T CONST_NO = NO;
 
+const void* FAILURE_PTR = (void*) & FAILURE_PTR;
 
 
 TIME_T bmx_time = 0;
@@ -1362,7 +1363,7 @@ int32_t opt_status_generic(uint8_t cmd, uint8_t _save, struct opt_type *opt, str
 
 	if (cmd == OPT_CHECK || cmd == OPT_APPLY) {
 
-		int32_t relevance = get_opt_child_val_int(opt, patch, ARG_RELEVANCE);
+		int32_t relevance = get_opt_child_val_int(opt, patch, ARG_RELEVANCE, DEF_RELEVANCE);
 		struct status_handl *handl;
 
 		if ((handl = get_status_handl(patch->val ? patch->val : opt->name))) {

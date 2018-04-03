@@ -101,10 +101,6 @@ static IDM_T first_packets = YES;
 BURST_SQN_T myBurstSqn = 0;
 
 
-const void* REJECTED_PTR = (void*) & REJECTED_PTR;
-const void* UNRESOLVED_PTR = (void*) & UNRESOLVED_PTR;
-const void* FAILURE_PTR = (void*) & FAILURE_PTR;
-
 /***********************************************************
   The core frame/message structures and handlers
  ************************************************************/

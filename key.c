@@ -1349,8 +1349,8 @@ int32_t opt_set_credits(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
 
 	if (cmd == OPT_APPLY) {
 
-		ks->i.setMaxConf = get_opt_child_val_int(opt, patch, ARG_SET_CREDITS_MAX);
-		ks->i.setPrefConf = get_opt_child_val_int(opt, patch, ARG_SET_CREDITS_PREF);
+		ks->i.setMaxConf = get_opt_child_val_int(opt, patch, ARG_SET_CREDITS_MAX, FAILURE);
+		ks->i.setPrefConf = get_opt_child_val_int(opt, patch, ARG_SET_CREDITS_PREF, FAILURE);
 
 		uint32_t blockId = keyNodes_block_and_sync(0, NO);
 		keyNode_initMatrix();

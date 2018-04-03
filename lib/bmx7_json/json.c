@@ -592,7 +592,7 @@ int32_t opt_json_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
 
 	if (cmd == OPT_CHECK || cmd == OPT_APPLY) {
 
-		int8_t relevance = get_opt_child_val_int(opt, patch, ARG_RELEVANCE);
+		int8_t relevance = get_opt_child_val_int(opt, patch, ARG_RELEVANCE, FAILURE);
 		struct status_handl *handl = NULL;
 
 		if ((handl = get_status_handl(patch->val))) {

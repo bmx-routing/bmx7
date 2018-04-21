@@ -31,7 +31,7 @@ CFLAGS += -DAVL_5XLINKED
 # CFLAGS += -DDEBUG_ALL
 # CFLAGS += -DTRAFFIC_DUMP
 # CFLAGS += -DDEBUG_DUMP
-# CFLAGS += -DDEBUG_MALLOC
+CFLAGS += -DDEBUG_MALLOC
 # CFLAGS += -DMEMORY_USAGE
 
 # experimental or advanced defines (please dont touch):
@@ -41,7 +41,7 @@ CFLAGS += -DAVL_5XLINKED
 # CFLAGS += -DTEST_DEBUG
 # CFLAGS += -DWITH_DEVEL          # (includes debug, yet unused, and buggy stuff)
 # CFLAGS += -DPROFILING           # (no static functions -> better profiling and cores)
-# CFLAGS += -DCORE_LIMIT=20000    # equals ulimit -c 20000
+CFLAGS += -DCORE_LIMIT=20000    # equals ulimit -c 20000
 
 #EXTRA_CFLAGS +=
 #EXTRA_LDFLAGS +=

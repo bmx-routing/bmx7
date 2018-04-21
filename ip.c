@@ -620,7 +620,7 @@ IDM_T kernel_get_if_config_post(IDM_T purge_all, uint16_t curr_sqn)
 
 			if (purge_all || curr_sqn != ian->update_sqn || curr_sqn != iln->update_sqn) {
 
-				dbgf_track(DBGT_WARN, "addr index=%d label=%s addr=%s (currSqn=%d ilnSqn=%d ianSqn=%d) REMOVED",
+				dbgf_sys(DBGT_WARN, "addr index=%d label=%s addr=%s (currSqn=%d ilnSqn=%d ianSqn=%d) REMOVED",
 					iln->index, ian->label.str, ipXAsStr(ian->ifa.ifa_family, &ian->ip_addr), curr_sqn, iln->update_sqn, ian->update_sqn);
 
 				if (ian->dev) {
@@ -650,7 +650,7 @@ IDM_T kernel_get_if_config_post(IDM_T purge_all, uint16_t curr_sqn)
 
 			assertion(-500565, (!iln->if_addr_tree.items));
 
-			dbgf_track(DBGT_WARN, "link index %d %s addr %s REMOVED",
+			dbgf_sys(DBGT_WARN, "link index %d %s addr %s REMOVED",
 				iln->index, iln->name.str, memAsHexString(&iln->addr, iln->alen));
 
 			avl_remove(&if_link_tree, &iln->index, -300232);
@@ -666,8 +666,8 @@ IDM_T kernel_get_if_config_post(IDM_T purge_all, uint16_t curr_sqn)
 
 			changed += iln->changed;
 
-			dbgf_track(DBGT_WARN, "link=%s dev=%s configuration CHANGED",
-				iln->name.str, dev ? dev->ifname_label.str : "ERROR");
+			dbgf_sys(DBGT_WARN, "link=%s dev=%s iln_changed=%d configuration CHANGED",
+				iln->name.str, dev ? dev->ifname_label.str : "ERROR", iln->changed);
 
 		}
 	}
@@ -904,11 +904,11 @@ void kernel_get_if_link_config(struct nlmsghdr *nh, void *update_sqnp)
 		if (nh->nlmsg_len > old_ilx->nlmsghdr->nlmsg_len) {
 
 			avl_remove(&if_link_tree, &index, -300240);
-			dbgf_all(DBGT_INFO, "CHANGED and MORE nlmsg_len");
+			dbgf_sys(DBGT_INFO, "CHANGED and MORE nlmsg_len");
 
 		} else if (memcmp(nh, old_ilx->nlmsghdr, nh->nlmsg_len)) {
 
-			dbgf_all(DBGT_INFO, "CHANGED nlmsg_len new=%d  old=%d",
+			dbgf_sys(DBGT_INFO, "CHANGED nlmsg_len new=%d  old=%d",
 				nh->nlmsg_len, old_ilx->nlmsghdr->nlmsg_len);
 
 			memcpy(old_ilx->nlmsghdr, nh, nh->nlmsg_len);
@@ -941,6 +941,7 @@ void kernel_get_if_link_config(struct nlmsghdr *nh, void *update_sqnp)
 	memcpy(&addr, RTA_DATA(tb[IFLA_ADDRESS]), XMIN(alen, (int) sizeof(addr)));
 
 	if (!old_ilx ||
+		old_ilx != new_ilx ||
 		old_ilx->type != if_link_info->ifi_type ||
 		old_ilx->flags != if_link_info->ifi_flags ||
 		old_ilx->alen != alen /*(int)RTA_PAYLOAD(tb[IFLA_ADDRESS])*/ ||
@@ -964,8 +965,24 @@ void kernel_get_if_link_config(struct nlmsghdr *nh, void *update_sqnp)
 	new_ilx->update_sqn = update_sqn;
 	new_ilx->changed = changed;
 
-	if (old_ilx && old_ilx != new_ilx)
+	if (old_ilx && old_ilx != new_ilx) {
+
+		struct if_addr_node *old_ian;
+
+		while ((old_ian = avl_first_item(&old_ilx->if_addr_tree))) {
+
+			if (old_ian->dev) {
+				old_ian->dev->hard_conf_changed = YES;
+				old_ian->dev->if_llocal_addr = NULL;
+				old_ian->dev->if_global_addr = NULL;
+			}
+
+			avl_remove(&old_ilx->if_addr_tree, &old_ian->ip_addr, -300852);
+			debugFree(old_ian, -300853);
+		}
+
 		debugFree(old_ilx, -300241);
+	}
 
 	return;
 }

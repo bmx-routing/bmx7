@@ -88,6 +88,8 @@ void get_link_rate(struct dev_node *tDev)
 		dbgf_track(DBGT_INFO, "dev=%s phy=%s probeInterval=%d burstInterval=%d last=%d",
 			tDev->ifname_label.str, tDev->ifname_phy.str, linkProbeInterval, linkBurstInterval, tDev->upd_link_capacities_time);
 
+		assertion(-502780, (strlen(tDev->ifname_phy.str)));
+
 		struct dev_node *oDev;
 		struct avl_node *oDAn;
 		for (oDAn = NULL; (oDev = avl_iterate_item(&dev_name_tree, &oDAn));) {
@@ -221,6 +223,8 @@ void get_link_rate(struct dev_node *tDev)
 
 uint16_t iwi_get_channel(struct dev_node *dev)
 {
+	assertion(-502781, (strlen(dev->ifname_phy.str)));
+
 	uint16_t channel = TYP_DEV_CHANNEL_SHARED;
 
 	const struct iwinfo_ops *iw;

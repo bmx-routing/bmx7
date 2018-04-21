@@ -240,6 +240,8 @@ void parse_rtattr(struct rtattr *tb[], int max, struct rtattr *rta, int len)
 STATIC_FUNC
 IDM_T get_if_req(struct dev_node *dev, struct ifreq *if_req, int siocgi_req)
 {
+	assertion(-502782, (strlen(dev->ifname_phy.str)));
+
 	memset(if_req, 0, sizeof(struct ifreq));
 	strcpy(if_req->ifr_name, dev->ifname_phy.str);
 
@@ -266,6 +268,8 @@ uint16_t get_iwlib_channel(struct dev_node *dev)
 	struct iw_range range;
 	double freq;
 	int channel;
+
+	assertion(-502783, (strlen(dev->ifname_phy.str)));
 
 	/* Get list of frequencies / channels */
 	if (iw_get_range_info(io_sock, dev->ifname_phy.str, &range) < 0) {
@@ -2026,6 +2030,7 @@ void dev_deactivate(struct dev_node *dev)
 	dev->llipKey.devIdx = DEVIDX_INVALID;
 	ip6ToStr(&ZERO_IP, dev->ip_llocal_str);
 	dev->mac = ZERO_MAC;
+	dev->ifname_phy.str[0] = 0;
 
 	if (dev->active) {
 		dev->active = NO;
@@ -2205,8 +2210,12 @@ void dev_activate(struct dev_node *dev)
 	assertion(-500575, (dev && !dev->active && dev->if_llocal_addr && dev->if_llocal_addr->iln->flags & IFF_UP));
 	assertion(-500593, (AF_INET6 == dev->if_llocal_addr->ifa.ifa_family));
 	assertion(-500599, (is_ip_set(&dev->if_llocal_addr->ip_addr) && dev->if_llocal_addr->ifa.ifa_prefixlen));
+	assertion(-502784, (!strlen(dev->ifname_phy.str)));
 
-	dbgf_sys(DBGT_WARN, "%s=%s", ARG_DEV, dev->ifname_label.str);
+	if (interface_get_lowest(dev->ifname_phy.str, dev->ifname_device.str) == FAILURE)
+		strcpy(dev->ifname_phy.str, dev->ifname_device.str);
+
+	dbgf_sys(DBGT_WARN, "%s=%s phy=%s", ARG_DEV, dev->ifname_label.str, dev->ifname_phy.str);
 
 	if (wordsEqual(DEV_LO, dev->ifname_device.str)) {
 
@@ -3087,6 +3096,7 @@ struct dev_status {
 	char *state;
 	char *linkKey;
 	char linkKeys[30];
+	char *phy;
 	char *type;
 	uint8_t channel;
 	UMETRIC_T rateMax;
@@ -3107,6 +3117,7 @@ static const struct field_format dev_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,              dev_status, state,       1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,              dev_status, linkKey,     1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,               dev_status, linkKeys,    1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,              dev_status, phy,         1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,              dev_status, type,        1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,                      dev_status, channel,     1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,                   dev_status, rateMax,     1, FIELD_RELEVANCE_HIGH),
@@ -3138,6 +3149,7 @@ static int32_t dev_status_creator(struct status_handl *handl, void* data)
 
 
 		status[i].dev = dev->ifname_label.str;
+		status[i].phy = strlen(dev->ifname_label.str) ? dev->ifname_label.str : DBG_NIL;
 		status[i].state = iff_up ? "UP" : "DOWN";
 		status[i].linkKey = cryptRsaKeyTypeAsString(dev->lastTxKey) ? cryptRsaKeyTypeAsString(dev->lastTxKey) : cryptDhmKeyTypeAsString(dev->lastTxKey);
 		struct dsc_msg_pubkey *rsaMsg = myKey->on ? contents_data(myKey->on->dc, BMX_DSC_TLV_RSA_LINK_PUBKEY) : NULL;
@@ -3357,8 +3369,7 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
 			strcpy(dev->ifname_label.str, patch->val);
 			strcpy(dev->ifname_device.str, ifname_vlan);
 
-			if (interface_get_lowest(dev->ifname_phy.str, ifname_vlan) == FAILURE)
-				strcpy(dev->ifname_phy.str, ifname_vlan);
+			dev->ifname_phy.str[0] = 0;
 
 			avl_insert(&dev_name_tree, dev, -300144);
 

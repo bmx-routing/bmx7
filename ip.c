@@ -610,6 +610,7 @@ IDM_T kernel_get_if_config_post(IDM_T purge_all, uint16_t curr_sqn)
 	uint16_t changed = 0;
 	struct if_link_node *iln;
 	int index = 0;
+	int dbgl = (terminating || initializing) ? DBGL_CHANGES : DBGL_SYS;
 
 	while ((iln = avl_next_item(&if_link_tree, &index))) {
 
@@ -624,7 +625,7 @@ IDM_T kernel_get_if_config_post(IDM_T purge_all, uint16_t curr_sqn)
 
 			if (purge_all || curr_sqn != ian->update_sqn || curr_sqn != iln->update_sqn) {
 
-				dbgf_sys(DBGT_WARN, "addr index=%d label=%s addr=%s (currSqn=%d ilnSqn=%d ianSqn=%d) REMOVED",
+				dbgf(dbgl, DBGT_INFO, "addr index=%d label=%s addr=%s (currSqn=%d ilnSqn=%d ianSqn=%d) REMOVED",
 					iln->index, ian->label.str, ipXAsStr(ian->ifa.ifa_family, &ian->ip_addr), curr_sqn, iln->update_sqn, ian->update_sqn);
 
 				if (ian->dev) {
@@ -654,7 +655,7 @@ IDM_T kernel_get_if_config_post(IDM_T purge_all, uint16_t curr_sqn)
 
 			assertion(-500565, (!iln->if_addr_tree.items));
 
-			dbgf_sys(DBGT_WARN, "link index %d %s addr %s REMOVED",
+			dbgf(dbgl, DBGT_WARN, "link index %d %s addr %s REMOVED",
 				iln->index, iln->name.str, memAsHexString(&iln->addr, iln->alen));
 
 			avl_remove(&if_link_tree, &iln->index, -300232);
@@ -670,7 +671,7 @@ IDM_T kernel_get_if_config_post(IDM_T purge_all, uint16_t curr_sqn)
 
 			changed += iln->changed;
 
-			dbgf_sys(DBGT_WARN, "link=%s dev=%s iln_changed=%d configuration CHANGED",
+			dbgf(dbgl, DBGT_WARN, "link=%s dev=%s iln_changed=%d configuration CHANGED",
 				iln->name.str, dev ? dev->ifname_label.str : "ERROR", iln->changed);
 
 		}

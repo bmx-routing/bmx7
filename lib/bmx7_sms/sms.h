@@ -22,7 +22,7 @@
 
 #define ARG_SMS "syncSms"
 
-#define MAX_SMS_NAME_LEN 16
+#define MAX_SMS_NAME_LEN 32
 #define MAX_SMS_DATA_LEN 300
 #define MAX_SMS_DATA_LEN_REF MAX_VRT_FRAME_DATA_SIZE
 

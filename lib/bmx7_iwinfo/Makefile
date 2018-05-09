@@ -23,7 +23,7 @@ $(PLUGIN_FULLNAME):	$(OBJS) Makefile
 	ln -f -s $(THISDIR)/$(PLUGIN_FULLNAME) $(THISDIR)/../$(PLUGIN_FULLNAME)
 
 %.o:	%.c %.h Makefile
-	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) -DHAVE_IWINFO_THR -c $< -o $@ || $(CC) $(CFLAGS) $(EXTRA_CFLAGS) -c $< -o $@
 
 
 clean:

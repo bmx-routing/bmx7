@@ -62,6 +62,7 @@ static CRYPTRSA_T *my_PrivKey = NULL;
 
 #elif (CRYPTLIB >= MBEDTLS_MIN && CRYPTLIB <= MBEDTLS_MAX)
 /******************* accessing mbedtls: *************************************/
+
 #include "mbedtls/compat-1.3.h"
 #include "mbedtls/config.h"
 #include "mbedtls/sha256.h"
@@ -158,8 +159,10 @@ CRYPTDHM_T *cryptDhmKeyMake(uint8_t keyType, uint8_t attempt)
 	int keyLen = 0;
 	CRYPTDHM_T *key = debugMallocReset(sizeof(CRYPTDHM_T), -300829);
 	dhm_context *dhm = debugMallocReset(sizeof(dhm_context), -300830);
+#if !(CRYPTLIB >= MBEDTLS_2_8_0 && CRYPTLIB <= MBEDTLS_MAX)
 	char *pptr = NULL;
-	char *gptr = NULL;;
+	char *gptr = NULL;
+#endif
 	int pSize = 0;
 	int xSize = 0;
 	int gxSize = 0;
@@ -186,21 +189,35 @@ CRYPTDHM_T *cryptDhmKeyMake(uint8_t keyType, uint8_t attempt)
 	} else if (keyType == CRYPT_DHM3072_TYPE) {
 		pptr = POLARSSL_DHM_RFC3526_MODP_3072_P;
 		gptr = POLARSSL_DHM_RFC3526_MODP_3072_G;
-#elif (CRYPTLIB >= MBEDTLS_MIN && CRYPTLIB <= MBEDTLS_MAX)
+#elif (CRYPTLIB >= MBEDTLS_MIN && CRYPTLIB < MBEDTLS_2_8_0)
 	if (keyType == CRYPT_DHM2048_TYPE) {
 		pptr = MBEDTLS_DHM_RFC3526_MODP_2048_P;
 		gptr = MBEDTLS_DHM_RFC3526_MODP_2048_G;
 	} else if (keyType == CRYPT_DHM3072_TYPE) {
 		pptr = MBEDTLS_DHM_RFC3526_MODP_3072_P;
 		gptr = MBEDTLS_DHM_RFC3526_MODP_3072_G;
+#elif (CRYPTLIB >= MBEDTLS_2_8_0 && CRYPTLIB <= MBEDTLS_MAX)
+		
+	if (keyType == CRYPT_DHM2048_TYPE) {
+		static const unsigned char modp2048P[(2048/8)] = MBEDTLS_DHM_RFC3526_MODP_2048_P_BIN;
+		static const unsigned char modp2048G[1] = MBEDTLS_DHM_RFC3526_MODP_2048_G_BIN;
+		if ((ret = mpi_read_binary(&dhm->P, modp2048P, sizeof(modp2048P) )) != 0 || (ret = mpi_read_binary(&dhm->G, modp2048G, sizeof(modp2048G))) != 0)
+			goto_error(finish, "Failed setting dhm parameters!");
+		
+	} else if (keyType == CRYPT_DHM3072_TYPE) {
+		static const unsigned char modp3072P[(3072/8)] = MBEDTLS_DHM_RFC3526_MODP_3072_P_BIN;
+		static const unsigned char modp3072G[1] = MBEDTLS_DHM_RFC3526_MODP_3072_G_BIN;
+		if ((ret = mpi_read_binary(&dhm->P, modp3072P, sizeof(modp3072P) )) != 0 || (ret = mpi_read_binary(&dhm->G, modp3072G, sizeof(modp3072G))) != 0)
+			goto_error(finish, "Failed setting dhm parameters!");
 #endif
 	} else {
 		goto_error(finish, "Unsupported dhm type!");
 	}
 
+#if !(CRYPTLIB >= MBEDTLS_2_8_0 && CRYPTLIB <= MBEDTLS_MAX)
 	if ((ret = mpi_read_string(&dhm->P, 16, pptr)) != 0 || (ret = mpi_read_string(&dhm->G, 16, gptr)) != 0)
 		goto_error(finish, "Failed setting dhm parameters!");
-
+#endif
 	if (mpi_cmp_int(&dhm->P, 0) == 0)
 		goto_error(finish, "Empty dhm->P");
 
@@ -832,14 +849,23 @@ void cryptShaFree(void)
 
 void cryptShaAtomic(void *in, int32_t len, CRYPTSHA_T *sha)
 {
-
 	assertion(-502030, (shaClean == YES));
 	assertion(-502031, (sha));
 	assertion(-502032, (in && len > 0 && !memcmp(in, in, len)));
-
+	
+	unsigned char output[32];
+	
+#if (CRYPTLIB >= MBEDTLS_2_8_0 && CRYPTLIB <= MBEDTLS_MAX)
+	mbedtls_sha256_starts_ret(&sha_ctx, 1/*is224*/);
+	mbedtls_sha256_update_ret(&sha_ctx, in, len);
+	mbedtls_sha256_finish_ret(&sha_ctx, output);
+#else
 	sha256_starts(&sha_ctx, 1/*is224*/);
-	sha256_update(&sha_ctx, in, len);
-	sha256_finish(&sha_ctx, (unsigned char*) sha);
+	sha256_update&sha_ctx, in, len);
+	sha256_finish(&sha_ctx, output);
+#endif
+	memcpy(sha, output, sizeof(CRYPTSHA_T));
+	memset(output, 0, sizeof(output));
 }
 
 void cryptShaNew(void *in, int32_t len)
@@ -849,8 +875,13 @@ void cryptShaNew(void *in, int32_t len)
 	assertion(-502034, (in && len > 0 && !memcmp(in, in, len)));
 	shaClean = NO;
 
+#if (CRYPTLIB >= MBEDTLS_2_8_0 && CRYPTLIB <= MBEDTLS_MAX)
+	mbedtls_sha256_starts_ret(&sha_ctx, 1/*is224*/);
+	mbedtls_sha256_update_ret(&sha_ctx, in, len);
+#else
 	sha256_starts(&sha_ctx, 1/*is224*/);
 	sha256_update(&sha_ctx, in, len);
+#endif
 }
 
 void cryptShaUpdate(void *in, int32_t len)
@@ -859,7 +890,11 @@ void cryptShaUpdate(void *in, int32_t len)
 	assertion(-502035, (shaClean == NO));
 	assertion(-502036, (in && len > 0 && !memcmp(in, in, len)));
 
+#if (CRYPTLIB >= MBEDTLS_2_8_0 && CRYPTLIB <= MBEDTLS_MAX)
+	mbedtls_sha256_update_ret(&sha_ctx, in, len);
+#else
 	sha256_update(&sha_ctx, in, len);
+#endif
 }
 
 void cryptShaFinal(CRYPTSHA_T *sha)
@@ -867,8 +902,16 @@ void cryptShaFinal(CRYPTSHA_T *sha)
 
 	assertion(-502037, (shaClean == NO));
 	assertion(-502038, (sha));
+	unsigned char output[32];
 
-	sha256_finish(&sha_ctx, (unsigned char*) sha);
+#if (CRYPTLIB >= MBEDTLS_2_8_0 && CRYPTLIB <= MBEDTLS_MAX)
+	mbedtls_sha256_finish_ret(&sha_ctx, output);
+#else
+	sha256_finish(&sha_ctx, output);
+#endif
+	memcpy(sha, output, sizeof(CRYPTSHA_T));
+	memset(output, 0, sizeof(output));
+
 	shaClean = YES;
 }
 

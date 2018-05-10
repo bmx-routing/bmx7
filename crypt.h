@@ -32,6 +32,9 @@
 
 #define MBEDTLS_MIN    2000
 #define MBEDTLS_2_4_0  2240
+#define MBEDTLS_2_6_0  2260
+#define MBEDTLS_2_7_0  2270
+#define MBEDTLS_2_8_0  2280
 #define MBEDTLS_MAX    2999
 
 

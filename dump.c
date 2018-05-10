@@ -158,7 +158,7 @@ void dump(struct packet_buff *pb)
 
 	while ((result = rx_frame_iterate(&it)) > TLV_RX_DATA_DONE) {
 
-		char tnum[4];
+		char tnum[8];
 		char *tname;
 		int16_t frame_msgs = -1;
 

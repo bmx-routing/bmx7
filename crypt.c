@@ -861,7 +861,7 @@ void cryptShaAtomic(void *in, int32_t len, CRYPTSHA_T *sha)
 	mbedtls_sha256_finish_ret(&sha_ctx, output);
 #else
 	sha256_starts(&sha_ctx, 1/*is224*/);
-	sha256_update&sha_ctx, in, len);
+	sha256_update(&sha_ctx, in, len);
 	sha256_finish(&sha_ctx, output);
 #endif
 	memcpy(sha, output, sizeof(CRYPTSHA_T));

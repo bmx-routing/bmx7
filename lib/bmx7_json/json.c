@@ -319,6 +319,139 @@ int32_t update_json_options(IDM_T show_options, IDM_T show_parameters, char *fil
 }
 
 STATIC_FUNC
+json_object *json_netjson_create_networkHeader(char *typeStr, char *labelStr)
+{
+	assertion(-500000, (typeStr));
+
+	json_object *jObj = json_object_new_object();
+
+	// Create header:
+	json_object_object_add(jObj, "type", json_object_new_string(typeStr));
+	if (labelStr)
+		json_object_object_add(jObj, "label", json_object_new_string(labelStr));
+	json_object_object_add(jObj, "protocol", json_object_new_string(BMX_BRANCH));
+	json_object_object_add(jObj, "version", json_object_new_string(BRANCH_VERSION));
+	char revision[8];
+	snprintf(revision, sizeof(revision), "%.7x", bmx_git_rev_u32);
+	json_object_object_add(jObj, "revision", json_object_new_string(revision));
+	json_object_object_add(jObj, "metric", json_object_new_string("MBitTime"));
+	json_object_object_add(jObj, "router_id", json_object_new_string(cryptShaAsString(&myKey->kHash)));
+
+	return jObj;
+}
+
+STATIC_FUNC
+void json_netjson_create_networkGraph(void)
+{
+	json_object *jgraph = json_netjson_create_networkHeader("NetworkGraph", "BMX7 network");
+
+	// Create nodes array:
+	json_object *jnodes = json_object_new_array();
+	struct orig_node *on;
+	for (on = NULL; (on = avl_next_item(&orig_tree, (on ? &on->k.nodeId : NULL)));) {
+
+		json_object *jnode = json_object_new_object();
+		json_object_object_add(jnode, "id", json_object_new_string(cryptShaAsString(&on->k.nodeId)));
+
+		char label[MAX_HOSTNAME_LEN + 10];
+		snprintf(label, sizeof(label), "%s.%s", on->k.hostname, cryptShaAsShortStr(&on->k.nodeId));
+		json_object_object_add(jnode, "label", json_object_new_string(label));
+
+		json_object *jaddresses = json_object_new_array();
+		json_object_array_add(jaddresses, json_object_new_string(ip6AsStr(&on->primary_ip)));
+		json_object_object_add(jnode, "local_addresses", jaddresses);
+
+		json_object *jproperties = json_object_new_object();
+		json_object_object_add(jproperties, "hostname", json_object_new_string(on->k.hostname));
+		json_object_object_add(jproperties, "lastRef", json_object_new_int((bmx_time - on->dc->referred_by_others_timestamp) / 1000));
+		json_object_object_add(jproperties, "descSqn", json_object_new_int(on->dc->descSqn));
+		json_object_object_add(jnode, "properties", jproperties);
+
+		json_object_array_add(jnodes, jnode);
+	}
+	json_object_object_add(jgraph, "nodes", jnodes);
+
+	// Create links array:
+	json_object *jlinks = json_object_new_array();
+	struct status_handl *topoHandl;
+	uint32_t topoLen;
+	if ((topoHandl = get_status_handl(ARG_TOPOLOGY)) &&
+		(topoLen = ((*(topoHandl->frame_creator))(topoHandl, NULL)))) {
+
+		assertion(-502770, (topoHandl->min_msg_size == sizeof(struct topology_status)));
+		assertion(-502771, (!(topoLen % sizeof(struct topology_status))));
+
+		struct topology_status *s = (struct topology_status *) topoHandl->data;
+		uint32_t topoMsgs = topoLen / sizeof(struct topology_status);
+		uint32_t m;
+
+		for (m = 0; m < topoMsgs; m++) {
+			json_object *jlink = json_object_new_object();
+			json_object_object_add(jlink, "source", json_object_new_string(cryptShaAsString(s[m].id)));
+			json_object_object_add(jlink, "target", json_object_new_string(cryptShaAsString(s[m].neighId)));
+			json_object_object_add(jlink, "cost", json_object_new_double(((double) (1000 * 1000)) / ((double) (s[m].txRate))));
+			char costText[20];
+			snprintf(costText, sizeof(costText), "1/%sb/s", umetric_to_human(s[m].txRate));
+			json_object_object_add(jlink, "cost_text", json_object_new_string(costText));
+			json_object_array_add(jlinks, jlink);
+		}
+	}
+	json_object_object_add(jgraph, "links", jlinks);
+
+	json_write_file(jgraph, json_netjson_dir, "network-graph.json");
+	json_object_put(jgraph);
+}
+
+
+STATIC_FUNC
+void json_netjson_create_networkRoutes(void)
+{
+
+	json_object *jNetworkRoutes = json_netjson_create_networkHeader("NetworkRoutes", NULL);
+
+	// Create routes array:
+	json_object *jRoutes = json_object_new_array();
+	struct orig_node *on;
+	for (on = NULL; (on = avl_next_item(&orig_tree, (on ? &on->k.nodeId : NULL)));) {
+
+		LinkNode *link = on->neighPath.link;
+		if (link && link->k.myDev) {
+
+			json_object *jRoute = json_object_new_object();
+
+			json_object_object_add(jRoute, "destination", json_object_new_string(ip6AsStr(&on->primary_ip)));
+			json_object_object_add(jRoute, "destination_id", json_object_new_string(cryptShaAsString(&on->k.nodeId)));
+			char label[MAX_HOSTNAME_LEN + 10];
+			snprintf(label, sizeof(label), "%s.%s", on->k.hostname, cryptShaAsShortStr(&on->k.nodeId));
+			json_object_object_add(jRoute, "destination_label", json_object_new_string(label));
+
+			json_object_object_add(jRoute, "next", json_object_new_string(ip6AsStr(&link->k.linkDev->key.llocal_ip)));
+			json_object_object_add(jRoute, "next_id", json_object_new_string(cryptShaAsString(&link->k.linkDev->key.local->on->k.nodeId)));
+			char nextLabel[MAX_HOSTNAME_LEN + 10];
+			snprintf(nextLabel, sizeof(nextLabel), "%s.%s",
+				strlen(link->k.linkDev->key.local->on->k.hostname) ? link->k.linkDev->key.local->on->k.hostname : DBG_NIL,
+				cryptShaAsShortStr(&link->k.linkDev->key.local->on->k.nodeId));
+			json_object_object_add(jRoute, "next_label", json_object_new_string(nextLabel));
+
+			json_object_object_add(jRoute, "cost", json_object_new_double(((double) (1000 * 1000)) / ((double) (on->neighPath.um))));
+			char costText[20];
+			snprintf(costText, sizeof(costText), "1/%sb/s", umetric_to_human(on->neighPath.um));
+			json_object_object_add(jRoute, "cost_text", json_object_new_string(costText));
+			json_object_object_add(jRoute, "hops", json_object_new_int(on->ogmHopCount));
+
+			json_object_object_add(jRoute, "device", json_object_new_string(link->k.myDev->ifname_device.str));
+
+			json_object_array_add(jRoutes, jRoute);
+		}
+
+	}
+	json_object_object_add(jNetworkRoutes, "routes", jRoutes);
+
+	json_write_file(jNetworkRoutes, json_netjson_dir, "network-routes.json");
+	json_object_put(jNetworkRoutes);
+}
+
+STATIC_FUNC
 void json_generic_event_hook(char *statusKey)
 {
 	if (!json_update_interval || terminating)
@@ -405,80 +538,20 @@ void json_originator_event_hook(int32_t cb_id, struct orig_node *orig)
 STATIC_FUNC
 void json_route_change_hook(uint8_t del, struct orig_node *on)
 {
-	if (!del)
+	if (!del) {
 		json_originator_event_hook(PLUGIN_CB_DESCRIPTION_CREATED, on);
+		json_netjson_create_networkRoutes();
+	}
 }
+
 
 STATIC_FUNC
 void json_netjson_event_hook(void)
 {
-	json_object *jgraph = json_object_new_object();
-
-	// Create header:
-	json_object_object_add(jgraph, "type", json_object_new_string("NetworkGraph"));
-	json_object_object_add(jgraph, "label", json_object_new_string("BMX7 network"));
-	json_object_object_add(jgraph, "protocol", json_object_new_string(BMX_BRANCH));
-	json_object_object_add(jgraph, "version", json_object_new_string(BRANCH_VERSION));
-	char revision[8];
-	snprintf(revision, sizeof(revision), "%.7x", bmx_git_rev_u32);
-	json_object_object_add(jgraph, "revision", json_object_new_string(revision));
-	json_object_object_add(jgraph, "metric", json_object_new_string("MBitTime"));
-	json_object_object_add(jgraph, "router_id", json_object_new_string(cryptShaAsString(&myKey->kHash)));
-
-	// Create nodes array:
-	json_object *jnodes = json_object_new_array();
-	struct orig_node *on;
-	for (on = NULL; (on = avl_next_item(&orig_tree, (on ? &on->k.nodeId : NULL)));) {
-
-		json_object *jnode = json_object_new_object();
-		json_object_object_add(jnode, "id", json_object_new_string(cryptShaAsString(&on->k.nodeId)));
-
-		char label[MAX_HOSTNAME_LEN + 10];
-		snprintf(label, sizeof(label), "%s.%s", on->k.hostname, cryptShaAsShortStr(&on->k.nodeId));
-		json_object_object_add(jnode, "label", json_object_new_string(label));
-
-		json_object *jaddresses = json_object_new_array();
-		json_object_array_add(jaddresses, json_object_new_string(ip6AsStr(&on->primary_ip)));
-		json_object_object_add(jnode, "local_addresses", jaddresses);
-
-		json_object *jproperties = json_object_new_object();
-		json_object_object_add(jproperties, "hostname", json_object_new_string(on->k.hostname));
-		json_object_object_add(jproperties, "lastRef", json_object_new_int((bmx_time - on->dc->referred_by_others_timestamp) / 1000));
-		json_object_object_add(jproperties, "descSqn", json_object_new_int(on->dc->descSqn));
-		json_object_object_add(jnode, "properties", jproperties);
-
-		json_object_array_add(jnodes, jnode);
-	}
-	json_object_object_add(jgraph, "nodes", jnodes);
-
-	// Create links array:
-	json_object *jlinks = json_object_new_array();
-	struct status_handl *topoHandl;
-	uint32_t topoLen;
-	if ((topoHandl = get_status_handl(ARG_TOPOLOGY)) &&
-		(topoLen = ((*(topoHandl->frame_creator))(topoHandl, NULL)))) {
-
-		assertion(-502770, (topoHandl->min_msg_size == sizeof(struct topology_status)));
-		assertion(-502771, (!(topoLen % sizeof(struct topology_status))));
-
-		struct topology_status *s = (struct topology_status *) topoHandl->data;
-		uint32_t topoMsgs = topoLen / sizeof(struct topology_status);
-		uint32_t m;
-
-		for (m = 0; m < topoMsgs; m++) {
-			json_object *jlink = json_object_new_object();
-			json_object_object_add(jlink, "source", json_object_new_string(cryptShaAsString(s[m].id)));
-			json_object_object_add(jlink, "target", json_object_new_string(cryptShaAsString(s[m].neighId)));
-			json_object_object_add(jlink, "cost", json_object_new_double(((double) (1000 * 1000)) / ((double) (s[m].txRate))));
-			json_object_object_add(jlink, "cost_text", json_object_new_string(umetric_to_human(s[m].txRate)));
-			json_object_array_add(jlinks, jlink);
-		}
-	}
-	json_object_object_add(jgraph, "links", jlinks);
-
-	json_write_file(jgraph, json_netjson_dir, "network-graph.json");
-	json_object_put(jgraph);
+	json_netjson_create_networkGraph();
+	json_netjson_create_networkRoutes();
 }
+
 
 STATIC_FUNC
 void json_description_event_hook(int32_t cb_id, struct orig_node *on)
@@ -571,6 +644,7 @@ void update_json_status(void *data)
 	json_dev_event_hook(0, NULL);
 	json_links_event_hook(0, NULL);
 	json_originator_event_hook(PLUGIN_CB_DESCRIPTION_CREATED, NULL);
+	json_netjson_create_networkRoutes();
 	prof_stop();
 }
 

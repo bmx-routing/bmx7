@@ -38,8 +38,10 @@ The following tools and libraries are needed to obtain, compile, and install bmx
 * make
 * build-essential
 * libjson-c-dev zlib1g-dev libiw-dev
+* libmbedtls-dev ( or mbedtls-2.4.0 from https://tls.mbed.org/download/mbedtls-2.4.0-gpl.tgz)
+
+Optional for static configuration:
 * uci-0.7.5 from http://downloads.openwrt.org/sources/uci-0.7.5.tar.gz
-* mbedtls-2.4.0 from https://tls.mbed.org/download/mbedtls-2.4.0-gpl.tgz
 
 
 The following Linux-kernel modules are needed (depending on used bmx7 features)

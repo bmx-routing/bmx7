@@ -143,6 +143,11 @@
 #define MIN_TUN_OUT_DELAY 0
 #define MAX_TUN_OUT_DELAY 1000000
 
+#define ARG_TUN_ANY_SRC "tunAnySrc"
+#define DEF_TUN_ANY_SRC 0
+#define MIN_TUN_ANY_SRC 0
+#define MAX_TUN_ANY_SRC 1
+
 #define ARG_EXPORT_ONLY   "exportOnly"
 #define DEF_EXPORT_ONLY   0
 #define MIN_EXPORT_ONLY   0

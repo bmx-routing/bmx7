@@ -674,10 +674,13 @@ whole network. The good point is that propagation works even if there is no cont
 path. Even though the WiFi network is under bad conditions (because the Wireless noise,
 distance between nodes, etc...), the data will be propagated. The current implementation, by default, sets a maximum size limit of several KBytes for each file.
 
-The API of the sms plug-in is very simple. It simply clones the content of one or more files
-given by one node to all other nodes. All other nodes can do the same. Once started, each
-node will have two directories:/var/run/bmx7/sms/rcvdSms and /var/run/bmx7/sms/sendSms. Files
-put into the sendSms folder will be cloned to all other nodes inside rcvdSms folder.
+The API of the sms plug-in is very simple. It simply clones the content of one or more files given by one node to all other nodes. All other nodes can do the same. Once started, each node will have two directories: `/var/run/bmx7/sms/rcvdSms` and `/var/run/bmx7/sms/sendSms`.
+
+Files are cloned from the sendSms folder on the current node to the rcvdSmS folder on all other nodes with the syncSms option using the following steps
+
+* Place (or link) files you want to send in `/var/run/bmx7/sms/sendSms`
+* Use the `syncSms` option in BMX7 to send the file: `bmx7 -c syncSms="filename placed in the sendSms folder"`
+
 Wireless-mesh distros are using this feature for several things such as positioning Map information or a chat in web interface.
 
 ### Table plugin ###

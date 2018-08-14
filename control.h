@@ -49,7 +49,7 @@ typedef uint32_t TIME_SEC_T;
 
 extern int unix_sock;
 
-extern struct list_head ctrl_list;
+extern struct bmx_list_head ctrl_list;
 
 extern int32_t Client_mode;
 
@@ -115,7 +115,7 @@ struct ctrl_node {
 	int8_t dbgl;
 };
 
-extern struct list_head dbgl_clients[DBGL_MAX + 1];
+extern struct bmx_list_head dbgl_clients[DBGL_MAX + 1];
 
 struct dbgl_node {
 	struct list_node list;
@@ -227,7 +227,7 @@ struct ctrl_node *create_ctrl_node(int fd, void (*cn_fd_handler) (struct ctrl_no
 
 #define MAX_UNIX_MSG_SIZE 2000
 
-extern struct list_head opt_list;
+extern struct bmx_list_head opt_list;
 
 
 /* opt_t types:
@@ -292,7 +292,7 @@ struct opt_child {
 struct opt_parent {
 	struct list_node list;
 
-	struct list_head childs_instance_list;
+	struct bmx_list_head childs_instance_list;
 
 	char *val; //key
 
@@ -311,9 +311,9 @@ struct opt_data {
 
 	struct opt_type *parent_opt; //REMOVE THIS and use casting instead !
 
-	struct list_head childs_type_list; //if this opt is a section type, then further sub-opts types can be listed here
+	struct bmx_list_head childs_type_list; //if this opt is a section type, then further sub-opts types can be listed here
 
-	struct list_head parents_instance_list; //
+	struct bmx_list_head parents_instance_list; //
 };
 
 struct opt_type {

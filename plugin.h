@@ -74,7 +74,7 @@ struct cb_fd_node {
 	void (*cb_fd_handler) (int32_t fd);
 };
 
-extern struct list_head cb_fd_list;
+extern struct bmx_list_head cb_fd_list;
 // cb_fd_handler is called when fd received data
 // called function may remove itself
 void set_fd_hook(int32_t fd, void (*cb_fd_handler) (int32_t fd), int8_t del);

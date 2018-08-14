@@ -73,7 +73,7 @@ uint32_t My_pid = 0;
 
 LIST_SIMPEL(ctrl_list, struct ctrl_node, list, list);
 
-struct list_head dbgl_clients[DBGL_MAX + 1];
+struct bmx_list_head dbgl_clients[DBGL_MAX + 1];
 static struct dbg_histogram dbgl_history[2][DBG_HIST_SIZE];
 
 static uint8_t debug_system_active = NO;
@@ -136,7 +136,7 @@ void add_dbgl_node(struct ctrl_node *cn, int dbgl)
 
 	dn->cn = cn;
 	cn->dbgl = dbgl;
-	list_add_tail(&dbgl_clients[dbgl], &dn->list);
+	bmx_list_add_tail(&dbgl_clients[dbgl], &dn->list);
 
 	if (dbgl == DBGL_SYS || dbgl == DBGL_CHANGES) {
 		dbgf_all(DBGT_INFO, "resetting muted dbg history");
@@ -255,7 +255,7 @@ struct ctrl_node *create_ctrl_node(int fd, void (*cn_fd_handler) (struct ctrl_no
 {
 	struct ctrl_node *cn = debugMallocReset(sizeof(struct ctrl_node), -300010);
 
-	list_add_tail(&ctrl_list, &cn->list);
+	bmx_list_add_tail(&ctrl_list, &cn->list);
 
 	cn->fd = fd;
 	cn->cn_fd_handler = cn_fd_handler;
@@ -571,7 +571,7 @@ void debug_output(uint32_t check_len, struct ctrl_node *cn, int8_t dbgl, int8_t 
 		if (level == DBGL_SYS && mute_dbgl_sys == DBG_HIST_MUTED)
 			continue;
 
-		list_for_each(list_pos, /*(struct list_head *)*/&(dbgl_clients[level]))
+		list_for_each(list_pos, /*(struct bmx_list_head *)*/&(dbgl_clients[level]))
 		{
 
 			struct dbgl_node *dn = list_entry(list_pos, struct dbgl_node, list);
@@ -990,7 +990,7 @@ void register_option(struct opt_type *opt, const char * category_name)
 
 		opt->d.parent_opt = tmp_opt;
 
-		list_add_tail(&tmp_opt->d.childs_type_list, &opt->d.list);
+		bmx_list_add_tail(&tmp_opt->d.childs_type_list, &opt->d.list);
 
 	} else {
 
@@ -1017,7 +1017,7 @@ void register_option(struct opt_type *opt, const char * category_name)
 		}
 
 		if (!tmp_opt)
-			list_add_tail(&opt_list, &opt->d.list);
+			bmx_list_add_tail(&opt_list, &opt->d.list);
 
 	}
 
@@ -1094,7 +1094,7 @@ struct opt_type *get_option(struct opt_type *parent_opt, uint8_t short_opt, char
 
 	struct list_node *list_pos;
 	int32_t len = 0;
-	struct list_head *list;
+	struct bmx_list_head *list;
 	struct opt_type *opt = NULL;
 	char *equalp = NULL;
 	char s[MAX_ARG_SIZE] = "";
@@ -1305,7 +1305,7 @@ struct opt_child *add_opt_child(struct opt_type *opt, struct opt_parent *p)
 
 	c->opt = opt;
 	c->parent_instance = p;
-	list_add_tail(&p->childs_instance_list, &c->list);
+	bmx_list_add_tail(&p->childs_instance_list, &c->list);
 
 	return c;
 }
@@ -1347,7 +1347,7 @@ struct opt_parent *add_opt_parent(struct opt_type *opt)
 
 	LIST_INIT_HEAD(p->childs_instance_list, struct opt_child, list, list);
 
-	list_add_tail(&opt->d.parents_instance_list, &p->list);
+	bmx_list_add_tail(&opt->d.parents_instance_list, &p->list);
 
 	return p;
 }

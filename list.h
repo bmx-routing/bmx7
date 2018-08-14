@@ -28,7 +28,7 @@
 
 
 #ifndef _LIST_H
-#define _LIST_H
+#define _LIST_H_
 
 #include <stdint.h>
 
@@ -36,7 +36,7 @@ struct list_node {
 	struct list_node *next;
 };
 
-struct list_head {
+struct bmx_list_head {
 	struct list_node *next;
 	struct list_node *last;
 	uint16_t items;
@@ -52,7 +52,7 @@ struct plist_node {
 
 
 
-#define LIST_SIMPEL(ptr, element_type, list_field, key_field ) struct list_head ptr = { \
+#define LIST_SIMPEL(ptr, element_type, list_field, key_field ) struct bmx_list_head ptr = { \
           .next = (struct list_node *)&ptr, \
           .last = (struct list_node *)&ptr,    \
           .items = 0, \
@@ -75,14 +75,14 @@ struct plist_node {
 #define list_get_first(head) ((void*)((LIST_EMPTY(head)) ? NULL : (((char*) (head)->next) - (head)->list_node_offset) ))
 #define list_get_last(head) ((void*)((LIST_EMPTY(head)) ? NULL : (((char*) (head)->last) - (head)->list_node_offset) ))
 
-void *list_iterate(struct list_head *head, void *node);
-void *list_find_next(struct list_head *head, void* key, void *node);
+void *list_iterate(struct bmx_list_head *head, void *node);
+void *list_find_next(struct bmx_list_head *head, void* key, void *node);
 
-void list_add_head(struct list_head *head, struct list_node * new);
-void list_add_tail(struct list_head *head, struct list_node * new);
-void list_add_after(struct list_head *head, struct list_node *pos, struct list_node * new);
-void list_del_next(struct list_head *head, struct list_node *pos);
-void *list_del_head(struct list_head *head);
+void list_add_head(struct bmx_list_head *head, struct list_node * new);
+void bmx_list_add_tail(struct bmx_list_head *head, struct list_node * new);
+void list_add_after(struct bmx_list_head *head, struct list_node *pos, struct list_node * new);
+void list_del_next(struct bmx_list_head *head, struct list_node *pos);
+void *list_del_head(struct bmx_list_head *head);
 
 
 #define plist_get_first(head) (LIST_EMPTY(head) ? NULL : \
@@ -91,17 +91,17 @@ void *list_del_head(struct list_head *head);
 #define plist_get_last(head) (LIST_EMPTY(head) ? NULL : \
                               ((struct plist_node*)(((char*) (head)->prev) - (head)->list_node_offset))-item )
 
-void * plist_iterate(struct list_head *head, struct plist_node **pln);
+void * plist_iterate(struct bmx_list_head *head, struct plist_node **pln);
 
-void plist_add_head(struct list_head *head, void *item);
-void plist_add_tail(struct list_head *head, void *item);
-void *plist_del_head(struct list_head *head);
+void plist_add_head(struct bmx_list_head *head, void *item);
+void plist_add_tail(struct bmx_list_head *head, void *item);
+void *plist_del_head(struct bmx_list_head *head);
 
 
 
 /**
  * list_entry - get the struct for this entry
- * @ptr:	the &struct list_head pointer.
+ * @ptr:	the &struct bmx_list_head pointer.
  * @type:	the type of the struct this is embedded in.
  * @member:	the name of the list_struct within the struct.
  */
@@ -109,7 +109,7 @@ void *plist_del_head(struct list_head *head);
 
 /**
  * list_for_each	-	iterate over a list
- * @pos:	the &struct list_head to use as a loop counter.
+ * @pos:	the &struct bmx_list_head to use as a loop counter.
  * @head:	the head for your list.
  */
 #define list_for_each(pos, head) \
@@ -123,8 +123,8 @@ void *plist_del_head(struct list_head *head);
 
 /**
  * list_for_each_safe	-	iterate over a list safe against removal of list entry
- * @pos:	the &struct list_head to use as a loop counter.
- * @n:		another &struct list_head to use as temporary storage
+ * @pos:	the &struct bmx_list_head to use as a loop counter.
+ * @n:		another &struct bmx_list_head to use as temporary storage
  * @head:	the head for your list.
  */
 #define list_for_each_safe(pos, n, head) \

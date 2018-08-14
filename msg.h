@@ -357,7 +357,7 @@ struct tx_frame_iterator {
 	// MUST be initialized:
 	// remains unchanged:
 	const char *caller;
-	struct list_head *tx_task_list;
+	struct bmx_list_head *tx_task_list;
 	struct tx_task_node *ttn;
 	//	struct desc_contents *descContents;
 	struct frame_db *db;

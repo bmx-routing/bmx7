@@ -39,7 +39,7 @@
  * @head: list head of maintained nodes
  * @node: a node maintained in the list or NULL
  */
-void * list_iterate(struct list_head *head, void *node)
+void * list_iterate(struct bmx_list_head *head, void *node)
 {
 	struct list_node *ln = (node ?
 		((struct list_node*) (((char*) node) + head->list_node_offset)) :
@@ -53,7 +53,7 @@ void * list_iterate(struct list_head *head, void *node)
 	return(((char*) ln->next) - head->list_node_offset);
 }
 
-void *list_find_next(struct list_head *head, void* key, void *node)
+void *list_find_next(struct bmx_list_head *head, void* key, void *node)
 {
 	while ((node = list_iterate(head, node))) {
 
@@ -68,7 +68,7 @@ void *list_find_next(struct list_head *head, void* key, void *node)
  * @head: list head to add it after
  * @new: new entry to be added
  */
-void list_add_head(struct list_head *head, struct list_node *new)
+void list_add_head(struct bmx_list_head *head, struct list_node *new)
 {
 
 	new->next = head->next;
@@ -82,12 +82,12 @@ void list_add_head(struct list_head *head, struct list_node *new)
 }
 
 /**
- * list_add_tail - add a new entry
+ * bmx_list_add_tail - add a new entry
  * @head: list head to add it before
  * @new: new entry to be added
  */
 
-void list_add_tail(struct list_head *head, struct list_node *new)
+void bmx_list_add_tail(struct bmx_list_head *head, struct list_node *new)
 {
 	new->next = (struct list_node *) head;
 	head->last->next = new;
@@ -96,7 +96,7 @@ void list_add_tail(struct list_head *head, struct list_node *new)
 	head->items++;
 }
 
-void list_add_after(struct list_head *head, struct list_node *ln, struct list_node *new)
+void list_add_after(struct bmx_list_head *head, struct list_node *ln, struct list_node *new)
 {
 	new->next = ln->next;
 	ln->next = new;
@@ -112,7 +112,7 @@ void list_add_after(struct list_head *head, struct list_node *ln, struct list_no
  * @entry: the element to delete from the list.
  * Note: list_empty on entry does not return true after this, the entry is in an undefined state.
  */
-void list_del_next(struct list_head *head, struct list_node *ln)
+void list_del_next(struct bmx_list_head *head, struct list_node *ln)
 {
 	assertion(-502641, (ln->next != (struct list_node*) head));
 
@@ -126,7 +126,7 @@ void list_del_next(struct list_head *head, struct list_node *ln)
 	head->items--;
 }
 
-void *list_del_head(struct list_head *head)
+void *list_del_head(struct bmx_list_head *head)
 {
 	if (LIST_EMPTY(head))
 		return NULL;
@@ -147,7 +147,7 @@ void *list_del_head(struct list_head *head)
  */
 
 /* UNTESTED
-void * plist_iterate(struct list_head *head, struct plist_node **pln)
+void * plist_iterate(struct bmx_list_head *head, struct plist_node **pln)
 {
 
 	if (head->last == (struct list_node*)
@@ -169,17 +169,17 @@ static struct plist_node *plist_node_create(void *item)
 	return plh;
 }
 
-void plist_add_head(struct list_head *head, void *item)
+void plist_add_head(struct bmx_list_head *head, void *item)
 {
 	list_add_head(head, &((plist_node_create(item))->list));
 }
 
-void plist_add_tail(struct list_head *head, void *item)
+void plist_add_tail(struct bmx_list_head *head, void *item)
 {
-	list_add_tail(head, &((plist_node_create(item))->list));
+	bmx_list_add_tail(head, &((plist_node_create(item))->list));
 }
 
-void * plist_del_head(struct list_head *head)
+void * plist_del_head(struct bmx_list_head *head)
 {
 	struct plist_node *pln = list_del_head(head);
 

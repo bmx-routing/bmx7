@@ -126,7 +126,7 @@ void set_tunXin6_net_adv_list_handl(uint8_t del, void **adv_list_ptr)
 	n = debugMallocReset(sizeof( struct tunXin6_net_adv_list_node), -300517);
 
 	n->adv_list = adv_list;
-	list_add_tail((&tunXin6_net_adv_list_list), &n->list);
+	bmx_list_add_tail((&tunXin6_net_adv_list_list), &n->list);
 }
 
 STATIC_FUNC

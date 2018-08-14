@@ -205,7 +205,7 @@ void task_register(TIME_T timeout, void (* task) (void *), void *data, int32_t t
 	}
 
 	if ((tmp_tn == NULL) || (U32_LE(tmp_tn->expire, tn->expire)))
-		list_add_tail(&task_list, &tn->list);
+		bmx_list_add_tail(&task_list, &tn->list);
 
 }
 

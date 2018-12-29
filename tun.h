@@ -309,7 +309,7 @@ struct tunXin6_net_adv_list_node {
 };
 
 
-extern struct list_head tunXin6_net_adv_list_list;
+extern struct bmx_list_head tunXin6_net_adv_list_list;
 
 struct tun_bit_key_nodes {
 	struct tun_search_node *tsn;

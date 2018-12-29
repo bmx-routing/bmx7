@@ -74,7 +74,7 @@ void _set_thread_hook(int32_t cb_type, void (*cb_handler) (void), int8_t del, st
 		cleanup_all(-500143);
 	}
 
-	list_for_each_safe(list_pos, tmp_pos, (struct list_head*) cb_list)
+	list_for_each_safe(list_pos, tmp_pos, (struct bmx_list_head*) cb_list)
 	{
 		cbn = list_entry(list_pos, struct cb_node, list);
 
@@ -82,7 +82,7 @@ void _set_thread_hook(int32_t cb_type, void (*cb_handler) (void), int8_t del, st
 
 			if (del) {
 
-				list_del_next(((struct list_head*) cb_list), prev_pos);
+				list_del_next(((struct bmx_list_head*) cb_list), prev_pos);
 				debugFree(cbn, -300069);
 				return;
 
@@ -103,7 +103,7 @@ void _set_thread_hook(int32_t cb_type, void (*cb_handler) (void), int8_t del, st
 
 	cbn->cb_type = cb_type;
 	cbn->cb_handler = cb_handler;
-	list_add_tail(((struct list_head*) cb_list), &cbn->list);
+	bmx_list_add_tail(((struct bmx_list_head*) cb_list), &cbn->list);
 
 }
 
@@ -261,7 +261,7 @@ int activate_plugin(struct plugin *p, void *dlhandle, const char *dl_name)
 	pn->plugin = p;
 	pn->dlhandle = dlhandle;
 
-	list_add_tail(&plugin_list, &pn->list);
+	bmx_list_add_tail(&plugin_list, &pn->list);
 
 	dbgf_all(DBGT_INFO, "%s SUCCESS", pn->plugin->plugin_name);
 

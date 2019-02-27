@@ -63,6 +63,10 @@ static CRYPTRSA_T *my_PrivKey = NULL;
 #elif (CRYPTLIB >= MBEDTLS_MIN && CRYPTLIB <= MBEDTLS_MAX)
 /******************* accessing mbedtls: *************************************/
 
+#if CRYPTLIB >= MBEDTLS_2_16_0
+#include "mbedtls/platform_util.h"
+#endif 
+
 #include "mbedtls/compat-1.3.h"
 #include "mbedtls/config.h"
 #include "mbedtls/sha256.h"

@@ -39,7 +39,7 @@
 
 
 #ifndef CRYPTLIB
-#define CRYPTLIB MBEDTLS_2_4_0
+#define CRYPTLIB MBEDTLS_2_8_0
 #endif
 
 #define CRYPT_DER_BUF_SZ 16000

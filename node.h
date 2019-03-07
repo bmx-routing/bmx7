@@ -354,10 +354,10 @@ union content_sizes {
 struct content_usage_node {
 
 	struct {
+		struct desc_content *descContent;
+		struct content_node *content;
 		uint8_t expanded_type;
 		uint8_t expanded_gzip;
-		struct content_node *content;
-		struct desc_content *descContent;
 	} __attribute__((packed)) k;
 
 	uint8_t maxUsedLevel;

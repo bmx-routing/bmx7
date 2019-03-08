@@ -90,7 +90,7 @@ static int32_t tun_out_delay = DEF_TUN_OUT_DELAY;
 static int32_t tun_out_mtu = DEF_TUN_OUT_MTU;
 static int32_t tun_dedicated_to = DEF_TUN_OUT_TO;
 static int32_t tun_proactive_routes = DEF_TUN_PROACTIVE_ROUTES;
-static int32_t tun_any_src = DEF_TUN_ANY_SRC;
+static int32_t tun_real_src = DEF_TUN_REAL_SRC;
 
 STATIC_FUNC
 void configure_tun_bit(uint8_t del, struct tun_bit_node *tbn, IDM_T asDfltTun);
@@ -205,7 +205,7 @@ IDM_T configure_tunnel_in(uint8_t del, struct tun_in_node *tin, int16_t tun6Id)
 	} else if (!del && !tin->upIfIdx) {
 
 		IPX_T *local = &my_primary_ip;
-		IPX_T remoteIp = (tun6Id || !tun_any_src) ? tin->remote  : ZERO_IP;
+		IPX_T remoteIp = (tun_real_src >= TYP_TUN_REAL_SRC_ANY) ?  ZERO_IP : tin->remote;
 
 		if (!is_ip_set(&tin->remote) || is_ip_local(&tin->remote) ||
 			(tin->ingressPrefix46[0].mask && find_overlapping_hna(&tin->ingressPrefix46[0].ip, tin->ingressPrefix46[0].mask, NULL))) {
@@ -724,7 +724,7 @@ struct tun_dev_node *tun_dev_out_add(struct tun_bit_node *tbn, IDM_T tdn_state)
 				AVL_INIT_TREE(tdn->tun_bit_tree[0], struct tun_bit_node, tunBitKey.keyNodes);
 				AVL_INIT_TREE(tdn->tun_bit_tree[1], struct tun_bit_node, tunBitKey.keyNodes);
 
-				IPX_T *localIp = (ton->tunOutKey.tun6Id || !tun_any_src) ? &ton->localIp : &my_primary_ip;
+				IPX_T *localIp = (tun_real_src >= TYP_TUN_REAL_SRC_USE) ? &my_primary_ip : &ton->localIp;
 				tdn->nameKey = tun_out_get_free_name(DEF_TUN_NAME_TYPE_OUT, cryptShaAsString(&ton->tunOutKey.on->k.nodeId));
 				tdn->ifIdx = kernel_tun_add(tdn->nameKey.str, IPPROTO_IP, localIp, &ton->remoteIp);
 				tdn->orig_mtu = kernel_get_mtu(tdn->nameKey.str);
@@ -2615,6 +2615,19 @@ int32_t opt_tun_name_prefix(uint8_t cmd, uint8_t _save, struct opt_type *opt, st
 }
 
 STATIC_FUNC
+int32_t opt_tun_real_src(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
+{
+	if (cmd == OPT_APPLY) {
+		upd_tun_bit_node(DEL, NULL, NULL);
+		purge_tunCatchTree();
+		reconfigure_tun_ins();
+		upd_tun_bit_node(ADD, NULL, NULL);
+		eval_tun_bit_tree(NULL);
+	}
+	return SUCCESS;
+}
+
+STATIC_FUNC
 int32_t opt_tun_state_dedicated_to(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
 {
 	if (cmd == OPT_APPLY) {
@@ -2764,8 +2777,8 @@ static struct opt_type tun_options[]= {
 	{ODI,0,ARG_TUN_OUT_DELAY,       0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&tun_out_delay, MIN_TUN_OUT_DELAY,MAX_TUN_OUT_DELAY,DEF_TUN_OUT_DELAY,0, 0,
 			ARG_VALUE_FORM, "Delay catched tunnel packets for given us before rescheduling (avoid dmesg warning ip6_tunnel: X7Out_.. xmit: Local address not yet configured!)"},
 
-	{ODI,0,ARG_TUN_ANY_SRC,         0,  9,2,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&tun_any_src, MIN_TUN_ANY_SRC,MAX_TUN_ANY_SRC,DEF_TUN_ANY_SRC,0, 0,
-			ARG_VALUE_FORM, "Accept any (not faked) source address for primary tunnel interface as outer ip-in-ip6 tunnel header"},
+	{ODI,0,ARG_TUN_REAL_SRC,         0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&tun_real_src, MIN_TUN_REAL_SRC,MAX_TUN_REAL_SRC,DEF_TUN_REAL_SRC,0, opt_tun_real_src,
+			ARG_VALUE_FORM, "1: Accept any src address for incoming outer ip6 tunnel header. 2: Use primary address as src address for outgoing outer ip6 tunnel header"},
 
 
 //order must be after ARG_HOSTNAME (which initializes self via init_self(), called from opt_hostname):

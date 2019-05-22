@@ -26,22 +26,22 @@
 
 # the following example substitutes the now deprecated --neta option
 #
-config 'bmx6' 'general'
-#       option 'runtime_dir' '/var/run/bmx6'
+config 'bmx7' 'general'
+#       option 'runtime_dir' '/var/run/bmx7'
 	option 'base_port' '6240'
 
 
-# bmxd always tries to load bmx6_config.so from /usr/lib/
+# bmxd always tries to load bmx7_config.so from /usr/lib/
 # Therefore, there is no obligation to request this explicitly.
 # An alternative library-path can be set with the environment variable BMX6_LIB_PATH
-# E.g. BMX6_LIB_PATH=/usr/src/bmx6/lib will check the given directory for plugins
+# E.g. BMX6_LIB_PATH=/usr/src/bmx7/lib will check the given directory for plugins
 config 'plugin'
-	option 'plugin' 'bmx6_config.so'
+	option 'plugin' 'bmx7_config.so'
 
 
 # other plugin must be requested explicitly:
 # config 'plugin'
-# 	option 'plugin' 'bmx6_howto_plugin.so'
+# 	option 'plugin' 'bmx7_howto_plugin.so'
 
 
 # it is allways a good idea to use an alias on your loopback interface 

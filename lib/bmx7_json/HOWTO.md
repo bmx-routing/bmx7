@@ -11,7 +11,7 @@ cd json-c..
 for quick introduction into json syntax see: http://www.json.org/
 
 
-The bmx6_json.so plugin is primarily meant to provide status information of a running bmx6 daemon in a json formatted syntax.
+The bmx7_json.so plugin is primarily meant to provide status information of a running bmx7 daemon in a json formatted syntax.
 Depending on durability of the type of available information it is generated proactively or reactively.
 
 
@@ -31,12 +31,12 @@ Detailed examples are given below.
 ################################################
 Durable information:
 The following information is created proactively as soon as it becomes available.
-The information is stored in various files and directories in the json subdirectory in the bmx6 runtime-dir.
-By default the bmx6 runtime-dir is set to /var/run/bmx6
-The plugin maintains the following files in the json subdirectory of the bmx6 runtime-dir.
+The information is stored in various files and directories in the json subdirectory in the bmx7 runtime-dir.
+By default the bmx7 runtime-dir is set to /var/run/bmx7
+The plugin maintains the following files in the json subdirectory of the bmx7 runtime-dir.
 
 options  
-     This FILE provides a detailed description of all available bmx6 configuration options and its 
+     This FILE provides a detailed description of all available bmx7 configuration options and its 
      attributes (like default/min/max values, help, syntax).
 parameters 
      This FILE provides a detailed summary of the daemons current configuration
@@ -52,17 +52,17 @@ Detailed examples are given below.
 ################################################
 Non-durable information (detailed examples):
 
-mlc115:~# bmx6 -c json-status
+mlc115:~# bmx7 -c json-status
 { "status": { "version": "BMX6-0.1-alpha", "compatibility": 14, "codeVersion": 5, "globalId": "mlc115.5B1116F69452328AAFE0", "primaryIp": "fd02::a0cd:ef00:7301:0:1", "uptime": "0:00:00:39", "cpu": "0.1", "nodes": 15 } }
 
-mlc115:~# bmx6 -c json-interfaces
+mlc115:~# bmx7 -c json-interfaces
 { "interfaces": [
                   { "devName": "eth1.12", "state": "UP", "type": "ethernet", "rateMin": "1000M", "rateMax": "1000M", "llocalIp": "fe80::a2cd:efff:fe00:7301\/64", "globalIp": "fd02::a0cd:ef00:7301:0:1\/96", "multicastIp": "ff02::2", "primary": 1 },
                   { "devName": "eth2.12", "state": "UP", "type": "ethernet", "rateMin": "1000M", "rateMax": "1000M", "llocalIp": "fe80::a2cd:efff:fe00:7302\/64", "globalIp": "fd02::a0cd:ef00:7302:0:1\/96", "multicastIp": "ff02::2", "primary": 0 }
                 ]
 }
 
-mlc115:~# bmx6 -c json-links
+mlc115:~# bmx7 -c json-links
 { "links": [
              { "globalId": "mlc116.65A370182BEFDF5E702E", "llocalIp": "fe80::a2cd:efff:fe00:7401", "viaDev": "eth1.12", "rxRate": 100, "txRate": 100, "routes": 4, "wantsOgms": 1 },
              { "globalId": "mlc125.3681CBE838DBFD492E32", "llocalIp": "fe80::a2cd:efff:fe00:7d01", "viaDev": "eth1.12", "rxRate": 100, "txRate": 100, "routes": 1, "wantsOgms": 1 },
@@ -72,7 +72,7 @@ mlc115:~# bmx6 -c json-links
 }
 
 
-mlc115:~# bmx6 -c json-originators
+mlc115:~# bmx7 -c json-originators
 { "originators": [
                    { "globalId": "mlc103.173A43BE22C3F14D077C", "blocked": 0, "primaryIp": "fd02::a0cd:ef00:6701:0:1", "routes": 2, "viaIp": "fe80::a2cd:efff:fe00:7201", "viaDev": "eth1.12", "metric": "576M", "lastDesc": 108, "lastRef": 3 },
                    { "globalId": "mlc104.0EC109E295B0C13145D5", "blocked": 0, "primaryIp": "fd02::a0cd:ef00:6801:0:1", "routes": 2, "viaIp": "fe80::a2cd:efff:fe00:7201", "viaDev": "eth1.12", "metric": "709M", "lastDesc": 108, "lastRef": 3 },
@@ -97,7 +97,7 @@ mlc115:~# bmx6 -c json-originators
 ################################################
 Durable information (detailed examples):
 
-mlc115:~# ls -l /var/run/bmx6/json/
+mlc115:~# ls -l /var/run/bmx7/json/
 total 20
 drwxr-xr-x 2 root root  4096 May 23 05:53 descriptions
 -rw-r--r-- 1 root root 10208 May 22 18:31 options
@@ -106,7 +106,7 @@ drwxr-xr-x 2 root root  4096 May 23 05:53 descriptions
 
 
 
-mlc115:~# cat /var/run/bmx6/json/options
+mlc115:~# cat /var/run/bmx7/json/options
 { "OPTIONS": [
                { "name": "help", "help": "summarize help" },
                { "name": "verboseHelp", "help": "show help" },
@@ -115,10 +115,10 @@ mlc115:~# cat /var/run/bmx6/json/options
                { "name": "test", "help": "test remaining args and provide feedback about projected success (without applying them)" },
                { "name": "noFork", "min": 0, "max": 12, "def": -1, "syntax": "<VAL>", "help": "print debug information instead of forking to background\n" },
                { "name": "debug", "min": 0, "max": 12, "def": -1, "syntax": "<VAL>", "help": "show debug information:\n\t 0  : system\n\t 3  : changes\n\t 4  : verbose changes (depends on -DNO_DEBUG_ALL)\n\t 5  : profiling (depends on -DNO_DEBUG_MALLOC -DNO_MEMORY_USAGE -DPROFILE_DATA)\n\t 8  : details\n\t11  : testing       12  : traffic dump" },
-               { "name": "configFile", "def": "\/etc\/config\/bmx6", "syntax": "<FILE>", "help": "use non-default config file. If defined, this must be the first given option.\n\tuse --configFile=0 or -f0 to disable" },
+               { "name": "configFile", "def": "\/etc\/config\/bmx7", "syntax": "<FILE>", "help": "use non-default config file. If defined, this must be the first given option.\n\tuse --configFile=0 or -f0 to disable" },
                { "name": "configReload", "help": "dynamically reload config file" },
-               { "name": "runtimeDir", "def": "\/var\/run\/bmx6", "syntax": "<DIRECTORY>", "help": "set runtime DIR of pid, sock, ... - default: \/var\/run\/bmx6 (must be defined before --connect)." },
-               { "name": "plugin", "syntax": "<FILE>", "help": "load plugin. <FILE> must be in LD_LIBRARY_PATH or BMX6_LIB_PATH\n\tpath (e.g. --plugin bmx6_howto_plugin.so )\n" },
+               { "name": "runtimeDir", "def": "\/var\/run\/bmx7", "syntax": "<DIRECTORY>", "help": "set runtime DIR of pid, sock, ... - default: \/var\/run\/bmx7 (must be defined before --connect)." },
+               { "name": "plugin", "syntax": "<FILE>", "help": "load plugin. <FILE> must be in LD_LIBRARY_PATH or BMX6_LIB_PATH\n\tpath (e.g. --plugin bmx7_howto_plugin.so )\n" },
                { "name": "loop_mode", "help": "put client daemon in loop mode to periodically refresh debug information" },
                { "name": "loop_interval", "min": 100, "max": 10000, "def": 1000, "syntax": "<VAL>", "help": "periodicity in ms with which client daemon in loop-mode refreshes debug information" },
                { "name": "connect", "help": "set client mode. Connect and forward remaining args to main routing daemon" },
@@ -190,9 +190,9 @@ mlc115:~# cat /var/run/bmx6/json/options
 }
 
 
-mlc115:~# cat /var/run/bmx6/json/parameters
+mlc115:~# cat /var/run/bmx7/json/parameters
 { "OPTIONS": [
-               { "name": "plugin", "INSTANCES": [ { "value": "bmx6_json.so" } ] },
+               { "name": "plugin", "INSTANCES": [ { "value": "bmx7_json.so" } ] },
                { "name": "ipVersion", "INSTANCES": [ { "value": "6", "CHILD_INSTANCES": [ { "name": "throwRules", "value": "0" } ] } ] },
                { "name": "globalPrefix", "INSTANCES": [ { "value": "fd02::\/48" } ] },
                { "name": "dev", "INSTANCES": [ { "value": "eth1.12" }, { "value": "eth2.12", "CHILD_INSTANCES": [ { "name": "announce", "value": "1" } ] } ] }
@@ -200,7 +200,7 @@ mlc115:~# cat /var/run/bmx6/json/parameters
 }
 
 
-mlc115:~# ls -l /var/run/bmx6/json/descriptions/
+mlc115:~# ls -l /var/run/bmx7/json/descriptions/
 total 120
 -rw-r--r-- 1 root root 699 May 23 05:53 mlc100.A69036A0031A0C66AD20
 -rw-r--r-- 1 root root 700 May 23 05:53 mlc101.2377050DB5C5ADC9BDD7
@@ -233,7 +233,7 @@ total 120
 -rw-r--r-- 1 root root 699 May 23 05:53 mlc128.F56930DD303568C52227
 -rw-r--r-- 1 root root 700 May 23 05:53 mlc129.4DBCAFF8C41B4EB0C226
 
-mlc115:~# cat /var/run/bmx6/json/descriptions/mlc100.A69036A0031A0C66AD20
+mlc115:~# cat /var/run/bmx7/json/descriptions/mlc100.A69036A0031A0C66AD20
 { "descSha": "54B06B8E430500D1D7B52314DC723036C47B7CD4", "blocked": 0,
       "DESC_ADV": { "transmitterIid4x": 56, "globalId": "mlc100.A69036A0031A0C66AD20", "codeVersion": 5, "capabilities": "0", "descSqn": 2760, "ogmSqnMin": 65159, "ogmSqnRange": 7362, "txInterval": 500,
                     "extensions": [ { "METRIC_EXTENSION": { "fmetric_u16_min": "1", "metricAlgo": 16, "flags": "0", "txExpDivisor": 1, "txExpNumerator": 1, "rxExpDivisor": 2, "rxExpNumerator": 1, "pathWindow": 5, "pathLounge": 1, "pathRegression": 1, "hopPenalty": 0 } },
@@ -242,7 +242,7 @@ mlc115:~# cat /var/run/bmx6/json/descriptions/mlc100.A69036A0031A0C66AD20
                   }
 }
 
-mlc115:~# cat /var/run/bmx6/json/descriptions/mlc115.5B1116F69452328AAFE0
+mlc115:~# cat /var/run/bmx7/json/descriptions/mlc115.5B1116F69452328AAFE0
 { "descSha": "BEC91A2124FAA2B74E3D23DC6C2B0B58D3534412", "blocked": 0,
       "DESC_ADV": { "transmitterIid4x": 1, "globalId": "mlc115.5B1116F69452328AAFE0", "codeVersion": 5, "capabilities": "0", "descSqn": 48583, "ogmSqnMin": 2870, "ogmSqnRange": 7649, "txInterval": 500,
                     "extensions": [ { "METRIC_EXTENSION": { "fmetric_u16_min": "1", "metricAlgo": 16, "flags": "0", "txExpDivisor": 1, "txExpNumerator": 1, "rxExpDivisor": 2, "rxExpNumerator": 1, "pathWindow": 5, "pathLounge": 1, "pathRegression": 1, "hopPenalty": 0 } },

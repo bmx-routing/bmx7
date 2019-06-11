@@ -37,7 +37,7 @@
 #define MAX_TUN_PROACTIVE_ROUTES 1
 #define DEF_TUN_PROACTIVE_ROUTES 1
 #define ARG_TUN_PROACTIVE_ROUTES "proactiveTunRoutes"
-#define HLP_TUN_PROACTIVE_ROUTES "proactively configure all tunnel routes via dedicated tunnels"
+#define HLP_TUN_PROACTIVE_ROUTES "Proactively configure all tunnel routes via dedicated tunnels"
 
 
 #define TDN_STATE_CATCHALL 1
@@ -352,7 +352,7 @@ struct tun_bit_node {
 //};
 
 struct tun_search_node {
-	//        struct tun_search_key tunSearchKey;
+	// struct tun_search_key tunSearchKey;
 	char nameKey[NETWORK_NAME_LEN];
 	uint64_t bmx7RouteBits;
 	int16_t routeSearchProto;
@@ -410,10 +410,12 @@ struct tun_net_node {
 	struct avl_tree tun_bit_tree;
 };
 
+/* Harry TODO */
 struct tun_out_key {
 	struct orig_node *on;
 	int16_t tun6Id;
 } __attribute__((packed));
+
 
 struct tun_out_node {
 	// the advertised part (by description_msg_tun6_adv):

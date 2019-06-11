@@ -403,7 +403,7 @@ void *avl_remove(struct avl_tree *tree, void *key, int32_t tag)
 
 	}
 
-	// remember and return the found node. It might have been another one than intended
+	// Remember and return the found node. It might have been another one than intended
 	void *node = it->item;
 
 #ifdef AVL_5XLINKED
@@ -443,7 +443,7 @@ void *avl_remove(struct avl_tree *tree, void *key, int32_t tag)
 
 		debugFree(it, tag);
 
-	} else { // both childs NOT NULL:
+	} else { // both children NOT NULL:
 
 		// Find the inorder successor
 		struct avl_node *heir = it->down[1];

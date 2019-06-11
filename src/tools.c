@@ -30,7 +30,6 @@
 #include <unistd.h>
 #include <ctype.h>
 
-
 #include "list.h"
 #include "control.h"
 #include "bmx.h"
@@ -109,7 +108,6 @@ char* rmStrKeyValue(char* str, char* key)
 
 		ret = (str + strlen(str) + 1 + (needleVal - needleBegin));
 	}
-
 
 	dbgf_all(DBGT_INFO, "in=%s key=%s beg=%s val=%s end=%s ret=%s, out=%s", haystack, key, needleBegin, needleVal, needleEnd, ret, str);
 	debugFree(haystack, -300811);
@@ -225,7 +223,6 @@ IDM_T validate_name_string(char* name, uint32_t field_len, char* exceptions)
 				continue;
 		}
 
-
 		return FAILURE;
 	}
 
@@ -238,7 +235,6 @@ char* memAsCharString(const char* mem, uint32_t len)
 #define MEMASSTR_BUFFERS 4
 	static uint8_t c = 0;
 	static char out[MEMASSTR_BUFFERS][MEMASSTR_BUFF_SIZE];
-
 
 	if (!mem)
 		return NULL;
@@ -267,8 +263,6 @@ int32_t min_i32(int32_t a, int32_t b)
 	return(a < b) ? a : b;
 }
 
-
-
 //http://en.wikipedia.org/wiki/Fast_inverse_square_root
 //http://www.codemaestro.com/reviews/9
 //http://www.beyond3d.com/content/articles/8/
@@ -286,7 +280,6 @@ float fast_inverse_sqrt(float x)
 	x = x * (1.5f - h * x * x);
 	return x;
 }
-
 
 //TODO: check all callers: currently limit parameter defines the first out-of-range element and not the max legal one!
 
@@ -310,7 +303,6 @@ void init_set_bits_table256(void)
 	}
 }
 
-
 // clears byte range between and including begin and end
 // accept overlap of begin and end
 
@@ -327,9 +319,7 @@ void byte_clear(uint8_t *array, uint32_t array_size, uint32_t begin, uint32_t en
 	if (begin > end)
 		memset(array, 0, end + 1);
 
-
 }
-
 
 // count the number of true bits in v
 
@@ -398,7 +388,6 @@ uint32_t bits_get(uint8_t *array, uint32_t array_bit_size, uint32_t beg_bit, uin
 	return counted;
 }
 
-
 // clears bit range between and including begin and end
 
 void bits_clear(uint8_t *array, uint32_t array_bit_size, uint32_t beg_bit, uint32_t end_bit, uint32_t range_mask)
@@ -408,17 +397,14 @@ void bits_clear(uint8_t *array, uint32_t array_bit_size, uint32_t beg_bit, uint3
 
 	uint32_t array_byte_size = array_bit_size / 8;
 
-
 	beg_bit = beg_bit % array_bit_size;
 	end_bit = end_bit % array_bit_size;
 
 	uint32_t beg_byte = beg_bit / 8;
 	uint32_t end_byte = end_bit / 8;
 
-
 	if (beg_byte == end_byte ? (beg_bit % 8) > (end_bit % 8) : (beg_byte + 1) % array_byte_size != end_byte)
 		byte_clear(array, array_byte_size, (beg_byte + 1) % array_byte_size, (end_byte - 1) % array_byte_size);
-
 
 	uint8_t beg_mask = ~(0xFF >> (beg_bit % 8)); //eg 1: ~(01111111) = 10000000
 	uint8_t end_mask = ~(0xFF << (7 - (end_bit % 8))); //eg 5: ~(11111100) = 00000011
@@ -668,7 +654,6 @@ uint8_t *find_array_data(uint8_t *arr, uint32_t arrLen, uint8_t *element, uint32
 	return NULL;
 }
 
-
 #ifdef WITH_DEVEL
 
 struct ring_buffer {
@@ -698,9 +683,9 @@ static const char LogTable256[256] ={
 
 uint32_t log_bin(uint32_t v)
 {
-
-	//unsigned int v; // 32-bit word to find the log of
-	uint32_t r; // r will be lg(v)
+	/* TODO Harry */
+	unsigned int v; // 32-bit word to find the log of
+	uint32_t r;		// r will be lg(v)
 	uint32_t t, tt; // temporaries
 
 	if ((tt = v >> 16)) {
@@ -737,4 +722,3 @@ void init_tools(void)
 	 */
 
 }
-

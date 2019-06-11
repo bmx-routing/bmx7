@@ -83,3 +83,4 @@ OBJS = $(SRC_C:.c=.o)
 
 PACKAGE_NAME := bmx7
 BINARY_NAME  := bmx7
+

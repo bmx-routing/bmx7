@@ -1,22 +1,24 @@
-
+# Installation
+```
 sudo apt-get install libjson0 libjson0-dev
-
+```
 or download sources from: wget http://ftp.de.debian.org/debian/pool/main/j/json-c/json-c_0.9.orig.tar.gz
 
+```
 tar xzvf json-c_0.9.orig.tar.gz
 cd json-c..
 ./configure ; make ; make install; ldconfig
+```
+
+- For quick introduction into JSON syntax see: http://www.json.org/
 
 
-for quick introduction into json syntax see: http://www.json.org/
+- The bmx7_json.so plugin is primarily meant to provide status information of a running BMX7 daemon in a JSON formatted syntax.  
+
+__Depending on durability of the type of available information it is generated proactively or reactively.__
 
 
-The bmx7_json.so plugin is primarily meant to provide status information of a running bmx7 daemon in a json formatted syntax.
-Depending on durability of the type of available information it is generated proactively or reactively.
-
-
-################################################
-Non-durable information:
+#### Non-durable information:
 
 The following status information is created reactively by calling one of the following commands:
 --json-status
@@ -27,9 +29,7 @@ The following status information is created reactively by calling one of the fol
 Detailed examples are given below.
 
 
-
-################################################
-Durable information:
+#### Durable information:
 The following information is created proactively as soon as it becomes available.
 The information is stored in various files and directories in the json subdirectory in the bmx7 runtime-dir.
 By default the bmx7 runtime-dir is set to /var/run/bmx7
@@ -47,11 +47,8 @@ descriptions
 Detailed examples are given below.
 
 
-
-
-################################################
-Non-durable information (detailed examples):
-
+#### Non-durable information (detailed examples):
+```
 mlc115:~# bmx7 -c json-status
 { "status": { "version": "BMX6-0.1-alpha", "compatibility": 14, "codeVersion": 5, "globalId": "mlc115.5B1116F69452328AAFE0", "primaryIp": "fd02::a0cd:ef00:7301:0:1", "uptime": "0:00:00:39", "cpu": "0.1", "nodes": 15 } }
 
@@ -91,21 +88,17 @@ mlc115:~# bmx7 -c json-originators
                    { "globalId": "mlc127.F48C1A9DE327156645D7", "blocked": 0, "primaryIp": "fd02::a0cd:ef00:7f01:0:1", "routes": 2, "viaIp": "fe80::a2cd:efff:fe00:7401", "viaDev": "eth1.12", "metric": "576M", "lastDesc": 109, "lastRef": 4 },
                  ]
 }
+```
 
-
-
-################################################
-Durable information (detailed examples):
-
+#### Durable information (detailed examples):
+```
 mlc115:~# ls -l /var/run/bmx7/json/
 total 20
 drwxr-xr-x 2 root root  4096 May 23 05:53 descriptions
 -rw-r--r-- 1 root root 10208 May 22 18:31 options
 -rw-r--r-- 1 root root   426 May 22 18:33 parameters
-
-
-
-
+```
+```
 mlc115:~# cat /var/run/bmx7/json/options
 { "OPTIONS": [
                { "name": "help", "help": "summarize help" },
@@ -188,8 +181,9 @@ mlc115:~# cat /var/run/bmx7/json/options
                { "name": "json_originators", "help": "show originators in json format\n" }
              ]
 }
+```
 
-
+```
 mlc115:~# cat /var/run/bmx7/json/parameters
 { "OPTIONS": [
                { "name": "plugin", "INSTANCES": [ { "value": "bmx7_json.so" } ] },
@@ -198,8 +192,9 @@ mlc115:~# cat /var/run/bmx7/json/parameters
                { "name": "dev", "INSTANCES": [ { "value": "eth1.12" }, { "value": "eth2.12", "CHILD_INSTANCES": [ { "name": "announce", "value": "1" } ] } ] }
              ]
 }
+```
 
-
+```
 mlc115:~# ls -l /var/run/bmx7/json/descriptions/
 total 120
 -rw-r--r-- 1 root root 699 May 23 05:53 mlc100.A69036A0031A0C66AD20
@@ -232,7 +227,9 @@ total 120
 -rw-r--r-- 1 root root 700 May 23 05:53 mlc127.F48C1A9DE327156645D7
 -rw-r--r-- 1 root root 699 May 23 05:53 mlc128.F56930DD303568C52227
 -rw-r--r-- 1 root root 700 May 23 05:53 mlc129.4DBCAFF8C41B4EB0C226
+```
 
+```
 mlc115:~# cat /var/run/bmx7/json/descriptions/mlc100.A69036A0031A0C66AD20
 { "descSha": "54B06B8E430500D1D7B52314DC723036C47B7CD4", "blocked": 0,
       "DESC_ADV": { "transmitterIid4x": 56, "globalId": "mlc100.A69036A0031A0C66AD20", "codeVersion": 5, "capabilities": "0", "descSqn": 2760, "ogmSqnMin": 65159, "ogmSqnRange": 7362, "txInterval": 500,
@@ -241,7 +238,10 @@ mlc115:~# cat /var/run/bmx7/json/descriptions/mlc100.A69036A0031A0C66AD20
                                   ]
                   }
 }
+```
 
+
+```
 mlc115:~# cat /var/run/bmx7/json/descriptions/mlc115.5B1116F69452328AAFE0
 { "descSha": "BEC91A2124FAA2B74E3D23DC6C2B0B58D3534412", "blocked": 0,
       "DESC_ADV": { "transmitterIid4x": 1, "globalId": "mlc115.5B1116F69452328AAFE0", "codeVersion": 5, "capabilities": "0", "descSqn": 48583, "ogmSqnMin": 2870, "ogmSqnRange": 7649, "txInterval": 500,
@@ -250,4 +250,4 @@ mlc115:~# cat /var/run/bmx7/json/descriptions/mlc115.5B1116F69452328AAFE0
                                   ]
                   }
 }
-
+```

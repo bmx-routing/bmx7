@@ -4,7 +4,7 @@ CFLAGS += -pedantic -W -Wall -Wstrict-prototypes -Wno-unused-parameter -Os -g3 -
 # CFLAGS += -DHAVE_CONFIG_H
 # CFLAGS += -DCRYPTLIB=MBEDTLS_2_4_0 # POLARSSL_1_2_5 POLARSSL_1_2_9 POLARSSL_1_3_3 POLARSSL_1_3_4 CYASSL_2_8_0
 
-# optinal defines:
+# optional defines:
 # CFLAGS += -static
 # CFLAGS += -pg # "-pg" with openWrt causes "gcrt1.o: No such file"! Needs ld -o myprog /lib/gcrt0.o myprog.o utils.o -lc_p, grep: http://www.cs.utah.edu/dept/old/texinfo/as/gprof.html
 
@@ -43,8 +43,8 @@ CFLAGS += -DDEBUG_MALLOC
 # CFLAGS += -DPROFILING           # (no static functions -> better profiling and cores)
 CFLAGS += -DCORE_LIMIT=20000    # equals ulimit -c 20000
 
-#EXTRA_CFLAGS +=
-#EXTRA_LDFLAGS +=
+# EXTRA_CFLAGS += -fsanitize=undefined
+# EXTRA_LDFLAGS += -fsanitize=undefined
 
 # add as much features and test cases as possible:
 #EXTRA_CFLAGS += -DMOST
@@ -83,3 +83,4 @@ OBJS = $(SRC_C:.c=.o)
 
 PACKAGE_NAME := bmx7
 BINARY_NAME  := bmx7
+

@@ -15,7 +15,6 @@
  * 02110-1301, USA
  */
 
-
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <errno.h>
@@ -23,7 +22,6 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
-
 
 #include "list.h"
 #include "control.h"
@@ -45,16 +43,13 @@
 
 #define CODE_CATEGORY_NAME "key"
 
-
 int32_t tracked_timeout = 20000;
 int32_t neigh_qualifying_to = 30000;
 int32_t id_purge_to = DEF_ID_PURGE_TO;
 
-
 AVL_TREE(schedDecreasedEffectiveState_tree, struct schedDecreasedEffectiveState_node, kn);
 AVL_TREE(key_tree, struct key_node, kHash);
 static uint8_t key_tree_exceptions = 0;
-
 
 int32_t maxDescRefsPerNeigh = 1000;
 int32_t maxContentRefsPerDesc = 50;
@@ -241,7 +236,6 @@ void keyNode_destroy_(struct key_node *kn)
 	assertion(-502345, (!kn->neighRefs_tree.items));
 	assertion(-502346, (!kn->content));
 
-
 	if (kn->decreasedEffectiveState != kn->bookedState)
 		avl_remove(&schedDecreasedEffectiveState_tree, kn, -300705);
 
@@ -300,7 +294,6 @@ void kSetInAction_tracked(GLOBAL_ID_T *kHash, struct key_node **kn, struct KeySt
 
 	(*kn)->content = content_add_hash(kHash);
 	(*kn)->content->kn = (*kn);
-
 
 }
 
@@ -365,7 +358,6 @@ int8_t kColCond_promoted(uint8_t asRow, struct key_node *kn)
 		return YES;
 	}
 
-
 	return NO;
 }
 
@@ -374,7 +366,6 @@ void kSetInAction_promoted(GLOBAL_ID_T *kHash, struct key_node **kn, struct KeyS
 {
 	assertion(-502355, (kn && *kn && cryptShasEqual(kHash, &(*kn)->kHash)));
 	(*kn)->TAPTime = 0;
-
 
 	update_orig_dhash((*kn)->nextDesc);
 
@@ -469,8 +460,6 @@ void kSetOutAction_neighbor(struct key_node **kn, struct KeyState *next)
 
 }
 
-
-
 struct KeyState keyMatrix[KCSize][KRSize] = {
 	{
 		{KS_INIT, "Listed", "qualifying", "listedQualifying", "lQ", 4000, NULL, 10000, kSetInAction_listed, kSetOutAction_listed, kCol_TRUE, kColCond_listed, kRowCond_qualifying },
@@ -550,7 +539,6 @@ void keyNode_initMatrix(void)
 
 			assertion(-502368, IMPLIES(left, curr->i.setMaxUse <= left->i.setMaxUse));
 			assertion(-502370, IMPLIES(up, curr->i.setMaxUse <= up->i.setMaxUse));
-
 
 			if (curr->i.setPrefConf)
 				curr->i.setPrefUse = curr->i.setPrefConf;
@@ -647,7 +635,6 @@ struct key_node * keyNode_setState(GLOBAL_ID_T *kHash, struct key_node *kn, stru
 
 	if (kn)
 		kn->bookedState = kn->decreasedEffectiveState = new;
-
 
 	assertion(-502376, IMPLIES(kn, new));
 	assertion(-502377, IMPLIES(new, kn));
@@ -918,7 +905,6 @@ void keyNode_delCredits_(const char* f, GLOBAL_ID_T *kHash, struct key_node *kn,
 		if (kc->pktId)
 			kn->pktIdTime = 0;
 
-
 		if (kc->pktSign)
 			kn->pktSignTime = 0;
 
@@ -982,7 +968,6 @@ void keyNode_addCredits_(struct key_node *kn, struct key_credits *kc)
 	if (kc->pktId) {
 		kn->pktIdTime = bmx_time;
 	}
-
 
 	if (kc->pktSign) {
 		kn->pktSignTime = bmx_time;
@@ -1079,7 +1064,6 @@ struct key_node *keyNode_updCredits(GLOBAL_ID_T *kHash, struct key_node *kn, str
 		}
 	}
 
-
 	keyNodes_block_and_sync(blockId, NO);
 
 	dbgf_all(DBGT_INFO, "bookedSec=%s schedSec=%s testSec=%s condSuccess=%d ", kn ? kn->bookedState->secName : NULL,
@@ -1135,7 +1119,6 @@ void keyNode_fixTimeouts()
 		if (kc.pktId || kc.nQualifying || kc.pktSign || kn->unReferencedTime)
 			keyNode_delCredits(NULL, kn, &kc, YES);
 
-
 		struct neigh_node * neigh = NULL;
 		struct NeighRef_node * ref = NULL;
 		while ((ref = avl_next_item(&kn->neighRefs_tree, &neigh))) {
@@ -1144,7 +1127,6 @@ void keyNode_fixTimeouts()
 			if (!iid_get_neighIID4x_timeout_by_node(ref))
 				neighRef_destroy(ref, YES);
 		}
-
 
 		if (kn->TAPTime && (((TIME_T) (bmx_time - kn->TAPTime))>((TIME_T) tracked_timeout))) {
 			assertion(-502412, (kn->bookedState->i.r == KRAlien));
@@ -1358,7 +1340,6 @@ int32_t opt_set_credits(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
 
 	return SUCCESS;
 }
-
 
 static struct opt_type key_options[] = {
 

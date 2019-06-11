@@ -18,7 +18,6 @@
 #define XOR( a, b ) ( !(a) != !(b) )
 #define IMPLIES( a, b ) ( !(a) || (b) )
 
-
 // LOG2(val=0)=0, LOG2(val=1)=0, LOG2(val=2)=1, LOG2(val=3)=1, LOG2(val=4)=2, ...
 #define LOG2(result, val, VAL_TYPE)                                             \
         do {                                                                    \
@@ -44,10 +43,6 @@ static inline uint64_t ntoh64(uint64_t x)
 
 #define hton64 ntoh64
 
-
-
-
-
 char *strToLower(char *s);
 char* rmStrKeyValue(char* str, char* key);
 IDM_T hexStrToMem(char *s, uint8_t *m, uint16_t mLen, uint8_t strict);
@@ -58,8 +53,6 @@ char* memAsCharString(const char* mem, uint32_t len);
 IDM_T check_string(char*s, char *okChars, char replaceChar);
 IDM_T validate_char_string(const char* data, uint32_t len);
 IDM_T validate_name_string(char* name, uint32_t field_len, char* exceptions);
-
-
 
 int32_t max_i32(int32_t a, int32_t b);
 int32_t min_i32(int32_t a, int32_t b);
@@ -84,8 +77,6 @@ void bit_xor(void *out, void *a, void *b, uint32_t size);
 
 uint8_t is_zero(void *data, int len);
 
-
-
 int8_t wordsEqual(char *a, char *b);
 void wordCopy(char *out, char *in);
 uint32_t wordlen(char *s);
@@ -96,4 +87,3 @@ int32_t rm_dir_content(char* dir_name, char* prefix);
 uint8_t *find_array_data(uint8_t *arr, uint32_t arrLen, uint8_t *element, uint32_t elemLen);
 
 void init_tools(void);
-

@@ -4,9 +4,9 @@
 
 In the most simple configuration, the only required parameter are the interfaces names that should be used for meshing.
 The following example starts bmx7 on interface wlan0:
-<pre>
+```
 root@mlc1001:~# bmx7 dev=eth1
-</pre>
+```
 
 However, to let this simple command work as expected also check the following basic requirements:
 
@@ -21,12 +21,12 @@ However, to let this simple command work as expected also check the following ba
   If you are using a wireless interface, the interface settings must
   have been configured using `iwconfig` or `iw` to communicate with bmx7
   daemons running on other nodes. This is a typical configuration for
-  a wireless mesh setup: <pre>iwconfig wlan0 mode ad-hoc ap 02:ca:ff:ee:ba:be channel 11 essid my-mesh-network</pre>
+  a wireless mesh setup: ```iwconfig wlan0 mode ad-hoc ap 02:ca:ff:ee:ba:be channel 11 essid my-mesh-network```
 
 * Bmx7 (by default) works in daemon mode, thus sends itself to
   background and gives back a prompt. To let it run in foreground
   specify a debug level with the startup command like:
-  <pre> bmx7 debug=0 dev=eth1 </pre>
+  ``` bmx7 debug=0 dev=eth1 ```
   Of course, you may need to kill a previously
   started bmx7 daemon beforehand (`killall bmx7`)
 
@@ -67,12 +67,12 @@ their own parameters:
 * `traffic=DEV` where DEV:=`all`, `eth1`, etc.
 
 
-<pre>
+```
 root@mlc1001:~# bmx7 -c show=status
 STATUS:
 shortId  name    nodeKey cv revision primaryIp                              tun6Address         tun4Address  uptime     cpu txQ  nbs rts nodes
 01662D16 mlc1001 RSA2048 21 0abee1e  fd70:166:2d16:1ff6:253f:d0bc:1558:d89a 2013:0:0:1001::1/64 10.20.1.1/24 0:00:11:43 0.1 4/50 2   9   10/10
-</pre>
+```
 
 As can be seen, the status reveals:
 * shortId: the short form of the node's [Global ID](wiki#global-id)
@@ -91,7 +91,7 @@ These desired types can be combined. Also the above given example shows kind of 
 The long argument would be:
 `bmx7 connect show=status`. A more informative case using the long form would be:
 
-<pre>
+```
 root@mlc1001:~# bmx7 -c parameters show=status show=interfaces show=links show=originators show=tunnels
 PARAMETERS:
  plugin                 bmx7_config.so       (0)
@@ -132,7 +132,7 @@ DDC8E9EF mlc1006 pA A A A A 612     193      733+784  21 e2bd709  fd70:ddc8:e9ef
 6F59035D mlc1007 pA A A A A 612     188      733+784  21 e2bd709  fd70:6f59:35d:ae9b:1d55:3066:b3f9:74c7  eth1 AAD9C0F5  mlc1002 403M   6    36     0       
 BF335A96 mlc1008 pA A A A A 612     178      733+784  21 e2bd709  fd70:bf33:5a96:889d:eedd:767b:6ca9:42fb eth1 AAD9C0F5  mlc1002 373M   7    36     0       
 1191C909 mlc1009 pA A A A A 612     184      733+784  21 e2bd709  fd70:1191:c909:1e4e:4c9c:4d4a:33eb:b09b eth1 AAD9C0F5  mlc1002 349M   8    35     6       
-</pre>
+```
 
 Only if relevant information exists for a requested type is available
 is will be shown.  In this example no tunnels are configured locally
@@ -197,9 +197,9 @@ Quick summary of provided info:
 * Route to node mlc1003 is setup via interface eth1 and via the link-local address of neighbor mlc1002 (at least two hops to the destination node).
 
 The following links of the total network topology can be guessed from this information (further links may exist):
-<pre>
+```
 mlc1000 --- mlc1001 --- mlc1002 --- mlc1003 --- ... --- mlc1009
-</pre>
+```
 
 ### Simple Ping Test ###
 
@@ -207,28 +207,28 @@ This could be verified using traceroute6 towards the primary IP of the other nod
 
 To mlc1000's primary IP fd66:66:66:0:a2cd:efff:fe10:1 shows one hop:
 
-<pre>
+```
 root@mlc1001:~# traceroute6 -n -q 1 fd66:66:66:0:a2cd:efff:fe10:1
 traceroute to fd66:66:66:0:a2cd:efff:fe10:1 (fd66:66:66:0:a2cd:efff:fe10:1), 30 hops max, 80 byte packets
  1  fd66:66:66:0:a2cd:efff:fe10:1  0.324 ms
-</pre>
+```
 
 To mlc1002's primary IP fd66:66:66:0:a2cd:efff:fe10:201 shows one hop:
 
-<pre>
+```
 root@mlc1001:~# traceroute6 -n -q 1 fd66:66:66:0:a2cd:efff:fe10:201
 traceroute to fd66:66:66:0:a2cd:efff:fe10:201 (fd66:66:66:0:a2cd:efff:fe10:201), 30 hops max, 80 byte packets
  1  fd66:66:66:0:a2cd:efff:fe10:201  0.302 ms
-</pre>
+```
 
 To mlc1003's primary IP fd66:66:66:0:a2cd:efff:fe10:301 shows two hops:
 
-<pre>
+```
 root@mlc1001:~# traceroute6 -n -q 1 fd66:66:66:0:a2cd:efff:fe10:301
 traceroute to fd66:66:66:0:a2cd:efff:fe10:301 (fd66:66:66:0:a2cd:efff:fe10:301), 30 hops max, 80 byte packets
  1  fd66:66:66:0:a2cd:efff:fe10:201  0.313 ms
  2  fd66:66:66:0:a2cd:efff:fe10:301  0.429 ms
-</pre>
+```
 
 ### Dynamic Reconfiguration ###
 
@@ -236,16 +236,16 @@ Most bmx7 parameters can be applied not only at startup, but also dynamically to
 For example interfaces can be added, removed, or specified with more details:
 The following example removes interface eth1 and adds eth2 with a max rate of 100 Mbits (overwriting the default assumption of 1000Mbits for ethernet interfaces).
 
-<pre>
+```
 bmx7 -c dev=-eth1 dev=eth2 /rateMax=100000
 bmx7 -cd8
-</pre>
+```
 
 Checking new status of interfaces, links, and originator:
 
-<pre>
+```
 root@mlc1001:~# bmx7 -cd8
-</pre>
+```
 
 It can be seen that:
 
@@ -290,14 +290,14 @@ By default all interface addresses are announced via UHNAs. However, this can be
 The following example reconfigures an already running bmx7 daemon to UHNA announce the network fd00:ffff:ffff:ffff::/64 and fd01:ffff:ffff::/48.
 By omitting the `--connect / -c` parameter, the same could be configured as startup parameter for bmx7.
 
-<pre>
+```
 bmx7 -c u=fd00:ffff:ffff:ffff::/64 u=fd01:ffff:ffff::/48
-</pre>
+```
 
 An already active announcement can be removed by preceeding the network with the `-` char:
-<pre>
+```
 bmx7 -c u=-fd00:ffff:ffff:ffff::/64
-</pre>
+```
 
 Before bmx7 accepts a dynamically configured UHNA announcement it checks if this UHNA is not overlapping with an already existing UHNA announcement form another node.
 If this is the case the configuration will fail.

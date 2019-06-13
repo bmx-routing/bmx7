@@ -18,14 +18,14 @@ Tunnel announcements are also used for redistributing routes from other routing 
 Therefore, each announcements message is decorated with a route-type field indicating the routing protocol that exported the route for being redistributed.
 
 
-### Tunnel requirements  ###
+### Tunnel requirements 
 
 The following Linux-kernel modules are needed for tunnel-based overlay networking:
 * ipv6
 * tunnel6
 * ip6_tunnel
 
-### Tunnel Configuration and Debugging ###
+### Tunnel Configuration and Debugging
 In general, a specific tunnel configuration is described from two perspectives:
 
 * Gateway (GW) nodes or just GWs are offering GW services to networks via the advertizement of tunnel announcements and the provisioning of tunnel-end-points.
@@ -49,7 +49,7 @@ The full set of available options for configuring tunnels is given via the build
 `bmx7 -c show=tunnels`
 
 
-#### Tunnel Device Configuration ####
+### Tunnel Device Configuration
 
 Operation in GW and/or GW-client mode implies the configuration of a bmx7 tunnel device and the IPv4 and/or IPv6 addresses that shall be used for tunnel traffic.
 The selection of these addresses should be coordinated with:
@@ -57,9 +57,9 @@ The selection of these addresses should be coordinated with:
 * GW administrators because (depending on the GW connection to other networks) only specific addresses may be routable and considered to be originated from the bmx7 cloud.
 
 The command
-<pre>
+```
 bmx7 -c tunDev=Default /tun4Address=10.254.10.123/32 /tun6Address=2012:1234:5678:123::1/64
-</pre>
+```
 dynamically
 * configures a linux ip4/6in6 tunnel device called bmxDefault (check it with command: ip link show).
 * assignes the address `10.254.10.123` and `2012:1234:5678:123::1` to the tunnel interface and uses them for outgoing tunnel traffic.
@@ -71,15 +71,15 @@ But for bidirectional tunnel communication with any another node also a backward
 
 The automatic selection and establishment of tunnels to other nodes is achieved with the GW-client mode as described in more derail in the next Section.
 
-#### Gateway-Client Nodes ####
+### Gateway-Client Nodes
 
 The configuration of GW clients can be simple but also, depending on the preferences for a GW-selection policy, very complex.
 Through the configuration of the mandatory tunDev and it's addresses (see above), each GW client node is also a GW node to its own (usually small) tunnel address space.
 
 In the following simple example a GW-client node is searching for any other kind of offered IPv4 and v6 tunnels:
-<pre>
+```
 bmx7 -c tunOut=v4Default /network=0.0.0.0/0 tunOut=v6Default /network=::/0
-</pre>
+```
 
 With the above configured tunnel selection policy, tunnels are selected in the following order:
   1. prefix-length of announced tunnels (networks that are more specific than others).
@@ -95,42 +95,42 @@ idea can be straight translated to IPv6).
 * Nodes in the mesh cloud announce their private and local address ranges with a prefix length of 24 and somewhere in the range of 10.254.0.0/16.
 
 * Announcements of this type should always be preferred, even if any of the following announced types has a better end-to-end metric or more precise announcement.
-<pre>
+```
     bmx7 -c tunOut=v4Nodes /network=10.254.0.0/16 /minPrefixLen=24 /maxPrefixLen=24 /ipmetric=2001
-</pre>
+```
 
 * Some BGP GW nodes are connected to other mesh clouds/areas of the same overall community network. These clouds are operating in a different IPv4 range (than 10.254.0.0/16) but always somewhere in the range of 10.0.0.0/8. Route announcements of this type should be preferred over the announcement of a default route.
-<pre>
+```
     bmx7 -c tunOut=v4Clouds /network=10.0.0.0/8 /maxPrefixLen=16 /bgp=1
-</pre>
+```
 
 * Some DSL GW nodes are offering to share their DSL line and are announcing a default route (0.0.0.0/0).
 
 * Further, to mitigate the effects of GW switching between GWs having a similar end-to-end metric a GW switch should only happen if the other GW is at least 30% better.
-<pre>
+```
     bmx7 -c tunOut=v4Default /network=0.0.0.0/0 /maxPrefixLen=0 /hysteresis=30 # refine the above configured v4 tunnel search
-</pre>
+```
 
 * In case my node is directly connected to a DSL gateway and gets a automatically (dhcp) configured default route in the main routing table (use: ip route show table main ). then this route 
 should be preferred and should NOT clash with default tunnel routes configured by bmx7.
 * Therefore move all bmx7 tunnel routes to 0.0.0.0/0 into a separate routing table with lower lookup prioriy (check with: ip rule show; ip route show table 150)
-<pre>
+```
     bmx7 -c tunOut=v4Default /network=0.0.0.0/0 /maxPrefixLen=0 /hysteresis=30 /tableRule=50000/150 # again refine the above default search
-</pre>
+```
 
 * The default route announcements from two well known GWs (with hostname pepe and paula) should be strictly preferred over unknown GWs.
 * So, if available, move them to new table (with lower priority than main and higher priority than used for the backup tunnel rule configured above)
-<pre>
+```
     bmx7 -c tunOut=v4DefaultPepe  /network=0.0.0.0/0 /maxPrefixLen=0 /gwName=pepe  /hysteresis=30 /tableRule=40000/140
     bmx7 -c tunOut=v4DefaultPaula /network=0.0.0.0/0 /maxPrefixLen=0 /gwName=paula /hysteresis=30 /tableRule=40000/140
-</pre>
+```
 
 * Finally, GW Paula turned out to be more stable. Therefore I want to prefer GW Paula over Pepe:
-<pre>
+```
     bmx7 -c tunOut=v4DefaultPaula /network=0.0.0.0/0 /maxPrefixLen=0 /gwName=paula /hysteresis=30 /bonus=100
-</pre>
+```
 
-#### Gateway Nodes ####
+### Gateway Nodes
 
 The advertisement of a tunnel endpoint to a network can be configured with the --tunIn=<arbitrary name> and /network=<network> argument and an optional bandwidth specification (given as bits per second) using the /bandwidth or /b sub parameter.
 Announcement can be removed by preceeding the name argument with a '-' char.
@@ -140,16 +140,16 @@ The following command dynamically configures the advertisement of the following 
 * A more specific route to 10.10.0.0/16 with a bandwidth of 10 Mbps (eg: a local v4 Network).
 * An IPv6 route to the [RFC 4291] designated `2000::/3` global unicast address space with a bandwidth of 16 Mbps.
 * A more specific route to the `2012:1234::/32` IPv6 space at 10 Mbps (eg: a local v6 Network).
-<pre>
+```
 bmx7 -c tunIn=def4Offer /n=0.0.0.0/0 /b=32000000  tunIn=local4 /n=10.10.0.0/16 /b=10000000  tunIn=def6Offer /n=2000::/3 /b=16000000  tunIn=local6 /n=2012:1234::/32 /b=10000000
-</pre>
+```
 
-#### Tunnel Status Information ####
+### Tunnel Status Information
 
 Tunnel status information can be accessed with the `--tunnels or --show=tunnels` parameters.
 
 
-#### Configuring route redistribution ####
+### Configuring route redistribution
 
 Redistribution of routes is configurable with the `--redistTable` parameter.
 Similar to the `--tunIn parameter, --redistTable` must be given with an arbitrary name for referencing to a specific redistribution directive and further sub-criterias.
@@ -166,7 +166,7 @@ The following example automatically and dynamically announces (and removes annou
 If routes matching these criterias exist, then:
 * They are announced with a bandwidth of 1Mbit
 * Subsequent routes are aggregated down to a minimum prefix length of 24
-<pre>
+```
  bmx7 -c \
  redistTable            otherProtocol        \
     /network            192.168.0.0/16       \
@@ -176,5 +176,5 @@ If routes matching these criterias exist, then:
     /kernel             1                    \
     /boot               1                    \
     /bandwidth          1000000
-</pre>
+```
 

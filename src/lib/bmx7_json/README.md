@@ -18,7 +18,7 @@ cd json-c..
 __Depending on durability of the type of available information it is generated proactively or reactively.__
 
 
-#### Non-durable information:
+### Non-durable information:
 
 The following status information is created reactively by calling one of the following commands:
 --json-status
@@ -29,7 +29,7 @@ The following status information is created reactively by calling one of the fol
 Detailed examples are given below.
 
 
-#### Durable information:
+### Durable information:
 The following information is created proactively as soon as it becomes available.
 The information is stored in various files and directories in the json subdirectory in the bmx7 runtime-dir.
 By default the bmx7 runtime-dir is set to /var/run/bmx7
@@ -47,7 +47,7 @@ descriptions
 Detailed examples are given below.
 
 
-#### Non-durable information (detailed examples):
+### Non-durable information (detailed examples):
 ```
 mlc115:~# bmx7 -c json-status
 { "status": { "version": "BMX6-0.1-alpha", "compatibility": 14, "codeVersion": 5, "globalId": "mlc115.5B1116F69452328AAFE0", "primaryIp": "fd02::a0cd:ef00:7301:0:1", "uptime": "0:00:00:39", "cpu": "0.1", "nodes": 15 } }
@@ -90,7 +90,7 @@ mlc115:~# bmx7 -c json-originators
 }
 ```
 
-#### Durable information (detailed examples):
+### Durable information (detailed examples):
 ```
 mlc115:~# ls -l /var/run/bmx7/json/
 total 20

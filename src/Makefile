@@ -16,8 +16,9 @@
 
 include Common.mk
 
+#debug: $(CFLAGS)
 
-all:	
+all:
 	$(MAKE) $(BINARY_NAME)
 	# further make targets: help, libs, build_all, strip[_libs|_all], install[_libs|_all], clean[_libs|_all]
 
@@ -78,5 +79,5 @@ help:
 	# for zlib on debian do:
 	#   apt-get install zlib1g-dev
 	#
-	#   
+	#
 

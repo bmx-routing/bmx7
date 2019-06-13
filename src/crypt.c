@@ -197,13 +197,13 @@ CRYPTDHM_T *cryptDhmKeyMake(uint8_t keyType, uint8_t attempt)
 		pptr = MBEDTLS_DHM_RFC3526_MODP_3072_P;
 		gptr = MBEDTLS_DHM_RFC3526_MODP_3072_G;
 #elif (CRYPTLIB >= MBEDTLS_2_8_0 && CRYPTLIB <= MBEDTLS_MAX)
-		
+
 	if (keyType == CRYPT_DHM2048_TYPE) {
 		static const unsigned char modp2048P[(2048/8)] = MBEDTLS_DHM_RFC3526_MODP_2048_P_BIN;
 		static const unsigned char modp2048G[1] = MBEDTLS_DHM_RFC3526_MODP_2048_G_BIN;
 		if ((ret = mpi_read_binary(&dhm->P, modp2048P, sizeof(modp2048P) )) != 0 || (ret = mpi_read_binary(&dhm->G, modp2048G, sizeof(modp2048G))) != 0)
 			goto_error(finish, "Failed setting dhm parameters!");
-		
+
 	} else if (keyType == CRYPT_DHM3072_TYPE) {
 		static const unsigned char modp3072P[(3072/8)] = MBEDTLS_DHM_RFC3526_MODP_3072_P_BIN;
 		static const unsigned char modp3072G[1] = MBEDTLS_DHM_RFC3526_MODP_3072_G_BIN;
@@ -852,9 +852,9 @@ void cryptShaAtomic(void *in, int32_t len, CRYPTSHA_T *sha)
 	assertion(-502030, (shaClean == YES));
 	assertion(-502031, (sha));
 	assertion(-502032, (in && len > 0 && !memcmp(in, in, len)));
-	
+
 	unsigned char output[32];
-	
+
 #if (CRYPTLIB >= MBEDTLS_2_8_0 && CRYPTLIB <= MBEDTLS_MAX)
 	mbedtls_sha256_starts_ret(&sha_ctx, 1/*is224*/);
 	mbedtls_sha256_update_ret(&sha_ctx, in, len);

@@ -20,8 +20,6 @@
  * libtomcrypt, gcrypt, cyassl
  */
 
-
-
 #define POLARSSL_MIN   1000
 #define POLARSSL_1_2_5 1125
 #define POLARSSL_1_2_9 1129
@@ -37,19 +35,14 @@
 #define MBEDTLS_2_8_0  2280
 #define MBEDTLS_MAX    2999
 
-
 #ifndef CRYPTLIB
 #define CRYPTLIB MBEDTLS_2_8_0
 #endif
 
 #define CRYPT_DER_BUF_SZ 16000
 
-
-
 #define CRYPT_KEY_N_MOD 128
 #define CRYPT_KEY_E_VAL 65537
-
-
 
 #define CRYPT_RSA512_TYPE  1
 #define CRYPT_RSA512_LEN   64
@@ -94,7 +87,6 @@
 #define CRYPT_DHM_MAX_TYPE CRYPT_DHM3072_TYPE
 #define CRYPT_DHM_MAX_LEN CRYPT_DHM3072_LEN
 
-
 #define CRYPT_SHA_LEN (224/8)//28
 
 typedef struct CRYPTSHA_T {
@@ -106,7 +98,6 @@ typedef struct CRYPTSHA_T {
 } CRYPTSHA_T;
 
 extern const CRYPTSHA_T ZERO_CYRYPSHA;
-
 
 #define CRYPT_SHA112_BITSIZE 112
 // 2^112=5.2e33!
@@ -141,7 +132,6 @@ uint8_t cryptDhmKeyTypeByLen(int len);
 uint16_t cryptDhmKeyLenByType(int type);
 char *cryptDhmKeyTypeAsString(int type);
 
-
 void cryptDhmKeyFree(CRYPTDHM_T **cryptKey);
 CRYPTDHM_T *cryptDhmKeyMake(uint8_t dhmSignType, uint8_t attempt);
 CRYPTSHA_T *cryptDhmSecretForNeigh(CRYPTDHM_T *myDhm, uint8_t *neighRawKey, uint16_t neighRawKeyLen);
@@ -152,12 +142,10 @@ int cryptRsaKeyMakeDer(int32_t keyType, char *path);
 CRYPTRSA_T *cryptRsaKeyMake(uint8_t keyType);
 #endif
 
-
 CRYPTRSA_T *cryptRsaKeyFromDer(char *tmp_path);
 CRYPTRSA_T *cryptRsaPubKeyFromRaw(uint8_t *rawKey, uint16_t rawKeyLen);
 int cryptRsaPubKeyGetRaw(CRYPTRSA_T *key, uint8_t *buff, uint16_t buffLen);
 int cryptRsaPubKeyCheck(CRYPTRSA_T *pubKey);
-
 
 void cryptRsaKeyFree(CRYPTRSA_T **key);
 
@@ -168,8 +156,6 @@ int cryptRsaVerify(uint8_t *sign, size_t signLen, CRYPTSHA_T *sha, CRYPTRSA_T *p
 uint8_t cryptRsaKeyTypeByLen(int len);
 uint16_t cryptRsaKeyLenByType(int type);
 char *cryptRsaKeyTypeAsString(int type);
-
-
 
 void cryptRand(void *out, uint32_t outLen);
 
@@ -182,9 +168,6 @@ char *cryptShaAsString(CRYPTSHA_T *sha);
 char *cryptShaAsShortStr(CRYPTSHA_T *sha);
 
 int cryptShasEqual(CRYPTSHA_T *shaA, CRYPTSHA_T *shaB);
-
-
-
 
 void init_crypt(void);
 void cleanup_crypt(void);

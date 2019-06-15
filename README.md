@@ -1,29 +1,24 @@
-# BMX7
+![alt text](https://github.com/bmx-routing/bmx7/blob/a2a361eb994879371d13551a65496ed779ca0c44/doc/images/bmx7.png "BMX7 Logo")  
 
-BMX7 is a mesh routing protocol for Linux based operating systems.
-The following intro provides the(2nd weekT tutorial to get started.
+BMX7 is a mesh routing protocol for Linux based operating systems.  
+The academic paper with more theoretical details can be found [here](http://dsg.ac.upc.edu/node/843).
 
 ## Content
 
 *   [Installation](#installation)
     *   [Installing in OpenWRT](#installing-in-openwrt)
-*   [Usage (hello mesh)](#usage-hello-mesh)
-*   [Concepts](#concepts)
-*   [Autoconfiguration](#address-auto-and-manual-configuration)
-*   [Unicast Host Network Announcements (UHNA)](#unicast-host-network-announcements-uhna)
-*   [Tunnel Announcements](#tunnel-announcements)
-*   [Bmx7 Plugins](#bmx7-plugins)
-    *   [Config Plugin](#config-plugin)
-    *   [Json Plugin](#json-plugin)
-    *   [SMS Plugin](#sms-plugin)
-    *   [Table plugin](#table-plugin)
+    *   [Packages](#Packages)
+*   [FAQ](#faq)
+*   [Usage](doc/Usage.md)
+*   [Concepts](doc/Concepts.md)
+    *   [Autoconfiguration](doc/Usage.md#address-auto-and-manual-configuration)
+    *   [Unicast Host Network Announcements (UHNA)](doc/Usage.md#unicast-host-network-announcements-uhna)
+*   [Tunnel Announcements](doc/Tunneling.md)
+*   [BMX7 Plugins](doc/Plugins.md)
+*   [Debugging](doc/Debugging.md)
 
-Note: This document is written using Markdown syntax. Modifications should be
-synced via README.md file in bmx7 repositories at [github][github].
-Nice syntax examples are [here][syntax].
 
   [github]: https://github.com/bmx-routing/bmx7
-  [syntax]: http://daringfireball.net/projects/markdown/syntax.text
 
 ## Installation ##
 
@@ -75,7 +70,7 @@ sudo make install
 
 ## Installing in OpenWRT
 
-Bmx7 is currently in the official OpenWRT-routing feed, so to install it from a existing system you can use opkg:
+BMX7 is currently in the official OpenWRT-routing feed, so to install it from a existing system you can use opkg:
 ```
 opkg install bmx7 bmx7-uci-config
 ```
@@ -89,3 +84,14 @@ It is recommended to select also, at least, the uci plugin (bmx7-uci-config)
 You can select "luci-app-bmx7" to have a nice web interface for manage and monitorize the routing daemon.
 
 Finally type "make" to build the image.
+
+## Packages
+Available packages exist for the following distributions:
+- Arch Linux package(AUR): https://aur.archlinux.org/packages/bmx7/
+- Debian Linux package(deb): **Coming soon**
+
+## FAQ
+1. How does BMX7 work and on which OSI layer?
+3. Cool features
+4. Differences with bmx6
+5. Similar Software

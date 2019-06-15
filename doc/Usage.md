@@ -1,5 +1,3 @@
-# Usage
-
 ## Contents
    * [Intro](#intro)
    * [Monitoring bmx7](#monitoring-bmx7)
@@ -8,7 +6,7 @@
    * [Address Auto & Manual Configuration](#address-auto-and-manual-configuration)
    * [UHNAs](#unicast-host-network-announcements)
 
-## Starting
+## Introduction
 
 In the most simple configuration, the only required parameter are the interfaces names that should be used for meshing.
 The following example starts bmx7 on interface wlan0:

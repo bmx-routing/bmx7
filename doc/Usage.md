@@ -1,6 +1,14 @@
-## Usage (hello mesh)
+# Usage
 
-### Starting
+## Contents
+   * [Intro](#intro)
+   * [Monitoring bmx7](#monitoring-bmx7)
+   * [Simple Ping Test](#simple-ping-test)
+   * [Dynamic Reconfiguration](#dynamic-reconfiguration)
+   * [Address Auto & Manual Configuration](#address-auto-and-manual-configuration)
+   * [UHNAs](#unicast-host-network-announcements)
+
+## Starting
 
 In the most simple configuration, the only required parameter are the interfaces names that should be used for meshing.
 The following example starts bmx7 on interface wlan0:
@@ -36,7 +44,7 @@ them to learn about existence-of and routes-to all other bmx7 nodes in
 the network.
 
 
-### Monitoring bmx7 ###
+## Monitoring bmx7
 
 To access debug and status information of a running bmx7 daemon, a
 second bmx7 process can be launched in client mode (with the
@@ -201,7 +209,7 @@ The following links of the total network topology can be guessed from this infor
 mlc1000 --- mlc1001 --- mlc1002 --- mlc1003 --- ... --- mlc1009
 ```
 
-### Simple Ping Test ###
+## Simple Ping Test
 
 This could be verified using traceroute6 towards the primary IP of the other nodes.
 
@@ -230,7 +238,7 @@ traceroute to fd66:66:66:0:a2cd:efff:fe10:301 (fd66:66:66:0:a2cd:efff:fe10:301),
  2  fd66:66:66:0:a2cd:efff:fe10:301  0.429 ms
 ```
 
-### Dynamic Reconfiguration ###
+## Dynamic Reconfiguration
 
 Most bmx7 parameters can be applied not only at startup, but also dynamically to an already running main daemon, using the `--connect` command.
 For example interfaces can be added, removed, or specified with more details:
@@ -254,14 +262,14 @@ It can be seen that:
 * All routes are now going via eth2
 
 
-## Address auto and manual configuration ##
+## Address auto and manual configuration
 
 By default bmx7 autoconfigures all configred interface by combining a default prefix (fd70::/16) with
 the SHA224 hash of each nodes' public rsa key.
 
 
 
-## Unicast Host Network Announcements (UHNA) ###
+## Unicast Host Network Announcements
 
 A Host Network Announcements (HNA) describes the advertisement of IP addresses and networks by a node to other nodes in the mesh.
 Typically (but not with BMX7), several nodes can announce the same or overlapping HNAs at the same time.

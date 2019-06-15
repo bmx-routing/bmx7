@@ -1,31 +1,52 @@
-## Tunnel Announcements ##
+# Tunnel Announcements #
+Tunnel announcements offer an alternative mechanism to propagate routes.  
+IPv6 and IPv4 networks can be announced.  
 
-Tunnel announcements offer an alternative mechanism to propagate routes.
-IPv6 and IPv4 networks can be announced.
-In contrast to UHNAs, using tunnel announcements, the same or overlapping networks can be announced from different nodes. Tunnel announcements are an offer from the originating node to other nodes. Other nodes can take the offer or not. For example several nodes in a network may offer to share their DSL connection by doing a default-route (0.0.0.0/0 or ::/0) tunnel announcement.
-Other nodes looking for a route to the internet (a default route) can choose between the multiple offers by establishing a tunnel to one specific of the offering nodes.
-Therefore an unidirectional (onw-way) tunnel is established from the searching to the offering node.
-At the searching node, the remote (outer) tunnel address is configured with an UHNA address (usually the primary address) of the offering node.
+## Content
+*   [Overview](#overview)
+    *   [Requirements](#requirements)
+*   [Configuration and Debugging](#configuration-and-debugging)
+    *   [Device Configuration](#device-configuration)
+    *   [Gateway Nodes](#gateway-nodes)
+    *   [Route Redistribution](#route-redistribution)
+
+## Overview
+
+
+In contrast to UHNAs, using Tunnel Announcements, the same or overlapping networks can be announced from different nodes. 
+  - Tunnel announcements are an offer from the originating node to other nodes. 
+  - Other nodes can take the offer or not. 
+  - For example, several nodes in a network may offer to share their DSL connection by doing a default-route   
+    (0.0.0.0/0 or ::/0) tunnel announcement.  
+
+Other nodes looking for a route to the internet (a default route) can choose between the multiple offers by establishing a tunnel to one specific of the offering nodes.  
+
+Therefore, an unidirectional (one-way) tunnel is established from the searching to the offering node.  
+
+At the searching node, the remote (outer) tunnel address is configured with an UHNA address (usually the primary address) of the offering node.  
+
 The networks advertised with the tunnel announcements are configured at the client side as routes via (into) the unidirectional tunnel.
 
 This way, each node can make an individual choice between networks offered via tunnel announcements.
-The automatic selection can be specified via a policy description that considers parameters such as advertised bandwidth, path metric, trust in specific GW nodes, hysteresis, ... .
+The automatic selection can be specified via a policy description that considers parameters such as advertised bandwidth, path metric, trust in specific GW nodes, hysteresis, ... .  
+
 Since an UHNA address is used as the outer (remote) tunnel address, the client end of the tunnel can be sure that all packets routed into the tunnel will indeed end up at the intended GW node (see Wiki).
 
 Technically, multiple tunnel announcements, each wrapped into a single tun4/6in6-net message, are aggregated into a tun4/6in6-net frame and attached to the description of a node.
 
-Tunnel announcements are also used for redistributing routes from other routing protocols (see Wiki) into a bmx7 zone.
+Tunnel announcements are also used for redistributing routes from other routing protocols (see Wiki) into a bmx7 zone.  
+
 Therefore, each announcements message is decorated with a route-type field indicating the routing protocol that exported the route for being redistributed.
 
 
-### Tunnel requirements 
+### Requirements 
 
 The following Linux-kernel modules are needed for tunnel-based overlay networking:
 * ipv6
 * tunnel6
 * ip6_tunnel
 
-### Tunnel Configuration and Debugging
+## Configuration and Debugging
 In general, a specific tunnel configuration is described from two perspectives:
 
 * Gateway (GW) nodes or just GWs are offering GW services to networks via the advertizement of tunnel announcements and the provisioning of tunnel-end-points.
@@ -48,8 +69,10 @@ The full set of available options for configuring tunnels is given via the build
 * Optionally, check the currently offered tunnel announcements of other GW nodes and the selected tunnel routes by this node with:
 `bmx7 -c show=tunnels`
 
+* Tunnel status information can be accessed with the `--tunnels or --show=tunnels` parameters.
 
-### Tunnel Device Configuration
+
+### Device Configuration
 
 Operation in GW and/or GW-client mode implies the configuration of a bmx7 tunnel device and the IPv4 and/or IPv6 addresses that shall be used for tunnel traffic.
 The selection of these addresses should be coordinated with:
@@ -71,7 +94,7 @@ But for bidirectional tunnel communication with any another node also a backward
 
 The automatic selection and establishment of tunnels to other nodes is achieved with the GW-client mode as described in more derail in the next Section.
 
-### Gateway-Client Nodes
+## Gateway-Client Nodes
 
 The configuration of GW clients can be simple but also, depending on the preferences for a GW-selection policy, very complex.
 Through the configuration of the mandatory tunDev and it's addresses (see above), each GW client node is also a GW node to its own (usually small) tunnel address space.
@@ -144,12 +167,7 @@ The following command dynamically configures the advertisement of the following 
 bmx7 -c tunIn=def4Offer /n=0.0.0.0/0 /b=32000000  tunIn=local4 /n=10.10.0.0/16 /b=10000000  tunIn=def6Offer /n=2000::/3 /b=16000000  tunIn=local6 /n=2012:1234::/32 /b=10000000
 ```
 
-### Tunnel Status Information
-
-Tunnel status information can be accessed with the `--tunnels or --show=tunnels` parameters.
-
-
-### Configuring route redistribution
+### Route Redistribution
 
 Redistribution of routes is configurable with the `--redistTable` parameter.
 Similar to the `--tunIn parameter, --redistTable` must be given with an arbitrary name for referencing to a specific redistribution directive and further sub-criterias.

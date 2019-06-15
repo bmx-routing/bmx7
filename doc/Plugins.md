@@ -1,17 +1,15 @@
-## BMX7 Plugins 
+## Intro 
+BMX7 offers plugins which are used for the distribution of small files, settings up tunnels or offer stats of the network structure.
 
-### Compile and Install
+## Contents
+*   [BMX7 Plugins](../src/lib)
+    
+    *   [Config Plugin](#config-plugin)
+    *   [Json Plugin](#json-plugin)
+    *   [SMS Plugin](#sms-plugin)
+    *   [Table plugin](#table-plugin)
 
-To compile and install bmx7 daemon and all bmx7 plugins simply do:
-```
-make build_all EXTRA_CFLAGS="-DTRAFFIC_DUMP -DCRYPTLIB=MBEDTLS_2_4_0"
-sudo make install_all
-```
-
-However. specific requirements may need to be fulfilled for some plugins in order to compile correctly.
-These requirements are described in the corresponding plugin section.
-
-### Config Plugin
+## Config Plugin
 
 ### Requirements
 
@@ -31,9 +29,7 @@ make -C lib/bmx7_uci_config/
 sudo make -C lib/bmx7_uci_config/ install
 ```
 
-### Usage
-
-### Json Plugin
+## Json Plugin
 
 ### Requirements
 
@@ -58,9 +54,7 @@ make -C lib/bmx7_json/
 sudo make -C lib/bmx7_json/ install
 ```
 
-### Usage
-
-### SMS Plugin
+## SMS Plugin
 
 This plug-in uses routing packets to transmit any information from one node to the
 whole network. The good point is that propagation works even if there is no continuous data-
@@ -76,7 +70,7 @@ Files are cloned from the sendSms folder on the current node to the rcvdSmS fold
 
 Wireless-mesh distros are using this feature for several things such as positioning Map information or a chat in web interface.
 
-### Table plugin
+## Table plugin
 
 This plug-in can be used to automatically announce routes from specific routing tables.
 For example to dynamically announce (redistribute) routes from another routing protocol.

@@ -1,9 +1,23 @@
 ## Intro 
 BMX7 offers plugins which are used for the distribution of small files, settings up tunnels or offer stats of the network structure.
 
+- To enable them run the bmx7 daemon like:
+```
+bmx7 --plugin=bmx7_{wanted-plugin}.so dev={yourDev}
+```
+
+- Available Plugins are:
+	- dnsupdate
+	- iwinfo
+	- json
+	- sms
+	- table 
+	- topology
+	- tun 
+	- uci-config
+
 ## Contents
 *   [BMX7 Plugins](../src/lib)
-    
     *   [Config Plugin](#config-plugin)
     *   [Json Plugin](#json-plugin)
     *   [SMS Plugin](#sms-plugin)

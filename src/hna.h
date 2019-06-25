@@ -75,6 +75,7 @@ extern struct avl_tree tun_in_tree;
 extern IFNAME_T tun_name_prefix;
 
 #define DEF_TUN_NAME_PREFIX "X7"
+#define DEF_WG_TUN_NAME_PREFIX "wg0"
 
 #define ARG_TUNS "tunnels"
 #define  DESC_MSG_HNA_FLAG_NO_ROUTE 0x01

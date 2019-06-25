@@ -62,11 +62,9 @@ int32_t my_conformance_tolerance = DEF_CONFORMANCE_TOLERANCE;
 
 char my_Hostname[MAX_HOSTNAME_LEN] = "";
 
-
 int32_t dad_to = DEF_DAD_TO;
 
 uint16_t my_desc_capabilities = MY_DESC_CAPABILITIES;
-
 
 const IPX_T  ZERO_IP = { { { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 } } };
 const MAC_T  ZERO_MAC = {{0}};
@@ -75,7 +73,6 @@ const ADDR_T ZERO_ADDR = {{0}};
 const struct net_key ZERO_NET_KEY = ZERO_NET_KEY_INIT;
 const struct net_key ZERO_NET4_KEY = ZERO_NET4_KEY_INIT;
 const struct net_key ZERO_NET6_KEY = ZERO_NET6_KEY_INIT;
-
 
 IDM_T terminating = 0;
 IDM_T initializing = YES;
@@ -86,15 +83,12 @@ const IDM_T CONST_NO = NO;
 
 const void* FAILURE_PTR = (void*) & FAILURE_PTR;
 
-
 TIME_T bmx_time = 0;
 TIME_SEC_T bmx_time_sec = 0;
-
 
 uint32_t s_curr_avg_cpu_load = 0;
 
 int32_t totalOrigRoutes = 0;
-
 
 AVL_TREE(status_tree, struct status_handl, status_name);
 
@@ -107,8 +101,6 @@ IDM_T validate_param(int32_t probe, int32_t min, int32_t max, char *name)
 	}
 	return SUCCESS;
 }
-
-
 
 /***********************************************************
  Runtime Infrastructure
@@ -248,21 +240,9 @@ void cleanup_all(int32_t status)
 	}
 }
 
-
-
-
-
-
-
-
-
-
-
 /***********************************************************
  Configuration data and handlers
  ************************************************************/
-
-
 
 static const int32_t field_standard_sizes[FIELD_TYPE_END] = FIELD_STANDARD_SIZES;
 
@@ -354,7 +334,6 @@ char *field_dbg_value(const struct field_format *format, uint32_t min_msg_size, 
 
 			assertion(-501243, (strlen(uint32_out) < sizeof(uint32_out)));
 			val = uint32_out;
-
 
 		} else {
 			val = memAsHexString(p, bytes);
@@ -462,7 +441,6 @@ uint32_t field_iterate(struct field_iterator *it)
 
 	const struct field_format *format;
 
-
 	it->field = (it->field_bits || it->field) ? (it->field + 1) : 0;
 
 	format = &(it->format[it->field]);
@@ -478,7 +456,6 @@ uint32_t field_iterate(struct field_iterator *it)
 	it->field_bit_pos = (format->field_pos == -1) ?
 		it->field_bit_pos + it->field_bits : it->msg_bit_pos + format->field_pos;
 
-
 	if (!format->field_bits && !it->var_bits)
 		it->var_bits = it->data_size ? ((8 * it->data_size) - it->field_bit_pos) : 0;
 
@@ -493,7 +470,6 @@ uint32_t field_iterate(struct field_iterator *it)
 		format->field_name, (8 * it->data_size), (8 * it->min_msg_size), it->msg_bit_pos, it->data,
 		it->field, it->field_bits, it->field_bit_pos, it->var_bits, field_bits,
 		field_type, format->field_bits, std_bits);
-
 
 	if (it->msg_bit_pos + (it->min_msg_size * 8) + it->var_bits <=
 		8 * (it->data_size ? it->data_size : it->min_msg_size)) {
@@ -650,8 +626,6 @@ uint32_t fields_dbg_table(struct ctrl_node *cn, uint16_t relevance, uint32_t dat
 			//dbg_printf(cn, "\n");
 		}
 	}
-
-
 
 	struct field_iterator i2 = { .format = format, .data = data, .data_size = data_size, .min_msg_size = min_msg_size };
 	while (field_iterate(&i2) == SUCCESS) {
@@ -1142,7 +1116,6 @@ struct ref_status {
 	uint32_t unresolveds;
 };
 
-
 static const struct field_format ref_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_SHORT_ID,  ref_status, shortId,       1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, ref_status, nodeId,        1, FIELD_RELEVANCE_MEDI),
@@ -1278,7 +1251,6 @@ static int32_t ref_status_creator(struct status_handl *handl, void *data)
 				droppedSRefs++;
 		}
 	}
-
 
 	//dbgf((droppedSRefs || (allRefs != i)) ? DBGL_CHANGES : DBGL_ALL, droppedSRefs ? DBGT_WARN : DBGT_INFO,
 	dbgf_track(DBGT_INFO,
@@ -1502,8 +1474,6 @@ finish:
 		return currSqn; }
 }
 
-
-
 static struct opt_type bmx_options[] ={
 	//        ord parent long_name          shrt Attributes			*ival		min		max		default		*func,*syntax,*help
 
@@ -1578,7 +1548,6 @@ void bmx(void)
 			// check for changed interface konfigurations...
 			sysctl_config(NULL);
 
-
 			close_ctrl_node(CTRL_CLEANUP, NULL);
 
 			/*
@@ -1601,14 +1570,12 @@ void bmx(void)
 			frequent_timeout = bmx_time;
 		}
 
-
 		if (U32_LT(seldom_timeout + 5000, bmx_time)) {
 
 			//node_tasks();
 
 			// check for corrupted memory..
 			checkIntegrity();
-
 
 			/* generating cpu load statistics... */
 			s_curr_cpu_time = (TIME_T) clock();
@@ -1628,7 +1595,6 @@ int main(int argc, char *argv[])
 
 	sscanf(GIT_REV, "%7X", &bmx_git_rev_u32);
 
-
 	struct rlimit rlim = { .rlim_cur = (CORE_LIMIT * 1024), .rlim_max = (CORE_LIMIT * 1024) };
 
 	if (setrlimit(RLIMIT_CORE, &rlim) != 0) {
@@ -1638,7 +1604,6 @@ int main(int argc, char *argv[])
 #endif
 	My_pid = getpid();
 
-
 	signal(SIGINT, handler);
 	signal(SIGTERM, handler);
 	signal(SIGPIPE, SIG_IGN);
@@ -1647,7 +1612,6 @@ int main(int argc, char *argv[])
 #ifdef TEST_DEBUG_MALLOC
 	debugMalloc(1, -300525); //testing debugMalloc
 #endif
-
 
 	init_control();
 	init_schedule();
@@ -1682,18 +1646,19 @@ int main(int argc, char *argv[])
 		assertion(-500809, (0));
 	}
 
+	/* Start the runtime profiler */
 	prof_start(main, NULL);
 
-	register_options_array(bmx_options, sizeof( bmx_options), CODE_CATEGORY_NAME);
+	register_options_array(bmx_options, sizeof(bmx_options), CODE_CATEGORY_NAME);
 
 	register_status_handl(sizeof(struct bmx_status), 0, bmx_status_format, ARG_STATUS, bmx_status_creator);
 	register_status_handl(sizeof(struct orig_status), 1, orig_status_format, ARG_ORIGINATORS, origs_status_creator);
 	register_status_handl(sizeof(struct orig_status), 1, keys_status_format, ARG_KEYS, keys_status_creator);
 	register_status_handl(sizeof(struct ref_status), 1, ref_status_format, ARG_DESCREFS, ref_status_creator);
 
-
-
+	/* Apply command line arguments */
 	apply_init_args(argc, argv);
+
 
 	bmx();
 

@@ -5,8 +5,6 @@
 #include <errno.h>
 #include <asm/types.h>
 
-
-/* CLEAR UNNEEDED */
 #include <sys/socket.h>
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
@@ -74,11 +72,115 @@ static struct net_key tun6_address = ZERO_NET_KEY_INIT;
 char* tun6_dev = NULL;
 */
 
-static int32_t wg_tun_out_delay = DEF_WG_TUN_OUT_DELAY;
-static int32_t wg_tun_out_mtu = DEF_WG_TUN_OUT_MTU;
-static int32_t wg_tun_dedicated_to = DEF_WG_TUN_OUT_TO;
-static int32_t wg_tun_proactive_routes = DEF_WG_TUN_PROACTIVE_ROUTES;
-static int32_t wg_tun_real_src = DEF_WG_TUN_REAL_SRC;
+static int32_t tun_out_delay = DEF_TUN_OUT_DELAY;
+static int32_t tun_out_mtu = DEF_TUN_OUT_MTU;
+static int32_t tun_dedicated_to = DEF_TUN_OUT_TO;
+static int32_t tun_proactive_routes = DEF_TUN_PROACTIVE_ROUTES;
+static int32_t tun_real_src = DEF_TUN_REAL_SRC;
+
+
+STATIC_FUNC
+int create_dsc_tlv_wg_tun(struct tx_frame_iterator *it)
+{
+	/* STUB */
+	return 0;
+}
+
+STATIC_FUNC
+int process_dsc_tlv_wg_tun(struct rx_frame_iterator *it)
+{
+	/* STUB */
+	return 0;
+}
+
+STATIC_FUNC
+IDM_T configure_wg_tunnel_in(uint8_t del, struct tun_in_node *tin, int16_t tun6Id)
+{
+	/* Possible del values: DEL | ADD */
+	assertion(-501523, IMPLIES(!del, is_ip_set(&tin->remote)));
+	assertion(-501341, IMPLIES(!del, (is_ip_set(&my_primary_ip))));
+	assertion(-501311, IMPLIES(tin->upIfIdx, tin->nameKey.str[0]));
+	assertion(-501342, IMPLIES(tin->upIfIdx, del));
+	assertion(-501368, IMPLIES(del, ((tin->tun6Id >= 0) == (tin->upIfIdx > 0))));
+	assertion(-501369, IMPLIES(!del, ((tun6Id >= 0) && (tin->upIfIdx == 0))));
+
+	/* If del == DEL */
+	if (del && tin->upIfIdx) {
+
+		/* Reset tin values */
+		IDM_T result = kernel_tun_del(tin->nameKey.str);
+		assertion(-501451, (result == SUCCESS));
+
+		tin->upIfIdx = 0;
+		tin->tun6Id = -1;
+
+		/* Update Description */
+		my_description_changed = YES;
+
+	/* If del == ADD */
+	} else if (!del && !tin->upIfIdx) {
+
+		/* Add new tin values */
+		IPX_T *local = &my_primary_ip;
+		IPX_T remoteIp = (tun_real_src >= TYP_TUN_REAL_SRC_ANY) ?  ZERO_IP : tin->remote;
+
+		/* HARRY TODO */
+		if (!is_ip_set(&tin->remote) || is_ip_local(&tin->remote) ||
+			(tin->ingressPrefix46[0].mask && find_overlapping_hna(&tin->ingressPrefix46[0].ip, tin->ingressPrefix46[0].mask, NULL))) {
+
+			dbgf_sys(DBGT_WARN, "FAILED creating tun remoteIp=%s", ip6AsStr(&tin->remote));
+			return FAILURE;
+		}
+
+		assertion(-501312, (strlen(tin->nameKey.str)));
+
+		/* HARRY TODO */
+		if ((tin->upIfIdx = kernel_tun_add(tin->nameKey.str, IPPROTO_IP, local, &remoteIp)) > 0) {
+
+			tin->tun6Id = tun6Id;
+
+			if (tin->tunAddr46[1].mask)
+				kernel_set_addr(ADD, tin->upIfIdx, AF_INET, &tin->tunAddr46[1].ip, 32, NO /*deprecated*/);
+
+			if (tin->tunAddr46[0].mask)
+				kernel_set_addr(ADD, tin->upIfIdx, AF_INET6, &tin->tunAddr46[0].ip, 128, NO /*deprecated*/);
+
+			my_description_changed = YES;
+		}
+	}
+
+	/* HARRY TODO */
+	return(XOR(del, tin->upIfIdx)) ? SUCCESS : FAILURE;
+}
+
+STATIC_FUNC
+void reconfigure_wg_tun_ins(void)
+{
+	struct avl_node *an;
+	struct tun_in_node *tin;
+
+	/* Loop and reset tun_in_tree values */
+	for (an = NULL; (tin = avl_iterate_item(&tun_in_tree, &an));) {
+		configure_wg_tunnel_in(DEL, tin, -1);
+	}
+
+	/*  Reconfigure wg_tun_in_tree */
+	int16_t iterator = 0;
+	for (an = NULL; (tin = avl_iterate_item(&tun_in_tree, &an));) {
+
+		/* HARRY TODO */
+		if (!tin->remote_manual) {
+			tin->remote = my_primary_ip;
+			tin->remote.s6_addr[DEF_AUTO_TUNID_OCT_POS] += (iterator + MIN_AUTO_TUNID_OCT);
+		}
+
+		configure_wg_tunnel_in(ADD, tin, iterator++);
+
+		assertion(-502040, ((iterator + MIN_AUTO_TUNID_OCT) <= MAX_AUTO_TUNID_OCT));
+		assertion(-501237, (tin->upIfIdx && tin->tun6Id >= 0));
+	}
+}
+
 
 STATIC_FUNC
 void purge_wg_tunCatchTree(void)
@@ -99,20 +201,21 @@ struct wg_tun_out_status {
 
 	GLOBAL_ID_T *id;
 	GLOBAL_ID_T *longId;
+
 	char *gwName;
 	int16_t proto;
 
 	char src[IPX_PREFIX_STR_LEN];
 	char net[IPX_PREFIX_STR_LEN];
 
-	uint32_t min;
-	uint32_t max;
-	uint32_t aOLP;
-	uint32_t bOSP;
-	uint32_t hyst;
-	uint32_t rating;
+	//uint32_t min;
+	//uint32_t max;
+	//uint32_t aOLP;
+	//uint32_t bOSP;
+	//uint32_t hyst;
+	//uint32_t rating;
 
-	UMETRIC_T *minBw;
+	//UMETRIC_T *minBw;
 
 	uint32_t pref;
 	uint32_t table;
@@ -139,11 +242,11 @@ struct wg_tun_out_status {
 	char advNet[IPX_PREFIX_STR_LEN];
 	char srcIngress[IPX_PREFIX_STR_LEN];
 
-	UMETRIC_T advBwVal;
-	UMETRIC_T *advBw;
-	UMETRIC_T *pathMtc;
-	UMETRIC_T tunMtcVal;
-	UMETRIC_T *tunMtc;
+	//UMETRIC_T advBwVal;
+	//UMETRIC_T *advBw;
+	//UMETRIC_T *pathMtc;
+	//UMETRIC_T tunMtcVal;
+	//UMETRIC_T *tunMtc;
 
 	IPX_T *localTunIp;
 	IPX_T *remoteTunIp;
@@ -158,16 +261,16 @@ static const struct field_format wg_tun_out_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       tun_out_status, src,         1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              tun_out_status, proto,       1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       tun_out_status, net,         1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              tun_out_status, min,         1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              tun_out_status, max,         1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              tun_out_status, aOLP,        1, FIELD_RELEVANCE_LOW),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              tun_out_status, bOSP,        1, FIELD_RELEVANCE_LOW),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              tun_out_status, hyst,        1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              tun_out_status, rating,      1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_UMETRIC,   tun_out_status, minBw,       1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              tun_out_status, pref,        1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              tun_out_status, table,       1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              tun_out_status, ipMtc,       1, FIELD_RELEVANCE_MEDI),
+//        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              tun_out_status, min,         1, FIELD_RELEVANCE_HIGH),
+//        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              tun_out_status, max,         1, FIELD_RELEVANCE_HIGH),
+//        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              tun_out_status, aOLP,        1, FIELD_RELEVANCE_LOW),
+//        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              tun_out_status, bOSP,        1, FIELD_RELEVANCE_LOW),
+//        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              tun_out_status, hyst,        1, FIELD_RELEVANCE_HIGH),
+//        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              tun_out_status, rating,      1, FIELD_RELEVANCE_HIGH),
+//        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_UMETRIC,   tun_out_status, minBw,       1, FIELD_RELEVANCE_HIGH),
+//        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              tun_out_status, pref,        1, FIELD_RELEVANCE_MEDI),
+//        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              tun_out_status, table,       1, FIELD_RELEVANCE_MEDI),
+//        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              tun_out_status, ipMtc,       1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      tun_out_status, wg_tunIn,    1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      tun_out_status, wg_tunName,  1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              tun_out_status, setProto,    1, FIELD_RELEVANCE_MEDI),
@@ -179,11 +282,11 @@ static const struct field_format wg_tun_out_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              tun_out_status, advProto,    1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       tun_out_status, advNet,      1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       tun_out_status, srcIngress,  1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           tun_out_status, advBwVal,    1, FIELD_RELEVANCE_LOW),
-        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_UMETRIC,   tun_out_status, advBw,       1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_UMETRIC,   tun_out_status, pathMtc,     1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           tun_out_status, tunMtcVal,   1, FIELD_RELEVANCE_LOW),
-        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_UMETRIC,   tun_out_status, tunMtc,      1, FIELD_RELEVANCE_HIGH),
+//    FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           tun_out_status, advBwVal,    1, FIELD_RELEVANCE_LOW),
+//    FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_UMETRIC,   tun_out_status, advBw,       1, FIELD_RELEVANCE_HIGH),
+//        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_UMETRIC,   tun_out_status, pathMtc,     1, FIELD_RELEVANCE_HIGH),
+//        FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,           tun_out_status, tunMtcVal,   1, FIELD_RELEVANCE_LOW),
+//        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_UMETRIC,   tun_out_status, tunMtc,      1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_IPX6P,             tun_out_status, localTunIp,  1, FIELD_RELEVANCE_LOW),
         FIELD_FORMAT_INIT(FIELD_TYPE_IPX6P,             tun_out_status, remoteTunIp, 1, FIELD_RELEVANCE_LOW),
 //      FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              tun_out_status, up,          1, FIELD_RELEVANCE_HIGH),
@@ -204,26 +307,35 @@ static int32_t wg_tun_out_status_creator(struct status_handl *handl, void *data)
 	for (an = NULL; (tsn = avl_iterate_item(&tun_search_tree, &an));)
 		status_size += (tsn->tun_bit_tree.items ? 0 : sizeof(struct tun_out_status));
 
+	/* Declaration of status */
 	struct tun_out_status *status = (struct tun_out_status *) (handl->data = debugRealloc(handl->data, status_size, -300428));
 	memset(status, 0, status_size);
 
 	struct avl_tree * t[] = { &tun_search_tree, &tun_bit_tree, &tun_net_tree };
-	uint8_t a;
-	for (a = 0; a < 3; a++) {
-		void *p;
-		for (an = NULL; (p = avl_iterate_item(t[a], &an));) {
 
+	/* */
+	uint8_t avl_iterator;
+	for (avl_iterator = 0; avl_iterator < 3; a++) {
+
+		void *p;
+		for (an = NULL; (p = avl_iterate_item(t[avl_iterator], &an));) {
+
+			/* Harry TODO
 			struct tun_bit_node *tbn = (t[a] == &tun_bit_tree) ? p : NULL;
 			struct tun_net_node *tnn = (t[a] == &tun_net_tree) ? p : (tbn ? tbn->tunBitKey.keyNodes.tnn : NULL);
 			struct tun_search_node *tsn = (t[a] == &tun_search_tree) ? p : (tbn ? tbn->tunBitKey.keyNodes.tsn : NULL);
+			*/
 
+			/* Check everything is in place */
 			if (!tbn && tsn && tsn->tun_bit_tree.items)
 				continue;
 
 			if (!tbn && tnn && tnn->tun_bit_tree.items)
 				continue;
 
+			/* Harry TODO */
 			if (tsn) {
+
 				status->tunOut = tsn->nameKey;
 				status->id = &tsn->global_id;
 				status->longId = &tsn->global_id;
@@ -298,7 +410,7 @@ static int32_t wg_tun_out_status_creator(struct status_handl *handl, void *data)
 }
 
 STATIC_FUNC
-void tun_dev_event_hook(int32_t cb_id, void* unused)
+void wg_tun_dev_event_hook(int32_t cb_id, void* unused)
 {
 	struct tun_in_node *tun;
 	struct avl_node *an = NULL;
@@ -317,7 +429,7 @@ void tun_dev_event_hook(int32_t cb_id, void* unused)
 
 		prev_primary_ip = my_primary_ip;
 
-		reconfigure_tun_ins();
+		reconfigure_wg_tun_ins();
 	}
 }
 
@@ -326,34 +438,42 @@ STATIC_FUNC
 void wg_tun_cleanup(void)
 {
 	/* Harry TODO */
-	task_remove((void(*)(void*))eval_tun_bit_tree, ((void*) 1));
+	// task_remove((void(*)(void*))eval_tun_bit_tree, ((void*) 1));
 
-	purge_wg_tunCatchTree();
+	// purge_wg_tunCatchTree();
 
 	/* The famous wtin variable */
-	struct wg_tun_in_node *wtin;
-	while ((wtin = avl_remove_first_item(&tun_in_tree, -123456))) {
-		configure_wireguard_tunnel_in(DEL, tin, -1);
-		debugFree(wtin, -123457);
+	struct tun_in_node *tin;
+	while ((tin = avl_remove_first_item(&tun_in_tree, -123456))) {
+		configure_wg_tunnel_in(DEL, tin, -1);
+		debugFree(tin, -123457);
 	}
 }
 
 STATIC_FUNC
 int32_t wg_tun_init(void)
 {
+	/* Initialize tunnel */
+	//assertion(-501335, is_zero((void*) &ZERO_TUN_NET_KEY, sizeof(ZERO_TUN_NET_KEY)));
+	//assertion(-501327, tun_search_net_tree.key_size == sizeof (struct tun_search_key));
+	//assertion(-501328, tun_search_tree.key_size == NETWORK_NAME_LEN);
+
+
 	/* Harry TODO: WTF are these? */
 	static const struct field_format tun6_adv_format[] = DESCRIPTION_MSG_TUN6_ADV_FORMAT;
 	static const struct field_format tun6in6_adv_format[] = DESCRIPTION_MSG_TUN6IN6_NET_ADV_FORMAT;
 
-	/* HARRY TODO: FIX THESE */
 	static const struct field_format wg_tun_format[] = DESCRIPTION_MSG_WG_TUN_FORMAT;
+
 	static const struct field_format wg_tun_adv_format[] = DESCRIPTION_MSG_WG_TUN_ADV_FORMAT;
+
 
 	/* Message handler declared in msg.h */
 	struct frame_handl tlv_handl;
 	memset(&tlv_handl, 0, sizeof(tlv_handl));
 
 	/* Register a handler for DSC_TUN6 */
+	/*
 	tlv_handl.name = "DSC_TUN6";
 	tlv_handl.min_msg_size = sizeof(struct dsc_msg_tun6);
 	tlv_handl.fixed_msg_size = 1;
@@ -363,8 +483,10 @@ int32_t wg_tun_init(void)
 	tlv_handl.rx_frame_handler = process_dsc_tlv_tun6;
 	tlv_handl.msg_format = tun6_adv_format;
 	register_frame_handler(description_tlv_db, BMX_DSC_TLV_TUN6, &tlv_handl);
+	*/
 
 	/* Register a handler for DSC_TUN6IN6_NET */
+	/*
 	tlv_handl.name = "DSC_TUN6IN6_NET";
 	tlv_handl.min_msg_size = sizeof(struct dsc_msg_tun6in6net);
 	tlv_handl.fixed_msg_size = 1;
@@ -374,10 +496,16 @@ int32_t wg_tun_init(void)
 	tlv_handl.rx_frame_handler = process_dsc_tlv_tunXin6net;
 	tlv_handl.msg_format = tun6in6_adv_format;
 	register_frame_handler(description_tlv_db, BMX_DSC_TLV_TUN6IN6_NET, &tlv_handl);
+	*/
 
 	/* Register a handler for  DSC_WG_TUN */
-	tlv.handl.name = "DSC_WGTUN";
-	tlv.handl.min_msg_size= sizeof(struct dsc_msg_tun_wg);
+	tlv_handl.name = "DSC_WG_TUN";
+	tlv_handl.min_msg_size= sizeof(struct dsc_msg_wg_tun);
+	tlv_handl.fixed_msg_size = 1;
+	tlv_handl.tx_frame_handler = create_dsc_tlv_wg_tun;
+	tlv_handl.rx_msg_handler = process_dsc_tlv_wg_tun;
+	tlv_handl.msg_format = wg_tun_adv_format;
+	register_frame_handler(description_tlv_db, BMX_DSC_TLV_WG_TUN, &tlv_handl);
 
 	/* HARRY TODO */
 	// set_tunXin6_net_adv_list = set_tunXin6_net_adv_list_handl;
@@ -394,7 +522,6 @@ int32_t wg_tun_init(void)
 /* Register Plugin and initialize */
 struct plugin* get_plugin(void)
 {
-	/* Register plugin */
 	static struct plugin wg_tun_plugin;
 
 	memset(&wg_tun_plugin, 0, sizeof(struct plugin));
@@ -417,7 +544,7 @@ struct plugin* get_plugin(void)
 	return &wg_tun_plugin;
 }
 
-/*
+/* TODO: Place them around
 int wg_CnC()
 {
 	wg_peer new_peer = {
@@ -432,10 +559,12 @@ int wg_CnC()
 		.last_peer = &new_peer
 	};
 
+	// TODO PLACE THEM AROUND
 	wg_key temp_private_key;
 	wg_generate_private_key(temp_private_key);
 	wg_generate_public_key(new_peer.public_key, temp_private_key);
 	wg_generate_private_key(new_device.private_key);
+
 
 	if (wg_add_device(new_device.name) < 0) {
 		perror("Unable to add device");

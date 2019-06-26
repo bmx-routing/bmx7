@@ -15,10 +15,7 @@
  * 02110-1301, USA
  */
 
-
 #define ARG_UHNA "unicastHna"
-
-
 
 #define HNA6_PREFIXLEN_MIN 32
 #define HNA4_PREFIXLEN_MIN 8
@@ -34,19 +31,20 @@
 #define DEF_IP_METRIC      1024
 #define ARG_IP_METRIC      "ipMetric"
 
-
 #define TLV_OP_CUSTOM_HNA_MIN       (TLV_OP_CUSTOM_MIN + 0)
 #define TLV_OP_CUSTOM_TUN6_GET_SHA  (TLV_OP_CUSTOM_MIN + 0)
 #define TLV_OP_CUSTOM_HNA_ROUTE_ADD (TLV_OP_CUSTOM_MIN + 1)
 #define TLV_OP_CUSTOM_HNA_ROUTE_DEL (TLV_OP_CUSTOM_MIN + 2)
 #define TLV_OP_CUSTOM_HNA_MAX       (TLV_OP_CUSTOM_MIN + 2)
 
+/* HNA node data srtucture */
 struct hna_node {
 	struct net_key key;
 	struct orig_node *on;
 	uint8_t flags;
 };
 
+/* Description Message for HNA of IPv6 */
 struct dsc_msg_hna6 {
 	uint8_t prefixlen;
 	uint8_t flags;
@@ -60,26 +58,23 @@ struct dsc_msg_hna6 {
 FIELD_FORMAT_END }
 
 
-
-
 struct hna_node * find_overlapping_hna(IPX_T *ipX, uint8_t prefixlen, struct orig_node *except);
 
 struct plugin *hna_get_plugin(void);
 uint32_t create_tlv_hna(uint8_t* data, uint32_t max_size, uint32_t pos, struct net_key *net, uint8_t flags);
-
-
 
 //finally some tunnel stuff that is needed by other modules:
 
 extern struct avl_tree tun_in_tree;
 extern IFNAME_T tun_name_prefix;
 
-#define DEF_TUN_NAME_PREFIX "X7"
-#define DEF_WG_TUN_NAME_PREFIX "wg0"
+#define DEF_TUN_NAME_PREFIX "wg0"
+//#define DEF_WG_TUN_NAME_PREFIX "wg0"
 
-#define ARG_TUNS "tunnels"
+#define ARG_TUNS "wg"
 #define  DESC_MSG_HNA_FLAG_NO_ROUTE 0x01
 
+/* HARRY TODO */
 struct tun_in_node {
 	IFNAME_T nameKey; // key for tunnel_in_tree
 	uint8_t name_auto;
@@ -88,7 +83,6 @@ struct tun_in_node {
 	// the advertised part (by description_msg_tun6_adv):
 	IP6_T remote;
 	struct net_key tunAddr46[2];
-
 
 	// the advertised part (by description_msg_src6in6_adv):
 	struct net_key ingressPrefix46[2];

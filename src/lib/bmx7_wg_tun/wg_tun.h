@@ -20,6 +20,8 @@ extern struct net_key tun4_address;
 extern struct net_key tun6_address;
 */
 
+#include "wireguard.h"
+
 /* Set default names */
 #define ARG_WG_TUN_NAME_PREFIX "wg_dev"
 #define MAX_WG_TUN_NAME_PREFIX_LEN 5
@@ -232,7 +234,9 @@ struct dsc_msg_tun6in6src {
 {FIELD_TYPE_UINT,     -1,   8, 0, FIELD_RELEVANCE_HIGH, "srcPrefixLen" },  \
 {FIELD_TYPE_IPX6,     -1, 128, 0, FIELD_RELEVANCE_HIGH, "srcPrefix" },  \
 FIELD_FORMAT_END }
+*/
 
+/*
 struct dsc_msg_tun4in6net {
 	uint8_t tun6Id;
 	uint8_t proto_type;
@@ -264,19 +268,12 @@ struct dsc_msg_tun6in6net {
 {FIELD_TYPE_UINT,     -1,   8, 0, FIELD_RELEVANCE_HIGH, "networkLen" },  \
 {FIELD_TYPE_IPX6,     -1, 128, 0, FIELD_RELEVANCE_HIGH, "network" },  \
 FIELD_FORMAT_END }
+*/
 
-struct tunXin6_net_adv_node {
-	uint8_t af;
-	uint8_t more;
-	struct dsc_msg_tun6in6net adv;
+struct dsc_msg_tun_wg {
+	wg_key public_key;
 
-	//	struct list_node list;
-	//	uint8_t bmx7_route_type;
-	//	FMETRIC_U8_T bandwidth;
-	//	struct net_key net;
-	char *tunInDev;
-};
-
+}
 
 /* Requirements:
  * - lightweight possibilty for gw to check client ID and request authenticity (no other client send it)
@@ -297,6 +294,8 @@ struct tunXin6_net_adv_node {
  * - let client request tunneled src networks (routes via tunnel from gw to client)
  *   -> explicit routes or refHash
 */
+
+
 struct dedicated_msg_tun6_req {
 	CRYPTSHA_T clientRoutesRefSha;
 } __attribute__((packed));
@@ -424,17 +423,17 @@ struct tun_out_key {
 typedef wg_peer wg_tun_out_node;
 /* HARRY TODO: merge the two
 struct tun_out_node {
-	/* The Advertised part (by description_msg_tun6_adv): */
+	// The Advertised part (by description_msg_tun6_adv):
 	IP6_T localIp; // key for tunnel_in_tree
 	IP6_T remoteIp; // the primary IP of the remote tunnel end
 
-	/* The Advertised part (by description_msg_src6in6_adv): */
+	// The Advertised part (by description_msg_src6in6_adv):
 	struct net_key ingressPrefix[2];
 
 	uint8_t srcType[2];
 	uint8_t srcPrefixMin[2];
 
-	/* Status: */
+	// Status:
 	struct tun_out_key tunOutKey; // key for tunnel_out_tree
 
 	//struct tun_dev_node *tdnUP[2];		//0:ipv6, 1:ipv4

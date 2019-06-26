@@ -1477,44 +1477,32 @@ finish:
 static struct opt_type bmx_options[] ={
 	//        ord parent long_name          shrt Attributes			*ival		min		max		default		*func,*syntax,*help
 
-	{ODI,0,ARG_VERSION,		'v',9,2,A_PS0,A_USR,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_version,
-			0,		"show version"},
+	{ODI, 0, ARG_VERSION, 'v', 9, 2, A_PS0, A_USR, A_DYI, A_ARG,A_ANY, 0, 0, 0, 0, 0, opt_version, 0, "show Version"},
 
-        {ODI,0,ARG_COMPATIBILITY,       0,  3,1,A_PS1,A_ADM,A_INI,A_CFA,A_ANY,  &my_compatibility,MIN_COMPATIBILITY,MAX_COMPATIBILITY,DEF_COMPATIBILITY,0, 0,
-			ARG_VALUE_FORM,	"set (elastic) compatibility version"},
+    {ODI, 0, ARG_COMPATIBILITY, 0, 3, 1, A_PS1, A_ADM, A_INI, A_CFA, A_ANY, &my_compatibility, MIN_COMPATIBILITY, MAX_COMPATIBILITY, DEF_COMPATIBILITY, 0, 0, ARG_VALUE_FORM, "set (elastic) compatibility version"},
+
 	//order must be after ARG_KEY_PATH and before ARG_AUTO_IP6_PREFIX and ARG_TUN_IN_DEV (which use self, initialized from init_self, called from opt_hostname):
-	{ODI,0,ARG_HOSTNAME,		0,  5,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		0,		0,		0,0,		opt_hostname,
-			ARG_VALUE_FORM,	"set advertised hostname of node"},
+	{ODI, 0, ARG_HOSTNAME, 0, 5, 0, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, 0, 0, 0, 0, 0, opt_hostname, ARG_VALUE_FORM, "Set Advertised Hostname of node"},
 
-	{ODI,0,ARG_LIST,		0  , 9,1,A_PS1N ,A_USR,A_DYN,A_ARG,A_ANY,0,		0, 		0,		0,0, 		opt_list_show,
-			ARG_VALUE_FORM,		"list status information about given context. E.g.:" ARG_STATUS ", " ARG_INTERFACES ", " ARG_LINKS ", " ARG_ORIGINATORS " " ARG_CREDITS ", ..." "\n"},
+	{ODI, 0, ARG_LIST, 0, 9, 1, A_PS1N, A_USR, A_DYN, A_ARG, A_ANY, 0, 0, 0, 0,0, 		opt_list_show, ARG_VALUE_FORM, "list status information about given context. E.g.:" ARG_STATUS ", " ARG_INTERFACES ", " ARG_LINKS ", " ARG_ORIGINATORS " " ARG_CREDITS ", ..." "\n"},
 	{ODI,ARG_LIST,ARG_RELEVANCE,'r',9,1,A_CS1,A_USR,A_DYN,A_ARG,A_ANY,	0,	       MIN_RELEVANCE,   MAX_RELEVANCE,  DEF_RELEVANCE,0, opt_list_show,
 			ARG_VALUE_FORM,	HLP_ARG_RELEVANCE}
 	,
-	{ODI,0,ARG_SHOW,		's', 9,1,A_PS1N,A_USR,A_DYN,A_ARG,A_ANY,0,		0, 		0,		0,0, 		opt_status,
-			ARG_VALUE_FORM,		"show status information about given context. E.g.:" ARG_STATUS ", " ARG_INTERFACES ", " ARG_LINKS ", " ARG_ORIGINATORS " " ARG_CREDITS ", ..." "\n"},
-	{ODI,ARG_SHOW,ARG_RELEVANCE,'r',9,1,A_CS1,A_USR,A_DYN,A_ARG,A_ANY,	0,	       MIN_RELEVANCE,   MAX_RELEVANCE,  DEF_RELEVANCE,0, opt_status,
-			ARG_VALUE_FORM,	HLP_ARG_RELEVANCE}
-	,
+	{ODI, 0, ARG_SHOW, 's', 9, 1, A_PS1N, A_USR, A_DYN, A_ARG,A_ANY, 0, 0, 0, 0, 0, opt_status, ARG_VALUE_FORM, "show status information about given context. E.g.:" ARG_STATUS ", " ARG_INTERFACES ", " ARG_LINKS ", " ARG_ORIGINATORS " " ARG_CREDITS ", ..." "\n"},
+	{ODI, ARG_SHOW, ARG_RELEVANCE, 'r', 9, 1, A_CS1, A_USR, A_DYN, A_ARG, A_ANY, 0, MIN_RELEVANCE, MAX_RELEVANCE, DEF_RELEVANCE, 0, opt_status, ARG_VALUE_FORM,	HLP_ARG_RELEVANCE},
 
-	{ODI,0,ARG_STATUS,		0,  9,1,A_PS0,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
-			0,		"show status\n"},
+	{ODI, 0, ARG_STATUS, 0, 9, 1, A_PS0, A_USR, A_DYN, A_ARG, A_ANY, 0, 0, 0, 0, 0, opt_status, 0, "Show status"},
 
-	{ODI,0,ARG_ORIGINATORS,	        0,  9,1,A_PS0N,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
-			0,		"show originators\n"}
+	{ODI, 0, ARG_ORIGINATORS, 0, 9, 1, A_PS0N, A_USR, A_DYN, A_ARG, A_ANY, 0, 0, 0, 0, 0, opt_status, 0, "Show originators"}
 	,
-	{ODI,0,ARG_KEYS,	        0,  9,1,A_PS0N,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
-			0,		"show keys and their description references\n"}
+	{ODI, 0, ARG_KEYS, 0, 9, 1, A_PS0N, A_USR, A_DYN, A_ARG, A_ANY, 0, 0, 0, 0, 0, opt_status, 0, "Show Keys and their description references"}
 	,
-	{ODI,0,ARG_DESCREFS,	        0,  9,1,A_PS0N,A_USR,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_status,
-			0,		"show description references\n"}
+	{ODI, 0, ARG_DESCREFS, 0, 9, 1, A_PS0N, A_USR, A_DYN, A_ARG, A_ANY, 0, 0, 0, 0, 0, opt_status, 0, "Show description references"}
 	,
-	{ODI,0,"flushAll",		0,  9,1,A_PS0,A_ADM,A_DYN,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_flush_all,
-			0,		"purge all neighbors and routes on the fly"}
+	{ODI, 0, "flushAll", 0, 9, 1, A_PS0, A_ADM, A_DYN, A_ARG, A_ANY, 0, 0, 0, 0, 0, opt_flush_all, 0, "Purge all neighbors and routes on the fly!"}
 	,
 #ifndef LESS_OPTIONS
-	{ODI,0,ARG_DAD_TO,        	0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&dad_to,	MIN_DAD_TO,	MAX_DAD_TO,	DEF_DAD_TO,0,	0,
-			ARG_VALUE_FORM,	"duplicate address (DAD) detection timout in ms"}
+	{ODI, 0, ARG_DAD_TO, 0, 9, 1, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &dad_to, MIN_DAD_TO, MAX_DAD_TO, DEF_DAD_TO, 0, 0, ARG_VALUE_FORM, "Duplicate ADdress (DAD) detection timout in ms"}
 #endif
 };
 
@@ -1522,12 +1510,14 @@ STATIC_FUNC
 void bmx(void)
 {
 
+	/* Initialize timers */
 	TIME_T frequent_timeout, seldom_timeout;
 
 	TIME_T s_last_cpu_time = 0, s_curr_cpu_time = 0;
 
 	frequent_timeout = seldom_timeout = bmx_time;
 
+	/* Post first description */
 	update_my_description();
 
 	initializing = NO;
@@ -1658,7 +1648,6 @@ int main(int argc, char *argv[])
 
 	/* Apply command line arguments */
 	apply_init_args(argc, argv);
-
 
 	bmx();
 

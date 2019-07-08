@@ -409,6 +409,94 @@ static int32_t wg_tun_out_status_creator(struct status_handl *handl, void *data)
 	return status_size;
 }
 
+static struct opt_type wg_tun_options[] {
+
+	/* Here lies an analysis of all the possible tunnel plugin options
+	 * one can access them through 'bmx7 --plugin=bmx7_tun.so -H'
+	 */
+
+/* Tunnel Plugin Options
+	// ord parent long_name | shrt Attributes | *ival | min | max | default | *func, *syntax, | *help
+	{ODI,0,ARG_TUN_NAME_PREFIX, 0, 8, 1, A_PS1,A_ADM,A_INI,A_CFA,A_ANY, 0, 0, 0, 0, DEF_TUN_NAME_PREFIX, opt_tun_name_prefix, ARG_NAME_FORM, "specify first letters of local tunnel-interface names"},
+    	{ODI,0,ARG_TUN_PROACTIVE_ROUTES,0, 9, 1, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &tun_proactive_routes,MIN_TUN_PROACTIVE_ROUTES,MAX_TUN_PROACTIVE_ROUTES,DEF_TUN_PROACTIVE_ROUTES, 0, 0, ARG_VALUE_FORM, HLP_TUN_PROACTIVE_ROUTES},
+	{ODI,0,ARG_TUN_OUT_TIMEOUT, 0, 9, 2, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, 0, MIN_TUN_OUT_TO, MAX_TUN_OUT_TO, DEF_TUN_OUT_TO, 0, opt_tun_state_dedicated_to, ARG_VALUE_FORM, "timeout for reactive (dedicated) outgoing tunnels"},
+	{ODI,0,ARG_TUN_OUT_MTU, 0, 9, 2, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, 0, MIN_TUN_OUT_MTU, MAX_TUN_OUT_MTU, DEF_TUN_OUT_MTU, 0, opt_tun_out_mtu, ARG_VALUE_FORM, "MTU of outgoing tunnels"},
+	{ODI,0,ARG_TUN_OUT_DELAY, 0, 9, 2, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &tun_out_delay, MIN_TUN_OUT_DELAY,MAX_TUN_OUT_DELAY,DEF_TUN_OUT_DELAY, 0, 0, ARG_VALUE_FORM, "Delay catched tunnel packets for given us before rescheduling (avoid dmesg warning ip6_tunnel: X7Out_.. xmit: Local address not yet configured!)"},
+
+	{ODI,0,ARG_TUN_REAL_SRC, 0, 9, 1, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &tun_real_src, MIN_TUN_REAL_SRC, MAX_TUN_REAL_SRC, DEF_TUN_REAL_SRC, 0, opt_tun_real_src, ARG_VALUE_FORM, "1: Accept any src address for incoming outer ip6 tunnel header. 2: Use primary address as src address for outgoing outer ip6 tunnel header"},
+
+    //order must be after ARG_HOSTNAME (which initializes self via init_self(), called from opt_hostname):
+	{ODI,0,ARG_TUN_DEV, 0, 9, 2, A_PM1N, A_ADM, A_DYI, A_CFA, A_ANY, 0, 0, 0, 0, 0, opt_tun_in_dev, ARG_NAME_FORM, "Define incoming IPIP tunnel interface name (prefix is " ARG_TUN_NAME_PREFIX "=" DEF_TUN_NAME_PREFIX ") and sub criteria!\n"
+	"        eg: " ARG_TUN_DEV "=Default (resulting interface name would be: " DEF_TUN_NAME_PREFIX "Default )\n"
+	"        WARNING: This creates a general ipip tunnel device allowing to tunnel arbitrary IP packets to this node!\n"
+	"        Use firewall rules to filter deprecated packets!"},
+	{ODI,ARG_TUN_DEV,ARG_TUN_DEV_ADDR4, 0, 9, 2, A_CS1, A_ADM, A_DYI, A_CFA, A_ANY, 0, 0, 0, 0, 0, opt_tun_in_dev, ARG_ADDR_FORM, HLP_TUN_DEV_ADDR4},
+	{ODI,ARG_TUN_DEV,ARG_TUN_DEV_ADDR6, 0, 9, 2, A_CS1, A_ADM, A_DYI, A_CFA, A_ANY, 0, 0, 0, 0, 0, opt_tun_in_dev, ARG_ADDR_FORM, HLP_TUN_DEV_ADDR6},
+
+// If user has chosen the -h option
+#ifndef LESS_OPTIONS
+	{ODI,ARG_TUN_DEV, ARG_TUN_DEV_REMOTE, 0,9,1, A_CS1,A_ADM,A_DYI,A_CFA,A_ANY, 0, 0, 0, 0, 0, opt_tun_in_dev, ARG_IP_FORM, "Remote dummy IP of tunnel interface"},
+	{ODI,ARG_TUN_DEV, ARG_TUN_DEV_INGRESS4, 0,9,1, A_CS1,A_ADM,A_DYI,A_CFA, A_ANY, 0, 0, 0, 0, 0, opt_tun_in_dev, ARG_NETW_FORM,"IPv4 source prefix (ingress filter)"},
+	{ODI,ARG_TUN_DEV, ARG_TUN_DEV_INGRESS6, 0,9,1, A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,0, 0, 0, 0, 0, opt_tun_in_dev, ARG_NETW_FORM,"IPv6 source prefix (ingress filter)"},
+	{ODI,ARG_TUN_DEV, ARG_TUN_DEV_SRC4_TYPE, 0,9,0, A_CS1,A_ADM,A_DYI,A_CFA,A_ANY, 0, TUN_SRC_TYPE_MIN, TUN_SRC_TYPE_MAX, TUN_SRC_TYPE_UNDEF, 0, opt_tun_in_dev, ARG_VALUE_FORM, "IPv4 source address type (0 = static/global, 1 = static, 2 = auto, 3 = AHCP)"},
+	{ODI,ARG_TUN_DEV, ARG_TUN_DEV_SRC4_MIN, 0,9,0, A_CS1, A_ADM, A_DYI, A_CFA, A_ANY, 0, 0, 32, 0, 0, opt_tun_in_dev, ARG_VALUE_FORM, "IPv4 source prefix len usable for address auto configuration (0 = NO autoconfig)"},
+	{ODI,ARG_TUN_DEV, ARG_TUN_DEV_SRC6_TYPE, 0,9,0, A_CS1, A_ADM, A_DYI, A_CFA, A_ANY, 0, TUN_SRC_TYPE_MIN, TUN_SRC_TYPE_MAX, TUN_SRC_TYPE_UNDEF, 0, opt_tun_in_dev, ARG_VALUE_FORM, "IPv6 source address type (0 = static/global, 1 = static, 2 = auto, 3 = AHCP)"},
+	{ODI,ARG_TUN_DEV, ARG_TUN_DEV_SRC6_MIN, 0,9,0, A_CS1, A_ADM, A_DYI, A_CFA, A_ANY, 0, 0, 128, 0, 0, opt_tun_in_dev, ARG_VALUE_FORM, "IPv6 source prefix len usable for address auto configuration (0 = NO autoconfig)"},
+	{ODI,ARG_TUN_DEV, ARG_TUN_PROTO_ADV, 0,9,2, A_CS1, A_ADM, A_DYI, A_CFA, A_ANY, 0, MIN_TUN_PROTO_ADV, MAX_TUN_PROTO_ADV, DEF_TUN_PROTO_ADV, 0, opt_tun_in_dev, ARG_VALUE_FORM, HLP_TUN_PROTO_ADV},
+
+#endif
+    {ODI, 0, ARG_TUN_IN, 0,9,2, A_PM1N, A_ADM, A_DYI, A_CFA, A_ANY, 0, 0, 0, 0, 0, opt_tun_in, ARG_NAME_FORM, "Arbitrary but UNIQUE name for tunnel network to be announced with given sub criterias"},
+	{ODI, ARG_TUN_IN, ARG_TUN_IN_NET, 'n', 9, 2, A_CS1, A_ADM, A_DYI, A_CFA, A_ANY, 0, 0, 0, 0, 0, opt_tun_in, ARG_ADDR_FORM, "Network to be offered via incoming tunnel | MANDATORY"},
+	{ODI, ARG_TUN_IN, ARG_TUN_IN_BW, 'b', 9, 2, A_CS1, A_ADM, A_DYI, A_CFA, A_ANY, 0, 0, 0, 0, 0, opt_tun_in, ARG_VALUE_FORM, HLP_TUN_IN_BW},
+	{ODI, ARG_TUN_IN, ARG_TUN_DEV, 0, 9, 1, A_CS1, A_ADM, A_DYI, A_CFA, A_ANY, 0, 0, 0, 0, 0, opt_tun_in, ARG_NAME_FORM, HLP_TUN_IN_DEV},
+	{ODI, ARG_TUN_IN, ARG_TUN_PROTO_ADV, 0, 9, 2, A_CS1, A_ADM, A_DYI, A_CFA, A_ANY, 0, MIN_TUN_PROTO_ADV, MAX_TUN_PROTO_ADV, DEF_TUN_PROTO_ADV, 0, opt_tun_in, ARG_VALUE_FORM, HLP_TUN_PROTO_ADV},
+
+	{ODI, 0, ARG_TUN_OUT, 0, 9, 2, A_PM1N, A_ADM, A_DYI, A_CFA, A_ANY, 0, 0, 0, 0, 0, opt_tun_search, ARG_NAME_FORM, "Arbitrary but UNIQUE name for network which should be reached via tunnel depending on sub criterias"},
+	{ODI, ARG_TUN_OUT, ARG_TUN_OUT_NET, 'n', 9, 2, A_CS1, A_ADM, A_DYI, A_CFA, A_ANY, 0, 0, 0, 0, 0, opt_tun_search, ARG_NETW_FORM, "Network to be searched via outgoing tunnel | MANDATORY"},
+	{ODI, ARG_TUN_OUT, ARG_TUN_OUT_SRCRT, 0, 9, 2, A_CS1, A_ADM, A_DYI, A_CFA, A_ANY, 0, 0, 0, 0, 0, opt_tun_search, ARG_NETW_FORM, "Additional source-address range to-be routed via Tunnel"},
+	{ODI, ARG_TUN_OUT, ARG_TUN_PROTO_SEARCH, 0, 9, 2, A_CS1, A_ADM, A_DYI, A_CFA, A_ANY, 0, MIN_TUN_PROTO_SEARCH, MAX_TUN_PROTO_SEARCH, DEF_TUN_PROTO_SEARCH, 0, opt_tun_search, ARG_VALUE_FORM, HLP_TUN_PROTO_SEARCH},
+	{ODI, ARG_TUN_OUT, ARG_TUN_PROTO_SET, 0, 9, 2, A_CS1, A_ADM, A_DYI, A_CFA, A_ANY, 0, MIN_TUN_PROTO_SET, MAX_TUN_PROTO_SET, DEF_TUN_PROTO_SET, 0, opt_tun_search, ARG_VALUE_FORM, HLP_TUN_PROTO_SET},
+#ifndef LESS_OPTIONS
+	{ODI, ARG_TUN_OUT, ARG_TUN_OUT_TYPE, 0, 9, 0, A_CS1, A_ADM, A_DYI, A_CFA, A_ANY, 0, TUN_SRC_TYPE_MIN, TUN_SRC_TYPE_MAX, TUN_SRC_TYPE_UNDEF, 0, opt_tun_search, ARG_VALUE_FORM, "Tunnel IP allocation mechanism (0 = static/global, 1 = static, 2 = auto, 3 = AHCP)"},
+#endif
+	{ODI, ARG_TUN_OUT, ARG_TUN_OUT_GWNAME, 0, 9, 2, A_CS1, A_ADM, A_DYI, A_CFA, A_ANY, 0, 0, 0, 0, 0, opt_tun_search, ARG_NAME_FORM, "Hostname of remote Tunnel endpoint"},
+	{ODI, ARG_TUN_OUT, ARG_TUN_OUT_PREFIX_MIN, 0, 9, 2, A_CS1, A_ADM, A_DYI, A_CFA, A_ANY, 0, MIN_TUN_OUT_PREFIX, MAX_TUN_OUT_PREFIX, DEF_TUN_OUT_PREFIX_MIN, 0, opt_tun_search, ARG_VALUE_FORM, "Minimum prefix length for accepting Advertised tunnel network, 129 = network prefix length"},
+	{ODI, ARG_TUN_OUT, ARG_TUN_OUT_PREFIX_MAX, 0, 9, 2, A_CS1, A_ADM, A_DYI, A_CFA, A_ANY, 0, MIN_TUN_OUT_PREFIX, MAX_TUN_OUT_PREFIX, DEF_TUN_OUT_PREFIX_MAX, 0, opt_tun_search, ARG_VALUE_FORM, "Maximum prefix length for accepting Advertised Tunnel network, 129 = network prefix len"},
+	{ODI, ARG_TUN_OUT, ARG_TUN_OUT_OVLP_ALLOW, 0, 9, 1, A_CS1, A_ADM, A_DYI, A_CFA, A_ANY, 0 ,MIN_TUN_OUT_OVLP, MAX_TUN_OUT_OVLP, DEF_TUN_OUT_OVLP_ALLOW, 0, opt_tun_search, ARG_VALUE_FORM, "Allow overlapping other tunRoutes with worse tunMetric but larger prefix length"},
+	{ODI, ARG_TUN_OUT, ARG_TUN_OUT_OVLP_BREAK, 0, 9, 1, A_CS1, A_ADM, A_DYI, A_CFA, A_ANY, 0, MIN_TUN_OUT_OVLP, MAX_TUN_OUT_OVLP, DEF_TUN_OUT_OVLP_BREAK, 0, opt_tun_search, ARG_VALUE_FORM, "Let this tunRoute break other tunRoutes with better tunMetric but smaller prefix length"},
+	{ODI, ARG_TUN_OUT, ARG_TUN_OUT_PKID, 0, 9, 1, A_CS1, A_ADM, A_DYI, A_CFA, A_ANY, 0, 0, 0, 0, 0, opt_tun_search, ARG_SHA2_FORM,  "PKID of remote Tunnel endpoint"},
+	{ODI, ARG_TUN_OUT, ARG_TUN_OUT_HYSTERESIS, 0, 9, 2, A_CS1, A_ADM, A_DYI, A_CFA, A_ANY, 0, MIN_TUN_OUT_HYSTERESIS, MAX_TUN_OUT_HYSTERESIS, DEF_TUN_OUT_HYSTERESIS, 0, opt_tun_search, ARG_VALUE_FORM, "Specify in percent how much the metric to an alternative GW must be better than to curr GW"},
+	{ODI, ARG_TUN_OUT, ARG_TUN_OUT_RATING, 0, 9, 2, A_CS1, A_ADM, A_DYI, A_CFA, A_ANY, 0, MIN_TUN_OUT_RATING, MAX_TUN_OUT_RATING, DEF_TUN_OUT_RATING, 0, opt_tun_search, ARG_VALUE_FORM, "Specify in percent a metric rating for GWs matching this tunOut spec when compared with other tunOut specs for same network"},
+	{ODI, ARG_TUN_OUT, ARG_TUN_OUT_MIN_BW, 0, 9, 2, A_CS1, A_ADM, A_DYI, A_CFA, A_ANY, 0, 0, 0, 0, 0, opt_tun_search, ARG_VALUE_FORM, "MIN bandwidth as bits/sec beyond which GW's advertised bandwidth is ignored  default: 100000  range: [36 ... 128849018880]"},
+	{ODI, ARG_TUN_OUT, ARG_TUN_OUT_IPMETRIC, 0, 9, 1, A_CS1, A_ADM, A_DYI, A_CFA, A_ANY, 0, MIN_TUN_OUT_IPMETRIC, MAX_TUN_OUT_IPMETRIC, DEF_TUN_OUT_IPMETRIC, 0, opt_tun_search, ARG_VALUE_FORM, "IP metric for local routing table entries"},
+	{ODI, ARG_TUN_OUT, ARG_TUN_OUT_TRULE, 0, 9, 1, A_CS1, A_ADM, A_DYI, A_CFA, A_ANY, 0, 0, 0, 0, DEF_TUN_OUT_TRULE, opt_tun_search, FORM_TUN_OUT_TRULE, "IP rules table and preference to maintain matching tunnels"},
+	// {ODI, ARG_TUN_OUT, ARG_EXPORT_ONLY, 0, 9, 1, A_CS1, A_ADM, A_DYI, A_CFA, A_ANY, 0, MIN_EXPORT_ONLY, MAX_EXPORT_ONLY, DEF_EXPORT_ONLY, 0, opt_tun_search, ARG_VALUE_FORM, "DO NOT add route to bmx7 tunnel table!  Requires quagga plugin!"},
+	// {ODI, ARG_TUN_OUT, ARG_EXPORT_DISTANCE, 0, 9, 2, A_CS1, A_ADM, A_DYI, A_CFA, A_ANY, 0, MIN_EXPORT_DISTANCE, MAX_EXPORT_DISTANCE, DEF_EXPORT_DISTANCE, 0, opt_tun_search, ARG_VALUE_FORM, "export distance to network (256 == no export). Requires quagga plugin!"},
+
+	{ODI, 0, ARG_TUNS, 0, 9, 2, A_PS0, A_USR, A_DYN, A_ARG, A_ANY, 0, 0, 0, 0, 0, opt_status, 0, "Show announced and used Tunnels and related networks"}
+*/
+	{ODI,0,ARG_WG_TUN_NAME_PREFIX, 0, 8, 1, A_PS1, A_ADM, A_INI, A_CFA, A_ANY, 0, 0, 0, 0, DEF_TUN_NAME_PREFIX, opt_wg_tun_name_prefix, ARG_NAME_FORM, "Specify first letter of the local wg tunnel interface names"},
+	{ODI,0,ARG_WG_TUN_DEV, 0, 9, 2, A_PMIN, A_ADM, A_DYI, A_CFA, A_ANY, 0, 0, 0, 0, 0, opt_wg_tun_in_dev, ARG_NAME_FORM, "Define the WG interface name. This creates the wg interface"}
+		{ODI,ARG_WG_TUN_DEV,ARG_TUN_DEV_ADDR4, 0, 9, 2, A_CS1, A_ADM, A_DYI, A_CFA, A_ANY, 0, 0, 0, 0, 0, opt_wg_tun_in_dev, ARG_ADDR_FORM, HLP_TUN_DEV_ADDR4},
+		{ODI,ARG_WG_TUN_DEV,ARG_TUN_DEV_ADDR6, 0, 9, 2, A_CS1, A_ADM, A_DYI, A_CFA, A_ANY, 0, 0, 0, 0, 0, opt_wg_tun_in_dev, ARG_ADDR_FORM, HLP_TUN_DEV_ADDR6},
+
+    {ODI, 0, ARG_WG_TUN_IN, 0,9,2, A_PM1N, A_ADM, A_DYI, A_CFA, A_ANY, 0, 0, 0, 0, 0, opt_wg_tun_in, ARG_NAME_FORM, "Arbitrary but UNIQUE name for tunnel network to be announced with given sub criterias"},
+	{ODI, ARG_TUN_IN, ARG_TUN_IN_NET, 'n', 9, 2, A_CS1, A_ADM, A_DYI, A_CFA, A_ANY, 0, 0, 0, 0, 0, opt_wg_tun_in, ARG_ADDR_FORM, "Network to be offered via incoming tunnel | MANDATORY"},
+	// {ODI, ARG_TUN_IN, ARG_TUN_IN_BW, 'b', 9, 2, A_CS1, A_ADM, A_DYI, A_CFA, A_ANY, 0, 0, 0, 0, 0, opt_tun_in, ARG_VALUE_FORM, HLP_TUN_IN_BW},
+	{ODI, ARG_TUN_IN, ARG_TUN_DEV, 0, 9, 1, A_CS1, A_ADM, A_DYI, A_CFA, A_ANY, 0, 0, 0, 0, 0, opt_wg_tun_in, ARG_NAME_FORM, HLP_TUN_IN_DEV},
+	// {ODI, ARG_TUN_IN, ARG_TUN_PROTO_ADV, 0, 9, 2, A_CS1, A_ADM, A_DYI, A_CFA, A_ANY, 0, MIN_TUN_PROTO_ADV, MAX_TUN_PROTO_ADV, DEF_TUN_PROTO_ADV, 0, opt_tun_in, ARG_VALUE_FORM, HLP_TUN_PROTO_ADV},
+
+	{ODI, 0, ARG_TUN_OUT, 0, 9, 2, A_PM1N, A_ADM, A_DYI, A_CFA, A_ANY, 0, 0, 0, 0, 0, opt_tun_search, ARG_NAME_FORM, "Arbitrary but UNIQUE name for network which should be reached via tunnel depending on sub criterias"},
+	{ODI, ARG_TUN_OUT, ARG_TUN_OUT_NET, 'n', 9, 2, A_CS1, A_ADM, A_DYI, A_CFA, A_ANY, 0, 0, 0, 0, 0, opt_tun_search, ARG_NETW_FORM, "Network to be searched via outgoing tunnel | MANDATORY"},
+	{ODI, ARG_TUN_OUT, ARG_TUN_OUT_SRCRT, 0, 9, 2, A_CS1, A_ADM, A_DYI, A_CFA, A_ANY, 0, 0, 0, 0, 0, opt_tun_search, ARG_NETW_FORM, "Additional source-address range to-be routed via Tunnel"},
+	{ODI, ARG_TUN_OUT, ARG_TUN_PROTO_SEARCH, 0, 9, 2, A_CS1, A_ADM, A_DYI, A_CFA, A_ANY, 0, MIN_TUN_PROTO_SEARCH, MAX_TUN_PROTO_SEARCH, DEF_TUN_PROTO_SEARCH, 0, opt_tun_search, ARG_VALUE_FORM, HLP_TUN_PROTO_SEARCH},
+	{ODI, ARG_TUN_OUT, ARG_TUN_PROTO_SET, 0, 9, 2, A_CS1, A_ADM, A_DYI, A_CFA, A_ANY, 0, MIN_TUN_PROTO_SET, MAX_TUN_PROTO_SET, DEF_TUN_PROTO_SET, 0, opt_tun_search, ARG_VALUE_FORM, HLP_TUN_PROTO_SET},
+
+	{ODI, ARG_TUN_OUT, ARG_TUN_OUT_TYPE, 0, 9, 0, A_CS1, A_ADM, A_DYI, A_CFA, A_ANY, 0, TUN_SRC_TYPE_MIN, TUN_SRC_TYPE_MAX, TUN_SRC_TYPE_UNDEF, 0, opt_tun_search, ARG_VALUE_FORM, "Tunnel IP allocation mechanism (0 = static/global, 1 = static, 2 = auto, 3 = AHCP)"},
+
+	{ODI, ARG_TUN_OUT, ARG_TUN_OUT_GWNAME, 0, 9, 2, A_CS1, A_ADM, A_DYI, A_CFA, A_ANY, 0, 0, 0, 0, 0, opt_tun_search, ARG_NAME_FORM, "Hostname of remote Tunnel endpoint"},
+};
+
 STATIC_FUNC
 void wg_tun_dev_event_hook(int32_t cb_id, void* unused)
 {
@@ -508,7 +596,7 @@ int32_t wg_tun_init(void)
 	register_frame_handler(description_tlv_db, BMX_DSC_TLV_WG_TUN, &tlv_handl);
 
 	/* HARRY TODO */
-	// set_tunXin6_net_adv_list = set_tunXin6_net_adv_list_handl;
+	set_tunXin6_net_adv_list = set_tunXin6_net_adv_list_handl;
 
 	register_options_array(wg_tun_options, sizeof(wg_tun_options), CODE_CATEGORY_NAME);
 

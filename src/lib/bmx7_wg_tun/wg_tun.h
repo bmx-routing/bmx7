@@ -272,8 +272,7 @@ FIELD_FORMAT_END }
 
 struct dsc_msg_tun_wg {
 	wg_key public_key;
-
-}
+};
 
 /* Requirements:
  * - lightweight possibilty for gw to check client ID and request authenticity (no other client send it)

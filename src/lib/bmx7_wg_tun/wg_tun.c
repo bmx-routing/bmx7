@@ -50,6 +50,7 @@ wg_key my_private_key;
 wg_key my_public_key;
 
 #define DEF_AUTO_WG_TUN_PREFIX  "fd77::/16"
+struct net_key my_wg_tun_addr;
 
 
 
@@ -63,26 +64,48 @@ int create_dsc_tlv_wg_tun(struct tx_frame_iterator *it)
 	struct dsc_msg_wg_tun *adv = (struct dsc_msg_wg_tun *) tx_iterator_cache_msg_ptr(it);
 	memcpy(adv->public_key, my_public_key, sizeof(my_public_key));
 
-	
 	/*
 	 Calculate the wg_tun_addr and add it to the wg_description
 	 */
-	struct net_key wg_tun_prefix = ZERO_NET6_KEY;
-	IP6_T my_wg_tun_addr;
-	str2netw(DEF_AUTO_WG_TUN_PREFIX, &wg_tun_prefix.ip, NULL, &wg_tun_prefix.mask, &wg_tun_prefix.af, NO);
-	assertion(-500000, wg_tun_prefix.mask=16);
 	assertion(-500000, myKey != NULL);
-	my_wg_tun_addr = create_crypto_IPv6(&wg_tun_prefix, &myKey->kHash);
-	adv->wg_tun_addr = my_wg_tun_addr;
-	
+	IP6_T ip = create_crypto_IPv6(&my_wg_tun_addr, &myKey->kHash);
+	my_wg_tun_addr.ip = ip;
+	adv->wg_tun_addr = my_wg_tun_addr.ip;
+	adv->wg_tun_addr_prefix_len = my_wg_tun_addr.mask;
 	return sizeof(struct dsc_msg_wg_tun);
 }
 
 STATIC_FUNC
 int process_dsc_tlv_wg_tun(struct rx_frame_iterator *it)
 {
+	for (int16_t frm_msg = 0; frm_msg < it->f_msgs_fixed; frm_msg++) {
+
+		/*
+		 * Map the advertizement with the data of the messages of the frame given by the iterator
+		 */
+		struct dsc_msg_wg_tun *adv = &(((struct dsc_msg_wg_tun *) (it->f_data))[frm_msg]);
+
+		if (it->op == TLV_OP_DEL) {
+
+		} else if (it->op == TLV_OP_TEST) {
+			if (adv->wg_tun_addr_prefix_len != my_wg_tun_addr.mask)
+				return TLV_RX_DATA_FAILURE;
+			if (!is_ip_net_equal(&my_wg_tun_addr.ip, &adv->wg_tun_addr, my_wg_tun_addr.mask, my_wg_tun_addr.af) )
+				return TLV_RX_DATA_FAILURE;
+			if (!is_ip_valid(&adv->wg_tun_addr, AF_INET6))
+				return TLV_RX_DATA_FAILURE;
+			if(is_ip_net_equal(&adv->wg_tun_addr, &IP6_LINKLOCAL_UC_PREF, IP6_LINKLOCAL_UC_PLEN, AF_INET6))
+				return TLV_RX_DATA_FAILURE;
+			if (verify_crypto_ip6_suffix(&adv->wg_tun_addr, my_wg_tun_addr.mask, &it->dcOp->kn->kHash) != SUCCESS)
+				return TLV_RX_DATA_FAILURE;
+
+		} else if (it->op == TLV_OP_NEW) {
+
+		}
+	}
 	/* STUB */
-	return 0;
+
+	return it->f_msgs_len;
 }
 
 
@@ -172,6 +195,9 @@ int32_t wg_tun_init(void)
 	wg_generate_private_key(my_private_key);
 	wg_generate_public_key(my_public_key, my_private_key);
 	
+	my_wg_tun_addr = ZERO_NET6_KEY;
+	str2netw(DEF_AUTO_WG_TUN_PREFIX, &my_wg_tun_addr.ip, NULL, &my_wg_tun_addr.mask, &my_wg_tun_addr.af, NO);
+	assertion(-500000, my_wg_tun_addr.mask=16);
 
 	return SUCCESS;
 }

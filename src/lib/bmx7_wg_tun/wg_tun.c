@@ -50,12 +50,17 @@ wg_key my_private_key;
 wg_key my_public_key;
 
 
-
 STATIC_FUNC
 int create_dsc_tlv_wg_tun(struct tx_frame_iterator *it)
 {
-	/* STUB */
-	return 0;
+	/*
+	 * From this iterator we are able to access the memory
+	 * giving the address to adv and then write to it our public
+	 */
+	struct dsc_msg_wg_tun *adv = (struct dsc_msg_wg_tun *) tx_iterator_cache_msg_ptr(it);
+	memcpy(adv->public_key, my_public_key, sizeof(my_public_key));
+	
+	return sizeof(my_public_key);
 }
 
 STATIC_FUNC
@@ -141,6 +146,9 @@ int32_t wg_tun_init(void)
 	tlv_handl.name = "DSC_WG_TUN";
 	tlv_handl.min_msg_size= sizeof(struct dsc_msg_wg_tun);
 	tlv_handl.fixed_msg_size = 1;
+	tlv_handl.dextCompression = (int32_t*) & dflt_fzip;
+	tlv_handl.dextReferencing = (int32_t*) & fref_dflt;
+
 	tlv_handl.tx_frame_handler = create_dsc_tlv_wg_tun;
 	tlv_handl.rx_msg_handler = process_dsc_tlv_wg_tun;
 	tlv_handl.msg_format = wg_tun_adv_format;
@@ -148,6 +156,7 @@ int32_t wg_tun_init(void)
 
 	wg_generate_private_key(my_private_key);
 	wg_generate_public_key(my_public_key, my_private_key);
+	
 
 	return SUCCESS;
 }

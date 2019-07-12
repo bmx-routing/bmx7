@@ -139,64 +139,11 @@ int process_dsc_tlv_wg_tun(struct rx_frame_iterator *it)
 }
 
 
-int gwg_tundev_init(void)
-{
-
-	return 0;
-}
-
-///* TODO: Place them around
-int wg_CnC(void)
-{
-	wg_peer new_peer = {
-		.flags = WGPEER_HAS_PUBLIC_KEY | WGPEER_REPLACE_ALLOWEDIPS
-	};
-
-	wg_device new_device = {
-		.name = "wgtest0",
-		.listen_port = 1234,
-		.flags = WGDEVICE_HAS_PRIVATE_KEY | WGDEVICE_HAS_LISTEN_PORT,
-		.first_peer = &new_peer,
-		.last_peer = &new_peer
-	};
-
-	// TODO PLACE THEM AROUND
-	wg_key temp_private_key;
-	wg_generate_private_key(temp_private_key);
-	wg_generate_public_key(new_peer.public_key, temp_private_key);
-	wg_generate_private_key(new_device.private_key);
-
-
-	if (wg_add_device(new_device.name) < 0) {
-		perror("Unable to add device");
-		exit(1);
-	}
-
-	if (wg_set_device(&new_device) < 0) {
-		perror("Unable to set device");
-		exit(1);
-	}
-
-	//list_devices();
-
-	if (wg_del_device(new_device.name) < 0) {
-		perror("Unable to delete device");
-		exit(1);
-	}
-
-	return 0;
-}
-//*/
-
 
 STATIC_FUNC
 void wg_tun_cleanup(void)
 {
-	/* Harry TODO */
-
-	/* The famous wtin variable */
 	memset(my_wg_private_key, 0, sizeof(my_wg_private_key));
-
 }
 
 STATIC_FUNC

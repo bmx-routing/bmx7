@@ -42,6 +42,7 @@
 #include "allocate.h"
 
 #include "wireguard.h"
+#include "wg_tun.h"
 
 #define CODE_CATEGORY_NAME "wg_tun"
 
@@ -96,7 +97,9 @@ int process_dsc_tlv_wg_tun(struct rx_frame_iterator *it)
 STATIC_FUNC
 IDM_T configure_wg_tunnel_in(uint8_t del, struct tun_in_node *tin, int16_t tun6Id)
 {
-	/* Possible del values: DEL | ADD */
+
+/*
+	// Possible del values: DEL | ADD
 	assertion(-501523, IMPLIES(!del, is_ip_set(&tin->remote)));
 	assertion(-501341, IMPLIES(!del, (is_ip_set(&my_primary_ip))));
 	assertion(-501311, IMPLIES(tin->upIfIdx, tin->nameKey.str[0]));
@@ -104,27 +107,26 @@ IDM_T configure_wg_tunnel_in(uint8_t del, struct tun_in_node *tin, int16_t tun6I
 	assertion(-501368, IMPLIES(del, ((tin->tun6Id >= 0) == (tin->upIfIdx > 0))));
 	assertion(-501369, IMPLIES(!del, ((tun6Id >= 0) && (tin->upIfIdx == 0))));
 
-	/* If del == DEL */
+	// If del == DEL
 	if (del && tin->upIfIdx) {
 
-		/* Reset tin values */
+		// Reset tin values
 		IDM_T result = kernel_tun_del(tin->nameKey.str);
 		assertion(-501451, (result == SUCCESS));
 
 		tin->upIfIdx = 0;
 		tin->tun6Id = -1;
 
-		/* Update Description */
+		// Update Description
 		my_description_changed = YES;
 
-	/* If del == ADD */
+	// If del == ADD
 	} else if (!del && !tin->upIfIdx) {
 
-		/* Add new tin values */
+		// Add new tin values
 		IPX_T *local = &my_primary_ip;
 		IPX_T remoteIp = (tun_real_src >= TYP_TUN_REAL_SRC_ANY) ?  ZERO_IP : tin->remote;
 
-		/* HARRY TODO */
 		if (!is_ip_set(&tin->remote) || is_ip_local(&tin->remote) ||
 			(tin->ingressPrefix46[0].mask && find_overlapping_hna(&tin->ingressPrefix46[0].ip, tin->ingressPrefix46[0].mask, NULL))) {
 
@@ -134,41 +136,41 @@ IDM_T configure_wg_tunnel_in(uint8_t del, struct tun_in_node *tin, int16_t tun6I
 
 		assertion(-501312, (strlen(tin->nameKey.str)));
 
-		/* HARRY TODO */
 		if ((tin->upIfIdx = kernel_tun_add(tin->nameKey.str, IPPROTO_IP, local, &remoteIp)) > 0) {
 
 			tin->tun6Id = tun6Id;
 
 			if (tin->tunAddr46[1].mask)
-				kernel_set_addr(ADD, tin->upIfIdx, AF_INET, &tin->tunAddr46[1].ip, 32, NO /*deprecated*/);
+				kernel_set_addr(ADD, tin->upIfIdx, AF_INET, &tin->tunAddr46[1].ip, 32, NO);
 
 			if (tin->tunAddr46[0].mask)
-				kernel_set_addr(ADD, tin->upIfIdx, AF_INET6, &tin->tunAddr46[0].ip, 128, NO /*deprecated*/);
+				kernel_set_addr(ADD, tin->upIfIdx, AF_INET6, &tin->tunAddr46[0].ip, 128, NO);
 
 			my_description_changed = YES;
 		}
 	}
 
-	/* HARRY TODO */
 	return(XOR(del, tin->upIfIdx)) ? SUCCESS : FAILURE;
+*/
+	return FAILURE;
 }
 
 STATIC_FUNC
 void reconfigure_wg_tun_ins(void)
 {
+/*
 	struct avl_node *an;
 	struct tun_in_node *tin;
 
-	/* Loop and reset tun_in_tree values */
+	// Loop and reset tun_in_tree values
 	for (an = NULL; (tin = avl_iterate_item(&tun_in_tree, &an));) {
 		configure_wg_tunnel_in(DEL, tin, -1);
 	}
 
-	/*  Reconfigure wg_tun_in_tree */
+	//  Reconfigure wg_tun_in_tree
 	int16_t iterator = 0;
 	for (an = NULL; (tin = avl_iterate_item(&tun_in_tree, &an));) {
 
-		/* HARRY TODO */
 		if (!tin->remote_manual) {
 			tin->remote = my_primary_ip;
 			tin->remote.s6_addr[DEF_AUTO_TUNID_OCT_POS] += (iterator + MIN_AUTO_TUNID_OCT);
@@ -179,20 +181,25 @@ void reconfigure_wg_tun_ins(void)
 		assertion(-502040, ((iterator + MIN_AUTO_TUNID_OCT) <= MAX_AUTO_TUNID_OCT));
 		assertion(-501237, (tin->upIfIdx && tin->tun6Id >= 0));
 	}
+*/
 }
 
 
 STATIC_FUNC
 void purge_wg_tunCatchTree(void)
 {
-	struct tun_dev_node *tdnUP;
+/*
+ *	struct tun_dev_node *tdnUP;
 	while ((tdnUP = avl_first_item(&tun_catch_tree))) {
 		assertion(-501543, (!tdnUP->tun_bit_tree[0].items && !tdnUP->tun_bit_tree[1].items));
 		avl_remove(&tun_catch_tree, &tdnUP->tunCatchKey, -300546);
 		avl_remove(&tdnUP->tunCatchKey.tin->tun_dev_tree, &tdnUP->nameKey, -300559);
 		kernel_dev_tun_del(tdnUP->nameKey.str, tdnUP->tunCatch_fd);
 		debugFree(tdnUP, -300547);
+
 	}
+*/
+
 }
 
 struct wg_tun_out_status {
@@ -242,11 +249,7 @@ struct wg_tun_out_status {
 	char advNet[IPX_PREFIX_STR_LEN];
 	char srcIngress[IPX_PREFIX_STR_LEN];
 
-	//UMETRIC_T advBwVal;
-	//UMETRIC_T *advBw;
-	//UMETRIC_T *pathMtc;
-	//UMETRIC_T tunMtcVal;
-	//UMETRIC_T *tunMtc;
+	wg_key public_key;
 
 	IPX_T *localTunIp;
 	IPX_T *remoteTunIp;
@@ -254,7 +257,10 @@ struct wg_tun_out_status {
 
 /* HARRY TODO: Add desc */
 static const struct field_format wg_tun_out_status_format[] = {
-        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      tun_out_status, wg_tunOut,   1, FIELD_RELEVANCE_HIGH),
+
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_BINARY,     wg_tun_out_status, public_key, 1, FIELD_RELEVANCE_HIGH),
+/* Harry TODO
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      tun_out_status, tunOut,   1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_SHORT_ID,  tun_out_status, id,          1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, tun_out_status, longId,      1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      tun_out_status, gwName,      1, FIELD_RELEVANCE_HIGH),
@@ -290,12 +296,14 @@ static const struct field_format wg_tun_out_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_IPX6P,             tun_out_status, localTunIp,  1, FIELD_RELEVANCE_LOW),
         FIELD_FORMAT_INIT(FIELD_TYPE_IPX6P,             tun_out_status, remoteTunIp, 1, FIELD_RELEVANCE_LOW),
 //      FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              tun_out_status, up,          1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_END
+*/
+		FIELD_FORMAT_END
 };
 
 static int32_t wg_tun_out_status_creator(struct status_handl *handl, void *data)
 {
-	struct tun_net_node *tnn;
+/*
+ *	struct tun_net_node *tnn;
 	struct tun_search_node *tsn;
 	struct avl_node *an;
 
@@ -307,33 +315,29 @@ static int32_t wg_tun_out_status_creator(struct status_handl *handl, void *data)
 	for (an = NULL; (tsn = avl_iterate_item(&tun_search_tree, &an));)
 		status_size += (tsn->tun_bit_tree.items ? 0 : sizeof(struct tun_out_status));
 
-	/* Declaration of status */
+	// Declaration of status
 	struct tun_out_status *status = (struct tun_out_status *) (handl->data = debugRealloc(handl->data, status_size, -300428));
 	memset(status, 0, status_size);
 
 	struct avl_tree * t[] = { &tun_search_tree, &tun_bit_tree, &tun_net_tree };
 
-	/* */
+	//
 	uint8_t avl_iterator;
 	for (avl_iterator = 0; avl_iterator < 3; a++) {
 
 		void *p;
 		for (an = NULL; (p = avl_iterate_item(t[avl_iterator], &an));) {
 
-			/* Harry TODO
 			struct tun_bit_node *tbn = (t[a] == &tun_bit_tree) ? p : NULL;
 			struct tun_net_node *tnn = (t[a] == &tun_net_tree) ? p : (tbn ? tbn->tunBitKey.keyNodes.tnn : NULL);
 			struct tun_search_node *tsn = (t[a] == &tun_search_tree) ? p : (tbn ? tbn->tunBitKey.keyNodes.tsn : NULL);
-			*/
 
-			/* Check everything is in place */
 			if (!tbn && tsn && tsn->tun_bit_tree.items)
 				continue;
 
 			if (!tbn && tnn && tnn->tun_bit_tree.items)
 				continue;
 
-			/* Harry TODO */
 			if (tsn) {
 
 				status->tunOut = tsn->nameKey;
@@ -405,11 +409,12 @@ static int32_t wg_tun_out_status_creator(struct status_handl *handl, void *data)
 	}
 
 	assertion(-501322, (handl->data + status_size == (uint8_t*) status));
-
-	return status_size;
+*/
+//	return status_size;
+	return 0;
 }
 
-static struct opt_type wg_tun_options[] {
+static struct opt_type wg_tun_options[] = {
 
 	/* Here lies an analysis of all the possible tunnel plugin options
 	 * one can access them through 'bmx7 --plugin=bmx7_tun.so -H'
@@ -475,6 +480,8 @@ static struct opt_type wg_tun_options[] {
 
 	{ODI, 0, ARG_TUNS, 0, 9, 2, A_PS0, A_USR, A_DYN, A_ARG, A_ANY, 0, 0, 0, 0, 0, opt_status, 0, "Show announced and used Tunnels and related networks"}
 */
+
+/* DECLARE AND DECOMMENT
 	{ODI,0,ARG_WG_TUN_NAME_PREFIX, 0, 8, 1, A_PS1, A_ADM, A_INI, A_CFA, A_ANY, 0, 0, 0, 0, DEF_TUN_NAME_PREFIX, opt_wg_tun_name_prefix, ARG_NAME_FORM, "Specify first letter of the local wg tunnel interface names"},
 	{ODI,0,ARG_WG_TUN_DEV, 0, 9, 2, A_PMIN, A_ADM, A_DYI, A_CFA, A_ANY, 0, 0, 0, 0, 0, opt_wg_tun_in_dev, ARG_NAME_FORM, "Define the WG interface name. This creates the wg interface"}
 		{ODI,ARG_WG_TUN_DEV,ARG_TUN_DEV_ADDR4, 0, 9, 2, A_CS1, A_ADM, A_DYI, A_CFA, A_ANY, 0, 0, 0, 0, 0, opt_wg_tun_in_dev, ARG_ADDR_FORM, HLP_TUN_DEV_ADDR4},
@@ -495,11 +502,13 @@ static struct opt_type wg_tun_options[] {
 	{ODI, ARG_TUN_OUT, ARG_TUN_OUT_TYPE, 0, 9, 0, A_CS1, A_ADM, A_DYI, A_CFA, A_ANY, 0, TUN_SRC_TYPE_MIN, TUN_SRC_TYPE_MAX, TUN_SRC_TYPE_UNDEF, 0, opt_tun_search, ARG_VALUE_FORM, "Tunnel IP allocation mechanism (0 = static/global, 1 = static, 2 = auto, 3 = AHCP)"},
 
 	{ODI, ARG_TUN_OUT, ARG_TUN_OUT_GWNAME, 0, 9, 2, A_CS1, A_ADM, A_DYI, A_CFA, A_ANY, 0, 0, 0, 0, 0, opt_tun_search, ARG_NAME_FORM, "Hostname of remote Tunnel endpoint"},
+*/
 };
 
 STATIC_FUNC
 void wg_tun_dev_event_hook(int32_t cb_id, void* unused)
 {
+	/*
 	struct tun_in_node *tun;
 	struct avl_node *an = NULL;
 	while ((tun = avl_iterate_item(&tun_in_tree, &an))) {
@@ -519,6 +528,7 @@ void wg_tun_dev_event_hook(int32_t cb_id, void* unused)
 
 		reconfigure_wg_tun_ins();
 	}
+	*/
 }
 
 
@@ -531,11 +541,14 @@ void wg_tun_cleanup(void)
 	// purge_wg_tunCatchTree();
 
 	/* The famous wtin variable */
+
+/*
 	struct tun_in_node *tin;
 	while ((tin = avl_remove_first_item(&tun_in_tree, -123456))) {
 		configure_wg_tunnel_in(DEL, tin, -1);
 		debugFree(tin, -123457);
 	}
+*/
 }
 
 STATIC_FUNC
@@ -547,44 +560,13 @@ int32_t wg_tun_init(void)
 	//assertion(-501328, tun_search_tree.key_size == NETWORK_NAME_LEN);
 
 
-	/* Harry TODO: WTF are these? */
-	static const struct field_format tun6_adv_format[] = DESCRIPTION_MSG_TUN6_ADV_FORMAT;
-	static const struct field_format tun6in6_adv_format[] = DESCRIPTION_MSG_TUN6IN6_NET_ADV_FORMAT;
-
-	static const struct field_format wg_tun_format[] = DESCRIPTION_MSG_WG_TUN_FORMAT;
-
+//	static const struct field_format wg_tun_format[] = DESCRIPTION_MSG_WG_TUN_FORMAT;
 	static const struct field_format wg_tun_adv_format[] = DESCRIPTION_MSG_WG_TUN_ADV_FORMAT;
 
 
 	/* Message handler declared in msg.h */
 	struct frame_handl tlv_handl;
 	memset(&tlv_handl, 0, sizeof(tlv_handl));
-
-	/* Register a handler for DSC_TUN6 */
-	/*
-	tlv_handl.name = "DSC_TUN6";
-	tlv_handl.min_msg_size = sizeof(struct dsc_msg_tun6);
-	tlv_handl.fixed_msg_size = 1;
-	tlv_handl.dextCompression = (int32_t*) & dflt_fzip;
-	tlv_handl.dextReferencing = (int32_t*) & fref_dflt;
-	tlv_handl.tx_frame_handler = create_dsc_tlv_tun6;
-	tlv_handl.rx_frame_handler = process_dsc_tlv_tun6;
-	tlv_handl.msg_format = tun6_adv_format;
-	register_frame_handler(description_tlv_db, BMX_DSC_TLV_TUN6, &tlv_handl);
-	*/
-
-	/* Register a handler for DSC_TUN6IN6_NET */
-	/*
-	tlv_handl.name = "DSC_TUN6IN6_NET";
-	tlv_handl.min_msg_size = sizeof(struct dsc_msg_tun6in6net);
-	tlv_handl.fixed_msg_size = 1;
-	tlv_handl.dextCompression = (int32_t*) & dflt_fzip;
-	tlv_handl.dextReferencing = (int32_t*) & fref_dflt;
-	tlv_handl.tx_frame_handler = create_dsc_tlv_tunXin6net;
-	tlv_handl.rx_frame_handler = process_dsc_tlv_tunXin6net;
-	tlv_handl.msg_format = tun6in6_adv_format;
-	register_frame_handler(description_tlv_db, BMX_DSC_TLV_TUN6IN6_NET, &tlv_handl);
-	*/
 
 	/* Register a handler for  DSC_WG_TUN */
 	tlv_handl.name = "DSC_WG_TUN";
@@ -594,9 +576,6 @@ int32_t wg_tun_init(void)
 	tlv_handl.rx_msg_handler = process_dsc_tlv_wg_tun;
 	tlv_handl.msg_format = wg_tun_adv_format;
 	register_frame_handler(description_tlv_db, BMX_DSC_TLV_WG_TUN, &tlv_handl);
-
-	/* HARRY TODO */
-	set_tunXin6_net_adv_list = set_tunXin6_net_adv_list_handl;
 
 	register_options_array(wg_tun_options, sizeof(wg_tun_options), CODE_CATEGORY_NAME);
 

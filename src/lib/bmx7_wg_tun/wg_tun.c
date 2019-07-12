@@ -46,6 +46,10 @@
 
 #define CODE_CATEGORY_NAME "wg_tun"
 
+wg_key my_private_key;
+wg_key my_public_key;
+
+
 
 STATIC_FUNC
 int create_dsc_tlv_wg_tun(struct tx_frame_iterator *it)
@@ -116,6 +120,10 @@ STATIC_FUNC
 void wg_tun_cleanup(void)
 {
 	/* Harry TODO */
+
+	/* The famous wtin variable */
+	memset(my_private_key, 0, sizeof(my_private_key));
+
 }
 
 STATIC_FUNC
@@ -137,6 +145,9 @@ int32_t wg_tun_init(void)
 	tlv_handl.rx_msg_handler = process_dsc_tlv_wg_tun;
 	tlv_handl.msg_format = wg_tun_adv_format;
 	register_frame_handler(description_tlv_db, BMX_DSC_TLV_WG_TUN, &tlv_handl);
+
+	wg_generate_private_key(my_private_key);
+	wg_generate_public_key(my_public_key, my_private_key);
 
 	return SUCCESS;
 }

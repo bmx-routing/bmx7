@@ -32,6 +32,7 @@ struct dsc_msg_wg_tun {
 
 #define DESCRIPTION_MSG_WG_TUN_ADV_FORMAT { \
 {FIELD_TYPE_STRING_BINARY, -1, sizeof(wg_key)*8, 0, FIELD_RELEVANCE_HIGH, "public_key" }, \
+{FIELD_TYPE_IPX6, -1, 128, 0, FIELD_RELEVANCE_HIGH, "wg_tun_addr" }, \
 FIELD_FORMAT_END }
 
 

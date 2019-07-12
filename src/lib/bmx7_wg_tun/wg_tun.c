@@ -49,6 +49,9 @@
 wg_key my_private_key;
 wg_key my_public_key;
 
+#define DEF_AUTO_WG_TUN_PREFIX  "fd77::/16"
+
+
 
 STATIC_FUNC
 int create_dsc_tlv_wg_tun(struct tx_frame_iterator *it)
@@ -59,8 +62,20 @@ int create_dsc_tlv_wg_tun(struct tx_frame_iterator *it)
 	 */
 	struct dsc_msg_wg_tun *adv = (struct dsc_msg_wg_tun *) tx_iterator_cache_msg_ptr(it);
 	memcpy(adv->public_key, my_public_key, sizeof(my_public_key));
+
 	
-	return sizeof(my_public_key);
+	/*
+	 Calculate the wg_tun_addr and add it to the wg_description
+	 */
+	struct net_key wg_tun_prefix = ZERO_NET6_KEY;
+	IP6_T my_wg_tun_addr;
+	str2netw(DEF_AUTO_WG_TUN_PREFIX, &wg_tun_prefix.ip, NULL, &wg_tun_prefix.mask, &wg_tun_prefix.af, NO);
+	assertion(-500000, wg_tun_prefix.mask=16);
+	assertion(-500000, myKey != NULL);
+	my_wg_tun_addr = create_crypto_IPv6(&wg_tun_prefix, &myKey->kHash);
+	adv->wg_tun_addr = my_wg_tun_addr;
+	
+	return sizeof(struct dsc_msg_wg_tun);
 }
 
 STATIC_FUNC

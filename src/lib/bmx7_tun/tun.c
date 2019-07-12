@@ -57,7 +57,6 @@
 #include "schedule.h"
 #include "allocate.h"
 
-#include "wireguard.h"
 
 #define CODE_CATEGORY_NAME "tun"
 

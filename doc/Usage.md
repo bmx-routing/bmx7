@@ -2,9 +2,6 @@
    * [Intro](#intro)
    * [Monitoring bmx7](#monitoring-bmx7)
    * [Simple Ping Test](#simple-ping-test)
-   * [Dynamic Reconfiguration](#dynamic-reconfiguration)
-   * [Address Auto & Manual Configuration](#address-auto-and-manual-configuration)
-   * [UHNAs](#unicast-host-network-announcements)
 
 ## Introduction
 
@@ -22,7 +19,7 @@ However, to let this simple command work as expected also check the following ba
   and autoconfigures a [ULA](https://en.wikipedia.org/wiki/Unique_local_address)-based IPv6
   address for each interface based on the MAC address of the
   device. The only pre-requisite is that the interfaces must be in the
-  `up` state, E.G.: `ip link set wlan0 up`. 
+  `up` state, E.G.: `ip link set wlan0 up`.
 
   If you are using a wireless interface, the interface settings must
   have been configured using `iwconfig` or `iw` to communicate with bmx7
@@ -128,16 +125,16 @@ shortId  name    linkKey    linkKeys          nbLocalIp                dev  rts 
 AAD9C0F5 mlc1002 DH2048M112 RSA896,DH2048M112 fe80::a2cd:efff:fe10:201 eth1 8   100 100 1000M  1000M  -1      0   0   20  0
 ORIGINATORS:
 shortId  name    as S s T t descSqn lastDesc descSize cv revision primaryIp                               dev  nbShortId nbName  metric hops ogmSqn lastRef
-2ECE1A4E mlc1000 nA A A A A 612     212      733+784  21 e2bd709  fd70:2ece:1a4e:fa8e:fb9d:3b70:33e3:da00 eth1 2ECE1A4E  mlc1000 999M   1    36     0       
-01662D16 mlc1001 nQ A A A A 612     213      733+784  21 e2bd709  fd70:166:2d16:1ff6:253f:d0bc:1558:d89a  ---  ---       ---     257G   0    36     0       
-AAD9C0F5 mlc1002 nA A A A A 612     212      733+784  21 e2bd709  fd70:aad9:c0f5:8c20:a082:a462:a859:210d eth1 AAD9C0F5  mlc1002 999M   1    36     0       
-DD57B855 mlc1003 pA A A A A 612     203      733+784  21 e2bd709  fd70:dd57:b855:3cdf:b057:10cc:2a93:c19  eth1 AAD9C0F5  mlc1002 706M   2    36     1       
-369C6293 mlc1004 pA A A A A 612     200      733+784  21 e2bd709  fd70:369c:6293:4199:c156:3bb8:2c6a:e3aa eth1 AAD9C0F5  mlc1002 576M   3    36     1       
-0BE5272C mlc1005 pA A A A A 612     200      733+784  21 e2bd709  fd70:be5:272c:703e:822a:e0c5:5d6c:587d  eth1 AAD9C0F5  mlc1002 495M   4    36     1       
-DDC8E9EF mlc1006 pA A A A A 612     193      733+784  21 e2bd709  fd70:ddc8:e9ef:4ff0:385e:b034:6fd0:b5f  eth1 AAD9C0F5  mlc1002 443M   5    36     0       
-6F59035D mlc1007 pA A A A A 612     188      733+784  21 e2bd709  fd70:6f59:35d:ae9b:1d55:3066:b3f9:74c7  eth1 AAD9C0F5  mlc1002 403M   6    36     0       
-BF335A96 mlc1008 pA A A A A 612     178      733+784  21 e2bd709  fd70:bf33:5a96:889d:eedd:767b:6ca9:42fb eth1 AAD9C0F5  mlc1002 373M   7    36     0       
-1191C909 mlc1009 pA A A A A 612     184      733+784  21 e2bd709  fd70:1191:c909:1e4e:4c9c:4d4a:33eb:b09b eth1 AAD9C0F5  mlc1002 349M   8    35     6       
+2ECE1A4E mlc1000 nA A A A A 612     212      733+784  21 e2bd709  fd70:2ece:1a4e:fa8e:fb9d:3b70:33e3:da00 eth1 2ECE1A4E  mlc1000 999M   1    36     0
+01662D16 mlc1001 nQ A A A A 612     213      733+784  21 e2bd709  fd70:166:2d16:1ff6:253f:d0bc:1558:d89a  ---  ---       ---     257G   0    36     0
+AAD9C0F5 mlc1002 nA A A A A 612     212      733+784  21 e2bd709  fd70:aad9:c0f5:8c20:a082:a462:a859:210d eth1 AAD9C0F5  mlc1002 999M   1    36     0
+DD57B855 mlc1003 pA A A A A 612     203      733+784  21 e2bd709  fd70:dd57:b855:3cdf:b057:10cc:2a93:c19  eth1 AAD9C0F5  mlc1002 706M   2    36     1
+369C6293 mlc1004 pA A A A A 612     200      733+784  21 e2bd709  fd70:369c:6293:4199:c156:3bb8:2c6a:e3aa eth1 AAD9C0F5  mlc1002 576M   3    36     1
+0BE5272C mlc1005 pA A A A A 612     200      733+784  21 e2bd709  fd70:be5:272c:703e:822a:e0c5:5d6c:587d  eth1 AAD9C0F5  mlc1002 495M   4    36     1
+DDC8E9EF mlc1006 pA A A A A 612     193      733+784  21 e2bd709  fd70:ddc8:e9ef:4ff0:385e:b034:6fd0:b5f  eth1 AAD9C0F5  mlc1002 443M   5    36     0
+6F59035D mlc1007 pA A A A A 612     188      733+784  21 e2bd709  fd70:6f59:35d:ae9b:1d55:3066:b3f9:74c7  eth1 AAD9C0F5  mlc1002 403M   6    36     0
+BF335A96 mlc1008 pA A A A A 612     178      733+784  21 e2bd709  fd70:bf33:5a96:889d:eedd:767b:6ca9:42fb eth1 AAD9C0F5  mlc1002 373M   7    36     0
+1191C909 mlc1009 pA A A A A 612     184      733+784  21 e2bd709  fd70:1191:c909:1e4e:4c9c:4d4a:33eb:b09b eth1 AAD9C0F5  mlc1002 349M   8    35     6
 ```
 
 Only if relevant information exists for a requested type is available
@@ -234,82 +231,4 @@ root@mlc1001:~# traceroute6 -n -q 1 fd66:66:66:0:a2cd:efff:fe10:301
 traceroute to fd66:66:66:0:a2cd:efff:fe10:301 (fd66:66:66:0:a2cd:efff:fe10:301), 30 hops max, 80 byte packets
  1  fd66:66:66:0:a2cd:efff:fe10:201  0.313 ms
  2  fd66:66:66:0:a2cd:efff:fe10:301  0.429 ms
-```
-
-## Dynamic Reconfiguration
-
-Most bmx7 parameters can be applied not only at startup, but also dynamically to an already running main daemon, using the `--connect` command.
-For example interfaces can be added, removed, or specified with more details:
-The following example removes interface eth1 and adds eth2 with a max rate of 100 Mbits (overwriting the default assumption of 1000Mbits for ethernet interfaces).
-
-```
-bmx7 -c dev=-eth1 dev=eth2 /rateMax=100000
-bmx7 -cd8
-```
-
-Checking new status of interfaces, links, and originator:
-
-```
-root@mlc1001:~# bmx7 -cd8
-```
-
-It can be seen that:
-
-* Interface eth1 has been replaced by eth2 with a lower rate.
-* The old links (via eth1) are removed and a single new link via eth2 to mlc1000 has been detected
-* All routes are now going via eth2
-
-
-## Address auto and manual configuration
-
-By default bmx7 autoconfigures all configred interface by combining a default prefix (fd70::/16) with
-the SHA224 hash of each nodes' public rsa key.
-
-
-
-## Unicast Host Network Announcements
-
-A Host Network Announcements (HNA) describes the advertisement of IP addresses and networks by a node to other nodes in the mesh.
-Typically (but not with BMX7), several nodes can announce the same or overlapping HNAs at the same time.
-Announced networks do overlap if they are equal or one being a subset of another (eg. 10.1.1.0/24 is a subset and overlapped by 10.1.0.0/16).
-Packets with a destination address matching an announced networks will be routed toward any node that originated a corresponding HNA.
-Therefore these HNA types may also be called anycast HNA.
-
-In bmx7, HNAs have an unicast nature (UHNAs) because each network can only be announced once and announced networks MUST NOT overlap (See also Wiki).
-This way it can be ensured that the destination of an UHNA routed packet is exactly known.
-
-In a sense the origination and propagation (by intermediate nodes) of UHNA announcements can be thought of a promise that guarantees:
-  1. All packets with a destination address matching an announced UHNA network will be routed exactly to the node (with the global ID) that originated the UHNA and
-  2. each node on the forwarding path towards the originator of the UHNA is supporting this promise.
-
-By default, Bmx7 only announces primary addresses via UHNAs.
-The cryptographic address configuration ensures that interface addresses are unique.
-
-Using UHNAs for the announcements of networks requires a strict coordination to ensure that no network is announced twice.
-
-Technically, multiple UHNAs, each wrapped into a single message, are aggregated into a UHNA frame and attached to the description of a node.
-Only IPv6 UHNAs can be announced.
-
-The announcement of UHNAs can be configured with the `--unicastHna` or `-u` parameter followed by a network specification in ip/prefixlen notation.
-By default all interface addresses are announced via UHNAs. However, this can be disabled by setting the `--dev` subparameter `/announce` or `/a` to 0.
-
-The following example reconfigures an already running bmx7 daemon to UHNA announce the network fd00:ffff:ffff:ffff::/64 and fd01:ffff:ffff::/48.
-By omitting the `--connect / -c` parameter, the same could be configured as startup parameter for bmx7.
-
-```
-bmx7 -c u=fd00:ffff:ffff:ffff::/64 u=fd01:ffff:ffff::/48
-```
-
-An already active announcement can be removed by preceeding the network with the `-` char:
-```
-bmx7 -c u=-fd00:ffff:ffff:ffff::/64
-```
-
-Before bmx7 accepts a dynamically configured UHNA announcement it checks if this UHNA is not overlapping with an already existing UHNA announcement form another node.
-If this is the case the configuration will fail.
-To check if a chain of dynamic commands would be accepted by a bmx7 daemon without actually applying it, the `--test` command may follow the `--connect` command.
-
-
-
-
-
+``

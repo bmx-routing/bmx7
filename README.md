@@ -1,6 +1,6 @@
-![alt text](https://github.com/bmx-routing/bmx7/blob/a2a361eb994879371d13551a65496ed779ca0c44/doc/images/bmx7.png "BMX7 Logo")  
+![alt text](https://github.com/bmx-routing/bmx7/blob/a2a361eb994879371d13551a65496ed779ca0c44/doc/images/bmx7.png "BMX7 Logo")
 
-BMX7 is a mesh routing protocol for Linux based operating systems.  
+BMX7 is a mesh routing protocol for Linux based operating systems.
 The academic paper with more theoretical details can be found [here](http://dsg.ac.upc.edu/node/843).
 
 ## Content
@@ -65,7 +65,7 @@ cd bmx7
 To only compile the main bmx7 daemon (no bmx7 plugins):
 ```
 make EXTRA_CFLAGS="-DCRYPTLIB=MBEDTLS_2_4_0"
-sudo make install 
+sudo make install
 ```
 
 ## Installing in OpenWRT
@@ -92,6 +92,25 @@ Available packages exist for the following distributions:
 
 ## FAQ
 1. How does BMX7 work and on which OSI layer?
-3. Cool features
-4. Differences with bmx6
-5. Similar Software
+- BMX7 is a routing protocol that operates on layer 3 of the OSI layer; it
+    extends the concept of **receiver-driven routing**  and the principles of
+    DSDV routing. The routing update of BMX7 (in contrast to traditional DSDV)
+    contains a single and verifiable heartbeat value which unambiguously
+    identifies a particular node of the network and a specific version of this
+    nodes' self-defined description and routing-update version.
+
+2. The goal of BMX7/SEMTOR?
+- The goal of BMX7 is to provide secure mechanisms to ensure that
+	non-trusted nodes in an open network are effectively prevented from
+	disrupting the routing between trusted nodes.
+- It's achieved by enforcing the exclusion of a given set of identified faulty nodes.
+
+3. Differences with bmx6
+- TBD
+
+4. Similar Software
+- AODV,
+- Babel,
+- BMX6,
+- OLSR,
+- batman-adv

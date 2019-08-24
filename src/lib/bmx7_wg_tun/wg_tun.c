@@ -176,6 +176,7 @@ int process_dsc_tlv_wg_tun(struct rx_frame_iterator *it)
 }
 
 struct wg_tun_status {
+
 	wg_key private_key;
 	wg_key public_key;
 	IP6_T unique_bmx7_wg_addr;
@@ -195,10 +196,52 @@ static const struct field_format wg_tun_status_format[] = {
 static int32_t wg_tun_status_creator(struct status_handl *handl, void *data)
 {
 	int32_t status_size = sizeof(struct wg_tun_status);
-//	struct wg_tun_status *status = (struct wg_tun_status *) (handl->data = debugRealloc(handl->data, status_size, -300000));
-//	memset(status, 0, status_size);
+	/*struct wg_tun_status *status = (struct wg_tun_status *) (handl->data = debugRealloc(handl->data, status_size, -300000));
+	memset(status, 0, status_size);*/
+
+
 	return 0;
 }
+int32_t opt_wg_tun_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
+{
+	char *crypto_ip6;
+	wg_key_b64_string private_key, public_key;
+	wg_peer *peer;
+
+	wg_key_to_base64(private_key, my_wg_device.private_key);
+	wg_key_to_base64(public_key, my_wg_device.public_key);
+	crypto_ip6 = ip6AsStr(&my_wg_tun_addr.ip);
+
+    if ( cmd == OPT_APPLY) {
+		// Device
+		dbg_printf(cn, "Device Name: %s\nWG IPv6: %s\nWG Mask: %d\nUDP port: %d\n",
+			my_wg_device.name,
+			crypto_ip6,
+			my_wg_tun_addr.mask,
+			my_wg_device.listen_port
+		);
+
+		// Device Keys
+		dbg_printf(cn, "Private Key: %s\nPublic Key:%s\n", private_key, public_key);
+
+		/* Print Peers */
+		// Peer Headers
+		/*dbg_printf(cn,"\n");
+
+		wg_for_each_peer(my_wg_device, peer){
+			// Peer Info
+			dbg_printf(cn, "\n");
+		}
+		*/
+    }
+    return SUCCESS;
+}
+
+
+static struct opt_type wg_tun_options[] =
+{
+    {ODI, 0, ARG_WG_TUN_STATUS, 0, 9, 1, A_PS0, A_USR, A_DYN, A_ARG, A_ANY, 0, 0, 0, 0, 0, opt_wg_tun_status, 0, HLP_WG_TUN_STATUS}
+};
 
 STATIC_FUNC
 void wg_tun_cleanup(void)
@@ -230,7 +273,8 @@ void init_wg_device(wg_device *wg_device)
 	// Log creation of device
 	wg_key_b64_string key;
 	wg_key_to_base64(key, wg_device->private_key);
-	dbgf_sys(DBGT_INFO, "Successfully created wg device:%s \twith private key: %s", wg_device->name, key);
+	dbgf_sys(DBGT_INFO, "Successfully created wg device:\t%s with private key: %s",
+			wg_device->name, key);
 
 	// Set device with properties
 	if (wg_set_device(wg_device) < 0) {
@@ -266,14 +310,16 @@ int32_t wg_tun_init(void)
 	tlv_handl.msg_format = wg_tun_adv_format;
 	register_frame_handler(description_tlv_db, BMX_DSC_TLV_WG_TUN, &tlv_handl);
 
-	/* Generate public and private key based on global structs */
+	// Generate public and private key based on global structs
 	init_wg_device(&my_wg_device);
 
-	/*  */
+	// Create our Unique IPV6 address
 	my_wg_tun_addr = ZERO_NET6_KEY;
 	str2netw(DEF_AUTO_WG_TUN_PREFIX, &my_wg_tun_addr.ip, NULL, &my_wg_tun_addr.mask, &my_wg_tun_addr.af, NO);
 	assertion(-500000, my_wg_tun_addr.mask=16);
 
+	// Reporters
+	register_options_array(wg_tun_options, sizeof(wg_tun_options), CODE_CATEGORY_NAME);
 	register_status_handl(sizeof(struct wg_tun_status), 1, wg_tun_status_format, ARG_TUNS, wg_tun_status_creator);
 
 	return SUCCESS;

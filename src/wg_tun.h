@@ -15,7 +15,6 @@
  * 02110-1301, USA
  */
 
-
 #include "wireguard.h"
 
 /* Set default names */

@@ -44,25 +44,17 @@
 
 #define CODE_CATEGORY_NAME "wg_tun"
 
-// Hardcoded global key variables
-//wg_key my_wg_private_key;
-//wg_key my_wg_public_key;
-
 // Hardcoded autoconfigured IPv6 address prefix equivalent to fd70 -- 2 Bytes
 #define DEF_AUTO_WG_TUN_PREFIX  "fd77::/16"
 struct net_key my_wg_tun_addr;
 
-wg_peer my_wg_peer = {
-	.flags = WGPEER_HAS_PUBLIC_KEY | WGPEER_REPLACE_ALLOWEDIPS
-};
-
 wg_device my_wg_device = {
-	.name = "wgTest0",
+	.name = "wgBmx7",
 	.listen_port = 1234,
 	.flags = WGDEVICE_HAS_PRIVATE_KEY | WGDEVICE_HAS_LISTEN_PORT
 		| WGDEVICE_HAS_PUBLIC_KEY | WGDEVICE_REPLACE_PEERS,
-	.first_peer = &my_wg_peer,
-	.last_peer = &my_wg_peer
+	.first_peer = NULL,
+	.last_peer = NULL
 };
 
 /* Create wg node's advertised values */
@@ -94,6 +86,17 @@ int create_dsc_tlv_wg_tun(struct tx_frame_iterator *it)
 	return sizeof(struct dsc_msg_wg_tun);
 }
 
+bool peer_exists (wg_device *device, wg_key public_key)
+{
+	wg_peer *peer;
+	uint8_t flag = 0;
+	wg_for_each_peer(device, peer) {
+		if(peer->public_key == public_key)
+			flag = 1;
+	}
+	return flag;
+}
+
 /*
  * Process other wg_tun nodes (fd77:* /16) received advertisements
  */
@@ -114,7 +117,6 @@ int process_dsc_tlv_wg_tun(struct rx_frame_iterator *it)
 		struct dsc_msg_wg_tun *adv = &(((struct dsc_msg_wg_tun *) (it->f_data))[frm_msg]);
 
 		if (it->op == TLV_OP_DEL) {
-			printf("HELLO\n\n\n");
 
 			if (wg_del_device(my_wg_device.name) < 0) {
 				dbgf_sys(DBGT_ERR,"Unable to delete device");
@@ -122,7 +124,6 @@ int process_dsc_tlv_wg_tun(struct rx_frame_iterator *it)
 
 
 		} else if (it->op == TLV_OP_TEST) {
-			printf("HELLO\n\n\n");
 			if (adv->wg_tun_addr_prefix_len != my_wg_tun_addr.mask)
 				return TLV_RX_DATA_FAILURE;
 			if (!is_ip_net_equal(&my_wg_tun_addr.ip, &adv->wg_tun_addr, my_wg_tun_addr.mask, my_wg_tun_addr.af) )
@@ -136,10 +137,35 @@ int process_dsc_tlv_wg_tun(struct rx_frame_iterator *it)
 
 		} else if (it->op == TLV_OP_NEW) {
 
+			// Check if peer already exists
+			if(!peer_exists(&my_wg_device, adv->public_key))
+			{
+				// Create peer's allowed_ip struct
+				wg_allowedip new_peer_ip ={
+					.family = AF_INET6,
+					.ip6 = adv->wg_tun_addr,
+					.cidr = adv->wg_tun_addr_prefix_len,
+					.next_allowedip = NULL
+				};
 
-			memcpy(my_wg_peer.public_key, adv->public_key, sizeof(my_wg_peer.public_key));
-			//memcpy(my_wg_device.private_key, my_wg_private_key, sizeof(my_wg_private_key));
-			printf("HELLO\n\n\n");
+				// Create peer based on adv
+				wg_peer new_peer = {
+					.flags = WGPEER_REPLACE_ALLOWEDIPS | WGPEER_HAS_PUBLIC_KEY,
+					//.endpoint = adv->wg_tun_addr,
+					.first_allowedip = &new_peer_ip,
+					.last_allowedip = &new_peer_ip,
+					.next_peer = my_wg_device.first_peer
+				};
+				memcpy(new_peer.public_key, adv->public_key, sizeof(new_peer.public_key));
+
+				// Inform of new peer
+				wg_key_b64_string key;
+				wg_key_to_base64(key, new_peer.public_key);
+				dbgf_sys(DBGT_INFO, "Added peer with identifier: %s", key);
+
+				// Add peer as first peer
+				my_wg_device.first_peer = &new_peer;
+			}
 
 			assertion(-500000, 1);
 		}
@@ -158,17 +184,19 @@ struct wg_tun_status {
 };
 
 static const struct field_format wg_tun_status_format[] = {
-	FIELD_FORMAT_INIT(FIELD_TYPE_STRING_BINARY, wg_tun_status, private_key, 1, FIELD_RELEVANCE_HIGH),
-	FIELD_FORMAT_INIT(FIELD_TYPE_STRING_BINARY, wg_tun_status, public_key, 1, FIELD_RELEVANCE_HIGH),
-	FIELD_FORMAT_INIT(FIELD_TYPE_IPX6, wg_tun_status, unique_bmx7_wg_addr, 1, FIELD_RELEVANCE_HIGH),
-	FIELD_FORMAT_INIT(FIELD_TYPE_UINT, wg_tun_status, mask, 1, FIELD_RELEVANCE_HIGH),
-	FIELD_FORMAT_INIT(FIELD_TYPE_UINT, wg_tun_status, udp_port, 1, FIELD_RELEVANCE_HIGH),
+	FIELD_FORMAT_INIT(FIELD_TYPE_STRING_BINARY, wg_tun_status, private_key,			1, FIELD_RELEVANCE_HIGH),
+	FIELD_FORMAT_INIT(FIELD_TYPE_STRING_BINARY, wg_tun_status, public_key,			1, FIELD_RELEVANCE_HIGH),
+	FIELD_FORMAT_INIT(FIELD_TYPE_IPX6,			wg_tun_status, unique_bmx7_wg_addr, 1, FIELD_RELEVANCE_HIGH),
+	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,			wg_tun_status, mask,				1, FIELD_RELEVANCE_HIGH),
+	FIELD_FORMAT_INIT(FIELD_TYPE_UINT,			wg_tun_status, udp_port,			1, FIELD_RELEVANCE_HIGH),
 	FIELD_FORMAT_END
 };
 
 static int32_t wg_tun_status_creator(struct status_handl *handl, void *data)
 {
-	struct wg_tun_status *status = (struct wg_tun_status *) (handl->data = debugRealloc(handl->data, status_size, -300000));
+	int32_t status_size = sizeof(struct wg_tun_status);
+//	struct wg_tun_status *status = (struct wg_tun_status *) (handl->data = debugRealloc(handl->data, status_size, -300000));
+//	memset(status, 0, status_size);
 	return 0;
 }
 
@@ -176,23 +204,41 @@ STATIC_FUNC
 void wg_tun_cleanup(void)
 {
 	//memset(my_wg_private_key, 0, sizeof(my_wg_private_key));
+	//wg_free_device(&my_wg_device);
+	wg_del_device(my_wg_device.name);
 }
 
 void init_wg_device(wg_device *wg_device)
 {
-	wg_generate_private_key(my_wg_device.private_key);
-	wg_generate_public_key(my_wg_device.public_key, my_wg_device.private_key);
+	// First make sure device doesn't already exist
+	wg_tun_cleanup();
+
+	wg_generate_private_key(wg_device->private_key);
+	wg_generate_public_key(wg_device->public_key, wg_device->private_key);
+
 	/* Initialize device with name */
-	if (wg_add_device(my_wg_device.name) < 0) {
-		dbgf_sys(DBGT_ERR, "Unable to add device");
-		assertion(-500000, 0);
+	//printf("%s", my_wg_device.name);
+	//wg_list_device_names();
+
+
+	if (wg_add_device(wg_device->name) < 0) {
+		//dbgf_sys(DBGT_ERR, "Unable to add device");
+		perror("Unable to add dev");
+		//assertion(-500000, 0);
 	}
 
-	/* Set device with properties */
-	if (wg_set_device(&my_wg_device) < 0) {
-		dbgf_sys(DBGT_ERR, "Unable to set device");
-		assertion(-500000, 0);
+	// Log creation of device
+	wg_key_b64_string key;
+	wg_key_to_base64(key, wg_device->private_key);
+	dbgf_sys(DBGT_INFO, "Successfully created wg device:%s \twith private key: %s", wg_device->name, key);
+
+	// Set device with properties
+	if (wg_set_device(wg_device) < 0) {
+		//dbgf_sys(DBGT_ERR, "Unable to set device");
+		perror("Unable to set dev");
+		//assertion(-500000, 0);
 	}
+
 	//printf("HELLO\n");
 }
 
@@ -227,6 +273,8 @@ int32_t wg_tun_init(void)
 	my_wg_tun_addr = ZERO_NET6_KEY;
 	str2netw(DEF_AUTO_WG_TUN_PREFIX, &my_wg_tun_addr.ip, NULL, &my_wg_tun_addr.mask, &my_wg_tun_addr.af, NO);
 	assertion(-500000, my_wg_tun_addr.mask=16);
+
+	register_status_handl(sizeof(struct wg_tun_status), 1, wg_tun_status_format, ARG_TUNS, wg_tun_status_creator);
 
 	return SUCCESS;
 }

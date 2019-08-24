@@ -1,12 +1,11 @@
 
-CFLAGS +=	$(CORE_CFLAGS) -fpic -I../../
-LDFLAGS +=	-shared
-#-Wl,-soname,bmxd_config
+CFLAGS += $(CORE_CFLAGS) -fPIC -I../../
+LDFLAGS += -shared #-Wl -soname bmxd_config
 
 PLUGIN_NAME = bmx7_wg_tun
 
-SRC_C = wg_tun.c wireguard.c
-SRC_H = ../../redist.h ../../tun.h wg_tun.h wireguard.h
+SRC_C = wg_tun.c ../../wireguard.c
+SRC_H = ../../wireguard.h ../../wg_tun.h
 OBJS= $(SRC_C:.c=.o)
 
 PLUGIN_FULLNAME = $(PLUGIN_NAME).so

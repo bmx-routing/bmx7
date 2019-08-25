@@ -81,7 +81,7 @@ int create_dsc_tlv_wg_tun(struct tx_frame_iterator *it)
 	adv->wg_tun_addr = my_wg_tun_addr.ip;
 	adv->wg_tun_addr_prefix_len = my_wg_tun_addr.mask;
 
-	adv->udp_port = my_wg_device.listen_port;
+	adv->udp_port = 40456;
 
 	return sizeof(struct dsc_msg_wg_tun);
 }
@@ -150,7 +150,7 @@ int process_dsc_tlv_wg_tun(struct rx_frame_iterator *it)
 
 				// Create peer based on adv
 				wg_peer new_peer = {
-					.flags = WGPEER_REPLACE_ALLOWEDIPS | WGPEER_HAS_PUBLIC_KEY,
+					.flags = WGPEER_HAS_PUBLIC_KEY,
 					//.endpoint = adv->wg_tun_addr,
 					.first_allowedip = &new_peer_ip,
 					.last_allowedip = &new_peer_ip,
@@ -226,13 +226,15 @@ int32_t opt_wg_tun_status(uint8_t cmd, uint8_t _save, struct opt_type *opt, stru
 
 		/* Print Peers */
 		// Peer Headers
-		/*dbg_printf(cn,"\n");
+		dbg_printf(cn,"\n");
 
-		wg_for_each_peer(my_wg_device, peer){
+		wg_for_each_peer(&my_wg_device, peer){
+			wg_key_to_base64(public_key, peer->public_key);
+			wg_allowedip *peer_ip = peer->first_allowedip;
 			// Peer Info
-			dbg_printf(cn, "\n");
+			dbg_printf(cn, "Peer Public Key: %s\tPeer Address: %s\n", public_key, ip6AsStr(&peer_ip->ip6));
 		}
-		*/
+
     }
     return SUCCESS;
 }
@@ -283,7 +285,7 @@ void init_wg_device(wg_device *wg_device)
 		//assertion(-500000, 0);
 	}
 
-	//printf("HELLO\n");
+//	update_my_description();
 }
 
 /* Plugin initialization and parsing of handling fucntions and properties */

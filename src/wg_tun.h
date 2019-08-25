@@ -21,7 +21,7 @@
 #define ARG_WG_TUN_NAME_PREFIX "wg_dev"
 #define MAX_WG_TUN_NAME_PREFIX_LEN 5
 #define ARG_WG_TUN_STATUS "wg_status"
-
+#define HLP_WG_TUN_STATUS "Show WG interface status"
 #define ARG_WG_TUN_DEV  "wgDev"
 
 struct dsc_msg_wg_tun {

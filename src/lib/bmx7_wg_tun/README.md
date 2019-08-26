@@ -23,6 +23,8 @@ bmx7 -c wg_status
 - The current approach uses a single wg device that can take many peers
 - Also, the current approach adds every BMX7-WG neighbor found as a peer (autoconfiguration).
 - The description fields of WG_TUN as seen are piggybagged into every BMX7 description and contain all the info needed for our device to be used as a peer by another device
+- The crypto address of a WG Device is a combination of **fd77** which has been chosen as a unique identifier and the **first 14 bytes of the SHA224 hash of the node** same as the standard crypto addresses of bmx7 (starting with fd70::).
+
 
 ### Testing
 There are two options when it comes to testing:

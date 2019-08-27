@@ -2448,13 +2448,13 @@ int update_interface_rules(void)
 #ifdef WITH_DEVEL
 
 STATIC_FUNC
-struct net_key bmx7AutoEUI64Ip6(ADDR_T mac, struct net_key *prefix)
+struct net_key bmx7AutoEUI64Ip6(ADDR_T mac, struct net_key *my_wg_tun_addr)
 {
 	struct net_key autoPrefix = ZERO_NET6_KEY;
 
-	if (prefix->mask && prefix->mask <= 64 && !is_zero(&mac, sizeof(ADDR_T))) {
+	if (my_wg_tun_addr->mask && my_wg_tun_addr->mask <= 64 && !is_zero(&mac, sizeof(ADDR_T))) {
 
-		autoPrefix = *prefix;
+		autoPrefix = *my_wg_tun_addr;
 
 		autoPrefix.ip.s6_addr[8 ] = mac.u8[0];
 		autoPrefix.ip.s6_addr[9 ] = mac.u8[1];
@@ -2470,7 +2470,7 @@ struct net_key bmx7AutoEUI64Ip6(ADDR_T mac, struct net_key *prefix)
 	}
 
 	dbgf_track(DBGT_INFO, "returnPrefix=%s prefix=%s mac=%s",
-		netAsStr(&autoPrefix), netAsStr(prefix), memAsHexString(&mac, sizeof(ADDR_T)));
+		netAsStr(&autoPrefix), netAsStr(my_wg_tun_addr), memAsHexString(&mac, sizeof(ADDR_T)));
 
 	return autoPrefix;
 }

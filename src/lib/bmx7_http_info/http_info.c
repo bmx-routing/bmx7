@@ -28,8 +28,6 @@
 #include <fcntl.h>
 #include <stdint.h>
 
-
-
 #include "list.h"
 #include "control.h"
 #include "bmx.h"
@@ -56,7 +54,6 @@ static int32_t http_access;
 
 #define HTTP_INFO_LISTEN_QUEUE 5
 
-
 static int http_info_tcp_sock_in = 0;
 
 static void http_info_rcv_tcp_data(struct ctrl_node *cn)
@@ -82,7 +79,6 @@ static void http_info_rcv_tcp_data(struct ctrl_node *cn)
 		dbg_printf(cn, "Content-type: text/plain\n\n");
 		dbg_printf(cn, "\n");
 
-
 		if (wordlen(request) <= MAX_ARG_SIZE &&
 			(opt = get_option(0, 0, request)) &&
 			opt->auth_t == A_USR &&
@@ -98,7 +94,7 @@ static void http_info_rcv_tcp_data(struct ctrl_node *cn)
 		} else {
 
 			/*
-			dbg_cn( cn, DBGL_ALL, DBGT_INFO, "rcvd illegal %d bytes long HTTP request via fd %d:\n%s\n", 
+			dbg_cn( cn, DBGL_ALL, DBGT_INFO, "rcvd illegal %d bytes long HTTP request via fd %d:\n%s\n",
 				tcp_req_len, cn->fd, tcp_req_data);
 			 */
 			check_apply_parent_option(ADD, OPT_APPLY, 0, get_option(0, 0, ARG_STATUS), 0, cn);
@@ -157,7 +153,6 @@ static void http_info_rcv_tcp_connect(int32_t fd_in)
 		return;
 	}
 
-
 	if (!http_access && addr.sin_addr.s_addr != 0x100007f /*127.0.0.1*/) {
 
 		dbg_mute(35, DBGL_SYS, DBGT_WARN, "rcvd illegal info request from %12s %x",
@@ -182,7 +177,6 @@ static void http_info_rcv_tcp_connect(int32_t fd_in)
 static int32_t opt_http_port(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_parent *patch, struct ctrl_node *cn)
 {
 
-
 	if (cmd == OPT_APPLY) {
 
 		if (http_info_tcp_sock_in) {
@@ -191,7 +185,6 @@ static int32_t opt_http_port(uint8_t cmd, uint8_t _save, struct opt_type *opt, s
 			close(http_info_tcp_sock_in);
 			http_info_tcp_sock_in = 0;
 		}
-
 
 		if (http_info_port > 0) {
 
@@ -234,9 +227,7 @@ static int32_t opt_http_port(uint8_t cmd, uint8_t _save, struct opt_type *opt, s
 
 			set_fd_hook(http_info_tcp_sock_in, http_info_rcv_tcp_connect, NO /*unregister*/);
 
-
 		}
-
 
 	} else if (cmd == OPT_UNREGISTER) {
 
@@ -252,16 +243,15 @@ static int32_t opt_http_port(uint8_t cmd, uint8_t _save, struct opt_type *opt, s
 	return SUCCESS;
 }
 
-
 static struct opt_type http_info_options[]= {
 //        ord parent long_name          shrt Attributes				*ival		min		max		default		*func,*syntax,*help
-	
+
 	{ODI,0,HTTP_INFO_PORT,	        0,9,2, A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&http_info_port,0, 		64000,		0,0, 		opt_http_port,
 			ARG_PORT_FORM,	"set tcp port for http_info plugin" },
-		
+
 	{ODI,0,HTTP_INFO_GLOB_ACCESS,	0,9,2, A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&http_access,	0, 		1,		0,0, 		0,
 			ARG_VALUE_FORM,	"disable/enable global accessibility of http_info plugin via configured tcp port" }
-	
+
 };
 static void http_info_cleanup(void)
 {
@@ -285,7 +275,6 @@ struct plugin* get_plugin(void)
 	static struct plugin http_info_plugin;
 
 	memset(&http_info_plugin, 0, sizeof( struct plugin));
-
 
 	http_info_plugin.plugin_name = "bmx7_http_info_plugin";
 	http_info_plugin.plugin_size = sizeof( struct plugin);

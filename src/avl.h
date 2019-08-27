@@ -29,7 +29,6 @@
 
 #include <stdint.h>
 
-
 #define AVL_MAX_HEIGHT 128
 
 struct avl_node {
@@ -38,8 +37,10 @@ struct avl_node {
 	struct avl_node * up;
 	struct avl_node * down[2];
 #ifdef AVL_5XLINKED
-	struct avl_node * left; // it less-equal node
-	struct avl_node * right; // it greater node
+  // The less-equal node
+	struct avl_node * left;
+  // The greater-equal node
+  struct avl_node * right;
 #endif
 };
 
@@ -102,7 +103,7 @@ void *avl_closest_item(struct avl_tree *tree, void *key);
 void *avl_first_item(struct avl_tree *tree);
 void *avl_iterate_item(struct avl_tree *tree, struct avl_node **it);
 void *_avl_find_item_by_field(struct avl_tree *tree, void *value, unsigned long offset, uint32_t size);
-#define          avl_find_item_by_field(tree,val,s,field) _avl_find_item_by_field( tree, val, (unsigned long)((&(((struct s*)0)->field))), sizeof(((struct s*)0)->field) )
+#define avl_find_item_by_field(tree,val,s,field) _avl_find_item_by_field( tree, val, (unsigned long)((&(((struct s*)0)->field))), sizeof(((struct s*)0)->field) )
 void avl_insert(struct avl_tree *tree, void *node, int32_t tag);
 void *avl_remove(struct avl_tree *tree, void *key, int32_t tag);
 void *avl_remove_first_item(struct avl_tree *tree, int32_t tag);

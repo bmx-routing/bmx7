@@ -278,6 +278,7 @@ struct tlv_hdr tlvSetBigEndian(int16_t type, int16_t length);
 #define BMX_DSC_TLV_TUN4IN6_NET     0x16
 #define BMX_DSC_TLV_TUN6IN6_NET     0x17
 #define BMX_DSC_TLV_TUN6_MAX        0x17
+#define BMX_DSC_TLV_WG_TUN          0x18
 
 #define BMX_DSC_TLV_TOPOLOGY        0x1B
 #define BMX_DSC_TLV_INFO            0x1C

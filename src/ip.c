@@ -43,13 +43,13 @@
 #include <net/if_arp.h>
 #include <linux/if_tunnel.h>
 
-#include <linux/if_tun.h> /* TUNSETPERSIST, ... */
 #include <linux/ip6_tunnel.h>
 
 #ifndef BMX7_LIB_IWINFO
 #define BMX7_LIB_IW
 #include <iwlib.h>
 #endif
+#include <linux/if_tun.h> /* TUNSETPERSIST, ... */
 //#include <iwlib.h>
 // apt-get install libiw-dev
 //#include <math.h>

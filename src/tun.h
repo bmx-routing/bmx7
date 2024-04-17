@@ -15,10 +15,8 @@
  * 02110-1301, USA
  */
 
-
 //extern struct net_key tun4_address;
 //extern struct net_key tun6_address;
-
 
 #define ARG_TUN_NAME_PREFIX "tunDevName"
 #define MAX_TUN_NAME_PREFIX_LEN 5
@@ -37,20 +35,17 @@
 #define MAX_TUN_PROACTIVE_ROUTES 1
 #define DEF_TUN_PROACTIVE_ROUTES 1
 #define ARG_TUN_PROACTIVE_ROUTES "proactiveTunRoutes"
-#define HLP_TUN_PROACTIVE_ROUTES "proactively configure all tunnel routes via dedicated tunnels"
-
+#define HLP_TUN_PROACTIVE_ROUTES "Proactively configure all tunnel routes via dedicated tunnels"
 
 #define TDN_STATE_CATCHALL 1
 #define TDN_STATE_DEDICATED 0
 #define TDN_STATE_CURRENT -1
-
 
 #define ARG_TUN_DEV  "tunDev"
 #define ARG_TUN_DEV_ADDR4 "tun4Address"
 #define HLP_TUN_DEV_ADDR4  "specify default IPv4 tunnel address and announced range"
 #define ARG_TUN_DEV_ADDR6 "tun6Address"
 #define HLP_TUN_DEV_ADDR6  "specify default IPv6 tunnel address and announced range"
-
 
 #define ARG_TUN_DEV_REMOTE "remote"
 
@@ -62,8 +57,6 @@
 
 #define ARG_TUN_DEV_SRC6_TYPE "src6Type"
 #define ARG_TUN_DEV_SRC6_MIN "src6PrefixMin"
-
-
 
 #define ARG_TUN_IN "tunIn"
 
@@ -160,7 +153,6 @@ struct dsc_msg_tun6 {
 	IP6_T localIp;
 } __attribute__((packed));
 
-
 #define DESCRIPTION_MSG_TUN6_ADV_FORMAT { \
 {FIELD_TYPE_IPX6,     -1, 128, 1, FIELD_RELEVANCE_HIGH, "localIp" },  \
 FIELD_FORMAT_END }
@@ -192,8 +184,6 @@ struct dsc_msg_tun6in6ingress {
 {FIELD_TYPE_UINT,     -1,   8, 0, FIELD_RELEVANCE_HIGH, "ingressPrefixLen" },  \
 {FIELD_TYPE_IPX6,     -1, 128, 0, FIELD_RELEVANCE_HIGH, "ingressPrefix" },  \
 FIELD_FORMAT_END }
-
-
 
 #define TUN_SRC_TYPE_MIN           0x00
 #define TUN_SRC_TYPE_UNDEF         0x00
@@ -308,14 +298,10 @@ struct dedicated_hdr_tun6_req {
 } __attribute__((packed));
  */
 
-
-
-
 struct tunXin6_net_adv_list_node {
 	struct list_node list;
 	struct tunXin6_net_adv_node **adv_list;
 };
-
 
 extern struct bmx_list_head tunXin6_net_adv_list_list;
 
@@ -342,8 +328,6 @@ struct tun_bit_node {
 	IDM_T possible;
 };
 
-
-
 #define NETWORK_NAME_LEN 32
 
 //struct tun_search_key {
@@ -352,7 +336,7 @@ struct tun_bit_node {
 //};
 
 struct tun_search_node {
-	//        struct tun_search_key tunSearchKey;
+	// struct tun_search_key tunSearchKey;
 	char nameKey[NETWORK_NAME_LEN];
 	uint64_t bmx7RouteBits;
 	int16_t routeSearchProto;
@@ -410,6 +394,7 @@ struct tun_net_node {
 	struct avl_tree tun_bit_tree;
 };
 
+/* Harry TODO */
 struct tun_out_key {
 	struct orig_node *on;
 	int16_t tun6Id;
@@ -425,7 +410,6 @@ struct tun_out_node {
 
 	uint8_t srcType[2];
 	uint8_t srcPrefixMin[2];
-
 
 	//the status:
 	struct tun_out_key tunOutKey; // key for tunnel_out_tree

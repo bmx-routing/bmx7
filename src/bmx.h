@@ -26,7 +26,6 @@
 #include <net/if.h>
 #include <linux/rtnetlink.h>
 
-
 typedef int8_t IDM_T; // smallest int which size does NOT matter
 
 /*
@@ -50,14 +49,12 @@ typedef int8_t IDM_T; // smallest int which size does NOT matter
 #define BMX_BRANCH "BMX7"
 #define BRANCH_VERSION "0.2" //put exactly one distinct word inside the string like "0.3-pre-alpha" or "0.3-rc1" or "0.3"
 
-
 #define CV19 19 // deployed CV18..CV19 xor CV19..CV20, announces CV19, processes CV18..CV20
 #define CV20 20 // deployed CV19..CV20 xor CV20..CV21, announces CV20, processes CV19..CV21
 #define CV21 21 // deployed CV20..CV21 xor CV21..CV22, announces CV21, processes CV20..CV22
 #define CV22 22 // deployed CV21..CV22 xor CV22..CV23, announces CV22, processes CV21..CV23
 #define CV23 23 // deployed CV22..CV23 xor CV23..CV24, announces CV23, processes CV22..CV24
 //and so on...
-
 
 #define MIN_COMPATIBILITY CV19
 #define MAX_COMPATIBILITY CV22
@@ -84,7 +81,6 @@ extern uint32_t bmx_git_rev_u32;
 
 extern int32_t totalOrigRoutes;
 
-
 /*
  * from ip.h:
  */
@@ -99,7 +95,6 @@ extern int32_t totalOrigRoutes;
 
 #define IPX_STR_LEN INET6_ADDRSTRLEN
 #define IPX_PREFIX_STR_LEN (INET6_ADDRSTRLEN + 4)
-
 
 typedef struct in6_addr LOCAL_IP_T;
 
@@ -138,18 +133,13 @@ extern const struct net_key ZERO_NET4_KEY;
 #define ZERO_NET6_KEY_INIT {.af = AF_INET6}
 extern const struct net_key ZERO_NET6_KEY;
 
-
 /*
  * from hna.h:
  */
 
-
-
 /*
  * from bmx.h:
  */
-
-
 
 #define ARG_HOSTNAME "hostname"
 
@@ -163,12 +153,9 @@ extern uint16_t my_desc_capabilities;
 #define ARG_DAD_TO "dadTimeout"
 extern int32_t dad_to;
 
-
-
 /*
  * from msg.h:
  */
-
 
 // deprecated:
 typedef uint16_t SQN_T;
@@ -176,7 +163,6 @@ typedef uint16_t SQN_T;
 
 typedef uint32_t PKT_SQN_T;
 #define PKT_SQN_MAX ((PKT_SQN_T)-1)
-
 
 // OGMs:
 
@@ -189,7 +175,6 @@ typedef uint32_t OGM_SQN_T;
 
 //#define OGM_IIDOFFST_BIT_SIZE 6
 //#define OGM_IIDOFFST_MASK ((1<<OGM_IIDOFFST_BIT_SIZE)-1)
-
 
 // aggregations of OGMs:
 typedef uint16_t AGGREG_SQN_T;
@@ -204,7 +189,6 @@ typedef uint16_t INT_NEIGH_ID_T;
 #define INT_NEIGH_ID_BIT_SIZE (12)
 
 #define LOCALS_MAX (1<<INT_NEIGH_ID_BIT_SIZE) // because each local needs a bit to be indicated in the ogm.dest_field
-
 
 // hello and hello reply messages:
 typedef uint16_t HELLO_SQN_T;
@@ -224,11 +208,10 @@ typedef uint16_t HELLO_SQN_T;
 
 typedef uint32_t BURST_SQN_T;
 
-// descriptions 
+// descriptions
 typedef uint32_t DESC_SQN_T;
 #define DESC_SQN_SAVE_INTERVAL 100
 #define DESC_SQN_REBOOT_ADDS 10
-
 
 #define FRAME_TYPE_BIT_SIZE    (5)
 #define FRAME_TYPE_MASK        ((1<<FRAME_TYPE_BIT_SIZE)-1)
@@ -240,15 +223,12 @@ typedef uint32_t DESC_SQN_T;
 #define BMX_DSC_TLV_ARRSZ       (FRAME_TYPE_ARRSZ)
 #define BMX_DSC_TLV_INVALID     (FRAME_TYPE_ARRSZ)
 
-
 #define MAX_UDPD_SIZE (1280 /*min IPv6 MTU*/ - sizeof(struct ip6_hdr) - sizeof(struct udphdr))
-
 
 #define BMX_ENV_LIB_PATH "BMX7_LIB_PATH"
 #define BMX_DEF_LIB_PATH "/usr/lib"
 // e.g. sudo BMX_LIB_PATH="$(pwd)/lib" ./bmx7 -d3 dev=eth0
 #define BMX_ENV_DEBUG "BMX7_DEBUG"
-
 
 #define ARG_HELP  "help"
 #define ARG_VERBOSE_HELP "verboseHelp"
@@ -257,7 +237,6 @@ typedef uint32_t DESC_SQN_T;
 
 #define ARG_TEST  "test"
 #define ARG_SHOW_PARAMETER  "parameters"
-
 
 #define ARG_LIST "list"
 #define ARG_SHOW "show"
@@ -286,17 +265,14 @@ enum ADGSN {
 	NOP
 };
 
-
 #define SUCCESS 0
 #define FAILURE -1
 
 extern const void* FAILURE_PTR;
 
-
 #define MAX_SELECT_TIMEOUT_MS 1100 /* MUST be smaller than (1000/2) to fit into max tv_usec */
 #define MAX_SELECT_SAFETY_MS 200 /* MUST be smaller than (1000/2) to fit into max tv_usec */
 #define CRITICAL_PURGE_TIME_DRIFT 60
-
 
 #define XMAX( a, b ) ( (a>b) ? (a) : (b) )
 #define XMIN( a, b ) ( (a<b) ? (a) : (b) )
@@ -313,7 +289,6 @@ extern const void* FAILURE_PTR;
 #define U8_MAX  ((uint8_t)(-1))
 #define I8_MAX  ((U8_MAX>>1))
 
-
 #define U32_LT( a, b )  ( ((uint32_t)( (a) - (b) ) ) >  I32_MAX )
 #define U32_LE( a, b )  ( ((uint32_t)( (b) - (a) ) ) <= I32_MAX )
 #define U32_GT( a, b )  ( ((uint32_t)( (b) - (a) ) ) >  I32_MAX )
@@ -327,15 +302,12 @@ extern const void* FAILURE_PTR;
 #define MAX_UXX( mask, a, b ) ( (UXX_GT(mask,a,b)) ? (a) : (b) )
 #define MIN_UXX( mask, a, b ) ( (UXX_LT(mask,a,b)) ? (a) : (b) )
 
-
 #define UXX_GET_MAX(mask, a, b ) ( (UXX_GT( (mask), (a), (b) )) ? (a) : (b) )
-
 
 #define WARNING_PERIOD 20000
 
 #define MAX_PATH_SIZE 300
 #define MAX_ARG_SIZE 200
-
 
 extern TIME_T bmx_time;
 extern TIME_SEC_T bmx_time_sec;
@@ -343,7 +315,6 @@ extern TIME_SEC_T bmx_time_sec;
 extern IDM_T initializing;
 extern IDM_T terminating;
 extern IDM_T cleaning_up;
-
 
 extern uint32_t s_curr_avg_cpu_load;
 
@@ -444,7 +415,6 @@ struct status_handl {
 
 extern struct avl_tree status_tree;
 
-
 int16_t field_format_get_items(const struct field_format *format);
 
 int64_t field_get_value(const struct field_format *format, uint32_t min_msg_size, uint8_t *data, uint32_t pos_bit, uint32_t bits);
@@ -454,12 +424,10 @@ char *field_dbg_value(const struct field_format *format, uint32_t min_msg_size, 
 uint32_t fields_dbg_lines(struct ctrl_node *cn, uint16_t relevance, uint32_t data_size, uint8_t *data,
 	uint32_t min_msg_size, const struct field_format *format);
 
-
 uint32_t field_iterate(struct field_iterator *it);
 
 void register_status_handl(uint16_t min_msg_size, IDM_T multiline, const struct field_format* format, char *name,
 	int32_t(*creator) (struct status_handl *status_handl, void *data));
-
 
 #define timercpy(d, a) (d)->tv_sec = (a)->tv_sec; (d)->tv_usec = (a)->tv_usec;
 
@@ -470,12 +438,9 @@ enum {
 	CLEANUP_RETURN
 };
 
-
-
 /***********************************************************
  Runtime Infrastructure
  ************************************************************/
-
 
 #define goto_error( where, what ) do { goto_error_code=what; goto where; }while(0)
 #define goto_error_return( where, what, ret ) do { goto_error_code=what; goto_error_ret=ret; goto where; }while(0)
@@ -527,7 +492,6 @@ enum {
 
 #endif//NO_ASSERTIONS
 
-
 #ifndef PROFILING
 #define STATIC_FUNC static
 #define STATIC_INLINE_FUNC static inline
@@ -542,7 +506,6 @@ enum {
 #define STATIC_VAR
 #endif
 
-
 void wait_sec_usec(TIME_SEC_T sec, TIME_T usec);
 
 void cleanup_all(int32_t status);
@@ -551,12 +514,9 @@ char *get_human_uptime(uint32_t reference);
 
 DESC_SQN_T newDescriptionSqn(char* newPath, uint8_t ass);
 
-
 /***********************************************************
  Configuration data and handlers
  ************************************************************/
-
-
 
 IDM_T validate_param(int32_t probe, int32_t min, int32_t max, char *name);
 struct status_handl * get_status_handl(char *name);

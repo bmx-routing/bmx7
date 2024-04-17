@@ -40,8 +40,6 @@ static LIST_SIMPEL(cb_route_change_list, struct cb_route_change_node, list, list
 static LIST_SIMPEL(cb_packet_list, struct cb_packet_node, list, list);
 LIST_SIMPEL(cb_fd_list, struct cb_fd_node, list, list);
 
-
-
 int32_t plugin_data_registries[PLUGIN_DATA_SIZE];
 
 void cb_plugin_hooks(int32_t cb_id, void* data)
@@ -111,7 +109,6 @@ void set_route_change_hooks(void (*cb_route_change_handler) (uint8_t del, struct
 {
 	_set_thread_hook(1, (void (*) (void)) cb_route_change_handler, del, (struct list_node*) & cb_route_change_list);
 }
-
 
 // notify interested plugins of a changed route...
 // THIS MAY CRASH when one plugin unregisteres two packet_hooks while being called with cb_packet_handler()
@@ -239,7 +236,6 @@ int activate_plugin(struct plugin *p, void *dlhandle, const char *dl_name)
 	if (is_plugin_active(p))
 		return FAILURE;
 
-
 	if (p->plugin_size != sizeof( struct plugin)) {
 
 		dbgf_sys(DBGT_ERR,
@@ -248,7 +244,6 @@ int activate_plugin(struct plugin *p, void *dlhandle, const char *dl_name)
 
 		return FAILURE;
 	}
-
 
 	if (p->cb_init == NULL || ((*(p->cb_init)) ()) == FAILURE) {
 
@@ -297,7 +292,6 @@ void deactivate_plugin(void *p)
 			if (pn->plugin->cb_cleanup)
 				(*(pn->plugin->cb_cleanup)) ();
 
-
 			if (pn->dlname)
 				debugFree(pn->dlname, -300070);
 
@@ -332,14 +326,13 @@ int8_t activate_dyn_plugin(const char* name)
 
 	// dl_open sigfaults on some systems without reason.
 	// removing the dl files from BMX_DEF_LIB_PATH is a way to prevent calling dl_open.
-	// Therefore we restrict dl search to BMX_DEF_LIB_PATH and BMX_ENV_LIB_PATH and ensure that dl_open 
+	// Therefore we restrict dl search to BMX_DEF_LIB_PATH and BMX_ENV_LIB_PATH and ensure that dl_open
 	// is only called if a file with the requested dl name could be found.
 
 	if (My_libs)
 		sprintf(dl_path, "%s/%s", My_libs, name);
 	else
 		sprintf(dl_path, "%s/%s", BMX_DEF_LIB_PATH, name);
-
 
 	dbgf_all(DBGT_INFO, "trying to load dl %s", dl_path);
 
@@ -362,7 +355,6 @@ int8_t activate_dyn_plugin(const char* name)
 
 	dbgf_all(DBGT_INFO, "survived dlopen()!");
 
-
 	typedef struct plugin * (*sdl_init_function_type) (void);
 
 	union {
@@ -377,7 +369,6 @@ int8_t activate_dyn_plugin(const char* name)
 		return FAILURE;
 	}
 
-
 	if (!(pv1 = get_plugin())) {
 
 		dbgf_sys(DBGT_ERR, "get_plugin( %s ) failed", name);
@@ -387,7 +378,6 @@ int8_t activate_dyn_plugin(const char* name)
 
 	if (is_plugin_active(pv1))
 		return SUCCESS;
-
 
 	if (activate_plugin(pv1, dlhandle, name) == FAILURE) {
 
@@ -409,7 +399,6 @@ int32_t opt_plugin(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_
 
 	char tmp_name[MAX_PATH_SIZE] = "";
 
-
 	if (cmd == OPT_CHECK) {
 
 		dbgf_all(DBGT_INFO, "about to load dl %s", patch->val);
@@ -430,20 +419,19 @@ int32_t opt_plugin(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_
 	return SUCCESS;
 }
 
-static struct opt_type plugin_options[]= 
+static struct opt_type plugin_options[]=
 {
 //        ord parent long_name          shrt Attributes				*ival		min		max		default		*func,*syntax,*help
-	
+
 	//order> config-file order to be loaded by config file, order < ARG_CONNECT oder to appera first in help text
 	{ODI,0,ARG_PLUGIN,		0,  2,2,A_PM1N,A_ADM,A_INI,A_CFA,A_ANY,	0,		0, 		0,		0,0, 		opt_plugin,
-			ARG_FILE_FORM,	"load plugin. "ARG_FILE_FORM" must be in LD_LIBRARY_PATH or " BMX_ENV_LIB_PATH 
+			ARG_FILE_FORM,	"load plugin. "ARG_FILE_FORM" must be in LD_LIBRARY_PATH or " BMX_ENV_LIB_PATH
 			"\n	path (e.g. --plugin bmx7_howto_plugin.so )\n"}
 };
 #endif
 
 IDM_T init_plugin(void)
 {
-
 
 //	set_snd_ext_hook( 0, NULL, YES ); //ensure correct initialization of extension hooks
 //	reg_plugin_data( PLUGIN_DATA_SIZE );// ensure correct initialization of plugin_data

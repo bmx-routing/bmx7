@@ -1,6 +1,7 @@
 GIT_REV ?= $(shell [ -r .git ] && git --no-pager log -n 1 --oneline | cut -d " " -f 1 || echo 0)
 
-CFLAGS += -pedantic -W -Wall -Wstrict-prototypes -Wno-unused-parameter -Os -g3 -std=gnu99 -DGIT_REV=\"$(GIT_REV)\"
+# //TODO: Fix -Wno-address-of-packed-member related reference problems and disabled related compile flag
+CFLAGS += -pedantic -W -Wall -Wstrict-prototypes -Wno-unused-parameter -Wno-address-of-packed-member -Os -g3 -std=gnu99 -DGIT_REV=\"$(GIT_REV)\"
 # CFLAGS += -DHAVE_CONFIG_H
 # CFLAGS += -DCRYPTLIB=MBEDTLS_2_4_0 # POLARSSL_1_2_5 POLARSSL_1_2_9 POLARSSL_1_3_3 POLARSSL_1_3_4 CYASSL_2_8_0
 

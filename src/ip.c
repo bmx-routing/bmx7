@@ -610,7 +610,7 @@ IDM_T kernel_get_if_config_post(IDM_T purge_all, uint16_t curr_sqn)
 	uint16_t changed = 0;
 	struct if_link_node *iln;
 	int index = 0;
-	int dbgl = (terminating || initializing) ? DBGL_CHANGES : DBGL_SYS;
+	int dbgl = DBGL_CHANGES; // (terminating || initializing) ? DBGL_CHANGES : DBGL_SYS;
 
 	while ((iln = avl_next_item(&if_link_tree, &index))) {
 
@@ -913,7 +913,7 @@ void kernel_get_if_link_config(struct nlmsghdr *nh, void *update_sqnp)
 
 		} else if (memcmp(nh, old_ilx->nlmsghdr, nh->nlmsg_len)) {
 
-			dbgf_sys(DBGT_INFO, "CHANGED nlmsg_len new=%d  old=%d",
+			dbgf_track(DBGT_INFO, "CHANGED nlmsg_len new=%d  old=%d",
 				nh->nlmsg_len, old_ilx->nlmsghdr->nlmsg_len);
 
 			memcpy(old_ilx->nlmsghdr, nh, nh->nlmsg_len);

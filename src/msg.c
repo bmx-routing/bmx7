@@ -513,7 +513,8 @@ int8_t send_bmx_packet(LinkNode *unicast, struct packet_buff *pb, struct dev_nod
 	pb->i.oif->udpTxBytesCurr += pb->i.length;
 
 
-	dbgf_all(DBGT_INFO, "len=%d via dev=%s", pb->i.length, pb->i.oif->ifname_label.str);
+	dbgf_track(DBGT_INFO, "len=%d via dev=%s dst=%s", pb->i.length, pb->i.oif->ifname_label.str,
+			ip6AsStr(unicast ? &unicast->k.linkDev->key.llocal_ip : &dev->if_llocal_addr->ip_mcast));
 
 	if (send_sock == 0)
 		return 0;

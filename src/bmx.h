@@ -461,7 +461,7 @@ void register_status_handl(uint16_t min_msg_size, IDM_T multiline, const struct 
 	int32_t(*creator) (struct status_handl *status_handl, void *data));
 
 
-#define timercpy(d, a) (d)->tv_sec = (a)->tv_sec; (d)->tv_usec = (a)->tv_usec;
+#define timercpy(d, a) {(d)->tv_sec = (a)->tv_sec; (d)->tv_usec = (a)->tv_usec;}
 
 enum {
 	CLEANUP_SUCCESS,

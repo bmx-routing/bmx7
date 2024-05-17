@@ -19,20 +19,13 @@
  * Alternative cryptographic libraries are:
  * libtomcrypt, gcrypt, cyassl
  */
-
-#define POLARSSL_MIN   1000
-#define POLARSSL_1_2_5 1125
-#define POLARSSL_1_2_9 1129
-#define POLARSSL_1_3_3 1133
-#define POLARSSL_1_3_4 1134
-#define POLARSSL_1_3_9 1139
-#define POLARSSL_MAX   1999
-
 #define MBEDTLS_MIN    2000
 #define MBEDTLS_2_4_0  2240
 #define MBEDTLS_2_6_0  2260
 #define MBEDTLS_2_7_0  2270
 #define MBEDTLS_2_8_0  2280
+#define MBEDTLS_3_0_0  2300
+#define MBEDTLS_3_6_0  2360
 #define MBEDTLS_MAX    2999
 
 #ifndef CRYPTLIB

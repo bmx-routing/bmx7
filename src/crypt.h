@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010  Axel Neumann
+ * Copyright (c) 2024  Axel Neumann
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU General Public
  * License as published by the Free Software Foundation.
@@ -30,6 +30,7 @@
 
 #ifndef CRYPTLIB
 #define CRYPTLIB MBEDTLS_2_8_0
+//#define CRYPTLIB MBEDTLS_3_6_0
 #endif
 
 #define CRYPT_DER_BUF_SZ 16000

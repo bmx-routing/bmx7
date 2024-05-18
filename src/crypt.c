@@ -66,18 +66,16 @@ static mbedtls_sha256_context sha_ctx;
 
 uint8_t cryptDhmKeyTypeByLen(int len)
 {
-	return len == CRYPT_DHM1024_LEN ? CRYPT_DHM1024_TYPE : (
-		len == CRYPT_DHM2048_LEN ? CRYPT_DHM2048_TYPE : (
+	return len == CRYPT_DHM2048_LEN ? CRYPT_DHM2048_TYPE : (
 		len == CRYPT_DHM3072_LEN ? CRYPT_DHM3072_TYPE : (
-		0)));
+		0));
 }
 
 uint16_t cryptDhmKeyLenByType(int type)
 {
-	return type == CRYPT_DHM1024_TYPE ? CRYPT_DHM1024_LEN : (
-		type == CRYPT_DHM2048_TYPE ? CRYPT_DHM2048_LEN : (
+	return type == CRYPT_DHM2048_TYPE ? CRYPT_DHM2048_LEN : (
 		type == CRYPT_DHM3072_TYPE ? CRYPT_DHM3072_LEN : (
-		0)));
+		0));
 }
 
 char *cryptDhmKeyTypeAsString(int type)
@@ -104,6 +102,7 @@ void cryptDhmKeyFree(CRYPTDHM_T **cryptKey)
 	*cryptKey = NULL;
 }
 
+#if (CRYPTLIB >= MBEDTLS_2_8_0 && CRYPTLIB < MBEDTLS_3_0_0)
 /*
  * Verify sanity of parameter with regards to P
  *
@@ -134,10 +133,10 @@ static int _cryptDhmCheckRange(const mbedtls_mpi *param, const mbedtls_mpi *P)
 	mbedtls_mpi_free(&U);
 	return( ret);
 }
+#endif
 
 CRYPTDHM_T *cryptDhmKeyMake(uint8_t keyType, uint8_t attempt)
 {
-
 	int ret = 0;
 	char *goto_error_code = NULL;
 	int keyLen = 0;
@@ -184,11 +183,6 @@ CRYPTDHM_T *cryptDhmKeyMake(uint8_t keyType, uint8_t attempt)
 	if ((pSize = mbedtls_mpi_size(&dhm_P)) != keyLen)
 		goto_error(finish, "Invalid P size");
 
-#if (CRYPTLIB >= MBEDTLS_2_8_0 && CRYPTLIB < MBEDTLS_3_0_0)
-#elif (CRYPTLIB >= MBEDTLS_3_0_0 && CRYPTLIB < MBEDTLS_MAX)
-	if ((pSize = mbedtls_dhm_get_len(dhm)) != keyLen)
-		goto_error(finish, "Invalid P size");
-#endif
 
 	if ((ret = mbedtls_dhm_set_group(dhm, &dhm_P, &dhm_G) != 0))
 		goto_error(finish, "Failed grouping dhm parameters!");
@@ -197,19 +191,25 @@ CRYPTDHM_T *cryptDhmKeyMake(uint8_t keyType, uint8_t attempt)
                                        mbedtls_ctr_drbg_random, &ctr_drbg)) != 0)
 		goto_error(finish, "Failed creating dhm key pair");
 
+#if (CRYPTLIB >= MBEDTLS_2_8_0 && CRYPTLIB < MBEDTLS_3_0_0)
+#elif (CRYPTLIB >= MBEDTLS_3_0_0 && CRYPTLIB < MBEDTLS_MAX)
+	if ((pSize = mbedtls_dhm_get_len(dhm)) != keyLen)
+		goto_error(finish, "Invalid dhm len");
+#endif
+
 	key->rawGXType = keyType;
 	key->rawGXLen = keyLen;
 
 finish:
 	dbgf(goto_error_code ? DBGL_SYS : DBGL_CHANGES, goto_error_code ? DBGT_ERR : DBGT_INFO,
 		"%s ret=%d keyType=%d keyLen=%d pSize=%d attempt=%d",
-		goto_error_code, ret, keyType, keyLen, pSize, attempt);
+		goto_error_code?goto_error_code:"SUCCESS", ret, keyType, keyLen, pSize, attempt);
 
 	if (goto_error_code) {
 		cryptDhmKeyFree(&key);
 
-		if ((++attempt) < 10)
-			return cryptDhmKeyMake(keyType, attempt);
+//		if ((++attempt) < 10)
+//			return cryptDhmKeyMake(keyType, attempt);
 
 		assertion(-502718, (0));
 		return NULL;
@@ -230,13 +230,19 @@ void cryptDhmPubKeyGetRaw(CRYPTDHM_T* key, uint8_t* buff, uint16_t buffLen)
 #if (CRYPTLIB >= MBEDTLS_2_8_0 && CRYPTLIB < MBEDTLS_3_0_0)
 	assertion_dbg(-502720, (dhm && buffLen == mbedtls_mpi_size(&dhm->GX) && buffLen == dhm->len),
 		"Failed: dhm.GXlen=%zd dhm.len=%zd", dhm ? mbedtls_mpi_size(&dhm->GX) : 0, dhm ? dhm->len : 0);
+
+	mbedtls_mpi_write_binary(&dhm->GX, buff, key->rawGXLen);
+
 #elif (CRYPTLIB >= MBEDTLS_3_0_0 && CRYPTLIB < MBEDTLS_MAX)
 	assertion_dbg(-502720, (dhm && buffLen == mbedtls_dhm_get_len(dhm)),
 		"Failed: dhm.len=%zd", dhm ? mbedtls_dhm_get_len(dhm) : 0);
+
+	mbedtls_mpi mpi_GX;
+	mbedtls_mpi_init(&mpi_GX);
+	mbedtls_dhm_get_value(dhm, MBEDTLS_DHM_PARAM_GX, &mpi_GX);
+	mbedtls_mpi_write_binary(&mpi_GX, buff, key->rawGXLen);
+	mbedtls_mpi_free(&mpi_GX);
 #endif
-
-
-	mbedtls_mpi_write_binary(&dhm->GX, buff, key->rawGXLen);
 }
 
 STATIC_FUNC
@@ -247,9 +253,6 @@ IDM_T cryptDhmKeyCheck(CRYPTDHM_T *key)
 	uint8_t keyType = 0;
 	int keyLen = 0;
 	int pSize = 0;
-	int xSize = 0;
-	int gxSize = 0;
-	int gySize = 0;
 
 	if (!(dhm = (mbedtls_dhm_context *) key->backendKey))
 		goto_error(finish, "Missing backend key");
@@ -262,11 +265,11 @@ IDM_T cryptDhmKeyCheck(CRYPTDHM_T *key)
 		goto_error(finish, "Invalid len");
 	if ((pSize = mbedtls_mpi_size(&dhm->P)) != keyLen)
 		goto_error(finish, "Invalid P size");
-	if ((xSize = mbedtls_mpi_size(&dhm->X)) != keyLen)
+	if ((pSize = mbedtls_mpi_size(&dhm->X)) != keyLen)
 		goto_error(finish, "Invalid X size");
-	if ((gxSize = mbedtls_mpi_size(&dhm->GX)) != keyLen)
+	if ((pSize = mbedtls_mpi_size(&dhm->GX)) != keyLen)
 		goto_error(finish, "Invalid GX size");
-	if ((gySize = mbedtls_mpi_size(&dhm->GY)) != keyLen)
+	if ((pSize = mbedtls_mpi_size(&dhm->GY)) != keyLen)
 		goto_error(finish, "Invalid GY size");
 	if (_cryptDhmCheckRange(&dhm->GX, &dhm->P) != SUCCESS)
 		goto_error(finish, "Invalid GX range");
@@ -280,8 +283,7 @@ IDM_T cryptDhmKeyCheck(CRYPTDHM_T *key)
 	return SUCCESS;
 
 finish:
-	dbgf_track(DBGT_WARN, "%s keyType=%d keyLen=%d dhmLen=%zd pSize=%d xSize=%d gxSize=%d gySize=%d",
-		goto_error_code, keyType, keyLen, dhm ? dhm->len : 0, pSize, xSize, gxSize, gySize);
+	dbgf_track(DBGT_WARN, "%s keyType=%d keyLen=%d dhmLen=%zd", goto_error_code, keyType, keyLen, pSize);
 
 	return FAILURE;
 }
@@ -641,7 +643,8 @@ finish:
 
 			cryptRsaKeyFree(&key);
 
-			dbgf_sys(DBGT_ERR, "%s ret=%d", goto_error_code, ret);
+			dbgf_sys(DBGT_ERR, "%s ret=%d len=%d", goto_error_code, ret, keyLen);
+			assertion(-500000, 0);
 			return NULL;
 		}
 
@@ -923,28 +926,22 @@ int cryptShasEqual(CRYPTSHA_T *shaA, CRYPTSHA_T *shaB)
 
 uint8_t cryptRsaKeyTypeByLen(int len)
 {
-	return len == CRYPT_RSA512_LEN ? CRYPT_RSA512_TYPE : (
-		len == CRYPT_RSA768_LEN ? CRYPT_RSA768_TYPE : (
-		len == CRYPT_RSA896_LEN ? CRYPT_RSA896_TYPE : (
-		len == CRYPT_RSA1024_LEN ? CRYPT_RSA1024_TYPE : (
+	return len == CRYPT_RSA1024_LEN ? CRYPT_RSA1024_TYPE : (
 		len == CRYPT_RSA1536_LEN ? CRYPT_RSA1536_TYPE : (
 		len == CRYPT_RSA2048_LEN ? CRYPT_RSA2048_TYPE : (
 		len == CRYPT_RSA3072_LEN ? CRYPT_RSA3072_TYPE : (
 		len == CRYPT_RSA4096_LEN ? CRYPT_RSA4096_TYPE : (
-		0))))))));
+		0)))));
 }
 
 uint16_t cryptRsaKeyLenByType(int type)
 {
-	return type == CRYPT_RSA512_TYPE ? CRYPT_RSA512_LEN : (
-		type == CRYPT_RSA768_TYPE ? CRYPT_RSA768_LEN : (
-		type == CRYPT_RSA896_TYPE ? CRYPT_RSA896_LEN : (
-		type == CRYPT_RSA1024_TYPE ? CRYPT_RSA1024_LEN : (
+	return 	type == CRYPT_RSA1024_TYPE ? CRYPT_RSA1024_LEN : (
 		type == CRYPT_RSA1536_TYPE ? CRYPT_RSA1536_LEN : (
 		type == CRYPT_RSA2048_TYPE ? CRYPT_RSA2048_LEN : (
 		type == CRYPT_RSA3072_TYPE ? CRYPT_RSA3072_LEN : (
 		type == CRYPT_RSA4096_TYPE ? CRYPT_RSA4096_LEN : (
-		0))))))));
+		0)))));
 }
 
 char *cryptRsaKeyTypeAsString(int type)

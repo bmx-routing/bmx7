@@ -862,6 +862,8 @@ void createMyDhmLinkKey(IDM_T randomLifetime)
 
 	my_DhmLinkKey = cryptDhmKeyMake(linkDhmSignType, 0);
 
+	assertion(-500000, my_DhmLinkKey);
+
 	my_DhmLinkKey->endOfLife = (linkSignLifetime ? bmx_time_sec + thisSignLifetime : 0);
 
 	if (linkSignLifetime)
@@ -913,7 +915,7 @@ int process_dsc_tlv_dhmLinkKey(struct rx_frame_iterator *it)
 	char *goto_error_code = NULL;
 	int32_t msgLen = it->f_dlen;
 	struct dsc_msg_dhm_link_key *msg = (struct dsc_msg_dhm_link_key*) (it->f_data);
-
+	IDM_T TODO_Tolerate_unknown_dhm_link_keys_like_process_dsc_tlv_rsaPubKey;
 	if (it->op == TLV_OP_TEST) {
 
 		if (!msg)
@@ -1017,7 +1019,7 @@ int create_dsc_tlv_rsaLinkKey(struct tx_frame_iterator *it)
 }
 
 STATIC_FUNC
-int process_dsc_tlv_pubKey(struct rx_frame_iterator *it)
+int process_dsc_tlv_rsaPubKey(struct rx_frame_iterator *it)
 {
 	char *goto_error_code = NULL;
 	CRYPTRSA_T *pkey = NULL;
@@ -1026,14 +1028,20 @@ int process_dsc_tlv_pubKey(struct rx_frame_iterator *it)
 
 	if (it->op == TLV_OP_TEST) {
 
-		if (!msg || !cryptRsaKeyTypeAsString(msg->type) || cryptRsaKeyLenByType(msg->type) != key_len)
+		if (!msg)
 			goto_error(finish, "1");
 
-		if (!(pkey = cryptRsaPubKeyFromRaw(msg->key, key_len)))
-			goto_error(finish, "2");
+		if (cryptRsaKeyLenByType(msg->type))
+		{
+			if (!cryptRsaKeyTypeAsString(msg->type) || cryptRsaKeyLenByType(msg->type) != key_len)
+				goto_error(finish, "2");
 
-		if (cryptRsaPubKeyCheck(pkey) != SUCCESS)
-			goto_error(finish, "3");
+			if (!(pkey = cryptRsaPubKeyFromRaw(msg->key, key_len)))
+				goto_error(finish, "3");
+
+			if (cryptRsaPubKeyCheck(pkey) != SUCCESS)
+				goto_error(finish, "4");
+		}
 
 	} else if (it->op == TLV_OP_DEL && it->f_type == BMX_DSC_TLV_RSA_LINK_PUBKEY && it->on->neigh) {
 
@@ -1045,7 +1053,7 @@ int process_dsc_tlv_pubKey(struct rx_frame_iterator *it)
 		if (it->on->neigh->rsaLinkKey)
 			cryptRsaKeyFree(&it->on->neigh->rsaLinkKey);
 
-		if (msg) {
+		if (msg  && cryptRsaKeyLenByType(msg->type)) {
 			it->on->neigh->rsaLinkKey = cryptRsaPubKeyFromRaw(msg->key, cryptRsaKeyLenByType(msg->type));
 			assertion(-502206, (it->on->neigh->rsaLinkKey && cryptRsaPubKeyCheck(it->on->neigh->rsaLinkKey) == SUCCESS));
 		}
@@ -2398,7 +2406,7 @@ void init_sec(void)
 	handl.dextReferencing = (int32_t*) & fref_always_l1;
 	handl.dextCompression = (int32_t*) & never_fzip;
 	handl.tx_frame_handler = create_dsc_tlv_nodeKey;
-	handl.rx_frame_handler = process_dsc_tlv_pubKey;
+	handl.rx_frame_handler = process_dsc_tlv_rsaPubKey;
 	handl.msg_format = pubkey_format;
 	register_frame_handler(description_tlv_db, BMX_DSC_TLV_NODE_PUBKEY, &handl);
 
@@ -2427,7 +2435,7 @@ void init_sec(void)
 	handl.dextReferencing = (int32_t*) & fref_always_l1;
 	handl.dextCompression = (int32_t*) & never_fzip;
 	handl.tx_frame_handler = create_dsc_tlv_rsaLinkKey;
-	handl.rx_frame_handler = process_dsc_tlv_pubKey;
+	handl.rx_frame_handler = process_dsc_tlv_rsaPubKey;
 	handl.msg_format = pubkey_format;
 	register_frame_handler(description_tlv_db, BMX_DSC_TLV_RSA_LINK_PUBKEY, &handl);
 

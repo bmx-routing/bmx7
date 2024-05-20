@@ -2055,11 +2055,6 @@ void dev_deactivate(struct dev_node *dev)
 			dev->rx_mcast_sock = 0;
 		}
 
-		if (dev->rx_fullbrc_sock) {
-			close(dev->rx_fullbrc_sock);
-			dev->rx_fullbrc_sock = 0;
-		}
-
 		purge_linkDevs(NULL, dev, NULL, NO, YES);
 
 	}

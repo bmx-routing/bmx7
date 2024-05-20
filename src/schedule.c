@@ -151,12 +151,6 @@ static void check_selects(void)
 
 				receive_max_sock = XMAX(receive_max_sock, dev->rx_mcast_sock);
 				FD_SET(dev->rx_mcast_sock, &receive_wait_set);
-
-				if (dev->rx_fullbrc_sock > 0) {
-
-					receive_max_sock = XMAX(receive_max_sock, dev->rx_fullbrc_sock);
-					FD_SET(dev->rx_fullbrc_sock, &receive_wait_set);
-				}
 			}
 		}
 
@@ -384,33 +378,6 @@ loop4Event:
 					goto loop4Event;
 
 			}
-
-			if (FD_ISSET(pb.i.iif->rx_fullbrc_sock, &tmp_wait_set)) {
-
-				pb.i.unicast = NO;
-
-				errno = 0;
-				pb.i.length = recvfrom(pb.i.iif->rx_fullbrc_sock, pb.p.data,
-					sizeof(pb.p.data) - 1, 0,
-					(struct sockaddr *) &pb.i.addr, (socklen_t*) & addr_len);
-
-				if (pb.i.length < 0 && (errno == EWOULDBLOCK || errno == EAGAIN)) {
-
-					dbgf_sys(DBGT_WARN, "sock returned %d errno %d: %s",
-						pb.i.length, errno, strerror(errno));
-
-					continue;
-				}
-
-				ioctl(pb.i.iif->rx_fullbrc_sock, SIOCGSTAMP, &(pb.i.tv_stamp));
-
-				rx_packet(&pb);
-
-				if (--selected == 0)
-					goto loop4Event;
-
-			}
-
 
 			if (FD_ISSET(pb.i.iif->unicast_sock, &tmp_wait_set)) {
 

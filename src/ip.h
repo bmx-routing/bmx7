@@ -478,7 +478,6 @@ struct dev_node {
 
 	int32_t unicast_sock;
 	int32_t rx_mcast_sock;
-	int32_t rx_fullbrc_sock;
 
 	HELLO_SQN_T link_hello_sqn;
 

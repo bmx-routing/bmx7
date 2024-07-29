@@ -3,3 +3,16 @@
 bmx6
 core
 gmon.out
+/cmake/
+.cproject
+.project
+.dep.inc
+.settings
+Default/
+crashes/
+trash/
+notes
+src/bmx7
+src/iwinfo
+src/iwinfo.h
+todo.txt

@@ -406,7 +406,7 @@ IDM_T getQualifyingPromotedOrNeighDhmSecret(struct orig_node *on, IDM_T calcSecr
 		assertion(-502736, (!avl_find_item(&qualifyingPromoteds_tree, &kn->kHash)));
 	}
 
-	dbgf_track(DBGT_INFO, "calcSecret=%d id=%s name=%s state=%s dhmSecret=%d myDhmKeyType=%d myDhmKeyLen=%d neighDhmKeyLen=%d ret=%d",
+	dbgf_all(DBGT_INFO, "calcSecret=%d id=%s name=%s state=%s dhmSecret=%d myDhmKeyType=%d myDhmKeyLen=%d neighDhmKeyLen=%d ret=%d",
 		calcSecret, cryptShaAsShortStr(&kn->kHash), kn->on ? kn->on->k.hostname : NULL, kn->bookedState->secName, kn->on && kn->on->dhmSecret,
 		(my_DhmLinkKey ? my_DhmLinkKey->rawGXType : 0), (my_DhmLinkKey ? my_DhmLinkKey->rawGXLen : 0), neighDhmLen, ret);
 
@@ -561,7 +561,7 @@ int create_packet_signature(struct tx_frame_iterator *it)
 		hdr = NULL;
 	}
 
-	dbgf_track(DBGT_INFO, "f_type=%d=%s sendRsaSignature=%d sendDhmSignatures=%d dhmNeighs=%d qps=%d maxDhmNeighs=%d signatureSize=%d",
+	dbgf_all(DBGT_INFO, "f_type=%d=%s sendRsaSignature=%d sendDhmSignatures=%d dhmNeighs=%d qps=%d maxDhmNeighs=%d signatureSize=%d",
 		it->frame_type, it->handl ? it->handl->name : NULL, sendRsaSignature, sendDhmSignatures, dhmNeighs, qualifyingPromoteds_tree.items, maxDhmNeighs, signatureSize);
 
 	prof_stop();

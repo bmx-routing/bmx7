@@ -439,9 +439,9 @@ finish:
 	{
 
 		dbgf_track(DBGT_INFO,
-		"problem=%s neigh=%s aggSqn=%d IID=%d kHash=%s descSqn=%d chainOgm=%s ogmMtc=%d \n"
-		"REF: nodeId=%s descSqn=%d hostname=%s ogmSqnMaxRcvd=%d ogmMtcMaxRcvd=%d inaptChainOgmRcvd=%s inaptMtcRcvd=%d\n"
-		"DC: ogmSqnRange=%d  ogmSqnMaxRcvd=%d \n"
+		"problem=%s neigh=%s aggSqn=%d IID=%d kHash=%s descSqn=%d chainOgm=%s ogmMtc=%d "
+		"REF: nodeId=%s descSqn=%d hostname=%s ogmSqnMaxRcvd=%d ogmMtcMaxRcvd=%d inaptChainOgmRcvd=%s inaptMtcRcvd=%d "
+		"DC: ogmSqnRange=%d  ogmSqnMaxRcvd=%d "
 		"OUT: ogmSqn=%d ",
 		goto_error_code, ((nn && nn->on) ? nn->on->k.hostname : NULL), aggSqn, neighIID4x, cryptShaAsShortStr(kHash), descSqn,
 		memAsHexString(inChainOgm ? &inChainOgm->chainOgm : NULL, sizeof(ChainLink_T)), (inChainOgm ? (int) inChainOgm->claimedMetric.val.u16 : -1),

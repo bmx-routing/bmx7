@@ -259,7 +259,7 @@ int32_t iterate_msg_ogm_adv(uint8_t *msgs, int32_t msgs_len, int32_t pos, IDM_T 
 		uint8_t more = (m0.f.more);
 		uint8_t moreCnt = more;
 
-		dbgf_track(DBGT_INFO, "len=%d pos=%-3d more=%d metric=%-10s hopCount=%-2d iid=%d", msgs_len, pos, more, umetric_to_human(fmetric_to_umetric(fmm0)), m0.f.hopCount, m0.f.transmitterIID4x);
+		dbgf_all(DBGT_INFO, "len=%d pos=%-3d more=%d metric=%-10s hopCount=%-2d iid=%d", msgs_len, pos, more, umetric_to_human(fmetric_to_umetric(fmm0)), m0.f.hopCount, m0.f.transmitterIID4x);
 
 
 		pos += sizeof(struct msg_ogm_adv);
@@ -275,7 +275,7 @@ int32_t iterate_msg_ogm_adv(uint8_t *msgs, int32_t msgs_len, int32_t pos, IDM_T 
 					struct msg_ogm_adv_metric_t0 t0 = {.u = {.u16 = ntohs(((struct msg_ogm_adv_metric_t0*) tMore)->u.u16)}, .channel = ((struct msg_ogm_adv_metric_t0*) tMore)->channel};
 					FMETRIC_U16_T fmt0 = {.val = {.f = {.exp_fm16 = t0.u.f.metric_exp, .mantissa_fm16 = t0.u.f.metric_mantissa}}};
 
-					dbgf_track(DBGT_INFO, "len=%d pos=%-3d more=%d metric=%-10s channel=%d", msgs_len, pos, t0.u.f.more, umetric_to_human(fmetric_to_umetric(fmt0)), t0.channel);
+					dbgf_all(DBGT_INFO, "len=%d pos=%-3d more=%d metric=%-10s channel=%d", msgs_len, pos, t0.u.f.more, umetric_to_human(fmetric_to_umetric(fmt0)), t0.channel);
 
 					if (hm) {
 						hm[moreCnt - 1] = t0;
@@ -333,7 +333,7 @@ int32_t rx_frame_ogm_aggreg_sqn(struct rx_frame_iterator *it)
 	AGGREG_SQN_T sz = ntohs(((struct msg_ogm_aggreg_sqn_adv *) it->f_msg)->size);
 	struct neigh_node *nn = it->pb->i.verifiedLink->k.linkDev->key.local;
 
-	dbgf_track(DBGT_INFO, "from neigh=%s max=%d/%d sz=%d/%d time=%d",
+	dbgf_all(DBGT_INFO, "from neigh=%s max=%d/%d sz=%d/%d time=%d",
 		nn->on->k.hostname, max, nn->ogm_aggreg_max, sz, nn->ogm_aggreg_size, nn->ogm_aggreg_time);
 
 
@@ -686,7 +686,7 @@ int32_t rx_frame_ogm_aggreg_advs(struct rx_frame_iterator *it)
 	IDM_T new = ((AGGREG_SQN_T) (nn->ogm_aggreg_max - aggSqn)) < nn->ogm_aggreg_size && !bit_get(nn->ogm_aggreg_sqns, AGGREG_SQN_CACHE_RANGE, aggSqn);
 	int32_t processed;
 
-	dbgf_track(DBGT_INFO, "new=%d neigh=%s aggSqn=%d/%d/%d size=%d",
+	dbgf_all(DBGT_INFO, "new=%d neigh=%s aggSqn=%d/%d/%d size=%d",
 		new, nn->on->k.hostname, aggSqn, nn->ogm_aggreg_max, nn->ogm_aggreg_size, it->f_msgs_len);
 
 	if (new) {
@@ -697,7 +697,7 @@ int32_t rx_frame_ogm_aggreg_advs(struct rx_frame_iterator *it)
 			return TLV_RX_DATA_PROCESSED;
 
 		if ((processed = iterate_msg_ogm_adv(it->f_msg, it->f_msgs_len, 0, YES, NULL, NULL)) != it->f_msgs_len) {
-			dbgf_track(DBGT_INFO, "Ignoreing ogm with non-matching hop-metrics history (processed=%d f_msgs_len=%d", processed, it->f_msgs_len);
+			dbgf_track(DBGT_WARN, "Ignoreing ogm with non-matching hop-metrics history (processed=%d f_msgs_len=%d", processed, it->f_msgs_len);
 			return TLV_RX_DATA_PROCESSED;
 		}
 

@@ -530,7 +530,7 @@ struct NeighPath *lndev_best_via_router(struct NeighRef_node *ref)
 	bestNeighPath.pathMetricsByteSize = 0;
 	bestNeighPath.um = UMETRIC_MIN__NOT_ROUTABLE;
 
-	dbgf_track(refMetric <= on->mtcAlgo->umetric_min ? DBGT_WARN : DBGT_INFO,
+	dbgf_all(refMetric <= on->mtcAlgo->umetric_min ? DBGT_WARN : DBGT_INFO,
 		"orig=%s descSqn=%d via neigh=%s trusted=%d newOgmMin=%d (knDescSqn=%d refDescSqn=%d knOgmSqn=%d refOgmSqn=%d knMetricMin=%d refMetric=%d ogmSqnFirstSec=%d nowSec=%d) hops=%d refMtc=%ju refOgmHist=%d/%d minMtc=%ju ogmSqnRcvd=%d ogmSqnMaxSend=%d onSendMtc=%ju onSqnHystere=%d onMtcHystere=%d RefSqnBestSince=%d",
 		cryptShaAsShortStr(&on->k.nodeId), dc->descSqn, cryptShaAsShortStr(&nn->k.nodeId),
 		neighTrust, newOgmMins, ref->kn->descSqnMin, ref->descSqn, ref->kn->ogmSqnMin, ref->ogmSqnMax, ref->kn->ogmMetricMin.val.u16, umetric_to_fmetric(refMetric).val.u16, ref->kn->ogmSqnFirst_sec, bmx_time_sec,

@@ -512,9 +512,9 @@ int8_t send_bmx_packet(LinkNode *unicast, struct packet_buff *pb, struct dev_nod
 	pb->i.oif->udpTxPacketsCurr += 1;
 	pb->i.oif->udpTxBytesCurr += pb->i.length;
 
-
-	dbgf_track(DBGT_INFO, "len=%d via dev=%s dst=%s", pb->i.length, pb->i.oif->ifname_label.str,
-			ip6AsStr(unicast ? &unicast->k.linkDev->key.llocal_ip : &dev->if_llocal_addr->ip_mcast));
+	dbgf_track(DBGT_INFO, "len=%d unicast=%d dst=%s via dev=%s", pb->i.length, (unicast?1:0),
+		ip6AsStr(unicast ? &unicast->k.linkDev->key.llocal_ip : &dev->if_llocal_addr->ip_mcast),
+		pb->i.oif->ifname_label.str );
 
 	if (send_sock == 0)
 		return 0;
@@ -976,8 +976,10 @@ void schedule_tx_task(uint8_t f_type, LinkNode *unicast, CRYPTSHA_T *groupId, st
 	struct frame_handl *handl = &packet_frame_db->handls[f_type];
 	assertion(-502450, (handl && handl->name));
 	assertion(-502451, IMPLIES(handl->tx_iterations, *handl->tx_iterations > 0));
+	IDM_T TODO_unicast_may_not_exist_anymore_once_tx_task_is_processed;
 	assertion(-502655, IMPLIES(unicast, (dev && dev == unicast->k.myDev)));
 	assertion(-502656, IMPLIES(unicast, (neigh && neigh == unicast->k.linkDev->key.local)));
+	//assertion(-500000, IMPLIES(unicast, (neigh && unicast->k.linkDev == avl_find_item(&neigh->linkDev_tree, &unicast->k.linkDev->key.devIdx))));
 
 	if (!dev) {
 		struct avl_node *an = NULL;
@@ -1111,8 +1113,8 @@ void rx_packet(struct packet_buff *pb)
 	struct key_credits kc = { .pktId = 1 };
 	pb->i.claimedKey = keyNode_updCredits(&pb->p.hdr.keyHash, NULL, &kc);
 
-	dbgf_all(DBGT_INFO, "via dev=%s devLlIp=%s srcLlIp=%s size=%d version=%i rsvd=%X nodeId=%s kState=%s",
-		pb->i.iif->ifname_label.str, pb->i.iif->ip_llocal_str, pb->i.llip_str, pb->i.length,
+	dbgf_track(DBGT_INFO, "via dev=%s unicast=%d devLlIp=%s srcLlIp=%s size=%d version=%i rsvd=%X nodeId=%s kState=%s",
+		pb->i.iif->ifname_label.str, pb->i.unicast, pb->i.iif->ip_llocal_str, pb->i.llip_str, pb->i.length,
 		pb->p.hdr.comp_version, pb->p.hdr.reserved, cryptShaAsShortStr(&pb->p.hdr.keyHash),
 		pb->i.claimedKey ? pb->i.claimedKey->bookedState->secName : NULL);
 

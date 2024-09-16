@@ -270,9 +270,9 @@ struct LinkStats {
 
 	uint16_t updSqn;
 	TIME_T updatedTime;
-	TIME_T txTriggTime;
+	TIME_T txProbeTime;
 	TIME_T txBurstTime;
-	uint32_t txTriggCnt;
+	uint32_t txProbeCnt;
 	uint32_t txBurstCnt;
 
 	int8_t txMcs;

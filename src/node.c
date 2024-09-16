@@ -519,6 +519,8 @@ int purge_orig_router(struct orig_node *onlyOrig, struct neigh_node *onlyNeigh, 
 
 void neigh_destroy(struct orig_node *on)
 {
+	assertion(-500000, (on->neigh));
+	assertion(-500000, (on->neigh->on == on));
 	struct neigh_node *local = on->neigh;
 	LinkDevNode *linkDev;
 

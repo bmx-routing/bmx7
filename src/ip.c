@@ -659,7 +659,8 @@ IDM_T kernel_get_if_config_post(IDM_T purge_all, uint16_t curr_sqn)
 				iln->index, iln->name.str, memAsHexString(&iln->addr, iln->alen));
 
 			avl_remove(&if_link_tree, &iln->index, -300232);
-			avl_remove(&if_link_tree, &iln->name, -300521);
+
+			assertion(-500000, (avl_remove(&if_link_tree, &iln->name, -300521) == NULL)); // No idea why this avl_remove() is there!
 			debugFree(iln, -300230);
 			changed++;
 

@@ -894,8 +894,8 @@ static int32_t link_status_creator(struct status_handl *handl, void *data)
 				status[i].tq = ((link->timeaware_tq_probe * 100) / LQ_MAX);
 				status[i].bestTq = (link == local->best_tq_link);
 				status[i].wLastUpd = link->wifiStats.updatedTime ? ((float) (((TIME_T) (bmx_time - link->wifiStats.updatedTime)) / 1000)) : -1;
-				status[i].wTxLastProbe = link->wifiStats.txTriggTime ? ((float) (((TIME_T) (bmx_time - link->wifiStats.txTriggTime)) / 1000)) : -1;
-				status[i].wTxProbe = link->wifiStats.txTriggCnt;
+				status[i].wTxLastProbe = link->wifiStats.txProbeTime ? ((float) (((TIME_T) (bmx_time - link->wifiStats.txProbeTime)) / 1000)) : -1;
+				status[i].wTxProbe = link->wifiStats.txProbeCnt;
 				status[i].wTxLastBurst = link->wifiStats.txBurstTime ? ((float) (((TIME_T) (bmx_time - link->wifiStats.txBurstTime)) / 1000)) : -1;
 				status[i].wTxBurst = link->wifiStats.txBurstCnt;
 				status[i].wSignal = link->wifiStats.signal;

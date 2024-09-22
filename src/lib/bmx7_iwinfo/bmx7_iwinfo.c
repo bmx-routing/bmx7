@@ -59,7 +59,7 @@
 #include "ip.h"
 #include "allocate.h"
 #include "bmx7_iwinfo.h"
-
+//#include <iwlib.h>
 #include "iwinfo.h"
 
 
@@ -107,26 +107,22 @@ void get_link_rate(struct dev_node *tDev)
 
 		wifiStatsUpdSqn++;
 
-		if ((iw = iwinfo_backend(tDev->ifname_phy.str)) && ((iw->assoclist(tDev->ifname_phy.str, buf, &len)) == 0 && len > 0)) {
+		if ((!(iw = iwinfo_backend(tDev->ifname_phy.str))) || (iw->assoclist(tDev->ifname_phy.str, buf, &len)) )
+			len = 0;
 
-			for (i = 0; i < len; i += sizeof(struct iwinfo_assoclist_entry)) {
+		for (oLAn = NULL; (oLink = avl_iterate_item(&link_tree, &oLAn));) {
 
-				e = (struct iwinfo_assoclist_entry *) &buf[i];
+			if (min_lq_probe(oLink) && !strcmp(tDev->ifname_phy.str, oLink->k.myDev->ifname_phy.str)) {
 
-				for (oLAn = NULL; (oLink = avl_iterate_item(&link_tree, &oLAn));) {
+				MAC_T *oMac = ip6Eui64ToMac(&oLink->k.linkDev->key.llocal_ip, NULL); // calculate MAC of link neighbor based on his link-local IPv6 address
 
-					MAC_T *oMac = ip6Eui64ToMac(&oLink->k.linkDev->key.llocal_ip, NULL); // calculate MAC of link neighbor based on his link-local IPv6 address
+				for (i = 0; i < len; i += sizeof(struct iwinfo_assoclist_entry)) {
 
-					if (min_lq_probe(oLink) && !strcmp(tDev->ifname_phy.str, oLink->k.myDev->ifname_phy.str) && !memcmp(e->mac, oMac, sizeof(MAC_T))) {
+					e = (struct iwinfo_assoclist_entry *) &buf[i];
+
+					if (!memcmp(e->mac, oMac, sizeof(MAC_T))) {
 
 						oLink->wifiStats.updSqn = wifiStatsUpdSqn;
-
-						dbgf_track(DBGT_INFO,
-							"mac=%s signal=%d noise=%d snr=%d age=%d rxRate=%d sgi=%d rxCnt=%d txRate=%d txCount=%d",
-							memAsHexStringSep(oMac, 6, 1, ":"),
-							e->signal, e->noise, (e->signal - e->noise), e->inactive,
-							e->rx_rate.rate, e->rx_rate.is_short_gi, e->rx_packets,
-							e->tx_rate.rate, e->tx_packets);
 
 						if (oLink->wifiStats.txPackets != e->tx_packets) {
 
@@ -164,49 +160,49 @@ void get_link_rate(struct dev_node *tDev)
 							oLink->wifiStats.txPackets = e->tx_packets;
 						}
 
-
-						if (((uint32_t) (oLink->wifiStats.txPackets - oLink->wifiStats.txBurstPackets)) >= ((uint32_t) linkBurstThreshold)) {
-							// Skip sending bursts because more than linkBurstThreshold packets already send
-
-							oLink->wifiStats.txBurstPackets = oLink->wifiStats.txPackets;
-							oLink->wifiStats.txBurstTime = bmx_time;
-							oLink->wifiStats.txProbeTime = bmx_time;
-
-
-						} else if ( ((TIME_T) (bmx_time - oLink->wifiStats.txBurstTime)) >= ((TIME_T) linkBurstInterval) && linkBurstInterval && linkBurstDuration && linkBurstPacketSize) {
-							// Burst packets due...
-
-							oLink->wifiStats.txBurstPackets = oLink->wifiStats.txPackets;
-							oLink->wifiStats.txBurstTime = bmx_time;
-							oLink->wifiStats.txBurstCnt++;
-
-							struct tp_test_key tk = { .duration = linkBurstDuration, .endTime = 0, .packetSize = linkBurstPacketSize, .totalSend = 0 };
-
-							schedule_tx_task(FRAME_TYPE_TRASH_ADV, oLink, &oLink->k.linkDev->key.local->k.nodeId, oLink->k.linkDev->key.local, oLink->k.myDev, tk.packetSize, &tk, sizeof(tk));
+						dbgf_track(DBGT_INFO,
+							"mac=%s signal=%d noise=%d snr=%d age=%d rxRate=%d sgi=%d rxCnt=%d txRate=%d txCount=%d, thr=%llu",
+							memAsHexStringSep(oMac, 6, 1, ":"),
+							e->signal, e->noise, (e->signal - e->noise), e->inactive,
+							e->rx_rate.rate, e->rx_rate.is_short_gi, e->rx_packets,
+							e->tx_rate.rate, e->tx_packets, oLink->wifiStats.expectedThroughput);
 
 
-						} else if ( ((TIME_T) (bmx_time - oLink->wifiStats.txProbeTime)) >= ((TIME_T) linkProbeInterval) && linkProbeInterval && linkProbePacketSize) {
-							// Probe packets due...
-
-							oLink->wifiStats.txProbeTime = bmx_time;
-							oLink->wifiStats.txProbeCnt++;
-
-							struct tp_test_key tk = { .duration = 0, .endTime = 0, .packetSize = linkProbePacketSize, .totalSend = 0 };
-
-							schedule_tx_task(FRAME_TYPE_TRASH_ADV, oLink, &oLink->k.linkDev->key.local->k.nodeId, oLink->k.linkDev->key.local, oLink->k.myDev, tk.packetSize, &tk, sizeof(tk));
-
-						}
-
-						//break; // if running several vlan-interfaces on same phy this would not find the second
+						break;
 					}
 				}
-			}
-		}
 
-		for (oLAn = NULL; (oLink = avl_iterate_item(&link_tree, &oLAn));) {
+				if (((uint32_t) (oLink->wifiStats.txPackets - oLink->wifiStats.txBurstPackets)) >= ((uint32_t) linkBurstThreshold)) {
+					// Skip sending bursts because more than linkBurstThreshold packets already send
 
-			if (!strcmp(tDev->ifname_phy.str, oLink->k.myDev->ifname_phy.str) && oLink->wifiStats.updSqn != wifiStatsUpdSqn) {
-				memset(&oLink->wifiStats, 0, sizeof(oLink->wifiStats));
+					oLink->wifiStats.txBurstPackets = oLink->wifiStats.txPackets;
+					oLink->wifiStats.txBurstTime = bmx_time;
+					oLink->wifiStats.txProbeTime = bmx_time;
+
+
+				} else if ( ((TIME_T) (bmx_time - oLink->wifiStats.txBurstTime)) >= ((TIME_T) linkBurstInterval) && linkBurstInterval && linkBurstDuration && linkBurstPacketSize) {
+					// Burst packets due...
+
+					oLink->wifiStats.txBurstPackets = oLink->wifiStats.txPackets;
+					oLink->wifiStats.txBurstTime = bmx_time;
+					oLink->wifiStats.txBurstCnt++;
+
+					struct tp_test_key tk = { .duration = linkBurstDuration, .endTime = 0, .packetSize = linkBurstPacketSize, .totalSend = 0 };
+
+					schedule_tx_task(FRAME_TYPE_TRASH_ADV, oLink, &oLink->k.linkDev->key.local->k.nodeId, oLink->k.linkDev->key.local, oLink->k.myDev, tk.packetSize, &tk, sizeof(tk));
+
+
+				} else if ( ((TIME_T) (bmx_time - oLink->wifiStats.txProbeTime)) >= ((TIME_T) linkProbeInterval) && linkProbeInterval && linkProbePacketSize) {
+					// Probe packets due...
+
+					oLink->wifiStats.txProbeTime = bmx_time;
+					oLink->wifiStats.txProbeCnt++;
+
+					struct tp_test_key tk = { .duration = 0, .endTime = 0, .packetSize = linkProbePacketSize, .totalSend = 0 };
+
+					schedule_tx_task(FRAME_TYPE_TRASH_ADV, oLink, &oLink->k.linkDev->key.local->k.nodeId, oLink->k.linkDev->key.local, oLink->k.myDev, tk.packetSize, &tk, sizeof(tk));
+
+				}
 			}
 		}
 

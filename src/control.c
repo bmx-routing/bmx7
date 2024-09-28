@@ -2975,7 +2975,7 @@ static struct opt_type control_options[] ={
 	,
 	{ODI,0,ARG_VERBOSE_HELP,	'H',3,2,A_PS0N,A_USR,A_DYI,A_ARG,A_ANY,	0,		0, 		0,		0,0, 		opt_help,
 			0,		"show verbose help"},
-	{ODI,ARG_VERBOSE_HELP,ARG_RELEVANCE,'r',3,2,A_CS1,A_USR,A_DYI,A_ARG,A_ANY,0,	       MIN_RELEVANCE,   MAX_RELEVANCE,  DEF_RELEVANCE,0, opt_help,
+	{ODI,ARG_VERBOSE_HELP,ARG_RELEVANCE,'r',3,2,A_CS1,A_USR,A_DYI,A_ARG,A_ANY,0,	       MIN_RELEVANCE,   MAX_RELEVANCE,  FIELD_RELEVANCE_LOW,0, opt_help,
 			ARG_VALUE_FORM,	HLP_ARG_RELEVANCE}
 	,
 

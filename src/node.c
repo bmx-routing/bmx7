@@ -519,13 +519,14 @@ int purge_orig_router(struct orig_node *onlyOrig, struct neigh_node *onlyNeigh, 
 
 void neigh_destroy(struct orig_node *on)
 {
-	assertion(-500000, (on->neigh));
-	assertion(-500000, (on->neigh->on == on));
 	struct neigh_node *local = on->neigh;
 	LinkDevNode *linkDev;
 
 	if (on->kn == myKey)
 		return;
+
+	assertion(-500000, (on->neigh));
+	assertion(-500000, (on->neigh->on == on));
 
 	dbgf_track(DBGT_INFO, "purging local_id=%s curr_rx_packet=%d thisNeighsPacket=%d verified_link=%d",
 		cryptShaAsString(&local->k.nodeId), !!curr_rx_packet,

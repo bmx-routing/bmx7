@@ -499,21 +499,18 @@ int8_t send_bmx_packet(LinkNode *unicast, struct packet_buff *pb, struct dev_nod
 		return 0;
 
 	int status;
-	struct sockaddr_storage unicast_dst;
 
-	if (unicast)
-		unicast_dst = set_sockaddr_storage(AF_INET6, &unicast->k.linkDev->key.llocal_ip, base_port);
-
-	struct sockaddr_storage *dst = unicast ? & unicast_dst : &dev->tx_netwbrc_addr;
-	int32_t send_sock = dev->unicast_sock;
+	int32_t send_sock = dev->llocal_sock;
 
 	pb->i.length = len;
+	pb->i.unicast = !!unicast;
+	pb->i.dst = unicast ? & unicast->k.linkDev->unicast_dst : &dev->tx_netwbrc_addr;
 	pb->i.oif = dev;
 	pb->i.oif->udpTxPacketsCurr += 1;
 	pb->i.oif->udpTxBytesCurr += pb->i.length;
 
-	dbgf_track(DBGT_INFO, "len=%d unicast=%d dst=%s via dev=%s", pb->i.length, (unicast?1:0),
-		ip6AsStr(unicast ? &unicast->k.linkDev->key.llocal_ip : &dev->if_llocal_addr->ip_mcast),
+	dbgf_track(DBGT_INFO, "len=%d unicast=%d dst=%s via dev=%s", pb->i.length, !!unicast,
+		ip6AsStr( &(((struct sockaddr_in6*)pb->i.dst)->sin6_addr) ),
 		pb->i.oif->ifname_label.str );
 
 	if (send_sock == 0)
@@ -532,15 +529,15 @@ int8_t send_bmx_packet(LinkNode *unicast, struct packet_buff *pb, struct dev_nod
 	status = sendmsg( send_sock, &m, 0 );
 	 */
 
-	status = sendto(send_sock, pb->p.data, pb->i.length, 0, (struct sockaddr *) dst, sizeof(struct sockaddr_storage));
+	status = sendto(send_sock, pb->p.data, pb->i.length, 0, (struct sockaddr *)pb->i.dst, sizeof(struct sockaddr_storage));
 
 	if (status < 0) {
 
 		if (errno == 1) {
 
 			dbg_mute(60, DBGL_SYS, DBGT_ERR, "can't send: %s. Does firewall accept %s dev=%s port=%i ?",
-				strerror(errno), family2Str(((struct sockaddr_in*) dst)->sin_family),
-				pb->i.oif->ifname_label.str, ntohs(((struct sockaddr_in*) dst)->sin_port));
+				strerror(errno), family2Str(((struct sockaddr_in*) pb->i.dst)->sin_family),
+				pb->i.oif->ifname_label.str, ntohs(((struct sockaddr_in*) pb->i.dst)->sin_port));
 
 		} else {
 
@@ -710,6 +707,9 @@ int32_t tx_frame_iterate(IDM_T iterate_msg, struct tx_frame_iterator *it)
 	ASSERTION(-501000, (IMPLIES((!it->frame_cache_msgs_size || handl->tx_frame_handler),
 		is_zero(it->frame_cache_array, tx_iterator_cache_data_space_max(it, 0, 0)))));
 
+	dbgf( (dbg_frame_types & (1 << it->frame_type) ? DBGL_CHANGES : DBGL_ALL), DBGT_INFO,
+		"dbgFT=%d type=%d=%s unicast=%d",
+		dbg_frame_types, it->frame_type, handl->name, (it->ttn && it->ttn->key.f.p.unicast));
 
 	if ((handl->tx_msg_handler && iterate_msg) || handl->tx_frame_handler) {
 
@@ -976,7 +976,6 @@ void schedule_tx_task(uint8_t f_type, LinkNode *unicast, CRYPTSHA_T *groupId, st
 	struct frame_handl *handl = &packet_frame_db->handls[f_type];
 	assertion(-502450, (handl && handl->name));
 	assertion(-502451, IMPLIES(handl->tx_iterations, *handl->tx_iterations > 0));
-	IDM_T TODO_unicast_may_not_exist_anymore_once_tx_task_is_processed;
 	assertion(-502655, IMPLIES(unicast, (dev && dev == unicast->k.myDev)));
 	assertion(-502656, IMPLIES(unicast, (neigh && neigh == unicast->k.linkDev->key.local)));
 	//assertion(-500000, IMPLIES(unicast, (neigh && unicast->k.linkDev == avl_find_item(&neigh->linkDev_tree, &unicast->k.linkDev->key.devIdx))));
@@ -992,8 +991,9 @@ void schedule_tx_task(uint8_t f_type, LinkNode *unicast, CRYPTSHA_T *groupId, st
 
 
 	dbgf((dbg_frame_types & (1 << f_type) ? DBGL_CHANGES : DBGL_ALL), DBGT_INFO,
-		"type=%s groupId=%s neigh=%s dev=%s msgs_len=%d data=%s len=%d",
-		handl->name, cryptShaAsString(groupId), neigh ? cryptShaAsShortStr(&neigh->k.nodeId) : NULL,
+		"dbgFT=%d type=%d=%s unicast=%d, groupId=%-8s neigh=%s dev=%s msgs_len=%d data=%s len=%d",
+		dbg_frame_types, f_type, handl->name,
+		!!unicast, cryptShaAsShortStr(groupId), neigh ? cryptShaAsShortStr(&neigh->k.nodeId) : NULL,
 		dev ? dev->ifname_label.str : NULL, f_msgs_len, memAsHexString(keyData, keyLen), keyLen);
 
 	if (dev->tx_task_items >= txTaskTreeSizeMax) {

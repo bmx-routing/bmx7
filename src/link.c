@@ -335,6 +335,8 @@ LinkNode *getLinkNode(struct dev_node *dev, IPX_T *llip, DEVIDX_T idx, struct ne
 		linkDev->key.llocal_ip = *llip;
 		linkDev->key.devIdx = idx;
 		linkDev->key.local = verifiedNeigh;
+		linkDev->unicast_dst = set_sockaddr_storage(AF_INET6, llip, base_port);
+
 
 		avl_insert(&link_dev_tree, linkDev, -300147);
 		avl_insert(&verifiedNeigh->linkDev_tree, linkDev, -300334);

@@ -2046,9 +2046,9 @@ void dev_deactivate(struct dev_node *dev)
 		purge_tx_task_tree(NULL, NULL, dev, NULL, YES);
 
 
-		if (dev->unicast_sock) {
-			close(dev->unicast_sock);
-			dev->unicast_sock = 0;
+		if (dev->llocal_sock) {
+			close(dev->llocal_sock);
+			dev->llocal_sock = 0;
 		}
 
 		if (dev->rx_mcast_sock) {
@@ -2106,7 +2106,7 @@ IDM_T dev_init_sockets(struct dev_node *dev)
 	int set_on = 1;
 	int pf_domain = PF_INET6;
 
-	if ((dev->unicast_sock = socket(pf_domain, SOCK_DGRAM, 0)) < 0) {
+	if ((dev->llocal_sock = socket(pf_domain, SOCK_DGRAM, 0)) < 0) {
 
 		dbgf_sys(DBGT_ERR, "can't create send socket: %s", strerror(errno));
 		return FAILURE;
@@ -2114,17 +2114,17 @@ IDM_T dev_init_sockets(struct dev_node *dev)
 
 	dev->llocal_unicast_addr = set_sockaddr_storage(AF_INET6, &dev->if_llocal_addr->ip_addr, base_port);
 
-	if (setsockopt(dev->unicast_sock, SOL_SOCKET, SO_BROADCAST, &set_on, sizeof(set_on)) < 0) {
+	if (setsockopt(dev->llocal_sock, SOL_SOCKET, SO_BROADCAST, &set_on, sizeof(set_on)) < 0) {
 		dbgf_sys(DBGT_ERR, "can't enable broadcasts on unicast socket: %s", strerror(errno));
 		return FAILURE;
 	}
 
 	// bind send socket to interface name
-	if (dev_bind_sock(dev->unicast_sock, &dev->ifname_device) < 0)
+	if (dev_bind_sock(dev->llocal_sock, &dev->ifname_device) < 0)
 		return FAILURE;
 
 	// bind send socket to address
-	if (bind(dev->unicast_sock, (struct sockaddr *) & dev->llocal_unicast_addr, sizeof(dev->llocal_unicast_addr)) < 0) {
+	if (bind(dev->llocal_sock, (struct sockaddr *) & dev->llocal_unicast_addr, sizeof(dev->llocal_unicast_addr)) < 0) {
 		dbgf_sys(DBGT_ERR, "can't bind unicast socket to IP=%s : %s (retrying later...)",
 			ip6AsStr(&dev->if_llocal_addr->ip_addr), strerror(errno));
 
@@ -2136,12 +2136,12 @@ IDM_T dev_init_sockets(struct dev_node *dev)
 
 	if (!dev->blockingSockets) {
 		// make udp send socket non blocking
-		int sock_opts = fcntl(dev->unicast_sock, F_GETFL, 0);
-		fcntl(dev->unicast_sock, F_SETFL, sock_opts | O_NONBLOCK);
+		int sock_opts = fcntl(dev->llocal_sock, F_GETFL, 0);
+		fcntl(dev->llocal_sock, F_SETFL, sock_opts | O_NONBLOCK);
 	}
 
 #ifdef SO_TIMESTAMP
-	if (setsockopt(dev->unicast_sock, SOL_SOCKET, SO_TIMESTAMP, &set_on, sizeof(set_on))) {
+	if (setsockopt(dev->llocal_sock, SOL_SOCKET, SO_TIMESTAMP, &set_on, sizeof(set_on))) {
 		dbgf_sys(DBGT_WARN, "No SO_TIMESTAMP support, despite being defined, falling back to SIOCGSTAMP");
 	}
 #else

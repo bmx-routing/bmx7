@@ -245,6 +245,7 @@ typedef struct {
 	TIME_T hello_time_max;
 
 	HELLO_SQN_T hello_sqn_max;
+	struct sockaddr_storage unicast_dst;
 
 	struct avl_tree link_tree;
 } LinkDevNode;
@@ -602,6 +603,7 @@ struct packet_buff {
 
 		//filled in by tx_packet()
 		struct dev_node *oif;
+		struct sockaddr_storage *dst;
 
 		//filled in by rx_packet():
 		IPX_T llip;

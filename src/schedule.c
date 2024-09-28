@@ -146,8 +146,8 @@ static void check_selects(void)
 
 			if (dev->active && dev->linklayer != TYP_DEV_LL_LO) {
 
-				receive_max_sock = XMAX(receive_max_sock, dev->unicast_sock);
-				FD_SET(dev->unicast_sock, &receive_wait_set);
+				receive_max_sock = XMAX(receive_max_sock, dev->llocal_sock);
+				FD_SET(dev->llocal_sock, &receive_wait_set);
 
 				receive_max_sock = XMAX(receive_max_sock, dev->rx_mcast_sock);
 				FD_SET(dev->rx_mcast_sock, &receive_wait_set);
@@ -379,7 +379,7 @@ loop4Event:
 
 			}
 
-			if (FD_ISSET(pb.i.iif->unicast_sock, &tmp_wait_set)) {
+			if (FD_ISSET(pb.i.iif->llocal_sock, &tmp_wait_set)) {
 
 				pb.i.unicast = YES;
 
@@ -399,7 +399,7 @@ loop4Event:
 
 				errno = 0;
 
-				pb.i.length = recvmsg(pb.i.iif->unicast_sock, &msghdr, MSG_DONTWAIT);
+				pb.i.length = recvmsg(pb.i.iif->llocal_sock, &msghdr, MSG_DONTWAIT);
 
 				if (pb.i.length < 0 && (errno == EWOULDBLOCK || errno == EAGAIN)) {
 					dbgf_sys(DBGT_WARN, "sock returned %d errno %d: %s",
@@ -420,7 +420,7 @@ loop4Event:
 				}
 #endif
 				if (tv_stamp == NULL)
-					ioctl(pb.i.iif->unicast_sock, SIOCGSTAMP, &(pb.i.tv_stamp));
+					ioctl(pb.i.iif->llocal_sock, SIOCGSTAMP, &(pb.i.tv_stamp));
 				else
 					timercpy(&(pb.i.tv_stamp), tv_stamp);
 

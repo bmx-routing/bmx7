@@ -476,7 +476,7 @@ struct dev_node {
 	struct sockaddr_storage llocal_unicast_addr;
 	struct sockaddr_storage tx_netwbrc_addr;
 
-	int32_t unicast_sock;
+	int32_t llocal_sock;
 	int32_t rx_mcast_sock;
 
 	HELLO_SQN_T link_hello_sqn;

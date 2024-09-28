@@ -115,7 +115,7 @@ void schedule_ogm_aggregations(void)
 
 		ogm_aggreg_sqn_send = ogm_aggreg_sqn_max;
 		int16_t sz = (getOgmAggregNode(ogm_aggreg_sqn_max))->msgsLen;
-		schedule_tx_task(FRAME_TYPE_OGM_ADV, NULL, NULL, NULL, NULL, sz, &ogm_aggreg_sqn_max, sizeof(ogm_aggreg_sqn_max));
+//		schedule_tx_task(FRAME_TYPE_OGM_ADV, NULL, NULL, NULL, NULL, sz, &ogm_aggreg_sqn_max, sizeof(ogm_aggreg_sqn_max));
 	}
 }
 
@@ -434,7 +434,8 @@ int32_t rx_msg_ogm_aggreg_request(struct rx_frame_iterator *it)
 		struct neigh_node *nn = it->pb->i.verifiedLink->k.linkDev->key.local;
 		struct OgmAggreg_node *oan = getOgmAggregNode(sqn);
 
-		schedule_tx_task(FRAME_TYPE_OGM_ADV, NULL, NULL, NULL, nn->best_tq_link->k.myDev, oan->msgsLen, &sqn, sizeof(sqn));
+		schedule_tx_task(FRAME_TYPE_OGM_ADV, nn->best_tq_link, NULL, nn, nn->best_tq_link->k.myDev, oan->msgsLen, &sqn, sizeof(sqn));
+//		schedule_tx_task(FRAME_TYPE_OGM_ADV, NULL, NULL, NULL, nn->best_tq_link->k.myDev, oan->msgsLen, &sqn, sizeof(sqn));
 
 		dbgf_track(DBGT_INFO, "sqn=%d ogms=%d size=%d", sqn, oan->tree.items, oan->msgsLen);
 	}

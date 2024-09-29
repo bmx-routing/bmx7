@@ -730,6 +730,8 @@ struct bmx_status {
 	char mem[32];
 	char rxBpP[12];
 	char txBpP[12];
+	char uRxBpP[12];
+	char uTxBpP[12];
 	char txQ[12];
 	uint32_t nbs;
 	uint32_t rts;
@@ -739,13 +741,13 @@ struct bmx_status {
 
 static const struct field_format bmx_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_SHORT_ID,  bmx_status, shortId,       1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, bmx_status, nodeId,        1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, bmx_status, nodeId,        1, FIELD_RELEVANCE_LOW),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      bmx_status, name,          1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      bmx_status, nodeKey,       1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       bmx_status, linkKeys,      1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_SHORT_ID,  bmx_status, shortDhash,    1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, bmx_status, dhash,         1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       bmx_status, version,       1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_SHORT_ID,  bmx_status, shortDhash,    1, FIELD_RELEVANCE_LOW),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, bmx_status, dhash,         1, FIELD_RELEVANCE_LOW),
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       bmx_status, version,       1, FIELD_RELEVANCE_LOW),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              bmx_status, cv,            1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       bmx_status, revision,      1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_IPX,               bmx_status, primaryIp,     1, FIELD_RELEVANCE_HIGH),
@@ -764,6 +766,8 @@ static const struct field_format bmx_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       bmx_status, txQ,           1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       bmx_status, rxBpP,         1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       bmx_status, txBpP,         1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       bmx_status, uRxBpP,        1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       bmx_status, uTxBpP,        1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              bmx_status, nbs,           1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              bmx_status, rts,           1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       bmx_status, nodes,         1, FIELD_RELEVANCE_HIGH),
@@ -803,6 +807,8 @@ static int32_t bmx_status_creator(struct status_handl *handl, void *data)
 	snprintf(status->mem, sizeof(status->mem), "%juK", getProcMemory() / 1024);
 	snprintf(status->rxBpP, sizeof(status->rxBpP), "%d/%.1f", (udpRxBytesMean / DEVSTAT_PRECISION), (((float) udpRxPacketsMean) / DEVSTAT_PRECISION));
 	snprintf(status->txBpP, sizeof(status->txBpP), "%d/%.1f", (udpTxBytesMean / DEVSTAT_PRECISION), (((float) udpTxPacketsMean) / DEVSTAT_PRECISION));
+	snprintf(status->uRxBpP, sizeof(status->uRxBpP), "%d/%.1f", (unicastRxBytesMean / DEVSTAT_PRECISION), (((float) unicastRxPacketsMean) / DEVSTAT_PRECISION));
+	snprintf(status->uTxBpP, sizeof(status->uTxBpP), "%d/%.1f", (unicastTxBytesMean / DEVSTAT_PRECISION), (((float) unicastTxPacketsMean) / DEVSTAT_PRECISION));
 	snprintf(status->txQ, sizeof(status->txQ), "%d/%d", txBucket / BUCKET_COIN_SCALE, txBucketSize);
 	status->nbs = local_tree.items;
 	status->rts = totalOrigRoutes;

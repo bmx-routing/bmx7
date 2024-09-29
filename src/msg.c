@@ -508,6 +508,8 @@ int8_t send_bmx_packet(LinkNode *unicast, struct packet_buff *pb, struct dev_nod
 	pb->i.oif = dev;
 	pb->i.oif->udpTxPacketsCurr += 1;
 	pb->i.oif->udpTxBytesCurr += pb->i.length;
+	pb->i.oif->unicastTxPacketsCurr += (unicast ? 1 : 0);
+	pb->i.oif->unicastTxBytesCurr += (unicast ? pb->i.length : 0);
 
 	dbgf_track(DBGT_INFO, "len=%d unicast=%d dst=%s via dev=%s", pb->i.length, !!unicast,
 		ip6AsStr( &(((struct sockaddr_in6*)pb->i.dst)->sin6_addr) ),
@@ -1109,6 +1111,8 @@ void rx_packet(struct packet_buff *pb)
 	curr_rx_packet = pb;
 	pb->i.iif->udpRxPacketsCurr += 1;
 	pb->i.iif->udpRxBytesCurr += pb->i.length;
+	pb->i.iif->unicastRxPacketsCurr += (pb->i.unicast ? 1 : 0);
+	pb->i.iif->unicastRxBytesCurr += (pb->i.unicast ? pb->i.length : 0);
 
 	struct key_credits kc = { .pktId = 1 };
 	pb->i.claimedKey = keyNode_updCredits(&pb->p.hdr.keyHash, NULL, &kc);

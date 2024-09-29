@@ -62,6 +62,7 @@ extern int32_t netlinkBuffSize;
 
 
 extern uint32_t udpRxBytesMean, udpRxPacketsMean, udpTxBytesMean, udpTxPacketsMean;
+extern uint32_t unicastRxBytesMean, unicastRxPacketsMean, unicastTxBytesMean, unicastTxPacketsMean;
 
 enum {
 	FRA_UNSPEC,
@@ -457,6 +458,15 @@ struct dev_node {
 	uint32_t udpTxBytesMean;
 	uint32_t udpRxBytesCurr;
 	uint32_t udpRxBytesMean;
+
+	uint32_t unicastTxPacketsCurr;
+	uint32_t unicastTxPacketsMean;
+	uint32_t unicastRxPacketsCurr;
+	uint32_t unicastRxPacketsMean;
+	uint32_t unicastTxBytesCurr;
+	uint32_t unicastTxBytesMean;
+	uint32_t unicastRxBytesCurr;
+	uint32_t unicastRxBytesMean;
 
 	int32_t totalOrigRoutes;
 

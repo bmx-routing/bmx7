@@ -79,15 +79,9 @@
 uint8_t __af_cfg = DEF_IP_FAMILY;
 struct net_key __ZERO_NETCFG_KEY = { .af = DEF_IP_FAMILY };
 
-
-
 const IFNAME_T ZERO_IFNAME = {{0}};
 
-
-//TODO: remove me!!??
 int dev_lo_idx = 0;
-
-
 
 int32_t ip_prio_hna_cfg = DEF_IP_RULE_HNA;
 static int32_t ip_prio_tun_cfg = DEF_IP_RULE_TUN;
@@ -153,6 +147,7 @@ static int ifevent_sk = -1;
 
 int32_t devStatRegression = DEF_DEVSTAT_REGRESSION;
 uint32_t udpRxBytesMean, udpRxPacketsMean, udpTxBytesMean, udpTxPacketsMean;
+uint32_t unicastRxBytesMean, unicastRxPacketsMean, unicastTxBytesMean, unicastTxPacketsMean;
 
 //static Sha ip_sha;
 
@@ -3073,6 +3068,7 @@ void update_devStatistic_task(void *data)
 	struct avl_node *an = NULL;
 
 	udpRxBytesMean = udpRxPacketsMean = udpTxBytesMean = udpTxPacketsMean = 0;
+	unicastRxBytesMean = unicastRxPacketsMean = unicastTxBytesMean = unicastTxPacketsMean = 0;
 
 	while ((dev = avl_iterate_item(&dev_name_tree, &an))) {
 
@@ -3081,7 +3077,14 @@ void update_devStatistic_task(void *data)
 		udpTxBytesMean += (dev->udpTxBytesMean = ((dev->udpTxBytesMean * (devStatRegression - 1)) + ((dev->udpTxBytesCurr * DEVSTAT_PRECISION))) / devStatRegression);
 		udpTxPacketsMean += (dev->udpTxPacketsMean = ((dev->udpTxPacketsMean * (devStatRegression - 1)) + ((dev->udpTxPacketsCurr * DEVSTAT_PRECISION))) / devStatRegression);
 
+		unicastRxBytesMean += (dev->unicastRxBytesMean = ((dev->unicastRxBytesMean * (devStatRegression - 1)) + ((dev->unicastRxBytesCurr * DEVSTAT_PRECISION))) / devStatRegression);
+		unicastRxPacketsMean += (dev->unicastRxPacketsMean = ((dev->unicastRxPacketsMean * (devStatRegression - 1)) + ((dev->unicastRxPacketsCurr * DEVSTAT_PRECISION))) / devStatRegression);
+		unicastTxBytesMean += (dev->unicastTxBytesMean = ((dev->unicastTxBytesMean * (devStatRegression - 1)) + ((dev->unicastTxBytesCurr * DEVSTAT_PRECISION))) / devStatRegression);
+		unicastTxPacketsMean += (dev->unicastTxPacketsMean = ((dev->unicastTxPacketsMean * (devStatRegression - 1)) + ((dev->unicastTxPacketsCurr * DEVSTAT_PRECISION))) / devStatRegression);
+
 		dev->udpRxBytesCurr = dev->udpRxPacketsCurr = dev->udpTxBytesCurr = dev->udpTxPacketsCurr = 0;
+		dev->unicastRxBytesCurr = dev->unicastRxPacketsCurr = dev->unicastTxBytesCurr = dev->unicastTxPacketsCurr = 0;
+
 	}
 
 	task_register(DEF_DEVSTAT_PERIOD, update_devStatistic_task, NULL, -300700);
@@ -3106,6 +3109,8 @@ struct dev_status {
 	HELLO_SQN_T helloSqn;
 	char rxBpP[12];
 	char txBpP[12];
+	char uRxBpP[12];
+	char uTxBpP[12];
 	char txTasks[12];
 };
 
@@ -3114,21 +3119,23 @@ static const struct field_format dev_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,              dev_status, state,       1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,              dev_status, linkKey,     1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,               dev_status, linkKeys,    1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,              dev_status, phy,         1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,              dev_status, phy,         1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,              dev_status, type,        1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,                      dev_status, channel,     1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UMETRIC,                   dev_status, rateMax,     1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,                      dev_status, idx,         1, FIELD_RELEVANCE_HIGH),
-	FIELD_FORMAT_INIT(FIELD_TYPE_MAC,                       dev_status, localMac,    1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_MAC,                       dev_status, localMac,    1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,               dev_status, localIp,     1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,               dev_status, globalIp,    1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,               dev_status, multicastIp, 1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,                      dev_status, rts,         1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,                      dev_status, helloSqn,    1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,               dev_status, rxBpP,       1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,               dev_status, rxBpP,       1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,               dev_status, txBpP,       1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,               dev_status, uRxBpP,      1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,               dev_status, uTxBpP,      1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,               dev_status, txTasks,     1, FIELD_RELEVANCE_MEDI),
-	FIELD_FORMAT_END
+        FIELD_FORMAT_END
 };
 
 static int32_t dev_status_creator(struct status_handl *handl, void* data)
@@ -3169,6 +3176,8 @@ static int32_t dev_status_creator(struct status_handl *handl, void* data)
 		status[i].rts = dev->totalOrigRoutes;
 		snprintf(status[i].rxBpP, sizeof(status[i].rxBpP), "%d/%.1f", (dev->udpRxBytesMean / DEVSTAT_PRECISION), (((float) dev->udpRxPacketsMean) / DEVSTAT_PRECISION));
 		snprintf(status[i].txBpP, sizeof(status[i].txBpP), "%d/%.1f", (dev->udpTxBytesMean / DEVSTAT_PRECISION), (((float) dev->udpTxPacketsMean) / DEVSTAT_PRECISION));
+		snprintf(status[i].uRxBpP, sizeof(status[i].uRxBpP), "%d/%.1f", (dev->unicastRxBytesMean / DEVSTAT_PRECISION), (((float) dev->unicastRxPacketsMean) / DEVSTAT_PRECISION));
+		snprintf(status[i].uTxBpP, sizeof(status[i].uTxBpP), "%d/%.1f", (dev->unicastTxBytesMean / DEVSTAT_PRECISION), (((float) dev->unicastTxPacketsMean) / DEVSTAT_PRECISION));
 		snprintf(status[i].txTasks, sizeof(status[i].txTasks), "%d/%d", dev->tx_task_items, txTaskTreeSizeMax);
 
 		i++;

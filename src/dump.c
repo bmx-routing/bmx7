@@ -30,6 +30,7 @@
 #include "metrics.h"
 #include "msg.h"
 #include "ip.h"
+#include "iptools.h"
 #include "dump.h"
 #include "schedule.h"
 #include "plugin.h"
@@ -124,8 +125,9 @@ void dump(struct packet_buff *pb)
 
 	uint16_t plength = pb->i.length;
 
-	dbgf(DBGL_DUMP, DBGT_NONE, "%s srcIP=%-16s dev=%-12s udpPayload=%-d",
-		direction == DUMP_DIRECTION_IN ? "in " : "out", pb->i.llip_str, dev->ifname_label.str, plength);
+	dbgf(DBGL_DUMP, DBGT_NONE, "%s dev=%-12s unicast=%d src=%-16s dst=%-16s udpPayload=%-d",
+		direction == DUMP_DIRECTION_IN ? "in " : "out", dev->ifname_label.str, pb->i.unicast, pb->i.llip_str,
+				pb->i.dst ? ip6AsStr( &(((struct sockaddr_in6*)pb->i.dst)->sin6_addr) ): "", plength);
 
 	dbgf(DBGL_DUMP, DBGT_NONE, "%s data: %s",
 		direction == DUMP_DIRECTION_IN ? "in " : "out", memAsHexString(((uint8_t*) phdr), plength));

@@ -637,7 +637,7 @@ void schedule_hello_reply(void)
 
 	while ((link = avl_iterate_item(&link_tree, &an))) {
 
-		schedule_tx_task(FRAME_TYPE_HELLO_REPLY_DHASH, NULL, &link->k.linkDev->key.local->k.nodeId,
+		schedule_tx_task(FRAME_TYPE_HELLO_REPLY_DHASH, &link->k.linkDev->key.local->k.nodeId, NULL,
 			link->k.linkDev->key.local, link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &link->k.linkDev->key.devIdx, sizeof(DEVIDX_T));
 	}
 }

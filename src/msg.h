@@ -32,6 +32,17 @@
 #define ARG_DROP_ALL_PACKETS "dropAllPackets"
 
 
+#define ARG_UNICAST_FRAMES "unicastFrames"
+#define HLP_UNICAST_FRAMES "enable frame transmission as unicast via best link to neighbor"
+#define DEF_UNICAST_FRAMES YES
+#define MIN_UNICAST_FRAMES 0
+#define MAX_UNICAST_FRAMES 2
+#define TYP_UNICAST_FRAMES_NEVER 0
+#define TYP_UNICAST_FRAMES_CAUTIOUS 1    // only on wireless links when addressing specific neighbors
+#define TYP_UNICAST_FRAMES_AGGRESSIVE 2  // only on wireless links but even when addressing all neighbors
+#define TYP_UNICAST_FRAMES_ALWAYS 3      // all interfaces to all neighbors
+
+
 #define ARG_UDPD_SIZE "prefUdpSize"
 #define HLP_UDPD_SIZE "set preferred udp-data size for send packets"
 #define MIN_UDPD_SIZE 128 //(6+4+(22+8)+32)+184=72+56=128
@@ -165,8 +176,7 @@ extern int32_t txTaskTreeSizeMax;
 	 (1 << FRAME_TYPE_CONTENT_ADV) | (1 << FRAME_TYPE_CONTENT_REQ) | \
 	 (1 << FRAME_TYPE_DESC_ADVS) | (1 << FRAME_TYPE_DESC_REQ) | \
 	 (1 << FRAME_TYPE_IID_ADV) | (1 << FRAME_TYPE_IID_REQ) | \
-/*       (1 << FRAME_TYPE_OGM_DHASH_ADV) | (1 << FRAME_TYPE_OGM_IID_ADV) |*/ \
-	 (1 << FRAME_TYPE_OGM_REQ) \
+     (1 << FRAME_TYPE_OGM_ADV) | (1 << FRAME_TYPE_OGM_REQ) \
 	 )
 
 
@@ -398,6 +408,7 @@ struct frame_handl {
 	uint16_t fixed_msg_size;
 	int32_t *tx_task_interval_min;
 	int32_t *tx_iterations;
+	uint8_t tx_unicast_frames;
 	char *name;
 	void (*tx_packet_prepare_casuals) (void);
 	void (*tx_packet_prepare_always) (void);
@@ -424,7 +435,7 @@ struct tx_task_key {
 	struct {
 
 		struct {
-			LinkNode *unicast; // ensure broadcasted (non-unicast) packets are queued first;
+			LinkNode *link; // ensure broadcasted (non-unicast) packets are queued first;
 			uint8_t sign; //ensure unsigned tx_tasks are queued first
 			uint8_t reservedA;
 			uint16_t reservedB;
@@ -487,7 +498,7 @@ void rx_packet(struct packet_buff *pb);
 #define SCHEDULE_UNKNOWN_MSGS_SIZE 0
 #define SCHEDULE_MIN_MSG_SIZE -1
 
-void schedule_tx_task(uint8_t f_type, LinkNode *unicast, CRYPTSHA_T *groupId, struct neigh_node *neigh, struct dev_node *dev, int16_t f_msgs_len, void *keyData, uint32_t keyLen);
+void schedule_tx_task(uint8_t f_type, CRYPTSHA_T *groupId, LinkNode *link, struct neigh_node *neigh, struct dev_node *dev, int16_t f_msgs_len, void *keyData, uint32_t keyLen);
 
 void register_frame_handler(struct frame_db *db, int pos, struct frame_handl *handl);
 

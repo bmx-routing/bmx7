@@ -56,6 +56,7 @@
 static int32_t drop_all_packets = DEF_DROP_ALL_PACKETS;
 
 int32_t pref_udpd_size = DEF_UDPD_SIZE;
+int32_t unicast_frames = YES;
 
 int32_t txCasualInterval = DEF_TX_CASUAL_INTERVAL;
 int32_t txMinInterval = DEF_TX_MIN_INTERVAL;
@@ -711,7 +712,7 @@ int32_t tx_frame_iterate(IDM_T iterate_msg, struct tx_frame_iterator *it)
 
 	dbgf( (dbg_frame_types & (1 << it->frame_type) ? DBGL_CHANGES : DBGL_ALL), DBGT_INFO,
 		"dbgFT=%d type=%d=%s unicast=%d",
-		dbg_frame_types, it->frame_type, handl->name, (it->ttn && it->ttn->key.f.p.unicast));
+		dbg_frame_types, it->frame_type, handl->name, (it->ttn && it->ttn->key.f.p.link));
 
 	if ((handl->tx_msg_handler && iterate_msg) || handl->tx_frame_handler) {
 
@@ -768,7 +769,7 @@ IDM_T purge_tx_task_tree(LinkNode *onlyUnicast, struct neigh_node *onlyNeigh, st
 	while ((curr = next)) {
 		next = onlyTtn ? NULL : avl_next_item(&txTask_tree, &curr->key);
 
-		if ((onlyUnicast && onlyUnicast != curr->key.f.p.unicast) || (onlyNeigh && onlyNeigh != curr->neigh) || (onlyDev && onlyDev != curr->key.f.p.dev) || (onlyTtn && onlyTtn != curr))
+		if ((onlyUnicast && onlyUnicast != curr->key.f.p.link) || (onlyNeigh && onlyNeigh != curr->neigh) || (onlyDev && onlyDev != curr->key.f.p.dev) || (onlyTtn && onlyTtn != curr))
 			continue;
 
 		if (force || (curr->tx_iterations <= 0 && ((TIME_T) (bmx_time - curr->send_ts) > (TIME_T)*(packet_frame_db->handls[curr->key.f.type].tx_task_interval_min)))) {
@@ -886,7 +887,7 @@ void tx_packets(void *unused)
 			struct tx_task_node ttn = { .key =
 				{.f =
 					{.p =
-						{.dev = nextTask->key.f.p.dev, .unicast = nextTask->key.f.p.unicast } } } };
+						{.dev = nextTask->key.f.p.dev, .link = nextTask->key.f.p.link } } } };
 			it.ttn = &ttn;
 
 			ttn.key.f.type = FRAME_TYPE_SIGNATURE_ADV;
@@ -950,7 +951,7 @@ void tx_packets(void *unused)
 
 				assertion(-502446, (it.frames_out_pos <= it.frames_out_max));
 
-				send_bmx_packet(it.ttn->key.f.p.unicast, &pb, it.ttn->key.f.p.dev, it.frames_out_pos + sizeof( struct packet_header));
+				send_bmx_packet(it.ttn->key.f.p.link, &pb, it.ttn->key.f.p.dev, it.frames_out_pos + sizeof( struct packet_header));
 			}
 
 			memset(&pb.i, 0, sizeof(pb.i));
@@ -967,7 +968,7 @@ void tx_packets(void *unused)
 	prof_stop();
 }
 
-void schedule_tx_task(uint8_t f_type, LinkNode *unicast, CRYPTSHA_T *groupId, struct neigh_node *neigh, struct dev_node *dev, int16_t f_msgs_len, void *keyData, uint32_t keyLen)
+void schedule_tx_task(uint8_t f_type, CRYPTSHA_T *groupId, LinkNode *link, struct neigh_node *neigh, struct dev_node *dev, int16_t f_msgs_len, void *keyData, uint32_t keyLen)
 {
 	assertion(-502447, (f_type <= FRAME_TYPE_MAX));
 	assertion(-502448, IMPLIES(dev, dev->active && dev->linklayer != TYP_DEV_LL_LO));
@@ -978,15 +979,15 @@ void schedule_tx_task(uint8_t f_type, LinkNode *unicast, CRYPTSHA_T *groupId, st
 	struct frame_handl *handl = &packet_frame_db->handls[f_type];
 	assertion(-502450, (handl && handl->name));
 	assertion(-502451, IMPLIES(handl->tx_iterations, *handl->tx_iterations > 0));
-	assertion(-502655, IMPLIES(unicast, (dev && dev == unicast->k.myDev)));
-	assertion(-502656, IMPLIES(unicast, (neigh && neigh == unicast->k.linkDev->key.local)));
+	assertion(-502655, IMPLIES(link, (dev && dev == link->k.myDev)));
+	assertion(-502656, IMPLIES(link, (neigh && neigh == link->k.linkDev->key.local)));
 	//assertion(-500000, IMPLIES(unicast, (neigh && unicast->k.linkDev == avl_find_item(&neigh->linkDev_tree, &unicast->k.linkDev->key.devIdx))));
 
 	if (!dev) {
 		struct avl_node *an = NULL;
 		while ((dev = avl_iterate_item(&dev_ip_tree, &an))) {
 			if (dev->active && dev->linklayer != TYP_DEV_LL_LO)
-				schedule_tx_task(f_type, NULL, groupId, neigh, dev, f_msgs_len, keyData, keyLen);
+				schedule_tx_task(f_type, groupId, NULL, neigh, dev, f_msgs_len, keyData, keyLen);
 		}
 		return;
 	}
@@ -995,7 +996,7 @@ void schedule_tx_task(uint8_t f_type, LinkNode *unicast, CRYPTSHA_T *groupId, st
 	dbgf((dbg_frame_types & (1 << f_type) ? DBGL_CHANGES : DBGL_ALL), DBGT_INFO,
 		"dbgFT=%d type=%d=%s unicast=%d, groupId=%-8s neigh=%s dev=%s msgs_len=%d data=%s len=%d",
 		dbg_frame_types, f_type, handl->name,
-		!!unicast, cryptShaAsShortStr(groupId), neigh ? cryptShaAsShortStr(&neigh->k.nodeId) : NULL,
+		!!link, cryptShaAsShortStr(groupId), neigh ? cryptShaAsShortStr(&neigh->k.nodeId) : NULL,
 		dev ? dev->ifname_label.str : NULL, f_msgs_len, memAsHexString(keyData, keyLen), keyLen);
 
 	if (dev->tx_task_items >= txTaskTreeSizeMax) {
@@ -1007,7 +1008,7 @@ void schedule_tx_task(uint8_t f_type, LinkNode *unicast, CRYPTSHA_T *groupId, st
 		.key =
 		{ .f =
 			{ .p =
-				{ .sign = (f_type >= FRAME_TYPE_SIGNATURE_ADV), .dev = dev, .unicast = unicast }, .type = f_type, .groupId = groupId ? *groupId : ZERO_CYRYPSHA } },
+				{ .sign = (f_type >= FRAME_TYPE_SIGNATURE_ADV), .dev = dev, .link = link }, .type = f_type, .groupId = groupId ? *groupId : ZERO_CYRYPSHA } },
 		.neigh = neigh, .tx_iterations = *(handl->tx_iterations),
 		.send_ts = ((TIME_T) (bmx_time - *handl->tx_task_interval_min)),
 		.frame_msgs_length = (f_msgs_len == SCHEDULE_MIN_MSG_SIZE ? handl->min_msg_size : f_msgs_len)
@@ -1162,15 +1163,15 @@ struct opt_type msg_options[]=
 //       ord parent long_name             shrt Attributes                            *ival              min                 max                default              *func,*syntax,*help
 
 #ifndef LESS_OPTIONS
-	{ODI,0,ARG_FREF,                  0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &dextReferencing,MIN_FREF,           MAX_FREF,          DEF_FREF,0,           opt_update_description,
+		{ODI,0,ARG_FREF,                  0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &dextReferencing,MIN_FREF,           MAX_FREF,          DEF_FREF,0,           opt_update_description,
 			ARG_VALUE_FORM, HLP_FREF},
-	{ODI,0,ARG_FZIP,                  0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &dextCompression,MIN_FZIP,           MAX_FZIP,          DEF_FZIP,0,           opt_update_description,
+		{ODI,0,ARG_FZIP,                  0,  9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &dextCompression,MIN_FZIP,           MAX_FZIP,          DEF_FZIP,0,           opt_update_description,
 			ARG_VALUE_FORM, HLP_FZIP},
         {ODI,0,ARG_TX_MIN_INTERVAL,       0,  9,1, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &txMinInterval, MIN_TX_MIN_INTERVAL, MAX_TX_MIN_INTERVAL, DEF_TX_MIN_INTERVAL,0, NULL,
 			ARG_VALUE_FORM,	HLP_TX_MIN_INTERVAL},
         {ODI,0,ARG_TX_CASUAL_INTERVAL,    0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &txCasualInterval,MIN_TX_CASUAL_INTERVAL, MAX_TX_CASUAL_INTERVAL,DEF_TX_CASUAL_INTERVAL,0,    NULL,
 			ARG_VALUE_FORM,	HLP_TX_CASUAL_INTERVAL},
-        {ODI,0,ARG_TX_BUCKET_DRAIN,       0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &txBucketDrain,   MIN_TX_BUCKET_DRAIN,MAX_TX_BUCKET_DRAIN,DEF_TX_BUCKET_DRAIN,0,    NULL,
+		{ODI,0,ARG_TX_BUCKET_DRAIN,       0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &txBucketDrain,   MIN_TX_BUCKET_DRAIN,MAX_TX_BUCKET_DRAIN,DEF_TX_BUCKET_DRAIN,0,    NULL,
 			ARG_VALUE_FORM,	HLP_TX_BUCKET_DRAIN},
         {ODI,0,ARG_TX_BUCKET_SIZE,        0,  9,1,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,      &txBucketSize,    MIN_TX_BUCKET_SIZE, MAX_TX_BUCKET_SIZE,DEF_TX_BUCKET_SIZE,0,    NULL,
 			ARG_VALUE_FORM,	HLP_TX_BUCKET_SIZE},
@@ -1182,10 +1183,11 @@ struct opt_type msg_options[]=
 			ARG_VALUE_FORM,	"set acceptable burst-sqn overlap for detecting duplicate packets"},
         {ODI,0,ARG_TX_TREE_SIZE_MAX,      0,  9,1, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &txTaskTreeSizeMax, MIN_TX_TREE_SIZE_MAX, MAX_TX_TREE_SIZE_MAX, DEF_TX_TREE_SIZE_MAX,0, NULL,
 			ARG_VALUE_FORM,	"set maximum tree size for scheduled tx tasks"},
-        {ODI, 0, ARG_UDPD_SIZE,            0,  9,0, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &pref_udpd_size, MIN_UDPD_SIZE,      MAX_UDPD_SIZE,     DEF_UDPD_SIZE,0,      0,
-			ARG_VALUE_FORM,	HLP_UDPD_SIZE}
-	,
-	{ODI,0,ARG_DROP_ALL_PACKETS,     0, 9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&drop_all_packets,	MIN_DROP_ALL_PACKETS,	MAX_DROP_ALL_PACKETS,	DEF_DROP_ALL_PACKETS,0,	0,
+        {ODI,0,ARG_UDPD_SIZE,             0,  9,0, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &pref_udpd_size, MIN_UDPD_SIZE,      MAX_UDPD_SIZE,     DEF_UDPD_SIZE,0,      0,
+			ARG_VALUE_FORM,	HLP_UDPD_SIZE},
+        {ODI,0,ARG_UNICAST_FRAMES,       0,   9,0, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &unicast_frames, 0,      		1,     DEF_UNICAST_FRAMES ,0,      0,
+		    ARG_VALUE_FORM,	"Send protocol frames as unicast. 0=Never, 1=onWireless, 2=always"},
+		{ODI,0,ARG_DROP_ALL_PACKETS,     0, 9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&drop_all_packets,	MIN_DROP_ALL_PACKETS,	MAX_DROP_ALL_PACKETS,	DEF_DROP_ALL_PACKETS,0,	0,
 			ARG_VALUE_FORM,	"drop all received packets"}
         ,
 #endif

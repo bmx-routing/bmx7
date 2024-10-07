@@ -220,10 +220,10 @@ void update_orig_dhash(struct desc_content *dcNew)
 
 	cb_plugin_hooks(PLUGIN_CB_DESCRIPTION_CREATED, on);
 
-	if (unsolicitedDescAdvs || dcNew->kn == myKey) {
-		schedule_tx_task(FRAME_TYPE_DESC_ADVS, NULL, NULL, NULL, NULL, dcNew->desc_frame_len, &dcNew->dHash, sizeof(DHASH_T));
-		//schedule_tx_task(FRAME_TYPE_IID_ADV, NULL, NULL, NULL, NULL, SCHEDULE_MIN_MSG_SIZE, &iid, sizeof(iid));
-	}
+	if (dcNew->kn == myKey)
+		schedule_tx_task(FRAME_TYPE_DESC_ADVS, NULL, TYP_UNICAST_FRAMES_AGGRESSIVE_WIFI, NULL, NULL, NULL, dcNew->desc_frame_len, &dcNew->dHash, sizeof(DHASH_T));
+	else if (unsolicitedDescAdvs)
+        schedule_tx_task(FRAME_TYPE_DESC_ADVS, NULL, TYP_UNICAST_FRAMES_CAUTIOUS_WIFI, NULL, NULL, NULL, dcNew->desc_frame_len, &dcNew->dHash, sizeof(DHASH_T));
 
 	neighRefs_update(on->kn);
 }
@@ -495,11 +495,16 @@ int32_t rx_msg_description_request(struct rx_frame_iterator *it)
 			it->f_handl->name, pb->i.llip_str, cryptShaAsString(&hdr->dest_kHash), cryptShaAsString(&msg->kHash));
 
 		struct key_node *kn = keyNode_get(&msg->kHash);
+        LinkNode *verifiedLink = pb->i.verifiedLink;
+        LinkNode *bestLink = verifiedLink ? verifiedLink->k.linkDev->key.local->best_tq_link : NULL;
+        assertion(-500000, IMPLIES(verifiedLink, bestLink));
 
-		if (kn && kn->on && (pb->i.verifiedLink || kn == myKey)) {
+		if (kn && kn->on && (bestLink || kn == myKey)) {
 
-			schedule_tx_task(FRAME_TYPE_DESC_ADVS, NULL, NULL, NULL, pb->i.iif, kn->on->dc->desc_frame_len, &kn->on->dc->dHash, sizeof(kn->on->dc->dHash));
-
+            if (bestLink)
+                schedule_tx_task(FRAME_TYPE_DESC_ADVS, NULL, TYP_UNICAST_FRAMES_CAUTIOUS_WIFI, bestLink, NULL, NULL, kn->on->dc->desc_frame_len, &kn->on->dc->dHash, sizeof(kn->on->dc->dHash));
+            else
+                schedule_tx_task(FRAME_TYPE_DESC_ADVS, NULL, TYP_UNICAST_FRAMES_NEVER, NULL, NULL, pb->i.iif, kn->on->dc->desc_frame_len, &kn->on->dc->dHash, sizeof(kn->on->dc->dHash));
 		} else {
 			dbgf_sys(DBGT_WARN, "UNVERIFIED neigh=%s llip=%s or non-promoted kHash=%s kn=%d on=%d nextDc=%d",
 				pb->i.verifiedLink ? cryptShaAsString(&pb->i.verifiedLink->k.linkDev->key.local->k.nodeId) : NULL,
@@ -654,7 +659,7 @@ int32_t rx_frame_iid_request(struct rx_frame_iterator *it)
 			IID_T iid = ntohs(msg->receiverIID4x);
 			if ((in = iid_get_node_by_myIID4x(iid))) {
 
-				schedule_tx_task(FRAME_TYPE_IID_ADV, NULL, NULL, NULL, nn->best_tq_link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &iid, sizeof(iid));
+				schedule_tx_task(FRAME_TYPE_IID_ADV, NULL, TYP_UNICAST_FRAMES_CAUTIOUS_WIFI, nn->best_tq_link, NULL, NULL, SCHEDULE_MIN_MSG_SIZE, &iid, sizeof(iid));
 
 				dbgf_track(DBGT_INFO, "neigh=%s iid=%d", nn->on->k.hostname, iid);
 			}

@@ -38,9 +38,9 @@
 #define MIN_UNICAST_FRAMES 0
 #define MAX_UNICAST_FRAMES 2
 #define TYP_UNICAST_FRAMES_NEVER 0
-#define TYP_UNICAST_FRAMES_CAUTIOUS 1    // only on wireless links when addressing specific neighbors
-#define TYP_UNICAST_FRAMES_AGGRESSIVE 2  // only on wireless links but even when addressing all neighbors
-#define TYP_UNICAST_FRAMES_ALWAYS 3      // all interfaces to all neighbors
+#define TYP_UNICAST_FRAMES_CAUTIOUS_WIFI 1    // only on wireless links when addressing specific neighbors
+#define TYP_UNICAST_FRAMES_AGGRESSIVE_WIFI 2  // only on wireless links but even when addressing all neighbors
+#define TYP_UNICAST_FRAMES_EVEN_WIRED 3      // all interfaces to all neighbors
 
 
 #define ARG_UDPD_SIZE "prefUdpSize"
@@ -408,7 +408,6 @@ struct frame_handl {
 	uint16_t fixed_msg_size;
 	int32_t *tx_task_interval_min;
 	int32_t *tx_iterations;
-	uint8_t tx_unicast_frames;
 	char *name;
 	void (*tx_packet_prepare_casuals) (void);
 	void (*tx_packet_prepare_always) (void);
@@ -435,7 +434,7 @@ struct tx_task_key {
 	struct {
 
 		struct {
-			LinkNode *link; // ensure broadcasted (non-unicast) packets are queued first;
+			LinkNode *unicastViaLink; // ensure broadcasted (non-unicast) packets are queued first;
 			uint8_t sign; //ensure unsigned tx_tasks are queued first
 			uint8_t reservedA;
 			uint16_t reservedB;
@@ -498,7 +497,7 @@ void rx_packet(struct packet_buff *pb);
 #define SCHEDULE_UNKNOWN_MSGS_SIZE 0
 #define SCHEDULE_MIN_MSG_SIZE -1
 
-void schedule_tx_task(uint8_t f_type, CRYPTSHA_T *groupId, LinkNode *link, struct neigh_node *neigh, struct dev_node *dev, int16_t f_msgs_len, void *keyData, uint32_t keyLen);
+void schedule_tx_task(uint8_t f_type, CRYPTSHA_T *groupId, uint8_t unicast, LinkNode *link, struct neigh_node *neigh, struct dev_node *dev, int16_t f_msgs_len, void *keyData, uint32_t keyLen);
 
 void register_frame_handler(struct frame_db *db, int pos, struct frame_handl *handl);
 

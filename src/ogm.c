@@ -115,7 +115,7 @@ void schedule_ogm_aggregations(void)
 
 		ogm_aggreg_sqn_send = ogm_aggreg_sqn_max;
 		int16_t sz = (getOgmAggregNode(ogm_aggreg_sqn_max))->msgsLen;
-		schedule_tx_task(FRAME_TYPE_OGM_ADV, NULL, NULL, NULL, NULL, sz, &ogm_aggreg_sqn_max, sizeof(ogm_aggreg_sqn_max));
+		schedule_tx_task(FRAME_TYPE_OGM_ADV, NULL, TYP_UNICAST_FRAMES_AGGRESSIVE_WIFI, NULL, NULL, NULL, sz, &ogm_aggreg_sqn_max, sizeof(ogm_aggreg_sqn_max));
 	}
 }
 
@@ -384,8 +384,7 @@ void schedule_ogm_req(void)
 				AGGREG_SQN_T sqn = (nn->ogm_aggreg_max - cnt);
 
 				if (!bit_get(nn->ogm_aggreg_sqns, AGGREG_SQN_CACHE_RANGE, sqn)) {
-					struct dev_node *dev = nn->best_tq_link->k.myDev;
-					schedule_tx_task(FRAME_TYPE_OGM_REQ, &nn->k.nodeId, NULL, nn, dev, SCHEDULE_MIN_MSG_SIZE, &sqn, sizeof(sqn));
+					schedule_tx_task(FRAME_TYPE_OGM_REQ, &nn->k.nodeId, TYP_UNICAST_FRAMES_CAUTIOUS_WIFI, nn->best_tq_link, NULL, NULL, SCHEDULE_MIN_MSG_SIZE, &sqn, sizeof(sqn));
 				}
 			}
 		}
@@ -434,8 +433,7 @@ int32_t rx_msg_ogm_aggreg_request(struct rx_frame_iterator *it)
 		struct neigh_node *nn = it->pb->i.verifiedLink->k.linkDev->key.local;
 		struct OgmAggreg_node *oan = getOgmAggregNode(sqn);
 
-		schedule_tx_task(FRAME_TYPE_OGM_ADV, NULL, nn->best_tq_link, nn, nn->best_tq_link->k.myDev, oan->msgsLen, &sqn, sizeof(sqn));
-//		schedule_tx_task(FRAME_TYPE_OGM_ADV, NULL, NULL, NULL, nn->best_tq_link->k.myDev, oan->msgsLen, &sqn, sizeof(sqn));
+		schedule_tx_task(FRAME_TYPE_OGM_ADV, NULL, TYP_UNICAST_FRAMES_CAUTIOUS_WIFI, nn->best_tq_link, NULL, NULL, oan->msgsLen, &sqn, sizeof(sqn));
 
 		dbgf_track(DBGT_INFO, "sqn=%d ogms=%d size=%d", sqn, oan->tree.items, oan->msgsLen);
 	}
@@ -812,7 +810,6 @@ int32_t init_ogm(void)
 	handl.data_header_size = sizeof(struct hdr_ogm_adv);
 	handl.min_msg_size = sizeof(struct msg_ogm_adv);
 	handl.fixed_msg_size = 0;
-	handl.tx_unicast_frames = TYP_UNICAST_FRAMES_CAUTIOUS;
 	handl.tx_frame_handler = tx_frame_ogm_aggreg_advs;
 	handl.rx_frame_handler = rx_frame_ogm_aggreg_advs;
 	handl.rx_minNeighCol = KCNeighbor;

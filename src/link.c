@@ -172,12 +172,12 @@ void lndev_assign_best(struct neigh_node *onlyLocal, LinkNode *onlyLink)
 				break;
 		}
 
-
-		//		assertion(-500406, (local->best_rp_link));
-		//		assertion(-501086, (local->best_tp_link));
+		assertion(-500406, (local->best_rq_link));
 
 		if (!local->best_tq_link || local->best_tq_link->timeaware_tq_probe == 0)
 			local->best_tq_link = local->best_rq_link;
+
+		assertion(-501086, (local->best_tq_link));
 
 		if (onlyLocal)
 			break;
@@ -378,6 +378,10 @@ LinkNode *getLinkNode(struct dev_node *dev, IPX_T *llip, DEVIDX_T idx, struct ne
 	assertion(-502196, (link->k.linkDev == linkDev));
 
 	lndev_assign_best(NULL, NULL);
+
+	assertion(-500000, link->k.linkDev->key.local);
+    assertion(-500000, link->k.linkDev->key.local->best_rq_link);
+    assertion(-500000, link->k.linkDev->key.local->best_tq_link);
 
 	return link;
 }
@@ -607,7 +611,7 @@ void schedule_hello_adv(void)
 
 		_hello_dev_capacities();
 
-		schedule_tx_task(FRAME_TYPE_HELLO_ADV, NULL, NULL, NULL, NULL, SCHEDULE_MIN_MSG_SIZE, 0, 0);
+		schedule_tx_task(FRAME_TYPE_HELLO_ADV, NULL, TYP_UNICAST_FRAMES_NEVER, NULL, NULL, NULL, SCHEDULE_MIN_MSG_SIZE, 0, 0);
 	}
 	prof_stop();
 }
@@ -637,7 +641,7 @@ void schedule_hello_reply(void)
 
 	while ((link = avl_iterate_item(&link_tree, &an))) {
 
-		schedule_tx_task(FRAME_TYPE_HELLO_REPLY_DHASH, &link->k.linkDev->key.local->k.nodeId, NULL,
+		schedule_tx_task(FRAME_TYPE_HELLO_REPLY_DHASH, &link->k.linkDev->key.local->k.nodeId, TYP_UNICAST_FRAMES_NEVER, NULL,
 			link->k.linkDev->key.local, link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &link->k.linkDev->key.devIdx, sizeof(DEVIDX_T));
 	}
 }

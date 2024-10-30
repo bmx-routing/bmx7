@@ -488,8 +488,9 @@ int32_t create_chash_tlv(struct tlv_hdr *tlv, uint8_t *f_data, uint32_t f_len, u
 STATIC_FUNC
 void content_resolve_(struct key_node *kn, struct content_node *cn, struct neigh_node *viaNeigh)
 {
-	dbgf_track(DBGT_INFO, "cHash=%s body=%d interval=%d usages=%d kn=%s",
-		cryptShaAsShortStr(&cn->chash), cn->f_body_len, resolveInterval, cn->usage_tree.items, cn->kn ? cn->kn->bookedState->secName : NULL);
+	dbgf_track(DBGT_INFO, "cHash=%s body=%d interval=%d usages=%d kn=%s neigh=%d bestTqLink=%d pktIdTime=%d",
+		cryptShaAsShortStr(&cn->chash), cn->f_body_len, resolveInterval, cn->usage_tree.items, cn->kn ? cn->kn->bookedState->secName : NULL,
+		!!viaNeigh, viaNeigh && viaNeigh->best_tq_link, kn->pktIdTime);
 
 	if (cn->f_body)
 		return;
@@ -497,7 +498,7 @@ void content_resolve_(struct key_node *kn, struct content_node *cn, struct neigh
 	if (viaNeigh) {
 		schedule_tx_task(FRAME_TYPE_CONTENT_REQ, &viaNeigh->k.nodeId, TYP_UNICAST_FRAMES_CAUTIOUS_WIFI, viaNeigh->best_tq_link, NULL, NULL, SCHEDULE_MIN_MSG_SIZE, &cn->chash, sizeof(CRYPTSHA_T));
 	} else if (kn->pktIdTime) {
-		schedule_tx_task(FRAME_TYPE_CONTENT_REQ, &kn->kHash, TYP_UNICAST_FRAMES_CAUTIOUS_WIFI, NULL, NULL, NULL, SCHEDULE_MIN_MSG_SIZE, &cn->chash, sizeof(CRYPTSHA_T));
+		schedule_tx_task(FRAME_TYPE_CONTENT_REQ, &kn->kHash, TYP_UNICAST_FRAMES_NEVER, NULL, NULL, NULL, SCHEDULE_MIN_MSG_SIZE, &cn->chash, sizeof(CRYPTSHA_T));
 	}
 }
 

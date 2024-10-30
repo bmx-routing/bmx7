@@ -115,7 +115,7 @@ void schedule_ogm_aggregations(void)
 
 		ogm_aggreg_sqn_send = ogm_aggreg_sqn_max;
 		int16_t sz = (getOgmAggregNode(ogm_aggreg_sqn_max))->msgsLen;
-		schedule_tx_task(FRAME_TYPE_OGM_ADV, TYP_UNICAST_FRAMES_AGGRESSIVE_WIFI, NULL, NULL, NULL, NULL, sz, &ogm_aggreg_sqn_max, sizeof(ogm_aggreg_sqn_max));
+		schedule_tx_task(FRAME_TYPE_OGM_ADV, YES, NULL, NULL, NULL, NULL, sz, &ogm_aggreg_sqn_max, sizeof(ogm_aggreg_sqn_max));
 	}
 }
 
@@ -384,7 +384,7 @@ void schedule_ogm_req(void)
 				AGGREG_SQN_T sqn = (nn->ogm_aggreg_max - cnt);
 
 				if (!bit_get(nn->ogm_aggreg_sqns, AGGREG_SQN_CACHE_RANGE, sqn)) {
-					schedule_tx_task(FRAME_TYPE_OGM_REQ, TYP_UNICAST_FRAMES_CAUTIOUS_WIFI, nn->best_tq_link, NULL, &nn->k.nodeId, nn, SCHEDULE_MIN_MSG_SIZE, &sqn, sizeof(sqn));
+					schedule_tx_task(FRAME_TYPE_OGM_REQ, NO, nn->best_tq_link, NULL, &nn->k.nodeId, nn, SCHEDULE_MIN_MSG_SIZE, &sqn, sizeof(sqn));
 				}
 			}
 		}
@@ -433,7 +433,7 @@ int32_t rx_msg_ogm_aggreg_request(struct rx_frame_iterator *it)
 		struct neigh_node *nn = it->pb->i.verifiedLink->k.linkDev->key.local;
 		struct OgmAggreg_node *oan = getOgmAggregNode(sqn);
 
-		schedule_tx_task(FRAME_TYPE_OGM_ADV, TYP_UNICAST_FRAMES_CAUTIOUS_WIFI, nn->best_tq_link, NULL, NULL, NULL, oan->msgsLen, &sqn, sizeof(sqn));
+		schedule_tx_task(FRAME_TYPE_OGM_ADV, NO, nn->best_tq_link, NULL, NULL, NULL, oan->msgsLen, &sqn, sizeof(sqn));
 
 		dbgf_track(DBGT_INFO, "sqn=%d ogms=%d size=%d", sqn, oan->tree.items, oan->msgsLen);
 	}

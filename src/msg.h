@@ -34,13 +34,12 @@
 
 #define ARG_UNICAST_FRAMES "unicastFrames"
 #define HLP_UNICAST_FRAMES "enable frame transmission as unicast via best link to neighbor"
-#define DEF_UNICAST_FRAMES YES
+#define DEF_UNICAST_FRAMES TYP_UNICAST_FRAMES_WIFI
 #define MIN_UNICAST_FRAMES 0
 #define MAX_UNICAST_FRAMES 2
 #define TYP_UNICAST_FRAMES_NEVER 0
-#define TYP_UNICAST_FRAMES_CAUTIOUS_WIFI 1    // only on wireless links when addressing specific neighbors
-#define TYP_UNICAST_FRAMES_AGGRESSIVE_WIFI 2  // only on wireless links but even when addressing all neighbors
-#define TYP_UNICAST_FRAMES_EVEN_WIRED 3      // all interfaces to all neighbors
+#define TYP_UNICAST_FRAMES_WIFI 1    // only on wireless links when addressing specific neighbors
+#define TYP_UNICAST_FRAMES_ALWAYS 2      // all interfaces to all neighbors
 
 
 #define ARG_UDPD_SIZE "prefUdpSize"

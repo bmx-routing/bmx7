@@ -614,7 +614,7 @@ int process_packet_signature(struct rx_frame_iterator *it)
 		goto_error_return(finish, "outdated descSqn", TLV_RX_DATA_PROCESSED);
 
 	if (!claimedKey->content->f_body) {
-		content_resolve(claimedKey, NULL);
+		content_resolve(claimedKey, NULL, pb->i.iif);
 		goto_error_return(finish, "unresolved key", TLV_RX_DATA_PROCESSED);
 	}
 
@@ -623,7 +623,7 @@ int process_packet_signature(struct rx_frame_iterator *it)
 		((claimedKey->on && claimedKey->on->dc->descSqn == descSqn) ? claimedKey->on->dc : NULL)))) {
 
 		struct schedule_dsc_req req = { .iid = 0, .descSqn = descSqn };
-		schedule_tx_task(FRAME_TYPE_DESC_REQ, TYP_UNICAST_FRAMES_NEVER, NULL, pb->i.iif, &claimedKey->kHash, NULL, SCHEDULE_MIN_MSG_SIZE, &req, sizeof(req));
+		schedule_tx_task(FRAME_TYPE_DESC_REQ, NO, NULL, pb->i.iif, &claimedKey->kHash, NULL, SCHEDULE_MIN_MSG_SIZE, &req, sizeof(req));
 		goto_error_return(finish, "unknown desc", TLV_RX_DATA_PROCESSED);
 	} else {
 		dc->referred_by_others_timestamp = bmx_time;
@@ -633,7 +633,7 @@ int process_packet_signature(struct rx_frame_iterator *it)
 		goto_error_return(finish, "< KCCertified || (> KRQualifying && < KCNeighbor)", TLV_RX_DATA_PROCESSED);
 
 	if (dc->unresolvedContentCounter) {
-		content_resolve(claimedKey, NULL);
+		content_resolve(claimedKey, NULL, pb->i.iif);
 		goto_error_return(finish, "unresovled desc content", TLV_RX_DATA_PROCESSED);
 	}
 

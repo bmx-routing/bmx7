@@ -968,7 +968,7 @@ void tx_packets(void *unused)
 	prof_stop();
 }
 
-void schedule_tx_task(uint8_t f_type, uint8_t unicast, LinkNode *txLink, struct dev_node *txDev, CRYPTSHA_T *groupId, struct neigh_node *neigh, int16_t f_msgs_len, void *keyData, uint32_t keyLen)
+void schedule_tx_task(uint8_t f_type, uint8_t viaAllLinks, LinkNode *txLink, struct dev_node *txDev, CRYPTSHA_T *groupId, struct neigh_node *neighCtx, int16_t f_msgs_len, void *keyData, uint32_t keyLen)
 {
 	assertion(-502447, (f_type <= FRAME_TYPE_MAX));
 	assertion(-502448, IMPLIES(txDev, txDev->active && txDev->linklayer != TYP_DEV_LL_LO));
@@ -980,48 +980,56 @@ void schedule_tx_task(uint8_t f_type, uint8_t unicast, LinkNode *txLink, struct 
 	assertion(-502450, (handl && handl->name));
 	assertion(-502451, IMPLIES(handl->tx_iterations, *handl->tx_iterations > 0));
 	assertion(-502655, IMPLIES(txLink && txDev, (txDev == txLink->k.myDev)));
-	assertion(-502656, IMPLIES(txLink && neigh, (neigh == txLink->k.linkDev->key.local)));
-	//assertion(-500000, IMPLIES(unicast, (neigh && unicast->k.linkDev == avl_find_item(&neigh->linkDev_tree, &unicast->k.linkDev->key.devIdx))));
+//  assertion(-502656, IMPLIES(txLink && neighCtx, (neighCtx == txLink->k.linkDev->key.local)));
+//  assertion(-500000, IMPLIES(unicast, (neigh && unicast->k.linkDev == avl_find_item(&neigh->linkDev_tree, &unicast->k.linkDev->key.devIdx))));
 //  neigh = txLink ? txLink->k.linkDev->key.local : neigh;
     txDev = txLink ? txLink->k.myDev: txDev;
 
-	if (unicast_frames == TYP_UNICAST_FRAMES_NEVER || unicast == TYP_UNICAST_FRAMES_NEVER)
+	if (   (unicast_frames == TYP_UNICAST_FRAMES_NEVER)
+	    || (unicast_frames != TYP_UNICAST_FRAMES_ALWAYS && txDev->linklayer == TYP_DEV_LL_LAN) )    // Do not send unicast via non-wifi interfaces unless configured
     {
-		txLink = NULL;
-    }
-	else if (!txLink && !txDev) {
-        if (unicast_frames >= TYP_UNICAST_FRAMES_AGGRESSIVE_WIFI || unicast >= TYP_UNICAST_FRAMES_AGGRESSIVE_WIFI) {
-            struct avl_node *an = NULL;
-            struct neigh_node *nn = NULL;
-            while ((nn = avl_iterate_item(&local_tree, &an))) {
-                if ((txLink = nn->best_tq_link) && (txDev = txLink->k.myDev)) {
-                    assertion(-500000, (txDev->active && txDev->linklayer != TYP_DEV_LL_LO));
-                    if (unicast_frames >= TYP_UNICAST_FRAMES_EVEN_WIRED || unicast >= TYP_UNICAST_FRAMES_EVEN_WIRED || txDev->linklayer == TYP_DEV_LL_WIFI)
-                        schedule_tx_task(f_type, unicast, txLink, NULL, groupId, neigh, f_msgs_len, keyData, keyLen );
+
+        txLink = NULL;
+
+	} else if (!txDev && viaAllLinks) {
+        struct avl_node *dan = NULL;
+        while ((txDev = avl_iterate_item(&dev_ip_tree, &dan))) {
+            if (txDev->active && txDev->linklayer != TYP_DEV_LL_LO) {
+                IDM_T sendBrc = NO;
+                struct avl_node *nan = NULL;
+                struct neigh_node *txNeigh = NULL;
+                while ((txNeigh = avl_iterate_item(&local_tree, &nan))) {
+                    if ((txLink = txNeigh->best_tq_link) && (txDev == txLink->k.myDev)) {
+                        if (unicast_frames >= TYP_UNICAST_FRAMES_ALWAYS || txDev->linklayer == TYP_DEV_LL_WIFI) {
+                            schedule_tx_task(f_type, NO, txLink, txDev, groupId, neighCtx, f_msgs_len, keyData, keyLen);
+                        } else {
+                            sendBrc = YES;
+                        }
+                    }
+                }
+                if (sendBrc) {
+                    schedule_tx_task(f_type, NO, NULL, txDev, groupId, neighCtx, f_msgs_len, keyData, keyLen);
                 }
             }
-		}
-		return;
+        }
+        return;
 	}
 
     if (!txDev) {
-        struct avl_node *an = NULL;
-        while ((txDev = avl_iterate_item(&dev_ip_tree, &an))) {
+        struct avl_node *dan = NULL;
+        while ((txDev = avl_iterate_item(&dev_ip_tree, &dan))) {
             if (txDev->active && txDev->linklayer != TYP_DEV_LL_LO)
-                schedule_tx_task(f_type, unicast, NULL,  txDev, groupId, neigh, f_msgs_len, keyData, keyLen);
+                schedule_tx_task(f_type, viaAllLinks, NULL,  txDev, groupId, neighCtx, f_msgs_len, keyData, keyLen);
         }
         return;
     }
 
     assertion(-500000, txDev);
-    // Do not send unicast via non-wifi interfaces unless configured
-    if (unicast_frames != TYP_UNICAST_FRAMES_EVEN_WIRED && unicast != TYP_UNICAST_FRAMES_EVEN_WIRED && txDev->linklayer == TYP_DEV_LL_LAN)
-        txLink = NULL;
 
-	dbgf((dbg_frame_types & (1 << f_type) ? DBGL_CHANGES : DBGL_ALL), DBGT_INFO,
+    dbgf((dbg_frame_types & (1 << f_type) ? DBGL_CHANGES : DBGL_ALL), DBGT_INFO,
 		"dbgFT=%d type=%d=%s unicast=%d, groupId=%-8s neigh=%s dev=%s msgs_len=%d data=%s len=%d",
 		dbg_frame_types, f_type, handl->name,
-		!!txLink, cryptShaAsShortStr(groupId), neigh ? cryptShaAsShortStr(&neigh->k.nodeId) : NULL,
+		!!txLink, cryptShaAsShortStr(groupId), neighCtx ? cryptShaAsShortStr(&neighCtx->k.nodeId) : NULL,
 		txDev ? txDev->ifname_label.str : NULL, f_msgs_len, memAsHexString(keyData, keyLen), keyLen);
 
 	if (txDev->tx_task_items >= txTaskTreeSizeMax) {
@@ -1031,7 +1039,7 @@ void schedule_tx_task(uint8_t f_type, uint8_t unicast, LinkNode *txLink, struct 
 
 	struct tx_task_node test = {
 		.key = { .f = { .p = { .sign = (f_type >= FRAME_TYPE_SIGNATURE_ADV), .txDev = txDev, .unicastViaLink = txLink }, .type = f_type, .groupId = groupId ? *groupId : ZERO_CYRYPSHA } },
-		.neigh = neigh, .tx_iterations = *(handl->tx_iterations),
+		.neigh = neighCtx, .tx_iterations = *(handl->tx_iterations),
 		.send_ts = ((TIME_T) (bmx_time - *handl->tx_task_interval_min)),
 		.frame_msgs_length = (f_msgs_len == SCHEDULE_MIN_MSG_SIZE ? handl->min_msg_size : f_msgs_len)
 	};

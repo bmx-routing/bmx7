@@ -611,7 +611,7 @@ void schedule_hello_adv(void)
 
 		_hello_dev_capacities();
 
-		schedule_tx_task(FRAME_TYPE_HELLO_ADV, TYP_UNICAST_FRAMES_NEVER, NULL, NULL, NULL, NULL, SCHEDULE_MIN_MSG_SIZE, 0, 0);
+		schedule_tx_task(FRAME_TYPE_HELLO_ADV, NO, NULL, NULL, NULL, NULL, SCHEDULE_MIN_MSG_SIZE, 0, 0);
 	}
 	prof_stop();
 }
@@ -641,7 +641,7 @@ void schedule_hello_reply(void)
 
 	while ((link = avl_iterate_item(&link_tree, &an))) {
 
-		schedule_tx_task(FRAME_TYPE_HELLO_REPLY_DHASH, TYP_UNICAST_FRAMES_NEVER, NULL, link->k.myDev, &link->k.linkDev->key.local->k.nodeId, link->k.linkDev->key.local,
+		schedule_tx_task(FRAME_TYPE_HELLO_REPLY_DHASH, NO, NULL, link->k.myDev, &link->k.linkDev->key.local->k.nodeId, link->k.linkDev->key.local,
 		                 SCHEDULE_MIN_MSG_SIZE, &link->k.linkDev->key.devIdx, sizeof(DEVIDX_T));
 	}
 }

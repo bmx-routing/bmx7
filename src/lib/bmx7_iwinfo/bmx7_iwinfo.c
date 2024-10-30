@@ -189,7 +189,7 @@ void get_link_rate(struct dev_node *tDev)
 
 					struct tp_test_key tk = { .duration = linkBurstDuration, .endTime = 0, .packetSize = linkBurstPacketSize, .totalSend = 0 };
 
-					schedule_tx_task(FRAME_TYPE_TRASH_ADV, TYP_UNICAST_FRAMES_CAUTIOUS_WIFI, oLink, NULL, &oLink->k.linkDev->key.local->k.nodeId, NULL, tk.packetSize, &tk, sizeof(tk));
+					schedule_tx_task(FRAME_TYPE_TRASH_ADV, NO, oLink, NULL, &oLink->k.linkDev->key.local->k.nodeId, NULL, tk.packetSize, &tk, sizeof(tk));
 
 
 				} else if ( ((TIME_T) (bmx_time - oLink->wifiStats.txProbeTime)) >= ((TIME_T) linkProbeInterval) && linkProbeInterval && linkProbePacketSize) {
@@ -200,7 +200,7 @@ void get_link_rate(struct dev_node *tDev)
 
 					struct tp_test_key tk = { .duration = 0, .endTime = 0, .packetSize = linkProbePacketSize, .totalSend = 0 };
 
-					schedule_tx_task(FRAME_TYPE_TRASH_ADV, TYP_UNICAST_FRAMES_CAUTIOUS_WIFI, oLink, NULL, &oLink->k.linkDev->key.local->k.nodeId, NULL, tk.packetSize, &tk, sizeof(tk));
+					schedule_tx_task(FRAME_TYPE_TRASH_ADV, NO, oLink, NULL, &oLink->k.linkDev->key.local->k.nodeId, NULL, tk.packetSize, &tk, sizeof(tk));
 
 				}
 			}
@@ -289,7 +289,7 @@ int32_t tx_frame_trash_adv(struct tx_frame_iterator *it)
 
 		TK.totalSend += TK.packetSize;
 
-		schedule_tx_task(FRAME_TYPE_TRASH_ADV, TYP_UNICAST_FRAMES_CAUTIOUS_WIFI, link, NULL, &link->k.linkDev->key.local->k.nodeId, NULL, TK.packetSize, &TK, sizeof(TK));
+		schedule_tx_task(FRAME_TYPE_TRASH_ADV, NO, link, NULL, &link->k.linkDev->key.local->k.nodeId, NULL, TK.packetSize, &TK, sizeof(TK));
 	}
 
 	link->wifiStats.txBurstPackets++;

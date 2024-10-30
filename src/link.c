@@ -567,11 +567,11 @@ int32_t tx_msg_hello_adv(struct tx_frame_iterator *it)
 	struct tx_task_node *ttn = it->ttn;
 	struct msg_hello_adv *adv = (struct msg_hello_adv *) (tx_iterator_cache_msg_ptr(it));
 
-	HELLO_SQN_T sqn_in = ttn->key.f.p.dev->link_hello_sqn = ((HELLO_SQN_MASK)&(ttn->key.f.p.dev->link_hello_sqn + 1));
+	HELLO_SQN_T sqn_in = ttn->key.f.p.txDev->link_hello_sqn = ((HELLO_SQN_MASK)&(ttn->key.f.p.txDev->link_hello_sqn + 1));
 
 	adv->hello_sqn = htons(sqn_in);
 
-	dbgf_all(DBGT_INFO, "%s %s SQN %d", ttn->key.f.p.dev->ifname_label.str, ttn->key.f.p.dev->ip_llocal_str, sqn_in);
+	dbgf_all(DBGT_INFO, "%s %s SQN %d", ttn->key.f.p.txDev->ifname_label.str, ttn->key.f.p.txDev->ip_llocal_str, sqn_in);
 
 	return sizeof(struct msg_hello_adv);
 }
@@ -611,7 +611,7 @@ void schedule_hello_adv(void)
 
 		_hello_dev_capacities();
 
-		schedule_tx_task(FRAME_TYPE_HELLO_ADV, NULL, TYP_UNICAST_FRAMES_NEVER, NULL, NULL, NULL, SCHEDULE_MIN_MSG_SIZE, 0, 0);
+		schedule_tx_task(FRAME_TYPE_HELLO_ADV, TYP_UNICAST_FRAMES_NEVER, NULL, NULL, NULL, NULL, SCHEDULE_MIN_MSG_SIZE, 0, 0);
 	}
 	prof_stop();
 }
@@ -641,8 +641,8 @@ void schedule_hello_reply(void)
 
 	while ((link = avl_iterate_item(&link_tree, &an))) {
 
-		schedule_tx_task(FRAME_TYPE_HELLO_REPLY_DHASH, &link->k.linkDev->key.local->k.nodeId, TYP_UNICAST_FRAMES_NEVER, NULL,
-			link->k.linkDev->key.local, link->k.myDev, SCHEDULE_MIN_MSG_SIZE, &link->k.linkDev->key.devIdx, sizeof(DEVIDX_T));
+		schedule_tx_task(FRAME_TYPE_HELLO_REPLY_DHASH, TYP_UNICAST_FRAMES_NEVER, NULL, link->k.myDev, &link->k.linkDev->key.local->k.nodeId, link->k.linkDev->key.local,
+		                 SCHEDULE_MIN_MSG_SIZE, &link->k.linkDev->key.devIdx, sizeof(DEVIDX_T));
 	}
 }
 
@@ -652,7 +652,7 @@ int32_t tx_msg_hello_reply(struct tx_frame_iterator *it)
 	DEVIDX_T *nbDevIdx = ((DEVIDX_T*) it->ttn->key.data);
 	struct neigh_node *neigh = it->ttn->neigh;
 	LinkDevNode *ldn = avl_find_item(&neigh->linkDev_tree, nbDevIdx);
-	LinkKey lk = { .linkDev = ldn, .myDev = it->ttn->key.f.p.dev };
+	LinkKey lk = { .linkDev = ldn, .myDev = it->ttn->key.f.p.txDev };
 	LinkNode *link = ldn ? avl_find_item(&link_tree, &lk) : NULL;
 
 	assertion(-502561, (it->frame_type == FRAME_TYPE_HELLO_REPLY_DHASH));

@@ -221,9 +221,9 @@ void update_orig_dhash(struct desc_content *dcNew)
 	cb_plugin_hooks(PLUGIN_CB_DESCRIPTION_CREATED, on);
 
 	if (dcNew->kn == myKey)
-		schedule_tx_task(FRAME_TYPE_DESC_ADVS, NULL, TYP_UNICAST_FRAMES_AGGRESSIVE_WIFI, NULL, NULL, NULL, dcNew->desc_frame_len, &dcNew->dHash, sizeof(DHASH_T));
+		schedule_tx_task(FRAME_TYPE_DESC_ADVS, TYP_UNICAST_FRAMES_AGGRESSIVE_WIFI, NULL, NULL, NULL, NULL, dcNew->desc_frame_len, &dcNew->dHash, sizeof(DHASH_T));
 	else if (unsolicitedDescAdvs)
-        schedule_tx_task(FRAME_TYPE_DESC_ADVS, NULL, TYP_UNICAST_FRAMES_CAUTIOUS_WIFI, NULL, NULL, NULL, dcNew->desc_frame_len, &dcNew->dHash, sizeof(DHASH_T));
+        schedule_tx_task(FRAME_TYPE_DESC_ADVS, TYP_UNICAST_FRAMES_CAUTIOUS_WIFI, NULL, NULL, NULL, NULL, dcNew->desc_frame_len, &dcNew->dHash, sizeof(DHASH_T));
 
 	neighRefs_update(on->kn);
 }
@@ -472,7 +472,7 @@ int32_t tx_msg_description_request(struct tx_frame_iterator *it)
 	}
 
 	dbgf_track(DBGT_INFO, "%s dev=%s to neigh khash=%s iterations=%d requesting kHash=%s iid=%d descSqn=%d credits=%s ref=%p reqCnt=%d reqTime=%d ret=%d",
-		it->db->handls[ttn->key.f.type].name, ttn->key.f.p.dev->ifname_label.str, cryptShaAsString(&ttn->key.f.groupId),
+		it->db->handls[ttn->key.f.type].name, ttn->key.f.p.txDev->ifname_label.str, cryptShaAsString(&ttn->key.f.groupId),
 		ttn->tx_iterations, cryptShaAsString(kn ? &kn->kHash : NULL), req->iid, req->descSqn, kn ? kn->bookedState->secName : NULL,
 		ref, ref ? (int) ref->reqCnt : -1, ref ? ref->reqTime : 0,
 		ret);
@@ -502,9 +502,9 @@ int32_t rx_msg_description_request(struct rx_frame_iterator *it)
 		if (kn && kn->on && (bestLink || kn == myKey)) {
 
             if (bestLink)
-                schedule_tx_task(FRAME_TYPE_DESC_ADVS, NULL, TYP_UNICAST_FRAMES_CAUTIOUS_WIFI, bestLink, NULL, NULL, kn->on->dc->desc_frame_len, &kn->on->dc->dHash, sizeof(kn->on->dc->dHash));
+                schedule_tx_task(FRAME_TYPE_DESC_ADVS, TYP_UNICAST_FRAMES_CAUTIOUS_WIFI, bestLink, NULL, NULL, NULL, kn->on->dc->desc_frame_len, &kn->on->dc->dHash, sizeof(kn->on->dc->dHash));
             else
-                schedule_tx_task(FRAME_TYPE_DESC_ADVS, NULL, TYP_UNICAST_FRAMES_NEVER, NULL, NULL, pb->i.iif, kn->on->dc->desc_frame_len, &kn->on->dc->dHash, sizeof(kn->on->dc->dHash));
+                schedule_tx_task(FRAME_TYPE_DESC_ADVS, TYP_UNICAST_FRAMES_NEVER, NULL, pb->i.iif, NULL, NULL, kn->on->dc->desc_frame_len, &kn->on->dc->dHash, sizeof(kn->on->dc->dHash));
 		} else {
 			dbgf_sys(DBGT_WARN, "UNVERIFIED neigh=%s llip=%s or non-promoted kHash=%s kn=%d on=%d nextDc=%d",
 				pb->i.verifiedLink ? cryptShaAsString(&pb->i.verifiedLink->k.linkDev->key.local->k.nodeId) : NULL,
@@ -638,7 +638,7 @@ int32_t tx_msg_iid_request(struct tx_frame_iterator *it)
 	}
 
 	dbgf_track(DBGT_INFO, "iid=%d ref=%d nodeId=%s to neighId=%s dev=%s ref=%p reqCnt=%d reqTime=%d %d ret=%d",
-		*iid, !!ref, cryptShaAsShortStr(ref && ref->kn ? &ref->kn->kHash : NULL), cryptShaAsShortStr(&it->ttn->key.f.groupId), it->ttn->key.f.p.dev->ifname_label.str,
+		*iid, !!ref, cryptShaAsShortStr(ref && ref->kn ? &ref->kn->kHash : NULL), cryptShaAsShortStr(&it->ttn->key.f.groupId), it->ttn->key.f.p.txDev->ifname_label.str,
 		ref, ref ? (int) ref->reqCnt : -1, ref ? ref->reqTime : 0, ((TIME_T) (bmx_time - (ref ? ref->reqTime : 0))), ret);
 
 	return ret;
@@ -659,7 +659,7 @@ int32_t rx_frame_iid_request(struct rx_frame_iterator *it)
 			IID_T iid = ntohs(msg->receiverIID4x);
 			if ((in = iid_get_node_by_myIID4x(iid))) {
 
-				schedule_tx_task(FRAME_TYPE_IID_ADV, NULL, TYP_UNICAST_FRAMES_CAUTIOUS_WIFI, nn->best_tq_link, NULL, NULL, SCHEDULE_MIN_MSG_SIZE, &iid, sizeof(iid));
+				schedule_tx_task(FRAME_TYPE_IID_ADV, TYP_UNICAST_FRAMES_CAUTIOUS_WIFI, nn->best_tq_link, NULL, NULL, NULL, SCHEDULE_MIN_MSG_SIZE, &iid, sizeof(iid));
 
 				dbgf_track(DBGT_INFO, "neigh=%s iid=%d", nn->on->k.hostname, iid);
 			}

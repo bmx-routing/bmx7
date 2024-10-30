@@ -451,7 +451,7 @@ int create_packet_signature(struct tx_frame_iterator *it)
 	static uint8_t sendRsaSignature = 0;
 	static uint16_t sendDhmSignatures = 0;
 	uint32_t signatureSize = TLV_TX_DATA_DONE;
-	struct dev_node *dev = it->ttn->key.f.p.dev;
+	struct dev_node *dev = it->ttn->key.f.p.txDev;
 	struct avl_node *an;
 	struct orig_node *on;
 	uint16_t dhmNeighs = 0;
@@ -481,7 +481,7 @@ int create_packet_signature(struct tx_frame_iterator *it)
 		dev->lastTxKey = 0;
 
 		if ((sendRsaSignature = (
-			(my_RsaLinkKey && it->ttn->key.f.p.dev->strictSignatures >= OPT_DEV_SIGNATURES_TX) &&
+			(my_RsaLinkKey && it->ttn->key.f.p.txDev->strictSignatures >= OPT_DEV_SIGNATURES_TX) &&
 			(dhmNeighs < qualifyingPromoteds_tree.items || dhmNeighs > maxDhmNeighs)
 			))) {
 
@@ -490,7 +490,7 @@ int create_packet_signature(struct tx_frame_iterator *it)
 			signatureSize = (sizeof(struct frame_msg_signature) +my_RsaLinkKey->rawKeyLen);
 			dataOffset += signatureSize;
 
-		} else if ((((my_DhmLinkKey && it->ttn->key.f.p.dev->strictSignatures >= OPT_DEV_SIGNATURES_TX) && dhmNeighs && dhmNeighs <= maxDhmNeighs))) {
+		} else if ((((my_DhmLinkKey && it->ttn->key.f.p.txDev->strictSignatures >= OPT_DEV_SIGNATURES_TX) && dhmNeighs && dhmNeighs <= maxDhmNeighs))) {
 
 			GLOBAL_ID_T id = ZERO_CYRYPSHA;
 			while ((on = avl_next_item(&qualifyingPromoteds_tree, &id))) {
@@ -525,7 +525,7 @@ int create_packet_signature(struct tx_frame_iterator *it)
 		uint8_t *data = it->frames_out_ptr + dataOffset;
 
 		CRYPTSHA_T packetSha;
-		cryptShaNew(&it->ttn->key.f.p.dev->if_llocal_addr->ip_addr, sizeof(IPX_T));
+		cryptShaNew(&it->ttn->key.f.p.txDev->if_llocal_addr->ip_addr, sizeof(IPX_T));
 		cryptShaUpdate(hdr, sizeof(struct frame_hdr_signature));
 		cryptShaUpdate(data, dataLen);
 		cryptShaFinal(&packetSha);
@@ -623,7 +623,7 @@ int process_packet_signature(struct rx_frame_iterator *it)
 		((claimedKey->on && claimedKey->on->dc->descSqn == descSqn) ? claimedKey->on->dc : NULL)))) {
 
 		struct schedule_dsc_req req = { .iid = 0, .descSqn = descSqn };
-		schedule_tx_task(FRAME_TYPE_DESC_REQ, &claimedKey->kHash, TYP_UNICAST_FRAMES_NEVER, NULL, NULL, pb->i.iif, SCHEDULE_MIN_MSG_SIZE, &req, sizeof(req));
+		schedule_tx_task(FRAME_TYPE_DESC_REQ, TYP_UNICAST_FRAMES_NEVER, NULL, pb->i.iif, &claimedKey->kHash, NULL, SCHEDULE_MIN_MSG_SIZE, &req, sizeof(req));
 		goto_error_return(finish, "unknown desc", TLV_RX_DATA_PROCESSED);
 	} else {
 		dc->referred_by_others_timestamp = bmx_time;

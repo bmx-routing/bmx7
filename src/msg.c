@@ -769,14 +769,14 @@ IDM_T purge_tx_task_tree(LinkNode *onlyUnicast, struct neigh_node *onlyNeigh, st
 	while ((curr = next)) {
 		next = onlyTtn ? NULL : avl_next_item(&txTask_tree, &curr->key);
 
-		if ((onlyUnicast && onlyUnicast != curr->key.f.p.unicastViaLink) || (onlyNeigh && onlyNeigh != curr->neigh) || (onlyDev && onlyDev != curr->key.f.p.dev) || (onlyTtn && onlyTtn != curr))
+		if ((onlyUnicast && onlyUnicast != curr->key.f.p.unicastViaLink) || (onlyNeigh && onlyNeigh != curr->neigh) || (onlyDev && onlyDev != curr->key.f.p.txDev) || (onlyTtn && onlyTtn != curr))
 			continue;
 
 		if (force || (curr->tx_iterations <= 0 && ((TIME_T) (bmx_time - curr->send_ts) > (TIME_T)*(packet_frame_db->handls[curr->key.f.type].tx_task_interval_min)))) {
 
 			avl_remove(&txTask_tree, &curr->key, -300715);
 
-			curr->key.f.p.dev->tx_task_items--;
+			curr->key.f.p.txDev->tx_task_items--;
 
 			debugFree(curr, -300169);
 
@@ -887,7 +887,7 @@ void tx_packets(void *unused)
 			struct tx_task_node ttn = { .key =
 				{.f =
 					{.p =
-						{.dev = nextTask->key.f.p.dev, .unicastViaLink = nextTask->key.f.p.unicastViaLink } } } };
+						{.txDev = nextTask->key.f.p.txDev, .unicastViaLink = nextTask->key.f.p.unicastViaLink } } } };
 			it.ttn = &ttn;
 
 			ttn.key.f.type = FRAME_TYPE_SIGNATURE_ADV;
@@ -951,7 +951,7 @@ void tx_packets(void *unused)
 
 				assertion(-502446, (it.frames_out_pos <= it.frames_out_max));
 
-				send_bmx_packet(it.ttn->key.f.p.unicastViaLink, &pb, it.ttn->key.f.p.dev, it.frames_out_pos + sizeof( struct packet_header));
+				send_bmx_packet(it.ttn->key.f.p.unicastViaLink, &pb, it.ttn->key.f.p.txDev, it.frames_out_pos + sizeof( struct packet_header));
 			}
 
 			memset(&pb.i, 0, sizeof(pb.i));
@@ -968,10 +968,10 @@ void tx_packets(void *unused)
 	prof_stop();
 }
 
-void schedule_tx_task(uint8_t f_type, CRYPTSHA_T *groupId, uint8_t unicast, LinkNode *link, struct neigh_node *neigh, struct dev_node *dev, int16_t f_msgs_len, void *keyData, uint32_t keyLen)
+void schedule_tx_task(uint8_t f_type, uint8_t unicast, LinkNode *txLink, struct dev_node *txDev, CRYPTSHA_T *groupId, struct neigh_node *neigh, int16_t f_msgs_len, void *keyData, uint32_t keyLen)
 {
 	assertion(-502447, (f_type <= FRAME_TYPE_MAX));
-	assertion(-502448, IMPLIES(dev, dev->active && dev->linklayer != TYP_DEV_LL_LO));
+	assertion(-502448, IMPLIES(txDev, txDev->active && txDev->linklayer != TYP_DEV_LL_LO));
 	assertion(-501047, (!cleaning_up)); // this function MUST NOT be called during cleanup
 	assertion(-501090, (f_msgs_len >= SCHEDULE_MIN_MSG_SIZE));
 	assertion(-502449, IMPLIES(keyData, keyLen));
@@ -979,57 +979,58 @@ void schedule_tx_task(uint8_t f_type, CRYPTSHA_T *groupId, uint8_t unicast, Link
 	struct frame_handl *handl = &packet_frame_db->handls[f_type];
 	assertion(-502450, (handl && handl->name));
 	assertion(-502451, IMPLIES(handl->tx_iterations, *handl->tx_iterations > 0));
-	assertion(-502655, IMPLIES(link && dev, (dev == link->k.myDev)));
-	assertion(-502656, IMPLIES(link && neigh, (neigh == link->k.linkDev->key.local)));
+	assertion(-502655, IMPLIES(txLink && txDev, (txDev == txLink->k.myDev)));
+	assertion(-502656, IMPLIES(txLink && neigh, (neigh == txLink->k.linkDev->key.local)));
 	//assertion(-500000, IMPLIES(unicast, (neigh && unicast->k.linkDev == avl_find_item(&neigh->linkDev_tree, &unicast->k.linkDev->key.devIdx))));
-    neigh = link ? link->k.linkDev->key.local : neigh;
-    dev = link ? link->k.myDev: dev;
+//  neigh = txLink ? txLink->k.linkDev->key.local : neigh;
+    txDev = txLink ? txLink->k.myDev: txDev;
 
 	if (unicast_frames == TYP_UNICAST_FRAMES_NEVER || unicast == TYP_UNICAST_FRAMES_NEVER)
     {
-		link = NULL;
+		txLink = NULL;
     }
-	else if (!link && !neigh && !dev) {
+	else if (!txLink && !txDev) {
         if (unicast_frames >= TYP_UNICAST_FRAMES_AGGRESSIVE_WIFI || unicast >= TYP_UNICAST_FRAMES_AGGRESSIVE_WIFI) {
             struct avl_node *an = NULL;
-            while ((neigh = avl_iterate_item(&local_tree, &an))) {
-                if ((link = neigh->best_tq_link) && (dev = link->k.myDev)) {
-                    assertion(-500000, (dev->active && dev->linklayer != TYP_DEV_LL_LO));
-                    if (unicast_frames >= TYP_UNICAST_FRAMES_EVEN_WIRED || unicast >= TYP_UNICAST_FRAMES_EVEN_WIRED || dev->linklayer == TYP_DEV_LL_WIFI)
-                        schedule_tx_task(f_type, groupId, unicast, link, NULL, NULL, f_msgs_len, keyData, keyLen );
+            struct neigh_node *nn = NULL;
+            while ((nn = avl_iterate_item(&local_tree, &an))) {
+                if ((txLink = nn->best_tq_link) && (txDev = txLink->k.myDev)) {
+                    assertion(-500000, (txDev->active && txDev->linklayer != TYP_DEV_LL_LO));
+                    if (unicast_frames >= TYP_UNICAST_FRAMES_EVEN_WIRED || unicast >= TYP_UNICAST_FRAMES_EVEN_WIRED || txDev->linklayer == TYP_DEV_LL_WIFI)
+                        schedule_tx_task(f_type, unicast, txLink, NULL, groupId, neigh, f_msgs_len, keyData, keyLen );
                 }
             }
 		}
 		return;
 	}
 
-    if (!dev) {
+    if (!txDev) {
         struct avl_node *an = NULL;
-        while ((dev = avl_iterate_item(&dev_ip_tree, &an))) {
-            if (dev->active && dev->linklayer != TYP_DEV_LL_LO)
-                schedule_tx_task(f_type, groupId, unicast, NULL, neigh, dev, f_msgs_len, keyData, keyLen);
+        while ((txDev = avl_iterate_item(&dev_ip_tree, &an))) {
+            if (txDev->active && txDev->linklayer != TYP_DEV_LL_LO)
+                schedule_tx_task(f_type, unicast, NULL,  txDev, groupId, neigh, f_msgs_len, keyData, keyLen);
         }
         return;
     }
 
-    assertion(-500000, dev);
+    assertion(-500000, txDev);
     // Do not send unicast via non-wifi interfaces unless configured
-    if (unicast_frames != TYP_UNICAST_FRAMES_EVEN_WIRED && unicast != TYP_UNICAST_FRAMES_EVEN_WIRED && dev->linklayer == TYP_DEV_LL_LAN)
-        link = NULL;
+    if (unicast_frames != TYP_UNICAST_FRAMES_EVEN_WIRED && unicast != TYP_UNICAST_FRAMES_EVEN_WIRED && txDev->linklayer == TYP_DEV_LL_LAN)
+        txLink = NULL;
 
 	dbgf((dbg_frame_types & (1 << f_type) ? DBGL_CHANGES : DBGL_ALL), DBGT_INFO,
 		"dbgFT=%d type=%d=%s unicast=%d, groupId=%-8s neigh=%s dev=%s msgs_len=%d data=%s len=%d",
 		dbg_frame_types, f_type, handl->name,
-		!!link, cryptShaAsShortStr(groupId), neigh ? cryptShaAsShortStr(&neigh->k.nodeId) : NULL,
-		dev ? dev->ifname_label.str : NULL, f_msgs_len, memAsHexString(keyData, keyLen), keyLen);
+		!!txLink, cryptShaAsShortStr(groupId), neigh ? cryptShaAsShortStr(&neigh->k.nodeId) : NULL,
+		txDev ? txDev->ifname_label.str : NULL, f_msgs_len, memAsHexString(keyData, keyLen), keyLen);
 
-	if (dev->tx_task_items >= txTaskTreeSizeMax) {
-		dbg_mute(20, DBGL_SYS, DBGT_WARN, "%s txTaskItems=%d reached %s=%d", dev->ifname_label.str, dev->tx_task_items, ARG_TX_TREE_SIZE_MAX, txTaskTreeSizeMax);
+	if (txDev->tx_task_items >= txTaskTreeSizeMax) {
+		dbg_mute(20, DBGL_SYS, DBGT_WARN, "%s txTaskItems=%d reached %s=%d", txDev->ifname_label.str, txDev->tx_task_items, ARG_TX_TREE_SIZE_MAX, txTaskTreeSizeMax);
 		return;
 	}
 
 	struct tx_task_node test = {
-		.key = { .f = { .p = { .sign = (f_type >= FRAME_TYPE_SIGNATURE_ADV), .dev = dev, .unicastViaLink = link }, .type = f_type, .groupId = groupId ? *groupId : ZERO_CYRYPSHA } },
+		.key = { .f = { .p = { .sign = (f_type >= FRAME_TYPE_SIGNATURE_ADV), .txDev = txDev, .unicastViaLink = txLink }, .type = f_type, .groupId = groupId ? *groupId : ZERO_CYRYPSHA } },
 		.neigh = neigh, .tx_iterations = *(handl->tx_iterations),
 		.send_ts = ((TIME_T) (bmx_time - *handl->tx_task_interval_min)),
 		.frame_msgs_length = (f_msgs_len == SCHEDULE_MIN_MSG_SIZE ? handl->min_msg_size : f_msgs_len)
@@ -1056,7 +1057,7 @@ void schedule_tx_task(uint8_t f_type, CRYPTSHA_T *groupId, uint8_t unicast, Link
 
 	avl_insert(&txTask_tree, ttn, -300716);
 
-	dev->tx_task_items++;
+	txDev->tx_task_items++;
 }
 
 STATIC_FUNC

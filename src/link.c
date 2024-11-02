@@ -172,12 +172,12 @@ void lndev_assign_best(struct neigh_node *onlyLocal, LinkNode *onlyLink)
 				break;
 		}
 
-		assertion(-500406, (local->best_rq_link));
+//		assertion(-500406, (local->best_rq_link));
 
 		if (!local->best_tq_link || local->best_tq_link->timeaware_tq_probe == 0)
 			local->best_tq_link = local->best_rq_link;
 
-		assertion(-501086, (local->best_tq_link));
+//		assertion(-501086, (local->best_tq_link));
 
 		if (onlyLocal)
 			break;

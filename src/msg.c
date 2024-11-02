@@ -1215,7 +1215,7 @@ struct opt_type msg_options[]=
 			ARG_VALUE_FORM,	"set maximum tree size for scheduled tx tasks"},
         {ODI,0,ARG_UDPD_SIZE,             0,  9,0, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &pref_udpd_size, MIN_UDPD_SIZE,      MAX_UDPD_SIZE,     DEF_UDPD_SIZE,0,      0,
 			ARG_VALUE_FORM,	HLP_UDPD_SIZE},
-        {ODI,0,ARG_UNICAST_FRAMES,       0,   9,0, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &unicast_frames, 0,      		1,     DEF_UNICAST_FRAMES ,0,      0,
+        {ODI,0,ARG_UNICAST_FRAMES,       0,   9,0, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &unicast_frames,  MIN_UNICAST_FRAMES, MAX_UNICAST_FRAMES, DEF_UNICAST_FRAMES ,0,      0,
 		    ARG_VALUE_FORM,	"Send protocol frames as unicast. 0=Never, 1=onWireless, 2=always"},
 		{ODI,0,ARG_DROP_ALL_PACKETS,     0, 9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&drop_all_packets,	MIN_DROP_ALL_PACKETS,	MAX_DROP_ALL_PACKETS,	DEF_DROP_ALL_PACKETS,0,	0,
 			ARG_VALUE_FORM,	"drop all received packets"}

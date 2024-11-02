@@ -986,7 +986,7 @@ void schedule_tx_task(uint8_t f_type, uint8_t viaAllLinks, LinkNode *txLink, str
     txDev = txLink ? txLink->k.myDev: txDev;
 
 	if (   (unicast_frames == TYP_UNICAST_FRAMES_NEVER)
-	    || (unicast_frames != TYP_UNICAST_FRAMES_ALWAYS && txDev->linklayer == TYP_DEV_LL_LAN) )    // Do not send unicast via non-wifi interfaces unless configured
+	    || (unicast_frames == TYP_UNICAST_FRAMES_WIFI && txDev && txDev->linklayer == TYP_DEV_LL_LAN) )    // Do not send unicast via non-wifi interfaces unless configured
     {
 
         txLink = NULL;

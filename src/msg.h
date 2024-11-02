@@ -433,14 +433,14 @@ struct tx_task_key {
 	struct {
 
 		struct {
-			LinkNode *unicastViaLink; // ensure broadcasted (non-unicast) packets are queued first;
+			LinkNode *unicastViaLink; // ensure broadcasted (non-unicast) packets are queued first; // LinkNode to be used for transmitting unicast frames
 			uint8_t sign; //ensure unsigned tx_tasks are queued first
 			uint8_t reservedA;
 			uint16_t reservedB;
 			struct dev_node *txDev; // the outgoing interface to be used for transmitting
 		} __attribute__((packed)) p; // ensure individual packets for each (in order of pref): sing, dev, type, id
 		uint8_t type;
-		CRYPTSHA_T groupId;
+		CRYPTSHA_T groupId; // Used to group messages to same header. Like all content requests (about various others, but) to same neighbor).
 	} f;
 	uint8_t data[TX_TASK_MAX_KEY_DATA_LEN];
 	//TODO: remove these:
@@ -449,7 +449,7 @@ struct tx_task_key {
 struct tx_task_node {
 	struct tx_task_key key;
 
-	struct neigh_node *neigh;
+	struct neigh_node *neigh; // optionally neighor context to be used by tx_... function
 	uint16_t frame_msgs_length;
 	int16_t tx_iterations;
 	TIME_T send_ts;

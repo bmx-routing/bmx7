@@ -1027,10 +1027,10 @@ void schedule_tx_task(uint8_t f_type, uint8_t viaAllLinks, LinkNode *txLink, str
     assertion(-500000, txDev);
 
     dbgf((dbg_frame_types & (1 << f_type) ? DBGL_CHANGES : DBGL_ALL), DBGT_INFO,
-		"dbgFT=%d type=%d=%s unicast=%d, groupId=%-8s neigh=%s dev=%s msgs_len=%d data=%s len=%d",
-		dbg_frame_types, f_type, handl->name,
-		!!txLink, cryptShaAsShortStr(groupId), neighCtx ? cryptShaAsShortStr(&neighCtx->k.nodeId) : NULL,
-		txDev ? txDev->ifname_label.str : NULL, f_msgs_len, memAsHexString(keyData, keyLen), keyLen);
+		"type=%02X=%-12s unicastFrames=%d viaAllLinks=%d txLink=%d dev=%s groupId=%-8s neigh=%s msgs_len=%d data=%s len=%d",
+		f_type, handl->name, unicast_frames, viaAllLinks, !!txLink, txDev ? txDev->ifname_label.str : NULL,
+        cryptShaAsShortStr(groupId), neighCtx ? cryptShaAsShortStr(&neighCtx->k.nodeId) : NULL,
+		f_msgs_len, memAsHexString(keyData, keyLen), keyLen);
 
 	if (txDev->tx_task_items >= txTaskTreeSizeMax) {
 		dbg_mute(20, DBGL_SYS, DBGT_WARN, "%s txTaskItems=%d reached %s=%d", txDev->ifname_label.str, txDev->tx_task_items, ARG_TX_TREE_SIZE_MAX, txTaskTreeSizeMax);

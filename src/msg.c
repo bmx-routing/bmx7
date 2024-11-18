@@ -1027,7 +1027,7 @@ void schedule_tx_task(uint8_t f_type, uint8_t viaAllLinks, LinkNode *txLink, str
     assertion(-500000, txDev);
 
     dbgf((dbg_frame_types & (1 << f_type) ? DBGL_CHANGES : DBGL_ALL), DBGT_INFO,
-		"type=%02X=%-12s unicastFrames=%d viaAllLinks=%d txLink=%d dev=%s groupId=%-8s neigh=%s msgs_len=%d data=%s len=%d",
+		"type=%02X=%-12s unicastFrames=%d viaAllLinks=%d txLink=%d dev=%s groupId=%-8s neighCtx=%s msgs_len=%d data=%s len=%d",
 		f_type, handl->name, unicast_frames, viaAllLinks, !!txLink, txDev ? txDev->ifname_label.str : NULL,
         cryptShaAsShortStr(groupId), neighCtx ? cryptShaAsShortStr(&neighCtx->k.nodeId) : NULL,
 		f_msgs_len, memAsHexString(keyData, keyLen), keyLen);

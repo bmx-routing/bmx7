@@ -36,18 +36,3 @@
 #define ARG_DUMP_DEV     "devs"
 #define ARG_DUMP_SUMMARY "summary"
 
-
-#define DUMP_TYPE_UDP_PAYLOAD   0
-#define DUMP_TYPE_PACKET_HEADER 1
-#define DUMP_TYPE_FRAME_HEADER  2
-#define DUMP_TYPE_ARRSZ         3
-
-struct dump_data {
-	uint32_t tmp_frame[DUMP_DIRECTION_ARRSZ][FRAME_TYPE_ARRSZ];
-	uint32_t pre_frame[DUMP_DIRECTION_ARRSZ][FRAME_TYPE_ARRSZ];
-	uint32_t avg_frame[DUMP_DIRECTION_ARRSZ][FRAME_TYPE_ARRSZ];
-
-	uint32_t tmp_all[DUMP_DIRECTION_ARRSZ][DUMP_TYPE_ARRSZ];
-	uint32_t pre_all[DUMP_DIRECTION_ARRSZ][DUMP_TYPE_ARRSZ];
-	uint32_t avg_all[DUMP_DIRECTION_ARRSZ][DUMP_TYPE_ARRSZ];
-};

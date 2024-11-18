@@ -496,9 +496,9 @@ void content_resolve_(struct key_node *kn, struct content_node *cn, struct neigh
 		return;
 
 	if (viaNeigh) {
-		schedule_tx_task(FRAME_TYPE_CONTENT_REQ, NO, viaNeigh->best_tq_link, NULL, &viaNeigh->k.nodeId, NULL, SCHEDULE_MIN_MSG_SIZE, &cn->chash, sizeof(CRYPTSHA_T));
+		schedule_tx_task(FRAME_TYPE_CONTENT_REQ, NO, viaNeigh->best_tq_link, NULL,   &viaNeigh->k.nodeId, NULL, SCHEDULE_MIN_MSG_SIZE, &cn->chash, sizeof(CRYPTSHA_T));
 	} else if (kn->pktIdTime) {
-		schedule_tx_task(FRAME_TYPE_CONTENT_REQ, NO, NULL, viaDev, &kn->kHash, NULL, SCHEDULE_MIN_MSG_SIZE, &cn->chash, sizeof(CRYPTSHA_T));
+		schedule_tx_task(FRAME_TYPE_CONTENT_REQ, NO, NULL,                   viaDev, &kn->kHash,          NULL, SCHEDULE_MIN_MSG_SIZE, &cn->chash, sizeof(CRYPTSHA_T));
 	}
 }
 

@@ -51,7 +51,35 @@ static uint32_t dump_iteration = 0;
 static IDM_T dump_terminating = NO;
 static int32_t data_dev_plugin_registry = FAILURE;
 
-static struct dump_data dump_all;
+enum {
+    DUMP_TYPE_IP6_PACKETS,
+    DUMP_TYPE_IP6_LOAD,
+    DUMP_TYPE_UDP_PAYLOAD,
+    DUMP_TYPE_PACKET_HEADER,
+    DUMP_TYPE_FRAME_HEADER,
+    DUMP_TYPE_ARRSZ
+};
+
+char * dump_type_names[DUMP_TYPE_ARRSZ] = {
+    "IP6_PACKETS",
+    "IP6_LOAD",
+    "UDP_PAYLOAD",
+    "PACKET_HEADER",
+    "FRAME_HEADER"
+};
+
+struct dump_data {
+    uint32_t tmp_frame[DUMP_DIRECTION_ARRSZ][FRAME_TYPE_ARRSZ];
+    uint32_t pre_frame[DUMP_DIRECTION_ARRSZ][FRAME_TYPE_ARRSZ];
+    uint32_t avg_frame[DUMP_DIRECTION_ARRSZ][FRAME_TYPE_ARRSZ];
+
+    int32_t tmp_all[DUMP_DIRECTION_ARRSZ][DUMP_TYPE_ARRSZ];
+    int32_t pre_all[DUMP_DIRECTION_ARRSZ][DUMP_TYPE_ARRSZ];
+    int32_t avg_all[DUMP_DIRECTION_ARRSZ][DUMP_TYPE_ARRSZ];
+};
+
+
+static struct dump_data all_devs_data;
 
 STATIC_FUNC
 void update_traffic_statistics_data(struct dump_data *data)
@@ -90,12 +118,11 @@ void update_traffic_statistics_task(void *data)
 	dump_iteration++;
 	curr_dump_period = prev_dump_period;
 
-	update_traffic_statistics_data(&dump_all);
+	update_traffic_statistics_data(&all_devs_data);
 
 	while ((dev = avl_iterate_item(&dev_name_tree, &an))) {
 
-		struct dump_data **dump_dev_plugin_data =
-			(struct dump_data **) (get_plugin_data(dev, PLUGIN_DATA_DEV, data_dev_plugin_registry));
+		struct dump_data **dump_dev_plugin_data = (struct dump_data **) (get_plugin_data(dev, PLUGIN_DATA_DEV, data_dev_plugin_registry));
 
 		if (*dump_dev_plugin_data)
 			update_traffic_statistics_data(*dump_dev_plugin_data);
@@ -118,10 +145,9 @@ void dump(struct packet_buff *pb)
 	struct dev_node *dev = pb->i.iif ? pb->i.iif : pb->i.oif;
 	struct packet_header *phdr = (struct packet_header *) pb->p.data;
 
-	struct dump_data **dev_plugin_data =
-		(struct dump_data **) (get_plugin_data(dev, PLUGIN_DATA_DEV, data_dev_plugin_registry));
+	struct dump_data **this_dev_data = (struct dump_data **) (get_plugin_data(dev, PLUGIN_DATA_DEV, data_dev_plugin_registry));
 
-	assertion(-500761, (*dev_plugin_data));
+	assertion(-500761, (*this_dev_data));
 
 	uint16_t plength = pb->i.length;
 
@@ -132,10 +158,10 @@ void dump(struct packet_buff *pb)
 	dbgf(DBGL_DUMP, DBGT_NONE, "%s data: %s",
 		direction == DUMP_DIRECTION_IN ? "in " : "out", memAsHexString(((uint8_t*) phdr), plength));
 
-
-	(*dev_plugin_data)->tmp_all[direction][DUMP_TYPE_UDP_PAYLOAD] += (plength << IMPROVE_ROUNDOFF);
-
-	dump_all.tmp_all[direction][DUMP_TYPE_UDP_PAYLOAD] += (plength << IMPROVE_ROUNDOFF);
+	(*this_dev_data)->tmp_all[direction][DUMP_TYPE_UDP_PAYLOAD] += (plength << IMPROVE_ROUNDOFF);
+	(&all_devs_data)->tmp_all[direction][DUMP_TYPE_UDP_PAYLOAD] += (plength << IMPROVE_ROUNDOFF);
+    (*this_dev_data)->tmp_all[direction][DUMP_TYPE_IP6_LOAD] += ((plength + sizeof(struct ip6_hdr) + sizeof(struct udphdr)) << IMPROVE_ROUNDOFF);
+    (&all_devs_data)->tmp_all[direction][DUMP_TYPE_IP6_LOAD] += ((plength + sizeof(struct ip6_hdr) + sizeof(struct udphdr)) << IMPROVE_ROUNDOFF);
 
 
 	dbgf(DBGL_DUMP, DBGT_NONE,
@@ -143,9 +169,10 @@ void dump(struct packet_buff *pb)
 		direction == DUMP_DIRECTION_IN ? "in " : "out",
 		phdr->comp_version, phdr->reserved, sizeof(struct packet_header));
 
-	(*dev_plugin_data)->tmp_all[direction][DUMP_TYPE_PACKET_HEADER] += (sizeof(struct packet_header) << IMPROVE_ROUNDOFF);
-
-	dump_all.tmp_all[direction][DUMP_TYPE_PACKET_HEADER] += (sizeof(struct packet_header) << IMPROVE_ROUNDOFF);
+    (*this_dev_data)->tmp_all[direction][DUMP_TYPE_IP6_PACKETS] += (1 << IMPROVE_ROUNDOFF);
+    (&all_devs_data)->tmp_all[direction][DUMP_TYPE_IP6_PACKETS] += (1 << IMPROVE_ROUNDOFF);
+	(*this_dev_data)->tmp_all[direction][DUMP_TYPE_PACKET_HEADER] += (sizeof(struct packet_header) << IMPROVE_ROUNDOFF);
+	(&all_devs_data)->tmp_all[direction][DUMP_TYPE_PACKET_HEADER] += (sizeof(struct packet_header) << IMPROVE_ROUNDOFF);
 
 
 	struct rx_frame_iterator it = {
@@ -185,13 +212,11 @@ void dump(struct packet_buff *pb)
 		//assertion(-500991, (it.hands->hands[it.frame_type].min_msg_size));
 		assertion(-500992, (it.f_msgs_len >= 0));
 
-		(*dev_plugin_data)->tmp_frame[direction][it.f_type] += (it._f_len << IMPROVE_ROUNDOFF);
+		(*this_dev_data)->tmp_frame[direction][it.f_type] += (it._f_len << IMPROVE_ROUNDOFF);
+	    (&all_devs_data)->tmp_frame[direction][it.f_type] += (it._f_len << IMPROVE_ROUNDOFF);
 
-		dump_all.tmp_frame[direction][it.f_type] += (it._f_len << IMPROVE_ROUNDOFF);
-
-		(*dev_plugin_data)->tmp_all[direction][DUMP_TYPE_FRAME_HEADER] += ((it._f_len - it.f_dlen) << IMPROVE_ROUNDOFF);
-
-		dump_all.tmp_all[direction][DUMP_TYPE_FRAME_HEADER] += ((it._f_len - it.f_dlen) << IMPROVE_ROUNDOFF);
+		(*this_dev_data)->tmp_all[direction][DUMP_TYPE_FRAME_HEADER] += ((it._f_len - it.f_dlen) << IMPROVE_ROUNDOFF);
+	    (&all_devs_data)->tmp_all[direction][DUMP_TYPE_FRAME_HEADER] += ((it._f_len - it.f_dlen) << IMPROVE_ROUNDOFF);
 
 		pkt_pos += it._f_len;
 	}
@@ -213,50 +238,50 @@ void dump(struct packet_buff *pb)
 STATIC_FUNC
 void dbg_traffic_statistics(struct dump_data *data, struct ctrl_node *cn, char* dbg_name)
 {
+
 	uint16_t t;
+	int32_t secUdpRx = data->pre_all[DUMP_DIRECTION_IN][DUMP_TYPE_UDP_PAYLOAD] ;
+    int32_t secUdpTx = data->pre_all[DUMP_DIRECTION_OUT][DUMP_TYPE_UDP_PAYLOAD];
+    int32_t secUdp = secUdpRx + secUdpTx;
+	int32_t avgUdpRx = data->avg_all[DUMP_DIRECTION_IN][DUMP_TYPE_UDP_PAYLOAD];
+    int32_t avgUdpTx = data->avg_all[DUMP_DIRECTION_OUT][DUMP_TYPE_UDP_PAYLOAD];
+    int32_t avgUdp = avgUdpRx + avgUdpTx;
 
 	for (t = 0; t < DUMP_TYPE_ARRSZ; t++) {
-		dbg_printf(cn, "%-11s %15s  %5d (%3d)  %5d (%3d)  %5d (%3d)  | %5d (%3d)  %5d (%3d)  %5d (%3d)\n", dbg_name,
-			t == DUMP_TYPE_UDP_PAYLOAD ? "UDP_PAYLOAD" : (t == DUMP_TYPE_PACKET_HEADER ? "PACKET_HEADER" : "FRAME_HEADER"),
-
+		dbg_printf(cn, "%-11s %13s  %5d %3d  %5d %3d  %5d %3d  %5d %3d  %5d %3d | %5d %3d  %5d %3d  %5d %3d  %5d %3d  %5d %3d\n", dbg_name, dump_type_names[t],
 
 			((data->pre_all[DUMP_DIRECTION_IN][t] + data->pre_all[DUMP_DIRECTION_OUT][t]) >> IMPROVE_ROUNDOFF),
-
-			((((data->pre_all[DUMP_DIRECTION_IN][DUMP_TYPE_UDP_PAYLOAD]) || (data->pre_all[DUMP_DIRECTION_OUT][DUMP_TYPE_UDP_PAYLOAD])) ?
-			(((data->pre_all[DUMP_DIRECTION_IN][t] + data->pre_all[DUMP_DIRECTION_OUT][t])*100) /
-			(data->pre_all[DUMP_DIRECTION_IN][DUMP_TYPE_UDP_PAYLOAD] + data->pre_all[DUMP_DIRECTION_OUT][DUMP_TYPE_UDP_PAYLOAD])) : 0)),
-
+			(secUdp ? (((data->pre_all[DUMP_DIRECTION_IN][t] + data->pre_all[DUMP_DIRECTION_OUT][t])*100) / secUdp) : -1),
 
 			((data->pre_all[DUMP_DIRECTION_IN][t]) >> IMPROVE_ROUNDOFF),
-
-			((data->pre_all[DUMP_DIRECTION_IN][DUMP_TYPE_UDP_PAYLOAD] ?
-			((data->pre_all[DUMP_DIRECTION_IN][t]*100) / data->pre_all[DUMP_DIRECTION_IN][DUMP_TYPE_UDP_PAYLOAD]) : 0)),
-
+			(secUdpRx ? ((data->pre_all[DUMP_DIRECTION_IN][t]*100) / secUdpRx) : -1),
 
 			((data->pre_all[DUMP_DIRECTION_OUT][t]) >> IMPROVE_ROUNDOFF),
+			(secUdpTx ? ((data->pre_all[DUMP_DIRECTION_OUT][t]*100) / secUdpTx) : -1),
 
-			((data->pre_all[DUMP_DIRECTION_OUT][DUMP_TYPE_UDP_PAYLOAD] ?
-			((data->pre_all[DUMP_DIRECTION_OUT][t]*100) / data->pre_all[DUMP_DIRECTION_OUT][DUMP_TYPE_UDP_PAYLOAD]) : 0)),
+
+			-1,
+			-1,
+
+			-1,
+			-1,
 
 
 
 			((data->avg_all[DUMP_DIRECTION_IN][t] + data->avg_all[DUMP_DIRECTION_OUT][t]) >> IMPROVE_ROUNDOFF),
-
-			(((data->avg_all[DUMP_DIRECTION_IN][DUMP_TYPE_UDP_PAYLOAD] || data->avg_all[DUMP_DIRECTION_OUT][DUMP_TYPE_UDP_PAYLOAD]) ?
-			(((data->avg_all[DUMP_DIRECTION_IN][t] + data->avg_all[DUMP_DIRECTION_OUT][t])*100) /
-			(data->avg_all[DUMP_DIRECTION_IN][DUMP_TYPE_UDP_PAYLOAD] + data->avg_all[DUMP_DIRECTION_OUT][DUMP_TYPE_UDP_PAYLOAD])) : 0)),
-
+			(avgUdp ? (((data->avg_all[DUMP_DIRECTION_IN][t] + data->avg_all[DUMP_DIRECTION_OUT][t])*100) / avgUdp) : 0),
 
 			((data->avg_all[DUMP_DIRECTION_IN][t]) >> IMPROVE_ROUNDOFF),
-
-			((data->avg_all[DUMP_DIRECTION_IN][DUMP_TYPE_UDP_PAYLOAD] ?
-			((data->avg_all[DUMP_DIRECTION_IN][t]*100) / data->avg_all[DUMP_DIRECTION_IN][DUMP_TYPE_UDP_PAYLOAD]) : 0)),
-
+			(avgUdpRx ? ((data->avg_all[DUMP_DIRECTION_IN][t]*100) / avgUdpRx) : -1),
 
 			((data->avg_all[DUMP_DIRECTION_OUT][t]) >> IMPROVE_ROUNDOFF),
+			(avgUdpTx ? ((data->avg_all[DUMP_DIRECTION_OUT][t]*100) / avgUdpTx) : -1),
 
-			((data->avg_all[DUMP_DIRECTION_OUT][DUMP_TYPE_UDP_PAYLOAD] ?
-			((data->avg_all[DUMP_DIRECTION_OUT][t]*100) / data->avg_all[DUMP_DIRECTION_OUT][DUMP_TYPE_UDP_PAYLOAD]) : 0))
+            -1,
+            -1,
+
+            -1,
+            -1
 
 			);
 	}
@@ -272,47 +297,38 @@ void dbg_traffic_statistics(struct dump_data *data, struct ctrl_node *cn, char* 
 				tname = tnum;
 			}
 
-
-			dbg_printf(cn, "%-11s %15s  %5d (%3d)  %5d (%3d)  %5d (%3d)  | %5d (%3d)  %5d (%3d)  %5d (%3d)\n", dbg_name, tname,
+			dbg_printf(cn, "%-11s %13s  %5d %3d  %5d %3d  %5d %3d  %5d %3d  %5d %3d | %5d %3d  %5d %3d  %5d %3d  %5d %3d  %5d %3d\n", dbg_name, tname,
 
 				((data->pre_frame[DUMP_DIRECTION_IN][t] + data->pre_frame[DUMP_DIRECTION_OUT][t]) >> IMPROVE_ROUNDOFF),
-
-				((data->pre_all[DUMP_DIRECTION_IN][DUMP_TYPE_UDP_PAYLOAD] || data->pre_all[DUMP_DIRECTION_OUT][DUMP_TYPE_UDP_PAYLOAD] ?
-				(((data->pre_frame[DUMP_DIRECTION_IN][t] + data->pre_frame[DUMP_DIRECTION_OUT][t])*100) /
-				(data->pre_all[DUMP_DIRECTION_IN][DUMP_TYPE_UDP_PAYLOAD] + data->pre_all[DUMP_DIRECTION_OUT][DUMP_TYPE_UDP_PAYLOAD])) : 0)),
-
+				(secUdp ? (((data->pre_frame[DUMP_DIRECTION_IN][t] + data->pre_frame[DUMP_DIRECTION_OUT][t])*100) / secUdp) : 0),
 
 				((data->pre_frame[DUMP_DIRECTION_IN][t]) >> IMPROVE_ROUNDOFF),
-
-				((data->pre_all[DUMP_DIRECTION_IN][DUMP_TYPE_UDP_PAYLOAD] ?
-				((data->pre_frame[DUMP_DIRECTION_IN][t]*100) / data->pre_all[DUMP_DIRECTION_IN][DUMP_TYPE_UDP_PAYLOAD]) : 0)),
-
+				(secUdpRx ? ((data->pre_frame[DUMP_DIRECTION_IN][t]*100) / secUdpRx): 0),
 
 				((data->pre_frame[DUMP_DIRECTION_OUT][t]) >> IMPROVE_ROUNDOFF),
+				(secUdpTx ? ((data->pre_frame[DUMP_DIRECTION_OUT][t]*100) / secUdpTx) : 0),
 
-				((data->pre_all[DUMP_DIRECTION_OUT][DUMP_TYPE_UDP_PAYLOAD] ?
-				((data->pre_frame[DUMP_DIRECTION_OUT][t]*100) / data->pre_all[DUMP_DIRECTION_OUT][DUMP_TYPE_UDP_PAYLOAD]) : 0)),
-
+	            -1,
+	            -1,
+	            -1,
+	            -1,
 
 
 				((data->avg_frame[DUMP_DIRECTION_IN][t] + data->avg_frame[DUMP_DIRECTION_OUT][t]) >> IMPROVE_ROUNDOFF),
-
-				((data->avg_all[DUMP_DIRECTION_IN][DUMP_TYPE_UDP_PAYLOAD] || data->avg_all[DUMP_DIRECTION_OUT][DUMP_TYPE_UDP_PAYLOAD] ?
-				(((data->avg_frame[DUMP_DIRECTION_IN][t] + data->avg_frame[DUMP_DIRECTION_OUT][t])*100) /
-				(data->avg_all[DUMP_DIRECTION_IN][DUMP_TYPE_UDP_PAYLOAD] + data->avg_all[DUMP_DIRECTION_OUT][DUMP_TYPE_UDP_PAYLOAD])) : 0)),
+				(avgUdp ? (((data->avg_frame[DUMP_DIRECTION_IN][t] + data->avg_frame[DUMP_DIRECTION_OUT][t])*100) / avgUdp) : 0),
 
 
 				((data->avg_frame[DUMP_DIRECTION_IN][t]) >> IMPROVE_ROUNDOFF),
-
-				((data->avg_all[DUMP_DIRECTION_IN][DUMP_TYPE_UDP_PAYLOAD] ?
-				((data->avg_frame[DUMP_DIRECTION_IN][t]*100) / data->avg_all[DUMP_DIRECTION_IN][DUMP_TYPE_UDP_PAYLOAD]) : 0)),
+				(avgUdpRx ? ((data->avg_frame[DUMP_DIRECTION_IN][t]*100) / avgUdpRx) : 0),
 
 
 				((data->avg_frame[DUMP_DIRECTION_OUT][t]) >> IMPROVE_ROUNDOFF),
+				(avgUdpTx ? ((data->avg_frame[DUMP_DIRECTION_OUT][t]*100) / avgUdpTx) : 0),
 
-				((data->avg_all[DUMP_DIRECTION_OUT][DUMP_TYPE_UDP_PAYLOAD] ?
-				((data->avg_frame[DUMP_DIRECTION_OUT][t]*100) / data->avg_all[DUMP_DIRECTION_OUT][DUMP_TYPE_UDP_PAYLOAD]) : 0))
-
+	            -1,
+	            -1,
+	            -1,
+	            -1
 				);
 		}
 	}
@@ -330,20 +346,19 @@ int32_t opt_traffic_statistics(uint8_t cmd, uint8_t _save, struct opt_type *opt,
 		dbg_printf(cn, "TRAFFIC (iteration=%d as [B/s], averaged over %.1fs and weighted averages):\n",
 			dump_iteration, (float) curr_dump_period / 1000);
 
-		dbg_printf(cn, "dev %18s type    all (_%%_)     in (_%%_)    out (_%%_)  |   all (_%%_)     in (_%%_)    out (_%%_)\n", "");
+		dbg_printf(cn, "dev %16s type    all _%%_     Rx _%%_     Tx _%%_   UcRx _%%_   UcTx _%%_ |   all _%%_     Rx _%%_     Tx _%%_   UcRx _%%_   UcTx _%%_\n", "");
 
 		if (patch->val && (!strcmp(patch->val, ARG_DUMP_ALL) || !strcmp(patch->val, ARG_DUMP_SUMMARY)))
-			dbg_traffic_statistics(&dump_all, cn, ARG_DUMP_ALL);
+			dbg_traffic_statistics(&all_devs_data, cn, ARG_DUMP_ALL);
 
 		while ((dev = avl_iterate_item(&dev_name_tree, &an))) {
 
 			if (!patch->val || !strcmp(patch->val, ARG_DUMP_ALL) || !strcmp(patch->val, ARG_DUMP_DEV) || !strcmp(patch->val, dev->ifname_label.str)) {
 
-				struct dump_data **dump_dev_plugin_data = (struct dump_data **)
-					(get_plugin_data(dev, PLUGIN_DATA_DEV, data_dev_plugin_registry));
+				struct dump_data **this_dev_data = (struct dump_data **) (get_plugin_data(dev, PLUGIN_DATA_DEV, data_dev_plugin_registry));
 
-				if (dev->active && *dump_dev_plugin_data)
-					dbg_traffic_statistics(*dump_dev_plugin_data, cn, dev->ifname_label.str);
+				if (dev->active && *this_dev_data)
+					dbg_traffic_statistics(*this_dev_data, cn, dev->ifname_label.str);
 			}
 		}
 	}
@@ -400,7 +415,7 @@ void cleanup_dump(void)
 STATIC_FUNC
 int32_t init_dump(void)
 {
-	memset(&dump_all, 0, sizeof(struct dump_data));
+	memset(&all_devs_data, 0, sizeof(struct dump_data));
 
 	data_dev_plugin_registry = get_plugin_data_registry(PLUGIN_DATA_DEV);
 

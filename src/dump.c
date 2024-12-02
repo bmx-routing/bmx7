@@ -52,14 +52,14 @@ static IDM_T dump_terminating = NO;
 static int32_t data_dev_plugin_registry = FAILURE;
 
 enum {
-    DUMP_DIRECTION_OUT,
-    DUMP_DIRECTION_IN,
+    DUMP_DIRECTION_TX,
+    DUMP_DIRECTION_RX,
     DUMP_DIRECTION_ARRSZ,
 };
 
 enum {
-    DUMP_BCUC_BROADCAST,
-    DUMP_BCUC_UNICAST,
+    DUMP_BC,
+    DUMP_UC,
     DUMP_BCUC_ARRSZ
 };
 
@@ -67,18 +67,19 @@ enum {
 enum {
     DUMP_TYPE_IP6_PACKETS,
     DUMP_TYPE_IP6_LOAD,
-    DUMP_TYPE_UDP_PAYLOAD,
-    DUMP_TYPE_PACKET_HEADER,
-    DUMP_TYPE_FRAME_HEADER,
+    DUMP_TYPE_IP6_HEADER,
+    DUMP_TYPE_UDP_HEADER,
+    DUMP_TYPE_BMX_HEADER,
+//  DUMP_TYPE_FRAME_HEADER,
     DUMP_TYPE_ARRSZ
 };
 
 char * dump_type_names[DUMP_TYPE_ARRSZ] = {
     "IP6_PACKETS",
     "IP6_LOAD",
-    "UDP_PAYLOAD",
-    "PACKET_HEADER",
-    "FRAME_HEADER"
+    "IP6_HEADER",
+    "UDP_HEADER",
+    "BMX7_HEADER"
 };
 
 struct dump_data {
@@ -157,8 +158,7 @@ void dump(struct packet_buff *pb)
 
 	assertion(-500760, (XOR((pb->i.oif), (pb->i.iif))));
 
-	IDM_T direction = pb->i.iif ? DUMP_DIRECTION_IN : DUMP_DIRECTION_OUT;
-    uint8_t cast = 0;
+	IDM_T direction = pb->i.iif ? DUMP_DIRECTION_RX : DUMP_DIRECTION_TX;
 	struct dev_node *dev = pb->i.iif ? pb->i.iif : pb->i.oif;
 	struct packet_header *phdr = (struct packet_header *) pb->p.data;
 
@@ -168,28 +168,30 @@ void dump(struct packet_buff *pb)
 
 	uint16_t plength = pb->i.length;
 	uint8_t unicast = pb->i.unicast;
+    uint8_t cast = (unicast ? DUMP_UC : DUMP_BC);
 
 	dbgf(DBGL_DUMP, DBGT_NONE, "%s dev=%-12s unicast=%d src=%-16s dst=%-16s udpPayload=%-d",
-		direction == DUMP_DIRECTION_IN ? "in " : "out", dev->ifname_label.str, unicast, pb->i.llip_str,
+		direction == DUMP_DIRECTION_RX ? "in " : "out", dev->ifname_label.str, unicast, pb->i.llip_str,
 		pb->i.dst ? ip6AsStr( &(((struct sockaddr_in6*)pb->i.dst)->sin6_addr) ): "", plength);
 
 	dbgf(DBGL_DUMP, DBGT_NONE, "%s data: %s",
-		direction == DUMP_DIRECTION_IN ? "in " : "out", memAsHexString(((uint8_t*) phdr), plength));
+		direction == DUMP_DIRECTION_RX ? "in " : "out", memAsHexString(((uint8_t*) phdr), plength));
 
     dbgf(DBGL_DUMP, DBGT_NONE, "%s       headerVersion=%-2d reserved=%-2X headerSize=%-4zu",
-        direction == DUMP_DIRECTION_IN ? "in " : "out", phdr->comp_version, phdr->reserved, sizeof(struct packet_header));
+        direction == DUMP_DIRECTION_RX ? "in " : "out", phdr->comp_version, phdr->reserved, sizeof(struct packet_header));
 
-    for ( cast=DUMP_BCUC_BROADCAST; cast <= (unicast ? DUMP_BCUC_UNICAST : DUMP_BCUC_BROADCAST); cast++ ) {
-        (*this_dev_data)->tmp_all[direction][cast][DUMP_TYPE_UDP_PAYLOAD] += (plength << IMPROVE_ROUNDOFF);
-        (&all_devs_data)->tmp_all[direction][cast][DUMP_TYPE_UDP_PAYLOAD] += (plength << IMPROVE_ROUNDOFF);
-        (*this_dev_data)->tmp_all[direction][cast][DUMP_TYPE_IP6_LOAD] += ((plength + sizeof(struct ip6_hdr) + sizeof(struct udphdr)) << IMPROVE_ROUNDOFF);
-        (&all_devs_data)->tmp_all[direction][cast][DUMP_TYPE_IP6_LOAD] += ((plength + sizeof(struct ip6_hdr) + sizeof(struct udphdr)) << IMPROVE_ROUNDOFF);
-
-        (*this_dev_data)->tmp_all[direction][cast][DUMP_TYPE_IP6_PACKETS] += (1 << IMPROVE_ROUNDOFF);
-        (&all_devs_data)->tmp_all[direction][cast][DUMP_TYPE_IP6_PACKETS] += (1 << IMPROVE_ROUNDOFF);
-        (*this_dev_data)->tmp_all[direction][cast][DUMP_TYPE_PACKET_HEADER] += (sizeof(struct packet_header) << IMPROVE_ROUNDOFF);
-        (&all_devs_data)->tmp_all[direction][cast][DUMP_TYPE_PACKET_HEADER] += (sizeof(struct packet_header) << IMPROVE_ROUNDOFF);
-    }
+//  for ( cast=DUMP_BCUC_BROADCAST; cast <= (unicast ? DUMP_BCUC_UNICAST : DUMP_BCUC_BROADCAST); cast++ ) {
+    (*this_dev_data)->tmp_all[direction][cast][DUMP_TYPE_IP6_PACKETS] += (100 << IMPROVE_ROUNDOFF);
+    (&all_devs_data)->tmp_all[direction][cast][DUMP_TYPE_IP6_PACKETS] += (100 << IMPROVE_ROUNDOFF);
+    (*this_dev_data)->tmp_all[direction][cast][DUMP_TYPE_IP6_LOAD] += ((plength + sizeof(struct ip6_hdr) + sizeof(struct udphdr)) << IMPROVE_ROUNDOFF);
+    (&all_devs_data)->tmp_all[direction][cast][DUMP_TYPE_IP6_LOAD] += ((plength + sizeof(struct ip6_hdr) + sizeof(struct udphdr)) << IMPROVE_ROUNDOFF);
+    (*this_dev_data)->tmp_all[direction][cast][DUMP_TYPE_IP6_HEADER] += (sizeof(struct ip6_hdr) << IMPROVE_ROUNDOFF);
+    (&all_devs_data)->tmp_all[direction][cast][DUMP_TYPE_IP6_HEADER] += (sizeof(struct ip6_hdr) << IMPROVE_ROUNDOFF);
+    (*this_dev_data)->tmp_all[direction][cast][DUMP_TYPE_UDP_HEADER] += (sizeof(struct udphdr) << IMPROVE_ROUNDOFF);
+    (&all_devs_data)->tmp_all[direction][cast][DUMP_TYPE_UDP_HEADER] += (sizeof(struct udphdr) << IMPROVE_ROUNDOFF);
+    (*this_dev_data)->tmp_all[direction][cast][DUMP_TYPE_BMX_HEADER] += (sizeof(struct packet_header) << IMPROVE_ROUNDOFF);
+    (&all_devs_data)->tmp_all[direction][cast][DUMP_TYPE_BMX_HEADER] += (sizeof(struct packet_header) << IMPROVE_ROUNDOFF);
+//  }
 
 	struct rx_frame_iterator it = {
 		.caller = __func__, .op = 0,
@@ -218,23 +220,23 @@ void dump(struct packet_buff *pb)
 
 
 		dbgf(DBGL_DUMP, DBGT_NONE, "%s             frame_type=%-12s data_header_size=%-3d msgs=%-3d frame_length=%-4d",
-			direction == DUMP_DIRECTION_IN ? "in " : "out", tname,
+			direction == DUMP_DIRECTION_RX ? "in " : "out", tname,
 			it.db->handls[it.f_type].data_header_size, frame_msgs, it._f_len);
 
 		dbgf(DBGL_DUMP, DBGT_NONE, "%s         data [%3d...%3d]:%s",
-			direction == DUMP_DIRECTION_IN ? "in  hex" : "out hex",
+			direction == DUMP_DIRECTION_RX ? "in  hex" : "out hex",
 			pkt_pos, pkt_pos + it._f_len - 1, memAsHexString(((uint8_t*) phdr) + pkt_pos, it._f_len));
 
 		//assertion(-500991, (it.hands->hands[it.frame_type].min_msg_size));
 		assertion(-500992, (it.f_msgs_len >= 0));
 
-	    for ( cast=DUMP_BCUC_BROADCAST; cast <= (unicast ? DUMP_BCUC_UNICAST : DUMP_BCUC_BROADCAST); cast++ ) {
+//	    for ( cast=DUMP_BCUC_BROADCAST; cast <= (unicast ? DUMP_BCUC_UNICAST : DUMP_BCUC_BROADCAST); cast++ ) {
 	        (*this_dev_data)->tmp_frame[direction][cast][it.f_type] += (it._f_len << IMPROVE_ROUNDOFF);
 	        (&all_devs_data)->tmp_frame[direction][cast][it.f_type] += (it._f_len << IMPROVE_ROUNDOFF);
 
-	        (*this_dev_data)->tmp_all[direction][cast][DUMP_TYPE_FRAME_HEADER] += ((it._f_len - it.f_dlen) << IMPROVE_ROUNDOFF);
-	        (&all_devs_data)->tmp_all[direction][cast][DUMP_TYPE_FRAME_HEADER] += ((it._f_len - it.f_dlen) << IMPROVE_ROUNDOFF);
-	    }
+//	        (*this_dev_data)->tmp_all[direction][cast][DUMP_TYPE_FRAME_HEADER] += ((it._f_len - it.f_dlen) << IMPROVE_ROUNDOFF);
+//	        (&all_devs_data)->tmp_all[direction][cast][DUMP_TYPE_FRAME_HEADER] += ((it._f_len - it.f_dlen) << IMPROVE_ROUNDOFF);
+//	    }
 
 		pkt_pos += it._f_len;
 	}
@@ -242,14 +244,14 @@ void dump(struct packet_buff *pb)
 	if (result != TLV_RX_DATA_DONE) {
 
 		dbgf(DBGL_DUMP, DBGT_NONE, "%s             ERROR frame_type=%d frame_length=%d frame_data_length=%d result=%s - ignoring further frames!!",
-			direction == DUMP_DIRECTION_IN ? "in " : "out", it.f_type, it._f_len, it.f_dlen, tlv_rx_result_str(result));
+			direction == DUMP_DIRECTION_RX ? "in " : "out", it.f_type, it._f_len, it.f_dlen, tlv_rx_result_str(result));
 
 		dbgf(DBGL_DUMP, DBGT_NONE, "%s         data [%3d...%3d]:%s",
-			direction == DUMP_DIRECTION_IN ? "in  hex" : "out hex",
+			direction == DUMP_DIRECTION_RX ? "in  hex" : "out hex",
 			pkt_pos, pkt_pos + it._f_len - 1, memAsHexString(((uint8_t*) phdr) + pkt_pos, it._f_len));
 	}
 
-	assertion(-500990, (IMPLIES(direction == DUMP_DIRECTION_OUT, result == TLV_RX_DATA_DONE)));
+	assertion(-500990, (IMPLIES(direction == DUMP_DIRECTION_TX, result == TLV_RX_DATA_DONE)));
 
 }
 
@@ -258,55 +260,63 @@ void dbg_traffic_statistics(struct dump_data *data, struct ctrl_node *cn, char* 
 {
 
 	uint16_t t;
-	int32_t secUdpRx = data->pre_all[DUMP_DIRECTION_IN][DUMP_BCUC_BROADCAST][DUMP_TYPE_UDP_PAYLOAD] ;
-    int32_t secUdpTx = data->pre_all[DUMP_DIRECTION_OUT][DUMP_BCUC_BROADCAST][DUMP_TYPE_UDP_PAYLOAD];
-    int32_t secUdp = secUdpRx + secUdpTx;
-	int32_t avgUdpRx = data->avg_all[DUMP_DIRECTION_IN][DUMP_BCUC_BROADCAST][DUMP_TYPE_UDP_PAYLOAD];
-    int32_t avgUdpTx = data->avg_all[DUMP_DIRECTION_OUT][DUMP_BCUC_BROADCAST][DUMP_TYPE_UDP_PAYLOAD];
-    int32_t avgUdp = avgUdpRx + avgUdpTx;
+	int32_t secIp6BcRx = data->pre_all[DUMP_DIRECTION_RX][DUMP_BC][DUMP_TYPE_IP6_LOAD];
+    int32_t secIp6UcRx = data->pre_all[DUMP_DIRECTION_RX][DUMP_UC][DUMP_TYPE_IP6_LOAD];
+    int32_t secIp6BcTx = data->pre_all[DUMP_DIRECTION_TX][DUMP_BC][DUMP_TYPE_IP6_LOAD];
+    int32_t secIp6UcTx = data->pre_all[DUMP_DIRECTION_TX][DUMP_UC][DUMP_TYPE_IP6_LOAD];
+//    int32_t secIp6 = secIp6Rx + secIp6Tx;
+	int32_t avgIp6BcRx = data->avg_all[DUMP_DIRECTION_RX][DUMP_BC][DUMP_TYPE_IP6_LOAD];
+    int32_t avgIp6UcRx = data->avg_all[DUMP_DIRECTION_RX][DUMP_UC][DUMP_TYPE_IP6_LOAD];
+    int32_t avgIp6BcTx = data->avg_all[DUMP_DIRECTION_TX][DUMP_BC][DUMP_TYPE_IP6_LOAD];
+    int32_t avgIp6UcTx = data->avg_all[DUMP_DIRECTION_TX][DUMP_UC][DUMP_TYPE_IP6_LOAD];
+//    int32_t avgIp6 = avgIp6Rx + avgIp6Tx;
 
 	for (t = 0; t < DUMP_TYPE_ARRSZ; t++) {
-		dbg_printf(cn, "%-11s %13s  %5d %3d  %5d %3d  %5d %3d  %5d %3d  %5d %3d | %5d %3d  %5d %3d  %5d %3d  %5d %3d  %5d %3d\n", dbg_name, dump_type_names[t],
+//		dbg_printf(cn, "%-11s %13s  %5d %3d  %5d %3d  %5d %3d  %5d %3d  %5d %3d | %5d %3d  %5d %3d  %5d %3d  %5d %3d  %5d %3d\n", dbg_name, dump_type_names[t],
+	    dbg_printf(cn, "%-11s %13s  %5d %3d  %5d %3d  %5d %3d  %5d %3d | %5d %3d  %5d %3d  %5d %3d  %5d %3d\n", dbg_name, dump_type_names[t],
+/*
+			((data->pre_all[DUMP_DIRECTION_IN][DUMP_BCUC_BROADCAST][t] + data->pre_all[DUMP_DIRECTION_OUT][DUMP_BCUC_BROADCAST][t] +
+			  data->pre_all[DUMP_DIRECTION_IN][DUMP_BCUC_UNICAST][t]   + data->pre_all[DUMP_DIRECTION_OUT][DUMP_BCUC_UNICAST][t]     ) >> IMPROVE_ROUNDOFF),
+			(secUdp ? ((( data->pre_all[DUMP_DIRECTION_IN][DUMP_BCUC_BROADCAST][t] + data->pre_all[DUMP_DIRECTION_OUT][DUMP_BCUC_BROADCAST][t] +
+			              data->pre_all[DUMP_DIRECTION_IN][DUMP_BCUC_UNICAST][t]   + data->pre_all[DUMP_DIRECTION_OUT][DUMP_BCUC_UNICAST][t]     )*100) / secUdp) : -1),
+*/
 
-			((data->pre_all[DUMP_DIRECTION_IN][DUMP_BCUC_BROADCAST][t] + data->pre_all[DUMP_DIRECTION_OUT][DUMP_BCUC_BROADCAST][t]) >> IMPROVE_ROUNDOFF),
-			(secUdp ? (((data->pre_all[DUMP_DIRECTION_IN][DUMP_BCUC_BROADCAST][t] + data->pre_all[DUMP_DIRECTION_OUT][DUMP_BCUC_BROADCAST][t])*100) / secUdp) : -1),
+			((data->pre_all[DUMP_DIRECTION_RX][DUMP_BC][t]) >> IMPROVE_ROUNDOFF),
+			(secIp6BcRx && (t!=DUMP_TYPE_IP6_PACKETS) ? ((data->pre_all[DUMP_DIRECTION_RX][DUMP_BC][t]*100) / secIp6BcRx) : -1),
 
-			((data->pre_all[DUMP_DIRECTION_IN][DUMP_BCUC_BROADCAST][t]) >> IMPROVE_ROUNDOFF),
-			(secUdpRx ? ((data->pre_all[DUMP_DIRECTION_IN][DUMP_BCUC_BROADCAST][t]*100) / secUdpRx) : -1),
+            ((data->pre_all[DUMP_DIRECTION_RX][DUMP_UC][t]) >> IMPROVE_ROUNDOFF),
+            (secIp6UcRx && (t!=DUMP_TYPE_IP6_PACKETS) ? ((data->pre_all[DUMP_DIRECTION_RX][DUMP_UC][t]*100) / secIp6UcRx) : -1),
 
-			((data->pre_all[DUMP_DIRECTION_OUT][DUMP_BCUC_BROADCAST][t]) >> IMPROVE_ROUNDOFF),
-			(secUdpTx ? ((data->pre_all[DUMP_DIRECTION_OUT][DUMP_BCUC_BROADCAST][t]*100) / secUdpTx) : -1),
+            ((data->pre_all[DUMP_DIRECTION_TX][DUMP_BC][t]) >> IMPROVE_ROUNDOFF),
+			(secIp6BcTx && (t!=DUMP_TYPE_IP6_PACKETS) ? ((data->pre_all[DUMP_DIRECTION_TX][DUMP_BC][t]*100) / secIp6BcTx) : -1),
 
-
-            ((data->pre_all[DUMP_DIRECTION_IN][DUMP_BCUC_UNICAST][t]) >> IMPROVE_ROUNDOFF),
-            (secUdpRx ? ((data->pre_all[DUMP_DIRECTION_IN][DUMP_BCUC_UNICAST][t]*100) / secUdpRx) : -1),
-
-            ((data->pre_all[DUMP_DIRECTION_OUT][DUMP_BCUC_UNICAST][t]) >> IMPROVE_ROUNDOFF),
-            (secUdpTx ? ((data->pre_all[DUMP_DIRECTION_OUT][DUMP_BCUC_UNICAST][t]*100) / secUdpTx) : -1),
+            ((data->pre_all[DUMP_DIRECTION_TX][DUMP_UC][t]) >> IMPROVE_ROUNDOFF),
+            (secIp6UcTx && (t!=DUMP_TYPE_IP6_PACKETS) ? ((data->pre_all[DUMP_DIRECTION_TX][DUMP_UC][t]*100) / secIp6UcTx) : -1),
 
 
-
+/*
 			((data->avg_all[DUMP_DIRECTION_IN][DUMP_BCUC_BROADCAST][t] + data->avg_all[DUMP_DIRECTION_OUT][DUMP_BCUC_BROADCAST][t]) >> IMPROVE_ROUNDOFF),
 			(avgUdp ? (((data->avg_all[DUMP_DIRECTION_IN][DUMP_BCUC_BROADCAST][t] + data->avg_all[DUMP_DIRECTION_OUT][DUMP_BCUC_BROADCAST][t])*100) / avgUdp) : 0),
+*/
 
-			((data->avg_all[DUMP_DIRECTION_IN][DUMP_BCUC_BROADCAST][t]) >> IMPROVE_ROUNDOFF),
-			(avgUdpRx ? ((data->avg_all[DUMP_DIRECTION_IN][DUMP_BCUC_BROADCAST][t]*100) / avgUdpRx) : -1),
+			((data->avg_all[DUMP_DIRECTION_RX][DUMP_BC][t]) >> IMPROVE_ROUNDOFF),
+			(avgIp6BcRx && (t!=DUMP_TYPE_IP6_PACKETS) ? ((data->avg_all[DUMP_DIRECTION_RX][DUMP_BC][t]*100) / avgIp6BcRx) : -1),
 
-			((data->avg_all[DUMP_DIRECTION_OUT][DUMP_BCUC_BROADCAST][t]) >> IMPROVE_ROUNDOFF),
-			(avgUdpTx ? ((data->avg_all[DUMP_DIRECTION_OUT][DUMP_BCUC_BROADCAST][t]*100) / avgUdpTx) : -1),
+            ((data->avg_all[DUMP_DIRECTION_RX][DUMP_UC][t]) >> IMPROVE_ROUNDOFF),
+            (avgIp6UcRx && (t!=DUMP_TYPE_IP6_PACKETS) ? ((data->avg_all[DUMP_DIRECTION_RX][DUMP_UC][t]*100) / avgIp6UcRx) : -1),
 
-            ((data->avg_all[DUMP_DIRECTION_IN][DUMP_BCUC_UNICAST][t]) >> IMPROVE_ROUNDOFF),
-            (avgUdpRx ? ((data->avg_all[DUMP_DIRECTION_IN][DUMP_BCUC_UNICAST][t]*100) / avgUdpRx) : -1),
+            ((data->avg_all[DUMP_DIRECTION_TX][DUMP_BC][t]) >> IMPROVE_ROUNDOFF),
+            (avgIp6BcTx && (t!=DUMP_TYPE_IP6_PACKETS) ? ((data->avg_all[DUMP_DIRECTION_TX][DUMP_BC][t]*100) / avgIp6BcTx) : -1),
 
-            ((data->avg_all[DUMP_DIRECTION_OUT][DUMP_BCUC_UNICAST][t]) >> IMPROVE_ROUNDOFF),
-            (avgUdpTx ? ((data->avg_all[DUMP_DIRECTION_OUT][DUMP_BCUC_UNICAST][t]*100) / avgUdpTx) : -1)
+            ((data->avg_all[DUMP_DIRECTION_TX][DUMP_UC][t]) >> IMPROVE_ROUNDOFF),
+            (avgIp6UcTx && (t!=DUMP_TYPE_IP6_PACKETS) ? ((data->avg_all[DUMP_DIRECTION_TX][DUMP_UC][t]*100) / avgIp6UcTx) : -1)
 
 			);
 	}
 
 	for (t = 0; t < FRAME_TYPE_NOP; t++) {
 
-		if (packet_frame_db->handls[t].name || data->avg_frame[DUMP_DIRECTION_IN][DUMP_BCUC_BROADCAST][t] || data->avg_frame[DUMP_DIRECTION_OUT][DUMP_BCUC_BROADCAST][t]) {
+		if (packet_frame_db->handls[t].name || data->avg_frame[DUMP_DIRECTION_RX][DUMP_BC][t] || data->avg_frame[DUMP_DIRECTION_TX][DUMP_BC][t]) {
 
 			char tnum[4];
 			char *tname = packet_frame_db->handls[t].name;
@@ -315,40 +325,39 @@ void dbg_traffic_statistics(struct dump_data *data, struct ctrl_node *cn, char* 
 				tname = tnum;
 			}
 
-			dbg_printf(cn, "%-11s %13s  %5d %3d  %5d %3d  %5d %3d  %5d %3d  %5d %3d | %5d %3d  %5d %3d  %5d %3d  %5d %3d  %5d %3d\n", dbg_name, tname,
-
+//			dbg_printf(cn, "%-11s %13s  %5d %3d  %5d %3d  %5d %3d  %5d %3d  %5d %3d | %5d %3d  %5d %3d  %5d %3d  %5d %3d  %5d %3d\n", dbg_name, tname,
+            dbg_printf(cn, "%-11s %13s  %5d %3d  %5d %3d  %5d %3d  %5d %3d | %5d %3d  %5d %3d  %5d %3d  %5d %3d\n", dbg_name, tname,
+/*
 				((data->pre_frame[DUMP_DIRECTION_IN][DUMP_BCUC_BROADCAST][t] + data->pre_frame[DUMP_DIRECTION_OUT][DUMP_BCUC_BROADCAST][t]) >> IMPROVE_ROUNDOFF),
 				(secUdp ? (((data->pre_frame[DUMP_DIRECTION_IN][DUMP_BCUC_BROADCAST][t] + data->pre_frame[DUMP_DIRECTION_OUT][DUMP_BCUC_BROADCAST][t])*100) / secUdp) : 0),
+*/
+				((data->pre_frame[DUMP_DIRECTION_RX][DUMP_BC][t]) >> IMPROVE_ROUNDOFF),
+				(secIp6BcRx ? ((data->pre_frame[DUMP_DIRECTION_RX][DUMP_BC][t]*100) / secIp6BcRx): 0),
 
-				((data->pre_frame[DUMP_DIRECTION_IN][DUMP_BCUC_BROADCAST][t]) >> IMPROVE_ROUNDOFF),
-				(secUdpRx ? ((data->pre_frame[DUMP_DIRECTION_IN][DUMP_BCUC_BROADCAST][t]*100) / secUdpRx): 0),
+                ((data->pre_frame[DUMP_DIRECTION_RX][DUMP_UC][t]) >> IMPROVE_ROUNDOFF),
+                (secIp6UcRx ? ((data->pre_frame[DUMP_DIRECTION_RX][DUMP_UC][t]*100) / secIp6UcRx): 0),
 
-				((data->pre_frame[DUMP_DIRECTION_OUT][DUMP_BCUC_BROADCAST][t]) >> IMPROVE_ROUNDOFF),
-				(secUdpTx ? ((data->pre_frame[DUMP_DIRECTION_OUT][DUMP_BCUC_BROADCAST][t]*100) / secUdpTx) : 0),
+                ((data->pre_frame[DUMP_DIRECTION_TX][DUMP_BC][t]) >> IMPROVE_ROUNDOFF),
+                (secIp6BcTx ? ((data->pre_frame[DUMP_DIRECTION_TX][DUMP_BC][t]*100) / secIp6BcTx) : 0),
 
+                ((data->pre_frame[DUMP_DIRECTION_TX][DUMP_UC][t]) >> IMPROVE_ROUNDOFF),
+                (secIp6UcTx ? ((data->pre_frame[DUMP_DIRECTION_TX][DUMP_UC][t]*100) / secIp6UcTx) : 0),
 
-                ((data->pre_frame[DUMP_DIRECTION_IN][DUMP_BCUC_UNICAST][t]) >> IMPROVE_ROUNDOFF),
-                (secUdpRx ? ((data->pre_frame[DUMP_DIRECTION_IN][DUMP_BCUC_UNICAST][t]*100) / secUdpRx): 0),
-
-                ((data->pre_frame[DUMP_DIRECTION_OUT][DUMP_BCUC_UNICAST][t]) >> IMPROVE_ROUNDOFF),
-                (secUdpTx ? ((data->pre_frame[DUMP_DIRECTION_OUT][DUMP_BCUC_UNICAST][t]*100) / secUdpTx) : 0),
-
-
+/*
 				((data->avg_frame[DUMP_DIRECTION_IN][DUMP_BCUC_BROADCAST][t] + data->avg_frame[DUMP_DIRECTION_OUT][DUMP_BCUC_BROADCAST][t]) >> IMPROVE_ROUNDOFF),
 				(avgUdp ? (((data->avg_frame[DUMP_DIRECTION_IN][DUMP_BCUC_BROADCAST][t] + data->avg_frame[DUMP_DIRECTION_OUT][DUMP_BCUC_BROADCAST][t])*100) / avgUdp) : 0),
+*/
+                ((data->avg_frame[DUMP_DIRECTION_RX][DUMP_BC][t]) >> IMPROVE_ROUNDOFF),
+                (avgIp6BcRx ? ((data->avg_frame[DUMP_DIRECTION_RX][DUMP_BC][t]*100) / avgIp6BcRx) : 0),
 
-                ((data->avg_frame[DUMP_DIRECTION_IN][DUMP_BCUC_BROADCAST][t]) >> IMPROVE_ROUNDOFF),
-                (avgUdpRx ? ((data->avg_frame[DUMP_DIRECTION_IN][DUMP_BCUC_BROADCAST][t]*100) / avgUdpRx) : 0),
+				((data->avg_frame[DUMP_DIRECTION_RX][DUMP_UC][t]) >> IMPROVE_ROUNDOFF),
+				(avgIp6UcRx ? ((data->avg_frame[DUMP_DIRECTION_RX][DUMP_UC][t]*100) / avgIp6UcRx) : 0),
 
-                ((data->avg_frame[DUMP_DIRECTION_OUT][DUMP_BCUC_BROADCAST][t]) >> IMPROVE_ROUNDOFF),
-                (avgUdpTx ? ((data->avg_frame[DUMP_DIRECTION_OUT][DUMP_BCUC_BROADCAST][t]*100) / avgUdpTx) : 0),
+                ((data->avg_frame[DUMP_DIRECTION_TX][DUMP_BC][t]) >> IMPROVE_ROUNDOFF),
+                (avgIp6BcTx ? ((data->avg_frame[DUMP_DIRECTION_TX][DUMP_BC][t]*100) / avgIp6BcTx) : 0),
 
-
-				((data->avg_frame[DUMP_DIRECTION_IN][DUMP_BCUC_UNICAST][t]) >> IMPROVE_ROUNDOFF),
-				(avgUdpRx ? ((data->avg_frame[DUMP_DIRECTION_IN][DUMP_BCUC_UNICAST][t]*100) / avgUdpRx) : 0),
-
-				((data->avg_frame[DUMP_DIRECTION_OUT][DUMP_BCUC_UNICAST][t]) >> IMPROVE_ROUNDOFF),
-				(avgUdpTx ? ((data->avg_frame[DUMP_DIRECTION_OUT][DUMP_BCUC_UNICAST][t]*100) / avgUdpTx) : 0)
+				((data->avg_frame[DUMP_DIRECTION_TX][DUMP_UC][t]) >> IMPROVE_ROUNDOFF),
+				(avgIp6UcTx ? ((data->avg_frame[DUMP_DIRECTION_TX][DUMP_UC][t]*100) / avgIp6UcTx) : 0)
 
 				);
 		}
@@ -367,7 +376,8 @@ int32_t opt_traffic_statistics(uint8_t cmd, uint8_t _save, struct opt_type *opt,
 		dbg_printf(cn, "TRAFFIC (iteration=%d as [B/s], averaged over %.1fs and weighted averages):\n",
 			dump_iteration, (float) curr_dump_period / 1000);
 
-		dbg_printf(cn, "dev %16s type    all _%%_     Rx _%%_     Tx _%%_   UcRx _%%_   UcTx _%%_ |   all _%%_     Rx _%%_     Tx _%%_   UcRx _%%_   UcTx _%%_\n", "");
+//		dbg_printf(cn, "dev %16s type    all _%%_     Rx _%%_     Tx _%%_   UcRx _%%_   UcTx _%%_ |   all _%%_     Rx _%%_     Tx _%%_   UcRx _%%_   UcTx _%%_\n", "");
+        dbg_printf(cn, "dev %16s type   BcRx _%%_   UcRx _%%_   BcTx _%%_   UcTx _%%_ |  BcRx _%%_   UcRx _%%_   BcTx _%%_   UcTx _%%_\n", "");
 
 		if (patch->val && (!strcmp(patch->val, ARG_DUMP_ALL) || !strcmp(patch->val, ARG_DUMP_SUMMARY)))
 			dbg_traffic_statistics(&all_devs_data, cn, ARG_DUMP_ALL);

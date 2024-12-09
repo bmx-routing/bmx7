@@ -842,7 +842,8 @@ struct orig_status {
 	DESC_SQN_T descSqnMin;
 	DESC_SQN_T descSqnNext;
 	uint32_t lastDesc;
-	char descSize[2 * 20];
+	char descStats[2 * 20];
+    char descSize[2 * 20];
 	char descRefs[2 * 12]; //contentRefs
 	uint32_t unresolveds;
 	uint32_t uniques;
@@ -872,7 +873,7 @@ static const struct field_format orig_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, orig_status, nodeId,        1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      orig_status, name,          1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      orig_status, assessedState, 1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      orig_status, as,            1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,      orig_status, as,            1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, pref,          1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, brcTo,         1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, signTo,        1, FIELD_RELEVANCE_MEDI),
@@ -881,18 +882,19 @@ static const struct field_format orig_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, friend,        1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, recom,         1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, trustees,      1, FIELD_RELEVANCE_MEDI),
-        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       orig_status, S,             1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       orig_status, s,             1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       orig_status, T,             1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       orig_status, t,             1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       orig_status, S,             1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       orig_status, s,             1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       orig_status, T,             1, FIELD_RELEVANCE_MEDI),
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       orig_status, t,             1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, myIid,         1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_SHORT_ID,  orig_status, shortDHash,    1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_GLOBAL_ID, orig_status, dHash,         1, FIELD_RELEVANCE_LOW),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, descSqn,       1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, descSqn,       1, FIELD_RELEVANCE_LOW),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, descSqnMin,    1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, descSqnNext,   1, FIELD_RELEVANCE_LOW),
-        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, lastDesc,      1, FIELD_RELEVANCE_HIGH),
-        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       orig_status, descSize,      1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, lastDesc,      1, FIELD_RELEVANCE_LOW),
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       orig_status, descStats,     1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       orig_status, descSize,      1, FIELD_RELEVANCE_LOW),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       orig_status, descRefs,      1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, unresolveds,   1, FIELD_RELEVANCE_LOW),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, uniques,       1, FIELD_RELEVANCE_LOW),
@@ -943,6 +945,7 @@ static const struct field_format keys_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, descSqnMin,    1, FIELD_RELEVANCE_MEDI),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, descSqnNext,   1, FIELD_RELEVANCE_LOW),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, lastDesc,      1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       orig_status, descStats,     1, FIELD_RELEVANCE_LOW),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       orig_status, descSize,      1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,       orig_status, descRefs,      1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,              orig_status, unresolveds,   1, FIELD_RELEVANCE_LOW),
@@ -1021,13 +1024,15 @@ uint8_t *key_status_page(uint8_t *sOut, uint32_t i, struct orig_node *on, struct
 			snprintf(os->revision, (sizeof(os->revision) - 1), DBG_NIL);
 
 		os->descSqn = dc->descSqn;
+        os->lastDesc = on ? ((bmx_time - on->updated_timestamp) / 1000) : ((uint32_t)-1);
 		snprintf(os->descSize, (sizeof(os->descSize) - 1), "%d+%d", dc->desc_frame_len, dc->countedVirtDescSizes.f.length);
+        snprintf(os->descStats,(sizeof(os->descStats)- 1), "%d@%04d+%d+%d", dc->descSqn, os->lastDesc, dc->desc_frame_len, dc->countedVirtDescSizes.f.length);
 		snprintf(os->descRefs, (sizeof(os->descRefs) - 1), "%d/%d", dc->countedVirtDescSizes.f.contents, dc->claimedVirtDescSizes.f.contents);
 		os->unresolveds = dc->unresolvedContentCounter;
 		os->uniques = dc->contentRefs_tree.items;
 		os->dHash = &dc->dHash;
 		os->shortDHash = &dc->dHash;
-		os->lastRef = (bmx_time - dc->referred_by_others_timestamp) / 1000;
+        os->lastRef = (bmx_time - dc->referred_by_others_timestamp) / 1000;
 	} else {
 		os->s[0] = '-';
 		os->t[0] = '-';
@@ -1063,7 +1068,6 @@ uint8_t *key_status_page(uint8_t *sOut, uint32_t i, struct orig_node *on, struct
 		}
 		os->hops = on->ogmHopCount;
 		os->ogmSqn = on->dc->ogmSqnMaxSend;
-		os->lastDesc = (bmx_time - on->updated_timestamp) / 1000;
 		os->myIid = iid_get_myIID4x_by_node(on);
 		struct NeighRef_node *nref = on->neighPath.link ? avl_find_item(&kn->neighRefs_tree, &on->neighPath.link->k.linkDev->key.local) : NULL;
 		os->nbIid = nref ? iid_get_neighIID4x_by_node(nref) : 0;

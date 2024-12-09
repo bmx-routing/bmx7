@@ -649,7 +649,13 @@ int process_packet_signature(struct rx_frame_iterator *it)
 	cryptShaUpdate(hdr, sizeof(struct frame_hdr_signature));
 	cryptShaUpdate(data, dataLen);
 	cryptShaFinal(&packetSha);
-
+    /*
+     [279  6752634  9363] INFO  process_packet_signature:
+     FAILED problem=(null) linkVerification=1 nodeId=ADEE2F16C39153501B74830FA5E5C438366639B19DF947DBFE83BCDD credits=Promoted
+     data_len=10 data_sha=BBA6CFBEF5AB26EB97C28FC8D4C74FB1DEC74EFD43827318204E27F1 msgType=0 linkRsaSignTypes=70 linkDhmSignType=17
+     msgSize=0 msgPos=0 rsaSize=0 dhmSize=0 frameSize=0 pkey_msg_type=-1 pkey_type=-1 dev=eth1 srcIp=fe80::a2cd:efff:fe10:4901 llIps=FE80000000000000A2CDEFFFFE104901 pcktSqn=8662/-1 descSqn=415 keyDescSqn=415
+     nextDescSqn=-1 minDescSqn=415
+     */
 	for (;
 		(!verified && !(rsaSize = 0) && !(dhmKeySize = 0) && it->f_msg && msgPos < it->f_msgs_len &&
 		(msg = (struct frame_msg_signature*) (&it->f_msg[msgPos])) &&
@@ -722,16 +728,27 @@ int process_packet_signature(struct rx_frame_iterator *it)
 
 finish:
 	{
+	    /*
+	     [279  6752634  9363] INFO  process_packet_signature:
+	     FAILED problem=(null) linkVerification=1 nodeId=ADEE2F16C39153501B74830FA5E5C438366639B19DF947DBFE83BCDD credits=Promoted
+	     data_len=10 data_sha=BBA6CFBEF5AB26EB97C28FC8D4C74FB1DEC74EFD43827318204E27F1 msgType=0 linkRsaSignTypes=70 linkDhmSignType=17
+	     msgSize=0 msgPos=0 rsaSize=0 dhmSize=0 frameSize=0
+	     pkey_msg_type=-1 pkey_type=-1 dev=eth1 srcIp=fe80::a2cd:efff:fe10:4901 llIps=FE80000000000000A2CDEFFFFE104901 pcktSqn=8662/-1 descSqn=415 keyDescSqn=415
+	     nextDescSqn=-1 minDescSqn=415
+	     */
 
 		dbgf(
 		goto_error_ret != TLV_RX_DATA_PROCESSED ? DBGL_SYS : (verified ? DBGL_ALL : DBGL_CHANGES),
 		goto_error_ret != TLV_RX_DATA_PROCESSED ? DBGT_ERR : DBGT_INFO,
-		"%s problem=%s linkVerification=%d nodeId=%s credits=%s data_len=%d data_sha=%s msgType=%d linkRsaSignTypes=%x linkDhmSignType=%d msgSize=%d msgPos=%d rsaSize=%d dhmSize=%d frameSize=%d "
+		"%s problem=%s linkVerification=%d nodeId=%s credits=%s "
+		"data_len=%d data_sha=%s msgType=%d linkRsaSignTypes=%x linkDhmSignType=%d "
+		"msgSize=%d msgPos=%d rsaSize=%d dhmSize=%d frameSize=%d "
 		"pkey_msg_type=%d pkey_type=%d "
 		"dev=%s srcIp=%s llIps=%s pcktSqn=%d/%d "
 		"descSqn=%d keyDescSqn=%d nextDescSqn=%d minDescSqn=%d ",
 		verified ? "VERIFIED" : "FAILED", goto_error_code, linkVerify, cryptShaAsString(claimedKey ? &claimedKey->kHash : NULL), (claimedKey ? claimedKey->bookedState->setName : NULL),
-		dataLen, cryptShaAsString(&packetSha), msgType, linkRsaRxSignTypes, linkDhmSignType, msgSize, msgPos, rsaSize, dhmKeySize, it->f_msgs_len,
+		dataLen, cryptShaAsString(&packetSha), msgType, linkRsaRxSignTypes, linkDhmSignType,
+		msgSize, msgPos, rsaSize, dhmKeySize, it->f_msgs_len,
 		pkey_msg ? pkey_msg->type : -1, pkey ? pkey->rawKeyType : -1,
 		pb->i.iif->ifname_label.str, pb->i.llip_str, (llip_dlen ? memAsHexStringSep(llip_data, llip_dlen, sizeof(struct dsc_msg_llip), " ") : NULL),
 		burstSqn, (nn ? (int) nn->burstSqn : -1),

@@ -407,7 +407,8 @@ struct NeighRef_node *neighRef_update(struct neigh_node *nn, AGGREG_SQN_T aggSqn
 			inaptChainOgm_destroy_(ref);
 
 			if (kn == myKey && ((ref->ogmSqnMax > dc->ogmSqnMaxSend) || (ref->ogmSqnMax == dc->ogmSqnMaxSend && fmetric_to_umetric(ref->ogmSqnMaxClaimedMetric) >= myKey->on->neighPath.um))) {
-				dbgf_mute(70, DBGL_SYS, DBGT_WARN, "OGM SQN or metric attack on myself, rcvd via neigh=%s, rcvdSqn=%d sendSqn=%d rcvdMetric=%ju sendMetric=%ju",
+				//dbgf_mute(70,
+                dbgf(DBGL_SYS, DBGT_WARN, "OGM SQN or metric attack on myself, rcvd via neigh=%s, rcvdSqn=%d sendSqn=%d rcvdMetric=%ju sendMetric=%ju",
 					cryptShaAsShortStr(&nn->k.nodeId), ref->ogmSqnMax, dc->ogmSqnMaxSend, fmetric_to_umetric(ref->ogmSqnMaxClaimedMetric), myKey->on->neighPath.um);
 
 				update_ogm_mins(nn->on->kn, nn->on->dc->descSqn + 1, 0, NULL);

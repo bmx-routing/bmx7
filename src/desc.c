@@ -545,6 +545,7 @@ int32_t rx_frame_description_adv(struct rx_frame_iterator *it)
 	struct dsc_msg_version *thisVers, *currVers, *nextVers;
 	struct desc_content *dc = NULL;
 	CRYPTSHA_T dHash;
+	IDM_T failed = NO;
 
 	cryptShaAtomic(it->f_data, it->f_dlen, &dHash);
 
@@ -586,6 +587,7 @@ int32_t rx_frame_description_adv(struct rx_frame_iterator *it)
 
 	if ((virtDescSizes.f.length > desc_vbodies_size_in || virtDescSizes.f.contents > desc_contents_in) && (extended_desc_checking >= TYP_DESC_CHECKING_SIZES)) {
 		update_ogm_mins(kn, descSqn + 1, 0, NULL);
+        failed = YES;
 		goto_error_return(finish, "Intolerable desc sizes", it->f_dlen);
 	}
 
@@ -598,7 +600,7 @@ finish:
 	if (dc)
 		dc->referred_by_others_timestamp = bmx_time;
 
-	dbgf_track(DBGT_INFO, "Finished=%s rcvd dhash=%s nodeId=%s via_dev=%s via_ip=%s dc=%d",
+	dbgf(failed?DBGL_SYS:DBGL_CHANGES,failed?DBGT_ERR:DBGT_INFO, "Finished=%s rcvd dhash=%s nodeId=%s via_dev=%s via_ip=%s dc=%d",
 		goto_error_code, memAsHexString(&dHash, sizeof(dHash)), cryptShaAsString(nodeId),
 		it->pb->i.iif->ifname_label.str, it->pb->i.llip_str, !!dc);
 

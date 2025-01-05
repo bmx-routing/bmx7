@@ -373,6 +373,7 @@ IDM_T getQualifyingPromotedOrNeighDhmSecret(struct orig_node *on, IDM_T calcSecr
 	prof_start(getQualifyingPromotedOrNeighDhmSecret, main);
 
 	IDM_T ret = NO;
+	IDM_T failed = NO;
 	struct key_node *kn = on->kn;
 	struct dsc_msg_dhm_link_key *neighDhmKey = NULL;
 	int neighDhmLen = 0;
@@ -394,7 +395,7 @@ IDM_T getQualifyingPromotedOrNeighDhmSecret(struct orig_node *on, IDM_T calcSecr
 
 				update_ogm_mins(kn, on->dc->descSqn + 1, 0, NULL);
 				keyNode_schedLowerWeight(kn, KCListed);
-				dbgf_track(DBGT_ERR, "Failed!");
+				failed = YES;
 
 			} else {
 
@@ -406,7 +407,7 @@ IDM_T getQualifyingPromotedOrNeighDhmSecret(struct orig_node *on, IDM_T calcSecr
 		assertion(-502736, (!avl_find_item(&qualifyingPromoteds_tree, &kn->kHash)));
 	}
 
-	dbgf_all(DBGT_INFO, "calcSecret=%d id=%s name=%s state=%s dhmSecret=%d myDhmKeyType=%d myDhmKeyLen=%d neighDhmKeyLen=%d ret=%d",
+	dbgf((!ret?DBGL_SYS:DBGL_ALL), (failed?DBGT_ERR:DBGT_INFO), "calcSecret=%d id=%s name=%s state=%s dhmSecret=%d myDhmKeyType=%d myDhmKeyLen=%d neighDhmKeyLen=%d ret=%d",
 		calcSecret, cryptShaAsShortStr(&kn->kHash), kn->on ? kn->on->k.hostname : NULL, kn->bookedState->secName, kn->on && kn->on->dhmSecret,
 		(my_DhmLinkKey ? my_DhmLinkKey->rawGXType : 0), (my_DhmLinkKey ? my_DhmLinkKey->rawGXLen : 0), neighDhmLen, ret);
 

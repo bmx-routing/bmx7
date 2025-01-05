@@ -3382,6 +3382,7 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
 			// some configurable interface values - initialized to unspecified:
 			dev->blockingSockets = DEF_DEV_BLSOCK;
 			dev->linklayer_conf = OPT_CHILD_UNDEFINED;
+			dev->unicastFrames = DEF_DEV_UNICAST;
 			dev->strictSignatures = DEF_DEV_SIGNATURES;
 			dev->channel_conf = OPT_CHILD_UNDEFINED;
 			dev->umetric_max_conf = (UMETRIC_T) OPT_CHILD_UNDEFINED;
@@ -3452,6 +3453,10 @@ int32_t opt_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_par
 				dev->linklayer_conf = c->val ? strtol(c->val, NULL, 10) : OPT_CHILD_UNDEFINED;
 
 				dev->hard_conf_changed = YES;
+
+            } else if (!strcmp(c->opt->name, ARG_DEV_UNICAST) && cmd == OPT_APPLY) {
+
+                dev->unicastFrames = c->val ? strtol(c->val, NULL, 10) : DEF_DEV_UNICAST;
 
 			} else if (!strcmp(c->opt->name, ARG_DEV_CHANNEL) && cmd == OPT_APPLY) {
 
@@ -3553,6 +3558,9 @@ static struct opt_type ip_options[]=
 
 	{ODI,ARG_DEV,ARG_DEV_LL,	 'l',9,0,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,	0,		MIN_DEV_LL,	MAX_DEV_LL,     DEF_DEV_LL,0,	opt_dev,
 			ARG_VALUE_FORM,	HLP_DEV_LL},
+
+    {ODI,ARG_DEV,ARG_DEV_UNICAST,'u',9,0,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY, 0,      MIN_DEV_UNICAST,MAX_DEV_UNICAST,DEF_DEV_UNICAST,0,   opt_dev,
+            ARG_VALUE_FORM, HLP_DEV_UNICAST},
 
 	{ODI,ARG_DEV,ARG_DEV_LLOCAL_PREFIX,0, 9,1,A_CS1,A_ADM,A_DYI,A_CFA,A_ANY,  0,		0,              0,              0,0,              opt_dev,
 			ARG_VALUE_FORM,	HLP_DEV_LLOCAL_PREFIX},

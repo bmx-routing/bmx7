@@ -151,6 +151,12 @@ extern int32_t devStatRegression;
 #define MAX_DEV_LL              2
 #define HLP_DEV_LL              "manually set device type for linklayer specific optimization (1=lan, 2=wlan)"
 
+#define ARG_DEV_UNICAST           ARG_UNICAST_FRAMES
+#define MIN_DEV_UNICAST           MIN_UNICAST_FRAMES
+#define MAX_DEV_UNICAST           MAX_UNICAST_FRAMES
+#define DEF_DEV_UNICAST           DEF_UNICAST_FRAMES
+#define HLP_DEV_UNICAST           HLP_UNICAST_FRAMES
+
 #define ARG_DEV_CHANNEL    "channel"
 #define MIN_DEV_CHANNEL           0
 #define TYP_DEV_CHANNEL_EXCLUSIVE 0
@@ -448,6 +454,7 @@ struct dev_node {
 	uint8_t activate_cancelled;
 	uint8_t blockingSockets;
 
+
 	uint8_t lastTxKey;
 
 	uint32_t udpTxPacketsCurr;
@@ -493,6 +500,7 @@ struct dev_node {
 
 	uint8_t strictSignatures;
 
+	int8_t unicastFrames;
 	int8_t linklayer_conf;
 	int8_t linklayer;
 

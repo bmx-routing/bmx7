@@ -968,7 +968,72 @@ void tx_packets(void *unused)
 	prof_stop();
 }
 
-void schedule_tx_task(uint8_t f_type, uint8_t viaAllLinks, LinkNode *txLink, struct dev_node *txDev, CRYPTSHA_T *groupId, struct neigh_node *neighCtx, int16_t f_msgs_len, void *keyData, uint32_t keyLen)
+IDM_T maybeUnicast( struct dev_node *txDev)
+{
+    assertion(-500000, txDev); // It does not make sense to answer unless needed information
+
+    if (unicast_frames == TYP_UNICAST_FRAMES_NEVER)
+        return NO;
+    if (!txDev)
+        return YES;
+
+    if (txDev->unicastFrames == TYP_UNICAST_FRAMES_NEVER)
+        return NO;
+    if (txDev->unicastFrames == TYP_UNICAST_FRAMES_MOSTLY)
+        return YES;
+    if (txDev->unicastFrames == TYP_UNICAST_FRAMES_WIFI && txDev->linklayer == TYP_DEV_LL_WIFI)
+        return YES;
+    if (txDev->unicastFrames == TYP_UNICAST_FRAMES_WIRED && txDev->linklayer == TYP_DEV_LL_LAN)
+        return YES;
+
+    if (unicast_frames == TYP_UNICAST_FRAMES_MOSTLY)
+        return YES;
+    if (unicast_frames == TYP_UNICAST_FRAMES_WIFI  && txDev->linklayer == TYP_DEV_LL_WIFI)
+        return YES;
+    if (unicast_frames == TYP_UNICAST_FRAMES_WIRED && txDev->linklayer == TYP_DEV_LL_LAN)
+        return YES;
+
+    return NO;
+    }
+
+void schedule_tx_task_viaAllLinks(uint8_t f_type, CRYPTSHA_T *groupId, struct neigh_node *neighCtx, int16_t f_msgs_len, void *keyData, uint32_t keyLen)
+{
+    if (unicast_frames != TYP_UNICAST_FRAMES_NEVER) {
+       struct avl_node *dan = NULL;
+       struct dev_node *txDev;
+
+       while ((txDev = avl_iterate_item(&dev_ip_tree, &dan))) {
+           if (txDev->active && txDev->linklayer != TYP_DEV_LL_LO) {
+               IDM_T sendBrc = NO;
+               struct avl_node *nan = NULL;
+               struct neigh_node *txNeigh = NULL;
+               while ((txNeigh = avl_iterate_item(&local_tree, &nan))) {
+                   LinkNode *txLink;
+                   if ((txLink = txNeigh->best_tq_link) && (txDev == txLink->k.myDev)) {
+                       if ( maybeUnicast(txDev) ) {
+                           schedule_tx_task(f_type, txLink, txDev, groupId, neighCtx, f_msgs_len, keyData, keyLen);
+                       } else {
+                           sendBrc = YES;
+                       }
+                   }
+               }
+               if (sendBrc) {
+                   schedule_tx_task(f_type, NULL, txDev, groupId, neighCtx, f_msgs_len, keyData, keyLen);
+               }
+           }
+       }
+   } else {
+           schedule_tx_task(f_type, NULL, NULL, groupId, neighCtx, f_msgs_len, keyData, keyLen);
+   }
+
+    dbgf((dbg_frame_types & (1 << f_type) ? DBGL_CHANGES : DBGL_ALL), DBGT_INFO,
+        "type=%02X=%-12s unicastFrames=%d groupId=%-8s neighCtx=%s msgs_len=%d data=%s len=%d",
+        f_type, packet_frame_db->handls[f_type].name, unicast_frames, cryptShaAsShortStr(groupId), neighCtx ? cryptShaAsShortStr(&neighCtx->k.nodeId) : NULL,
+        f_msgs_len, memAsHexString(keyData, keyLen), keyLen);
+
+}
+
+void schedule_tx_task(uint8_t f_type, LinkNode *txLink, struct dev_node *txDev, CRYPTSHA_T *groupId, struct neigh_node *neighCtx, int16_t f_msgs_len, void *keyData, uint32_t keyLen)
 {
 	assertion(-502447, (f_type <= FRAME_TYPE_MAX));
 	assertion(-502448, IMPLIES(txDev, txDev->active && txDev->linklayer != TYP_DEV_LL_LO));
@@ -985,50 +1050,23 @@ void schedule_tx_task(uint8_t f_type, uint8_t viaAllLinks, LinkNode *txLink, str
 //  neigh = txLink ? txLink->k.linkDev->key.local : neigh;
     txDev = txLink ? txLink->k.myDev: txDev;
 
-	if (   (unicast_frames == TYP_UNICAST_FRAMES_NEVER)
-	    || (unicast_frames == TYP_UNICAST_FRAMES_WIFI && txDev && txDev->linklayer == TYP_DEV_LL_LAN) )    // Do not send unicast via non-wifi interfaces unless configured
-    {
-
-        txLink = NULL;
-
-	} else if (!txDev && viaAllLinks) {
-        struct avl_node *dan = NULL;
-        while ((txDev = avl_iterate_item(&dev_ip_tree, &dan))) {
-            if (txDev->active && txDev->linklayer != TYP_DEV_LL_LO) {
-                IDM_T sendBrc = NO;
-                struct avl_node *nan = NULL;
-                struct neigh_node *txNeigh = NULL;
-                while ((txNeigh = avl_iterate_item(&local_tree, &nan))) {
-                    if ((txLink = txNeigh->best_tq_link) && (txDev == txLink->k.myDev)) {
-                        if (unicast_frames >= TYP_UNICAST_FRAMES_ALWAYS || txDev->linklayer == TYP_DEV_LL_WIFI) {
-                            schedule_tx_task(f_type, NO, txLink, txDev, groupId, neighCtx, f_msgs_len, keyData, keyLen);
-                        } else {
-                            sendBrc = YES;
-                        }
-                    }
-                }
-                if (sendBrc) {
-                    schedule_tx_task(f_type, NO, NULL, txDev, groupId, neighCtx, f_msgs_len, keyData, keyLen);
-                }
-            }
-        }
-        return;
-	}
-
     if (!txDev) {
         struct avl_node *dan = NULL;
         while ((txDev = avl_iterate_item(&dev_ip_tree, &dan))) {
             if (txDev->active && txDev->linklayer != TYP_DEV_LL_LO)
-                schedule_tx_task(f_type, viaAllLinks, NULL,  txDev, groupId, neighCtx, f_msgs_len, keyData, keyLen);
+                schedule_tx_task(f_type, NULL,  txDev, groupId, neighCtx, f_msgs_len, keyData, keyLen);
         }
         return;
     }
 
     assertion(-500000, txDev);
 
+    if (!maybeUnicast(txDev))
+        txLink = NULL;
+
     dbgf((dbg_frame_types & (1 << f_type) ? DBGL_CHANGES : DBGL_ALL), DBGT_INFO,
-		"type=%02X=%-12s unicastFrames=%d viaAllLinks=%d txLink=%d dev=%s groupId=%-8s neighCtx=%s msgs_len=%d data=%s len=%d",
-		f_type, handl->name, unicast_frames, viaAllLinks, !!txLink, txDev ? txDev->ifname_label.str : NULL,
+		"type=%02X=%-12s unicastFrames/dev=%d/%d txLink=%d dev=%s groupId=%-8s neighCtx=%s msgs_len=%d data=%s len=%d",
+		f_type, handl->name, unicast_frames, txDev->unicastFrames, !!txLink, txDev->ifname_label.str,
         cryptShaAsShortStr(groupId), neighCtx ? cryptShaAsShortStr(&neighCtx->k.nodeId) : NULL,
 		f_msgs_len, memAsHexString(keyData, keyLen), keyLen);
 
@@ -1216,7 +1254,7 @@ struct opt_type msg_options[]=
         {ODI,0,ARG_UDPD_SIZE,             0,  9,0, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &pref_udpd_size, MIN_UDPD_SIZE,      MAX_UDPD_SIZE,     DEF_UDPD_SIZE,0,      0,
 			ARG_VALUE_FORM,	HLP_UDPD_SIZE},
         {ODI,0,ARG_UNICAST_FRAMES,       0,   9,0, A_PS1, A_ADM, A_DYI, A_CFA, A_ANY, &unicast_frames,  MIN_UNICAST_FRAMES, MAX_UNICAST_FRAMES, DEF_UNICAST_FRAMES ,0,      0,
-		    ARG_VALUE_FORM,	"Send protocol frames as unicast. 0=Never, 1=onWireless, 2=always"},
+		    ARG_VALUE_FORM,	HLP_UNICAST_FRAMES},
 		{ODI,0,ARG_DROP_ALL_PACKETS,     0, 9,0,A_PS1,A_ADM,A_DYI,A_CFA,A_ANY,	&drop_all_packets,	MIN_DROP_ALL_PACKETS,	MAX_DROP_ALL_PACKETS,	DEF_DROP_ALL_PACKETS,0,	0,
 			ARG_VALUE_FORM,	"drop all received packets"}
         ,

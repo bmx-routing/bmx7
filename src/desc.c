@@ -221,7 +221,7 @@ void update_orig_dhash(struct desc_content *dcNew)
 	cb_plugin_hooks(PLUGIN_CB_DESCRIPTION_CREATED, on);
 
 	if (dcNew->kn == myKey || unsolicitedDescAdvs)
-        schedule_tx_task(FRAME_TYPE_DESC_ADVS, YES, NULL, NULL, NULL, NULL, dcNew->desc_frame_len, &dcNew->dHash, sizeof(DHASH_T));
+        schedule_tx_task_viaAllLinks(FRAME_TYPE_DESC_ADVS, NULL, NULL, dcNew->desc_frame_len, &dcNew->dHash, sizeof(DHASH_T));
 
 	neighRefs_update(on->kn);
 }
@@ -500,9 +500,9 @@ int32_t rx_msg_description_request(struct rx_frame_iterator *it)
 		if (kn && kn->on && (bestLink || kn == myKey)) {
 
             if (bestLink)
-                schedule_tx_task(FRAME_TYPE_DESC_ADVS, NO, bestLink, NULL, NULL, NULL, kn->on->dc->desc_frame_len, &kn->on->dc->dHash, sizeof(kn->on->dc->dHash));
+                schedule_tx_task(FRAME_TYPE_DESC_ADVS, bestLink, NULL, NULL, NULL, kn->on->dc->desc_frame_len, &kn->on->dc->dHash, sizeof(kn->on->dc->dHash));
             else
-                schedule_tx_task(FRAME_TYPE_DESC_ADVS, NO, NULL, pb->i.iif, NULL, NULL, kn->on->dc->desc_frame_len, &kn->on->dc->dHash, sizeof(kn->on->dc->dHash));
+                schedule_tx_task(FRAME_TYPE_DESC_ADVS, NULL, pb->i.iif, NULL, NULL, kn->on->dc->desc_frame_len, &kn->on->dc->dHash, sizeof(kn->on->dc->dHash));
 		} else {
 			dbgf_sys(DBGT_WARN, "UNVERIFIED neigh=%s llip=%s or non-promoted kHash=%s kn=%d on=%d nextDc=%d",
 				pb->i.verifiedLink ? cryptShaAsString(&pb->i.verifiedLink->k.linkDev->key.local->k.nodeId) : NULL,
@@ -657,7 +657,7 @@ int32_t rx_frame_iid_request(struct rx_frame_iterator *it)
 			IID_T iid = ntohs(msg->receiverIID4x);
 			if ((in = iid_get_node_by_myIID4x(iid))) {
 
-				schedule_tx_task(FRAME_TYPE_IID_ADV, NO, nn->best_tq_link, NULL, NULL, NULL, SCHEDULE_MIN_MSG_SIZE, &iid, sizeof(iid));
+				schedule_tx_task(FRAME_TYPE_IID_ADV, nn->best_tq_link, NULL, NULL, NULL, SCHEDULE_MIN_MSG_SIZE, &iid, sizeof(iid));
 
 				dbgf_track(DBGT_INFO, "neigh=%s iid=%d", nn->on->k.hostname, iid);
 			}

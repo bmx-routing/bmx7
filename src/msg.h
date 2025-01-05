@@ -33,13 +33,15 @@
 
 
 #define ARG_UNICAST_FRAMES "unicastFrames"
-#define HLP_UNICAST_FRAMES "enable frame transmission as unicast via best link to neighbor"
-#define DEF_UNICAST_FRAMES TYP_UNICAST_FRAMES_WIFI
-#define MIN_UNICAST_FRAMES 0
-#define MAX_UNICAST_FRAMES 2
-#define TYP_UNICAST_FRAMES_NEVER 0
-#define TYP_UNICAST_FRAMES_WIFI 1    // only on wireless links when addressing specific neighbors
-#define TYP_UNICAST_FRAMES_ALWAYS 2      // all interfaces to all neighbors
+#define HLP_UNICAST_FRAMES "Send protocol frames as unicast. 0=never, 1=dev or system specific, 2=only wireless, 3=only wired, 4=if possible"
+#define MIN_UNICAST_FRAMES        0
+#define TYP_UNICAST_FRAMES_NEVER  0
+#define TYP_UNICAST_FRAMES_BYDEV  1    // as defined per interface or system
+#define TYP_UNICAST_FRAMES_WIFI   2    // only on wireless links when addressing specific neighbors
+#define TYP_UNICAST_FRAMES_WIRED  3    // only on wired links when addressing specific neighbors
+#define TYP_UNICAST_FRAMES_MOSTLY 4    // all interfaces to all neighbors
+#define MAX_UNICAST_FRAMES        4
+#define DEF_UNICAST_FRAMES TYP_UNICAST_FRAMES_BYDEV
 
 
 #define ARG_UDPD_SIZE "prefUdpSize"
@@ -495,8 +497,8 @@ void rx_packet(struct packet_buff *pb);
 
 #define SCHEDULE_UNKNOWN_MSGS_SIZE 0
 #define SCHEDULE_MIN_MSG_SIZE -1
-
-void schedule_tx_task(uint8_t f_type, uint8_t unicast, LinkNode *txLink, struct dev_node *txDev, CRYPTSHA_T *groupId, struct neigh_node *neigh, int16_t f_msgs_len, void *keyData, uint32_t keyLen);
+void schedule_tx_task_viaAllLinks(uint8_t f_type, CRYPTSHA_T *groupId, struct neigh_node *neighCtx, int16_t f_msgs_len, void *keyData, uint32_t keyLen);
+void schedule_tx_task(uint8_t f_type, LinkNode *txLink, struct dev_node *txDev, CRYPTSHA_T *groupId, struct neigh_node *neigh, int16_t f_msgs_len, void *keyData, uint32_t keyLen);
 
 void register_frame_handler(struct frame_db *db, int pos, struct frame_handl *handl);
 

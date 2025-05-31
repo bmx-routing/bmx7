@@ -35,6 +35,7 @@
 
 #include <sys/types.h>
 #include <asm/types.h>
+#include <dirent.h>
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
 
@@ -2196,6 +2197,49 @@ DEVIDX_T get_free_devidx(void)
 	return DEVIDX_INVALID;
 }
 
+
+STATIC_FUNC
+IDM_T dev_get_sys_kernel_debug_ieee80211(struct dev_node *dev)
+{
+    DIR *phyDp;
+    dev->ieee80211_debugfs = NO;
+    dev->ieee80211_rateControl = NO;
+    if ((phyDp  = opendir (IEEE80211_DEBUGFS)) != NULL) {
+        struct dirent *phyEp;
+        while ((phyEp = readdir (phyDp)) != NULL) {
+            if (phyEp->d_type == DT_DIR && strcmp(phyEp->d_name, "..") && strcmp(phyEp->d_name, ".")) {
+                char path[PATH_MAX] = {0};
+                DIR *dp;
+
+                snprintf(path, (PATH_MAX-1), "%s/%s/netdev:%s/", IEEE80211_DEBUGFS, phyEp->d_name, dev->ifname_phy.str);
+                if ((dp  = opendir (path)) != NULL) {
+                    strncpy(dev->ifname_hw.str, phyEp->d_name, (IFNAMSIZ-1));
+                    dev->ieee80211_debugfs = YES;
+
+                    FILE *f;
+                    snprintf(path, (PATH_MAX-1), "%s/%s/rc/api_control", IEEE80211_DEBUGFS, dev->ifname_hw.str);
+                    if ((f = fopen(path, "w")) != NULL ) {
+//                            char command[PATH_MAX] = {0};
+//                            snprintf(command, PATH_MAX-1, "start;%s;stats", dev->ifname_phy.str);
+//                            if ( fprintf(f, "%s", command) != ((int)strlen(command))) {
+//                                dev->ieee80211_rateControl = YES;
+//                            }
+                        (void) fclose(f);
+                    }
+
+                    (void) closedir (dp);
+                }
+
+                dbgf_sys(DBGT_INFO, "Checked dev=%s in phy=%s ieee80211=%d rc/api_event=%d via: %s ",
+                         dev->ifname_phy.str, phyEp->d_name, dev->ieee80211_debugfs, dev->ieee80211_rateControl, path);
+            }
+      }
+      (void) closedir (phyDp);
+    }
+
+    return (dev->ieee80211_debugfs ? SUCCESS : FAILURE);
+}
+
 STATIC_FUNC
 void dev_activate(struct dev_node *dev)
 {
@@ -2236,8 +2280,7 @@ void dev_activate(struct dev_node *dev)
 		} else /* check if interface is a wireless interface */ {
 
 			struct ifreq int_req;
-
-			if (get_if_req(dev, &int_req, SIOCGIWNAME) == SUCCESS)
+			if ((dev_get_sys_kernel_debug_ieee80211(dev) == SUCCESS) || (get_if_req(dev, &int_req, SIOCGIWNAME) == SUCCESS))
 				dev->linklayer = TYP_DEV_LL_WIFI;
 			else
 				dev->linklayer = TYP_DEV_LL_LAN;
@@ -3096,7 +3139,8 @@ struct dev_status {
 	char *state;
 	char *linkKey;
 	char linkKeys[30];
-	char *phy;
+	char *iface;
+    char *phy;
 	char *type;
 	uint8_t channel;
 	UMETRIC_T rateMax;
@@ -3119,6 +3163,7 @@ static const struct field_format dev_status_format[] = {
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,              dev_status, state,       1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,              dev_status, linkKey,     1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_STRING_CHAR,               dev_status, linkKeys,    1, FIELD_RELEVANCE_HIGH),
+        FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,              dev_status, iface,       1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,              dev_status, phy,         1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_POINTER_CHAR,              dev_status, type,        1, FIELD_RELEVANCE_HIGH),
         FIELD_FORMAT_INIT(FIELD_TYPE_UINT,                      dev_status, channel,     1, FIELD_RELEVANCE_HIGH),
@@ -3153,7 +3198,8 @@ static int32_t dev_status_creator(struct status_handl *handl, void* data)
 
 
 		status[i].dev = dev->ifname_label.str;
-		status[i].phy = strlen(dev->ifname_label.str) ? dev->ifname_label.str : DBG_NIL;
+		status[i].iface = strlen(dev->ifname_label.str) ? dev->ifname_label.str : DBG_NIL;
+        status[i].phy   = strlen(dev->ifname_hw.str) ? dev->ifname_hw.str : DBG_NIL;
 		status[i].state = iff_up ? "UP" : "DOWN";
 		status[i].linkKey = cryptRsaKeyTypeAsString(dev->lastTxKey) ? cryptRsaKeyTypeAsString(dev->lastTxKey) : cryptDhmKeyTypeAsString(dev->lastTxKey);
 		struct dsc_msg_pubkey *rsaMsg = myKey->on ? contents_data(myKey->on->dc, BMX_DSC_TLV_RSA_LINK_PUBKEY) : NULL;

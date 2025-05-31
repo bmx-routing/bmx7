@@ -318,6 +318,7 @@ extern struct avl_tree dev_name_tree;
 //extern IDM_T dev_soft_conf_changed; // temporary enabled to trigger changed interface configuration
 
 #define IFCONFIG_PATH_PROCNET_DEV  "/proc/net/dev"
+#define IEEE80211_DEBUGFS "/sys/kernel/debug/ieee80211"
 
 struct user_net_device_stats {
 	unsigned long long rx_packets; /* total packets received       */
@@ -480,6 +481,9 @@ struct dev_node {
 	IFNAME_T ifname_label; // includes alias colons
 	IFNAME_T ifname_device; // includes vlan dots, without colons, key for dev_name_tree
 	IFNAME_T ifname_phy; // without dots and colons
+    IFNAME_T ifname_hw; // Phy as listed in /sys/kernel/debug/ieee80211/
+    IDM_T ieee80211_debugfs;
+    IDM_T ieee80211_rateControl;
 
 	LinkNode dummyLink;
 

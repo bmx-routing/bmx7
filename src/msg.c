@@ -56,7 +56,7 @@
 static int32_t drop_all_packets = DEF_DROP_ALL_PACKETS;
 
 int32_t pref_udpd_size = DEF_UDPD_SIZE;
-int32_t unicast_frames = YES;
+int32_t unicast_frames = DEF_UNICAST_FRAMES;
 
 int32_t txCasualInterval = DEF_TX_CASUAL_INTERVAL;
 int32_t txMinInterval = DEF_TX_MIN_INTERVAL;

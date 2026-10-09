@@ -26,6 +26,7 @@
 #define MBEDTLS_2_8_0  2280
 #define MBEDTLS_3_0_0  2300
 #define MBEDTLS_3_6_0  2360
+#define MBEDTLS_4_0_0  2400
 #define MBEDTLS_MAX    2999
 
 #include "mbedtls/version.h"
@@ -33,8 +34,10 @@
 #define CRYPTLIB MBEDTLS_2_8_0
 #elif (MBEDTLS_VERSION_NUMBER >= 0x01000000 && MBEDTLS_VERSION_NUMBER < 0x03000000)
 #define CRYPTLIB MBEDTLS_2_8_0
-#elif (MBEDTLS_VERSION_NUMBER >= 0x03000000)
+#elif (MBEDTLS_VERSION_NUMBER >= 0x03000000 && MBEDTLS_VERSION_NUMBER < 0x04000000)
 #define CRYPTLIB MBEDTLS_3_6_0
+#elif (MBEDTLS_VERSION_NUMBER >= 0x04000000)
+#define CRYPTLIB MBEDTLS_4_0_0
 #endif
 
 #define CRYPT_DER_BUF_SZ 16000
@@ -80,9 +83,19 @@
 #define CRYPT_DHM3072_TYPE 18 //DHM parameter defined in DHM_RFC3526_MODP_3072_P /_G
 #define CRYPT_DHM3072_LEN  (3072/8)
 #define CRYPT_DHM3072_NAME "DH3072M112"
+/*
+ * The RFC 7919 groups. Mbed TLS 4.x (PSA) only supports these for
+ * finite field Diffie-Hellman, not the RFC 3526 MODP groups above.
+ */
+#define CRYPT_FFDHE2048_TYPE 19 //DHM parameter defined in DHM_RFC7919_FFDHE2048_P /_G
+#define CRYPT_FFDHE2048_LEN  (2048/8) //256
+#define CRYPT_FFDHE2048_NAME "FFDHE2048M112"
+#define CRYPT_FFDHE3072_TYPE 20 //DHM parameter defined in DHM_RFC7919_FFDHE3072_P /_G
+#define CRYPT_FFDHE3072_LEN  (3072/8)
+#define CRYPT_FFDHE3072_NAME "FFDHE3072M112"
 
 #define CRYPT_DHM_MIN_TYPE CRYPT_DHM2048_TYPE
-#define CRYPT_DHM_MAX_TYPE CRYPT_DHM3072_TYPE
+#define CRYPT_DHM_MAX_TYPE CRYPT_FFDHE3072_TYPE
 #define CRYPT_DHM_MAX_LEN CRYPT_DHM3072_LEN
 
 #define CRYPT_SHA_LEN (224/8)//28
@@ -128,6 +141,7 @@ typedef struct CRYPTDHM_T {
 
 uint8_t cryptDhmKeyTypeByLen(int len);
 uint16_t cryptDhmKeyLenByType(int type);
+int cryptDhmKeyTypeSupported(int type);
 char *cryptDhmKeyTypeAsString(int type);
 
 void cryptDhmKeyFree(CRYPTDHM_T **cryptKey);

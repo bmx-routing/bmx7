@@ -1548,7 +1548,7 @@ int32_t opt_linkSigning(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct
 
 			int32_t val = (patch->diff == ADD) ? strtol(patch->val, NULL, 10) : DEF_LINK_DHM_TX_TYPE;
 
-			if (val && !cryptDhmKeyLenByType(val))
+			if (val && !cryptDhmKeyTypeSupported(val))
 				return FAILURE;
 
 			if (cmd == OPT_APPLY)

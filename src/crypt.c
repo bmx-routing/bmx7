@@ -41,6 +41,16 @@ static CRYPTRSA_T *my_PrivKey = NULL;
 #if (CRYPTLIB >= MBEDTLS_MIN && CRYPTLIB <= MBEDTLS_MAX)
 /******************* accessing mbedtls: *************************************/
 
+#if (CRYPTLIB >= MBEDTLS_4_0_0)
+/*
+ * mbedTLS 4.x only provides the PSA Crypto API: the hash, RSA, DHM, bignum,
+ * entropy and CTR-DRBG modules used below for older versions are private.
+ */
+#include "psa/crypto.h"
+#include "mbedtls/asn1.h"
+#include "mbedtls/asn1write.h"
+#include "mbedtls/pk.h"
+#else
 #if (CRYPTLIB >= MBEDTLS_2_8_0 && CRYPTLIB < MBEDTLS_3_0_0)
 //#include "mbedtls/compat-1.3.h"
 #include "mbedtls/config.h"
@@ -57,11 +67,12 @@ static CRYPTRSA_T *my_PrivKey = NULL;
 #include "mbedtls/ctr_drbg.h"
 #include "mbedtls/pk.h"
 
-#endif
-
 static mbedtls_entropy_context entropy_ctx;
 static mbedtls_ctr_drbg_context ctr_drbg;
 static mbedtls_sha256_context sha_ctx;
+#endif
+
+#endif
 
 
 uint8_t cryptDhmKeyTypeByLen(int len)
@@ -75,7 +86,23 @@ uint16_t cryptDhmKeyLenByType(int type)
 {
 	return type == CRYPT_DHM2048_TYPE ? CRYPT_DHM2048_LEN : (
 		type == CRYPT_DHM3072_TYPE ? CRYPT_DHM3072_LEN : (
-		0));
+		type == CRYPT_FFDHE2048_TYPE ? CRYPT_FFDHE2048_LEN : (
+		type == CRYPT_FFDHE3072_TYPE ? CRYPT_FFDHE3072_LEN : (
+		0))));
+}
+
+/*
+ * Whether we can create keys of this type. Neighbors may use types we
+ * don't support, so cryptDhmKeyLenByType() still knows them.
+ */
+int cryptDhmKeyTypeSupported(int type)
+{
+#if (CRYPTLIB >= MBEDTLS_4_0_0)
+	/* PSA only supports the RFC 7919 groups */
+	return type == CRYPT_FFDHE2048_TYPE || type == CRYPT_FFDHE3072_TYPE;
+#else
+	return cryptDhmKeyLenByType(type) ? YES : NO;
+#endif
 }
 
 char *cryptDhmKeyTypeAsString(int type)
@@ -83,8 +110,590 @@ char *cryptDhmKeyTypeAsString(int type)
 	return type == CRYPT_DHM1024_TYPE ? CRYPT_DHM1024_NAME : (
 		type == CRYPT_DHM2048_TYPE ? CRYPT_DHM2048_NAME : (
 		type == CRYPT_DHM3072_TYPE ? CRYPT_DHM3072_NAME : (
-		NULL)));
+		type == CRYPT_FFDHE2048_TYPE ? CRYPT_FFDHE2048_NAME : (
+		type == CRYPT_FFDHE3072_TYPE ? CRYPT_FFDHE3072_NAME : (
+		NULL)))));
 }
+
+#if (CRYPTLIB >= MBEDTLS_4_0_0)
+/*
+ * mbedTLS 4.x: PSA Crypto API
+ *
+ * backendKey points to the psa_key_id_t of the key. A RSA key is used for
+ * PKCS#1 v1.5 signatures with SHA-224 and, as the enrollment algorithm,
+ * for PKCS#1 v1.5 encryption, like with older mbedTLS versions.
+ */
+#define CRYPT_RSA_SIGN_ALG  PSA_ALG_RSA_PKCS1V15_SIGN(PSA_ALG_SHA_224)
+#define CRYPT_RSA_CRYPT_ALG PSA_ALG_RSA_PKCS1V15_CRYPT
+#define CRYPT_RSA_USAGE     (PSA_KEY_USAGE_SIGN_HASH | PSA_KEY_USAGE_VERIFY_HASH | \
+                             PSA_KEY_USAGE_ENCRYPT | PSA_KEY_USAGE_DECRYPT)
+
+static psa_hash_operation_t sha_op;
+
+static psa_key_id_t *cryptKeyIdNew(void)
+{
+	return debugMallocReset(sizeof(psa_key_id_t), -300830);
+}
+
+static void cryptKeyIdFree(void **backendKey)
+{
+	if (*backendKey) {
+		psa_destroy_key(*((psa_key_id_t *) *backendKey));
+		debugFree(*backendKey, -300828);
+		*backendKey = NULL;
+	}
+}
+
+static int cryptKeyBits(void *backendKey)
+{
+	psa_key_attributes_t attr = PSA_KEY_ATTRIBUTES_INIT;
+	int bits = 0;
+
+	if (backendKey && psa_get_key_attributes(*((psa_key_id_t *) backendKey), &attr) == PSA_SUCCESS)
+		bits = psa_get_key_bits(&attr);
+	psa_reset_key_attributes(&attr);
+	return bits;
+}
+
+void cryptDhmKeyFree(CRYPTDHM_T **cryptKey)
+{
+	if (!*cryptKey)
+		return;
+
+	cryptKeyIdFree(&(*cryptKey)->backendKey);
+	debugFree((*cryptKey), -300614);
+	*cryptKey = NULL;
+}
+
+CRYPTDHM_T *cryptDhmKeyMake(uint8_t keyType, uint8_t attempt)
+{
+	char *goto_error_code = NULL;
+	int keyLen = 0;
+	psa_status_t st = PSA_SUCCESS;
+	psa_key_attributes_t attr = PSA_KEY_ATTRIBUTES_INIT;
+	CRYPTDHM_T *key = debugMallocReset(sizeof(CRYPTDHM_T), -300829);
+	psa_key_id_t *id = cryptKeyIdNew();
+
+	key->backendKey = id;
+
+	if (!(keyType))
+		goto_error(finish, "Missing type");
+	if (!cryptDhmKeyTypeSupported(keyType) || (keyLen = cryptDhmKeyLenByType(keyType)) <= 0)
+		goto_error(finish, "Unsupported dhm type!");
+
+	psa_set_key_type(&attr, PSA_KEY_TYPE_DH_KEY_PAIR(PSA_DH_FAMILY_RFC7919));
+	psa_set_key_bits(&attr, keyLen * 8);
+	psa_set_key_usage_flags(&attr, PSA_KEY_USAGE_DERIVE);
+	psa_set_key_algorithm(&attr, PSA_ALG_FFDH);
+
+	if ((st = psa_generate_key(&attr, id)) != PSA_SUCCESS)
+		goto_error(finish, "Failed creating dhm key pair");
+
+	key->rawGXType = keyType;
+	key->rawGXLen = keyLen;
+
+finish:
+	dbgf(goto_error_code ? DBGL_SYS : DBGL_CHANGES, goto_error_code ? DBGT_ERR : DBGT_INFO,
+		"%s ret=%d keyType=%d keyLen=%d attempt=%d",
+		goto_error_code?goto_error_code:"SUCCESS", (int) st, keyType, keyLen, attempt);
+
+	if (goto_error_code) {
+		cryptDhmKeyFree(&key);
+		assertion(-502718, (0));
+		return NULL;
+	}
+
+	return key;
+}
+
+void cryptDhmPubKeyGetRaw(CRYPTDHM_T* key, uint8_t* buff, uint16_t buffLen)
+{
+	size_t len = 0;
+
+	assertion_dbg(-502719, (key && buff && buffLen && key->rawGXType && buffLen == key->rawGXLen),
+		"Failed: key=%d buff=%d buffLen=%d key.GXLen=%d", !!key, !!buff, buffLen, key ? key->rawGXLen : 0);
+
+	/* The public value is exported with the size of the prime */
+	psa_status_t st = psa_export_public_key(*((psa_key_id_t *) key->backendKey), buff, buffLen, &len);
+
+	assertion_dbg(-502720, (st == PSA_SUCCESS && len == buffLen), "Failed: st=%d len=%zd", (int) st, len);
+}
+
+CRYPTSHA_T *cryptDhmSecretForNeigh(CRYPTDHM_T *myDhm, uint8_t *neighRawKey, uint16_t neighRawKeyLen)
+{
+	char *goto_error_code = NULL;
+	psa_status_t st = PSA_SUCCESS;
+	CRYPTSHA_T *secret = NULL;
+	uint8_t buff[CRYPT_DHM_MAX_LEN];
+	size_t n = 0, z = 0;
+
+	if (!myDhm || !myDhm->backendKey || !myDhm->rawGXType)
+		goto_error(finish, "Disabled dhm link signing");
+
+	/* The callers already check that the neighbor announced the same type */
+	if (neighRawKeyLen != myDhm->rawGXLen || sizeof(buff) < neighRawKeyLen)
+		goto_error(finish, "Wrong keyLength");
+
+	if (cryptKeyBits(myDhm->backendKey) != myDhm->rawGXLen * 8)
+		goto_error(finish, "Failed key check");
+
+	/* This also checks that 1 < GY < P - 1 */
+	if ((st = psa_raw_key_agreement(PSA_ALG_FFDH, *((psa_key_id_t *) myDhm->backendKey),
+		neighRawKey, neighRawKeyLen, buff, sizeof(buff), &n)) != PSA_SUCCESS)
+		goto_error(finish, "Failed calculating secret");
+
+	/* PSA pads the secret to the size of the prime, while mbedtls_dhm_calc_secret()
+	 * doesn't. Strip the leading zeros, so that the secret is the same for
+	 * neighbors using an older mbedTLS version. */
+	while (z < n && !buff[z])
+		z++;
+	memmove(buff, buff + z, n - z);
+	n -= z;
+
+	if (n > neighRawKeyLen || n < ((neighRawKeyLen / 4)*3))
+		goto_error(finish, "Unexpected secret length");
+
+	secret = debugMallocReset(sizeof(CRYPTSHA_T), -300831);
+	cryptShaAtomic(buff, n, secret);
+
+finish:
+	dbgf(((goto_error_code || n != neighRawKeyLen) ? DBGL_SYS : DBGL_CHANGES), ((goto_error_code || n != neighRawKeyLen) ? DBGT_WARN : DBGT_INFO),
+		"%s st=%d n=%zd neighKeyLen=%d myKeyLen=%d", goto_error_code, (int) st, n, neighRawKeyLen, myDhm ? myDhm->rawGXLen : 0);
+
+	memset(buff, 0, sizeof(buff));
+	return secret;
+}
+
+void cryptRsaKeyFree(CRYPTRSA_T **cryptKey)
+{
+	if (!*cryptKey)
+		return;
+
+	cryptKeyIdFree(&(*cryptKey)->backendKey);
+	debugFree((*cryptKey), -300614);
+	*cryptKey = NULL;
+}
+
+/* Get the modulus from the DER encoded RSAPublicKey of PSA. */
+static int cryptRsaDerGetModulus(uint8_t *der, size_t derLen, uint8_t **n, size_t *nLen)
+{
+	unsigned char *p = der;
+	const unsigned char *end = der + derLen;
+	size_t len;
+
+	if (mbedtls_asn1_get_tag(&p, end, &len, MBEDTLS_ASN1_CONSTRUCTED | MBEDTLS_ASN1_SEQUENCE) ||
+		mbedtls_asn1_get_tag(&p, end, &len, MBEDTLS_ASN1_INTEGER))
+		return FAILURE;
+
+	while (len && !*p) {
+		p++;
+		len--;
+	}
+
+	*n = p;
+	*nLen = len;
+	return SUCCESS;
+}
+
+int cryptRsaPubKeyGetRaw(CRYPTRSA_T *key, uint8_t *buff, uint16_t buffLen)
+{
+	uint8_t der[PSA_EXPORT_PUBLIC_KEY_MAX_SIZE];
+	size_t derLen = 0, nLen = 0;
+	uint8_t *n = NULL;
+
+	if (!key || !buff || !buffLen ||
+		!key->rawKeyType || (buffLen != key->rawKeyLen) || !key->backendKey ||
+		psa_export_public_key(*((psa_key_id_t *) key->backendKey), der, sizeof(der), &derLen) != PSA_SUCCESS ||
+		cryptRsaDerGetModulus(der, derLen, &n, &nLen) != SUCCESS ||
+		nLen != buffLen) {
+
+		return FAILURE;
+	}
+
+	memcpy(buff, n, nLen);
+	return SUCCESS;
+}
+
+/* Write an unsigned big-endian integer as ASN.1 INTEGER. */
+static int cryptAsn1WriteUint(unsigned char **p, unsigned char *start, const uint8_t *val, size_t valLen)
+{
+	int len = 0, ret;
+
+	if ((ret = mbedtls_asn1_write_raw_buffer(p, start, val, valLen)) < 0)
+		return ret;
+	len += ret;
+	if (val[0] & 0x80) {
+		if (*p - start < 1)
+			return MBEDTLS_ERR_ASN1_BUF_TOO_SMALL;
+		*--(*p) = 0x00;
+		len++;
+	}
+	if ((ret = mbedtls_asn1_write_len(p, start, len)) < 0)
+		return ret;
+	len += ret;
+	if ((ret = mbedtls_asn1_write_tag(p, start, MBEDTLS_ASN1_INTEGER)) < 0)
+		return ret;
+	return len + ret;
+}
+
+CRYPTRSA_T *cryptRsaPubKeyFromRaw(uint8_t *rawKey, uint16_t rawKeyLen)
+{
+	assertion(-502024, (rawKey && cryptRsaKeyTypeByLen(rawKeyLen)));
+
+	uint32_t e = htonl(CRYPT_KEY_E_VAL);
+	const uint8_t *eStart = (const uint8_t *) &e;
+	size_t eLen = sizeof(e);
+	uint8_t der[CRYPT_RSA_MAX_LEN + 32];
+	unsigned char *p = der + sizeof(der);
+	int len = 0, ret;
+	psa_key_attributes_t attr = PSA_KEY_ATTRIBUTES_INIT;
+
+	while (eLen > 1 && !*eStart) {
+		eStart++;
+		eLen--;
+	}
+
+	/* RSAPublicKey ::= SEQUENCE { modulus INTEGER, publicExponent INTEGER } */
+	if ((ret = cryptAsn1WriteUint(&p, der, eStart, eLen)) < 0)
+		return NULL;
+	len += ret;
+	if ((ret = cryptAsn1WriteUint(&p, der, rawKey, rawKeyLen)) < 0)
+		return NULL;
+	len += ret;
+	if ((ret = mbedtls_asn1_write_len(&p, der, len)) < 0)
+		return NULL;
+	len += ret;
+	if ((ret = mbedtls_asn1_write_tag(&p, der, MBEDTLS_ASN1_CONSTRUCTED | MBEDTLS_ASN1_SEQUENCE)) < 0)
+		return NULL;
+	len += ret;
+
+	CRYPTRSA_T *cryptKey = debugMallocReset(sizeof(CRYPTRSA_T), -300615);
+	psa_key_id_t *id = cryptKeyIdNew();
+	cryptKey->backendKey = id;
+
+	psa_set_key_type(&attr, PSA_KEY_TYPE_RSA_PUBLIC_KEY);
+	psa_set_key_usage_flags(&attr, PSA_KEY_USAGE_VERIFY_HASH | PSA_KEY_USAGE_ENCRYPT);
+	psa_set_key_algorithm(&attr, CRYPT_RSA_SIGN_ALG);
+	psa_set_key_enrollment_algorithm(&attr, CRYPT_RSA_CRYPT_ALG);
+
+	if (psa_import_key(&attr, p, len, id) != PSA_SUCCESS) {
+		cryptRsaKeyFree(&cryptKey);
+		return NULL;
+	}
+
+	assertion(-500000, (cryptKeyBits(id) == rawKeyLen * 8));
+	cryptKey->rawKeyLen = rawKeyLen;
+	cryptKey->rawKeyType = cryptRsaKeyTypeByLen(rawKeyLen);
+
+#ifdef EXTREME_PARANOIA
+	uint8_t buff[rawKeyLen];
+	memset(buff, 0, rawKeyLen);
+	int test = cryptRsaPubKeyGetRaw(cryptKey, buff, rawKeyLen);
+	assertion(-502721, (test == SUCCESS));
+	assertion(-502722, (memcmp(rawKey, buff, rawKeyLen) == 0));
+#endif
+
+	return cryptKey;
+}
+
+int cryptRsaPubKeyCheck(CRYPTRSA_T *pubKey)
+{
+	assertion(-502141, (pubKey));
+	assertion(-502142, (pubKey->backendKey));
+
+	/* The key was checked when it was imported */
+	int len = cryptKeyBits(pubKey->backendKey) / 8;
+
+	if (!len || len != cryptRsaKeyLenByType(pubKey->rawKeyType) || len != pubKey->rawKeyLen)
+		return FAILURE;
+
+	return SUCCESS;
+}
+
+CRYPTRSA_T *cryptRsaKeyFromDer(char *keyPath)
+{
+	assertion(-502029, (!my_PrivKey));
+
+	CRYPTRSA_T *privKey = debugMallocReset(sizeof(CRYPTRSA_T), -300619);
+	CRYPTRSA_T *pubKey = NULL;
+	psa_key_id_t *id = cryptKeyIdNew();
+	privKey->backendKey = id;
+	int ret = 0;
+	int keyType = 0;
+	int keyLen = 0;
+	uint8_t keyBuff[CRYPT_RSA_MAX_LEN];
+	psa_key_attributes_t attr = PSA_KEY_ATTRIBUTES_INIT;
+
+	mbedtls_pk_context pk;
+	mbedtls_pk_init(&pk);
+
+	if (((ret = mbedtls_pk_parse_keyfile(&pk, keyPath, "")) != 0) ||
+		!PSA_KEY_TYPE_IS_RSA(mbedtls_pk_get_key_type(&pk)) ||
+		((ret = mbedtls_pk_get_psa_attributes(&pk, PSA_KEY_USAGE_SIGN_HASH, &attr)) != 0)) {
+		dbgf_sys(DBGT_ERR, "failed opening private key=%s err=-%X", keyPath, -ret);
+		mbedtls_pk_free(&pk);
+		cryptRsaKeyFree(&privKey);
+		return NULL;
+	}
+
+	psa_set_key_usage_flags(&attr, CRYPT_RSA_USAGE);
+	psa_set_key_algorithm(&attr, CRYPT_RSA_SIGN_ALG);
+	psa_set_key_enrollment_algorithm(&attr, CRYPT_RSA_CRYPT_ALG);
+
+	ret = mbedtls_pk_import_into_psa(&pk, &attr, id);
+	mbedtls_pk_free(&pk);
+	if (ret) {
+		dbgf_sys(DBGT_ERR, "failed importing private key=%s err=-%X", keyPath, -ret);
+		*id = PSA_KEY_ID_NULL;
+		cryptRsaKeyFree(&privKey);
+		return NULL;
+	}
+
+	if (
+		((keyLen = cryptKeyBits(id) / 8) <= 0) ||
+		!(keyType = cryptRsaKeyTypeByLen(keyLen)) ||
+		!(privKey->rawKeyType = keyType) ||
+		!(privKey->rawKeyLen = keyLen) ||
+		(cryptRsaPubKeyGetRaw(privKey, keyBuff, keyLen) != SUCCESS) ||
+		!(pubKey = cryptRsaPubKeyFromRaw(keyBuff, keyLen))) {
+
+		cryptRsaKeyFree(&privKey);
+		return NULL;
+	}
+
+	my_PrivKey = privKey;
+	return pubKey;
+}
+
+#ifndef NO_KEY_GEN
+
+int cryptRsaKeyMakeDer(int32_t keyType, char *path)
+{
+	int32_t keyBitSize = (cryptRsaKeyLenByType(keyType) * 8);
+	FILE* keyFile = NULL;
+	unsigned char derBuf[PSA_EXPORT_KEY_PAIR_MAX_SIZE];
+	size_t derSz = 0;
+	psa_status_t st = PSA_SUCCESS;
+	psa_key_id_t id = PSA_KEY_ID_NULL;
+	psa_key_attributes_t attr = PSA_KEY_ATTRIBUTES_INIT;
+	char *goto_error_code = NULL;
+
+	memset(derBuf, 0, sizeof(derBuf));
+
+	/* The public exponent is 65537 (CRYPT_KEY_E_VAL) by default */
+	psa_set_key_type(&attr, PSA_KEY_TYPE_RSA_KEY_PAIR);
+	psa_set_key_bits(&attr, keyBitSize);
+	psa_set_key_usage_flags(&attr, PSA_KEY_USAGE_EXPORT);
+
+	if ((st = psa_generate_key(&attr, &id)) != PSA_SUCCESS)
+		goto_error(finish, "Failed making rsa key!");
+
+	/* The PKCS#1 RSAPrivateKey DER format, as written by mbedtls_pk_write_key_der() */
+	if ((st = psa_export_key(id, derBuf, sizeof(derBuf), &derSz)) != PSA_SUCCESS)
+		goto_error(finish, "Failed translating rsa key to der!");
+
+	if (!(keyFile = fopen(path, "wb")) || fwrite(derBuf, 1, derSz, keyFile) != derSz)
+		goto_error(finish, "Failed writing");
+
+finish:
+	memset(derBuf, 0, sizeof(derBuf));
+	psa_destroy_key(id);
+
+	if (keyFile)
+		fclose(keyFile);
+
+	if (goto_error_code) {
+		dbgf_sys(DBGT_ERR, "%s st=%d derSz=%zd path=%s", goto_error_code, (int) st, derSz, path);
+		return FAILURE;
+	}
+
+	return SUCCESS;
+}
+
+CRYPTRSA_T *cryptRsaKeyMake(uint8_t keyType)
+{
+	int32_t keyLen = cryptRsaKeyLenByType(keyType);
+	psa_status_t st = PSA_SUCCESS;
+	psa_key_attributes_t attr = PSA_KEY_ATTRIBUTES_INIT;
+	char *goto_error_code = NULL;
+	CRYPTRSA_T *key = debugMallocReset(sizeof(CRYPTRSA_T), -300642);
+	psa_key_id_t *id = cryptKeyIdNew();
+
+	key->backendKey = id;
+
+	psa_set_key_type(&attr, PSA_KEY_TYPE_RSA_KEY_PAIR);
+	psa_set_key_bits(&attr, keyLen * 8);
+	psa_set_key_usage_flags(&attr, CRYPT_RSA_USAGE);
+	psa_set_key_algorithm(&attr, CRYPT_RSA_SIGN_ALG);
+	psa_set_key_enrollment_algorithm(&attr, CRYPT_RSA_CRYPT_ALG);
+
+	if ((st = psa_generate_key(&attr, id)) != PSA_SUCCESS)
+		goto_error(finish, "Failed making rsa key!");
+
+	key->rawKeyType = keyType;
+	key->rawKeyLen = keyLen;
+
+finish:
+	if (goto_error_code) {
+		cryptRsaKeyFree(&key);
+		dbgf_sys(DBGT_ERR, "%s st=%d len=%d", goto_error_code, (int) st, keyLen);
+		assertion(-500000, 0);
+		return NULL;
+	}
+
+	return key;
+}
+#endif
+
+int cryptRsaEncrypt(uint8_t *in, size_t inLen, uint8_t *out, size_t *outLen, CRYPTRSA_T *pubKey)
+{
+	size_t len = 0;
+
+	assertion(-502145, (*outLen >= pubKey->rawKeyLen));
+
+	if (psa_asymmetric_encrypt(*((psa_key_id_t *) pubKey->backendKey), CRYPT_RSA_CRYPT_ALG,
+		in, inLen, NULL, 0, out, *outLen, &len) != PSA_SUCCESS)
+		return FAILURE;
+
+	*outLen = len;
+	return SUCCESS;
+}
+
+int cryptRsaDecrypt(uint8_t *in, size_t inLen, uint8_t *out, size_t *outLen)
+{
+	size_t len = 0;
+
+	assertion(-502146, (inLen >= my_PrivKey->rawKeyLen));
+
+	if (psa_asymmetric_decrypt(*((psa_key_id_t *) my_PrivKey->backendKey), CRYPT_RSA_CRYPT_ALG,
+		in, inLen, NULL, 0, out, *outLen, &len) != PSA_SUCCESS)
+		return FAILURE;
+
+	*outLen = len;
+	return SUCCESS;
+}
+
+int cryptRsaSign(CRYPTSHA_T *inSha, uint8_t *out, size_t outLen, CRYPTRSA_T *cryptKey)
+{
+	size_t len = 0;
+
+	if (!cryptKey)
+		cryptKey = my_PrivKey;
+
+	if (outLen < cryptKey->rawKeyLen)
+		return FAILURE;
+
+	if (psa_sign_hash(*((psa_key_id_t *) cryptKey->backendKey), CRYPT_RSA_SIGN_ALG,
+		(uint8_t*) inSha, sizeof(CRYPTSHA_T), out, outLen, &len) != PSA_SUCCESS ||
+		len != cryptKey->rawKeyLen)
+		return FAILURE;
+
+	return SUCCESS;
+}
+
+int cryptRsaVerify(uint8_t *sign, size_t signLen, CRYPTSHA_T *plainSha, CRYPTRSA_T *pubKey)
+{
+	assertion(-502147, (signLen == pubKey->rawKeyLen));
+
+	if (psa_verify_hash(*((psa_key_id_t *) pubKey->backendKey), CRYPT_RSA_SIGN_ALG,
+		(uint8_t*) plainSha, sizeof(CRYPTSHA_T), sign, signLen) != PSA_SUCCESS)
+		return FAILURE;
+
+	return SUCCESS;
+}
+
+void cryptRand(void *out, uint32_t outLen)
+{
+	if (psa_generate_random(out, outLen) != PSA_SUCCESS)
+		cleanup_all(-502148);
+}
+
+STATIC_FUNC
+void cryptRngInit(void)
+{
+	fflush(stdout);
+
+	if (psa_crypto_init() != PSA_SUCCESS)
+		cleanup_all(-502149);
+
+	int test = 0;
+
+	cryptRand(&test, sizeof(test));
+	assertion(-500525, (test));
+}
+
+STATIC_FUNC
+void cryptRngFree(void)
+{
+}
+
+STATIC_FUNC
+void cryptShaInit(void)
+{
+	sha_op = psa_hash_operation_init();
+	shaClean = YES;
+}
+
+STATIC_FUNC
+void cryptShaFree(void)
+{
+	psa_hash_abort(&sha_op);
+}
+
+void cryptShaAtomic(void *in, int32_t len, CRYPTSHA_T *sha)
+{
+	assertion(-502030, (shaClean == YES));
+	assertion(-502031, (sha));
+	assertion(-502032, (in && len > 0 && !memcmp(in, in, len)));
+
+	unsigned char output[PSA_HASH_LENGTH(PSA_ALG_SHA_224)];
+	size_t olen = 0;
+
+	if (psa_hash_compute(PSA_ALG_SHA_224, in, len, output, sizeof(output), &olen) != PSA_SUCCESS)
+		cleanup_all(-502765);
+
+	memcpy(sha, output, sizeof(CRYPTSHA_T));
+	memset(output, 0, sizeof(output));
+}
+
+void cryptShaNew(void *in, int32_t len)
+{
+	assertion(-502033, (shaClean == YES));
+	assertion(-502034, (in && len > 0 && !memcmp(in, in, len)));
+	shaClean = NO;
+
+	sha_op = psa_hash_operation_init();
+	if (psa_hash_setup(&sha_op, PSA_ALG_SHA_224) != PSA_SUCCESS ||
+		psa_hash_update(&sha_op, in, len) != PSA_SUCCESS)
+		cleanup_all(-502766);
+}
+
+void cryptShaUpdate(void *in, int32_t len)
+{
+	assertion(-502035, (shaClean == NO));
+	assertion(-502036, (in && len > 0 && !memcmp(in, in, len)));
+
+	if (psa_hash_update(&sha_op, in, len) != PSA_SUCCESS)
+		cleanup_all(-502767);
+}
+
+void cryptShaFinal(CRYPTSHA_T *sha)
+{
+	assertion(-502037, (shaClean == NO));
+	assertion(-502038, (sha));
+	unsigned char output[PSA_HASH_LENGTH(PSA_ALG_SHA_224)];
+	size_t olen = 0;
+
+	if (psa_hash_finish(&sha_op, output, sizeof(output), &olen) != PSA_SUCCESS)
+		cleanup_all(-502768);
+
+	memcpy(sha, output, sizeof(CRYPTSHA_T));
+	memset(output, 0, sizeof(output));
+
+	shaClean = YES;
+}
+
+#else /* CRYPTLIB < MBEDTLS_4_0_0 */
 
 void cryptDhmKeyFree(CRYPTDHM_T **cryptKey)
 {
@@ -172,6 +781,22 @@ CRYPTDHM_T *cryptDhmKeyMake(uint8_t keyType, uint8_t attempt)
 		if (   (ret = mbedtls_mpi_read_binary(&dhm_P, modp3072P, sizeof(modp3072P) )) != 0
 			|| (ret = mbedtls_mpi_read_binary(&dhm_G, modp3072G, sizeof(modp3072G))) != 0)
 			goto_error(finish, "Failed setting dhm3072 parameters!");
+
+	} else if (keyType == CRYPT_FFDHE2048_TYPE) {
+		static const unsigned char ffdhe2048P[(2048/8)] = MBEDTLS_DHM_RFC7919_FFDHE2048_P_BIN;
+		static const unsigned char ffdhe2048G[1] = MBEDTLS_DHM_RFC7919_FFDHE2048_G_BIN;
+
+		if (   (ret = mbedtls_mpi_read_binary(&dhm_P, ffdhe2048P, sizeof(ffdhe2048P) )) != 0
+			|| (ret = mbedtls_mpi_read_binary(&dhm_G, ffdhe2048G, sizeof(ffdhe2048G))) != 0)
+			goto_error(finish, "Failed setting ffdhe2048 parameters!");
+
+	} else if (keyType == CRYPT_FFDHE3072_TYPE) {
+		static const unsigned char ffdhe3072P[(3072/8)] = MBEDTLS_DHM_RFC7919_FFDHE3072_P_BIN;
+		static const unsigned char ffdhe3072G[1] = MBEDTLS_DHM_RFC7919_FFDHE3072_G_BIN;
+
+		if (   (ret = mbedtls_mpi_read_binary(&dhm_P, ffdhe3072P, sizeof(ffdhe3072P) )) != 0
+			|| (ret = mbedtls_mpi_read_binary(&dhm_G, ffdhe3072G, sizeof(ffdhe3072G))) != 0)
+			goto_error(finish, "Failed setting ffdhe3072 parameters!");
 
 	} else {
 		goto_error(finish, "Unsupported dhm type!");
@@ -291,7 +916,6 @@ finish:
 CRYPTSHA_T *cryptDhmSecretForNeigh(CRYPTDHM_T *myDhm, uint8_t *neighRawKey, uint16_t neighRawKeyLen)
 {
 	char *goto_error_code = NULL;
-	uint8_t keyType = 0;
 	int ret = 0;
 	CRYPTSHA_T *secret = NULL;
 	mbedtls_dhm_context *dhm = NULL;
@@ -301,8 +925,11 @@ CRYPTSHA_T *cryptDhmSecretForNeigh(CRYPTDHM_T *myDhm, uint8_t *neighRawKey, uint
 	if (!myDhm || !(dhm = myDhm->backendKey) || !myDhm->rawGXType)
 		goto_error(finish, "Disabled dhm link signing");
 
-	if (((keyType = cryptDhmKeyTypeByLen(neighRawKeyLen)) != myDhm->rawGXType))
-		goto_error(finish, "Wrong type");
+	/* The MODP and FFDHE types have the same lengths, so the type can't be
+	 * derived from the length. The callers already check that the neighbor
+	 * announced the same type. */
+	if (neighRawKeyLen != myDhm->rawGXLen)
+		goto_error(finish, "Wrong length");
 
 #if (CRYPTLIB >= MBEDTLS_2_8_0 && CRYPTLIB < MBEDTLS_3_0_0)
 	if (((n = dhm->len) != neighRawKeyLen) || (sizeof(buff) < neighRawKeyLen))
@@ -878,10 +1505,13 @@ void cryptShaFinal(CRYPTSHA_T *sha)
 
 
 
+
 /*****************************************************************************/
 #else
 #error "Please fix CRYPTLIB"
 #endif
+
+#endif /* CRYPTLIB >= MBEDTLS_4_0_0 */
 
 char *cryptShaAsString(CRYPTSHA_T *sha)
 {

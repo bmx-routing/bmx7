@@ -80,9 +80,19 @@
 #define CRYPT_DHM3072_TYPE 18 //DHM parameter defined in DHM_RFC3526_MODP_3072_P /_G
 #define CRYPT_DHM3072_LEN  (3072/8)
 #define CRYPT_DHM3072_NAME "DH3072M112"
+/*
+ * The RFC 7919 groups, which PSA supports for finite field Diffie-Hellman
+ * (unlike the RFC 3526 MODP groups above).
+ */
+#define CRYPT_FFDHE2048_TYPE 19 //DHM parameter defined in DHM_RFC7919_FFDHE2048_P /_G
+#define CRYPT_FFDHE2048_LEN  (2048/8) //256
+#define CRYPT_FFDHE2048_NAME "FFDHE2048M112"
+#define CRYPT_FFDHE3072_TYPE 20 //DHM parameter defined in DHM_RFC7919_FFDHE3072_P /_G
+#define CRYPT_FFDHE3072_LEN  (3072/8)
+#define CRYPT_FFDHE3072_NAME "FFDHE3072M112"
 
 #define CRYPT_DHM_MIN_TYPE CRYPT_DHM2048_TYPE
-#define CRYPT_DHM_MAX_TYPE CRYPT_DHM3072_TYPE
+#define CRYPT_DHM_MAX_TYPE CRYPT_FFDHE3072_TYPE
 #define CRYPT_DHM_MAX_LEN CRYPT_DHM3072_LEN
 
 #define CRYPT_SHA_LEN (224/8)//28
@@ -128,6 +138,7 @@ typedef struct CRYPTDHM_T {
 
 uint8_t cryptDhmKeyTypeByLen(int len);
 uint16_t cryptDhmKeyLenByType(int type);
+int cryptDhmKeyTypeSupported(int type);
 char *cryptDhmKeyTypeAsString(int type);
 
 void cryptDhmKeyFree(CRYPTDHM_T **cryptKey);

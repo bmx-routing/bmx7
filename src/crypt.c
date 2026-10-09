@@ -75,7 +75,18 @@ uint16_t cryptDhmKeyLenByType(int type)
 {
 	return type == CRYPT_DHM2048_TYPE ? CRYPT_DHM2048_LEN : (
 		type == CRYPT_DHM3072_TYPE ? CRYPT_DHM3072_LEN : (
-		0));
+		type == CRYPT_FFDHE2048_TYPE ? CRYPT_FFDHE2048_LEN : (
+		type == CRYPT_FFDHE3072_TYPE ? CRYPT_FFDHE3072_LEN : (
+		0))));
+}
+
+/*
+ * Whether we can create keys of this type. Neighbors may use types we
+ * don't support, so cryptDhmKeyLenByType() still knows them.
+ */
+int cryptDhmKeyTypeSupported(int type)
+{
+	return cryptDhmKeyLenByType(type) ? YES : NO;
 }
 
 char *cryptDhmKeyTypeAsString(int type)
@@ -83,7 +94,9 @@ char *cryptDhmKeyTypeAsString(int type)
 	return type == CRYPT_DHM1024_TYPE ? CRYPT_DHM1024_NAME : (
 		type == CRYPT_DHM2048_TYPE ? CRYPT_DHM2048_NAME : (
 		type == CRYPT_DHM3072_TYPE ? CRYPT_DHM3072_NAME : (
-		NULL)));
+		type == CRYPT_FFDHE2048_TYPE ? CRYPT_FFDHE2048_NAME : (
+		type == CRYPT_FFDHE3072_TYPE ? CRYPT_FFDHE3072_NAME : (
+		NULL)))));
 }
 
 void cryptDhmKeyFree(CRYPTDHM_T **cryptKey)
@@ -172,6 +185,22 @@ CRYPTDHM_T *cryptDhmKeyMake(uint8_t keyType, uint8_t attempt)
 		if (   (ret = mbedtls_mpi_read_binary(&dhm_P, modp3072P, sizeof(modp3072P) )) != 0
 			|| (ret = mbedtls_mpi_read_binary(&dhm_G, modp3072G, sizeof(modp3072G))) != 0)
 			goto_error(finish, "Failed setting dhm3072 parameters!");
+
+	} else if (keyType == CRYPT_FFDHE2048_TYPE) {
+		static const unsigned char ffdhe2048P[(2048/8)] = MBEDTLS_DHM_RFC7919_FFDHE2048_P_BIN;
+		static const unsigned char ffdhe2048G[1] = MBEDTLS_DHM_RFC7919_FFDHE2048_G_BIN;
+
+		if (   (ret = mbedtls_mpi_read_binary(&dhm_P, ffdhe2048P, sizeof(ffdhe2048P) )) != 0
+			|| (ret = mbedtls_mpi_read_binary(&dhm_G, ffdhe2048G, sizeof(ffdhe2048G))) != 0)
+			goto_error(finish, "Failed setting ffdhe2048 parameters!");
+
+	} else if (keyType == CRYPT_FFDHE3072_TYPE) {
+		static const unsigned char ffdhe3072P[(3072/8)] = MBEDTLS_DHM_RFC7919_FFDHE3072_P_BIN;
+		static const unsigned char ffdhe3072G[1] = MBEDTLS_DHM_RFC7919_FFDHE3072_G_BIN;
+
+		if (   (ret = mbedtls_mpi_read_binary(&dhm_P, ffdhe3072P, sizeof(ffdhe3072P) )) != 0
+			|| (ret = mbedtls_mpi_read_binary(&dhm_G, ffdhe3072G, sizeof(ffdhe3072G))) != 0)
+			goto_error(finish, "Failed setting ffdhe3072 parameters!");
 
 	} else {
 		goto_error(finish, "Unsupported dhm type!");
@@ -291,7 +320,6 @@ finish:
 CRYPTSHA_T *cryptDhmSecretForNeigh(CRYPTDHM_T *myDhm, uint8_t *neighRawKey, uint16_t neighRawKeyLen)
 {
 	char *goto_error_code = NULL;
-	uint8_t keyType = 0;
 	int ret = 0;
 	CRYPTSHA_T *secret = NULL;
 	mbedtls_dhm_context *dhm = NULL;
@@ -301,8 +329,11 @@ CRYPTSHA_T *cryptDhmSecretForNeigh(CRYPTDHM_T *myDhm, uint8_t *neighRawKey, uint
 	if (!myDhm || !(dhm = myDhm->backendKey) || !myDhm->rawGXType)
 		goto_error(finish, "Disabled dhm link signing");
 
-	if (((keyType = cryptDhmKeyTypeByLen(neighRawKeyLen)) != myDhm->rawGXType))
-		goto_error(finish, "Wrong type");
+	/* The MODP and FFDHE types have the same lengths, so the type can't be
+	 * derived from the length. The callers already check that the neighbor
+	 * announced the same type. */
+	if (neighRawKeyLen != myDhm->rawGXLen)
+		goto_error(finish, "Wrong length");
 
 #if (CRYPTLIB >= MBEDTLS_2_8_0 && CRYPTLIB < MBEDTLS_3_0_0)
 	if (((n = dhm->len) != neighRawKeyLen) || (sizeof(buff) < neighRawKeyLen))
@@ -875,6 +906,7 @@ void cryptShaFinal(CRYPTSHA_T *sha)
 
 	shaClean = YES;
 }
+
 
 
 

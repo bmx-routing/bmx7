@@ -97,8 +97,12 @@ extern int32_t linkRsaSignType;
 #define ARG_LINK_DHM_TX_TYPE "linkDhmKey"
 #define MIN_LINK_DHM_TX_TYPE 0
 #define MAX_LINK_DHM_TX_TYPE CRYPT_DHM_MAX_TYPE
+#if (CRYPTLIB >= MBEDTLS_4_0_0)
+#define DEF_LINK_DHM_TX_TYPE CRYPT_FFDHE2048_TYPE
+#else
 #define DEF_LINK_DHM_TX_TYPE CRYPT_DHM2048_TYPE
-#define HLP_LINK_DHM_TX_TYPE "sign outgoing packets with DH-authenticated HMAC type (0:None and rely on RSA, 16:DH1024M112, 17:DH2048M112, 18:3072M112, 19:FFDHE2048M112, 20:FFDHE3072M112). Type must match that of neighbors"
+#endif
+#define HLP_LINK_DHM_TX_TYPE "sign outgoing packets with DH-authenticated HMAC type (0:None and rely on RSA, 16:DH1024M112, 17:DH2048M112, 18:3072M112, 19:FFDHE2048M112, 20:FFDHE3072M112; 17 and 18 are not available with mbedTLS 4.x). Type must match that of neighbors"
 extern int32_t linkDhmSignType;
 
 

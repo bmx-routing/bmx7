@@ -208,7 +208,7 @@ IDM_T configure_tunnel_in(uint8_t del, struct tun_in_node *tin, int16_t tun6Id)
 		IPX_T remoteIp = (tun_real_src >= TYP_TUN_REAL_SRC_ANY) ?  ZERO_IP : tin->remote;
 
 		if (!is_ip_set(&tin->remote) || is_ip_local(&tin->remote) ||
-			(tin->ingressPrefix46[0].mask && find_overlapping_hna(&tin->ingressPrefix46[0].ip, tin->ingressPrefix46[0].mask, NULL))) {
+			(tin->ingressPrefix46[0].mask && find_overlapping_hna(&tin->ingressPrefix46[0].ip, tin->ingressPrefix46[0].mask, myKey))) {
 
 			dbgf_sys(DBGT_WARN, "FAILED creating tun remoteIp=%s", ip6AsStr(&tin->remote));
 			return FAILURE;
@@ -1396,7 +1396,7 @@ int process_dsc_tlv_tun6(struct rx_frame_iterator *it)
 			if (!is_ip_valid(&adv->localIp, AF_INET6) ||
 				is_ip_net_equal(&adv->localIp, &IP6_LINKLOCAL_UC_PREF, IP6_LINKLOCAL_UC_PLEN, AF_INET6) ||
 				(tin = avl_find_item_by_field(&tun_in_tree, &adv->localIp, tun_in_node, remote)) ||
-				(un = find_overlapping_hna(&adv->localIp, 128, it->on))) {
+				(un = find_overlapping_hna(&adv->localIp, 128, it->dcOp->kn))) {
 				dbgf_sys(DBGT_ERR, "nodeId=%s %s=%s blocked (by my %s=%s or other's %s with nodeId=%s)",
 					nodeIdAsStringFromDescAdv(it->dcOp->desc_frame),
 					ARG_TUN_DEV, ip6AsStr(&adv->localIp),
@@ -2483,7 +2483,7 @@ int32_t opt_tun_in_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
 
 					return FAILURE;
 
-				} else if (net.af == AF_CFG && (hna = find_overlapping_hna(&net.ip, net.mask, NULL))) {
+				} else if (net.af == AF_CFG && (hna = find_overlapping_hna(&net.ip, net.mask, myKey))) {
 
 					dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "%s=%s /%s=%s already used by nodeId=%s hna=%s",
 						opt->name, patch->val, c->opt->name, netAsStr(&net),
@@ -2510,7 +2510,7 @@ int32_t opt_tun_in_dev(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct 
 
 					if (str2netw(c->val, &p6.ip, cn, NULL, &p6.af, YES) == FAILURE ||
 						!is_ip_valid(&p6.ip, p6.af) ||
-						(un_remote = find_overlapping_hna(&p6.ip, 128, NULL))) {
+						(un_remote = find_overlapping_hna(&p6.ip, 128, myKey))) {
 
 						dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "invalid %s=%s %s=%s or blocked by nodeId=%s",
 							ARG_TUN_DEV, patch->val, ARG_TUN_DEV_REMOTE, c->val,

@@ -196,16 +196,21 @@ struct hna_node * find_orig_hna(struct orig_node *on)
 	return un;
 }
 
-struct hna_node * find_overlapping_hna(IPX_T *ipX, uint8_t prefixlen, struct orig_node *except)
+/*
+ * Returns an HNA overlapping with ipX/prefixlen, ignoring the HNAs of the node with the key except
+ * (myKey for my own HNAs). My own HNAs are stored with on == NULL. A node whose first description
+ * is being tested has no orig_node yet, so it must not be identified by its orig_node.
+ */
+struct hna_node * find_overlapping_hna(IPX_T *ipX, uint8_t prefixlen, struct key_node *except)
 {
 	struct hna_node *un;
 	struct avl_node *it = NULL;
 
-	except = (myKey && myKey->on == except) ? NULL : except;
-
 	while ((un = avl_iterate_item(&global_uhna_tree, &it))) {
 
-		if (un->on != except && is_ip_net_equal(ipX, &un->key.ip, XMIN(prefixlen, un->key.mask), AF_CFG))
+		struct key_node *owner = un->on ? un->on->kn : myKey;
+
+		if (owner != except && is_ip_net_equal(ipX, &un->key.ip, XMIN(prefixlen, un->key.mask), AF_CFG))
 			return un;
 
 	}
@@ -355,7 +360,7 @@ int process_dsc_tlv_hna(struct rx_frame_iterator *it)
 
 			// check if node announcements have conflicts with other nodes:
 			struct hna_node *un = NULL;
-			if ((un = find_overlapping_hna(&key.ip, key.mask, on))) {
+			if ((un = find_overlapping_hna(&key.ip, key.mask, it->dcOp->kn))) {
 
 				dbgf_sys(DBGT_ERR, "nodeId=%s %s=%s blocked (by nodeId=%s)",
 					cryptShaAsString(&it->dcOp->kn->kHash), ARG_UHNA, netAsStr(&key),
@@ -424,7 +429,7 @@ int32_t opt_uhna(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt_pa
 
 		if (cmd == OPT_CHECK || cmd == OPT_APPLY) {
 
-			if (patch->diff != DEL && (un = find_overlapping_hna(&hna.ip, hna.mask, NULL))) {
+			if (patch->diff != DEL && (un = find_overlapping_hna(&hna.ip, hna.mask, myKey))) {
 
 				dbg_cn(cn, DBGL_CHANGES, DBGT_ERR,
 					"%s=%s already blocked by nodeId=%s !", ARG_UHNA, netAsStr(&hna),

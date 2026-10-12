@@ -2939,6 +2939,14 @@ int32_t opt_run_dir(uint8_t cmd, uint8_t _save, struct opt_type *opt, struct opt
 		if (wordlen(patch->val) + 1 >= MAX_PATH_SIZE || patch->val[0] != '/')
 			return FAILURE;
 
+		// The control socket <runtimeDir>/sock must fit into sockaddr_un.sun_path
+		if (wordlen(patch->val) + 1 + strlen(BMX_UNIX_SOCK_FILE) >= sizeof(((struct sockaddr_un *) 0)->sun_path)) {
+			dbgf_cn(cn, DBGL_SYS, DBGT_ERR, "%s=%s too long: max %zu characters, so that the path of its %s socket fits",
+				ARG_RUN_DIR, patch->val,
+				sizeof(((struct sockaddr_un *) 0)->sun_path) - 2 - strlen(BMX_UNIX_SOCK_FILE), BMX_UNIX_SOCK_FILE);
+			return FAILURE;
+		}
+
 		snprintf(tmp_dir, wordlen(patch->val) + 1, "%s", patch->val);
 
 		if (check_dir(tmp_dir, YES/*create*/, YES/*writable*/, NO) == FAILURE)
